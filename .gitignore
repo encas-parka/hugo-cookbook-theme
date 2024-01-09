@@ -1,1 +1,6 @@
 .hugo_build.lock
+resources/
+public/
+.vscode/
+.directories
+*_bak
