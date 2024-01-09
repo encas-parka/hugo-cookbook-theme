@@ -1,0 +1,80 @@
+baseURL: '/'
+relativeURLs: true
+canonifyURLs: false
+disableAliases: true
+disableHugoGeneratorInject: true
+removePathAccents: true
+enableEmoji: true
+enableGitInfo: false
+enableRobotsTXT: true
+languageCode: fr-FR
+defaultContentLanguage: fr
+defaultContentLang: fr
+paginate: 24
+rssLimit: 10
+outputs:
+  home:
+    - HTML
+    - REDIRECTS
+    - HEADERS
+mediaTypes:
+  application/json:
+    suffixes:
+      - json
+  text/netlify:
+    suffixes:
+      - ""
+    delimiter: ""
+outputFormats:
+  JSON:
+    mediaType: application/json
+    baseName: index
+    isPlainText: true
+    notAlternative: true
+  REDIRECTS:
+    mediatype: text/netlify
+    baseName: _redirects
+    isPlainText: true
+    notAlternative: true
+  HEADERS:
+    mediatype: text/netlify
+    baseName: _headers
+    isPlainText: true
+    notAlternative: true
+caches:
+  getjson:
+    dir: :cacheDir/:project
+    maxAge: 10s
+sitemap:
+  changefreq: monthly
+  filename: sitemap.xml
+  priority: 0.5
+taxonomies:
+  category: categories
+  regime: regime
+  auteur: auteur
+  region: region
+permalinks:
+  blog: /:title/
+
+related:
+  threshold: 80
+  includeNewer: true
+  toLower: false
+  indices:
+    - name: categories
+      weight: 100
+    - name: date
+      weight: 10
+
+module:
+  # Import assets from hugo-enka-cookbook theme (bootstrap, vue, vuetify, flatpickr, ...js, css and default images & icons)
+  hugoVersion:
+    extended: true
+    min: "0.121.1"
+  imports: 
+    - path: "github.com/encas-parka/hugo-cookbook-theme"
+      disable: false
+
+
+
