@@ -1,9 +1,15 @@
+title: Cookbook Demo
+titleAddition: Des recettes pour pleins
+description: Site collaboratif de partage de recettes et d'organisation d'évènement pour les cantines autogérées.
+
 baseURL: '/'
-theme: 'github.com/encas-parka/hugo-cookbook-theme'
+# theme: 'github.com/encas-parka/hugo-cookbook-theme'
+
+titleSeparator: '-'
 relativeURLs: true
 canonifyURLs: false
 disableAliases: true
-disableHugoGeneratorInject: true
+# disableHugoGeneratorInject: true
 removePathAccents: true
 enableEmoji: true
 enableGitInfo: false
@@ -13,6 +19,7 @@ defaultContentLanguage: fr
 defaultContentLang: fr
 paginate: 24
 rssLimit: 10
+
 outputs:
   home:
     - HTML
@@ -42,6 +49,7 @@ outputFormats:
     baseName: _headers
     isPlainText: true
     notAlternative: true
+
 caches:
   getjson:
     dir: :cacheDir/:project
@@ -68,6 +76,58 @@ related:
     - name: date
       weight: 10
 
+# Opengraph
+ogLocale: fr
+images:
+  - cover.png
+titleHome: Hugo Cookbook Demo
+schemaType: Organization
+schemaName: Hugo Cookbook Demo
+schemaAuthor: encas-parka
+schemaAuthorGitHub: https://github.com/encas-parka
+schemaLocale: fr-FR
+schemaLogo: logo.png
+schemaLogoWidth: 512
+schemaLogoHeight: 512
+schemaImage: cover.png
+schemaImageWidth: 1280
+schemaImageHeight: 640
+schemaTwitter: ""
+schemaLinkedIn: ""
+schemaGitHub: ""
+
+# Images
+themeColor: '#fff'
+quality: 85
+bgColor: '#fff'
+landscapePhotoWidths:
+  - 900
+  - 800
+  - 700
+  - 600
+  - 500
+portraitPhotoWidths:
+  - 800
+  - 700
+  - 600
+  - 500
+lqipWidth: 20x
+smallLimit: "320"
+defaultImage: default-image.png
+fillImage: 1280x720 Center
+
+footer: Powered by <a href="https://www.netlify.com/">Netlify</a>, <a href="https://gohugo.io/">Hugo</a>, and <a href="https://gethyas.com/">Hyas</a>
+copyRight: ""
+
+# seo:
+#   - title:
+#     separator: " | "
+#     suffix: ""
+#   - favicons:
+#     icon: "favicon.png"
+#     svgIcon: "favicon.svg"
+
+# Import du theme (layouts, assets, static, ...js, css and default images & icons)
 module:
   # Import assets from hugo-enka-cookbook theme (bootstrap, vue, vuetify, flatpickr, ...js, css and default images & icons)
   hugoVersion:

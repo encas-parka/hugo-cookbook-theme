@@ -6,10 +6,15 @@ backend:
   # open_authoring: true #Permettre un PR sur github sans l'acces aux dépot
   # squash_merges: true  # Vérifier si ca marche bien : si un article est modifier plusieur fpos avant d'etre mergé/publié, un seul commit avec rebased.
 
+logo_url: 
+
+# The search functionally requires loading all collection(s) entries, which can exhaust rate limits on large repositories. It can be disabled by setting the top level search property to false.
+# Defaults to true
+search: false
 
 # when using the default proxy server port
 # for local cms developpement.
-# Need to run : 'npx netlify-cms-proxy-server' / 'npx decap-server' from the root directory of the above repository.
+# Need to run : 'npx decap-server' from the root directory of the above repository.
 local_backend:
   url: http://localhost:8081/api/v1 # when using a custom proxy server port
 

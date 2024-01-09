@@ -11,3 +11,5 @@ module:
     target: layouts
   - source: static
     target: static
+  - source: data
+    target: data
