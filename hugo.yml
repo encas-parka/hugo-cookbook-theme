@@ -1,0 +1,12 @@
+module:
+  hugoVersion:
+    extended: true
+  mounts: 
+    - source: layouts
+      target: layouts
+    - source: static
+      target: static
+    - source: assets
+      target: assets
+  imports: 
+    - path: "github.com/gohugoio/hugo-mod-bootstrap-scss/v5"
