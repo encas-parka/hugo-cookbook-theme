@@ -11,12 +11,20 @@
 @media print {
   
   @page {
-    size: A4;
+    size: auto;
   }
 
+
   body {
- 
-    padding: 1.5cm;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+    background: #fff !important;
+    color: #000 !important;
+    font-family: "Open Sans" "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 0.8rem;
+    line-height: 1.15;
+    margin: 0 auto;
+    text-rendering: optimizeLegibility
   }
 
   /* .print-enlarge {
@@ -26,7 +34,7 @@
 
   .print-nocard{
     border: 0;
-    margin: 0 !important;
+    margin: 0!important;
     padding: 0;
   }
   }
@@ -128,15 +136,6 @@
     display: none;
   }
 
-  // body, body * {
-  //   visibility: hidden;
-
-  // }
-
-  // body .printable, body .printable * {
-  //   visibility: visible;
-
-  // }
 
 
 
@@ -348,19 +347,6 @@
     background: transparent !important;
     box-shadow: none !important;
     text-shadow: none !important
-  }
-
-
-  body {
-    -moz-osx-font-smoothing: grayscale;
-    -webkit-font-smoothing: antialiased;
-    background: #fff !important;
-    color: #000 !important;
-    font-family: "Open Sans" "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 0.8rem;
-    line-height: 1.15;
-    margin: 0 auto;
-    text-rendering: optimizeLegibility
   }
 
   .section {

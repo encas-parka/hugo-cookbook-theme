@@ -26,7 +26,9 @@ partial "recettes-type-card" . }} {{ end -}} {{ end -}} (Si "recette" ne fait pa
       <div class="card card-recette z-index-2">
         <a href="{{.Permalink}}" class="stretched-link"></a>
         <div>
-          <div class="fw-bold">{{ partial "components/icon-recette" . }} {{.Title}}</div>
+          {{ $svg := partial "components/icon-cat-find" . }}
+          <div class="float-start  me-2">{{ partial "inline-svg" (dict "src" $svg "display" "inline"  "rem" 3) .  }}</div>
+          <div class="fw-bold"> {{.Title}}</div>
           {{/*  {{if .Params.regime}} {{ range .Params.regime }}
           <span class="fs-xx-sm badge bg-grey"> {{.}}  </span>
           {{ end }} {{end}}  */}}

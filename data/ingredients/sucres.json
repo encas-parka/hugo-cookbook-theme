@@ -1,16 +1,7 @@
 {
   "ingredients": [
     {
-      "title": "sucre de canne (blond)",
-      "vegetarien": true,
-      "vegan": true,
-      "sans-lactose": true
-    },
-    {
-      "title": "Figues Sèches",
-      "vegan": true,
-      "vegetarien": true,
-      "sans-lactose": true
+      "title": "sucre de canne (blond)"
     },
     {
       "title": "Cassonade"
@@ -31,85 +22,61 @@
       "title": "Chocolat praliné"
     },
     {
-      "sans_gluten": true,
-      "sans_lactose": true,
       "title": "Eau de coco",
       "vegan": true,
       "vegetarien": true
     },
     {
-      "sans_gluten": true,
-      "sans_lactose": true,
       "title": "Jus d'orange",
       "vegan": true,
       "vegetarien": true
     },
     {
-      "sans_gluten": true,
-      "sans_lactose": true,
       "title": "Jus de canneberge",
       "vegan": true,
       "vegetarien": true
     },
     {
-      "sans_gluten": true,
-      "sans_lactose": true,
       "title": "Jus de cerise",
       "vegan": true,
       "vegetarien": true
     },
     {
-      "sans_gluten": true,
-      "sans_lactose": true,
       "title": "Jus de citron",
       "vegan": true,
       "vegetarien": true
     },
     {
-      "sans_gluten": true,
-      "sans_lactose": true,
       "title": "Jus de fraise",
       "vegan": true,
       "vegetarien": true
     },
     {
-      "sans_gluten": true,
-      "sans_lactose": true,
       "title": "Jus de fruits",
       "vegan": true,
       "vegetarien": true
     },
     {
-      "sans_gluten": true,
-      "sans_lactose": true,
       "title": "Jus de poire",
       "vegan": true,
       "vegetarien": true
     },
     {
-      "sans_gluten": true,
-      "sans_lactose": true,
       "title": "Jus de pomme",
       "vegan": true,
       "vegetarien": true
     },
     {
-      "sans_gluten": true,
-      "sans_lactose": true,
       "title": "Jus de raisin",
       "vegan": true,
       "vegetarien": true
     },
     {
-      "sans_gluten": true,
-      "sans_lactose": true,
       "title": "Jus de tomate",
       "vegan": true,
       "vegetarien": true
     },
     {
-      "sans_gluten": true,
-      "sans_lactose": true,
       "title": "Nectar d'abricot",
       "vegan": true,
       "vegetarien": true
@@ -118,13 +85,16 @@
       "title": "Pépites de chocolat"
     },
     {
-      "title": "Poudre d'amandes"
+      "title": "Poudre d'amandes",
+      "alergenesIng": ["Fruit à coque"]
     },
     {
-      "title": "Poudre de noisettes"
+      "title": "Poudre de noisettes",
+      "alergenesIng": ["Fruit à coque"]
     },
     {
-      "title": "Praslin en poudre"
+      "title": "Praslin en poudre",
+      "alergenesIng": ["Fruit à coque"]
     },
     {
       "title": "Sucre en poudre"
@@ -134,30 +104,7 @@
     },
     {
       "title": "Sucre vanillé"
-    },
-    {
-      "title": "Crème glacée",
-      "vegetarien": true,
-      "alergenesIng": ["Produit laitier"],
-      "pFrais": true
-    },
-    {
-      "title": "Crème glacée chocolat",
-      "vegetarien": true,
-      "alergenesIng": ["Produit laitier"],
-      "pFrais": true
-    },
-    {
-      "title": "Crème glacée fraise",
-      "vegetarien": true,
-      "alergenesIng": ["Produit laitier"],
-      "pFrais": true
-    },
-    {
-      "title": "Crème glacée vanille",
-      "vegetarien": true,
-      "alergenesIng": ["Produit laitier"],
-      "pFrais": true
     }
+    
   ]
 }

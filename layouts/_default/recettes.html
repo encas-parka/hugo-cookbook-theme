@@ -61,8 +61,9 @@
   {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
 {{ end }}
 
-
-<h1>{{ partial "components/icon-recette" . }} {{.Title}}</h1>
+{{ $svg := partial "components/icon-cat-find" . }}
+<div class="float-start  me-2"></div>
+<h1>{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "rem" 4) .  }} {{.Title}}</h1>
 
 <div class="row">
       <div class="text-muted fs-6 no-print"> publiée le {{ dateFormat "02 January 2006" (.Params.publishDate)  }}</div>
@@ -170,7 +171,7 @@
 
 <div class="row">
   <div class="col-md-4 print-col-30-100">
-    <h4><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/ingredients" "display" "inline-middle" "fs" 2) }}</span> Ingredients </h4>
+    <h4><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/ingredients" "display" "inline-middle" "rem" 3) }}</span> Ingredients </h4>
 
       {{/*  <div class="card my-4 p-2 shadow">
         <span class="small">{{ partial "inline-svg" (dict "src" "fonticons/exclamation-triangle" "display" "inline" "rem" 1) }} → Allergènes </span>
@@ -179,12 +180,13 @@
       {{- range $key, $value := .Params.ingredients  -}}
         {{- with . -}}
         <div class="card my-2 p-2 " outlined>
-              <span class="fw-bold mb-2">{{ partial "components/icon-type"  (dict "icon" $key) }} {{ partial "components/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span>
-              {{- range $index, $element := . -}} 
-                <div class="small ps-2">
-               • {{ partial "components/ingredients" (dict "title" .title "quantite" .quantite "unit" .unit "alergene" $allergenesList  ) }}
-              </div>
-              {{end}}
+          {{ $svg := (printf "fonticons/%s.svg" $key)}}
+          <span class="fw-bold mb-2">{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "fs" 1) .  }} {{ partial "components/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span>
+          {{- range $index, $element := . -}} 
+            <div class="small ps-2">
+            • {{ partial "components/ingredients" (dict "title" .title "quantite" .quantite "unit" .unit "alergene" $allergenesList  ) }}
+          </div>
+          {{end}}
         </div>
        {{- end -}} {{/* with */}} 
       {{- end -}} {{/* range key value */}}
@@ -193,7 +195,7 @@
 
 {{/* ::: PREPARATION  */}}
     <div class="col-md-8 print-col-70-100">
-      <h4><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/preparation" "display" "inline-middle" "fs" 1) }}</span> Préparation</h4>
+      <h4><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/preparation" "display" "inline-middle" "rem" 3) }}</span> Préparation</h4>
       <div class="avoid-break-inside">
           <div class="m-auto">
             {{- if .Params.preparation24h -}}

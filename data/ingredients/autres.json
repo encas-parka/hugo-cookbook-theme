@@ -82,57 +82,6 @@
         "Sésame"
       ],
       "title": "Tahin"
-    },
-    {
-      "alergenesIng": [
-        "Soja"
-      ],
-      "title": "Tofu (fromage de soya)",
-      "vegan": true,
-      "vegetarien": true,
-      "pFrais": true
-    },
-    {
-      "alergenesIng": [
-        "Soja"
-      ],
-      "title": "Tofu extra ferme  (fromage de soya)",
-      "vegan": true,
-      "vegetarien": true,
-      "pFrais": true
-    },
-    {
-      "alergenesIng": [
-        "Soja"
-      ],
-      "title": "Tofu ferme (fromage de soya)",
-      "vegan": true,
-      "vegetarien": true,
-      "pFrais": true
-    },
-    {
-      "title": "Tofu lactofermenté",
-      "alergenesIng": [
-        "Soja"
-      ],
-      "vegan": true,
-      "vegetarien": true,
-      "pFrais": true
-    },
-    {
-      "title": "Vin Rouge"
-    },
-    {
-      "title": "Vin Blanc"
-    },
-    {
-      "title": "Tofu mou / soyeux (fromage de soya)",
-      "alergenesIng": [
-        "Soja"
-      ],
-      "vegan": true,
-      "vegetarien": true,
-      "pFrais": true
     }
-  ]
+      ]
 }

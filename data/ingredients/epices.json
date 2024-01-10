@@ -285,6 +285,21 @@
       "title": "Vinaigrette",
       "vegan": true,
       "vegetarien": true
+    },
+    
+    {
+      "title": "Vin Rouge",
+      "alergenesIng": [
+        "Sulfites",
+        "Alcool"
+      ]
+    },
+    {
+      "title": "Vin Blanc",
+      "alergenesIng": [
+        "Sulfites",
+        "Alcool"
+      ]
     }
   ]
 }
