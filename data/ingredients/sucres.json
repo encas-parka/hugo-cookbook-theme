@@ -1,6 +1,9 @@
 {
   "ingredients": [
     {
+      "title": "Sirop d'agave"
+    },
+    {
       "title": "sucre de canne (blond)"
     },
     {
@@ -86,15 +89,21 @@
     },
     {
       "title": "Poudre d'amandes",
-      "alergenesIng": ["Fruit à coque"]
+      "alergenesIng": [
+        "Fruit à coque"
+      ]
     },
     {
       "title": "Poudre de noisettes",
-      "alergenesIng": ["Fruit à coque"]
+      "alergenesIng": [
+        "Fruit à coque"
+      ]
     },
     {
       "title": "Praslin en poudre",
-      "alergenesIng": ["Fruit à coque"]
+      "alergenesIng": [
+        "Fruit à coque"
+      ]
     },
     {
       "title": "Sucre en poudre"
@@ -105,6 +114,5 @@
     {
       "title": "Sucre vanillé"
     }
-    
   ]
 }

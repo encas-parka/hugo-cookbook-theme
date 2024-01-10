@@ -44,7 +44,7 @@ collections:
     path: "{{type}}/{{slug}}/index"
     slug: "{{title}}"
     filter: { field: "layout", value: "recettes" }
-    description: "Liste de l'ensemble des recettes"
+    description: "Liste de l'ensemble des recettes. Vous pouvez utiliser les filtres ci-dessous pour classer / filtrer les recettes. Ou faire 'ctrl+f' pour rechercher une recette avec votre navigateur."
     view_filters:
       - label: "plats"
         field: type
@@ -55,6 +55,18 @@ collections:
       - label: "desserts"
         field: type
         pattern: "desserts"
+      - label: "non testé"
+        field: check
+        pattern: "Non"
+      - label: "Vegan"
+        field: regime
+        pattern: "vegan"
+      - label: "Vegetarien"
+        field: regime
+        pattern: "vegetarien"
+      - label: "Sans-Gluten"
+        field: regime
+        pattern: "sans-gluten"
     view_groups:
       - label: "Catégorie: "
         field: type
@@ -70,7 +82,7 @@ collections:
         field: cuisson
       - label: "Sevice chaud/froid: "
         field: temperature
-    summary: "{{title}} ({{type}} - {{auteur}} - testé: {{check}} - pour {{plate}} / {{cherckfor}})"
+    summary: "{{title}} ({{type}} - {{auteur}})"
 
     create: true
 
@@ -186,43 +198,7 @@ collections:
         name: "ingredients"
         widget: "object"
         fields:
-          - label: "Viandes et Poissons"
-            name: "animaux"
-            widget: "list"
-            allow_add: true
-            add_to_top: true
-            label_singular: "Ingrédient"
-            required: false
-            collapsed: true
-            summary: "{{fields.title}}: {{fields.quantite}} {{fields.unit}}"
-            fields:
-              - label: "ingredient"
-                name: title
-                widget: "relation"
-                collection: "ingredients_index"
-                file: "ingredients_animaux"
-                search_fields: ["ingredients.*.title"]
-                value_field: "ingredients.*.title"
-                options_length: 5
-              - {
-                  label: "Quantité (nombre)",
-                  name: "quantite",
-                  widget: "number",
-                  value_type: "float",
-                }
-              - {
-                  label: "Unité (quantité en...)",
-                  name: "unit",
-                  widget: "select",
-                  options: ["Kg", "grammes", "unité"],
-                }
-              # - {
-              #     label: "commentaire",
-              #     name: "commentaire",
-              #     widget: "string",
-              #     required: false,
-              #   }
-
+ 
           - label: "Sec (Legumineuses, céréales)"
             name: "sec"
             widget: "list"
@@ -347,6 +323,43 @@ collections:
               #     required: false,
               #   }
 
+          - label: "Viandes et Poissons (et crustacés, mollusques)"
+            name: "animaux"
+            widget: "list"
+            allow_add: true
+            add_to_top: true
+            label_singular: "Ingrédient"
+            required: false
+            collapsed: true
+            summary: "{{fields.title}}: {{fields.quantite}} {{fields.unit}}"
+            fields:
+              - label: "ingredient"
+                name: title
+                widget: "relation"
+                collection: "ingredients_index"
+                file: "ingredients_animaux"
+                search_fields: ["ingredients.*.title"]
+                value_field: "ingredients.*.title"
+                options_length: 5
+              - {
+                  label: "Quantité (nombre)",
+                  name: "quantite",
+                  widget: "number",
+                  value_type: "float",
+                }
+              - {
+                  label: "Unité (quantité en...)",
+                  name: "unit",
+                  widget: "select",
+                  options: ["Kg", "grammes", "unité"],
+                }
+              # - {
+              #     label: "commentaire",
+              #     name: "commentaire",
+              #     widget: "string",
+              #     required: false,
+              #   }
+
           - label: "Sucrées"
             name: "sucres"
             widget: "list"
@@ -395,59 +408,8 @@ collections:
               #     widget: "string",
               #     required: false,
               #   }
-
-          - label: "Autres (ce qui ne se trouve pas ailleurs...)"
-            name: "autres"
-            hint: "Tofu, feuilles de riz, chapelure, levure, citron confit, et autres trucs difficiles à classer..."
-            widget: "list"
-            allow_add: true
-            add_to_top: true
-            label_singular: "Ingrédient"
-            required: false
-            collapsed: true
-            summary: "{{fields.title}}: {{fields.quantite}} {{fields.unit}}"
-            fields:
-              - label: "ingredient"
-                name: title
-                widget: "relation"
-                collection: "ingredients_index"
-                file: "ingredients_autres"
-                search_fields: ["ingredients.*.title"]
-                value_field: "ingredients.*.title"
-                options_length: 5
-              - {
-                  label: "Quantité (nombre)",
-                  name: "quantite",
-                  widget: "number",
-                  value_type: "float",
-                  required: false,
-                }
-              - {
-                  label: "Unité (quantité en...)",
-                  name: "unit",
-                  widget: "select",
-                  options:
-                    [
-                      "Kg",
-                      "grammes",
-                      "unité",
-                      "litre",
-                      "ml",
-                      "c. à soupe",
-                      "c. à café",
-                    ],
-                  hint: "Preférer les quantité en grammes/Kg/litres/ml, qui sont additionnables pour les listes de course ! ",
-
-                  required: false,
-                }
-              # - {
-              #     label: "commentaire",
-              #     name: "commentaire",
-              #     widget: "string",
-              #     required: false,
-              #   }
-
-          - label: "Assaisonnements (Epices, aromatiques, vinaigres...)"
+  
+          - label: "Assaisonnements (Epices, aromatiques, vinaigres, sauce...)"
             name: "epices"
             hint: "Epices, sauces, condiments..."
             widget: "list"
@@ -489,6 +451,57 @@ collections:
                       "bottes",
                     ],
                   hint: "Preférer les quantité en grammes/Kg/litres, qui sont additionnables pour les listes de course ! ",
+                  required: false,
+                }
+              # - {
+              #     label: "commentaire",
+              #     name: "commentaire",
+              #     widget: "string",
+              #     required: false,
+              #   }
+          
+          - label: "Autres (ce qui ne se trouve pas ailleurs...)"
+            name: "autres"
+            hint: "Feuilles de riz, chapelure, levure, Agar-agar, bicarbonate de soude, pain de mie, tahin... et autres trucs difficiles à classer..."
+            widget: "list"
+            allow_add: true
+            add_to_top: true
+            label_singular: "Ingrédient"
+            required: false
+            collapsed: true
+            summary: "{{fields.title}}: {{fields.quantite}} {{fields.unit}}"
+            fields:
+              - label: "ingredient"
+                name: title
+                widget: "relation"
+                collection: "ingredients_index"
+                file: "ingredients_autres"
+                search_fields: ["ingredients.*.title"]
+                value_field: "ingredients.*.title"
+                options_length: 5
+              - {
+                  label: "Quantité (nombre)",
+                  name: "quantite",
+                  widget: "number",
+                  value_type: "float",
+                  required: false,
+                }
+              - {
+                  label: "Unité (quantité en...)",
+                  name: "unit",
+                  widget: "select",
+                  options:
+                    [
+                      "Kg",
+                      "grammes",
+                      "unité",
+                      "litre",
+                      "ml",
+                      "c. à soupe",
+                      "c. à café",
+                    ],
+                  hint: "Preférer les quantité en grammes/Kg/litres/ml, qui sont additionnables pour les listes de course ! ",
+
                   required: false,
                 }
               # - {

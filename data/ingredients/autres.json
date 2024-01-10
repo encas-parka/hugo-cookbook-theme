@@ -1,6 +1,12 @@
 {
   "ingredients": [
     {
+      "title": "Miso",
+      "alergenesIng": [
+        "Soja"
+      ]
+    },
+    {
       "title": "Gomme de xanthane",
       "vegetarien": true,
       "vegan": true,
@@ -17,10 +23,6 @@
       "alergenesIng": [
         "Gluten"
       ]
-    },
-    {
-      "title": "Citron confit",
-      "vegetarien": true
     },
     {
       "title": "Colorants alimentaires en poudre"
@@ -83,5 +85,5 @@
       ],
       "title": "Tahin"
     }
-      ]
+  ]
 }

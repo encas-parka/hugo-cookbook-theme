@@ -1,6 +1,12 @@
 {
   "ingredients": [
     {
+      "title": "Sauce soja dark (foncé)",
+      "alergenesIng": [
+        "Soja"
+      ]
+    },
+    {
       "title": "Tamari (sauce)",
       "alergenesIng": [
         "Soja"
@@ -286,7 +292,6 @@
       "vegan": true,
       "vegetarien": true
     },
-    
     {
       "title": "Vin Rouge",
       "alergenesIng": [
