@@ -3,7 +3,6 @@ titleAddition: Des recettes pour pleins
 description: Site collaboratif de partage de recettes et d'organisation d'évènement pour les cantines autogérées.
 
 baseURL: '/'
-# theme: 'github.com/encas-parka/hugo-cookbook-theme'
 
 titleSeparator: '-'
 relativeURLs: true
@@ -13,7 +12,7 @@ disableAliases: true
 removePathAccents: true
 enableEmoji: true
 enableGitInfo: false
-enableRobotsTXT: true
+enableRobotsTXT: false
 languageCode: fr-FR
 defaultContentLanguage: fr
 defaultContentLang: fr
