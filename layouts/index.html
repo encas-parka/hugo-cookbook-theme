@@ -84,6 +84,12 @@
     </div>
     {{ end}}
   </div>
+
+  <div class="section">
+    {{ range where .Site.Pages "Type" "documentation"  }}
+      <ul><a href="{{ .Permalink }}">{{.Title}}</a></ul>
+    {{ end }}
+  </div>
 </div>
 
 

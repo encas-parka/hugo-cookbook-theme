@@ -11,11 +11,22 @@
    <body class="{{ delimit (.Scratch.Get "class") " " }}">   */}}
 
   {{ partial "header/header.html" . }}
-  <div class="wrap container" role="document">
-    <div class="content">
-      {{ block "main" . }}{{ end }}
+
+  {{ if eq .Type "documentation" }}
+    {{ partial "components/doc-sidebar" .}}
+    <div class="wrap container doc" role="document">
+      <div class="content">
+        {{ block "main" . }}{{ end }}
+      </div>
     </div>
-  </div>
+  {{else}}
+    <div class="wrap container" role="document">
+      <div class="content">
+        {{ block "main" . }}{{ end }}
+      </div>
+    </div>
+  {{ end }}
+
   {{ block "sidebar-footer" . }}{{ end }}
   {{ partial "footer/footer.html" . }}
   {{ partial "footer/script-footer.html" . }}

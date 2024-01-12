@@ -228,29 +228,25 @@
   </div>
 
 {{/*  ::: Impression - MODAL  */}}
-<div class="modal modal-lg fade d-print-none" tabindex="-1" id="modalImpression" aria-labelledby="modalImpressionLabel" aria-hidden="true">
+<div class="modal modal-xl fade d-print-none" tabindex="-1" id="modalImpression" aria-labelledby="modalImpressionLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-scrollable ">
     <div class=" modal-content" >
       <div class="modal-header">
-        <h5 class="modal-title fs-5" id="modalImpressionLabel">Imprimer / exporter en PDF</h5>
+        <h5 class="modal-title mt-0" id="modalImpressionLabel">Imprimer / exporter en PDF</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
 
         <div class="row">
-          <div class="col">
+          <div class="col-md-6">
             <div class="form-check">
               <input class="form-check-input" type="checkbox"
               v-model="toPrint.recettesSection"
               name="cbPrintRecettes" id="cb-printRecettes">
               <label class="form-check-label" for="cb-printRecettes">Imprimer les Recettes</label>
                 </div>
-            </div>
-            </div>
         <hr>
         
-      <div class="row">
-        <div class="col-auto">
         
            <div class="form-check">
              <input
@@ -271,14 +267,27 @@
             <input class="form-check-input" type="checkbox" v-model="showAllColIngredients" id="checkRecipeDetail">
             <label for="checkRecipeDetail">Afficher les recettes pour chaque ingrédient</label>
           </div>
-          <span>• Ajouter des colonnes aux tableaux : </span>
-          <select v-model="printAddCol" class="form-select">
-            <option value="0">0</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-          </select>
+          <div class="input-group">
+                <span class="input-group-text" id="addColSelect">Ajouter des colonnes aux tableaux : </span>
+              <select v-model="printAddCol" class="form-select" aria-describedby="addColSelect" aria-label="Ajouter des colonnes">
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+              </select>
+          </div>
+          <div class="text-muted fs-7 text-end">... afin de pouvoir rajouter des informations manuscrites</div>
         </div>
-      
+        </div>
+        <div class="col-md-6">
+        <div class="callout small">
+          <p>
+            Pour exporter en PDF, dans les options d'impression, selectionnez : destination > "enregistrer au format Pdf"  comme imprimante. Pensez aussi à personnaliser les marges d'impression ou l'échelle afin de redimensionner le contenu selon ce qui vous convient.
+          </p>
+          <p>
+            
+          </p>
+
+        </div>
         </div>
       </div>
  
@@ -763,14 +772,15 @@
   {{/* ::: Total INGREDIENTS   */}}
   <div class="col  print-col-12 ms-3">
 
-    <div class="btn-group no-print" role="group" aria-label="Exporter / Copier">
-      <button class="btn btn-outline-secondary" disabled>Copier les tableaux dans le presse-papier : </button>
-      <button type="button" class="btn btn-outline-primary" @click="copyToClipboard('md')">Markdown</button>
-      <button type="button" class="btn btn-outline-primary" @click="copyToClipboard('text')">Texte simple</button>
-      <button type="button" class="btn btn-outline-primary" @click="copyToClipboard('html')">html</button>
-      <button type="button" class="btn btn-outline-primary" @click="copyToClipboard('csv')">csv</button>
-      {{/*  TODO : modal explicatif  */}}
-    </div>
+      <div class="btn-group no-print my-2 no-tel" role="group" aria-label="Exporter / Copier">
+        <button class="btn btn-outline-secondary" disabled>Copier les tableaux dans le presse-papier : </button>
+        <button type="button" class="btn btn-outline-primary" @click="copyToClipboard('md')">Markdown</button>
+        <button type="button" class="btn btn-outline-primary" @click="copyToClipboard('text')">Texte simple</button>
+        <button type="button" class="btn btn-outline-primary" @click="copyToClipboard('html')">html</button>
+        <button type="button" class="btn btn-outline-primary" @click="copyToClipboard('csv')">csv</button>
+        <button type="button" class="btn btn-outline-secondary" @click="copyToClipboard('csv')"><span class="small">qu'est-ce donc ?</span></button>
+        {{/*  TODO : modal explicatif  */}}
+      </div>
 
 
 
