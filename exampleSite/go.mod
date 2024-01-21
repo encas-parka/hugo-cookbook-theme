@@ -1,6 +1,6 @@
 module github.com/encas-parka/hugo-cookbook-theme/exampleSite
 
-replace github.com/encas-parka/hugo-cookbook-theme/exampleSite => ../
+//replace github.com/encas-parka/hugo-cookbook-theme/exampleSite => ../
 
 go 1.21
 
