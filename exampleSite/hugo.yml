@@ -134,11 +134,8 @@ module:
     min: "0.121.1"
   imports: 
     - path: "github.com/encas-parka/hugo-cookbook-theme"
-      disable: false
-    - path: "github.com/encas-parka/hugo-cookbook-theme/documentation"
-      mounts:
-        - source: content/
-          target: content/documentation
+      disabled: false
+
 
 
 
