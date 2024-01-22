@@ -134,7 +134,7 @@ module:
     min: "0.121.1"
   imports: 
     - path: "github.com/encas-parka/hugo-cookbook-theme"
-      disabled: false
+      disable: false
 
 
 
