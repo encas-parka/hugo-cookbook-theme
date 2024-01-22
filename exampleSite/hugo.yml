@@ -1,7 +1,7 @@
 title: Cookbook Demo
 titleAddition: Des recettes pour pleins
 description: Site collaboratif de partage de recettes et d'organisation d'évènement pour les cantines autogérées.
-
+theme: "github.com/encas-parka/hugo-cookbook-theme"
 baseURL: '/'
 
 titleSeparator: '-'
