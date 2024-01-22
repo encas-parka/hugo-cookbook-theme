@@ -1,0 +1,15 @@
+module:
+  hugoVersion:
+    extended: true
+  mounts: 
+  # Workaround for https://github.com/gohugoio/hugo/issues/6945
+    - source: assets/scss/bootstrap/vendor
+      target: assets/scss/bootstrap/vendor
+    - source: assets
+      target: assets
+    - source: layouts
+      target: layouts
+    - source: static
+      target: static
+    - source: data
+      target: data
