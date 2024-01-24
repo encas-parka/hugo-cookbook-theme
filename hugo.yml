@@ -1,13 +1,12 @@
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+
 module:
   hugoVersion:
     extended: true
-  imports:
-    - path: github.com/thkukuk/hugo-photoswipe5-gallery
-      disable: false
-    - path: github.com/hugomods/bootstrap
-      disable: false
-    - path: github.com/hugomods/images
-      disable: false
+
   mounts: 
   # Workaround for https://github.com/gohugoio/hugo/issues/6945
     - source: assets/scss/bootstrap/vendor
@@ -20,3 +19,10 @@ module:
       target: static
     - source: data
       target: data
+
+  imports:
+    - path: github.com/thkukuk/hugo-photoswipe5-gallery
+      disable: false
+    - path: github.com/hugomods/bootstrap
+    - path: github.com/hugomods/images
+      disable: false
