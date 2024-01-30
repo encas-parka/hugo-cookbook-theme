@@ -23,7 +23,7 @@ Vous pourrez ensuite vous connecter à l'interface d'édition du site.
 
 
 ## L'interface d'édition
-{{< figure src="img/cms-recettes.jpg" alt="Decap-cms" >}}
+{{< figure src="img/cms-recettes.jpg" alt="Decap-cms" width="100%">}}
 Depuis l'interface d'édition, vous pouvez créez ou modifier une recette, un événement, un ingrédient, etc.
 
 {{< row >}}

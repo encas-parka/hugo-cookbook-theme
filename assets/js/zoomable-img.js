@@ -33,8 +33,8 @@ class ZoomableImageOverlay extends HTMLElement {
         position: fixed;
         top: 0;
         left: 0;
-        z-index: 1;
-        background: rgba(255, 255, 255, 0.8);
+        z-index: 1048;
+        background: rgba(100, 100, 100, 0.8);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         width: 100%;
@@ -80,7 +80,7 @@ class ZoomableImage extends HTMLElement {
     this.isOpen = true
     overlay.show()
     this.setAttribute('open', '')
-    this.image.style.zIndex = '1001'
+    this.image.style.zIndex = '1049'
     this.originalImageRect = this.image.getBoundingClientRect()
     this.updateTransform()
   }

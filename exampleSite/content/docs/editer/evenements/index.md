@@ -14,7 +14,7 @@ Les pages événements permettent de rassembler différentes recettes pour le no
 
 Les recettes [doivent être déjà publiées]({{< ref "docs/editer/recettes.md#pr%C3%A9parations-alternatives" >}}) sur le site pour pouvoir être utilisées sur la page des menus. Si les recettes utilisées sont par la suite renommé ou supprimées sans que les pages menus soient actualisées, elles seront buggées : 
 
-{{< row >}}
+{{< row class="align-items-center" >}}
   {{< bs/col >}}
     {{< zoomable-img img_content="img/recette-erreur-1.jpg"  alt="recette-erreur-1.jpg">}}
   {{< /bs/col >}}

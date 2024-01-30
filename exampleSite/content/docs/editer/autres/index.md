@@ -1,6 +1,6 @@
 ---
 weight: 24
-title: "Autres"
+title: "Autres pages (ingrédients...)"
 description: ""
 icon: "article"
 date: "2024-01-21T23:27:54+01:00"

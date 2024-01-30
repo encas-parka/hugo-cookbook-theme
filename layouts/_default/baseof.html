@@ -12,20 +12,11 @@
 
   {{ partial "header/header.html" . }}
 
-  {{ if eq .Type "documentation" }}
-    {{ partial "components/doc-sidebar" .}}
-    <div class="wrap container doc" role="document">
-      <div class="content">
-        {{ block "main" . }}{{ end }}
-      </div>
-    </div>
-  {{else}}
     <div class="wrap container" role="document">
       <div class="content">
         {{ block "main" . }}{{ end }}
       </div>
     </div>
-  {{ end }}
 
   {{ block "sidebar-footer" . }}{{ end }}
   {{ partial "footer/footer.html" . }}

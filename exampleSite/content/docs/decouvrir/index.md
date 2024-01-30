@@ -1,6 +1,7 @@
 ---
 weight: 10
 title: "Présentation"
+menus: docs
 description: ""
 icon: "Preview"
 date: "2024-01-16T04:36:51+01:00"
@@ -8,7 +9,6 @@ lastmod: "2024-01-16T04:36:51+01:00"
 draft: false
 toc: true
 zoomable_img: true
-gallery: true
 ---
 
 Ce site/theme permet de créer des sites de partage de recettes de cuisine (avec calcul des quantités en fonction du nombre de couvert prévu) et la création de menus et série de menus pour des événements se déroulant sur plusieurs jours.
@@ -79,7 +79,16 @@ Les mises en pages pour les impressions diffèrent de ce qui s'affiche à l'écr
 Il est possible d'imprimer / exporter en pdf, soit l'ensemble de la page (toutes les recettes et/ou tous les tableaux d'ingrédients), ou chaque recette / tableau d'ingrédient individuellement.
 {{< /img_text >}}
 
-{{< gallery path="img_print" col_lg="2" fit="500x500" />}}
+{{< bs/row >}}
+  {{< bs/col >}}
+    {{< zoomable-img img_content="1-event-print-recette-btn.jpg"  alt="img">}}
+  {{< /bs/col >}}
+
+  {{< bs/col >}}
+    {{< zoomable-img img_content="1-event-print-ing-btn.jpg"  alt="img">}}
+  {{< /bs/col >}}
+{{< /bs/row >}}
+
 
 {{< text_img img_content="img/event-pdf.jpg" title="Exporter en pdf">}}
 Pour créer un fichier pdf d'une page événement, il faut sélectionner "Enregistrer au format pdf" dans les options d'impression de votre navigateur. Il est aussi possible de personnaliser la taille des marge d'impression, ou de choisir les pages à imprimer/exporter.
@@ -91,9 +100,8 @@ Pour créer un fichier pdf d'une page événement, il faut sélectionner "Enregi
 
 {{< text_img img_content="img/event-copy-ing.jpg">}}
 Il est possible de copier simplement les tableaux des listes d'ingredients pour pouvoir ensuite les coller dans un PAD, un email, un tableur, etc. 
-{{< alert context="info" >}}
+{{< bs/alert context="info" >}}
 [Plus d'information ici](/docs/web-tools)
-{{< /alert >}}
+{{< /bs/alert >}}
 {{< /text_img >}}
 
-{{< load-photoswipe >}}

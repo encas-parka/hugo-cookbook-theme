@@ -1,3 +1,32 @@
+menus:
+  docs:
+  - name: Découvrir
+    pageRef: /docs/decouvrir
+    weight: 10
+  - name: Editer le site
+    pageRef: /docs/editer
+    weight: 20  
+  - name: Commencer
+    pageRef: /docs/editer/commencer
+    weight: 21
+    parent: Editer le site
+  - name: Les Recettes
+    pageRef: /docs/editer/recettes
+    weight: 22
+    parent: Editer le site
+  - name: Les Evénements / Menus
+    pageRef: /docs/editer/evenements
+    weight: 23
+    parent: Editer le site
+  - name: Autres pages (ingrédients...)
+    pageRef: /docs/editer/autres
+    weight: 24
+    parent: Editer le site
+  - name: Autres Outils Web
+    pageRef: /docs/web-tools
+    weight: 25
+    
+
 markup:
   goldmark:
     renderer:

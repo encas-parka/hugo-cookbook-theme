@@ -18,7 +18,7 @@ gallery: true
 
 Certains champs sont optionnels, d'autres sont obligatoires. De nombreux champs servent à classer la recettes, et servent pour la recherche par filtres des recettes.
 
-{{% alert context="warning" %}}
+{{% alert  %}}
 
 - Chaque recette doit avoir **un nom unique**. Si 2 recettes existent avec le même nom, une seule des 2 sera visible/accessible sur le site. Pensez-y si vous dupliquez des recettes.
 - **Ne pas renommer une recette**  ( ou un ingrédient / un "materiel", une catégories... ) si vous ne venez pas de la créer. Si une recette est renommée, alors les pages événements qui l'utilisaient n'y auront plus accès, et seront buggées, et les recettes qui lui sont liées comme "recettes alternatives" auront des liens "cassés". Au pire, dupliquez la recette et mettez lui le nom qui vous convient .
