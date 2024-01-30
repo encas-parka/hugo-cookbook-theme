@@ -1,7 +1,7 @@
 ---
 weight: 300
-title: "Outils complémentaires"
-description: ""
+title: "Autres Outils Web"
+description: "Quelques outils complémentaires (pad, tableur, etc.)"
 icon: "webhook"
 date: "2024-01-16T04:36:51+01:00"
 lastmod: "2024-01-16T04:36:51+01:00"
@@ -21,49 +21,49 @@ Il est possibles de copier facilement les tableaux de listes d'ingrédients d'un
 
 ---
 
- {{< row >}}
-   {{< bs/col >}}
+ {{< bs/row class="align-items-center" >}}
+   {{< bs/col size="md:12 lg:6" >}}
      {{< zoomable-img img_content="img/export-txt.jpg">}}
    {{< /bs/col >}}
  
-   {{< bs/col >}}
+   {{< bs/col size="md:12 lg:6" >}}
      {{< zoomable-img img_content="img/export-csv.jpg">}}
    {{< /bs/col >}}   
    
-   {{< bs/col >}}
+   {{< bs/col size="md:12 lg:6" >}}
      {{< zoomable-img img_content="img/export-csv2.jpg">}}
    {{< /bs/col >}}
- {{< /row >}}
+ {{< /bs/row >}}
  
 
  ## Cryptdrive / cryptpad
 
  Cryptdrive fait partis des outils libres et gratuits permettant le partage et l'édition collaborative de documents de type [pad](https://cryptpad.fr/pad/#/2/pad/view/jlJop8fEr9dMLRJ4y5l4lzuXtYKjIF-pHV99px6iaLg/) ou [tableur](https://cryptpad.fr/sheet/#/2/sheet/view/vfpnxrKfbia-SXvwKUKFjlNFbtcxr4hMaEgcvyshZ98/). Il est permet aussi de créer [des "sondages"](https://cryptpad.fr/form/#/2/form/view/3gjFB4+kJqsrTK4ahmlR3Rq-d0KUhEcclzPnj-CuVxw/) de type framadate, et pour les plus organisé•es des ["kanban"](https://cryptpad.fr/kanban/). Le tout peut être stocker sur un seul espace, avec dossiers et sous-dossiers. Les dossiers complets ou les documents peuvent être partagées, en mode 'lecture seule' ou en mode édition... avec possibilité de choisir un mot de passe, d'ajouter des commentaires ou de chatter. [La doc](https://docs.cryptpad.org/fr/user_guide/index.html)...
 
- {{< row >}}
-   {{< bs/col >}}
+ {{< bs/row class="align-items-center" >}}
+   {{< bs/col size="md:12 lg:6" >}}
      {{< zoomable-img img_content="img/cryptpad.jpg" >}}
    {{< /bs/col >}}
  
-   {{< bs/col >}}
+   {{< bs/col size="md:12 lg:6" >}}
      {{< zoomable-img img_content="img/cryptpad-create.jpg" >}}
    {{< /bs/col >}}
  
 
- {{< /row >}}
+ {{< /bs/row >}}
  
- {{< row >}}
-   {{< bs/col >}}
+ {{< bs/row class="align-items-center" >}}
+   {{< bs/col size="md:12 lg:6" >}}
      {{< zoomable-img img_content="img/cryptpad-kanban.jpg" >}}
    {{< /bs/col >}}
-   {{< bs/col >}}
+   {{< bs/col size="md:12 lg:6" >}}
      {{< zoomable-img img_content="img/cryptpad-modele.jpg" >}}
    {{< /bs/col >}}
-   {{< bs/col >}}
+   {{< bs/col size="md:12 lg:6" >}}
      {{< zoomable-img img_content="img/cryptdrive-doc.jpg" >}}
    {{< /bs/col >}}
 
- {{< /row >}}
+ {{< /bs/row >}}
 
 
  {{< text_img img_content="img/cryptdrive-tableur-import.jpg" title="Importer les listes d'ingrédients sur le tableur" >}}
@@ -75,15 +75,15 @@ Il est possibles de copier facilement les tableaux de listes d'ingrédients d'un
  5. Depuis le tableur de cryptpad, cliquez sur "Fichier" >"Importer"
  {{< /text_img >}}
  
- {{< row >}}
+ {{< bs/row class="align-items-center" >}}
  
-   {{< bs/col >}}
+   {{< bs/col size="md:12 lg:6" >}}
      {{< zoomable-img img_content="img/export-csv.jpg" >}}
    {{< /bs/col >}}
-   {{< bs/col >}}
+   {{< bs/col size="md:12 lg:6" >}}
      {{< zoomable-img img_content="img/cryptdrive-tableur.jpg" >}}
    {{< /bs/col >}}
- {{< /row >}}
+ {{< /bs/row >}}
 
 
 ## Element - la messagerie
