@@ -131,7 +131,7 @@ module:
   # Import assets from hugo-enka-cookbook theme (bootstrap, vue, vuetify, flatpickr, ...js, css and default images & icons)
   hugoVersion:
     extended: true
-    min: "0.121"
+    min: "0.121.1"
   imports: 
     - path: "github.com/encas-parka/hugo-cookbook-theme"
       disable: false
