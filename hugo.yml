@@ -35,7 +35,7 @@ markup:
 module:
   hugoVersion:
     extended: true
-
+    min: "0.121.1"
   mounts: 
   # Workaround for https://github.com/gohugoio/hugo/issues/6945
     - source: assets/scss/bootstrap/vendor
