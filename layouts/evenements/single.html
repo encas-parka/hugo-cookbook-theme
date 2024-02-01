@@ -716,7 +716,7 @@
 
     {{/*  ::: _Sidebar Total ingredients  */}}
     <nav class="flex-column col-md-4 col-lg-3 d-md-block bg-light  mt-7 d-print-none " >
-      <div class="sticky-top" style="top: 150px">
+      <div class="sticky-top overflow-y-auto" style="top: 100px; height: 612px">
     
         <div class="my-5 small">
          <div class="mb-3">
@@ -772,15 +772,14 @@
   {{/* ::: Total INGREDIENTS   */}}
   <div class="col  print-col-12 ms-3">
 
-      <span class="btn-group no-print my-2 no-tel" role="group" aria-label="Exporter / Copier">
+      <span class="btn-group no-print my-2 me-2 no-tel" role="group" aria-label="Exporter / Copier">
         <button class="btn btn-outline-secondary" disabled>Copier les tableaux dans le presse-papier : </button>
         <button type="button" class="btn btn-outline-primary" onclick="copyOrExport('text')">Texte simple</button>
-      
         {{/*  <button type="button" class="btn btn-outline-primary" onclick="copyOrExport('html')">html</button>  */}}
         {{/*  TODO : modal explicatif  */}}
       </span>
 
-      <span class="btn-group noprint my-2 ms-2 no-tel" role="group" aria-label="Exporter CSV">
+      <span class="btn-group no-print my-2 no-tel" role="group" aria-label="Exporter CSV">
         <button class="btn btn-outline-secondary" disabled>Télécharger : </button>
         <button type="button" class="btn btn-outline-primary" onclick="copyOrExport('csv')">csv (tableur)</button>
         <button type="button" class="btn btn-outline-primary" onclick="copyOrExport('md')">Tableau Markdown</button>
