@@ -38,8 +38,23 @@
               <div class="dropdown-menu columns-2" aria-labelledby="navbarDropdown">
                 <div class="row">
                   {{ range (.Site.GetPage "section" "categories").Pages}}
-                  <div class="col-sm-6"><ul class="multi-column-dropdown"><li><a class="dropdown-item" href="{{.RelPermalink}}"> {{ $svg := (printf "fonticons/%s.svg" .Title) | lower}}
-                    <span class="float-start me-2">{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "rem" 3) .  }}</span> {{.Title}}</a></li></ul></div>
+                  <div class="col-sm-6">
+                    <ul class="multi-column-dropdown">
+                      <li>
+                        <a class="dropdown-item" href="{{.RelPermalink}}">
+                          {{ $svg := (printf "fonticons/%s.svg" .Title) | lower}}
+                          {{ if resources.Get (printf "fonticons/%s.svg" (.Title | lower) ) }}
+                          <span class="float-start me-2">{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle" "rem" 3)
+                            . }}</span>
+                          {{ else }}
+                          <span class="float-start me-2">{{ partial "inline-svg" (dict "src" "fonticons/no-cat.svg" "display"
+                            "inline-middle" "rem" 3) . }}</span>
+                          {{ end }}
+                          {{.Title}}
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
                   {{ end }}
                 </div>
               </div>
