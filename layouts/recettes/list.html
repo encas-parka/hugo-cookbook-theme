@@ -11,6 +11,7 @@
 {{ $ilegumes := slice }}
 {{ $isucres := slice }}
 {{ $ilof := slice }}
+{{ $ifrais := slice }}
 
 {{- $IngredientList := slice -}}
 
@@ -36,6 +37,10 @@
 {{ $ilof = $ilof | append .title }}
 {{- end -}}
 
+{{- range .Params.ingredients.frais -}}
+{{ $ifrais = $ifrais | append .title }}
+{{- end }}
+
 
   {{- range $key, $value := .Params.ingredients -}}
     {{- range $index, $element := . -}}
@@ -50,6 +55,7 @@
 {{ $ilegumes = $ilegumes | uniq }}
 {{ $isucres = $isucres | uniq }}
 {{ $ilof = $ilof | uniq }}
+{{ $ifrais = $ifrais | uniq }}
 
 
 
@@ -172,6 +178,13 @@
                 {{ end }}
               </select>
             </div>
+            <div class="my-2" v-if="allifrais.length">
+              <select id="MsFrais">
+                {{ range $ifrais }}
+                <option>{{ . }}</option>
+                {{ end }}
+              </select>
+            </div>
           </div>
           </div>
       </div>
@@ -221,7 +234,8 @@
               Aucune recette ne correspond aux critères de recherche...
             </div>
           </div>
-          <div>
+          <div v-show="searchQuery.length >= 2" class="d-inline"><span class="fw-italic text-muted" > contient (dans son titre/auteur·ice...): </span> <span class="fw-bold">[[searchQuery]]</span> </div>
+          <div v-show="searchQuery.length < 2">
             <div v-show="filters.categories.length > 0" v-for="(item, index) in filters.categories" class="d-inline"><span class="badge bg-green">[[item]]</span> <span class="small" v-show="index+1 !=  filters.categories.length"> ou </span>
             </div>
             <span class="fw-bold" v-show="filters.categories.length > 0"> et </span>
@@ -350,6 +364,7 @@
         ],
         ilof:  [ {{- range .Params.ingredients.lof -}} "{{ .title }}",{{- end -}} ],
         isucre:  [ {{- range .Params.ingredients.sucres -}} "{{ .title }}",{{- end -}} ],
+        ifrais:  [ {{- range .Params.ingredients.frais -}} "{{ .title }}",{{- end -}} ],
         specialite: " {{ .Params.spécialité }}",
         temperature: "{{ .Params.temperature }}",
         cuisson: "{{ .Params.cuisson }}",
@@ -368,6 +383,7 @@
         isec: [],
         ilof: [],
         isucre: [],
+        ifrais: [],
         cuisson: [],
         temperature: [],
         saison: [],
@@ -378,10 +394,11 @@
       disableFilters: false,
 
       msSec: null,
-      msLegume: null,
+      msLegumes: null,
       msAnimaux: null,
       msLof: null,
       msSucre: null,
+      msFrais: null,
       {{/*  additiveFiltering: false  */}}
       
     }),
@@ -407,15 +424,15 @@ mounted() {
   };
   multiSelectLegume: {
     if (this.allilegumes.length > 0) {
-      this.msLegume = new IconicMultiSelect({
+      this.msLegumes = new IconicMultiSelect({
         select: "#MsLegume",
         placeholder: "Fruits et Légumes",
         noResults: "Aucun ingrédient trouvé..."
       });
-      this.msLegume.init();
+      this.msLegumes.init();
       
       {{/*  fonction fléché obligatoire, sinon perte du contexte this  */}}
-      this.msLegume.subscribe((e) => {
+      this.msLegumes.subscribe((e) => {
         this.selectedIng( e.action, "ilegumes", e.value);
       });
     }
@@ -461,6 +478,19 @@ mounted() {
       });
     };
     }
+  multiSelectFrais: {
+    if (this.allifrais.length > 0) {
+      this.msFrais = new IconicMultiSelect({
+        select: "#MsFrais",
+        placeholder: "Frais",
+        noResults: "Aucun ingrédient …..."
+      });
+      this.msFrais.init();
+      this.msFrais.subscribe((e) => {
+        this.selectedIng( e.action, "ifrais", e.value);
+      });
+    }
+  };
   
 }, {{/* mounted */}}
 
@@ -531,7 +561,9 @@ computed: {
       (!this.filters.saison.length ||
       this.x(this.filters.saison, p.saison).length) &&
       (!this.filters.check.length ||
-      this.x(this.filters.check, p.check).length) 
+      this.x(this.filters.check, p.check).length) &&
+      (!this.filters.ifrais.length ||
+      this.x(this.filters.ifrais, p.ifrais).length)
       
       );
     }
@@ -551,6 +583,10 @@ computed: {
   },
   filteredSucre() {
     return this.filters.isucre
+  },
+
+  filteredFrais() {
+    return this.filters.ifrais
   },
   
   // Pour la fabrication des boutons de filtres
@@ -574,6 +610,9 @@ computed: {
   },
   allisucre() {
     return this.getAll('isucre')
+  },
+  allifrais() {
+    return this.getAll('ifrais')
   },
   allcuisson(){
     return this.getAll('cuisson')
@@ -619,14 +658,17 @@ methods: {
     this.filters['isec'] = []
     this.filters['ilof'] = []
     this.filters['isucre'] = []
+    this.filters['ifrais'] = []
     this.filters['cuisson'] = []
     this.filters['temperature'] = []
     this.filters['saison'] = []
+    this.filters['check'] = []
     this.msSec._clearSelection()
     this.msAnimaux._clearSelection()
     this.msLegumes._clearSelection()
     this.msLof._clearSelection()
     this.msSucre._clearSelection()
+    this.msFrais._clearSelection()
   },
   resetSearch: function () {
     this.searchQuery = '' 
