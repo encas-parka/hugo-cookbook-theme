@@ -1,6 +1,10 @@
 {{/*  
   Boostrap shortcode for image grid 
-  Requires: zoomable-img.js;
+  Requires: zoomable-img.js →
+```
+{{ $script := resources.Get "js/zoomable-img.js" | fingerprint }}
+<script type="text/javascript" src="{{ $script.RelPermalink }}"></script>
+```
   author: QaldeK  
   example shortcode: {{< img-grid from="content" match="img/gallery*.jpg" size="12 lg:6" >}}  + load zoomable-img.js
   TODO : assets & static
@@ -22,8 +26,9 @@
 {{/*  {{ else if eq $from "assets" }}
   {{ $images = string (.Get "match") }}  */}}
 {{ else if eq $from "assets" }}
-  {{ $images = .Site.Resources.Match (.Get "match") }}
+  {{ $images = resources.Match (.Get "match") }}
 {{ end }}
+
 
 {{- with $size }}
   {{- $sizes := split . " " }}
@@ -44,7 +49,7 @@
   {{ range $images }}
   <div class="col {{ delimit $col_size ` ` }}">
     <zoomable-image  class="p-2 m-2 shadow-sm rounded" >
-      <img src="{{ . }}" alt="{{.}}" class="img-fluid 
+      <img src="{{ .RelPermalink }}" alt="{{.}}" class="img-fluid 
       " style="max-height: {{$max_height}}" >
     </zoomable-image>
   </div>
