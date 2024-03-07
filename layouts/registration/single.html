@@ -10,7 +10,6 @@
           <div class="d-grid gap-3 col-8 m-auto">
             <img src="/cover.png" alt="logo" class="m-auto" width="200px">
             <a href="/admin" target="_blank" class="btn btn-lg  btn-primary m-auto">Se connecter</a>
-            <p class="text-center"> ↓ Ou si ce n'est pas déjà fait, créer un compte  ↓</p>
           </div>
         </div>
     </div>
@@ -32,16 +31,11 @@
   <div class="col-lg-9">
     <div class="card">
       <div class="card-header fw-bold">
-        Demander l'obtention d'un compte authentifié
+        Demander un accès
       </div>
       <div class="card-body small">
-        <p class=" ">
-          Les comptes authentifiés peuvent directement publier ou modifier des
-          recettes, créer des évenements, etc, sans modération préalable. Le traitement des demandes se fait manuellement, et peut donc prendre un certain temps. </p>
-          <p>
-          Si vous souhaitez collaborer au site régulièrement, la création de ce compte est fortement recommandée (cela évite une validation manuelle de vos publication).
-        </p>
-        <p>Vous devez disposer d'un compte github avec la même adresse e-mail. Vous pouvez commencez par le créer, comme ça quand vous recevrez l'invitation pour participer au site, vous pourrez vous y connecter sans plus attendre. C'est aussi possible de créer un compte non-authentifié, pour proposer des publications (qui seront soumise à validation) <a href="#inscription--connexion" class="small">Plus d'infos →</a> </p>
+        <p class=" "> Si vous souhaitez participer au site, remplissez ce formulaire...
+         </p>
         <form
           name="contact"
           class="contact-form width-normal"
@@ -77,8 +71,8 @@
               rows="5"
             ></textarea>
             <!-- Button -->
-             <div class="mt-4">
-               <a href="https://github.com/signup" target="_blank" class="btn btn-info">S'inscrire sur github</a>
+             {{/*  <div class="mt-4">
+               <a href="https://github.com/signup" target="_blank" class="btn btn-info">S'inscrire sur github</a>  */}}
                
                 <button
                 class="btn btn-primary float-end "
@@ -96,7 +90,7 @@
     </div>
 
   </div>
-
+{{/*  
   <div class="m-5 px-5" style="max-width: 920px;">
 
   {{ with .Site.GetPage "docs/editer/commencer"  }}
@@ -108,7 +102,7 @@
 
 
 {{ $script := resources.Get "js/zoomable-img.js" | fingerprint }}
-<script type="text/javascript" src="{{ $script.RelPermalink }}"></script>
+<script type="text/javascript" src="{{ $script.RelPermalink }}"></script>  */}}
 
 {{ end }}
 
