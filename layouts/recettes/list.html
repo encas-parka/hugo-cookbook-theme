@@ -6,6 +6,7 @@
 <span class="no-print text-muted">{{ hugo.Environment }}  | Layout : layouts/recettes/list.html </span>
 {{ end }}
 
+{{ $iCategories := slice }}
 {{ $isec := slice}}
 {{ $ianimaux := slice }}
 {{ $ilegumes := slice }}
@@ -16,6 +17,10 @@
 {{- $IngredientList := slice -}}
 
 {{- range .RegularPagesRecursive -}}
+
+{{- range .Params.categories -}}
+  {{ $iCategories = $iCategories | append . }}
+{{- end -}}
 {{/* Liste des ingredients par type: pour le multi-select, et les data de l'appfilter */}}
 {{- range .Params.ingredients.sec -}}
 {{ $isec = $isec | append .title }}
@@ -50,6 +55,8 @@
 
 {{ end }}
 
+{{ $iCategories = $iCategories | uniq }}
+
 {{ $isec = $isec | uniq }}
 {{ $ianimaux = $ianimaux | uniq }}
 {{ $ilegumes = $ilegumes | uniq }}
@@ -76,18 +83,19 @@
           </label>
         </div>  */}}
         <div class="btn btn-warning my-2" @click="resetFilters">Effacer tous les filtres</div>
-        <div class="filters box">
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <h4>Catégorie</h4>
-              <div v-for="categorie in allcategories" :key="categorie">
-                <label>
-                  <input type="checkbox" v-model="filters['categories']" :value="categorie" />
-                  <span>[[categorie]]</span>
-                </label>
+          <div class="filters box">
+              <div class="row">
+              <div class="col-12">
+                <div class="mb-4">
+                  <select id="MsCategories">
+                    {{- range $iCategories -}}
+                    <option>{{ . }}</option>
+                    {{ end }}
+                  </select>
+                </div>
               </div>
-            </div>
-            <div class="col-md-6 mb-3">
+
+            <div class="col-12">
               <h4>Régimes</h4>
               <div v-for="regime in allregimes" :key="regime">
                 <label>
@@ -96,9 +104,9 @@
                 </label>
               </div>
             </div>
+            </div>
+            </div>
             <div class=""></div>
-          </div>
-        </div>
         <div class="filters box">
           <div class="row">
             <div class="col-md-6 mb-3">
@@ -140,7 +148,7 @@
           </div>
         </div>
 
-        {{/*  :::_MultiSelect  */}}
+        {{/*  :::_MultiSelect ingredients  */}}
         <div class="filters box">
           <div class="row">
             <div class="my-2" v-if="allisec.length">
@@ -230,40 +238,40 @@
             <span v-show="filteredRecipes.length === 1">
               [[filteredRecipes.length]] reccette correspond aux critères de recherche:
             </span>
-            <div v-show="filteredRecipes.length < 1">
+            <div v-show="filteredRecipes.length === 0">
               Aucune recette ne correspond aux critères de recherche...
             </div>
           </div>
-          <div v-show="searchQuery.length >= 2" class="d-inline"><span class="fw-italic text-muted" > contient (dans son titre/auteur·ice...): </span> <span class="fw-bold">[[searchQuery]]</span> </div>
+          <div v-if="searchQuery.length >= 2" class="d-inline"><span class="fw-italic text-muted" > contient (dans son titre/auteur·ice...): </span> <span class="fw-bold">[[searchQuery]]</span> </div>
           <div v-show="searchQuery.length < 2">
-            <div v-show="filters.categories.length > 0" v-for="(item, index) in filters.categories" class="d-inline"><span class="badge bg-green">[[item]]</span> <span class="small" v-show="index+1 !=  filters.categories.length"> ou </span>
+            <div v-show="filters.categories.length > 0" v-for="(item, index) in filters.categories" class="d-inline"><span class="badge  mx-1 bg-green">[[item]]</span> <span class="small" v-show="index+1 !=  filters.categories.length"> ou </span>
             </div>
             <span class="fw-bold" v-show="filters.categories.length > 0"> et </span>
-            <div v-show="filters.regimes.length > 0" v-for="(item, index) in filters.regimes" class="d-inline"><span class="badge bg-grey">[[item]]</span> <span class="small" v-show="index+1 !=  filters.regimes.length"> ou </span></div>
+            <div v-show="filters.regimes.length > 0" v-for="(item, index) in filters.regimes" class="d-inline"><span class="badge  mx-1 bg-grey">[[item]]</span> <span class="small" v-show="index+1 !=  filters.regimes.length"> ou </span></div>
             <span class="fw-bold" v-show="filters.regimes.length > 0"> et </span>
-            <div v-show="filters.temperature.length > 0" v-for="(item, index) in filters.temperature" class="d-inline"><span v-if="item === 'Chaud'" class="badge bg-orange">Servir Chaud</span>
-            <span v-else class="badge bg-blue">Servir Froid</span> <span class="small" v-show="index+1 !=  filters.temperature.length"> ou </span></div>
+            <div v-show="filters.temperature.length > 0" v-for="(item, index) in filters.temperature" class="d-inline"><span v-if="item === 'Chaud'" class="badge  mx-1 bg-orange">Servir Chaud</span>
+            <span v-else class="badge  mx-1 bg-blue">Servir Froid</span> <span class="small" v-show="index+1 !=  filters.temperature.length"> ou </span></div>
             <span class="fw-bold" v-show="filters.temperature.length > 0"> et </span>
-            <div v-show="filters.cuisson.length > 0" v-for="(item, index) in filters.cuisson" class="d-inline"><span v-if="item === 'Oui'" class="badge bg-orange">Avec Cuisson</span>
-            <span v-else class="badge bg-blue">Sans Cuisson</span> <span class="small" v-show="index+1 !=  filters.cuisson.length"> ou </span></div>
+            <div v-show="filters.cuisson.length > 0" v-for="(item, index) in filters.cuisson" class="d-inline"><span v-if="item === 'Oui'" class="badge  mx-1 bg-orange">Avec Cuisson</span>
+            <span v-else class="badge  mx-1 bg-blue">Sans Cuisson</span> <span class="small" v-show="index+1 !=  filters.cuisson.length"> ou </span></div>
             <span class="fw-bold" v-show="filters.cuisson.length > 0"> et </span>
-            <div v-show="filters.saison.length > 0" v-for="(item, index) in filters.saison" class="d-inline"><span class="badge bg-grey">[[item]]</span> <span class="small" v-show="index+1 !=  filters.saison.length"> ou </span></div>
+            <div v-show="filters.saison.length > 0" v-for="(item, index) in filters.saison" class="d-inline"><span class="badge  mx-1 bg-grey">[[item]]</span> <span class="small" v-show="index+1 !=  filters.saison.length"> ou </span></div>
             <span class="fw-bold" v-show="filters.saison.length > 0"> et </span>
-            <div v-show="filters.ilegumes.length > 0" v-for="(item, index) in filters.ilegumes" class="d-inline"><span class="badge bg-green">[[item]]</span> <span class="small" v-show="index+1 !=  filters.ilegumes.length"> ou </span></div>
+            <div v-show="filters.ilegumes.length > 0" v-for="(item, index) in filters.ilegumes" class="d-inline"><span class="badge  mx-1 bg-green">[[item]]</span> <span class="small" v-show="index+1 !=  filters.ilegumes.length"> ou </span></div>
             <span class="fw-bold" v-show="filters.ilegumes.length > 0"> et </span>
             <div v-show="filters.ianimaux.length > 0" v-for="(item, index) in filters.ianimaux" class="d-inline"><span
-                class="badge bg-grey">[[item]]</span> <span class="small" v-show="index+1 !=  filters.ianimaux.length"> ou </span></div>
+                class="badge  mx-1 bg-grey">[[item]]</span> <span class="small" v-show="index+1 !=  filters.ianimaux.length"> ou </span></div>
             <span class="fw-bold" v-show="filters.ianimaux.length > 0"> et </span>
             <div v-show="filters.isec.length > 0" v-for="(item, index) in filters.isec" class="d-inline"><span
-                class="badge bg-grey">[[item]]</span> <span class="small" v-show="index+1 !=  filters.isec.length"> ou </span></div>
+                class="badge  mx-1 bg-grey">[[item]]</span> <span class="small" v-show="index+1 !=  filters.isec.length"> ou </span></div>
             <span class="fw-bold" v-show="filters.isec.length > 0"> et </span>
             <div v-show="filters.ilof.length > 0" v-for="(item, index) in filters.ilof" class="d-inline"><span
-                class="badge bg-grey">[[item]]</span> <span class="small" v-show="index+1 !=  filters.ilof.length"> ou </span></div>
+                class="badge  mx-1 bg-grey">[[item]]</span> <span class="small" v-show="index+1 !=  filters.ilof.length"> ou </span></div>
             <div v-show="filters.isucre.length > 0" v-for="(item, index) in filters.isucre" class="d-inline"><span
-              class="badge bg-grey">[[item]]</span> <span class="small" v-show="index+1 !=  filters.isucre.length"> ou </span></div>
+              class="badge  mx-1 bg-grey">[[item]]</span> <span class="small" v-show="index+1 !=  filters.isucre.length"> ou </span></div>
               <span v-show="filters" class="small text-muted">...</span>
             </div>
-          
+            <div class="btn btn-warning my-2 btn-sm " @click="resetFilters">Effacer tous les filtres</div>
         </div> 
 
 
@@ -393,6 +401,7 @@
       searchQuery: '',
       disableFilters: false,
 
+      msCategories: null,
       msSec: null,
       msLegumes: null,
       msAnimaux: null,
@@ -406,6 +415,24 @@
 {{/*  ::: mounted  */}}
 mounted() {
   {{/*  initialisation du script multiselect : qui permet de filtrer les recettes par ingredients  */}}
+
+  multiSelectCategories: {
+    if (this.allcategories.length > 0) {
+    this.msCategories = new IconicMultiSelect({
+      select: "#MsCategories",
+      placeholder: "Catégories",
+      noResults: "Aucune catégorie trouvée..."
+    });
+    this.msCategories.init();
+    
+    {{/*  fonction fléché obligatoire, sinon perte du contexte this  */}}
+    this.msCategories.subscribe((e) => {
+      console.log(e)
+      this.selectedIng(e.action, "categories", e.value);
+    });
+  }
+  };
+
   multiSelectSec: {
     if (this.allisec.length > 0) {
     this.msSec = new IconicMultiSelect({
@@ -663,6 +690,7 @@ methods: {
     this.filters['temperature'] = []
     this.filters['saison'] = []
     this.filters['check'] = []
+    this.msCategories._clearSelection()
     this.msSec._clearSelection()
     this.msAnimaux._clearSelection()
     this.msLegumes._clearSelection()

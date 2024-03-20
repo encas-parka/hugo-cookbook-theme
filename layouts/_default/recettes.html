@@ -130,31 +130,31 @@
       <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2">
         <div class="card border-danger shadow small px-4 card-body print-nocard">
           {{- with $alertAutresAllergenes -}}
-          <div> {{ partial "inline-svg" (dict "src" "fonticons/exclamation-triangle" "display" "inline" "fs" 3) }}
+          <div> <span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/exclamation-triangle" "display" "inline" "fs" 3) }}</span>
             Allergènes divers:
             <span class="fw-bold">{{ delimit $alertAutresAllergenes ", "}}</span>
           </div>
           {{- end -}}
           {{- with $alertGluten -}}
-          <div>{{ partial "inline-svg" (dict "src" "fonticons/gluten" "display" "inline" "fs" 3) }}
+          <div><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/gluten" "display" "inline" "fs" 3) }}</span>
             Gluten :
             <span class="fw-bold">{{ delimit $alertGluten ", "}}</span>
           </div>
           {{- end -}}
           {{- with $alertLait -}}
-          <div>{{ partial "inline-svg" (dict "src" "fonticons/milk-box" "display" "inline" "fs" 3) }}
+          <div><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/milk-box" "display" "inline" "fs" 3) }}</span>
             Produits laitier :
             <span class="fw-bold">{{ delimit $alertLait ", "}}</span>
           </div>
           {{- end -}}
           {{- with $alertLactose -}}
-          <div>{{ partial "inline-svg" (dict "src" "fonticons/milk-box" "display" "inline" "fs" 3) }}
+          <div><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/milk-box" "display" "inline" "fs" 3) }}</span>
             Lactose :
             <span class="fw-bold">{{ delimit $alertLait ", "}}</span>
           </div>
           {{- end -}}
           {{- with $alertPorc -}}
-          <div>{{ partial "inline-svg" (dict "src" "fonticons/no-vegan" "display" "inline" "fs" 3) }} Porc:
+          <div><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/no-vegan" "display" "inline" "fs" 3) }}</span> Porc:
             <span class="fw-bold">{{ delimit $alertPorc ", "}}</span>
           </div>
           {{- end -}}
@@ -181,7 +181,7 @@
         {{- with . -}}
         <div class="card my-2 p-2 " outlined>
           {{ $svg := (printf "fonticons/%s.svg" $key)}}
-          <span class="fw-bold mb-2">{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "fs" 1) .  }} {{ partial "components/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span>
+          <span class="fw-bold mb-2 me-1">{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "fs" 1) .  }} {{ partial "components/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span>
           {{- range $index, $element := . -}} 
             <div class="small ps-2">
             • {{ partial "components/ingredients" (dict "title" .title "quantite" .quantite "unit" .unit "alergene" $allergenesList  ) }}
