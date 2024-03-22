@@ -174,8 +174,8 @@
 <div id="app">
 
 {{/* ::: navbar page */}}
-  <div x-on:resize.window="screenMd = (window.innerWidth > 1024) ? true : false" x-data="{screenMd: (window.innerWidth > 1024) ? true : false}">
-    <nav class="navbar fixed-top topnav2 navbar-expand-lg no-print navbar-dark bg-dark shadow p-0  rounded-bottom-4 pt-2 ">
+  <div x-on:resize.window="screenMd = (window.innerWidth > 1024) ? true : false" x-data="{screenMd: (window.innerWidth > 1024) ? true : false}"  >
+     <nav class="navbar fixed-top topnav2 navbar-expand-lg no-print navbar-dark bg-dark shadow p-0  rounded-bottom-4 pt-2 " x-data="scrollToReveal()" x-ref="navbar" x-on:scroll.window="scroll()"  x-bind:class="{ 'scrolled': !isScrolled }">
         <div class="container-fluid">
           <ul class="navbar-nav">
             <li class="nav-item">
@@ -716,7 +716,7 @@
 
     {{/*  ::: _Sidebar Total ingredients  */}}
     <nav class="flex-column col-md-4 col-lg-3 d-md-block bg-light  mt-7 d-print-none " >
-      <div class="sticky-top overflow-y-auto" style="top: 100px; height: 612px">
+      <div class="sticky-top overflow-y-auto" style="top: 70px; height: 612px">
     
         <div class="my-5 small">
          <div class="mb-3">
@@ -835,7 +835,7 @@
                 <td v-if="item.recette" class="small">
                   <span class="fw-bold">[[item.recette]]</span> le [[new Date (item.dateService).toISOString().substr(0, 10)]] /
                   [[item.horaire]] <br> pour [[item.assiettes]] couverts
-                  <span class="fw-bold float-end" v-if="item.quantite && item.unit">[[item.quantite]] [[item.unit]]</span>
+                  <span class="fw-bold float-end" v-if="item.quantite && item.unit">[[round2Decimals(item.quantite)]] [[item.unit]]</span>
                 </td>
                 
                 </tr>
@@ -947,6 +947,219 @@
       </div>
     </div>
 </div>
+
+{{/* ::: Affiches */}}
+<div id="affiches">
+
+{{- range sort .Params.repas ".date_service" -}}
+
+  <div class="card mb-3">
+    <div class="card-body" >
+      <p class="fs-2 mb-0 text-center fw-bold">{{.date_service | time.Format "Monday 2 January "}}</p>
+      <p class="fs-2 text-center fw-bold m-0">{{ .horaire }}</p>
+      <p class="fs-4 text-center fw-bold m-0">·•·•·•·•·•·•··•·•·•·•·•·•·</p>
+      {{- $firstEntree := true -}}
+      {{- $firstPlat := true -}}
+      {{- $firstDessert := true -}}
+
+    {{ range .recettes_du_repas }}
+     {{ if eq .type_plat "entree" }}
+      {{ if (and $firstEntree .recette)}}
+        <p class="card-text text-center fs-3">·•· Entrées ·•·</p>
+        {{- $firstEntree = false -}}
+      {{- end -}}
+        <p class="fs-1 text-center fw-bold mt-3 mb-0">{{.recette}}</p>
+        <p class="card-text">{{.description}}</p>
+      
+        
+          {{- $url:= print .recette | urlize -}}
+          {{- with site.GetPage $url -}}
+
+          <p class="mb-0 text-center" >{{ partial "components/regimes-concat.html" .Params.regime }}</p>
+          <p class="m-0 text-center">•••</p>
+        
+          {{ $alertAnimaux := slice }}
+          {{ range .Params.ingredients.animaux }}
+            {{- with . -}}
+            {{ $alertAnimaux = $alertAnimaux | append .title}}
+            {{- end }}
+          {{ end }}
+        
+          {{ $ingredientsL := slice }}
+          {{- range $key, $value := .Params.ingredients -}}
+          {{- with . -}}
+            {{- range $index, $element := . -}}
+            {{ $ingredientsL = $ingredientsL | append .title}}
+            {{- end }}
+          {{- end -}}
+          {{- end -}}
+          
+          {{- $alertAutresAllergenes := slice -}}
+        {{ range $allergenesLgList }}
+          {{- $toAdd := intersect $ingredientsL ($sAllergenes.Get . ) -}}
+          {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
+        {{ end }}
+
+        {{- with $alertAutresAllergenes -}}
+        <p class="card-text text-center mb-0">Alergènes : {{ delimit $alertAutresAllergenes ", "}}</p>
+        {{- end -}}
+
+          {{- $alertGluten := intersect $ingredientsL ($sAllergenes.Get "Gluten") -}}
+          {{- $alertPorc := intersect $ingredientsL ($sAllergenes.Get "Porc") -}}
+          {{- $alertLait := intersect $ingredientsL ($sAllergenes.Get "Produit laitier") -}}
+        
+          {{- with $alertGluten -}}
+          <p class="card-text text-center mb-0">Contient du gluten : {{ delimit $alertGluten ", "}}</p>
+          {{- end -}}
+          {{- with $alertPorc -}}
+          <p class="card-text text-center  mb-0">Contient du porc : {{ delimit $alertPorc ", "}}</p>
+          {{- end -}}
+          {{- with $alertLait -}}
+          <p class="card-text text-center mb-0">Contient des produits laitiers : {{ delimit $alertLait ", "}}</p>
+          {{- end -}}
+          {{- with $alertAnimaux -}}
+          <p class="card-text text-center mb-0">Animaux : {{ delimit $alertAnimaux ", "}}</p>
+          {{- end -}}
+          {{- end  }}
+
+        
+        {{- end }}
+    {{- end }}
+
+    {{ range .recettes_du_repas }}
+    {{ if eq .type_plat "plat" }}
+      {{ if (and $firstPlat .recette) }}
+        <p class="card-text text-center fs-3 mt-4">·•· Plats ·•·</p>
+        {{- $firstPlat = false -}}
+      {{- end -}}
+      <p class="fs-1 text-center fw-bold mt-3 mb-0">{{.recette}}</p>
+      <p class="card-text">{{.description}}</p>
+      
+      {{- $url:= print .recette | urlize -}}
+        {{- with site.GetPage $url -}}
+
+        <p class="mb-0 text-center" >{{ partial "components/regimes-concat.html" .Params.regime }}</p>
+        <p class="m-0 text-center">•••</p>
+      
+        {{ $alertAnimaux := slice }}
+        {{ range .Params.ingredients.animaux }}
+          {{- with . -}}
+          {{ $alertAnimaux = $alertAnimaux | append .title}}
+          {{- end }}
+        {{ end }}
+      
+        {{ $ingredientsL := slice }}
+        {{- range $key, $value := .Params.ingredients -}}
+        {{- with . -}}
+          {{- range $index, $element := . -}}
+          {{ $ingredientsL = $ingredientsL | append .title}}
+          {{- end }}
+        {{- end -}}
+      {{- end -}}
+
+        {{- $alertGluten := intersect $ingredientsL ($sAllergenes.Get "Gluten") -}}
+        {{- $alertPorc := intersect $ingredientsL ($sAllergenes.Get "Porc") -}}
+        {{- $alertLait := intersect $ingredientsL ($sAllergenes.Get "Produit laitier") -}}
+            
+        {{- $alertAutresAllergenes := slice -}}
+        {{ range $allergenesLgList }}
+          {{- $toAdd := intersect $ingredientsL ($sAllergenes.Get . ) -}}
+          {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
+        {{ end }}
+
+        {{- with $alertAutresAllergenes -}}
+        <p class="card-text text-center mb-0">Alergènes : {{ delimit $alertAutresAllergenes ", "}}</p>
+        {{- end -}}
+
+        {{- with $alertGluten -}}
+        <p class="card-text text-center mb-0">Contient du gluten : {{ delimit $alertGluten ", "}}</p>
+        {{- end -}}
+        {{- with $alertPorc -}}
+        <p class="card-text text-center  mb-0">Contient du porc : {{ delimit $alertPorc ", "}}</p>
+        {{- end -}}
+        {{- with $alertLait -}}
+        <p class="card-text text-center mb-0">Contient des produits laitiers : {{ delimit $alertLait ", "}}</p>
+        {{- end -}}
+        {{- with $alertAnimaux -}}
+        <p class="card-text text-center mb-0">Animaux : {{ delimit $alertAnimaux ", "}}</p>
+        {{- end -}}
+      {{- end  }}
+    {{- end }}
+    {{- end }}
+
+
+    {{ range .recettes_du_repas }}
+    {{ if eq .type_plat "dessert" }}
+      {{ if (and $firstDessert .recette) }}
+        <p class="text-center fs-3 mt-4">·•· Dessert ·•·</p>
+        {{- $firstDessert = false -}}
+      {{- end -}}
+        <p class="fs-1 text-center fw-bold mt-3 mb-0">{{.recette}}</p>
+        <p class="card-text">{{.description}}</p>
+        
+        {{- $url:= print .recette | urlize -}}
+        {{- with site.GetPage $url -}}
+
+        <p class="mb-0 text-center" >{{ partial "components/regimes-concat.html" .Params.regime }}</p>
+        <p class="m-0 text-center">•••</p>
+      
+        {{ $alertAnimaux := slice }}
+        {{ range .Params.ingredients.animaux }}
+          {{- with . -}}
+          {{ $alertAnimaux = $alertAnimaux | append .title}}
+          {{- end }}
+        {{ end }}
+      
+        {{ $ingredientsL := slice }}
+        {{- range $key, $value := .Params.ingredients -}}
+        {{- with . -}}
+          {{- range $index, $element := . -}}
+          {{ $ingredientsL = $ingredientsL | append .title}}
+          {{- end }}
+        {{- end -}}
+      {{- end -}}
+
+      {{- $alertAutresAllergenes := slice -}}
+      {{ range $allergenesLgList }}
+        {{- $toAdd := intersect $ingredientsL ($sAllergenes.Get . ) -}}
+        {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
+      {{ end }}
+
+      {{- with $alertAutresAllergenes -}}
+      <p class="card-text text-center mb-0">Alergènes : {{ delimit $alertAutresAllergenes ", "}}</p>
+      {{- end -}}
+
+
+        {{- $alertGluten := intersect $ingredientsL ($sAllergenes.Get "Gluten") -}}
+        {{- $alertPorc := intersect $ingredientsL ($sAllergenes.Get "Porc") -}}
+        {{- $alertLait := intersect $ingredientsL ($sAllergenes.Get "Produit laitier") -}}
+      
+        {{- with $alertGluten -}}
+        <p class="card-text text-center mb-0">Contient du gluten : {{ delimit $alertGluten ", "}}</p>
+        {{- end -}}
+        {{- with $alertPorc -}}
+        <p class="card-text text-center  mb-0">Contient du porc : {{ delimit $alertPorc ", "}}</p>
+        {{- end -}}
+        {{- with $alertLait -}}
+        <p class="card-text text-center mb-0">Contient des produits laitiers : {{ delimit $alertLait ", "}}</p>
+        {{- end -}}
+        {{- with $alertAnimaux -}}
+        <p class="card-text text-center mb-0">Animaux : {{ delimit $alertAnimaux ", "}}</p>
+        {{- end -}}
+      {{- end  }}
+
+      {{- end }}
+
+    {{ end }}
+    
+  
+  
+  </div>
+    
+  </div>
+    
+  {{ end }}
+
 </div> 
 
 {{/*  Import de flatpiker, utilisé seulement sur cette page  */}}
@@ -1661,6 +1874,8 @@ methods: {
 }); {{/* fin New Vue */}}
 
 </script>
+
+
 
 
 {{ end }}
