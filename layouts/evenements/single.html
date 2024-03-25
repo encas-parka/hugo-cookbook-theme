@@ -131,7 +131,6 @@
 {{- $IngredientsNamesList = $IngredientsNamesList |uniq -}}
 {{- $IngredientsTypesList = $IngredientsTypesList | uniq -}}
 
-{{/* TODO .mettre dans un partial ?  ET c'est dans une boucle !?*/}}
 
 {{/* ::: Regroupement des ingredients allergenes  */}}
 
@@ -146,7 +145,7 @@
   {{ end }}
 {{- $allergenesTypeList = $allergenesTypeList | uniq -}}
 
-{{ $sAllergenes := newScratch }}
+{{/*  {{ $sAllergenes := newScratch }}
 {{- range $.Site.Data.ingredients -}}
   {{- range .ingredients -}}
     {{- if .alergenesIng -}}
@@ -156,12 +155,15 @@
       {{ end }}    
     {{- end -}}
   {{- end -}}
-{{- end -}}
+{{- end -}}  */}}
 
-{{ $allergenesDict := dict }}
+{{ $sAllergenes := (partialCached "components/allergenesIng.html" .)  }}
+
+
+{{/*  {{ $allergenesDict := dict }}  */}}
 {{ $allergenesList := slice }}
 {{ range $allergenesTypeList }}
-  {{ $allergenesDict = merge $allergenesDict (dict . ($sAllergenes.Get .)) }}
+  {{/*  {{ $allergenesDict = merge $allergenesDict (dict . ($sAllergenes.Get .)) }}  */}}
   {{ $allergenesList = append  ($sAllergenes.Get .) $allergenesList }}
 {{ end }}
 
@@ -174,22 +176,22 @@
 <div id="app">
 
 {{/* ::: navbar page */}}
-  <div x-on:resize.window="screenMd = (window.innerWidth > 1024) ? true : false" x-data="{screenMd: (window.innerWidth > 1024) ? true : false}"  >
+  <div id="navbarEvent">
      <nav class="navbar fixed-top topnav2 navbar-expand-lg no-print navbar-dark bg-dark shadow p-0  rounded-bottom-4" x-data="scrollToReveal()" x-ref="navbar" x-on:scroll.window="scroll()"  x-bind:class="{ 'scrolled': !isScrolled }">
         <div class="container-fluid">
           <ul class="navbar-nav">
-            <li class="nav-item">
-              <div class="btn-group" role="group">
+            <li class="nav-item p-2">
+              <div class="btn-group" role="group"> 
                
                 <a href="#Recettes" class="btn btn-primary btn-sm shadow-sm py-1"
-                ><span class="me-2" x-show="!screenMd">{{ partial "inline-svg" (dict "src" "fonticons/preparation.svg" "display" "inline-middle" "rem" 2) }}</span> <span x-show="screenMd">Recettes</span></a>
+                ><span class="me-2 d-md-none">{{ partial "inline-svg" (dict "src" "fonticons/preparation.svg" "display" "inline-middle" "rem" 2) }}</span> <span class="d-none d-md-inline">Recettes</span></a>
               
-                <button type="button" class="btn btn-primary btn-sm dropdown-toggle py-1" data-bs-toggle="dropdown" aria-expanded="false">{{ partial "inline-svg" (dict "src" "fonticons/search.svg" "display" "inline-middle" "fs" 5) }}</button>
+                <button type="button" class="btn btn-primary btn-sm dropdown-toggle py-1 d-none d-md-inline" data-bs-toggle="dropdown" aria-expanded="false">{{ partial "inline-svg" (dict "src" "fonticons/search.svg" "display" "inline-middle" "fs" 5) }}</button>
               
                <ul class="dropdown-menu columns-3 p-3">
                 {{ $dateService := "none"}}
                 {{ $horaire := "none" }}
-                <div class="row row-cols-2 p-2">
+                <div class="row row-cols-md-2 p-2">
                   {{- range sort $recettesList ".dateService" -}}
                     <div class="p-2">
                       <div class="card p-1">
@@ -207,30 +209,58 @@
           </div>
           </li> 
           </ul>
-            <ul class="navbar-nav">
-            <li class="nav-item p-2">
+            <div class="nav-item p-2">              
+              <div class="btn-group" role="group"> 
+               
               <a href="#TotalIngredients" class="btn btn-primary btn-sm shadow-sm py-1"
-                ><span class="me-2"  x-show="!screenMd">{{ partial "inline-svg" (dict "src" "fonticons/ingredients.svg" "display" "inline-middle" "rem" 2) }}</span><span x-show="screenMd">Ingrédients</span></a>
-            </li>
-            </ul>
-            <ul class="navbar-nav ms-auto">
+              ><span class="me-2 d-md-none">{{ partial "inline-svg" (dict "src" "fonticons/ingredients.svg" "display" "inline-middle" "rem" 2) }}</span>
+              <span class="d-none d-md-inline">Ingrédients</span></a>
+            
+              <button type="button" class="btn btn-primary btn-sm dropdown-toggle py-1 d-none d-md-inline" data-bs-toggle="dropdown" aria-expanded="false">{{ partial "inline-svg" (dict "src" "fonticons/search.svg" "display" "inline-middle" "fs" 5) }}</button>
+            
+             <ul class="dropdown-menu columns-3 p-3">
+               <div class="row row-cols-md-2 p-2">
+                {{ range sort $IngredientsTypesList "iType" "desc"}}
+                {{ $iTypeName := (partial "components/ingredients-types-rename" (dict "ingType" .iType) .) }}
+                  <div class="p-2">
+                    <div class="card p-1">
+                      <a href="#IngListID{{.iType}}">
+                        <slot name="{{$iTypeName}}">{{$iTypeName}}</slot>
+                      </a>
+                    </div>
+                  </div>
+                
+              {{end}}
+            </div>
+          </ul>
+        </div>
+        </div>
+
+             <div class="nav-item p-2">
+              <a href="#affiches" class="btn btn-primary btn-sm shadow-sm py-1"
+                ><span class="me-2 d-md-none">{{ partial "inline-svg" (dict "src" "fonticons/ingredients.svg" "display" "inline-middle" "rem" 2) }}</span>
+                <span class="d-none d-md-inline">Affiches</span></a>
+            </div>
+            <div class="navbar-nav ms-auto">
             <li class="nav-item p-2">
-              <button class="btn btn-primary shadow-sm py-1" data-bs-toggle="modal"  data-bs-target="#modalImpression"
+              <button class="btn btn-primary btn-sm shadow-sm py-1" data-bs-toggle="modal"  data-bs-target="#modalImpression"
               aria-controls="modalImpression"
               @click="printGlobal"
-                ><span class="me-2"  x-show="!screenMd">{{ partial "inline-svg" (dict "src" "fonticons/printer.svg" "display" "inline-middle" "rem" 2)}}</span>
-                <span x-show="screenMd">Impression / PDF</span>
+                ><span class="me-2 d-md-none">{{ partial "inline-svg" (dict "src" "fonticons/printer.svg" "display" "inline-middle" "rem" 2)}}</span>
+                <span class="d-none d-md-inline">Impression / PDF</span>
               </button>
             </li>
+          </div>
           </ul>
         </div>
     </nav>
   </div>
 
 {{/*  ::: Impression - MODAL  */}}
-<div class="modal modal-xl fade d-print-none" tabindex="-1" id="modalImpression" aria-labelledby="modalImpressionLabel" aria-hidden="true">
+<div class="modal modal-xl fade d-print-none" tabindex="-1" id="modalImpression" aria-labelledby="modalImpressionLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-scrollable ">
-    <div class=" modal-content" >
+    <div class=" modal-content">
       <div class="modal-header">
         <h5 class="modal-title mt-0" id="modalImpressionLabel">Imprimer / exporter en PDF</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -240,61 +270,60 @@
         <div class="row">
           <div class="col-md-6">
             <div class="form-check">
-              <input class="form-check-input" type="checkbox"
-              v-model="toPrint.recettesSection"
-              name="cbPrintRecettes" id="cb-printRecettes">
+              <input class="form-check-input" type="checkbox" v-model="toPrint.recettesSection" name="cbPrintRecettes"
+                id="cb-printRecettes">
               <label class="form-check-label" for="cb-printRecettes">Imprimer les Recettes</label>
-                </div>
+            </div>
+            <hr>
+
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" v-model="toPrint.ingredients" :value="true" name="cb-ing"
+                id="cb-printIngredient">
+              <label class="form-check-label" for="cb-printIngredient">Imprimer les listes des ingrédients</label>
+            </div>
+
+
+            <div v-show="toPrint.ingredients" class="ms-4">
+              <div class="form-check form-switch my-2">
+                <input class="form-check-input" type="checkbox" v-model="showAllColIngredients" id="checkRecipeDetail">
+                <label for="checkRecipeDetail">Afficher les recettes pour chaque ingrédient</label>
+              </div>
+              <div class="input-group">
+                <span class="input-group-text" id="addColSelect">+ colonnes : </span>
+                <select v-model="printAddCol" class="form-select" aria-describedby="addColSelect"
+                  aria-label="Ajouter des colonnes">
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                </select>
+              </div>
+              <div class="text-muted fs-7 text-end">Ajouter des colonnes aux tableaux afin de pouvoir rajouter des informations manuscrites</div>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" v-model="toPrint.affichesSection" :value="true" name="cb-affiche"
+                id="cb-printAffiches">
+              <label class="form-check-label" for="cb-printAffiches">Imprimer les Affiches</label>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="callout small">
+              <p>
+                Pour exporter en PDF, dans les options d'impression, selectionnez : destination > "enregistrer au format
+                Pdf" comme imprimante. Pensez aussi à personnaliser les marges d'impression ou l'échelle afin de
+                redimensionner le contenu selon ce qui vous convient.
+              </p>
+              <p>
+
+              </p>
+
+            </div>
+          </div>
+        </div>
+
         <hr>
-        
-        
-           <div class="form-check">
-             <input
-             class="form-check-input"
-             type="checkbox"
-             v-model="toPrint.ingredients"
-             :value="true"
-             name="cb-ing"
-             id="cb-printIngredient"
-             >
-             <label class="form-check-label"
-             for="cb-printIngredient">Imprimer les listes des ingrédients</label>
-           </div>
-          
-
-        <div v-show="toPrint.ingredients" class="ms-4">
-          <div class="form-check form-switch my-2">
-            <input class="form-check-input" type="checkbox" v-model="showAllColIngredients" id="checkRecipeDetail">
-            <label for="checkRecipeDetail">Afficher les recettes pour chaque ingrédient</label>
-          </div>
-          <div class="input-group">
-                <span class="input-group-text" id="addColSelect">Ajouter des colonnes aux tableaux : </span>
-              <select v-model="printAddCol" class="form-select" aria-describedby="addColSelect" aria-label="Ajouter des colonnes">
-                <option value="0">0</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-              </select>
-          </div>
-          <div class="text-muted fs-7 text-end">... afin de pouvoir rajouter des informations manuscrites</div>
+        <div class="text-end">
+          <a class="btn btn-primary" @click="print" role="button" data-bs-dismiss="modal">Imprimer !</a>
         </div>
-        </div>
-        <div class="col-md-6">
-        <div class="callout small">
-          <p>
-            Pour exporter en PDF, dans les options d'impression, selectionnez : destination > "enregistrer au format Pdf"  comme imprimante. Pensez aussi à personnaliser les marges d'impression ou l'échelle afin de redimensionner le contenu selon ce qui vous convient.
-          </p>
-          <p>
-            
-          </p>
-
-        </div>
-        </div>
-      </div>
- 
-      <hr>
-      <div class="text-end">
-        <a class="btn btn-primary"  @click="print" role="button" data-bs-dismiss="modal">Imprimer !</a>
-      </div>
       </div>
     </div>
   </div>
@@ -509,14 +538,14 @@
       {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
     {{ end }}
     
-    {{/*  TODO ? → liste des type d'allergenes  */}}
-    {{- $alertTypesIng := slice -}}
+    {{/*  DONE ? → liste des type d'allergenes  */}}
+    {{/*  {{- $alertTypesIng := slice -}}
     {{ range $allergenesTypeList }}
       {{- $toAdd := intersect $ingredientsL ($sAllergenes.Get . ) -}}
 
       {{- $alertTypesIng = $alertTypesIng | append $toAdd -}}
       
-    {{ end }}
+    {{ end }}  */}}
     
     
       {{- $assiettesInit := .Params.plate -}}
@@ -770,7 +799,7 @@
       </nav>
   
   {{/* ::: Total INGREDIENTS   */}}
-  <div class="col  print-col-12 ms-3">
+  <div class="col  print-col-12 ms-md-3">
 
       <span class="btn-group no-print my-2 me-2 no-tel" role="group" aria-label="Exporter / Copier">
         <button class="btn btn-outline-secondary" disabled>Copier les tableaux dans le presse-papier : </button>
@@ -872,7 +901,7 @@
         v-if="totalQuantitesDP.{{$IngTypeList}} && Object.keys(totalQuantitesDP.{{$IngTypeList}}).length > 0"
         class="card my-2 mb-lg-6 avoid-break-inside  mb-3 print-nocard"
         :class="{'no-print':!toPrint.{{.iType}} }"
-        id="{{.iType}}"
+        id="IngListID{{.iType}}"
         >
         <div class="card-body">
           <div class="">
@@ -949,218 +978,105 @@
 </div>
 
 {{/* ::: Affiches */}}
-<div id="affiches">
+<div class="row">
+  <h2 class="text-center no-print mt-5">Les Affiches</h2>
+  <div class="col-md-4  no-print">
+    <div id="affiches">
+    
+      <div class="row">
+        <div class="col-8"><div class="fw-bold">Police: </div></div>
+        <div class="col-4"><div class="fw-bold">Taille: </div></div>
+      </div>
+      {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Date" "displayCheckbox" "true" "label" "Date")}}  
 
-{{- range sort .Params.repas ".date_service" -}}
+      {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Horaire" "displayCheckbox" "true" "label" "Horaire")}}
+     
+      {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Desc" "displayCheckbox" "true" "label" "Description")}}
+    
+      {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Cat" "displayCheckbox" "true" "label" "Catégories")}}
+    
+      {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Recettes"  "label" "Recette")}}
+    
+      {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Regimes" "displayCheckbox" "true" "label" "Régimes")}}
+    
+      {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Alert" "displayCheckbox" "true" "label" "Allergenes")}}
+    
+      {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Ing" "displayCheckbox" "true" "label" "Liste Ingredients")}}
+    
+      <div class="card p-2">
+        <div class="h6 mt-2">Options impressions: </div>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" v-model="catPageBreak" id="catPageBreak">
+          <label class="small" for="catPageBreak">Nouvelle page par catégorie (entrée/plat/dessert)</label>
+        </div>
+        <div v-if="catPageBreak" class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" v-model="dateByPageBreak" id="dateByPageBreak">
+          <label class="small" for="dateByPageBreak">Date en haut de chaque page</label>
+        </div>
+      </div>
 
-  <div class="card mb-3">
-    <div class="card-body" >
-      <p class="fs-2 mb-0 text-center fw-bold">{{.date_service | time.Format "Monday 2 January "}}</p>
-      <p class="fs-2 text-center fw-bold m-0">{{ .horaire }}</p>
-      <p class="fs-4 text-center fw-bold m-0">·•·•·•·•·•·•··•·•·•·•·•·•·</p>
-      {{- $firstEntree := true -}}
-      {{- $firstPlat := true -}}
-      {{- $firstDessert := true -}}
+    </div>
+  </div>
+  
+  <div id="affichesSection" class="col-md-8 print-col-12 " :class="{'no-print' : !toPrint.affichesSection}">
 
-    {{ range .recettes_du_repas }}
-     {{ if eq .type_plat "entree" }}
-      {{ if (and $firstEntree .recette)}}
-        <p class="card-text text-center fs-3">·•· Entrées ·•·</p>
-        {{- $firstEntree = false -}}
-      {{- end -}}
-        <p class="fs-1 text-center fw-bold mt-3 mb-0">{{.recette}}</p>
-        <p class="card-text">{{.description}}</p>
-      
-        
-          {{- $url:= print .recette | urlize -}}
-          {{- with site.GetPage $url -}}
 
-          <p class="mb-0 text-center" >{{ partial "components/regimes-concat.html" .Params.regime }}</p>
-          <p class="m-0 text-center">•••</p>
-        
-          {{ $alertAnimaux := slice }}
-          {{ range .Params.ingredients.animaux }}
-            {{- with . -}}
-            {{ $alertAnimaux = $alertAnimaux | append .title}}
-            {{- end }}
-          {{ end }}
-        
-          {{ $ingredientsL := slice }}
-          {{- range $key, $value := .Params.ingredients -}}
-          {{- with . -}}
-            {{- range $index, $element := . -}}
-            {{ $ingredientsL = $ingredientsL | append .title}}
-            {{- end }}
-          {{- end -}}
-          {{- end -}}
-          
-          {{- $alertAutresAllergenes := slice -}}
-        {{ range $allergenesLgList }}
-          {{- $toAdd := intersect $ingredientsL ($sAllergenes.Get . ) -}}
-          {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
-        {{ end }}
 
-        {{- with $alertAutresAllergenes -}}
-        <p class="card-text text-center mb-0">Alergènes : {{ delimit $alertAutresAllergenes ", "}}</p>
-        {{- end -}}
+    {{- range sort .Params.repas ".date_service" -}}
+    {{ $dateService := .date_service | time.Format "2006-01-02" }}
+    {{ $dateService = replace $dateService "-" "" }}
+    
+    <div id="affiche{{$dateService}}{{.horaire}}" class="page-break-after " :class="{ 'no-print' : !toPrint.affiche{{$dateService}}{{.horaire}} }" >
+        <div class="card mb-3 print-nocard">
 
-          {{- $alertGluten := intersect $ingredientsL ($sAllergenes.Get "Gluten") -}}
-          {{- $alertPorc := intersect $ingredientsL ($sAllergenes.Get "Porc") -}}
-          {{- $alertLait := intersect $ingredientsL ($sAllergenes.Get "Produit laitier") -}}
-        
-          {{- with $alertGluten -}}
-          <p class="card-text text-center mb-0">Contient du gluten : {{ delimit $alertGluten ", "}}</p>
-          {{- end -}}
-          {{- with $alertPorc -}}
-          <p class="card-text text-center  mb-0">Contient du porc : {{ delimit $alertPorc ", "}}</p>
-          {{- end -}}
-          {{- with $alertLait -}}
-          <p class="card-text text-center mb-0">Contient des produits laitiers : {{ delimit $alertLait ", "}}</p>
-          {{- end -}}
-          {{- with $alertAnimaux -}}
-          <p class="card-text text-center mb-0">Animaux : {{ delimit $alertAnimaux ", "}}</p>
-          {{- end -}}
-          {{- end  }}
-
-        
-        {{- end }}
-    {{- end }}
-
-    {{ range .recettes_du_repas }}
-    {{ if eq .type_plat "plat" }}
-      {{ if (and $firstPlat .recette) }}
-        <p class="card-text text-center fs-3 mt-4">·•· Plats ·•·</p>
-        {{- $firstPlat = false -}}
-      {{- end -}}
-      <p class="fs-1 text-center fw-bold mt-3 mb-0">{{.recette}}</p>
-      <p class="card-text">{{.description}}</p>
-      
-      {{- $url:= print .recette | urlize -}}
-        {{- with site.GetPage $url -}}
-
-        <p class="mb-0 text-center" >{{ partial "components/regimes-concat.html" .Params.regime }}</p>
-        <p class="m-0 text-center">•••</p>
-      
-        {{ $alertAnimaux := slice }}
-        {{ range .Params.ingredients.animaux }}
-          {{- with . -}}
-          {{ $alertAnimaux = $alertAnimaux | append .title}}
-          {{- end }}
-        {{ end }}
-      
-        {{ $ingredientsL := slice }}
-        {{- range $key, $value := .Params.ingredients -}}
-        {{- with . -}}
-          {{- range $index, $element := . -}}
-          {{ $ingredientsL = $ingredientsL | append .title}}
-          {{- end }}
-        {{- end -}}
-      {{- end -}}
-
-        {{- $alertGluten := intersect $ingredientsL ($sAllergenes.Get "Gluten") -}}
-        {{- $alertPorc := intersect $ingredientsL ($sAllergenes.Get "Porc") -}}
-        {{- $alertLait := intersect $ingredientsL ($sAllergenes.Get "Produit laitier") -}}
+          {{/*  <button type="button" class="btn btn-outline-primary" onclick="downloadInnerHtml('affiche{{$dateService}}{{.horaire}}', 'affiche{{$dateService}}{{.horaire}}')">Download</button>  */}}
+          <div class="card-body pt-2" >
+            <div>
+              <a class="btn btn-sm btn-outline-primary float-end no-print mx-1"
+                @click="printThis('affiche{{$dateService}}{{.horaire}}', 'affichesSection')">{{ partial "inline-svg" (dict "src" "fonticons/printer"  "fs" 3) }}</a>
+            </div>
             
-        {{- $alertAutresAllergenes := slice -}}
-        {{ range $allergenesLgList }}
-          {{- $toAdd := intersect $ingredientsL ($sAllergenes.Get . ) -}}
-          {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
-        {{ end }}
+              <div>
+                <p v-show="fontDate !== 'noDisplay'" class="m-0 text-center h3" :class="[[fontDate]]" :style="fontSizeDate">{{.date_service | time.Format "Monday 2 January "}}</p>
+                <p v-show="fontHoraire !== 'noDisplay'" class="text-center m-0 h3" :class="[[fontHoraire]]" :style="fontSizeHoraire" >{{ .horaire }}</p>
+                <p v-show="fontHoraire !== 'noDisplay' || fontDate !== 'noDisplay'" class="fs-4 text-center fw-bold m-0">·•·•·•·•·•·•··•·•·•·•·•·•·</p>
+              </div>
+              
+              <div class="avoid-break-inside">{{ partial "evenement/poster.html" (dict "recettes_du_repas" .recettes_du_repas "allergenesLgList" $allergenesLgList "recetteCat" "entree" "recetteCatFormat" "Entrée") }}</div>
 
-        {{- with $alertAutresAllergenes -}}
-        <p class="card-text text-center mb-0">Alergènes : {{ delimit $alertAutresAllergenes ", "}}</p>
-        {{- end -}}
+            <div :class="{'page-break-before' : catPageBreak}">
+              <div v-if="dateByPageBreak && catPageBreak" class="printonly ">
+                <p v-show="fontDate !== 'noDisplay'" class="m-0 text-center h3" :class="[[fontDate]]" :style="fontSizeDate">{{.date_service | time.Format "Monday 2 January "}}</p>
+                <p v-show="fontHoraire !== 'noDisplay'" class="text-center m-0 h3" :class="[[fontHoraire]]" :style="fontSizeHoraire" >{{ .horaire }}</p>
+                <p v-show="fontHoraire !== 'noDisplay' || fontDate !== 'noDisplay'" class="fs-4 text-center fw-bold m-0">·•·•·•·•·•·•··•·•·•·•·•·•·</p>
+              </div>
+              <div class="avoid-break-inside">{{ partial "evenement/poster.html" (dict "recettes_du_repas" .recettes_du_repas "allergenesLgList" $allergenesLgList "recetteCat" "plat" "recetteCatFormat" "Plat") }}</div>
+            </div>
+              
+            
+            <div :class="{'page-break-before' : catPageBreak}">
+              <div v-if="dateByPageBreak && catPageBreak" class="printonly ">
+                <p v-show="fontDate !== 'noDisplay'" class="m-0 text-center h3" :class="[[fontDate]]" :style="fontSizeDate">{{.date_service | time.Format "Monday 2 January "}}</p>
+                <p v-show="fontHoraire !== 'noDisplay'" class="text-center m-0 h3" :class="[[fontHoraire]]" :style="fontSizeHoraire" >{{ .horaire }}</p>
+                <p v-show="fontHoraire !== 'noDisplay' || fontDate !== 'noDisplay'" class="fs-4 text-center fw-bold m-0">·•·•·•·•·•·•··•·•·•·•·•·•·</p>
+              </div>
+              <div class="avoid-break-inside">{{ partial "evenement/poster.html" (dict "recettes_du_repas" .recettes_du_repas "allergenesLgList" $allergenesLgList "recetteCat" "dessert" "recetteCatFormat" "Dessert") }}</div>
+            </div>
 
-        {{- with $alertGluten -}}
-        <p class="card-text text-center mb-0">Contient du gluten : {{ delimit $alertGluten ", "}}</p>
-        {{- end -}}
-        {{- with $alertPorc -}}
-        <p class="card-text text-center  mb-0">Contient du porc : {{ delimit $alertPorc ", "}}</p>
-        {{- end -}}
-        {{- with $alertLait -}}
-        <p class="card-text text-center mb-0">Contient des produits laitiers : {{ delimit $alertLait ", "}}</p>
-        {{- end -}}
-        {{- with $alertAnimaux -}}
-        <p class="card-text text-center mb-0">Animaux : {{ delimit $alertAnimaux ", "}}</p>
-        {{- end -}}
-      {{- end  }}
-    {{- end }}
-    {{- end }}
-
-
-    {{ range .recettes_du_repas }}
-    {{ if eq .type_plat "dessert" }}
-      {{ if (and $firstDessert .recette) }}
-        <p class="text-center fs-3 mt-4">·•· Dessert ·•·</p>
-        {{- $firstDessert = false -}}
-      {{- end -}}
-        <p class="fs-1 text-center fw-bold mt-3 mb-0">{{.recette}}</p>
-        <p class="card-text">{{.description}}</p>
-        
-        {{- $url:= print .recette | urlize -}}
-        {{- with site.GetPage $url -}}
-
-        <p class="mb-0 text-center" >{{ partial "components/regimes-concat.html" .Params.regime }}</p>
-        <p class="m-0 text-center">•••</p>
+          </div>
+        </div>
+      </div>
       
-        {{ $alertAnimaux := slice }}
-        {{ range .Params.ingredients.animaux }}
-          {{- with . -}}
-          {{ $alertAnimaux = $alertAnimaux | append .title}}
-          {{- end }}
-        {{ end }}
-      
-        {{ $ingredientsL := slice }}
-        {{- range $key, $value := .Params.ingredients -}}
-        {{- with . -}}
-          {{- range $index, $element := . -}}
-          {{ $ingredientsL = $ingredientsL | append .title}}
-          {{- end }}
-        {{- end -}}
-      {{- end -}}
-
-      {{- $alertAutresAllergenes := slice -}}
-      {{ range $allergenesLgList }}
-        {{- $toAdd := intersect $ingredientsL ($sAllergenes.Get . ) -}}
-        {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
       {{ end }}
-
-      {{- with $alertAutresAllergenes -}}
-      <p class="card-text text-center mb-0">Alergènes : {{ delimit $alertAutresAllergenes ", "}}</p>
-      {{- end -}}
-
-
-        {{- $alertGluten := intersect $ingredientsL ($sAllergenes.Get "Gluten") -}}
-        {{- $alertPorc := intersect $ingredientsL ($sAllergenes.Get "Porc") -}}
-        {{- $alertLait := intersect $ingredientsL ($sAllergenes.Get "Produit laitier") -}}
-      
-        {{- with $alertGluten -}}
-        <p class="card-text text-center mb-0">Contient du gluten : {{ delimit $alertGluten ", "}}</p>
-        {{- end -}}
-        {{- with $alertPorc -}}
-        <p class="card-text text-center  mb-0">Contient du porc : {{ delimit $alertPorc ", "}}</p>
-        {{- end -}}
-        {{- with $alertLait -}}
-        <p class="card-text text-center mb-0">Contient des produits laitiers : {{ delimit $alertLait ", "}}</p>
-        {{- end -}}
-        {{- with $alertAnimaux -}}
-        <p class="card-text text-center mb-0">Animaux : {{ delimit $alertAnimaux ", "}}</p>
-        {{- end -}}
-      {{- end  }}
-
-      {{- end }}
-
-    {{ end }}
-    
-  
-  
   </div>
-    
-  </div>
-    
-  {{ end }}
+</div>
 
 </div> 
+</div>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:ital,wght@0,400;0,700;0,900;1,900&family=Gluten:wght@500&family=Montserrat:wght@100..900&family=Pacifico&display=swap" rel="stylesheet">
 
 {{/*  Import de flatpiker, utilisé seulement sur cette page  */}}
 <script type="text/javascript">
@@ -1275,7 +1191,16 @@
     }
   }
   
- 
+  {{/*  function downloadInnerHtml(filename, elId, mimeType) {
+    var elHtml = document.getElementById(elId).innerHTML;
+    var link = document.createElement('a');
+    mimeType = mimeType || 'text/html';
+
+    link.setAttribute('download', filename);
+    link.setAttribute('href', 'data:' + mimeType  +  ';charset=utf-8,' + encodeURIComponent(elHtml));
+    link.click(); 
+}  */}}
+
  
   function downloadFile(data, format) {
     if (format === 'csv') {
@@ -1383,6 +1308,12 @@
           LegumesRanges: true,
           FraisRanges: true,
           AnimauxRanges: true,
+          affichesSection: true,
+          {{- range sort .Params.repas ".date_service" -}}
+          {{ $dateService := .date_service | time.Format "2006-01-02" }}
+          {{ $dateService = replace $dateService "-" "" }}
+          "affiche{{$dateService}}{{.horaire}}": true,
+          {{ end }}
         },
 
         printAddCol: [],
@@ -1402,6 +1333,28 @@
           altInput: true,
           altFormat: "D d M",
         },
+
+        {{/* :::___Affiches  */}}
+        fontDate: "montserrat-font",
+        fontSizeDate: "font-size: 24px",
+        fontHoraire: "montserrat-font",
+        fontSizeHoraire: "font-size: 24px",
+        fontCat: "montserrat-font",
+        fontSizeCat: "font-size: 24px",
+        fontRecettes: "pacifico-regular",
+        fontSizeRecettes: "font-size: 32px",
+        fontDesc: "noDisplay",
+        fontSizeDesc: "font-size: 16px",
+        fontRegimes: "pacifico-regular",
+        fontSizeRegimes: "font-size: 18px",
+        fontAlert: "",
+        fontSizeAlert: "font-size: 14px",
+        fontIng: "noDisplay",
+        fontSizeIng: "font-size: 14px",
+
+        catPageBreak: false,
+        dateByPageBreak: false,
+      
 
 
   } {{/* return */}}    

@@ -14,6 +14,7 @@
     size: auto;
   }
 
+ 
 
   body {
     -moz-osx-font-smoothing: grayscale;
@@ -39,7 +40,7 @@
   }
   }
 
-  // Pour définir des colonnes pour l'impression (les annuler ou les creer)
+  /* Pour définir des colonnes pour l'impression (les annuler ou les creer) */
   .print-col-12 {
     min-width: 100% !important;
     max-width: 100% !important;
@@ -74,13 +75,13 @@
     font-size: 75% !important;
   }
 
-  // 
+
 
   .print-border-1 {
     border: solid 1px ;
   }
 
-// Font Size
+ /* Font Size */
   .print-fs-small {
     font-size: small !important;
   }
@@ -109,7 +110,9 @@
     max-width: 10%
   }
 
-  // Suppression des marges et pading
+
+
+  /*  Suppression des marges et pading */
 
   .content {
     padding: 0 !important;
