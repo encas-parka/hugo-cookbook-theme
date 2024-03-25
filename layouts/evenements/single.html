@@ -175,16 +175,16 @@
 
 {{/* ::: navbar page */}}
   <div x-on:resize.window="screenMd = (window.innerWidth > 1024) ? true : false" x-data="{screenMd: (window.innerWidth > 1024) ? true : false}"  >
-     <nav class="navbar fixed-top topnav2 navbar-expand-lg no-print navbar-dark bg-dark shadow p-0  rounded-bottom-4 pt-2 " x-data="scrollToReveal()" x-ref="navbar" x-on:scroll.window="scroll()"  x-bind:class="{ 'scrolled': !isScrolled }">
+     <nav class="navbar fixed-top topnav2 navbar-expand-lg no-print navbar-dark bg-dark shadow p-0  rounded-bottom-4" x-data="scrollToReveal()" x-ref="navbar" x-on:scroll.window="scroll()"  x-bind:class="{ 'scrolled': !isScrolled }">
         <div class="container-fluid">
           <ul class="navbar-nav">
             <li class="nav-item">
               <div class="btn-group" role="group">
                
-                <a href="#Recettes" class="btn btn-primary shadow-sm py-1"
+                <a href="#Recettes" class="btn btn-primary btn-sm shadow-sm py-1"
                 ><span class="me-2" x-show="!screenMd">{{ partial "inline-svg" (dict "src" "fonticons/preparation.svg" "display" "inline-middle" "rem" 2) }}</span> <span x-show="screenMd">Recettes</span></a>
               
-                <button type="button" class="btn btn-primary dropdown-toggle py-1" data-bs-toggle="dropdown" aria-expanded="false"></button>>{{ partial "inline-svg" (dict "src" "fonticons/search.svg" "display" "inline-middle" "fs" 5) }}</button>
+                <button type="button" class="btn btn-primary btn-sm dropdown-toggle py-1" data-bs-toggle="dropdown" aria-expanded="false">{{ partial "inline-svg" (dict "src" "fonticons/search.svg" "display" "inline-middle" "fs" 5) }}</button>
               
                <ul class="dropdown-menu columns-3 p-3">
                 {{ $dateService := "none"}}
@@ -209,7 +209,7 @@
           </ul>
             <ul class="navbar-nav">
             <li class="nav-item p-2">
-              <a href="#TotalIngredients" class="btn btn-primary shadow-sm py-1"
+              <a href="#TotalIngredients" class="btn btn-primary btn-sm shadow-sm py-1"
                 ><span class="me-2"  x-show="!screenMd">{{ partial "inline-svg" (dict "src" "fonticons/ingredients.svg" "display" "inline-middle" "rem" 2) }}</span><span x-show="screenMd">Ingrédients</span></a>
             </li>
             </ul>

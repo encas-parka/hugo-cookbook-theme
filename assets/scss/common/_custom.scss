@@ -296,10 +296,13 @@ a:hover {
 .topnav2{
   top: 50px;
   z-index: 1029;
+  transition:cubic-bezier(1, 0, 0, 1) 0.5s;
 }
 
 .topnav2.scrolled{
   top: 0px !important;
+  padding: 0.3em !important;
+  z-index: 1032;
 }
 
 // Sidefilter pour la liste des ingredient
@@ -360,4 +363,87 @@ html {
     display: none;
   }
   
+}
+
+
+// Google Fonts
+.gluten-font {
+    font-family: "Gluten", cursive; 
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-style: normal;
+    font-variation-settings:
+      "slnt" 0;
+  }
+
+  .fira-sans-regular {
+    font-family: "Fira Sans", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+  }
+  
+  .fira-sans-bold {
+    font-family: "Fira Sans", sans-serif;
+    font-weight: 700;
+    font-style: normal;
+  }
+  
+  .fira-sans-black {
+    font-family: "Fira Sans", sans-serif;
+    font-weight: 900;
+    font-style: normal;
+  }
+  
+  .fira-sans-black-italic {
+    font-family: "Fira Sans", sans-serif;
+    font-weight: 900;
+    font-style: italic;
+  }
+  
+  // <uniquifier>: Use a unique and descriptive class name
+// <weight>: Use a value from 100 to 900
+
+.montserrat-font {
+  font-family: "Montserrat", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 800;
+  font-style: normal;
+}
+
+.pacifico-regular {
+  font-family: "Pacifico", cursive;
+  font-weight: 400;
+  font-style: normal;
+}
+
+
+// mobile
+
+@media screen and (max-width: 480px) {
+
+  .container, .container-fluid {
+    padding : 0.2rem !important;
+  }
+  
+
+  .row {
+    padding : 0.2rem !important;
+    margin: 0.2rem !important;
+  }
+  
+  [class*="col"] {
+    padding : 0.2rem !important;
+
+  }
+
+  .card, .card-body {
+    padding : 0.2rem !important;
+  }
+
+  ul {
+    padding : 0.4rem !important;
+    list-style-type: none;
+
+  }
+
 }

@@ -5,14 +5,7 @@
 
 <header >
   <div>
-    <nav class="navbar navbar-dark bg-dark navbar-expand-lg no-print p-0 "
-      x-data="scrollToReveal()" 
-      x-ref="navbar"
-      x-on:scroll.window="scroll()"
-      x-bind:class="{
-                    'fixed-top': isScrolled,
-                    {{/*  'relative': !sticky  */}}
-                    }"
+    <nav class="navbar navbar-dark bg-dark navbar-expand-lg no-print p-0 fixed-top "
     >
         <div class="container-fluid" >
           <a class="navbar-brand monospace" href="{{ "/" | absURL }}"> <img src="/favicon-96x96.png" alt="logo" width="42" class="d-inline-block align-text-center"> {{ .Site.Params.Title }}</a>
@@ -42,6 +35,7 @@
               <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownCategories" role="button" data-bs-toggle="dropdown"
                   aria-expanded="false">
+                  {{ partial "inline-svg" (dict "src" "fonticons/letter-uppercase-circle-c.svg" "display" "inline" "fs" 4) }}
                   Catégories
                 </a>
                 <div class="dropdown-menu columns-2" aria-labelledby="navbarDropdown">
@@ -88,7 +82,7 @@
                   data-bs-target="#search-events-modal"
                   role="button"
                   >
-                  Les Evenements</a>
+                  Evenements</a>
               </li>
             </ul>
       
@@ -98,7 +92,9 @@
                   href="{{ "/docs" | absURL }}"
                   class="nav-link"
                   >
-                  Documentation</a>
+                  <span class="">{{ partial "inline-svg" (dict "src" "fonticons/patch-exclamation.svg" "display" "inline" "fs" 4) }}</span>
+                  la doc
+                </a>
               </li>
               <li class="nav-item m-2" >
                 <a
@@ -118,7 +114,7 @@
               <li class="nav-item m-2">
                <a href="/registration"
                  class="btn btn-outline-primary btn-sm" style="display: flex; align-items: center;">
-                 {{partial "inline-svg" (dict "src" "fonticons/box-arrow-in-right.svg" "fs" 4 ) }}
+                 {{partial "inline-svg" (dict "src" "fonticons/box-arrow-in-right.svg" "fs" 4 ) }} 
                  <span class="mx-2">Connexion</span>
                </a>
              </li>
@@ -132,9 +128,9 @@
     </div>
 
     {{/*  Barre secondaire de navigation pour les pages 'evenements'. Utilise alpinejs pour vérifier la taille de l'ecran, et adapter les boutons en conséquence. → deplacé vers evenement */}}
-    {{/*  {{ if eq .Type "evenements" }}
-    
-    {{end}}  */}}
+    {{ if eq .Type "evenements" }}
+   
+    {{end}}
 </header> 
 
 {{ if not .IsHome }}
@@ -177,7 +173,7 @@
 
       lastPos: window.scrollY + 0,
       scroll() {
-        scrolled = window.scrollY > this.$refs.navbar.offsetHeight && this.lastPos > window.scrollY || window.scrollY === 0;
+        scrolled = window.scrollY > this.$refs.navbar.offsetHeight && this.lastPos > window.scrollY || window.scrollY === 0 ;
         this.lastPos = window.scrollY;
         this.isScrolled = scrolled;
       }
