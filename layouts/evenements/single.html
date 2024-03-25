@@ -162,7 +162,7 @@
 
 {{/*  {{ $allergenesDict := dict }}  */}}
 {{ $allergenesList := slice }}
-{{ range $allergenesTypeList }}
+{{ range $allergenesLgList }} {{/* replace $allergenesTypeList */}}
   {{/*  {{ $allergenesDict = merge $allergenesDict (dict . ($sAllergenes.Get .)) }}  */}}
   {{ $allergenesList = append  ($sAllergenes.Get .) $allergenesList }}
 {{ end }}
