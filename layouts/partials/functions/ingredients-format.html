@@ -1,7 +1,7 @@
   {{/*  TODO : limiter les allergene indiquer / distinguer gluten  */}}
   
-  {{ if in  .alergene  .title }}
-    <span class="fw-bold">{{ .title }}</span>
+  {{ if in  .alergene  .ingredient }}
+    <span class="fw-bold">{{ .ingredient }}</span>
     {{/* TODO in-line-svg from module ? */}}
     {{ partial "inline-svg" (dict 
           "src" "fonticons/exclamation-triangle"
@@ -10,11 +10,12 @@
           "fs" 5
            ) }}
   {{ else }}
-    <span class="fw-bold">{{- .title -}}</span>
+    <span class="fw-bold">{{- .ingredient -}}</span>
   {{ end }}
 
   {{ if .quantite }}
     : <span class="amount">{{- .quantite -}}</span>
     <span class="unit"> {{- .unit -}}</span>
+    <span>{{ partial "functions/unit-cuillere.html" ( dict "unit" .unit "ingredient" .ingredient "quantite" .quantite ) }}</span>
   {{ end }}
 

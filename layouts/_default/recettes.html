@@ -9,7 +9,7 @@
 
 {{/*  TODO json allergenes  */}}
 {{/*  Reccupération des données allergenesIng sur chaque ingrédients. Permet de faire évoluer la liste plutot que de la figer  */}}
-{{- $allergenesTypeList := slice -}}
+{{/*  {{- $allergenesTypeList := slice -}}
 {{ range $.Site.Data.ingredients }}
   {{- range .ingredients -}}
     {{- if .alergenesIng -}}
@@ -17,9 +17,9 @@
     {{- end -}}
   {{- end -}}
   {{ end }}
-{{- $allergenesTypeList = $allergenesTypeList | uniq -}}
+{{- $allergenesTypeList = $allergenesTypeList | uniq -}}  */}}
 
-{{ $sAllergenes := newScratch }}
+{{/*  {{ $sAllergenes := newScratch }}
 {{- range $.Site.Data.ingredients -}}
   {{- range .ingredients -}}
     {{- if .alergenesIng -}}
@@ -29,16 +29,20 @@
       {{ end }}    
     {{- end -}}
   {{- end -}}
-{{- end -}}
+{{- end -}}  */}}
 
-{{ $allergenesDict := dict }}
+{{ $sAllergenes := (partialCached "functions/allergenesIng.html" .)  }}
+
+{{ $allergenesLgList := slice "Poisson" "Oeuf" "Soja" "Sésame" "Moutarde" "Fruit à coque" "Céleri" "Crustacé" "Arachide" "Mollusque"}}
+
+
+{{/*  {{ $allergenesDict := dict }}  */}}
 {{ $allergenesList := slice }}
-{{ range $allergenesTypeList }}
-  {{ $allergenesDict = merge $allergenesDict (dict . ($sAllergenes.Get .)) }}
+{{ range $allergenesLgList }} {{/* replace $allergenesTypeList */}}
+  {{/*  {{ $allergenesDict = merge $allergenesDict (dict . ($sAllergenes.Get .)) }}  */}}
   {{ $allergenesList = append  ($sAllergenes.Get .) $allergenesList }}
 {{ end }}
 
-{{ $allergenesLgList := slice "Poisson" "Oeuf" "Soja" "Sésame" "Moutarde" "Fruit à coque" "Céleri" "Crustacé" "Arachide" "Mollusque"}}
 
 {{/* reccupération des ingredients warning de la recette  */}}
 {{ $ingredientsL := slice }}
@@ -181,15 +185,30 @@
         {{- with . -}}
         <div class="card my-2 p-2 " outlined>
           {{ $svg := (printf "fonticons/%s.svg" $key)}}
-          <span class="fw-bold mb-2 me-1">{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "fs" 1) .  }} {{ partial "components/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span>
+          <div>
+            <span class="fw-bold mb-2 me-1">{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "fs" 1) .  }} {{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span>   
+            {{ if eq $key "epices"}}
+             <span class="small text-muted">(gouttez, ajustez !)</span>
+            {{ end }}
+          </div>
+          
           {{- range $index, $element := . -}} 
-            <div class="small ps-2">
-            • {{ partial "components/ingredients" (dict "title" .title "quantite" .quantite "unit" .unit "alergene" $allergenesList  ) }}
+          <div class="small ps-2">
+            • {{ partial "functions/ingredients-format" (dict "ingredient" .title "quantite" .quantite "unit" .unit "alergene" $allergenesList  ) }}
           </div>
           {{end}}
         </div>
        {{- end -}} {{/* with */}} 
       {{- end -}} {{/* range key value */}}
+
+      <div class="text-muted small">
+        {{ partial "inline-svg" (dict
+        "src" "fonticons/exclamation-triangle"
+        "display" "inline"
+        "title" "Allergène"
+        "fs" 5
+         ) }} → Allergènes
+      </div>
   </div>
 
 

@@ -1,12 +1,14 @@
 ---
-title: test!?//
-type: entree
+title: test&&
+layout: recettes
+type: plat
 categories:
-  - Gateau
-cuisson: Non
-temperature: Chaud
-plate: 13
+  - Salade
+cuisson: Oui
+temperature: Froid
+plate: 12
 check: Oui
+checkAlwaysOk: false
 preparation: test
-publishDate: 2024-03-27T11:28:14.403Z
+publishDate: 2024-03-27T11:22:35.820Z
 ---

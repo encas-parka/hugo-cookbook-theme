@@ -135,7 +135,7 @@
 {{/* ::: Regroupement des ingredients allergenes  */}}
 
 {{/*  Reccupération des données allergenesIng sur chaque ingrédients. Permet de faire évoluer la liste plutot que de la figer  */}}
-{{- $allergenesTypeList := slice -}}
+{{/*  {{- $allergenesTypeList := slice -}}
 {{ range $.Site.Data.ingredients }}
   {{- range .ingredients -}}
     {{- if .alergenesIng -}}
@@ -143,7 +143,7 @@
     {{- end -}}
   {{- end -}}
   {{ end }}
-{{- $allergenesTypeList = $allergenesTypeList | uniq -}}
+{{- $allergenesTypeList = $allergenesTypeList | uniq -}}  */}}
 
 {{/*  {{ $sAllergenes := newScratch }}
 {{- range $.Site.Data.ingredients -}}
@@ -157,7 +157,9 @@
   {{- end -}}
 {{- end -}}  */}}
 
-{{ $sAllergenes := (partialCached "components/allergenesIng.html" .)  }}
+{{ $sAllergenes := (partialCached "functions/allergenesIng.html" .)  }}
+
+{{ $allergenesLgList := slice "Poisson" "Oeuf" "Soja" "Sésame" "Moutarde" "Fruit à coque" "Céleri" "Crustacé" "Arachide" "Mollusque"}}
 
 
 {{/*  {{ $allergenesDict := dict }}  */}}
@@ -167,7 +169,6 @@
   {{ $allergenesList = append  ($sAllergenes.Get .) $allergenesList }}
 {{ end }}
 
-{{ $allergenesLgList := slice "Poisson" "Oeuf" "Soja" "Sésame" "Moutarde" "Fruit à coque" "Céleri" "Crustacé" "Arachide" "Mollusque"}}
 
 {{/*  lien vers le CMS de la page  */}}
   {{ $linkCMSPage := (path.Join "/admin/#/collections/evenement/entries/" (.Title | urlize)) }}
@@ -221,7 +222,7 @@
              <ul class="dropdown-menu columns-3 p-3">
                <div class="row row-cols-md-2 p-2">
                 {{ range sort $IngredientsTypesList "iType" "desc"}}
-                {{ $iTypeName := (partial "components/ingredients-types-rename" (dict "ingType" .iType) .) }}
+                {{ $iTypeName := (partial "functions/ingredients-types-rename" (dict "ingType" .iType) .) }}
                   <div class="p-2">
                     <div class="card p-1">
                       <a href="#IngListID{{.iType}}">
@@ -339,11 +340,8 @@
         <div class="card border-danger border-3 my-3 p-2">
           <div class="card-body text-danger">
             <h5 class="card-title mt-1">Une des recettes de l'évenement n'existe plus !</h5>
-            <p class="card-text">La recette <span class="fw-bolder">"{{- $recette -}}"</span> présente dans les menus de
-              l'événement n'existe plus sur le site. Par conséquent, la page ne s'affichera pas correctement. </p>
-            <p>La recette à peut être été supprimée, ou bien son titre à été modifié. Dans tous les cas, pour résoudre le
-              problème, il faut modifier la page de l'événement pour remplacer la recette disparue (ou re-donner son titre
-              antérieur à la recette)...</p>
+            <p class="card-text">La recette <span class="fw-bolder">" {{ $url -}}"</span> présente dans les menus de l'événement n'existe plus sur le site. Par conséquent, la page ne s'affichera pas correctement.   </p>
+            <p>La recette à peut être été supprimée, ou bien son titre à été modifié. Dans tous les cas, pour résoudre le problème, il faut modifier la page de l'événement pour remplacer la recette disparue (ou re-donner son titre antérieur à la recette)...</p>
           </div>
         </div>
 {{- end -}}
@@ -624,68 +622,36 @@
         <div class="card my-2 p-2 " outlined>
           <div class="row">
             <div class="col">
-              <div class="mb-2"> {{ partial "components/icon-type"  (dict "icon" $key) }} <span class="fw-bold">{{ partial "components/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}}</span> </div>
-              
-              {{ range $index, $element := . -}}
-              <div class="small ps-2">
-
-                  {{/* Pour obtenir les quantité correspondant au nombres d'assiettes indiquées */}}
-                  <span class="fw-bold">• {{ partial "components/ingredients" (dict "title" .title "alergene" $allergenesList)
-                    }}</span>
-
-                  {{ if .quantite }}
-                  :
-                  {{ $quantiteRepas := (float (div (mul (float .quantite) $assiettes ) $assiettesRecettes)) }}
-                  {{/*  renommage des unités  */}}
-                  {{ $unit := .unit }}
-                  {{ if eq .unit "grammes" }}
-                    {{ $unit = "gr."}}
-                  {{ else if and (eq .unit "unité") (gt $quantiteRepas 1) }}
-                    {{ $unit = "unités"}}
-                  {{ else if and (eq .unit "litre") (gt $quantiteRepas 1) }}
-                    {{ $unit = "litres" }}
-                  {{ end }}
-                    {{ if or (eq .unit "Kg") (eq .unit "litre") }}
-                      {{ if lt $quantiteRepas 1}}
-                        {{ mul $quantiteRepas 1000 | math.Round }} 
-                        {{/* XXX Retester */}}
-                        {{ if eq .unit "litre"}}
-                          {{ printf "ml" }}
-                        {{ else if eq .unit "Kg"}}
-                          {{ printf "gr."}}
-                        {{ end }}
-                      {{ else }}
-                        {{/*  Ne garder que 2 décimales, et les supprimer si = ",00 " */}}
-                        {{ $quantiteRepas | lang.FormatNumber 2 | strings.TrimRight "0" | strings.TrimRight ","}} {{$unit}}
-                      {{end}}
-
-                    {{ else if  or (eq .unit "grammes") (eq .unit "ml")}}
-                      {{ if gt (math.Ceil $quantiteRepas) 999}}
-                        {{ div $quantiteRepas 1000  | lang.FormatNumber 2 | strings.TrimRight "0" | strings.TrimRight ","}}
-                        {{ if eq .unit "ml"}}
-                          {{ printf "litres" }}
-                        {{ else if eq .unit "grammes"}}
-                          {{ printf "Kg"}}
-                        {{ end }} 
-
-                      {{ else if lt $quantiteRepas 1}}
-                        {{ $quantiteRepas | lang.FormatNumber 2 | strings.TrimRight "0" | strings.TrimRight ","}} {{$unit}}
-                      {{ else }}
-                        {{ math.Round $quantiteRepas }} {{$unit}}
-                      {{end}}
-                    
-                    {{ else }}
-                       {{ $quantiteRepas | lang.FormatNumber 2 }}  {{$unit}}
-                    {{ end }}
-                  {{ end }}
+              <div class="mb-2"> {{ partial "components/icon-type"  (dict "icon" $key) }} <span class="fw-bold">{{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span> 
+              {{ if eq $key "epices"}} 
+                <span class="small text-muted">(gouttez, ajustez !)</span>
+              {{ end }} 
               </div>
+
+              {{ range $index, $element := . -}}
+                <div class="small ps-2">
+                  {{/*  <span class="fw-bold">• {{ partial "components/ingredients" (dict "title" .title "alergene" $allergenesList)
+                  }}</span>  */}}
+
+                  {{/* Pour obtenir les quantité correspondant au nombres d'assiettes indiquées  */}}
+                  {{ partial "functions/ingName-quantite-format.html" (dict "ingredient" .title  "quantite" .quantite "assiettes" $assiettes "assiettesRecettes" $assiettesRecettes "unit" .unit "alergene" $allergenesList) }}
+                  
+                </div>
               {{ end }}
 
             </div>
           </div>
         </div>
         {{ end }}
-      {{ end }} {{/* range $key, $value := .Params.ingredients */}}
+        {{ end }} {{/* range $key, $value := .Params.ingredients */}}
+        <div class="text-muted small">
+          {{ partial "inline-svg" (dict
+          "src" "fonticons/exclamation-triangle"
+          "display" "inline"
+          "title" "Allergène"
+          "fs" 5
+           ) }} → Allergènes
+        </div>
     </div>
           
       {{/* ::: ___PREPARATION  */}}
@@ -708,10 +674,10 @@
           </div>
       {{ end }}
 
-              {{else}}
-              <div>
-                Cette recette n'exite plus dans la base de donnée !
-              </div>
+      {{else}}
+      <div>
+        Cette recette n'exite plus dans la base de donnée !
+      </div>
     {{ end }} {{/* with site.GetPage $url */}}
     </div>
 
@@ -894,7 +860,7 @@
     {{/*  Renommage des iType  */}}
     <div id="tableIng">
       {{ range sort $IngredientsTypesList "iType" "desc"}}
-      {{ $iTypeName := (partial "components/ingredients-types-rename" (dict "ingType" .iType) .) }}
+      {{ $iTypeName := (partial "functions/ingredients-types-rename" (dict "ingType" .iType) .) }}
       {{ $IngTypeList := (printf "Ing%sList" .iType) }}
       {{/*  ::: _ Card des tableau ingredients petit et grand  */}}
       <div
@@ -947,18 +913,21 @@
                     <span class="fw-bold">[[item.recette]]</span> le [[new Date (item.dateService).toISOString().substr(0, 10)]] /
                     [[item.horaire]] <br> pour [[item.assiettes]] couverts
                     <span class="fw-bold float-end" v-if="item.quantite && item.unit">[[round2Decimals(item.quantite)]] [[item.unit]]</span>
+
                   </td>
                 </tr>
       
                 <tr v-if="item.qTotalX"  :class="{'table-secondary': showAllColIngredients}">
                   <td class="toCopyTd">[[item.ingredient]]</td>
-                  <td class="small">[[item.totalAssiettes]] couverts - [[item.totalRecettes]] recettes</td>
+                  <td class="small">[[item.totalAssiettes]] couverts - [[item.totalRecettes]] recettes </td>
       
                   <td class="text-end toCopyTd">
+                    <span v-if="item.unit !== item.unitOrig">ATTENTION [[item.unitOrig]]</span>
                     <template v-for="(quantite, index) in item.qTotalX" >
                       <span v-if="quantite.unit !== ''"> [[round2Decimals(quantite.qTotal)]] [[quantite.unit]] </span>
+                      
                       <span v-else class="small">... [[item.totalRecettes]] recettes </span>
-                      <span v-if="index !== item.qTotalX.length - 1"> + </span>
+                      
                     </template>
                   </td>
       
@@ -1042,7 +1011,7 @@
                 <p v-show="fontHoraire !== 'noDisplay' || fontDate !== 'noDisplay'" class="fs-4 text-center fw-bold m-0">·•·•·•·•·•·•··•·•·•·•·•·•·</p>
               </div>
               
-              <div class="avoid-break-inside">{{ partial "evenement/poster.html" (dict "recettes_du_repas" .recettes_du_repas "allergenesLgList" $allergenesLgList "recetteCat" "entree" "recetteCatFormat" "Entrée") }}</div>
+              <div class="avoid-break-inside">{{ partial "evenement/poster.html" (dict "recettes_du_repas" .recettes_du_repas  "recetteCat" "entree" "recetteCatFormat" "Entrée") }}</div>
 
             <div :class="{'page-break-before' : catPageBreak}">
               <div v-if="dateByPageBreak && catPageBreak" class="printonly ">
@@ -1050,7 +1019,7 @@
                 <p v-show="fontHoraire !== 'noDisplay'" class="text-center m-0 h3" :class="[[fontHoraire]]" :style="fontSizeHoraire" >{{ .horaire }}</p>
                 <p v-show="fontHoraire !== 'noDisplay' || fontDate !== 'noDisplay'" class="fs-4 text-center fw-bold m-0">·•·•·•·•·•·•··•·•·•·•·•·•·</p>
               </div>
-              <div class="avoid-break-inside">{{ partial "evenement/poster.html" (dict "recettes_du_repas" .recettes_du_repas "allergenesLgList" $allergenesLgList "recetteCat" "plat" "recetteCatFormat" "Plat") }}</div>
+              <div class="avoid-break-inside">{{ partial "evenement/poster.html" (dict "recettes_du_repas" .recettes_du_repas  "recetteCat" "plat" "recetteCatFormat" "Plat") }}</div>
             </div>
               
             
@@ -1060,7 +1029,7 @@
                 <p v-show="fontHoraire !== 'noDisplay'" class="text-center m-0 h3" :class="[[fontHoraire]]" :style="fontSizeHoraire" >{{ .horaire }}</p>
                 <p v-show="fontHoraire !== 'noDisplay' || fontDate !== 'noDisplay'" class="fs-4 text-center fw-bold m-0">·•·•·•·•·•·•··•·•·•·•·•·•·</p>
               </div>
-              <div class="avoid-break-inside">{{ partial "evenement/poster.html" (dict "recettes_du_repas" .recettes_du_repas "allergenesLgList" $allergenesLgList "recetteCat" "dessert" "recetteCatFormat" "Dessert") }}</div>
+              <div class="avoid-break-inside">{{ partial "evenement/poster.html" (dict "recettes_du_repas" .recettes_du_repas  "recetteCat" "dessert" "recetteCatFormat" "Dessert") }}</div>
             </div>
 
           </div>
@@ -1266,11 +1235,17 @@
         
         ingredients: [
           {{- range $IngredientList -}}
+
+          {{ $dictIngredient := dict "ingredient" .ingredient "quantite" .quantite "unit" .unit }}
+          {{ $unit := .unit}}
+          
           {
             ingredient: "{{ .ingredient }}",
             ingredientType: "{{ .ingType }}",
-            unit: "{{ .unit }}",
-            quantite: {{ .quantite }},
+
+            quantite: {{ partial "functions/quantite-spec-compute" (dict "formatQuantite" true "ingredient" .ingredient "quantite" .quantite "unit" .unit) }},           
+            unit: "{{ partial "functions/quantite-spec-compute" (dict "formatUnit" true "ingredient" .ingredient "quantite" .quantite "unit" .unit) }}",
+            unitOrig: "{{.unit}}",
             recette: "{{ .recette }}",
             dateService:'{{ .dateService }}',
             horaire: "{{ .horaire }}",
@@ -1423,6 +1398,7 @@ mounted () {
   {{/*  Listes des ingrédients filtré par types : utilisé par les filtres dates et search.  */}}
   ingTypeListGen:  {
     const ingredientTypes = ["Autres", "Epices", "Frais", "Legumes", "Animaux", "Sec", "Sucres", "Lof"];
+    {{/*  TODO : WTF ?  */}}
     for (const i of this.ingredients) {
 
       if (i.unit === 'grammes') {
@@ -1448,8 +1424,6 @@ mounted () {
 
 {{/*  :::COMPUTED  */}}
 computed: { 
-  
-  {{/*  XXX : des watch sont nécessaire pour vérifier le changement des DateSelected...  */}}
 
 
   {{/*  :::__Total Date picker Ingredients  */}}
