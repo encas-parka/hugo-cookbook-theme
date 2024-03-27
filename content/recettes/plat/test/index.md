@@ -1,5 +1,5 @@
 ---
-title: test!
+title: test!?,.;:/!§$*&~#""''{[(|\_
 type: entree
 categories:
   - Gateau
