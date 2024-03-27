@@ -93,7 +93,7 @@ collections:
     create: true
 
     fields:
-      - label: "IntituléTEST"
+      - label: "Intitulé"
         name: "title"
         widget: "string"
         hint: "Attention à ne pas utiliser un nom de recette déjà existant (sinon, l'une des 2 pages ne sera PAS ACCESSIBLE pas sur le site...). ET si vous modifiez le titre alors que la recette est déjà utilisé dans un évenement, la page de l'événement ne FONCTIONNERA PLUS correctement. Il vous faudra éditer la page de l'événement pour indiquer le nouveau titre de la recette. Ne doit contenir que des lettres et chiffres"
