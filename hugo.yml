@@ -18,7 +18,7 @@ menus:
     pageRef: /docs/editer/evenements
     weight: 23
     parent: Editer le site
-  - name: Autres pages (ingrédients...)
+  - name: Ajouter ingrédients, catégories...
     pageRef: /docs/editer/autres
     weight: 24
     parent: Editer le site
