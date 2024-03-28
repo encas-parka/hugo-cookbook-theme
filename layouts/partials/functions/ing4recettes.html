@@ -16,6 +16,10 @@
   {{ $unit := .unit }}
   {{ if eq .unit "grammes" }}
     {{ $unit = "gr." }}
+  {{ else if eq .unit "litre" }}
+    {{ $unit = "l." }}
+  {{ else if and (eq .unit "unité") (gt .quantite 1) }}
+    {{ $unit = "unités" }}
   {{ end }}
 
   {{ if .quantite }}
