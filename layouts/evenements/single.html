@@ -425,6 +425,8 @@
 {{- $typePlat := .typePlat -}}
 {{- $assiettes := .assiettes -}}
 {{- $chef := .chef -}}
+{{- $commentaire := .commentaire -}}
+
 
 
 
@@ -634,7 +636,7 @@
                   }}</span>  */}}
 
                   {{/* Pour obtenir les quantité correspondant au nombres d'assiettes indiquées  */}}
-                  {{ partial "functions/ingName-quantite-format.html" (dict "ingredient" .title  "quantite" .quantite "assiettes" $assiettes "assiettesRecettes" $assiettesRecettes "unit" .unit "alergene" $allergenesList) }}
+                  {{ partial "functions/ing4events.html" (dict "ingredient" .title  "quantite" .quantite "assiettes" $assiettes "assiettesRecettes" $assiettesRecettes "unit" .unit "alergene" $allergenesList) }}
                   
                 </div>
               {{ end }}
@@ -657,6 +659,15 @@
       {{/* ::: ___PREPARATION  */}}
     <div class="col-md-8 print-col-70-100">
       <h4><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/preparation" "display" "inline-middle" "rem" 3) }}</span> Préparation</h4>
+      {{ if $commentaire }}
+      <div class="card mb-3">
+        <div class="card-body print-nocard">
+           <span class="text-muted">{{ partial "inline-svg" (dict "src" "fonticons/exclamation-circle" "display" "inline-middle" "fs" 4 ) }} info </span> 
+           <br>
+           <span class="small">{{$commentaire}}</span> 
+        </div>
+      </div>
+      {{ end }}
         <div class=" card card-body print-nocard">
         {{ if .Params.preparation24h }}
          <div class="card border border-danger mb-4 p-3 " >
@@ -666,13 +677,14 @@
         {{ end }}
           {{ .Params.preparation | markdownify }}
         </div>
-      </div>
-  
+          
       {{ range .Params.astuces }}
           <div class="col-md-5 card card-body m-2 small ">
             Astuce: {{ .astuce }}
           </div>
       {{ end }}
+      </div>
+
 
       {{else}}
       <div>
@@ -680,16 +692,7 @@
       </div>
     {{ end }} {{/* with site.GetPage $url */}}
     </div>
-
-    {{ if .Params.commentaire }}
-      <div class="card">
-        <div class="card-body">
-          <p> {{ partial "inline-svg" (dict "src" "fonticons/information-line" "display" "inline" "fs" 4) }} {{.}}
-          </p>
-        </div>
-      </div>
-    {{ end }} 
-    
+  
 
 
   </div>
@@ -830,7 +833,10 @@
                 <td v-if="item.recette" class="small">
                   <span class="fw-bold">[[item.recette]]</span> le [[new Date (item.dateService).toISOString().substr(0, 10)]] /
                   [[item.horaire]] <br> pour [[item.assiettes]] couverts
-                  <span class="fw-bold float-end" v-if="item.quantite && item.unit">[[round2Decimals(item.quantite)]] [[item.unit]]</span>
+                  <span class="float-end">
+                    <span class="fw-bold " v-if="item.quantiteOrig && item.unitOrig">[[round2Decimals(item.quantiteOrig)]] [[item.unitOrig]] ~= </span>
+                    <span class="fw-bold" v-if="item.quantite && item.unit">[[round2Decimals(item.quantite)]] [[item.unit]]</span>
+                  </span>
                 </td>
                 
                 </tr>
@@ -912,7 +918,10 @@
                   <td v-if="item.recette " class="small">
                     <span class="fw-bold">[[item.recette]]</span> le [[new Date (item.dateService).toISOString().substr(0, 10)]] /
                     [[item.horaire]] <br> pour [[item.assiettes]] couverts
-                    <span class="fw-bold float-end" v-if="item.quantite && item.unit">[[round2Decimals(item.quantite)]] [[item.unit]]</span>
+                    <span class="float-end">
+                      <span class="fw-bold " v-if="item.quantiteOrig && item.unitOrig">[[round2Decimals(item.quantiteOrig)]] [[item.unitOrig]] ~= </span>
+                      <span class="fw-bold" v-if="item.quantite && item.unit">[[round2Decimals(item.quantite)]] [[item.unit]]</span>
+                    </span>
 
                   </td>
                 </tr>
@@ -922,11 +931,11 @@
                   <td class="small">[[item.totalAssiettes]] couverts - [[item.totalRecettes]] recettes </td>
       
                   <td class="text-end toCopyTd">
-                    <span v-if="item.unit !== item.unitOrig">ATTENTION [[item.unitOrig]]</span>
                     <template v-for="(quantite, index) in item.qTotalX" >
                       <span v-if="quantite.unit !== ''"> [[round2Decimals(quantite.qTotal)]] [[quantite.unit]] </span>
                       
-                      <span v-else class="small">... [[item.totalRecettes]] recettes </span>
+                      <span v-else class="small"> non précisé </span>
+                      <span v-if="index < item.qTotalX.length - 1" class="mx-1">+</span>
                       
                     </template>
                   </td>
@@ -1243,9 +1252,13 @@
             ingredient: "{{ .ingredient }}",
             ingredientType: "{{ .ingType }}",
 
-            quantite: {{ partial "functions/quantite-spec-compute" (dict "formatQuantite" true "ingredient" .ingredient "quantite" .quantite "unit" .unit) }},           
-            unit: "{{ partial "functions/quantite-spec-compute" (dict "formatUnit" true "ingredient" .ingredient "quantite" .quantite "unit" .unit) }}",
+            quantite: {{- partial "functions/quantite-converter" (dict "fetchQuantite" true "ingredient" .ingredient "quantite" .quantite "unit" .unit) -}},           
+            unit: "{{ partial "functions/quantite-converter" (dict "fetchUnit" true "ingredient" .ingredient "quantite" .quantite "unit" .unit) }}",
+            {{ if eq $unit (and ("unité") ("c. à café") ("c. à soupe")) }}
+            quantiteOrig: {{.quantite}},
             unitOrig: "{{.unit}}",
+            {{ end }}
+            
             recette: "{{ .recette }}",
             dateService:'{{ .dateService }}',
             horaire: "{{ .horaire }}",
@@ -1401,7 +1414,7 @@ mounted () {
     {{/*  TODO : WTF ?  */}}
     for (const i of this.ingredients) {
 
-      if (i.unit === 'grammes') {
+      if (i.unit === 'grammes' || i.unit === 'gr.') {
         i.quantite = i.quantite / 1000 ;
         i.unit = 'Kg';
       }
@@ -1705,6 +1718,7 @@ methods: {
 
     filteredIng.forEach((item) => {     
       item = this.convertUnit(item);
+      
       const { ingredient, quantite, unit, assiettes, totalRecettes } = item;
   
       if (!totalArray[ingredient]) {
@@ -1753,7 +1767,7 @@ methods: {
   },
 
   convertUnit(item) {
-    if (item.unit === 'grammes') {
+    if (item.unit === 'grammes' || item.unit === 'gr.') {
       item.quantite = item.quantite / 1000 ;
       item.unit = 'Kg';
     }

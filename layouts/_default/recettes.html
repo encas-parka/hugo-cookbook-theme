@@ -194,7 +194,7 @@
           
           {{- range $index, $element := . -}} 
           <div class="small ps-2">
-            • {{ partial "functions/ingredients-format" (dict "ingredient" .title "quantite" .quantite "unit" .unit "alergene" $allergenesList  ) }}
+            • {{ partial "functions/ing4recettes" (dict "ingredient" .title "quantite" .quantite "unit" .unit "alergene" $allergenesList  ) }} 
           </div>
           {{end}}
         </div>
