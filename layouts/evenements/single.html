@@ -178,21 +178,20 @@
 
 {{/* ::: navbar page */}}
   <div id="navbarEvent">
-     <nav class="navbar fixed-top topnav2 navbar-expand-lg no-print navbar-dark bg-dark shadow p-0  rounded-bottom-4" x-data="scrollToReveal()" x-ref="navbar" x-on:scroll.window="scroll()"  x-bind:class="{ 'scrolled': !isScrolled }">
+     <nav class="navbar fixed-top topnav2 no-print navbar-dark bg-dark shadow p-0  rounded-bottom-4" x-data="scrollToReveal()" x-ref="navbar" x-on:scroll.window="scroll()"  x-bind:class="{ 'scrolled': !isScrolled }">
         <div class="container-fluid">
-          <ul class="navbar-nav">
-            <li class="nav-item p-2">
+            <li class="nav-item p-lg-2 py-1 px-2">
               <div class="btn-group" role="group"> 
                
-                <a href="#Recettes" class="btn btn-primary btn-sm shadow-sm py-1"
+                <a href="#Recettes" class="btn btn-primary btn-sm shadow-sm  py-0 py-md-1"
                 ><span class="me-2 d-md-none">{{ partial "inline-svg" (dict "src" "fonticons/preparation.svg" "display" "inline-middle" "rem" 2) }}</span> <span class="d-none d-md-inline">Recettes</span></a>
               
-                <button type="button" class="btn btn-primary btn-sm dropdown-toggle py-1 d-none d-md-inline" data-bs-toggle="dropdown" aria-expanded="false">{{ partial "inline-svg" (dict "src" "fonticons/search.svg" "display" "inline-middle" "fs" 5) }}</button>
+                <button type="button" class="btn btn-primary btn-sm dropdown-toggle  py-0 d-none d-md-inline" data-bs-toggle="dropdown" aria-expanded="false">{{ partial "inline-svg" (dict "src" "fonticons/search.svg" "display" "inline-middle" "fs" 5) }}</button>
               
                <ul class="dropdown-menu columns-3 p-3">
                 {{ $dateService := "none"}}
                 {{ $horaire := "none" }}
-                <div class="row row-cols-md-2 p-2">
+                <div class="row row-cols-md-2 p-lg-2 py-1 px-2">
                   {{- range sort $recettesList ".dateService" -}}
                     <div class="p-2">
                       <div class="card p-1">
@@ -209,18 +208,17 @@
             </ul>
           </div>
           </li> 
-          </ul>
-            <div class="nav-item p-2">              
+            <div class="nav-item p-lg-2 py-1 px-2">              
               <div class="btn-group" role="group"> 
                
-              <a href="#TotalIngredients" class="btn btn-primary btn-sm shadow-sm py-1"
+              <a href="#TotalIngredients" class="btn btn-primary btn-sm shadow-sm  py-0 py-md-1"
               ><span class="me-2 d-md-none">{{ partial "inline-svg" (dict "src" "fonticons/ingredients.svg" "display" "inline-middle" "rem" 2) }}</span>
               <span class="d-none d-md-inline">Ingrédients</span></a>
             
-              <button type="button" class="btn btn-primary btn-sm dropdown-toggle py-1 d-none d-md-inline" data-bs-toggle="dropdown" aria-expanded="false">{{ partial "inline-svg" (dict "src" "fonticons/search.svg" "display" "inline-middle" "fs" 5) }}</button>
+              <button type="button" class="btn btn-primary btn-sm dropdown-toggle  py-0 d-none d-md-inline" data-bs-toggle="dropdown" aria-expanded="false">{{ partial "inline-svg" (dict "src" "fonticons/search.svg" "display" "inline-middle" "fs" 5) }}</button>
             
              <ul class="dropdown-menu columns-3 p-3">
-               <div class="row row-cols-md-2 p-2">
+               <div class="row row-cols-md-2 p-lg-2 py-1 px-2">
                 {{ range sort $IngredientsTypesList "iType" "desc"}}
                 {{ $iTypeName := (partial "functions/ingredients-types-rename" (dict "ingType" .iType) .) }}
                   <div class="p-2">
@@ -237,14 +235,14 @@
         </div>
         </div>
 
-             <div class="nav-item p-2">
-              <a href="#affiches" class="btn btn-primary btn-sm shadow-sm py-1"
-                ><span class="me-2 d-md-none">{{ partial "inline-svg" (dict "src" "fonticons/ingredients.svg" "display" "inline-middle" "rem" 2) }}</span>
+             <div class="nav-item p-lg-2 py-1 px-2">
+              <a href="#affiches" class="btn btn-primary btn-sm shadow-sm py-md-1 py-0"
+                ><span class="me-2 d-md-none">{{ partial "inline-svg" (dict "src" "fonticons/poster.svg" "display" "inline-middle" "rem" 2) }}</span>
                 <span class="d-none d-md-inline">Affiches</span></a>
             </div>
             <div class="navbar-nav ms-auto">
-            <li class="nav-item p-2">
-              <button class="btn btn-primary btn-sm shadow-sm py-1" data-bs-toggle="modal"  data-bs-target="#modalImpression"
+            <li class="nav-item p-lg-2 py-1 px-2">
+              <button class="btn btn-primary btn-sm shadow-sm py-md-1 py-0" data-bs-toggle="modal"  data-bs-target="#modalImpression"
               aria-controls="modalImpression"
               @click="printGlobal"
                 ><span class="me-2 d-md-none">{{ partial "inline-svg" (dict "src" "fonticons/printer.svg" "display" "inline-middle" "rem" 2)}}</span>
@@ -515,15 +513,15 @@
 
       {{/* reccupération des ingredients warning de la recette  */}}
 
-      {{ $ingredientsL := slice }}
-
-      {{- range $key, $value := .Params.ingredients -}}
-      {{- with . -}}
-      {{- range $index, $element := . -}}
-      {{ $ingredientsL = $ingredientsL | append .title}}
-      {{- end }}
-      {{- end -}} 
-      {{- end -}}
+  {{ $ingredientsL := slice }}
+  
+  {{- range $key, $value := .Params.ingredients -}}
+  {{- with . -}}
+  {{- range $index, $element := . -}}
+  {{ $ingredientsL = $ingredientsL | append .title}}
+  {{- end }}
+  {{- end -}}
+  {{- end -}}
 
       
     {{- $alertGluten := intersect $ingredientsL ($sAllergenes.Get "Gluten") -}}
@@ -626,7 +624,7 @@
             <div class="col">
               <div class="mb-2"> {{ partial "components/icon-type"  (dict "icon" $key) }} <span class="fw-bold">{{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span> 
               {{ if eq $key "epices"}} 
-                <span class="small text-muted">(gouttez, ajustez !)</span>
+                <div class="small text-muted text-center m-0 p-0">(gouttez, ajustez !)</div>
               {{ end }} 
               </div>
 
@@ -759,9 +757,6 @@
               <input class="form-check-input" type="checkbox" v-model="showAllColIngredients" id="checkRecipeDetail">
               <label for="checkRecipeDetail">Afficher les recettes pour chaque ingrédient</label>
             </div>
-            <div class="mb-3">
-              <input type="text" v-model="search" class="form-control" placeholder="Rechercher un ingrédient">
-            </div>
           </div>
         </div>
   
@@ -770,19 +765,22 @@
   {{/* ::: Total INGREDIENTS   */}}
   <div class="col  print-col-12 ms-md-3">
 
-      <span class="btn-group no-print my-2 me-2 no-tel" role="group" aria-label="Exporter / Copier">
+      <span class="btn-group no-print my-2 me-2" role="group" aria-label="Exporter / Copier">
         <button class="btn btn-outline-secondary" disabled>Copier les tableaux dans le presse-papier : </button>
         <button type="button" class="btn btn-outline-primary" onclick="copyOrExport('text')">Texte simple</button>
         {{/*  <button type="button" class="btn btn-outline-primary" onclick="copyOrExport('html')">html</button>  */}}
         {{/*  TODO : modal explicatif  */}}
       </span>
 
-      <span class="btn-group no-print my-2 no-tel" role="group" aria-label="Exporter CSV">
+      <span class="btn-group no-print my-2" role="group" aria-label="Exporter CSV">
         <button class="btn btn-outline-secondary" disabled>Télécharger : </button>
         <button type="button" class="btn btn-outline-primary" onclick="copyOrExport('csv')">csv (tableur)</button>
         <button type="button" class="btn btn-outline-primary" onclick="copyOrExport('md')">Tableau Markdown</button>
       </span>
 
+      <div class="sticky-md-top top55 border rounded border-transparent bg-dark container-fluid p-2" style="--bs-bg-opacity: .3;">
+        <input type="text" v-model="search" class="form-control" placeholder="Rechercher un ingrédient">
+      </div>
     {{/* :::_FraisByDayRange  */}}
     {{ $fraisByRanges := slice | append  (dict "idR" "LegumesRanges" "titleR" "Fruits Legumes Frais" "iType" "Legumes" "thisRange" "legumesByRanges") (dict "idR" "AnimauxRanges" "titleR" "Viandes/Poissons Frais" "iType" "Animaux" "thisRange" "animauxByRanges") (dict "idR" "FraisRanges" "titleR" "Autres produits Frais" "iType" "Frais" "thisRange" "fraisByRanges") }}
 

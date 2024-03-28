@@ -5,21 +5,20 @@
 
 <header >
   <div>
-    <nav class="navbar navbar-dark bg-dark navbar-expand-lg no-print p-0 fixed-top "
-    >
-        <div class="container-fluid" >
-          <a class="navbar-brand monospace" href="{{ "/" | absURL }}"> <img src="/favicon-96x96.png" alt="logo" width="42" class="d-inline-block align-text-center"> {{ .Site.Params.Title }}</a>
+    <nav class="navbar navbar-dark bg-dark navbar-expand-sm no-print p-0 fixed-top">
+        <div class="container-fluid" style="max-height: 45px;" >
+          <a class="navbar-brand monospace" href="{{ "/" | absURL }}"> <img src="/favicon-96x96.png" alt="logo" height="32" class="d-inline-block align-text-center"> {{ .Site.Params.Title }}</a>
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarHeader"
             aria-controls="navbarHeader" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
           </button>
           <div class="collapse navbar-collapse" id="navbarHeader">
-            <ul class="navbar-nav mb-2 mb-lg-0 text-secondary me-auto">
+            <ul class="navbar-nav mb-0 mb-lg-2 p-0 text-secondary me-auto">
               <li class="nav-item">
                 <a class="nav-link px-3" href="/recettes">Explorer</a>
               </li>
               <li class="nav-item dropdown ">
-                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownTypes" role="button" data-bs-toggle="dropdown"
+                <a class="nav-link px-3 dropdown-toggle" href="#" id="navbarDropdownTypes" role="button" data-bs-toggle="dropdown"
                   aria-expanded="false">
                   Types
                 </a>

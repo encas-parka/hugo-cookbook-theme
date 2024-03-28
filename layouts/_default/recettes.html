@@ -115,7 +115,7 @@
       {{- else -}}
         <div class="card border-danger shadow mb-3">
           <div class="card-body small">
-            <span class="card-text">Les auteur•ices de la recette ne l'ont <strong>pas testé</strong> pour le nombre de couverts indiqués par défaut ({{.Params.plate}}).<span class="no-print"> Merci de <a href="{{$linkCMSPage}}/index">modifier</a> la recette pour indiquer si vous l'avez testé avec succès, ou pour corriger les quantités d'ingrédients indiquées. A défaut, vous pouvez laisser vos commentaires dans le formulaire en bas de page</span></span>
+            <span class="card-text">Les auteur•ices de la recette ne l'ont <strong>pas testé</strong> pour le nombre de couverts indiqués par défaut ({{.Params.plate}}).<span class="no-print"> Merci de <a href="{{$linkCMSPage}}/index">modifier</a> la recette pour indiquer si vous l'avez testé avec succès, ou pour corriger les quantités d'ingrédients indiquées.</span></span>
           </div>
         </div>
         
@@ -166,10 +166,14 @@
       </div>
       {{- end -}} 
 
-      
-      </div>
-    <hr class="my-3">
-
+  {{ with .Params.description }}
+  <div class="row justify-content-center m-3">
+        
+    <div class="col-md-8">
+      <p class="text-center fst-italic">{{.}}</p>
+    </div>
+  </div>
+  {{ end }}
 
 {{/* :::INGREDIENTS  */}}
 
@@ -214,6 +218,8 @@
 
 {{/* ::: PREPARATION  */}}
     <div class="col-md-8 print-col-70-100">
+
+
       <h4><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/preparation" "display" "inline-middle" "rem" 3) }}</span> Préparation</h4>
       <div class="avoid-break-inside">
           <div class="m-auto">

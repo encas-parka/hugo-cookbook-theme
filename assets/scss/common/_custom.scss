@@ -293,15 +293,21 @@ a:hover {
   padding: 0 1rem;
 }
 
+.top55{
+  top: 55px;
+}
+
 .topnav2{
-  top: 50px;
+  top: 45px;
   z-index: 1029;
   transition:cubic-bezier(1, 0, 0, 1) 0.5s;
 }
 
 .topnav2.scrolled{
   top: 0px !important;
-  padding: 0.3em !important;
+  padding: .2rem 0 !important;
+  border-radius: 0 !important;
+
   z-index: 1032;
 }
 
