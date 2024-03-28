@@ -13,9 +13,19 @@
     <span class="fw-bold">{{- .ingredient -}}</span>
   {{ end }}
 
+  {{ $unit := .unit }}
+  {{ if eq .unit "grammes" }}
+    {{ $unit = "gr." }}
+  {{ end }}
+
   {{ if .quantite }}
     : <span class="amount">{{- .quantite -}}</span>
-    <span class="unit"> {{- .unit -}}</span>
-    <span>{{ partial "functions/unit-cuillere.html" ( dict "unit" .unit "ingredient" .ingredient "quantite" .quantite ) }}</span>
+    <span class="unit"> {{- $unit -}}</span>
+
+    {{ if eq .unit (and ("unité") ("c. à café") ("c. à soupe")) }}
+    ( ~<span class="amount">{{ partial "functions/quantite-converter" ( dict "unit" .unit "ingredient" .ingredient "quantite" .quantite "fetchQuantite" true ) }}</span>
+    <span>{{ partial "functions/quantite-converter" ( dict "unit" .unit "ingredient" .ingredient "quantite" .quantite "fetchUnit" true ) }} )</span>
+      
+    {{ end }}
   {{ end }}
 

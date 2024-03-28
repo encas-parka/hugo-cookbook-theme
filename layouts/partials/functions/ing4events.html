@@ -29,6 +29,8 @@
   {{ $quantiteRecette = (float (div (mul (float .quantite) $assiettes ) $assiettesRecettes)) }}
 {{ end }}
 
+
+
 {{ if .quantite }}
 :
 
@@ -77,6 +79,9 @@
 
 {{ end }}
 
-{{ partial "functions/unit-cuillere.html" ( dict "unit" $unit "ingredient" $ingredient "quantite" $quantiteRecette ) }}
+{{ if eq $unit (and ("unité") ("c. à café") ("c. à soupe")) }}
+{{ partial "functions/quantite-converter" ( dict "unit" $unit "ingredient" $ingredient "quantite" $quantiteRecette "fetchQU" true ) }}
+{{ end }}
+
 
 {{ end }}
