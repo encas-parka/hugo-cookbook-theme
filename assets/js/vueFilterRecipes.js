@@ -27,7 +27,7 @@ const app = new Vue({
 			cuisson: "{{ .Params.cuisson }}",
 			
 		},
-		{ { - end -} }
+		{{ - end -}}
 	],
 	
 	filters: {

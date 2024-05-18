@@ -78,7 +78,7 @@
                     confirmContainer.addEventListener("click", fp.close);
                     fp.calendarContainer.appendChild(confirmContainer);
                     fp.loadedPlugins.push("confirmDate");
-                } }, (!config.showAlways
+                }}, (!config.showAlways
                 ? {
                     onChange: function (_, dateStr) {
                         var showCondition = fp.config.enableTime ||
