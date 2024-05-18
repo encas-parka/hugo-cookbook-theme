@@ -42,8 +42,8 @@
               <div class="row justify-content-evenly">
                 {{ range $name, $taxonomy := .Site.Taxonomies.categories }}
                 <div class="col-5 card card-recette my-3 text-center fw-bold border-1 ">
-                    <a href=" {{ .Page.Permalink }}" class="fw-bolder streched-link">
-                      {{ $svg := (printf "fonticons/%s.svg" .Page.Title) | lower}}
+                  <a href=" {{ .Page.Permalink }}" class="fw-bolder streched-link">
+                    {{ $svg := (printf "fonticons/%s.svg" .Page.Title) | lower}}
                       {{ if resources.Get (printf "fonticons/%s.svg" (.Page.Title | lower) ) }}
                       <div class="">{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle" "rem" 3)
                         . }}</div>

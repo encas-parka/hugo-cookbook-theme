@@ -4,8 +4,15 @@
 {{ range first 1 .Params.categories }}
   {{ $cat = .  | lower }}
 {{ end }}
+{{ $src := "" }}
 
-{{ $src:= ( printf "fonticons/%s.svg" $cat ) }}
+
+{{ if resources.Get (printf "fonticons/%s.svg" $cat) }}
+{{ $src = ( printf "fonticons/%s.svg" $cat ) }}
+
+{{ else }}
+  {{- $src = (printf "fonticons/no-cat.svg") -}}
+{{ end }}
 
 {{ return $src }}
 
