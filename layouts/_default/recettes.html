@@ -70,7 +70,6 @@
 <h1>{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "rem" 4) .  }} {{.Title}}</h1>
 
 <div class="row">
-      <!-- <div class="text-muted fs-6 no-print"> publiée le {{ dateFormat "02 January 2006" (.Params.publishDate)  }}</div> -->
       <div class="col-md-6 ">
       {{- if .Params.auteur -}}
       <span class="text-muted fs-5 no-print">une recette de {{ .Params.auteur }}</span>
