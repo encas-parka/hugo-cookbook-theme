@@ -97,6 +97,14 @@
         typeIng: "Sucrée",
         alergene: {{ .Params.alergene }}
       },
+      {{ end }}      
+
+      {{- range .Site.Data.ingredients.frais.ingredients -}}
+      {
+        title: "{{ .title }}",
+        typeIng: "Produit frais",
+        alergene: {{ .Params.alergene }}
+      },
       {{ end }}
       ],
 
