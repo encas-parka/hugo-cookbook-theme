@@ -245,7 +245,7 @@
               <button class="btn btn-primary btn-sm shadow-sm py-md-1 py-0" data-bs-toggle="modal"  data-bs-target="#modalImpression"
               aria-controls="modalImpression"
               @click="printGlobal"
-                ><span class="me-2 d-md-none">{{ partial "inline-svg" (dict "src" "fonticons/printer.svg" "display" "inline-middle" "rem" 2)}}</span>
+                ><span class="me-2 d-md-none">{{ partial "inline-svg" (dict "src" "/fonticons/printer.svg" "display" "inline-middle" "rem" 2)}}</span>
                 <span class="d-none d-md-inline">Impression / PDF</span>
               </button>
             </li>
@@ -439,10 +439,10 @@
   <div class="card-body py-1">
     <a class="btn btn-sm btn-outline-primary float-end no-print mx-1" 
     @click="printThis('recetteID{{$recetteKey}}', 'recettesSection')" 
-    > {{ partial "inline-svg" (dict "src" "fonticons/printer"  "fs" 3) }} </a>
+    > {{ partial "inline-svg" (dict "src" "/fonticons/printer"  "fs" 3) }} </a>
     <a class="btn btn-sm btn-outline-primary float-end no-print mx-1" 
     href="{{.RelPermalink}}"
-    > {{ partial "inline-svg" (dict "src" "fonticons/box-arrow-in-right"  "fs" 3) }} </a>
+    > {{ partial "inline-svg" (dict "src" "/fonticons/box-arrow-in-right"  "fs" 3) }} </a>
     <div id="titreRecette" class="py-1h2 my-2">
       <div class="my-2 h2">{{ partial "components/icon-recette" . }} {{ $recette }}
         {{ if $partof }}
