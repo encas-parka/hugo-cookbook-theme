@@ -1,33 +1,33 @@
 backend:
   # name: git-gateway
   name: github
-  repo: encas-parka/hugo-cookbook-theme
+  repo: encas-parka/enka-cookbook-site
   branch: main
 
-  #Permettre un PR sur github sans l'acces aux dépot
-  open_authoring: true 
+  #Permettre un PR sur github sans l'acces aux dépot (github only)
+  # open_authoring: true
 
   # Vérifier si ca marche bien : si un article est modifier plusieur fpos avant d'etre mergé/publié, un seul commit avec rebased.
-  squash_merges: true  
+  # squash_merges: true
 
   #GraphQL allows to retrieve data using less individual API requests compared to a REST API. GitHub's GraphQL API still does not support all mutations necessary to completely replace their REST API, so this feature only calls the new GraphQL API where possible.
-  use_graphql: true 
+  use_graphql: true
+
+#By default, saving a post in the CMS interface pushes a commit directly to the publication branch specified in backend. 
+# This line should *not* be indented
+publish_mode: simple
+
 
 # The search functionally requires loading all collection(s) entries, which can exhaust rate limits on large repositories. It can be disabled by setting the top level search property to false.
 # Defaults to true
 search: false
-
-editor:
-    preview: false
+locale: "fr"
 
 # when using the default proxy server port
 # for local cms developpement.
 # Need to run : 'npx decap-server' from the root directory of the above repository.
-local_backend: true
-
-#By default, saving a post in the CMS interface pushes a commit directly to the publication branch specified in backend. However, you also have the option to enable the Editorial Workflow, which adds an interface for drafting, reviewing, and approving posts. To do this, add the following line to your Netlify CMS config.yml:
-# This line should *not* be indented
-publish_mode: editorial_workflow
+local_backend:
+  url: http://localhost:8081/api/v1 # when using a custom proxy server port
 
 media_folder: "static/images"
 public_folder: "/images"
@@ -35,10 +35,8 @@ public_folder: "/images"
 slug:
   clean_accents: true
   sanitize_replacement: "-"
-
-
-# Pour limiter le nombre de requete a l'api github → false
-# search: false
+editor:
+  preview: false
 
 # ::: Collection Recettes
 
@@ -52,6 +50,9 @@ collections:
     filter: { field: "layout", value: "recettes" }
     description: "Liste de l'ensemble des recettes. Vous pouvez utiliser les filtres ci-dessous pour classer / filtrer les recettes. Ou faire 'ctrl+f' pour rechercher une recette avec votre navigateur."
     view_filters:
+      - label: "Brouillons"
+        field: draft
+        pattern: true
       - label: "plats"
         field: type
         pattern: "plat"
@@ -74,6 +75,8 @@ collections:
         field: regime
         pattern: "sans-gluten"
     view_groups:
+      - label: "Brouillons"
+        field: draft
       - label: "Catégorie: "
         field: type
       - label: "Sous-catégories: "
@@ -93,13 +96,19 @@ collections:
     create: true
 
     fields:
-      - label: "Intitulé"
-        name: "title"
-        widget: "string"
-        hint: "Attention à ne pas utiliser un nom de recette déjà existant (sinon, l'une des 2 pages ne sera PAS ACCESSIBLE pas sur le site...). ET si vous modifiez le titre alors que la recette est déjà utilisé dans un évenement, la page de l'événement ne FONCTIONNERA PLUS correctement. Il vous faudra éditer la page de l'événement pour indiquer le nouveau titre de la recette. Ne doit contenir que des lettres et chiffres"
-        pattern: [ '\w\d\s', 'Ne doit contenir que des lettres et chiffres' ]
-      # - {label: 'Brouillon', name: 'draft', widget: 'boolean', default: false}
-      - { name: "slug",  widget: "hidden", default: }
+      - {
+          label: "Intitulé",
+          name: "title",
+          widget: "string",
+          hint: "Attention à ne pas utiliser un nom de recette déjà existant (sinon, l'une des 2 pages ne sera PAS ACCESSIBLE pas sur le site...). ET si vous modifiez le titre alors que la recette est déjà utilisé dans un évenement, la page de l'événement ne FONCTIONNERA PLUS correctement. Il vous faudra éditer la page de l'événement pour indiquer le nouveau titre de la recette. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-)",
+          pattern:
+            [
+              '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+              "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+            ],
+        }
+      - { label: "Brouillon", name: "draft", widget: "boolean", default: false, required: false }
+      - { name: "slug", widget: "hidden", default }
       - {
           label: "Image",
           name: "img",
@@ -134,9 +143,9 @@ collections:
         search_fields: ["title"]
         multiple: true
         max: 4
-        options_length: 10
+        options_length: 20
         required: true
-        hint: "Vous pouver en définir plusieurs, mais la permière servira à définir l'icone associé à la recette."
+        hint: "Vous pouvez en définir plusieurs, mais la première servira à définir l'icone associée à la recette."
       - label: "auteur"
         name: "auteur"
         widget: "string"
@@ -182,7 +191,13 @@ collections:
       - label: "Quantités indiquées prévues pour combien de couverts ?"
         name: "plate"
         widget: "number"
+        min: 1
         value_type: "int"
+      - label: "Précision quantité"
+        name: "quantite_desc"
+        widget: "string"
+        required: false
+        hint: "vous pouvez préciser ici comment sont pensées les quantité. Par ex. : '24 parts par gastro'; '2 nems par personnes', etc."
       - label: "Testé ?"
         name: "check"
         hint: "Indiquez si vous avez testé la recette pour le nombre de couverts indiqués. C'est mieux si c'est le cas :)"
@@ -197,6 +212,7 @@ collections:
       - label: "Testé aussi pour ce nombres de couverts : "
         name: "checkfor"
         widget: "number"
+        min: 1
         value_type: "int"
         hint: "Si vous avez testé la recette pour un nombre de couverts significativement différent, et que la recette était réussie, indiquez ce nombre de couverts ici. S'il vous a fallu modifier les quantités d'ingrédients pour obtenir un résultat satisfaisant, vous pouvez 'dupliquer' cette recette (bouton 'publish' en haut → 'duplicate'), et modifier en conséquence la recette dupliquée (et amender le titre). Merci d'indiquer sur l'une des 2 recettes qu'il existe une recette alternative (compléter le champ 'Préparations Alternatives' en bas de cette page). À défaut, vous pouvez indiquer brièvement les modifications à apporter dans le champ 'astuces' en bas de cette page."
         required: false
@@ -207,8 +223,8 @@ collections:
       - label: "Ingredients"
         name: "ingredients"
         widget: "object"
+        hint: "Vous pouvez retrouver la liste des ingrédients disponibles (et leur catégorie) sur la page https://enka-cookbook.pages.dev/ingredients/ . Pour ajouter des ingrédients qui ne sont pas encore répertorier, voir https://enka-cookbook.pages.dev/docs/editer/autres/"
         fields:
- 
           - label: "Sec (Legumineuses, céréales)"
             name: "sec"
             widget: "list"
@@ -226,11 +242,12 @@ collections:
                 file: "ingredients_sec"
                 search_fields: ["ingredients.*.title"]
                 value_field: "ingredients.*.title"
-                options_length: 5
+                options_length: 300
               - {
                   label: "Quantité (nombre)",
                   name: "quantite",
                   widget: "number",
+                  min: 0.1,
                   value_type: "float",
                 }
               - {
@@ -239,12 +256,13 @@ collections:
                   widget: "select",
                   options: ["Kg", "grammes", "unité"],
                 }
-              # - {
-              #     label: "commentaire",
-              #     name: "commentaire",
-              #     widget: "string",
-              #     required: false,
-              #   }
+              - {
+                  label: "commentaire",
+                  name: "commentaire",
+                  widget: "string",
+                  required: false,
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
+                }
 
           - label: "Fruits et Legumes"
             name: "legumes"
@@ -255,6 +273,7 @@ collections:
             required: false
             collapsed: true
             summary: "{{fields.title}}: {{fields.quantite}} {{fields.unit}}"
+  
             fields:
               - label: "ingredient"
                 name: title
@@ -263,11 +282,13 @@ collections:
                 file: "ingredients_legumes"
                 search_fields: ["ingredients.*.title"]
                 value_field: "ingredients.*.title"
-                options_length: 5
+                options_length: 300
+               
               - {
                   label: "Quantité (nombre)",
                   name: "quantite",
                   widget: "number",
+                  min: 0.1,
                   value_type: "float",
                 }
               - {
@@ -276,14 +297,15 @@ collections:
                   widget: "select",
                   options: ["Kg", "grammes", "unité"],
                   hint: "Preférez les quantités en grammes/Kg/litres. La taille des légumes est variable, et lorsque tout est en Kg, grammes ou litres, c'est additionnable pour les listes de course ! ",
+                }
+              - {
+                  label: "commentaire",
+                  name: "commentaire",
+                  widget: "string",
+                  required: false,
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
 
                 }
-              # - {
-              #     label: "commentaire",
-              #     name: "commentaire",
-              #     widget: "string",
-              #     required: false,
-              #   }
 
           - label: "LOF : Lait, oeuf, farines, huile..."
             name: "lof"
@@ -302,11 +324,12 @@ collections:
                 file: "ingredients_lof"
                 search_fields: ["ingredients.*.title"]
                 value_field: "ingredients.*.title"
-                options_length: 5
+                options_length: 300
               - {
                   label: "Quantité (nombre)",
                   name: "quantite",
                   widget: "number",
+                  min: 0.1,
                   value_type: "float",
                 }
               - {
@@ -323,15 +346,56 @@ collections:
                       "c. à soupe",
                       "c. à café",
                     ],
-                  hint: "Preférer les quantité en grammes/Kg/litres, qui sont additionnables pour les listes de course !",
-
+                  hint: "Préférez les quantités en grammes/Kg/litres, qui sont additionnables pour les listes de course !",
                 }
-              # - {
-              #     label: "commentaire",
-              #     name: "commentaire",
-              #     widget: "string",
-              #     required: false,
-              #   }
+              - {
+                  label: "commentaire",
+                  name: "commentaire",
+                  widget: "string",
+                  required: false,
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
+                }
+
+          - label: "Ingrédients Frais (beurre, yaourt, fromage... )"
+            name: "frais"
+            widget: "list"
+            allow_add: true
+            add_to_top: true
+            label_singular: "Ingrédient"
+            required: false
+            collapsed: true
+            summary: "{{fields.title}}: {{fields.quantite}} {{fields.unit}}"
+            fields:
+              - label: "ingredient"
+                name: title
+                widget: "relation"
+                collection: "ingredients_index"
+                file: "ingredients_frais"
+                search_fields: ["ingredients.*.title"]
+                value_field: "ingredients.*.title"
+                options_length: 300
+              - {
+                  label: "Quantité (nombre)",
+                  name: "quantite",
+                  widget: "number",
+                  min: 0.1,
+                  value_type: "float",
+                }
+              - {
+                  label: "Unité (quantité en...)",
+                  name: "unit",
+                  widget: "select",
+                  options: ["Kg", "grammes", "unité"],
+                }
+              - {
+                  label: "commentaire",
+                  name: "commentaire",
+                  widget: "string",
+                  required: false,
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
+                }
+              
+
 
           - label: "Viandes et Poissons (et crustacés, mollusques)"
             name: "animaux"
@@ -350,11 +414,12 @@ collections:
                 file: "ingredients_animaux"
                 search_fields: ["ingredients.*.title"]
                 value_field: "ingredients.*.title"
-                options_length: 5
+                options_length: 300
               - {
                   label: "Quantité (nombre)",
                   name: "quantite",
                   widget: "number",
+                  min: 0.1,
                   value_type: "float",
                 }
               - {
@@ -363,12 +428,14 @@ collections:
                   widget: "select",
                   options: ["Kg", "grammes", "unité"],
                 }
-              # - {
-              #     label: "commentaire",
-              #     name: "commentaire",
-              #     widget: "string",
-              #     required: false,
-              #   }
+              - {
+                  label: "commentaire",
+                  name: "commentaire",
+                  widget: "string",
+                  required: false,
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
+
+                }
 
           - label: "Sucrées"
             name: "sucres"
@@ -388,11 +455,12 @@ collections:
                 file: "ingredients_sucres"
                 search_fields: ["ingredients.*.title"]
                 value_field: "ingredients.*.title"
-                options_length: 5
+                options_length: 300
               - {
                   label: "Quantité (nombre)",
                   name: "quantite",
                   widget: "number",
+                  min: 0.1,
                   value_type: "float",
                 }
               - {
@@ -409,16 +477,17 @@ collections:
                       "c. à soupe",
                       "c. à café",
                     ],
-                  hint: "Preférer les quantité en grammes/Kg/litres, qui sont additionnables pour les listes de course ! ",
+                  hint: "Préférez les quantités en grammes/Kg/litres, qui sont additionnables pour les listes de course ! ",
+                }
+              - {
+                  label: "commentaire",
+                  name: "commentaire",
+                  widget: "string",
+                  required: false,
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
 
                 }
-              # - {
-              #     label: "commentaire",
-              #     name: "commentaire",
-              #     widget: "string",
-              #     required: false,
-              #   }
-  
+
           - label: "Assaisonnements (Epices, aromatiques, vinaigres, sauce...)"
             name: "epices"
             hint: "Epices, sauces, condiments..."
@@ -437,11 +506,12 @@ collections:
                 file: "ingredients_epices"
                 search_fields: ["ingredients.*.title"]
                 value_field: "ingredients.*.title"
-                options_length: 5
+                options_length: 300
               - {
                   label: "Quantité (nombre)",
                   name: "quantite",
                   widget: "number",
+                  min: 0.1,
                   value_type: "float",
                   required: false,
                 }
@@ -460,16 +530,18 @@ collections:
                       "c. à café",
                       "bottes",
                     ],
-                  hint: "Preférer les quantité en grammes/Kg/litres, qui sont additionnables pour les listes de course ! ",
+                  hint: "Préférez les quantités en grammes/Kg/litres, qui sont additionnables pour les listes de course ! ",
                   required: false,
                 }
-              # - {
-              #     label: "commentaire",
-              #     name: "commentaire",
-              #     widget: "string",
-              #     required: false,
-              #   }
-          
+              - {
+                  label: "commentaire",
+                  name: "commentaire",
+                  widget: "string",
+                  required: false,
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
+
+                }
+
           - label: "Autres (ce qui ne se trouve pas ailleurs...)"
             name: "autres"
             hint: "Feuilles de riz, chapelure, levure, Agar-agar, bicarbonate de soude, pain de mie, tahin... et autres trucs difficiles à classer..."
@@ -488,11 +560,12 @@ collections:
                 file: "ingredients_autres"
                 search_fields: ["ingredients.*.title"]
                 value_field: "ingredients.*.title"
-                options_length: 5
+                options_length: 300
               - {
                   label: "Quantité (nombre)",
                   name: "quantite",
                   widget: "number",
+                  min: 0.1,
                   value_type: "float",
                   required: false,
                 }
@@ -510,16 +583,18 @@ collections:
                       "c. à soupe",
                       "c. à café",
                     ],
-                  hint: "Preférer les quantité en grammes/Kg/litres/ml, qui sont additionnables pour les listes de course ! ",
+                  hint: "Préférez les quantités en grammes/Kg/litres/ml, qui sont additionnables pour les listes de course ! ",
 
                   required: false,
                 }
-              # - {
-              #     label: "commentaire",
-              #     name: "commentaire",
-              #     widget: "string",
-              #     required: false,
-              #   }
+              - {
+                  label: "commentaire",
+                  name: "commentaire",
+                  widget: "string",
+                  required: false,
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
+
+                }
 
       - label: "Materiel"
         name: "materiel"
@@ -529,7 +604,7 @@ collections:
         multiple: true
         value_field: "title"
         search_fields: ["title"]
-        options_length: 12
+        options_length: 30
 
       - label: "Préparation"
         name: "preparation"
@@ -539,10 +614,9 @@ collections:
         name: "preparation24h"
         widget: "markdown"
         required: false
-        hint: "Si la recette implique de préparer des choses en avance, le préciser ici pour que ce soit mis en avant lors de l'affichage des recettes"
+        hint: "Si la recette implique de préparer des choses en avance, le préciser ici pour que ce soit mis en avant lors de l'affichage des recettes(ce sera indiquer 'A prévoir a l'avance', a vous de précisez plus précisément quand)."
 
       ############### PrepAlt
-
 
       - label: "Astuces"
         name: "astuces"
@@ -579,10 +653,9 @@ collections:
       - label: "Date de publication"
         name: "publishDate"
         widget: "datetime"
-        date_format: "DD-MM-YYYY" # e.g. 24.12.2021
-        time_format: "HH:mm" # e.g. 21:07
+        picker_utc: true
 
-  ################################
+  ###############################
   ################################
 
   # ::: COLLECTION Menu / Evenements
@@ -595,7 +668,17 @@ collections:
     path: "{{slug}}/index"
     create: true
     fields:
-      - { label: "Nom de l'évènement", name: "title", widget: "string", hint: "Attention à ne pas utiliser un nom d'évenement déjà existant (si c'était  le cas, la page n'existera pas sur le site...)" }
+      - {
+          label: "Nom de l'évènement",
+          name: "title",
+          widget: "string",
+          hint: "Attention à ne pas utiliser un nom d'évenement déjà existant (si c'était  le cas, la page n'existera pas sur le site...). Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+          pattern:
+            [
+              '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+              "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+            ],
+        }
 
       - { name: "sitemap_exclude", widget: "hidden", default: "true" }
 
@@ -616,8 +699,7 @@ collections:
               date_format: "DD MMMM YYYY",
               time_format: false,
               hint: "Jour ou le repas sera servis..",
-              picker_utc: true, 
-              
+              picker_utc: true,
             }
 
           - {
@@ -651,7 +733,7 @@ collections:
                 value_field: "title"
                 search_fields: ["title"]
                 display_fields: ["title"]
-                options_length: 5
+                options_length: 300
 
               - label: "Entrées/Plats/Desserts ?"
                 name: "type_plat"
@@ -665,11 +747,11 @@ collections:
                   label: "Nombre d'assiettes pour cette recette",
                   name: "altAssiettes",
                   widget: "number",
-                  value_type: "int",
                   min: 1,
+                  value_type: "int",
                   max: 90000,
                   required: false,
-                  hint: "Laisser vide si égale au nombre d'assiettes défini plus haut. Ce champs peut être utile pour les recettes destinées aux régimes spéciaux (sans-gluten, etc.), dont le nombre d'assiètes prévues est différent de celui défini globalement pour le repas.",
+                  hint: "Laisser vide si égale au nombre d'assiettes défini plus haut. Ce champs peut être utile pour les recettes destinées aux régimes spéciaux (sans-gluten, etc.), dont le nombre d’assiettes prévues est différent de celui défini globalement pour le repas.",
                 }
 
               - {
@@ -687,7 +769,6 @@ collections:
                   hint: "Si cette recette fait partie d'un plat comportant plusieurs recettes, vous pouvez préciser ici le nom du plat afin qu'il soit visible sur les fiches recettes (et faire de même sur toutes les recettes du plat.)",
                   required: false,
                 }
-
 
               # - label: "Inclure les recettes alternatives pour les régimes spéciaux (végan, sans gluten...) si elles existent"
               #   name: "includeRecetteAlt"
@@ -719,6 +800,12 @@ collections:
       - name: "title"
         label: "Nom"
         widget: "string"
+        hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes"
+        pattern:
+          [
+            '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+            "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+          ]
       - name: "sitemap_exclude"
         widget: "hidden"
         default: "true"
@@ -734,7 +821,17 @@ collections:
     create: true
     widget: "list"
     fields:
-      - { label: "Nom", name: "title", widget: "string" }
+      - {
+          label: "Nom",
+          name: "title",
+          widget: "string",
+          hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+          pattern:
+            [
+              '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+              "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+            ],
+        }
 
   ###########################
   #  ::: ingredient collections
@@ -752,7 +849,17 @@ collections:
             add_to_top: true
             name: "ingredients"
             fields:
-              - { label: "Title", name: "title", widget: "string" }
+              - {
+                  label: "Title",
+                  name: "title",
+                  widget: "string",
+                  hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+                  pattern:
+                    [
+                      '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+                      "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+                    ],
+                }
               - name: "pFrais"
                 label: "Frais ?"
                 widget: "boolean"
@@ -770,7 +877,6 @@ collections:
                   - { label: "Automne", value: "automne" }
                   - { label: "Hiver", value: "hiver" }
 
-
       - name: ingredients_lof
         label: LOF (Lait, Farine, Oeuf, huile, etc.)
         file: data/ingredients/lof.json
@@ -781,17 +887,44 @@ collections:
             add_to_top: true
             name: "ingredients"
             fields:
-              - { label: "Title", name: "title", widget: "string" }
+              - {
+                  label: "Title",
+                  name: "title",
+                  widget: "string",
+                  hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+                  pattern:
+                    [
+                      '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+                      "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+                    ],
+                }
               - {
                   label: "Allergènes (ou viande, porc)",
                   name: "alergenesIng",
                   widget: "select",
                   multiple: true,
                   required: false,
-                  options:  ["Produit laitier", "Gluten", "Crustacé", "Oeuf", "Poisson", "Viande", "Porc", "Arachides", "Soja", "Fruits à coque", "Céleri", "Moutarde", "Sésame", "Sulfites", "Lupin", "Mollusque"],
-                  hint: "Précisez si l'ingrédients est (ou contient) des Allergènes (gluten, produit laitier, soja, oeufs...) ou de la viande. Cela permet aussi la detection des recettes non-vegan/végétarienne ou concernées par des interdits religieux."
+                  options:
+                    [
+                      "Produit laitier",
+                      "Gluten",
+                      "Crustacé",
+                      "Oeuf",
+                      "Poisson",
+                      "Viande",
+                      "Porc",
+                      "Arachides",
+                      "Soja",
+                      "Fruits à coque",
+                      "Céleri",
+                      "Moutarde",
+                      "Sésame",
+                      "Sulfites",
+                      "Lupin",
+                      "Mollusque",
+                    ],
+                  hint: "Précisez si l'ingrédients est (ou contient) des Allergènes (gluten, produit laitier, soja, oeufs...) ou de la viande. Cela permet aussi la detection des recettes non-vegan/végétarienne ou concernées par des interdits religieux.",
                 }
-
 
       - name: ingredients_sec
         label: Sec (céréales, légumineuses...)
@@ -803,7 +936,17 @@ collections:
             add_to_top: true
             name: "ingredients"
             fields:
-              - { label: "Title", name: "title", widget: "string" }
+              - {
+                  label: "Title",
+                  name: "title",
+                  widget: "string",
+                  hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+                  pattern:
+                    [
+                      '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+                      "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+                    ],
+                }
 
               - {
                   label: "Alergènes",
@@ -811,10 +954,27 @@ collections:
                   widget: "select",
                   multiple: true,
                   required: false,
-                  options:  ["Produit laitier", "Gluten", "Crustacé", "Oeuf", "Poisson", "Viande", "Porc", "Arachides", "Soja", "Fruits à coque", "Céleri", "Moutarde", "Sésame", "Sulfites", "Lupin", "Mollusque"],
-                  hint: "Précisez si l'ingrédients est (ou contient) des alergènes (gluten, produit laitier, soja, oeufs...), de la viande ou du porc. Cela permet aussi la detection des recettes non-vegan/végétarienne ou concernées par des interdits religieux."
+                  options:
+                    [
+                      "Produit laitier",
+                      "Gluten",
+                      "Crustacé",
+                      "Oeuf",
+                      "Poisson",
+                      "Viande",
+                      "Porc",
+                      "Arachides",
+                      "Soja",
+                      "Fruits à coque",
+                      "Céleri",
+                      "Moutarde",
+                      "Sésame",
+                      "Sulfites",
+                      "Lupin",
+                      "Mollusque",
+                    ],
+                  hint: "Précisez si l'ingrédients est (ou contient) des alergènes (gluten, produit laitier, soja, oeufs...), de la viande ou du porc. Cela permet aussi la detection des recettes non-vegan/végétarienne ou concernées par des interdits religieux.",
                 }
-
 
       - name: ingredients_animaux
         label: Viandes et poissons
@@ -826,7 +986,17 @@ collections:
             add_to_top: true
             name: "ingredients"
             fields:
-              - { label: "Title", name: "title", widget: "string" }
+              - {
+                  label: "Title",
+                  name: "title",
+                  widget: "string",
+                  hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+                  pattern:
+                    [
+                      '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+                      "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+                    ],
+                }
               - name: "pFrais"
                 widget: "boolean"
                 default: true
@@ -848,42 +1018,9 @@ collections:
                   widget: "select",
                   multiple: true,
                   required: true,
-                  options:  [ Crustacé", "Poisson", "Viande", "Porc", "Mollusque"],
-                  hint: "Précisez s'il s'agit de viande, poissons, etc... Permet de déterminer les Allergènes (poissons, crustacés, mollusque...) et interdits religieux."
-                }
-
-
-      - name: ingredients_autres
-        label: "Autres (ce qui ne se trouve pas ailleurs...)"
-        file: data/ingredients/autres.json
-        format: json
-        fields:
-          - label: "ingrédients autres"
-            widget: "list"
-            add_to_top: true
-            name: "ingredients"
-            fields:
-              - { label: "Title", name: "title", widget: "string" }
-              - label: "Saisons"
-                name: "saisons"
-                hint: "...si l'ingrédient se trouvent surtout à certaines saisons"
-                widget: "select"
-                multiple: true
-                required: false
-                options:
-                  - { label: "Printemps", value: "printemps" }
-                  - { label: "Eté", value: "ete" }
-                  - { label: "Automne", value: "automne" }
-                  - { label: "Hiver", value: "hiver" }
-
-              - {
-                  label: "Allergènes (ou viande/porc)",
-                  name: "alergenesIng",
-                  widget: "select",
-                  multiple: true,
-                  required: false,
-                  options:  ["Produit laitier", "Lactose", "Alcool", "Gluten", "Crustacé", "Oeuf", "Poisson", "Viande", "Porc", "Arachides", "Soja", "Fruits à coque", "Céleri", "Moutarde", "Sésame", "Sulfites", "Lupin", "Mollusque"],
-                  hint: "Précisez si l'ingrédient est (ou contient) des Allergènes (gluten, produit laitier, soja, oeufs...), de la viande, du porc, etc. Cela permet aussi la detection des recettes non-vegan/végétarienne ou concernées par des interdits religieux."
+                  options:
+                    [Crustacé", "Poisson", "Viande", "Porc", "Mollusque"],
+                  hint: "Précisez s'il s'agit de viande, poissons, etc... Permet de déterminer les Allergènes (poissons, crustacés, mollusque...) et interdits religieux.",
                 }
 
       - name: ingredients_frais
@@ -896,7 +1033,17 @@ collections:
             add_to_top: true
             name: "ingredients"
             fields:
-              - { label: "Title", name: "title", widget: "string" }
+              - {
+                  label: "Title",
+                  name: "title",
+                  widget: "string",
+                  hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+                  pattern:
+                    [
+                      '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+                      "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+                    ],
+                }
               - label: "Produit Frais ?"
                 name: "pFrais"
                 hint: "...si l'ingrédient doit se conserver au frais (sert à l'élaboration des listes de course)"
@@ -920,22 +1067,49 @@ collections:
                   widget: "select",
                   multiple: true,
                   required: false,
-                  options:  ["Produit laitier", "Gluten", "Crustacé", "Oeuf", "Poisson", "Viande", "Porc", "Arachides", "Soja", "Fruits à coque", "Céleri", "Moutarde", "Sésame", "Sulfites", "Lupin", "Mollusque"],
-                  hint: "Précisez si l'ingrédient est (ou contient) des Allergènes (gluten, produit laitier, soja, oeufs...) ou de la viande. Cela permet aussi la detection des recettes non-vegan/végétarienne ou concernées par des interdits religieux."
+                  options:
+                    [
+                      "Produit laitier",
+                      "Gluten",
+                      "Crustacé",
+                      "Oeuf",
+                      "Poisson",
+                      "Viande",
+                      "Porc",
+                      "Arachides",
+                      "Soja",
+                      "Fruits à coque",
+                      "Céleri",
+                      "Moutarde",
+                      "Sésame",
+                      "Sulfites",
+                      "Lupin",
+                      "Mollusque",
+                    ],
+                  hint: "Précisez si l'ingrédient est (ou contient) des Allergènes (gluten, produit laitier, soja, oeufs...) ou de la viande. Cela permet aussi la detection des recettes non-vegan/végétarienne ou concernées par des interdits religieux.",
                 }
 
-
-      - name: ingredients_epices
-        label: "Assaisonnements (Epices, aromatiques, vinaigres...)"
-        file: data/ingredients/epices.json
+      - name: ingredients_autres
+        label: "Autres (ce qui ne se trouve pas ailleurs...)"
+        file: data/ingredients/autres.json
         format: json
         fields:
-          - label: "ingrédients epices"
+          - label: "ingrédients autres"
             widget: "list"
             add_to_top: true
             name: "ingredients"
             fields:
-              - { label: "Title", name: "title", widget: "string" }
+              - {
+                  label: "Title",
+                  name: "title",
+                  widget: "string",
+                  hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+                  pattern:
+                    [
+                      '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+                      "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+                    ],
+                }
               - label: "Saisons"
                 name: "saisons"
                 hint: "...si l'ingrédient se trouvent surtout à certaines saisons"
@@ -947,16 +1121,102 @@ collections:
                   - { label: "Eté", value: "ete" }
                   - { label: "Automne", value: "automne" }
                   - { label: "Hiver", value: "hiver" }
+
+              - {
+                  label: "Allergènes (ou viande/porc)",
+                  name: "alergenesIng",
+                  widget: "select",
+                  multiple: true,
+                  required: false,
+                  options:
+                    [
+                      "Produit laitier",
+                      "Lactose",
+                      "Alcool",
+                      "Gluten",
+                      "Crustacé",
+                      "Oeuf",
+                      "Poisson",
+                      "Viande",
+                      "Porc",
+                      "Arachides",
+                      "Soja",
+                      "Fruits à coque",
+                      "Céleri",
+                      "Moutarde",
+                      "Sésame",
+                      "Sulfites",
+                      "Lupin",
+                      "Mollusque",
+                    ],
+                  hint: "Précisez si l'ingrédient est (ou contient) des Allergènes (gluten, produit laitier, soja, oeufs...), de la viande, du porc, etc. Cela permet aussi la detection des recettes non-vegan/végétarienne ou concernées par des interdits religieux.",
+                }
+
+      - name: ingredients_epices
+        label: "Assaisonnements (Epices, aromatiques, vinaigres...)"
+        file: data/ingredients/epices.json
+        format: json
+        fields:
+          - label: "ingrédients epices"
+            widget: "list"
+            add_to_top: true
+            name: "ingredients"
+            fields:
+              - {
+                  label: "Title",
+                  name: "title",
+                  widget: "string",
+                  hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+                  pattern:
+                    [
+                      '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+                      "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+                    ],
+                }
+              - label: "Saisons"
+                name: "saisons"
+                hint: "...si l'ingrédient se trouvent surtout à certaines saisons"
+                widget: "select"
+                multiple: true
+                required: false
+                options:
+                  - { label: "Printemps", value: "printemps" }
+                  - { label: "Eté", value: "ete" }
+                  - { label: "Automne", value: "automne" }
+                  - { label: "Hiver", value: "hiver" }
+              - label: "Produit Frais ?"
+                name: "pFrais"
+                hint: "...si l'ingrédient doit se conserver au frais (sert à l'élaboration des listes de course)"
+                widget: "boolean"
+                required: false
               - {
                   label: "Allergènes (ou viande)",
                   name: "alergenesIng",
                   widget: "select",
                   multiple: true,
                   required: false,
-                  options:  ["Produit laitier", "Gluten", "Crustacé", "Oeuf", "Poisson", "Viande", "Porc", "Arachides", "Soja", "Fruits à coque", "Céleri", "Moutarde", "Sésame", "Sulfites", "Lupin", "Mollusque"],
-                  hint: "Précisez si l'ingrédient est (ou contient) des Allergènes (gluten, produit laitier, soja, oeufs...) ou de la viande. Cela permet aussi la detection des recettes non-vegan/végétarienne ou concernées par des interdits religieux."
+                  options:
+                    [
+                      "Produit laitier",
+                      "Gluten",
+                      "Crustacé",
+                      "Oeuf",
+                      "Poisson",
+                      "Viande",
+                      "Porc",
+                      "Arachides",
+                      "Soja",
+                      "Fruits à coque",
+                      "Céleri",
+                      "Moutarde",
+                      "Sésame",
+                      "Sulfites",
+                      "Lupin",
+                      "Mollusque",
+                      "Alcool",
+                    ],
+                  hint: "Précisez si l'ingrédient est (ou contient) des Allergènes (gluten, produit laitier, soja, oeufs...) ou de la viande. Cela permet aussi la detection des recettes non-vegan/végétarienne ou concernées par des interdits religieux.",
                 }
-
 
       - name: ingredients_sucres
         label: "Sucrés"
@@ -968,7 +1228,17 @@ collections:
             add_to_top: true
             name: "ingredients"
             fields:
-              - { label: "Title", name: "title", widget: "string" }
+              - {
+                  label: "Title",
+                  name: "title",
+                  widget: "string",
+                  hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+                  pattern:
+                    [
+                      '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+                      "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+                    ],
+                }
               - label: "Produit Frais ?"
                 name: "pFrais"
                 hint: "...si l'ingrédient doit se conserver au frais (sert à l'élaboration des listes de course)"
@@ -985,16 +1255,31 @@ collections:
                   - { label: "Eté", value: "ete" }
                   - { label: "Automne", value: "automne" }
                   - { label: "Hiver", value: "hiver" }
-  
+
               - {
                   label: "Allergènes",
                   name: "alergenesIng",
                   widget: "select",
                   multiple: true,
                   required: false,
-                  options:  ["Produit laitier", "Gluten", "Crustacé", "Oeuf", "Poisson", "Viande", "Porc", "Arachides", "Soja", "Fruits à coque", "Céleri", "Moutarde", "Sésame", "Sulfites", "Lupin", "Mollusque"],
-                  hint: "Précisez si l'ingrédient est (ou contient) des Allergènes (gluten, produit laitier, soja, oeufs...) ou de la viande. Cela permet aussi la detection des recettes non-vegan/végétarienne ou concernées par des interdits religieux."
+                  options:
+                    [
+                      "Produit laitier",
+                      "Gluten",
+                      "Crustacé",
+                      "Oeuf",
+                      "Poisson",
+                      "Viande",
+                      "Porc",
+                      "Arachides",
+                      "Soja",
+                      "Fruits à coque",
+                      "Céleri",
+                      "Moutarde",
+                      "Sésame",
+                      "Sulfites",
+                      "Lupin",
+                      "Mollusque",
+                    ],
+                  hint: "Précisez si l'ingrédient est (ou contient) des Allergènes (gluten, produit laitier, soja, oeufs...) ou de la viande. Cela permet aussi la detection des recettes non-vegan/végétarienne ou concernées par des interdits religieux.",
                 }
-
-
-

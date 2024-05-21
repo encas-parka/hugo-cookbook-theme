@@ -79,8 +79,11 @@
     <div class="col-md-6">
     
       {{ $linkCMSPage := (path.Join "/admin/#/collections/recettes/entries/" (.Type) (.File.ContentBaseName)) }}
-    
-      <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{$linkCMSPage}}/index" >Modifier</a></div>
+      {{$enkaDevCms := ""}}
+      {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
+        {{$enkaDevCms = "https://enka-cookbook.netlify.app"}}
+      {{ end }}
+      <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index" >Modifier</a></div>
       <div class="m-2 p-2 fs-5 text-end">
         {{ partial "content/badge-recette.html" . }}
       </div>
@@ -198,6 +201,9 @@
           {{- range $index, $element := . -}} 
           <div class="small ps-2">
             • {{ partial "functions/ing4recettes" (dict "ingredient" .title "quantite" .quantite "unit" .unit "alergene" $allergenesList  ) }} 
+            {{ with .commentaire }}
+            <span class="small fs-6 fw-light ms-2 lh-1">({{.}})</span>
+            {{ end }}
           </div>
           {{end}}
         </div>

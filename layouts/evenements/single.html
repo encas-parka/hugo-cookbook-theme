@@ -172,7 +172,11 @@
 
 {{/*  lien vers le CMS de la page  */}}
   {{ $linkCMSPage := (path.Join "/admin/#/collections/evenement/entries/" (.Title | urlize)) }}
-  <span class="text-end no-print p-2"><a target="_blank" rel="noopener noreferrer" href="{{$linkCMSPage}}/index">Modifier</a></span>
+  {{$enkaDevCms := ""}}
+  {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
+    {{$enkaDevCms = "https://enka-cookbook.netlify.app/"}}
+  {{ end }}
+  <span class="text-end no-print p-2"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index">Modifier</a></span>
 
 <div id="app">
 
@@ -635,7 +639,9 @@
 
                   {{/* Pour obtenir les quantité correspondant au nombres d'assiettes indiquées  */}}
                   {{ partial "functions/ing4events.html" (dict "ingredient" .title  "quantite" .quantite "assiettes" $assiettes "assiettesRecettes" $assiettesRecettes "unit" .unit "alergene" $allergenesList) }}
-                  
+                  {{ with .commentaire }}
+                  <span class="small fs-6 fw-light ms-2 lh-1">({{.}})</span>
+                  {{ end }}
                 </div>
               {{ end }}
 

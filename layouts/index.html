@@ -78,7 +78,7 @@
     <div class="card p-3 m-3">
         <h5 class="mt-2  text-center">Des exemples de pages évenements</h5>
         <div class="row justify-content-evenly">
-          {{ range (where .Site.RegularPages "Section" "evenements") }}
+          {{ range first 2 (where .Site.RegularPages "Section" "evenements") }}
             <div class="col-lg-3 col-md-2 mt-3">
               <div class="card card-recette mb-3 text-center font-weight-bold border-1 m-auto">
                 <a href="{{ .Permalink }}" class="fw-bolder">{{.Title}}</a>
@@ -86,6 +86,7 @@
             </div>
           {{ end }}
         </div>
+        <div class="m-4 text-center">Pour retrouver un événement utiliser le menu "evenements" de la barre du haut, et commencer à taper son nom</div>
     </div>
   </div>
 
