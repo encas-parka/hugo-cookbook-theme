@@ -627,9 +627,9 @@
           <div class="row">
             <div class="col">
               <div class="mb-2"> {{ partial "components/icon-type"  (dict "icon" $key) }} <span class="fw-bold">{{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span> 
-              {{ if eq $key "epices"}} 
+              {{/*  {{ if eq $key "epices"}} 
                 <div class="small text-muted text-center m-0 p-0">(gouttez, ajustez !)</div>
-              {{ end }} 
+              {{ end }}   */}}
               </div>
 
               {{ range $index, $element := . -}}
