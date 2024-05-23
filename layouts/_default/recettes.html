@@ -67,7 +67,9 @@
 
 {{ $svg := partial "components/icon-cat-find" . }}
 <div class="float-start  me-2"></div>
-<h1>{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "rem" 4) .  }} {{.Title}}</h1>
+<div class="h1">
+  <span class="print-recette-title ">{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "rem" 3) .  }} {{.Title}}</span>
+</div>
 
 <div class="row">
       <div class="col-md-6 ">
@@ -84,28 +86,29 @@
         {{$enkaDevCms = "https://enka-cookbook.netlify.app"}}
       {{ end }}
       <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index" >Modifier</a></div>
-      <div class="m-2 p-2 fs-5 text-end">
+      <div class="m-2 p-2 fs-5 text-end print-fs-small">
         {{ partial "content/badge-recette.html" . }}
       </div>
       <div class="m-2 p-2 text-end">
         {{- if .Params.materiel -}}
           <span class="fw-bold">Materiel: </span>
           {{- range .Params.materiel -}}
-            <span class="badge bg-grey me-1">{{ . }}</span>
+            <span class="badge bg-grey me-1 print-fs-small">{{ . }}</span>
           {{- end -}}
         {{- end -}}
       </div>
   
-  <div class="printonly fs-6 text-end fw-bolder">
-    Quantité pour <span id="quantityDefined"> {{.Params.plate}}</span> couvert
-
+    </div>
+  <div class="printonly mb-2">
+    <div class="fs-6 text-center fw-bolder mb-1">
+      Quantité pour <span id="quantityDefined"> {{.Params.plate}}</span> couvert
+    </div>
+    {{ with .Params.quantite_desc }}
+    <div class="text-end printonly mb-1">
+        {{.}}
+    </div>
+    {{ end }}
   </div>
-  {{ with .Params.quantite_desc }}
-<div class="text-end printonly mb-1">    
-    {{.}}
-</div>
-{{ end }}
-</div>
 </div>
 
 
@@ -118,7 +121,7 @@
       {{- if eq .Params.check "Oui" -}}
         <span class="no-print">Cette recette a été testée pour {{.Params.plate}} couverts </span>
         {{- if (.Params.checkfor) -}}
-          <span>et pour {{.Params.checkfor}} couverts</span>
+          <span class="no-print">et pour {{.Params.checkfor}} couverts</span>
         {{- end -}}
       {{- else -}}
         <div class="card border-danger shadow mb-3">
@@ -190,7 +193,7 @@
   {{ end }}
 {{/* :::INGREDIENTS  */}}
 
-<div class="row">
+<div class="row mt-4">
   <div class="col-md-4 print-col-30-100">
     <h4><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/ingredients" "display" "inline-middle" "rem" 3) }}</span> Ingredients </h4>
 

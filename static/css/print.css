@@ -48,7 +48,7 @@
 
   .print-col-70-100 {
     max-width: 70%;
-    padding: 0 0 0 5px
+    padding: 0 0 0 20px
   }
 
   .print-col-30-100 {
@@ -79,6 +79,11 @@
 
   .print-border-1 {
     border: solid 1px ;
+  }
+
+  .print-px-1cm {
+    padding-left: 1cm;
+    padding-right: 1cm;
   }
 
  /* Font Size */

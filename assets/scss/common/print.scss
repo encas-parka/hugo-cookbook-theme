@@ -41,7 +41,7 @@
 
   .print-col-70-100 {
     max-width: 70%;
-    padding: 0 0 0 5px
+    padding: 0 0 0 20px
   }
 
   .print-col-30-100 {
@@ -88,13 +88,15 @@
     font-weight: 600;
   }
 
-  .print-nocard{
+  .print-nocard {
     border: 0;
     margin: 0 !important;
     padding: 0;
   }
 
-
+  .print-recette-title {
+    font-size: large !important;
+  }
 
   .card {
     border-color: black !important;
