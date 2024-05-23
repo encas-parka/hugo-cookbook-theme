@@ -98,8 +98,14 @@
   
   <div class="printonly fs-6 text-end fw-bolder">
     Quantité pour <span id="quantityDefined"> {{.Params.plate}}</span> couvert
+
   </div>
-    </div>
+  {{ with .Params.quantite_desc }}
+<div class="text-end printonly mb-1">    
+    {{.}}
+</div>
+{{ end }}
+</div>
 </div>
 
 
@@ -177,6 +183,11 @@
   </div>
   {{ end }}
 
+  {{ with .Params.quantite_desc }}
+  <div class="my-2 no-print">    
+      {{.}}
+  </div>
+  {{ end }}
 {{/* :::INGREDIENTS  */}}
 
 <div class="row">

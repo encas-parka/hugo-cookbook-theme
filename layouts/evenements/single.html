@@ -461,6 +461,12 @@
           $typePlat }}</div>
         <div class="">
           <div class="print-fs-4 print-bold">Nombre de couverts: {{ $assiettes }}</div>
+
+          {{ with .Params.quantite_desc }}
+          <div class="my-2 no-print">    
+              {{.}}
+          </div>
+          {{ end }}
           {{ if $chef }}
           <div>Référent•es: {{ $chef }} - </div>
           {{ end }}
