@@ -78,36 +78,57 @@
       {{- end -}}
     </div>
 
-    <div class="col-md-6">
+    <div class="col-md-6 no-print">
     
       {{ $linkCMSPage := (path.Join "/admin/#/collections/recettes/entries/" (.Type) (.File.ContentBaseName)) }}
       {{$enkaDevCms := ""}}
       {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
         {{$enkaDevCms = "https://enka-cookbook.netlify.app"}}
       {{ end }}
-      <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index" >Modifier</a></div>
-      <div class="m-2 p-2 fs-5 text-end print-fs-small">
-        {{ partial "content/badge-recette.html" . }}
+      <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index" >Modifier</a> 
       </div>
-      <div class="m-2 p-2 text-end">
-        {{- if .Params.materiel -}}
-          <span class="fw-bold">Materiel: </span>
-          {{- range .Params.materiel -}}
-            <span class="badge bg-grey me-1 print-fs-small">{{ . }}</span>
+
+     
+
+      <div class="printonly">
+        <div class="m-2 p-2 fs-5 text-end print-fs-small">
+          {{ partial "content/badge-recette.html" . }}
+        </div>
+        <div class="m-2 p-2 text-end print-m-1 print-y-1 ">
+          {{- if .Params.materiel -}}
+            <span class="fw-bold print-fs-smaller">Materiel: </span>
+            {{- range .Params.materiel -}}
+              <span class="badge bg-grey me-1 print-fs-smaller">{{ . }}</span>
+            {{- end -}}
           {{- end -}}
-        {{- end -}}
+        </div>
       </div>
   
     </div>
-  <div class="printonly mb-2">
-    <div class="fs-6 text-center fw-bolder mb-1">
-      Quantité pour <span id="quantityDefined"> {{.Params.plate}}</span> couvert
+
+
+    <div class="print-only">
+      <div class="m-2 p-2 fs-5 text-end print-fs-small">
+        <span class="me-2">{{ partial "content/badge-recette.html" . }}</span>
+        {{- if .Params.materiel -}}
+          <span class="fw-bold print-fs-smaller">Materiel: </span>
+          {{- range .Params.materiel -}}
+            <span class="badge bg-grey print-fs-smaller">{{ . }}</span>
+          {{- end -}}
+        {{- end -}}
+      </div>
     </div>
-    {{ with .Params.quantite_desc }}
-    <div class="text-end printonly mb-1">
-        {{.}}
+  <div class="printonly my-4">
+    <div class=" text-center mb-1">
+      <span class="fs-6 fw-bolder">
+        Quantité pour <span id="quantityDefined"> {{.Params.plate}}</span> couvert
+        {{ with .Params.quantite_desc }}
+      </span>
+      <span class="text-center printonly ms-2">
+          {{.}}
+      </span>
+      {{ end }}
     </div>
-    {{ end }}
   </div>
 </div>
 
@@ -116,7 +137,7 @@
 
 
   <div class="row ">
-    <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+    <div class="col-12 col-md-6 col-lg-6 col-xl-6 no-print">
  
       {{- if eq .Params.check "Oui" -}}
         <span class="no-print">Cette recette a été testée pour {{.Params.plate}} couverts </span>
@@ -142,7 +163,7 @@
       </div>
       </div>
       {{- with (or ( $alertAutresAllergenes ) ( $alertGluten) ( $alertLait) ( $alertLactose) ( $alertPorc)) -}}
-      <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2">
+      <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2 no-print">
         <div class="card border-danger shadow small px-4 card-body print-nocard">
           {{- with $alertAutresAllergenes -}}
           <div> <span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/exclamation-triangle" "display" "inline" "fs" 3) }}</span>
@@ -213,10 +234,10 @@
           </div>
           
           {{- range $index, $element := . -}} 
-          <div class="small ps-2">
+          <div class="small ps-2 print-fs-smaller mt-1">
             • {{ partial "functions/ing4recettes" (dict "ingredient" .title "quantite" .quantite "unit" .unit "alergene" $allergenesList  ) }} 
             {{ with .commentaire }}
-            <span class="small fs-6 fw-light ms-2 lh-1">({{.}})</span>
+            <span class="small fs-6 fw-light ms-2 lh-1 print-fs-smaller">({{.}})</span>
             {{ end }}
           </div>
           {{end}}
@@ -245,7 +266,7 @@
             {{- if .Params.preparation24h -}}
             <div class="border border-danger mb-4">
               <div class="p-3">
-                <div class="h5 mt-0">A prévoir à l'avance !</div>
+                <div class="h5 mt-0 print-fs-medium">A prévoir à l'avance !</div>
                 <div>{{ .Params.preparation24h | markdownify }}</div>
               </div>
             </div>
@@ -324,8 +345,6 @@
 {{ partial "footer/esbuild" (dict "src" "js/quantite.js" "load" "async" "transpile" false) -}}
 
 {{ end }}
-
-
 
 
 

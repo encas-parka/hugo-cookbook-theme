@@ -94,8 +94,20 @@
     padding: 0;
   }
 
+  .print-m-1 {
+    margin: 0.1rem !important;
+  }
+
+  .print-y-1 {
+   padding: .1rem !important;
+  }
+
   .print-recette-title {
     font-size: large !important;
+  }
+
+  .border-danger {
+    border-color: black !important;
   }
 
   .card {
@@ -138,7 +150,9 @@
     overflow: auto;
   }
 
-
+li {
+  margin-bottom: 0.4rem;
+}
 
 
   @page {

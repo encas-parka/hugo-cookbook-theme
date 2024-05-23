@@ -17,10 +17,17 @@
 {{ end }}
 
 {{ if .Params.regime }}
-  
-  {{ range .Params.regime }}
-  <span class="badge bg-green">{{ . }}</span>
-  {{ end }}
+{{ $regimeArray := .Params.regime }}
+{{ if in $regimeArray "vegan" }}
+<span class="badge bg-green">vegan</span>
+
+{{else}}
+{{ range .Params.regime }}
+<span class="badge bg-green">{{ . }}</span>
+{{ end }}
+
+{{end}}
+
 
   {{ range .Params.PrepAlt  }}
     {{ range .regime }}

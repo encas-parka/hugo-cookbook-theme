@@ -303,9 +303,9 @@
               <div class="text-muted fs-7 text-end">Ajouter des colonnes aux tableaux afin de pouvoir rajouter des informations manuscrites</div>
             </div>
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" v-model="toPrint.affichesSection" :value="true" name="cb-affiche"
+              <input class="form-check-input" type="checkbox" v-model="toPrint.affichesSection" :value="false" name="cb-affiche"
                 id="cb-printAffiches">
-              <label class="form-check-label" for="cb-printAffiches">Imprimer les Affiches</label>
+              <label class="form-check-label" for="cb-printAffiches">Imprimer les Affiches (imprimez à part, sinon bug)</label>
             </div>
           </div>
           <div class="col-md-6">
@@ -790,7 +790,7 @@
         <button type="button" class="btn btn-outline-primary" onclick="copyOrExport('md')">Tableau Markdown</button>
       </span>
 
-      <div class="sticky-md-top top55 border rounded border-transparent bg-dark container-fluid p-2" style="--bs-bg-opacity: .3;">
+      <div class="sticky-md-top top55 border rounded border-transparent bg-dark container-fluid p-2 no-print" style="--bs-bg-opacity: .3;">
         <input type="text" v-model="search" class="form-control" placeholder="Rechercher un ingrédient">
       </div>
     {{/* :::_FraisByDayRange  */}}
@@ -1006,7 +1006,7 @@
     </div>
   </div>
   
-  <div id="affichesSection" class="col-md-8 print-col-12 " :class="{'no-print' : !toPrint.affichesSection}">
+  <div id="affichesSection" class="col-md-8 print-col-12 break-before" :class="{'no-print' : !toPrint.affichesSection}">
 
 
 
@@ -1306,7 +1306,7 @@
           LegumesRanges: true,
           FraisRanges: true,
           AnimauxRanges: true,
-          affichesSection: true,
+          affichesSection: false,
           {{- range sort .Params.repas ".date_service" -}}
           {{ $dateService := .date_service | time.Format "2006-01-02" }}
           {{ $dateService = replace $dateService "-" "" }}
@@ -1602,7 +1602,9 @@ methods: {
   printGlobal() {
 
     Object.keys(this.toPrint).forEach((param) => {
-      this.toPrint[param] = true;
+      if (!affichesSection) {this.toPrint[param] = true;}
+      
+      
     });
   },
 
