@@ -113,7 +113,7 @@
         {{- if .Params.materiel -}}
           <span class="fw-bold print-fs-smaller">Materiel: </span>
           {{- range .Params.materiel -}}
-            <span class="badge bg-grey print-fs-smaller">{{ . }}</span>
+            <span class="badge bg-grey print-fs-smaller me-2">{{ . }}</span>
           {{- end -}}
         {{- end -}}
       </div>
@@ -121,7 +121,7 @@
   <div class="printonly my-4">
     <div class=" text-center mb-1">
       <span class="fs-6 fw-bolder">
-        Quantité pour <span id="quantityDefined"> {{.Params.plate}}</span> couvert
+        Quantité pour <span id="quantityDefined"> {{.Params.plate}}</span> couverts
         {{ with .Params.quantite_desc }}
       </span>
       <span class="text-center printonly ms-2">
@@ -136,7 +136,7 @@
 {{/* lien vers le CMS de la page */}}
 
 
-  <div class="row ">
+  <div class="row mt-3 no-print">
     <div class="col-12 col-md-6 col-lg-6 col-xl-6 no-print">
  
       {{- if eq .Params.check "Oui" -}}
@@ -163,7 +163,7 @@
       </div>
       </div>
       {{- with (or ( $alertAutresAllergenes ) ( $alertGluten) ( $alertLait) ( $alertLactose) ( $alertPorc)) -}}
-      <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2 no-print">
+      <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2 no-print ">
         <div class="card border-danger shadow small px-4 card-body print-nocard">
           {{- with $alertAutresAllergenes -}}
           <div> <span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/exclamation-triangle" "display" "inline" "fs" 3) }}</span>
@@ -197,6 +197,7 @@
         </div>
       </div>
       {{- end -}} 
+    </div>
 
   {{ with .Params.description }}
   <div class="row justify-content-center m-3">
@@ -212,6 +213,7 @@
       {{.}}
   </div>
   {{ end }}
+
 {{/* :::INGREDIENTS  */}}
 
 <div class="row mt-4">
@@ -303,7 +305,7 @@
   {{ end }}
 
     {{- if  (or .Params.prepAlt $backlinks) -}}
-    <div class="card my-2  bg-light no-print">
+    <div class="card my-5  bg-light no-print">
       <div class="card-body small">
         <div class="card-title fw-bold">Préparation(s) alternative(s): </div>
       {{- range .Params.prepAlt -}}
