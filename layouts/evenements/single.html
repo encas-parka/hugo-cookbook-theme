@@ -17,6 +17,7 @@
 {{$recetteKey:= 1}}
 {{ $nbDate := 0 }}
 
+{{/*  TODO Optimiser avec un json ou partial ?  */}}
 {{/*  Reccuperation des ingredients frais  */}}
 {{ $pFrais := slice }}
 {{- range $.Site.Data.ingredients -}}
@@ -54,7 +55,12 @@
     {{ if .altAssiettes }}
       {{- $assiettes = .altAssiettes  -}}
     {{ end }}
-    
+
+    {{- $recetteName := "" -}}
+    {{- $url:= print .recette | urlize -}}
+    {{- with site.GetPage $url -}}
+      {{- $recetteName = .Params.title -}}
+    {{- end -}}
     {{/*  Envoie de la liste des recettes dans recettesList  */}}
     {{- $recettesList = $recettesList | append (dict
         "recetteKey" $recetteKey
@@ -66,6 +72,7 @@
         "chef" .chef
         "commentaire" .commentaire
         "partof" .partof
+        "recetteName" $recetteName
     ) -}}
     {{/*  incrémentation des "id" unique des recettes  */}}
     {{$recetteKey = (add (float $recetteKey) 1)}}
@@ -73,6 +80,8 @@
     <!-- Reccupération des données sur les pages de chaque recettes -->
     {{- $url:= print .recette | urlize -}}
     {{- with site.GetPage $url -}}
+
+
     {{- $assiettesRecettes:= .Params.plate -}}
     <!-- pour tous les parametres ingredients... -->
       {{- range $key, $value := .Params.ingredients -}}
@@ -86,6 +95,7 @@
           {{ $quantiteCompute = ((div (mul (float .quantite) (float $assiettes )) (float $assiettesRecettes ))) }}
         {{ end }}
         
+        {{/*  USELESS → categorie frais existe maintenant  */}}
         {{/*  {{ $iType := ""}}
         {{ if and  (or (eq $key "lof") (eq $key "sucres") (eq $key "autres")) (in $pFrais .title) }}
         {{ $iType = "Frais"  }}
@@ -96,19 +106,19 @@
 
           {{- $IngredientList =
           $IngredientList | append (dict
-           "ingredient" .title
-          "quantite" $quantiteCompute
-          "unit" .unit
-          "ingType" $iType
-          "recette" $recette
-          "dateService" $dateService
-          "horaire" $horaire
-          "typePlat" $typePlat
-          "assiettesRecettes" $assiettesRecettes
-          "assiettes" $assiettes
+            "ingredient" .title
+            "quantite" $quantiteCompute
+            "unit" .unit
+            "ingType" $iType
+            "recette" $recetteName
+            "dateService" $dateService
+            "horaire" $horaire
+            "typePlat" $typePlat
+            "assiettesRecettes" $assiettesRecettes
+            "assiettes" $assiettes
           ) -}}
 
-          {{/* XXX What ? rm for test  */}}
+          {{/* USELESS What ? rm for test  */}}
           {{/*  {{ if and  (eq $key "lof") (in $pFrais .title) }}
             {{ $iType = "Frais"  }}
             {{- $IngredientsTypesList = $IngredientsTypesList | append (dict  "iType" $iType)  -}}
@@ -134,6 +144,7 @@
 
 {{/* ::: Regroupement des ingredients allergenes  */}}
 
+{{/*  USELESS  */}}
 {{/*  Reccupération des données allergenesIng sur chaque ingrédients. Permet de faire évoluer la liste plutot que de la figer  */}}
 {{/*  {{- $allergenesTypeList := slice -}}
 {{ range $.Site.Data.ingredients }}
@@ -171,10 +182,12 @@
 
 
 {{/*  lien vers le CMS de la page  */}}
-  {{ $linkCMSPage := (path.Join "/admin/#/collections/evenement/entries/" (.Title | urlize)) }}
-  {{$enkaDevCms := ""}}
-  {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
-    {{$enkaDevCms = "https://enka-cookbook.netlify.app/"}}
+{{/*  FIXIT : lien vers url slug uuid  */}}
+{{ $linkCMSPage := (path.Join "/admin/#/collections/evenement/entries/" (.Title | urlize)) }}
+{{/*  FIXIT : Recheck pour généraliser theme  */}}
+{{$enkaDevCms := ""}}
+{{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
+{{$enkaDevCms = "https://enka-cookbook.netlify.app/"}}
   {{ end }}
   <span class="text-end no-print p-2"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index">Modifier</a></span>
 
@@ -200,7 +213,7 @@
                     <div class="p-2">
                       <div class="card p-1">
                         <a href="#recetteID{{ .recetteKey }}">
-                          <slot name="{{ .recetteKey }}"></slot>{{.dateService | time.Format "Mon 2" | urlize}} - {{.recette }}<span class="small"> ({{.horaire}})</span>
+                          <slot name="{{ .recetteKey }}"></slot>{{.dateService | time.Format "Mon 2" | urlize}} - {{ .recetteName }}<span class="small"> ({{.horaire}})</span>
                         </a>
                       </div>
                     </div>
@@ -336,6 +349,7 @@
 {{- range $.Param "repas" -}}
 {{- range .recettes_du_repas -}}
 {{- $recette:=.recette -}}
+{{/*  FIXME after update recette scheme  */}}
 {{- $url:= print .recette | urlize -}}
   {{- with site.GetPage $url -}}
   {{else}}
@@ -384,7 +398,7 @@
 
           <div class="ms-5">
             <a href="#recetteID{{ .recetteKey }}">
-              <slot name="{{ .recetteKey }}"></slot>{{.recette }} →<span class="small"> ({{.horaire}} - {{.typePlat}} - {{.assiettes}} couverts)</span></a>
+              <slot name="{{ .recetteKey }}"></slot>{{.recetteName }} →<span class="small"> ({{.horaire}} - {{.typePlat}} - {{.assiettes}} couverts)</span></a>
             </a>
           </div>
         </div>
@@ -420,6 +434,7 @@
 {{/* variable avant GetPage */}}
 {{- $assiettes:= (int .assiettes) -}}
 {{- $recette := .recette -}}
+{{- $recetteName := .recetteName -}}
 {{- $recetteKey := .recetteKey -}}
 {{- $dateService := .dateService -}}
 {{- $horaire := .horaire -}}
@@ -433,6 +448,7 @@
 
 
 {{/* ::: ____A l'interieur de chaque url de post recettes inclue dans l'evenement */}}
+{{/*  FIXME after update recette scheme  */}}
 {{- $url:= print .recette | urlize -}}
 {{- with site.GetPage $url -}} 
 <div 
@@ -448,7 +464,7 @@
     href="{{.RelPermalink}}"
     > {{ partial "inline-svg" (dict "src" "/fonticons/box-arrow-in-right"  "fs" 3) }} </a>
     <div id="titreRecette" class="py-1h2 my-2">
-      <div class="my-2 h2">{{ partial "components/icon-recette" . }} {{ $recette }}
+      <div class="my-2 h2">{{ partial "components/icon-recette" . }} {{ $recetteName }}
         {{ if $partof }}
         <span class="ms-3 fs-5">(pour : {{ $partof }})</span>
         {{ end }}

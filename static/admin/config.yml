@@ -1,7 +1,7 @@
 backend:
-  # name: git-gateway
-  name: github
-  repo: encas-parka/enka-cookbook-site
+  name: git-gateway
+  # name: github
+  repo: encas-parka/hugo-cookbook-theme/exampleSite
   branch: main
 
   #Permettre un PR sur github sans l'acces aux dépot (github only)
@@ -39,14 +39,14 @@ editor:
   preview: false
 
 # ::: Collection Recettes
-
+#
 collections:
   - name: "recettes"
     label: "Recettes"
     label-singular: "Recette"
     folder: "content/recettes/"
     path: "{{type}}/{{slug}}/index"
-    slug: "{{title}}"
+    slug: "{{title}}_{{fields.uuid}}"
     filter: { field: "layout", value: "recettes" }
     description: "Liste de l'ensemble des recettes. Vous pouvez utiliser les filtres ci-dessous pour classer / filtrer les recettes. Ou faire 'ctrl+f' pour rechercher une recette avec votre navigateur."
     view_filters:
@@ -75,8 +75,6 @@ collections:
         field: regime
         pattern: "sans-gluten"
     view_groups:
-      - label: "Brouillons"
-        field: draft
       - label: "Catégorie: "
         field: type
       - label: "Sous-catégories: "
@@ -295,7 +293,7 @@ collections:
                   label: "Unité (quantité en...)",
                   name: "unit",
                   widget: "select",
-                  options: ["Kg", "grammes", "unité"],
+                  options: ["Kg", "grammes", "unité", "tête·s", "gousse·s"],
                   hint: "Preférez les quantités en grammes/Kg/litres. La taille des légumes est variable, et lorsque tout est en Kg, grammes ou litres, c'est additionnable pour les listes de course ! ",
                 }
               - {
@@ -345,6 +343,7 @@ collections:
                       "ml",
                       "c. à soupe",
                       "c. à café",
+                      "pincées"
                     ],
                   hint: "Préférez les quantités en grammes/Kg/litres, qui sont additionnables pour les listes de course !",
                 }
@@ -385,7 +384,7 @@ collections:
                   label: "Unité (quantité en...)",
                   name: "unit",
                   widget: "select",
-                  options: ["Kg", "grammes", "unité"],
+                  options: ["Kg", "grammes", "unité", "litre", "ml"],
                 }
               - {
                   label: "commentaire",
@@ -440,7 +439,7 @@ collections:
           - label: "Sucrées"
             name: "sucres"
             widget: "list"
-            hint: "Miel, biscuits, jus, chocolats..."
+            hint: "Miel, biscuits, jus de fruits, chocolats..."
             allow_add: true
             add_to_top: true
             label_singular: "Ingrédient"
@@ -476,6 +475,7 @@ collections:
                       "ml",
                       "c. à soupe",
                       "c. à café",
+                      "pincées"
                     ],
                   hint: "Préférez les quantités en grammes/Kg/litres, qui sont additionnables pour les listes de course ! ",
                 }
@@ -488,7 +488,7 @@ collections:
 
                 }
 
-          - label: "Assaisonnements (Epices, aromatiques, vinaigres, sauce...)"
+          - label: "Assaisonnements (Epices, aromatiques, vinaigres, sauces, coulis...)"
             name: "epices"
             hint: "Epices, sauces, condiments..."
             widget: "list"
@@ -529,6 +529,7 @@ collections:
                       "c. à soupe",
                       "c. à café",
                       "bottes",
+                      "pincées"
                     ],
                   hint: "Préférez les quantités en grammes/Kg/litres, qui sont additionnables pour les listes de course ! ",
                   required: false,
@@ -582,6 +583,7 @@ collections:
                       "ml",
                       "c. à soupe",
                       "c. à café",
+                      "pincées",
                     ],
                   hint: "Préférez les quantités en grammes/Kg/litres/ml, qui sont additionnables pour les listes de course ! ",
 
@@ -616,7 +618,7 @@ collections:
         required: false
         hint: "Si la recette implique de préparer des choses en avance, le préciser ici pour que ce soit mis en avant lors de l'affichage des recettes(ce sera indiquer 'A prévoir a l'avance', a vous de précisez plus précisément quand)."
 
-      ############### PrepAlt
+      ############### ::: PrepAlt
 
       - label: "Astuces"
         name: "astuces"
@@ -646,19 +648,25 @@ collections:
               widget: "relation",
               collection: "recettes",
               search_fields: ["title"],
-              value_field: "title",
+              value_field: "titleslug",
               display_field: "title",
             }
 
       - label: "Date de publication"
         name: "publishDate"
         widget: "datetime"
-        picker_utc: true
+        # picker_utc: true
+
+      - { label: 'UUID', name: 'uuid', widget: uuid }
+      - {label: "Title Slug", name: "titleslug", widget: "hidden", default: "{{slug}}"}
+
+
+
 
   ###############################
   ################################
 
-  # ::: COLLECTION Menu / Evenements
+  # ::: Menu / Evenements
 
   - label: "Evenements"
     label-singular: "Evenement"
@@ -688,7 +696,7 @@ collections:
         allow_add: true
         add_to_top: true
         collapsed: false
-        summary: "{{fields.date_service}} > {{fields.recettes_du_repas}}"
+        summary: "{{fields.date_service}} : {{fields.horaire}} ({{fields.assiettes}} p.) > {{fields.recettes_du_repas}}"
         hint: "Ajouter un menu pour un service"
 
         fields:
@@ -696,9 +704,7 @@ collections:
               label: "Date",
               name: "date_service",
               widget: "datetime",
-              date_format: "DD MMMM YYYY",
-              time_format: false,
-              hint: "Jour ou le repas sera servis..",
+              hint: "Jour ou le repas sera servis",
               picker_utc: true,
             }
 
@@ -730,7 +736,7 @@ collections:
                 name: "recette"
                 widget: "relation"
                 collection: "recettes"
-                value_field: "title"
+                value_field: "titleslug"
                 search_fields: ["title"]
                 display_fields: ["title"]
                 options_length: 300
@@ -1153,7 +1159,7 @@ collections:
                 }
 
       - name: ingredients_epices
-        label: "Assaisonnements (Epices, aromatiques, vinaigres...)"
+        label: "Assaisonnements (Epices, aromatiques, vinaigres, sauces, coulis...)"
         file: data/ingredients/epices.json
         format: json
         fields:
@@ -1219,7 +1225,7 @@ collections:
                 }
 
       - name: ingredients_sucres
-        label: "Sucrés"
+        label: "Sucrés (Miel, biscuits, jus de fruits, chocolats...)"
         file: data/ingredients/sucres.json
         format: json
         fields:

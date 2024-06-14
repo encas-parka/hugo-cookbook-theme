@@ -297,8 +297,9 @@
   {{ range where .Site.RegularPages "Section" "recettes" }}
   {{ $url := .RelPermalink }}
   {{ $title := .Title }}
+  {{ $titleslug := .Params.titleslug }}
   {{ range .Params.prepAlt }} 
-    {{ if eq .recetteAlt $page.Title }}
+    {{ if eq .recetteAlt $page.Params.titleslug }}
       {{ $backlinks = merge $backlinks (dict $url $title ) }}
     {{ end }}
   {{ end }}
@@ -321,7 +322,7 @@
       {{ with $backlinks }}
       <div>
         {{ range $url, $title := $backlinks }}
-          {{ if not (in $recetteAlt $title) }}
+          {{ if not (in $recetteAlt $page.Params.titleslug) }}
           <span><a href="{{ $url }}">{{ $title}}</a></span>
           {{ end }}
         {{ end }}

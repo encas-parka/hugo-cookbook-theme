@@ -7,13 +7,21 @@
 
 
 
+
 {{ range .recettes_du_repas }}
+
+{{/*  Réccupérer le nom lisible de la recette  */}}
+{{- $recetteName := "" -}}
+{{- $url:= print .recette | urlize -}}
+{{- with site.GetPage $url -}}
+  {{- $recetteName = .Params.title -}}
+{{- end -}}
 
 {{ if eq .type_plat $recetteCat }}
 {{ if (and $first .recette)}}
   <p v-show="fontCat !== 'noDisplay'" class="text-center pt-5" :class="[[fontCat]]" style="font-size: 1.8em"  :style="fontSizeCat" >·•· {{$recetteCatFormat}} ·•·</p>
   {{- end -}}
-  <p class="text-center fw-bold {{- if not  $first }} pt-5 {{- end }} mb-1 " style="font-size: 2em" :class=" [[fontRecettes]]" :style="fontSizeRecettes">{{.recette}}</p>
+  <p class="text-center fw-bold {{- if not  $first }} pt-5 {{- end }} mb-1 " style="font-size: 2em" :class=" [[fontRecettes]]" :style="fontSizeRecettes">{{$recetteName}}</p>
   {{- $first = false -}}
   <p v-show="fontDesc !== 'noDisplay'" class="card-text" :class="[[fontDesc]]" :style="[[fontSizeDesc]]">{{.description}}</p>
   
