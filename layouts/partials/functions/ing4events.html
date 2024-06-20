@@ -22,7 +22,7 @@
 <span class="fw-bold">• {{ .ingredient -}}</span>
 {{ end }}
 
-{{ if .assiettes }}
+{{ if and .assiettes .quantite }}
   {{/*  Concerne les pages evenements */}}
   {{ $assiettes = (int .assiettes) }}
   {{ $assiettesRecettes = (int .assiettesRecettes) }}
