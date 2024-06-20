@@ -79,7 +79,6 @@
     </div>
 
     <div class="col-md-6 no-print">
-    
       {{ $linkCMSPage := (path.Join "/admin/#/collections/recettes/entries/" (.Type) (.File.ContentBaseName)) }}
       {{$enkaDevCms := ""}}
       {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
@@ -147,7 +146,10 @@
       {{- else -}}
         <div class="card border-danger shadow mb-3">
           <div class="card-body small">
-            <span class="card-text">Les auteur•ices de la recette ne l'ont <strong>pas testé</strong> pour le nombre de couverts indiqués par défaut ({{.Params.plate}}).<span class="no-print"> Merci de <a href="{{$linkCMSPage}}/index">modifier</a> la recette pour indiquer si vous l'avez testé avec succès, ou pour corriger les quantités d'ingrédients indiquées.</span></span>
+            {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
+            {{$enkaDevCms = "https://enka-cookbook.netlify.app/"}}
+            {{ end }}
+            <span class="card-text">Les auteur•ices de la recette ne l'ont <strong>pas testé</strong> pour le nombre de couverts indiqués par défaut ({{.Params.plate}}).<span class="no-print"> Merci de <a href="{{- $enkaDevCms -}}{{$linkCMSPage}}/index">modifier</a> la recette pour indiquer si vous l'avez testé avec succès, ou pour corriger les quantités d'ingrédients indiquées.</span></span>
           </div>
         </div>
         
