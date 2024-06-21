@@ -1,6 +1,69 @@
 {
   "ingredients": [
     {
+      "title": "Purée d'amande"
+    },
+    {
+      "title": "Levure de bière"
+    },
+    {
+      "title": "Café moulu"
+    },
+    {
+      "title": "Chunks (protéine de soja)",
+      "alergenesIng": [
+        "Soja"
+      ]
+    },
+    {
+      "title": "Thé Matcha"
+    },
+    {
+      "title": "Gomme de guar"
+    },
+    {
+      "title": "Gomme de xanthane"
+    },
+    {
+      "title": "Pesto Rosso végan"
+    },
+    {
+      "title": "Aquafaba - jus de pois chiche"
+    },
+    {
+      "title": "Pain rassis",
+      "alergenesIng": [
+        "Gluten"
+      ]
+    },
+    {
+      "title": "Pate feuilleté sans gluten et vegan"
+    },
+    {
+      "title": "Pate feuilletée sans gluten"
+    },
+    {
+      "title": "Pate feuilletée",
+      "alergenesIng": [
+        "Gluten"
+      ]
+    },
+    {
+      "title": "Beurre de cacahuètes (salé)",
+      "alergenesIng": [
+        "Arachides"
+      ]
+    },
+    {
+      "title": "Beurre de cacahuètes (sucré)",
+      "alergenesIng": [
+        "Arachides"
+      ]
+    },
+    {
+      "title": "Saucisse végane"
+    },
+    {
       "title": "Protéines de soja",
       "alergenesIng": [
         "Soja"

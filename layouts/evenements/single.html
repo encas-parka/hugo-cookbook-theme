@@ -19,14 +19,15 @@
 
 {{/*  TODO Optimiser avec un json ou partial ?  */}}
 {{/*  Reccuperation des ingredients frais  */}}
-{{ $pFrais := slice }}
+{{ $legumesFrais := slice }}
 {{- range $.Site.Data.ingredients -}}
   {{- range .ingredients -}}
     {{- if .pFrais -}}
-      {{- $pFrais =  $pFrais | append .title -}}
+      {{- $legumesFrais =  $legumesFrais | append .title -}}
     {{- end -}}
   {{- end -}}
 {{- end -}}
+
 
 {{- range $.Param "repas" -}}
   <!-- Creation des variables qui ne seront plus visible au prochain scope. Nous sommes dans les params de l'Evenement -->
@@ -95,14 +96,11 @@
           {{ $quantiteCompute = ((div (mul (float .quantite) (float $assiettes )) (float $assiettesRecettes ))) }}
         {{ end }}
         
-        {{/*  USELESS → categorie frais existe maintenant  */}}
-        {{/*  {{ $iType := ""}}
-        {{ if and  (or (eq $key "lof") (eq $key "sucres") (eq $key "autres")) (in $pFrais .title) }}
-        {{ $iType = "Frais"  }}
-        {{ else }}
-        {{ $iType = $key | strings.FirstUpper  }}
-        {{ end }}  */}}
+        {{/*  TEST  */}}
         {{ $iType :=  $key | strings.FirstUpper}}
+        {{ if and  (or (eq $key "legumes") (eq $key "epices") ) (in $legumesFrais .title) }}
+        {{ $iType = "Legumesfrais"  }}
+        {{ end }}
 
           {{- $IngredientList =
           $IngredientList | append (dict
@@ -179,7 +177,6 @@
   {{/*  {{ $allergenesDict = merge $allergenesDict (dict . ($sAllergenes.Get .)) }}  */}}
   {{ $allergenesList = append  ($sAllergenes.Get .) $allergenesList }}
 {{ end }}
-
 
 {{/*  lien vers le CMS de la page  */}}
 {{/*  FIXIT : lien vers url slug uuid  */}}
@@ -810,7 +807,7 @@
         <input type="text" v-model="search" class="form-control" placeholder="Rechercher un ingrédient">
       </div>
     {{/* :::_FraisByDayRange  */}}
-    {{ $fraisByRanges := slice | append  (dict "idR" "LegumesRanges" "titleR" "Fruits Legumes Frais" "iType" "Legumes" "thisRange" "legumesByRanges") (dict "idR" "AnimauxRanges" "titleR" "Viandes/Poissons Frais" "iType" "Animaux" "thisRange" "animauxByRanges") (dict "idR" "FraisRanges" "titleR" "Autres produits Frais" "iType" "Frais" "thisRange" "fraisByRanges") }}
+    {{ $fraisByRanges := slice | append  (dict "idR" "LegumesRanges" "titleR" "Fruits Legumes Frais" "iType" "Legumesfrais" "thisRange" "legumesByRanges") (dict "idR" "AnimauxRanges" "titleR" "Viandes/Poissons Frais" "iType" "Animaux" "thisRange" "animauxByRanges") (dict "idR" "FraisRanges" "titleR" "Autres produits Frais" "iType" "Frais" "thisRange" "fraisByRanges") }}
 
     {{ range $fraisByRanges }}
     {{ $indexTable := 1 }}
@@ -855,15 +852,15 @@
                 <tr v-if="showAllColIngredients && !item.qTotal"
                 :class="{'table-secondary fw-bold': item.qTotal}"
                 >
-                <td :class="{'small text-muted': !item.qTotal}">[[item.ingredient]]</td>
-                <td v-if="item.recette" class="small">
-                  <span class="fw-bold">[[item.recette]]</span> le [[new Date (item.dateService).toISOString().substr(0, 10)]] /
-                  [[item.horaire]] <br> pour [[item.assiettes]] couverts
-                  <span class="float-end">
-                    <span class="fw-bold " v-if="item.quantiteOrig && item.unitOrig">[[round2Decimals(item.quantiteOrig)]] [[item.unitOrig]] ~= </span>
-                    <span class="fw-bold" v-if="item.quantite && item.unit">[[round2Decimals(item.quantite)]] [[item.unit]]</span>
-                  </span>
-                </td>
+                  <td :class="{'small text-muted': !item.qTotal}" >[[item.ingredient]]</td>
+                  <td v-if="item.recette" class="small">
+                    <span class="fw-bold">[[item.recette]]</span> le [[new Date (item.dateService).toISOString().substr(0, 10)]] /
+                    [[item.horaire]] <br> pour [[item.assiettes]] couverts
+                    <span class="float-end">
+                      <span class="fw-bold " v-if="item.quantiteOrig && item.unitOrig">[[round2Decimals(item.quantiteOrig)]] [[item.unitOrig]] ~= </span>
+                      <span class="fw-bold" v-if="item.quantite && item.unit">[[round2Decimals(item.quantite)]] [[item.unit]]</span>
+                    </span>
+                  </td>
                 
                 </tr>
 
@@ -1284,7 +1281,6 @@
             quantiteOrig: {{.quantite}},
             unitOrig: "{{.unit}}",
             {{ end }}
-            
             recette: "{{ .recette }}",
             dateService:'{{ .dateService }}',
             horaire: "{{ .horaire }}",
@@ -1299,6 +1295,7 @@
           totalRangeWithDetailResults: {},
 
           ingTypeList :{
+            IngLegumesfraisList : [],
             IngEpicesList : [],
             IngAutresList : [],
             IngLegumesList : [],
