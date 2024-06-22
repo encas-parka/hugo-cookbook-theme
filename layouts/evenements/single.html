@@ -1422,8 +1422,8 @@ mounted () {
   endDateDebugGen: {
     /* Ajoute un jour a la endDateSelected, pour que les derniers jours soit bien pris en compte par le filtre opéré dans totalsIngredientFiltered.
     Meme fonction dans watch() pour la mise a jour en fonction de la selection dans le date-picker */
-    const lastDateSelected = new Date(this.endDateSelected)
-    this.endDateSelectedDebug = new Date(lastDateSelected.setDate(lastDateSelected.getDate() + 1 )).toISOString().substr(0, 10);
+    {{/*  const lastDateSelected = new Date(this.endDateSelected)
+    this.endDateSelectedDebug = new Date(lastDateSelected.setDate(lastDateSelected.getDate() + 1 )).toISOString().substr(0, 10);  */}}
   };
 
   {{/*  ::: __flatpikr  */}}
@@ -1465,11 +1465,11 @@ computed: {
   {{/*  :::__Total Date picker Ingredients  */}}
   filterByDatePicker: function () {
     const filtered = {};
-    const endDateReal = this.DateAddDays(this.endDateSelected).toISOString().slice(0, 10);
-  
+    {{/*  const endDateReal = this.DateAddDays(this.endDateSelected).toISOString().slice(0, 10);
+    */}}
     for (const [type, ingredients] of Object.entries(this.ingTypeList)) {
       filtered[type] = ingredients.filter(
-        ingredient => ingredient.dateService >= this.startDateSelected && ingredient.dateService <= endDateReal
+        ingredient => ingredient.dateService >= this.startDateSelected && ingredient.dateService <= this.endDateSelected
       );
     }
   
@@ -1775,7 +1775,7 @@ methods: {
     const ingredients = this.ingTypeList[`Ing${iType}List`];
 
     // Debug de la date (ajout d'un jour pour que la derniere date soit prise en compte) → si 'end' est définie, alors on envoie à DateAddDays, puis on reformate la date. 
-    end  = this.DateAddDays(end).toISOString().slice(0, 10);
+    {{/*  end  = this.DateAddDays(end).toISOString().slice(0, 10);  */}}
 
 
     // Filtrer les ingrédients selon les critères spécifiés
