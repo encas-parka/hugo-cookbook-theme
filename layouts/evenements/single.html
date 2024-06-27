@@ -865,7 +865,7 @@
 
                 <tr v-if="item.qTotal" :class="{'table-secondary': showAllColIngredients}">
                   <td class="toCopyTd">[[item.ingredient]]</td>
-                  <td class="small" >[[item.totalAssiettes]] couverts</td>
+                  <td class="small" >[[item.totalAssiettes]] c. - [[item.totalRecettes]] recettes</td>
                   <td class="text-end toCopyTd">
                   <span >[[item.qTotal]] [[item.unitTotal]]</span>
                   </td>
@@ -953,7 +953,7 @@
       
                 <tr v-if="item.qTotalX"  :class="{'table-secondary': showAllColIngredients}">
                   <td class="toCopyTd">[[item.ingredient]]</td>
-                  <td class="small">[[item.totalAssiettes]] couverts - [[item.totalRecettes]] recettes </td>
+                  <td class="small">[[item.totalAssiettes]] c. - [[item.totalRecettes]] recettes </td>
       
                   <td class="text-end toCopyTd">
                     <template v-for="(quantite, index) in item.qTotalX" >
@@ -1243,10 +1243,10 @@
 </script>
 
 
-<script nonce="6GwL6l4yhLQddbSv2ftKfX9sTqEkpYcmwyUPm5LEdgqF6VP27IUA5SLae8ScqZ171xC7gGVVZAOuYPJnsiUAzPadx4yFkdQ7GNHa" type="module">
+<script>
   flatpickr.localize(flatpickr.l10ns.fr);
   {{/*  :::VUEAPP  */}}
-  const app = new Vue ({
+  const app = Vue.createApp({
     delimiters: ['[[', ']]'],
     el: '#app',
     data () {
@@ -1424,8 +1424,10 @@ mounted () {
   endDateDebugGen: {
     /* Ajoute un jour a la endDateSelected, pour que les derniers jours soit bien pris en compte par le filtre opéré dans totalsIngredientFiltered.
     Meme fonction dans watch() pour la mise a jour en fonction de la selection dans le date-picker */
+
     {{/*  const lastDateSelected = new Date(this.endDateSelected)
     this.endDateSelectedDebug = new Date(lastDateSelected.setDate(lastDateSelected.getDate() + 1 )).toISOString().substr(0, 10);  */}}
+
   };
 
   {{/*  ::: __flatpikr  */}}
@@ -1466,9 +1468,10 @@ computed: {
 
   {{/*  :::__Total Date picker Ingredients  */}}
   filterByDatePicker: function () {
-    const filtered = {};
+
     {{/*  const endDateReal = this.DateAddDays(this.endDateSelected).toISOString().slice(0, 10);
     */}}
+
     for (const [type, ingredients] of Object.entries(this.ingTypeList)) {
       filtered[type] = ingredients.filter(
         ingredient => ingredient.dateService >= this.startDateSelected && ingredient.dateService <= this.endDateSelected
@@ -1673,11 +1676,11 @@ methods: {
     flatpickr(datepickerEnd, configDPEnd);   
   },
 
-  DateAddDays(dateDebug) {
+  {{/*  DateAddDays(dateDebug) {
     dateDebug = new Date(dateDebug);
     dateDebug.setDate(dateDebug.getDate() + 1);
     return dateDebug;
-  },
+  },  */}}
 
   
   {{/* ::: __calculs des totaux des ingredients  */}}
@@ -1840,7 +1843,7 @@ methods: {
     
   },} {{/* fin de methods */}}
 }); {{/* fin New Vue */}}
-
+app.mount('#app')
 </script>
 
 
