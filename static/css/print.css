@@ -1,4 +1,4 @@
-// Print Option
+ /* Print Option */
 
 @media not print {
   .printonly {
@@ -11,7 +11,8 @@
 @media print {
   
   @page {
-    size: auto;
+    size: A4;
+    margin: 2cm 1.5cm !important ;
   }
 
  
@@ -21,11 +22,13 @@
     -webkit-font-smoothing: antialiased;
     background: #fff !important;
     color: #000 !important;
-    font-family: "Open Sans" "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 0.8rem;
+    font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 12pt !important;
     line-height: 1.15;
-    margin: 0 auto;
+    margin: 2cm 1.5cm !important;
     text-rendering: optimizeLegibility
+    min-width: 95% 100% !important;
+
   }
 
   /* .print-enlarge {
@@ -35,10 +38,10 @@
 
   .print-nocard{
     border: 0;
-    margin: 0!important;
-    padding: 0;
+    margin: 0 !important;
+    padding: 0 !important;
   }
-  }
+  
 
   /* Pour définir des colonnes pour l'impression (les annuler ou les creer) */
   .print-col-12 {
@@ -103,6 +106,18 @@
     font-size: large !important;
     }
 
+  .print-fs-default {
+    font-size: 12pt !important;
+    font-weight: 500 !important;
+    line-height: 1.5 !important;
+  }
+
+
+
+  .print-fs-5 {
+    font-size: 1.15em !important;
+   }
+
   .print-fs-4 {
     font-size: 1.3em !important;
    }
@@ -145,9 +160,6 @@
   }
 
 
-xq
-
-
 
   /*!
   * Gutenberg
@@ -159,8 +171,8 @@ xq
   html {
     line-height: 1.15;
     -webkit-text-size-adjust: 100%;
-    font-size: 90%;
-    margin: 0cm;
+    font-size: 100%;
+    /* margin: 0cm; */
     padding: 0
   }
 
@@ -546,7 +558,7 @@ xq
     text-decoration: none
   }
 
-  table,
+  /* table, */
   blockquote,
   pre,
   code,
@@ -659,17 +671,13 @@ xq
     content: ''
   }
 
-  // From bootsrap-print-css
-  body {
-    min-width: 100% !important;
-    // min-width: 992px !important;
+/* From bootsrap-print-css */
 
-  }
 
   .container {
     min-width: 100% !important;
     padding: 0 !important;
-    // min-width: 992px !important;
+    /* min-width: 992px !important; */
   }
 
   .badge {
@@ -702,11 +710,10 @@ xq
   }
 
 
-
+}
 
   
 
 
 
 
-}

@@ -321,12 +321,12 @@
           <div class="col-md-6">
             <div class="callout small">
               <p>
-                Pour exporter en PDF, dans les options d'impression, selectionnez : destination > "enregistrer au format
+                Pour exporter en PDF, dans les options d'impression, sélectionnez : destination > "enregistrer au format
                 Pdf" comme imprimante. Pensez aussi à personnaliser les marges d'impression ou l'échelle afin de
                 redimensionner le contenu selon ce qui vous convient.
               </p>
-              <p>
-
+              <p class="fw-bolder">
+                ⚠ L'impression des listes d'ingredients présente régulièrement des bug avec Firefox (superposition des listes). Si c'est le cas, utilisez un navigateur basé sur chrome (par exemple, "brave")
               </p>
 
             </div>
@@ -470,16 +470,11 @@
 
     <div id="topRecette" class="row">
       <div class="col">
-        <div class="fw-semibold fs-5 "> {{ $dateService | time.Format "Monday 2 January "}} - {{ $horaire }} - {{
-          $typePlat }}</div>
+        <span class="fw-semibold fs-5 print-fs-4"> {{ $dateService | time.Format "Monday 2 January "}} - {{ $horaire }} - {{
+          $typePlat }}</span>
+          <span class="print-bold ms-3">Nombre de couverts: {{ $assiettes }}</span>
         <div class="">
-          <div class="print-fs-4 print-bold">Nombre de couverts: {{ $assiettes }}</div>
 
-          {{ with .Params.quantite_desc }}
-          <div class="my-2 no-print">    
-              {{.}}
-          </div>
-          {{ end }}
           {{ if $chef }}
           <div>Référent•es: {{ $chef }} - </div>
           {{ end }}
@@ -619,7 +614,11 @@
         {{- end -}} 
       </div>
        
-      
+      {{ with .Params.quantite_desc }}
+      <div class="my-2">    
+         Service/Quantité : {{.}}
+      </div>
+      {{ end }} 
     </div> 
     {{ end }} {{/* with site.GetPage $url */}}
     
@@ -645,21 +644,21 @@
         <div class="card my-2 p-2 " outlined>
           <div class="row">
             <div class="col">
-              <div class="mb-2"> {{ partial "components/icon-type"  (dict "icon" $key) }} <span class="fw-bold">{{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span> 
+              <div class="mb-2"> {{ partial "components/icon-type"  (dict "icon" $key) }} <span class="fw-bolder print-fs-small">{{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span> 
               {{/*  {{ if eq $key "epices"}} 
                 <div class="small text-muted text-center m-0 p-0">(gouttez, ajustez !)</div>
               {{ end }}   */}}
               </div>
 
               {{ range $index, $element := . -}}
-                <div class="small ps-2">
+                <div class="ps-2 my-1 print-fs-small">
                   {{/*  <span class="fw-bold">• {{ partial "components/ingredients" (dict "title" .title "alergene" $allergenesList)
                   }}</span>  */}}
 
                   {{/* Pour obtenir les quantité correspondant au nombres d'assiettes indiquées  */}}
                   {{ partial "functions/ing4events.html" (dict "ingredient" .title  "quantite" .quantite "assiettes" $assiettes "assiettesRecettes" $assiettesRecettes "unit" .unit "alergene" $allergenesList) }}
                   {{ with .commentaire }}
-                  <span class="small fs-6 fw-light ms-2 lh-1">({{.}})</span>
+                  <span class="print-fs-default ms-2 ">({{.}})</span>
                   {{ end }}
                 </div>
               {{ end }}
@@ -694,16 +693,16 @@
         <div class=" card card-body print-nocard">
         {{ if .Params.preparation24h }}
          <div class="card border border-danger mb-4 p-3 " >
-           <p class="fs-5 fw-bold text-center print-fs-medium" >A prévoir à l'avance !</p>
-           <div>{{ .Params.preparation24h | markdownify }}</div>
+           <p class="fs-5 fw-bold text-center" >A prévoir à l'avance !</p>
+           <div class="">{{ .Params.preparation24h | markdownify }}</div>
         </div>
         {{ end }}
-          {{ .Params.preparation | markdownify }}
+          <div class="">{{ .Params.preparation | markdownify }}</div>
         </div>
           
       {{ range .Params.astuces }}
-          <div class="col-md-5 card card-body m-2 small ">
-            Astuce: {{ .astuce }}
+          <div class="card card-body m-3 small ">
+            <span class="fw-bolder">Astuce: </span> <span>{{ .astuce }} </span>
           </div>
       {{ end }}
       </div>
@@ -811,21 +810,21 @@
 
     {{ range $fraisByRanges }}
     {{ $indexTable := 1 }}
-    <div id="{{.idR}}" class="">
+    <div id="{{.idR}}" class="avoid-break-inside">
       <template v-for="(range, index) in rangesDates">
 
     {{/*  ::: ___table Frais  */}}
       
     <div 
         v-if="{{.thisRange}} && totalRangeWithDetail('{{ .iType }}', range[0], range[range.length - 1]).size > 0" 
-        class="card my-2 mb-lg-6 avoid-break-inside border-danger border-1 mb-3  print-nocard"
+        class="card my-2 mb-lg-6 border-danger border-1 mb-3  print-nocard"
         :class="{'no-print':!toPrint.{{.idR}} }"
         :id="range[0]"
         >
         <div class="card-body">
-          <div class="">
+          <div class="no-print">
             <span class="fs-5 toCopy"> {{.titleR}} du [[ range[0] ]] au [[range[range.length - 1] ]] </span>
-            <div class="my-2 float-end">
+            <div class="my-2 float-end no-print">
               <a
                 class="btn btn-outline-secondary btn-sm text-muted "
                 role="button"
@@ -834,8 +833,8 @@
             </div>
           </div>
 
-          <table id="tableFrais" class="table table-responsive toCopy"  :class="{'table-striped': !showAllColIngredients, 'table-bordered' : showAllColIngredients}">
-
+          <table id="tableFrais" class="table table-responsive toCopy caption-top mb-4"  :class="{'table-striped': !showAllColIngredients, 'table-bordered' : showAllColIngredients}">
+            <caption class="fs-5 text-center text-color-black printonly"> {{.titleR}} du [[ range[0] ]] au [[range[range.length - 1] ]]</caption>
             <thead>
               <tr>
                 <th>Ingredients {{.iType}} </th>
@@ -888,18 +887,18 @@
 
     {{/*  Renommage des iType  */}}
     <div id="tableIng">
-      {{ range sort $IngredientsTypesList "iType" "desc"}}
-      {{ $iTypeName := (partial "functions/ingredients-types-rename" (dict "ingType" .iType) .) }}
-      {{ $IngTypeList := (printf "Ing%sList" .iType) }}
+      {{-  range sort $IngredientsTypesList "iType" "desc" -}}
+      {{- $iTypeName := (partial "functions/ingredients-types-rename" (dict "ingType" .iType) .) -}}
+      {{- $IngTypeList := (printf "Ing%sList" .iType) -}}
       {{/*  ::: _ Card des tableau ingredients petit et grand  */}}
       <div
         v-if="totalQuantitesDP.{{$IngTypeList}} && Object.keys(totalQuantitesDP.{{$IngTypeList}}).length > 0"
-        class="card my-2 mb-lg-6 avoid-break-inside  mb-3 print-nocard"
+        class="card my-2 mb-lg-6  mb-3 print-nocard"
         :class="{'no-print':!toPrint.{{.iType}} }"
         id="IngListID{{.iType}}"
         >
         <div class="card-body">
-          <div class="">
+          <div class="no-print">
             {{ $svg := (printf "fonticons/%s.svg" .iType | lower)}}
             <span class="float-start me-2">{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "fs" 1) .  }}</span>
             <span class="fs-4 toCopy"> {{$iTypeName}} </span>
@@ -911,16 +910,19 @@
                 >{{ partial "inline-svg" (dict "src" "fonticons/printer"  "fs" 3) }}</a>
             </div>
           </div>
-          <div v-if="startDate !== startDateSelected || endDate !== endDateSelected" class="fs-6 text-center toCopyDate">
+          <div v-if="startDate !== startDateSelected || endDate !== endDateSelected" class="fs-6 text-center toCopyDate no-print">
               Du [[new Date (startDateSelected).toLocaleDateString("fr-FR", {weekday: 'long', month: 'long', day:
               'numeric'})]] au [[new Date (endDateSelected).toLocaleDateString("fr-FR", {weekday: 'long', month: 'long',
               day: 'numeric'})]]
           </div>
           {{/* ::: __Table ingrédients   */}}
-          <table class="table table-responsive toCopy"
+          <table class="table table-responsive toCopy caption-top"
                 :class="{'table-striped': !showAllColIngredients, 'table-bordered' : showAllColIngredients}"
                 id="table-{{.iType}}"
                 >
+                <caption class="fs-5 printonly">{{$iTypeName}} du [[new Date (startDateSelected).toLocaleDateString("fr-FR", {weekday: 'long', month: 'long', day:
+                  'numeric'})]] au [[new Date (endDateSelected).toLocaleDateString("fr-FR", {weekday: 'long', month: 'long',
+                  day: 'numeric'})]]</caption>
             <thead>
               <tr>
                 <th>Ingredients</th>
