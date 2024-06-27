@@ -13,6 +13,7 @@
 {{ $isucres := slice }}
 {{ $ilof := slice }}
 {{ $ifrais := slice }}
+{{ $iautres := slice }}
 
 {{- $IngredientList := slice -}}
 
@@ -46,6 +47,10 @@
 {{ $ifrais = $ifrais | append .title }}
 {{- end }}
 
+{{- range .Params.ingredients.autres -}}
+{{ $iautres = $iautres | append .title }}
+{{- end }}
+
 
   {{- range $key, $value := .Params.ingredients -}}
     {{- range $index, $element := . -}}
@@ -63,6 +68,7 @@
 {{ $isucres = $isucres | uniq }}
 {{ $ilof = $ilof | uniq }}
 {{ $ifrais = $ifrais | uniq }}
+{{ $iautres = $iautres | uniq }}
 
 
 
@@ -193,6 +199,13 @@
                 {{ end }}
               </select>
             </div>
+            <div class="my-2" v-if="alliautres.length">
+              <select id="MsAutres">
+                {{ range $iautres }}
+                <option>{{ . }}</option>
+                {{ end }}
+              </select>
+            </div>
           </div>
           </div>
       </div>
@@ -317,6 +330,7 @@
         :class="{'fw-bold text-decoration-underline': filteredAnimaux.includes(animaux)}">[[animaux]] - </span>
         <span class="small" v-for="lof in recipe.ilof" :key="lof" :class="{'fw-bold text-decoration-underline': filteredLof.includes(lof)}">[[lof]] - </span>
         <span class="small" v-for="sucre in recipe.isucre" :key="sucre" :class="{'fw-bold text-decoration-underline': filteredSucre.includes(sucre)}">[[sucre]] - </span>
+        <span>...</span>
         <div v-if="recipe.materiel.length" class="my-1">
           <span class="fw-bold">Matériel :</span>
           <span v-for="materiel in recipe.materiel" :key="materiel" class="small">[[materiel]] - </span>
@@ -341,76 +355,79 @@
 
 {{/*  :::SCRIPT VUE  */}}
 
-<script type="module">
+<script>
 
-  const appfilters = new Vue ({
+  const app = Vue.createApp({
     delimiters: ['[[', ']]'],
     el: '#app',
-    data: () => ({
-
-      recettes: [
-      
-      {{- range sort .RegularPagesRecursive ".Title" -}}
-      
-      {
-        title: "{{ .Title }}",
-        url: "{{ .RelPermalink }}",
-        type: "{{ .Params.type }}",
-        auteur: "{{.Params.auteur}}",
-        specialite: "{{.Params.spécialité}}",
-        plate: "{{.Params.plate}}",
-        {{/*  roundplate: "{{ mul (math.Round (div .Params.plate 10)) 10 }}",  */}}
-        check: "{{.Params.check}}",
-        checkfor: "{{ .Params.checkfor }}" ,
-        checkrange: ["{{.Params.plate}}", "{{.Params.checkfor}}"],
-        saison: [{{- range .Params.saison -}} "{{ . }}", {{- end -}}],
-        categories: [ {{ if .Params.categories }} {{- range sort .Params.categories -}} "{{ . }}",{{- end -}} {{- end -}} ],
-        regimes: [ {{- if .Params.regime -}} {{- range sort .Params.regime -}} "{{ . }}", {{- end -}} {{- end -}} ],
-        ilegumes: [{{- range .Params.ingredients.legumes -}} "{{ .title }}",{{- end -}} ],
-        isec: [ {{- range .Params.ingredients.sec -}} "{{ .title }}",{{- end -}} ], 
-        ianimaux: [ {{- range .Params.ingredients.animaux -}} "{{ .title }}",{{- end -}}
+    data() {
+      return {
+        recettes: [
+        
+        {{- range sort .RegularPagesRecursive ".Title" -}}
+        
+        {
+          title: "{{ .Title }}",
+          url: "{{ .RelPermalink }}",
+          type: "{{ .Params.type }}",
+          auteur: "{{.Params.auteur}}",
+          specialite: "{{.Params.spécialité}}",
+          plate: "{{.Params.plate}}",
+          {{/*  roundplate: "{{ mul (math.Round (div .Params.plate 10)) 10 }}",  */}}
+          check: "{{.Params.check}}",
+          checkfor: "{{ .Params.checkfor }}" ,
+          checkrange: ["{{.Params.plate}}", "{{.Params.checkfor}}"],
+          saison: [{{- range .Params.saison -}} "{{ . }}", {{- end -}}],
+          categories: [ {{ if .Params.categories }} {{- range sort .Params.categories -}} "{{ . }}",{{- end -}} {{- end -}} ],
+          regimes: [ {{- if .Params.regime -}} {{- range sort .Params.regime -}} "{{ . }}", {{- end -}} {{- end -}} ],
+          ilegumes: [{{- range .Params.ingredients.legumes -}} "{{ .title }}",{{- end -}} ],
+          isec: [ {{- range .Params.ingredients.sec -}} "{{ .title }}",{{- end -}} ], 
+          ianimaux: [ {{- range .Params.ingredients.animaux -}} "{{ .title }}",{{- end -}}
+          ],
+          ilof:  [ {{- range .Params.ingredients.lof -}} "{{ .title }}",{{- end -}} ],
+          isucre:  [ {{- range .Params.ingredients.sucres -}} "{{ .title }}",{{- end -}} ],
+          ifrais:  [ {{- range .Params.ingredients.frais -}} "{{ .title }}",{{- end -}} ],
+          iautres:  [ {{- range .Params.ingredients.autres -}} "{{ .title }}",{{- end -}} ],
+          specialite: " {{ .Params.spécialité }}",
+          temperature: "{{ .Params.temperature }}",
+          cuisson: "{{ .Params.cuisson }}",
+          materiel: [ {{- range .Params.materiel -}}  "{{ . }}", {{- end -}} ]
+        },
+        
+        {{- end -}}
+        
         ],
-        ilof:  [ {{- range .Params.ingredients.lof -}} "{{ .title }}",{{- end -}} ],
-        isucre:  [ {{- range .Params.ingredients.sucres -}} "{{ .title }}",{{- end -}} ],
-        ifrais:  [ {{- range .Params.ingredients.frais -}} "{{ .title }}",{{- end -}} ],
-        specialite: " {{ .Params.spécialité }}",
-        temperature: "{{ .Params.temperature }}",
-        cuisson: "{{ .Params.cuisson }}",
-        materiel: [ {{- range .Params.materiel -}}  "{{ . }}", {{- end -}} ]
-      },
-      
-      {{- end -}}
-      
-      ],
-      filters: {
-        types: [],
-        categories: [],
-        regimes: [],
-        ilegumes: [],
-        ianimaux: [],
-        isec: [],
-        ilof: [],
-        isucre: [],
-        ifrais: [],
-        cuisson: [],
-        temperature: [],
-        saison: [],
-        check: [],
-      },
-      
-      searchQuery: '',
-      disableFilters: false,
+        filters: {
+          types: [],
+          categories: [],
+          regimes: [],
+          ilegumes: [],
+          ianimaux: [],
+          isec: [],
+          ilof: [],
+          isucre: [],
+          ifrais: [],
+          iautres: [],
+          cuisson: [],
+          temperature: [],
+          saison: [],
+          check: [],
+        },
+        
+        searchQuery: '',
+        disableFilters: false,
 
-      msCategories: null,
-      msSec: null,
-      msLegumes: null,
-      msAnimaux: null,
-      msLof: null,
-      msSucre: null,
-      msFrais: null,
-      {{/*  additiveFiltering: false  */}}
-      
-    }),
+        msCategories: null,
+        msSec: null,
+        msLegumes: null,
+        msAnimaux: null,
+        msLof: null,
+        msSucre: null,
+        msFrais: null,
+        msAutres: null,
+        {{/*  additiveFiltering: false  */}}
+      }
+    },
 
 {{/*  ::: mounted  */}}
 mounted() {
@@ -504,7 +521,20 @@ mounted() {
         this.selectedIng( e.action, "ilof", e.value);
       });
     };
-    }
+    };
+  multiSelectAutres: {
+    if (this.alliautres.length > 0) {
+      this.msAutres = new IconicMultiSelect({
+        select: "#MsAutres",
+        placeholder: "Autres",
+        noResults: "Aucun ingrédient trouvé..."
+      });
+      this.msAutres.init();
+      this.msAutres.subscribe((e) => {
+        this.selectedIng( e.action, "iautres", e.value);
+      });
+    };
+    };
   multiSelectFrais: {
     if (this.allifrais.length > 0) {
       this.msFrais = new IconicMultiSelect({
@@ -590,7 +620,9 @@ computed: {
       (!this.filters.check.length ||
       this.x(this.filters.check, p.check).length) &&
       (!this.filters.ifrais.length ||
-      this.x(this.filters.ifrais, p.ifrais).length)
+      this.x(this.filters.ifrais, p.ifrais).length) &&
+      (!this.filters.iautres.length ||
+      this.x(this.filters.iautres, p.iautres).length)
       
       );
     }
@@ -614,6 +646,9 @@ computed: {
 
   filteredFrais() {
     return this.filters.ifrais
+  },
+  filteredAutres() {
+    return this.filters.iautres
   },
   
   // Pour la fabrication des boutons de filtres
@@ -640,6 +675,9 @@ computed: {
   },
   allifrais() {
     return this.getAll('ifrais')
+  },
+  alliautres() {
+    return this.getAll('iautres')
   },
   allcuisson(){
     return this.getAll('cuisson')
@@ -686,6 +724,7 @@ methods: {
     this.filters['ilof'] = []
     this.filters['isucre'] = []
     this.filters['ifrais'] = []
+    this.filters['iautres'] = []
     this.filters['cuisson'] = []
     this.filters['temperature'] = []
     this.filters['saison'] = []
@@ -697,6 +736,7 @@ methods: {
     this.msLof._clearSelection()
     this.msSucre._clearSelection()
     this.msFrais._clearSelection()
+    this.msAutres._clearSelection()
   },
   resetSearch: function () {
     this.searchQuery = '' 
@@ -717,6 +757,9 @@ methods: {
 
 }
 );
+
+app.mount('#app')
+
   </script>
   
   
