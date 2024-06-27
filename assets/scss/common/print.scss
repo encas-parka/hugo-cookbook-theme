@@ -88,6 +88,10 @@
     font-weight: 600;
   }
 
+  .fw-bold {
+    font-weight: 600 !important;
+  }
+  
   .print-nocard {
     border: 0;
     margin: 0 !important;
@@ -151,7 +155,7 @@
   }
 
 li {
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.8rem;
 }
 
 
@@ -373,8 +377,8 @@ li {
     -webkit-font-smoothing: antialiased;
     background: #fff !important;
     color: #000 !important;
-    font-family: "Open Sans" "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 0.8rem;
+    font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 12pt;
     line-height: 1.15;
     margin: 0 auto;
     text-rendering: optimizeLegibility
@@ -384,13 +388,16 @@ li {
     padding: 0 0 0 0;
   }
 
-  p,
+  p {
+    margin-bottom: .8rem
+  }
+
   blockquote,
   table,
   ul,
   ol,
   dl {
-    margin-bottom: 1.35rem;
+    margin-bottom: 1.15rem;
     margin-top: 0
   }
 

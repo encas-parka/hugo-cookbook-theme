@@ -1,6 +1,63 @@
 {
   "ingredients": [
     {
+      "title": "Protéines de soja (petites)"
+    },
+    {
+      "title": "Protéines de soja (moyennes)"
+    },
+    {
+      "title": "Protéines de soja (grosses)"
+    },
+    {
+      "title": "Pistache émmondée"
+    },
+    {
+      "title": "Pâtes langues d'oiseaux sans gluten"
+    },
+    {
+      "title": "Graine de tournesol"
+    },
+    {
+      "title": "Semoule couscous sans gluten"
+    },
+    {
+      "title": "Nouilles de riz Phö"
+    },
+    {
+      "title": "Riz basmati"
+    },
+    {
+      "title": "Haricots rouges cuits"
+    },
+    {
+      "title": "Riz pour risotto"
+    },
+    {
+      "title": "Haricots blancs en conserve"
+    },
+    {
+      "title": "Nouilles de riz"
+    },
+    {
+      "title": "Lentilles corail"
+    },
+    {
+      "title": "Petits flocons d'avoine"
+    },
+    {
+      "title": "Quinoa blanc"
+    },
+    {
+      "title": "Graines de nigelle"
+    },
+    {
+      "title": "Polenta fine"
+    },
+    {
+      "title": "Graines de lin"
+    },
+    {
       "title": "Pois chiche cuit"
     },
     {
@@ -137,11 +194,6 @@
       "vegetarien": true
     },
     {
-      "title": "Patates douces",
-      "vegan": true,
-      "vegetarien": true
-    },
-    {
       "title": "Pâtes",
       "vegan": true,
       "vegetarien": true,
@@ -231,11 +283,6 @@
     },
     {
       "title": "Spaguetti de Mais-Riz",
-      "vegan": true,
-      "vegetarien": true
-    },
-    {
-      "title": "Topinambour",
       "vegan": true,
       "vegetarien": true
     },

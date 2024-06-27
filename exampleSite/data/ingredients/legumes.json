@@ -1,8 +1,92 @@
 {
   "ingredients": [
     {
+      "pFrais": true,
+      "title": "Fruits divers"
+    },
+    {
+      "pFrais": true,
+      "title": "Pêche"
+    },
+    {
+      "pFrais": true,
+      "title": "Olives noires entières"
+    },
+    {
+      "pFrais": true,
+      "title": "Poivron long vert (corne de boeuf)"
+    },
+    {
       "pFrais": false,
-      "title": "Olives vertes dénoyautées"
+      "title": "Champignon shiitake séché"
+    },
+    {
+      "pFrais": true,
+      "title": "Galanga"
+    },
+    {
+      "pFrais": true,
+      "title": "Gingembre bio"
+    },
+    {
+      "pFrais": false,
+      "title": "Champignons séchés"
+    },
+    {
+      "pFrais": true,
+      "title": "Concombre sans traitement"
+    },
+    {
+      "pFrais": true,
+      "title": "Zestes d'orange"
+    },
+    {
+      "pFrais": true,
+      "title": "Orange non traitée"
+    },
+    {
+      "pFrais": true,
+      "title": "Chou chinois"
+    },
+    {
+      "pFrais": true,
+      "title": "Citron non traité"
+    },
+    {
+      "pFrais": true,
+      "title": "Salade verte (chêne)"
+    },
+    {
+      "pFrais": false,
+      "title": "Algue Kombu"
+    },
+    {
+      "pFrais": true,
+      "title": "Mâche (salade)"
+    },
+    {
+      "pFrais": false,
+      "title": "Cranberries"
+    },
+    {
+      "pFrais": false,
+      "title": "Cornichon"
+    },
+    {
+      "pFrais": false,
+      "title": "Betterave cuite"
+    },
+    {
+      "pFrais": true,
+      "title": "Gingembre"
+    },
+    {
+      "pFrais": false,
+      "title": "Petits pois surgelés"
+    },
+    {
+      "pFrais": true,
+      "title": "Topinambour"
     },
     {
       "pFrais": false,
@@ -10,7 +94,7 @@
     },
     {
       "title": "Cébette - Ciboule - Cive - Oignon vert",
-      "pFrais": false
+      "pFrais": true
     },
     {
       "title": "Chou vert",
@@ -270,7 +354,7 @@
       "pFrais": true
     },
     {
-      "title": "Harcitos beurre",
+      "title": "Haricots beurre",
       "pFrais": true
     },
     {
@@ -359,6 +443,10 @@
     },
     {
       "title": "Orange sanguine",
+      "pFrais": true
+    },
+    {
+      "title": "Patates douces",
       "pFrais": true
     },
     {

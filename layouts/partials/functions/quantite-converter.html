@@ -2,7 +2,7 @@
 {{ $ingredient := .ingredient }}
 {{ $quantiteRecette := .quantite }}
 
-{{ if strings.Contains $unit "café" }}
+{{ if strings.Contains $unit "caf" }}
    {{ if eq ($ingredient | lower) "sucre" }}
       {{ $quantiteRecette = mul $quantiteRecette 15 | math.Round }}
       {{ $unit = "gr." }}
