@@ -178,6 +178,7 @@
   {{ $allergenesList = append  ($sAllergenes.Get .) $allergenesList }}
 {{ end }}
 
+
 {{/*  lien vers le CMS de la page  */}}
 {{/*  FIXIT : lien vers url slug uuid  */}}
 {{ $linkCMSPage := (path.Join "/admin/#/collections/evenement/entries/" (.Title | urlize)) }}
@@ -470,9 +471,9 @@
 
     <div id="topRecette" class="row">
       <div class="col">
-        <span class="fw-semibold fs-5 print-fs-4"> {{ $dateService | time.Format "Monday 2 January "}} - {{ $horaire }} - {{
-          $typePlat }}</span>
-          <span class="print-bold ms-3">Nombre de couverts: {{ $assiettes }}</span>
+        <div class="fw-semibold fs-5 print-fs-4"> {{ $dateService | time.Format "Monday 2 January "}} - {{ $horaire }} - {{
+          $typePlat }}</div>
+        <div class="print-bold">{{ $assiettes }} couverts</div>
         <div class="">
 
           {{ if $chef }}
@@ -852,14 +853,14 @@
                 :class="{'table-secondary fw-bold': item.qTotal}"
                 >
                   <td :class="{'small text-muted': !item.qTotal}" >[[item.ingredient]]</td>
-                  <td v-if="item.recette" class="small">
-                    <span class="fw-bold">[[item.recette]]</span> le [[new Date (item.dateService).toISOString().substr(0, 10)]] /
-                    [[item.horaire]] <br> pour [[item.assiettes]] couverts
-                    <span class="float-end">
-                      <span class="fw-bold " v-if="item.quantiteOrig && item.unitOrig">[[round2Decimals(item.quantiteOrig)]] [[item.unitOrig]] ~= </span>
-                      <span class="fw-bold" v-if="item.quantite && item.unit">[[round2Decimals(item.quantite)]] [[item.unit]]</span>
-                    </span>
-                  </td>
+                <td v-if="item.recette" class="small">
+                  <span class="fw-bold">[[item.recette]]</span> le [[new Date (item.dateService).toISOString().substr(0, 10)]] /
+                  [[item.horaire]] <br> pour [[item.assiettes]] couverts
+                  <span class="float-end">
+                    <span class="fw-bold " v-if="item.quantiteOrig && item.unitOrig">[[round2Decimals(item.quantiteOrig)]] [[item.unitOrig]] ~= </span>
+                    <span class="fw-bold" v-if="item.quantite && item.unit">[[round2Decimals(item.quantite)]] [[item.unit]]</span>
+                  </span>
+                </td>
                 
                 </tr>
 
@@ -1283,6 +1284,7 @@
             quantiteOrig: {{.quantite}},
             unitOrig: "{{.unit}}",
             {{ end }}
+            
             recette: "{{ .recette }}",
             dateService:'{{ .dateService }}',
             horaire: "{{ .horaire }}",
@@ -1424,10 +1426,8 @@ mounted () {
   endDateDebugGen: {
     /* Ajoute un jour a la endDateSelected, pour que les derniers jours soit bien pris en compte par le filtre opéré dans totalsIngredientFiltered.
     Meme fonction dans watch() pour la mise a jour en fonction de la selection dans le date-picker */
-
-    {{/*  const lastDateSelected = new Date(this.endDateSelected)
-    this.endDateSelectedDebug = new Date(lastDateSelected.setDate(lastDateSelected.getDate() + 1 )).toISOString().substr(0, 10);  */}}
-
+    
+    {{/*  this.endDateSelectedDebug = new Date(lastDateSelected.setDate(lastDateSelected.getDate() + 1 )).toISOString().substr(0, 10);  */}}
   };
 
   {{/*  ::: __flatpikr  */}}
@@ -1468,10 +1468,9 @@ computed: {
 
   {{/*  :::__Total Date picker Ingredients  */}}
   filterByDatePicker: function () {
-
-    {{/*  const endDateReal = this.DateAddDays(this.endDateSelected).toISOString().slice(0, 10);
-    */}}
-
+    const filtered = {};
+    {{/*  const endDateReal = this.DateAddDays(this.endDateSelected).toISOString().slice(0, 10);  */}}
+  
     for (const [type, ingredients] of Object.entries(this.ingTypeList)) {
       filtered[type] = ingredients.filter(
         ingredient => ingredient.dateService >= this.startDateSelected && ingredient.dateService <= this.endDateSelected
