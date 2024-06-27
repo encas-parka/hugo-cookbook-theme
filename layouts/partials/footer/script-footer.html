@@ -3,7 +3,6 @@
 <!-- Charge les script js importé dans app.js -->
 {{ partial "footer/esbuild" (dict "src" "js/app.js" "targetPath" "main.js" "load" "async" "transpile" false) -}}
 
-{{ partial "footer/esbuild" (dict "src" "js/netlify-identity-widget.js" "load" "async" "transpile" false) -}}
 
 {{ if .Params.zoomable_img }}
 {{ $script := resources.Get "js/zoomable-img.js" | fingerprint }}
