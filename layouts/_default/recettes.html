@@ -65,10 +65,10 @@
   {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
 {{ end }}
 
-{{ $svg := partial "components/icon-cat-find" . }}
+{{ $svg := partial "components/svg-icon-cat-find" . }}
 <div class="float-start  me-2"></div>
 <div class="h1">
-  <span class="print-recette-title ">{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "rem" 3) .  }} {{.Title}}</span>
+  <span class="print-recette-title ">{{ partial "components/icon-svg" (dict "name" $svg "size" "3rem") }} {{.Title}}</span>
 </div>
 
 <div class="row">
@@ -154,6 +154,7 @@
         </div>
         
       {{- end -}}
+
       <div class="no-print">
         <span id="quantityInit" style="display:none">{{.Params.plate}}</span>
         <form>
@@ -168,31 +169,31 @@
       <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2 no-print ">
         <div class="card border-danger shadow small px-4 card-body print-nocard">
           {{- with $alertAutresAllergenes -}}
-          <div> <span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/exclamation-triangle" "display" "inline" "fs" 3) }}</span>
+          <div> <span class="me-2"> {{ partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" "1rem") }}</span>
             Allergènes divers:
             <span class="fw-bold">{{ delimit $alertAutresAllergenes ", "}}</span>
           </div>
           {{- end -}}
           {{- with $alertGluten -}}
-          <div><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/gluten" "display" "inline" "fs" 3) }}</span>
+          <div><span class="me-2">{{ partial "components/icon-svg" (dict "name" "gluten" "size" "1rem") }}</span>
             Gluten :
             <span class="fw-bold">{{ delimit $alertGluten ", "}}</span>
           </div>
           {{- end -}}
           {{- with $alertLait -}}
-          <div><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/milk-box" "display" "inline" "fs" 3) }}</span>
+          <div><span class="me-2">{{ partial "components/icon-svg" (dict "name" "milk-box" "size" "1rem") }}</span>
             Produits laitier :
             <span class="fw-bold">{{ delimit $alertLait ", "}}</span>
           </div>
           {{- end -}}
           {{- with $alertLactose -}}
-          <div><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/milk-box" "display" "inline" "fs" 3) }}</span>
+          <div><span class="me-2">{{ partial "components/icon-svg" (dict "name" "milk-box" "size" "1rem") }}</span>
             Lactose :
             <span class="fw-bold">{{ delimit $alertLait ", "}}</span>
           </div>
           {{- end -}}
           {{- with $alertPorc -}}
-          <div><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/no-vegan" "display" "inline" "fs" 3) }}</span> Porc:
+          <div><span class="me-2">{{ partial "components/icon-svg" (dict "name" "no-vegan" "size" "1rem") }}</span> Porc:
             <span class="fw-bold">{{ delimit $alertPorc ", "}}</span>
           </div>
           {{- end -}}
@@ -220,7 +221,7 @@
 
 <div class="row mt-4">
   <div class="col-md-4 print-col-30-100">
-    <h4><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/ingredients" "display" "inline-middle" "rem" 3) }}</span> Ingredients </h4>
+    <h4><span class="me-2">{{ partial "components/icon-svg" (dict "name" "ingredients" "size" "2rem") }}</span> Ingredients </h4>
 
       {{/*  <div class="card my-4 p-2 shadow">
         <span class="small">{{ partial "inline-svg" (dict "src" "fonticons/exclamation-triangle" "display" "inline" "rem" 1) }} → Allergènes </span>
@@ -229,9 +230,8 @@
       {{- range $key, $value := .Params.ingredients  -}}
         {{- with . -}}
         <div class="card my-2 p-2 " outlined>
-          {{ $svg := (printf "fonticons/%s.svg" $key)}}
           <div>
-            <span class="fw-bold mb-2 me-1">{{ partial "inline-svg" (dict "src" $svg "display" "inline-middle"  "fs" 1) .  }} {{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span>   
+            <span class="fw-bold mb-2 me-1">{{ partial "components/icon-svg" (dict "name" $key "size" "1.5rem") }} {{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span>   
             {{ if eq $key "epices"}}
              <span class="small text-muted">(gouttez, ajustez !)</span>
             {{ end }}
@@ -250,12 +250,7 @@
       {{- end -}} {{/* range key value */}}
 
       <div class="text-muted small">
-        {{ partial "inline-svg" (dict
-        "src" "fonticons/exclamation-triangle"
-        "display" "inline"
-        "title" "Allergène"
-        "fs" 5
-         ) }} → Allergènes
+        {{ partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" "1rem") }} → Allergènes
       </div>
   </div>
 
@@ -264,7 +259,7 @@
     <div class="col-md-8 print-col-70-100">
 
 
-      <h4><span class="me-2">{{ partial "inline-svg" (dict "src" "fonticons/preparation" "display" "inline-middle" "rem" 3) }}</span> Préparation</h4>
+      <h4><span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "preparation" "size" "2.3rem") }}</span> Préparation</h4>
       <div class="avoid-break-inside">
           <div class="m-auto">
             {{- if .Params.preparation24h -}}
