@@ -2,8 +2,10 @@
 {{ $ingredient := .ingredient }}
 {{ $quantiteRecette := .quantite }}
 
+
+
 {{ if strings.Contains $unit "caf" }}
-   {{ if eq ($ingredient | lower) "sucre" }}
+   {{ if  eq ($ingredient | lower) "sucre" }}
       {{ $quantiteRecette = mul $quantiteRecette 15 | math.Round }}
       {{ $unit = "gr." }}
    {{ else if eq ($ingredient | lower) "sel" }}
@@ -48,7 +50,7 @@
       {{ $unit = "gr." }}
    {{ else }}
      {{ $quantiteRecette = mul $quantiteRecette 5  | math.Round }} {{ $unit = "ml"}}
-{{ end }}
+   {{ end }}
 
 
 {{ else if strings.Contains $unit "soupe" }}
@@ -92,9 +94,10 @@
      {{ $quantiteRecette = mul $quantiteRecette 5  | math.Round }} {{ $unit = "gr."}}
    {{ else }}
      {{ $quantiteRecette = mul $quantiteRecette 15  | math.Round }} {{ $unit = "ml"}}
-{{ end }}
+   {{ end }}
+   {{ end }}
 
-{{ else if and (strings.Contains .unit "unité") (eq ($ingredient | lower) "ail") }}
+{{ if and (strings.Contains $unit "gousse") (eq ($ingredient | lower) "ail") }}
    {{ $quantiteRecette = mul $quantiteRecette 6.5  | math.Round }}  {{ $unit = "gr."}}    
 {{ end }}
 
