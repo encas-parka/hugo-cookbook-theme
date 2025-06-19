@@ -509,6 +509,7 @@
                           <th>Ingredients {{ .iType }}</th>
                           <th class="text-center">Recettes</th>
                           <th class="text-end">Total</th>
+                          <th class="no-print" v-show="!showAllColIngredients">Détail</th>
                           <th
                             class="printonly"
                             v-show="printAddCol === '1' || printAddCol ===  '2' "
@@ -562,6 +563,16 @@
                             <td class="small">[[item.totalAssiettes]] c.</td>
                             <td class="text-end toCopyTd">
                               <span>[[item.qTotal]] [[item.unitTotal]]</span>
+                            </td>
+                            <td class="no-print" v-show="!showAllColIngredients">
+                              <button
+                                type="button"
+                                class="btn btn-sm btn-outline-primary"
+                                @click="openIngredientModalRange(item.ingredient, '{{ .iType }}', range[0], range[range.length - 1])"
+                                data-bs-toggle="modal"
+                                data-bs-target="#ingredientDetailModal">
+                                détail
+                              </button>
                             </td>
                             <td
                               v-show="printAddCol === '1' || printAddCol ===  '2' "
@@ -636,6 +647,7 @@
                         <th>Ingredients</th>
                         <th>Recettes</th>
                         <th class="text-end">Total</th>
+                        <th class="no-print" v-show="!showAllColIngredients">Détail</th>
                         <th
                           class="printonly"
                           v-show="printAddCol === '1' || printAddCol ===  '2' "
@@ -703,6 +715,17 @@
                             </template>
                           </td>
 
+                          <td class="no-print" v-show="!showAllColIngredients">
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-outline-primary"
+                              @click="openIngredientModal(item.ingredient, '{{ .iType }}')"
+                              data-bs-toggle="modal"
+                              data-bs-target="#ingredientDetailModal">
+                              détail
+                            </button>
+                          </td>
+
                           <td
                             v-show="printAddCol === '1' || printAddCol ===  '2' "
                             class="printonly print-td-15"
@@ -722,6 +745,63 @@
         </div>
       </div>
     </div>
+  <!-- Modal pour les détails d'ingrédients -->
+  <div class="modal fade" id="ingredientDetailModal" tabindex="-1" aria-labelledby="ingredientDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title fs-5 fw-semibold" id="ingredientDetailModalLabel">Détail : [[selectedIngredient]]
+<!-- afficher range des dates prise en comptes -->
+            <span v-if="modalDateStart && modalDateEnd" class="text-muted">
+              <br><small>Période : [[ formatDateRange(modalDateStart, modalDateEnd) ]]</small>
+            </span>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>Recette</th>
+                <th>Date / Horaire / Couverts</th>
+                <th class="text-end">Quantité</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="detail in ingredientDetails" :key="detail.recette + detail.dateService">
+                <td class="fw-medium lh-1">[[detail.recette]]</td>
+                <td>
+                  [[new Date(detail.dateService).toLocaleDateString("fr-FR", {weekday: 'short', month: 'short', day: 'numeric'})]] - [[detail.horaire]] /
+                 <span class="fw-medium text-nowrap"> [[detail.assiettes]] c. </span>
+                </td>
+                <td class="text-end">
+                  <span v-if="detail.quantiteOrig && detail.unitOrig" class="text-muted small">
+                    [[round2Decimals(detail.quantiteOrig)]] [[detail.unitOrig]] ~=
+                  </span>
+                  <strong>[[round2Decimals(detail.quantite)]] [[detail.unit]]</strong>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot v-if="ingredientTotalQuantity">
+              <tr class="table-secondary">
+                <td colspan="2"><strong>Total</strong></td>
+                <td class="text-end">
+                  <template v-for="(total, index) in ingredientTotalQuantity">
+                    <strong>[[round2Decimals(total.qTotal)]] [[total.unit]]</strong>
+                    <span v-if="index < ingredientTotalQuantity.length - 1" class="mx-1">+</span>
+                  </template>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   </div>
 
   {{/* Import de flatpiker, utilisé seulement sur cette page */}}
@@ -1004,6 +1084,13 @@
         legumesByRanges: false,
         animauxByRanges: false,
 
+        // Modal ingrédient détail
+        selectedIngredient: '',
+        ingredientDetails: [],
+        ingredientTotalQuantity: null,
+        modalDateStart: '',
+        modalDateEnd: '',
+
         configDPStart: {
           enableTime: false,
           dateFormat: "Y-m-d",
@@ -1258,6 +1345,24 @@ watch: {
 {{/*  :::METHODS  */}}
 methods: {
 
+  {{/*  ::: __formatage des dates pour le modal  */}}
+  formatDateRange(startDate, endDate) {
+    if (!startDate || !endDate) return '';
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const options = { day: 'numeric', month: 'short', year: 'numeric' };
+    const startFormatted = start.toLocaleDateString('fr-FR', options);
+    const endFormatted = end.toLocaleDateString('fr-FR', options);
+
+    if (startDate === endDate) {
+      return `du ${startFormatted}`;
+    }
+
+    return `du ${startFormatted} au ${endFormatted}`;
+  },
+
   {{/*  ::: __print  */}}
   printThis(el, section) {
     this.$nextTick(() => {
@@ -1495,6 +1600,67 @@ methods: {
     }
 
     return filtered;
+  },
+
+  {{/* :::__ Modal ingrédient détail */}}
+  openIngredientModal(ingredientName, ingredientType) {
+    this.selectedIngredient = ingredientName;
+
+    // Définir les dates du range basées sur le date picker actuel
+    this.modalDateStart = this.datePickerStart;
+    this.modalDateEnd = this.datePickerEnd;
+
+    // Filtrer les ingrédients pour celui sélectionné dans la période active
+    const filteredIngredients = this.filterByDatePicker;
+    const typeList = `Ing${ingredientType}List`;
+
+    if (filteredIngredients[typeList]) {
+      this.ingredientDetails = filteredIngredients[typeList].filter(
+        ingredient => ingredient.ingredient === ingredientName
+      ).sort((a, b) => new Date(a.dateService) - new Date(b.dateService));
+    } else {
+      this.ingredientDetails = [];
+    }
+
+    // Calculer le total pour cet ingrédient
+    this.calculateIngredientTotal();
+  },
+
+  openIngredientModalRange(ingredientName, ingredientType, startDate, endDate) {
+    this.selectedIngredient = ingredientName;
+
+    // Définir les dates du range spécifiées
+    this.modalDateStart = startDate;
+    this.modalDateEnd = endDate;
+
+    // Filtrer les ingrédients pour celui sélectionné dans la période spécifiée
+    const filtered = this.filteredIngredientsRange(ingredientType, startDate, endDate);
+    this.ingredientDetails = filtered.filter(
+      ingredient => ingredient.ingredient === ingredientName
+    ).sort((a, b) => new Date(a.dateService) - new Date(b.dateService));
+
+    // Calculer le total pour cet ingrédient
+    this.calculateIngredientTotal();
+  },
+
+  calculateIngredientTotal() {
+    const totals = new Map();
+
+    this.ingredientDetails.forEach(detail => {
+      const convertedDetail = this.convertUnit({...detail});
+      const unit = convertedDetail.unit;
+
+      if (totals.has(unit)) {
+        totals.set(unit, totals.get(unit) + convertedDetail.quantite);
+      } else {
+        totals.set(unit, convertedDetail.quantite);
+      }
+    });
+
+    this.ingredientTotalQuantity = Array.from(totals, ([unit, qTotal]) => ({
+      unit,
+      qTotal
+    }));
   },
 
 } {{/* fin de methods */}}
