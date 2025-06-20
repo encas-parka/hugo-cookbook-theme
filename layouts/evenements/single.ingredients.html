@@ -43,19 +43,18 @@
       {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T20:00:00" -}}
     {{- end -}}
 
-    {{- $assiettes:= (int .assiettes) -}}
-
+    {{- $repasBaseAssiettes := (int .assiettes) -}}
 
     <!--  -->
     {{- range .recettes_du_repas -}}
       <!--::: Creation des variables qui ne seront plus visible au prochain scope. Nous sommes dans les params de 1er niveau des recettes -->
       {{- $recettesLength = add $recettesLength 1 -}}
-
+      {{- $assiettesPourCalcul := $repasBaseAssiettes -}}
       {{- $recette:=.recette -}}
       {{- $typePlat:=.type_plat -}}
       {{/* Si un nombre de couverts alternatif a été déclaré pour ce plat en particulier, on substitue... */}}
       {{ if .altAssiettes }}
-        {{- $assiettes = .altAssiettes -}}
+        {{- $assiettesPourCalcul = (int .altAssiettes) -}}
       {{ end }}
 
       {{- $recetteName := "" -}}
@@ -76,7 +75,7 @@
             {{- $quantiteCompute:= float "0" -}}
 
             {{- if .quantite -}}
-              {{- $quantiteCompute = ((div (mul (float .quantite) (float $assiettes )) (float $assiettesRecettes ))) -}}
+              {{- $quantiteCompute = ((div (mul (float .quantite) (float $assiettesPourCalcul )) (float $assiettesRecettes ))) -}}
             {{- end -}}
 
             {{- $iType :=  $key | strings.FirstUpper -}}
@@ -95,7 +94,7 @@
               "horaire" $horaire
               "typePlat" $typePlat
               "assiettesRecettes" $assiettesRecettes
-              "assiettes" $assiettes
+              "assiettes" $assiettesPourCalcul
               )
             -}}
 
@@ -621,7 +620,7 @@
                   </div>
                   <div
                     v-show="startDate !== startDateSelected || endDate !== endDateSelected"
-                    class="fs-6 text-center toCopyDate no-print"
+                    class="fs-5 p-2 text-center fw-semibold toCopyDate no-print"
                   >
                     Du [[new Date
                     (startDateSelected).toLocaleDateString("fr-FR", {weekday:
