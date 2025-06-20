@@ -66,6 +66,7 @@
         "dateService" $dateService
         "horaire" $horaire
         "typePlat" $typePlat
+        "repasBaseAssiettes" $repasBaseAssiettes
         "assiettes" $assiettesPourCalcul
         "chef" .chef
         "commentaire" .commentaire
@@ -193,35 +194,42 @@
 
 {{/* ::: _LES RECETTES   */}}
 <div id="recettesSection" :class="{'no-print' : !toPrint.recettesSection}">
-  <h3 id="Recettes" class="no-print">Les {{len $recettesList}} recettes prévues pour l'événement "{{.Page.Title}}"</h3>
-
-  {{/* ::: _sommaire */}}
+  <h3 id="Recettes" class="no-print">Les {{len $recettesList}} recettes prévues pour l'événement "{{.Page.Title}}"</h3>      {{/* ::: _sommaire */}}
     <div class="no-print">
       {{/* Variable permettant de vérifier si les recettes sont de la meme date et du meme horaire ou pas; pour gérer leur affichage / l'organisation des recettes */}}
       {{ $dateService := "none"}}
       {{ $horaire := "none" }}
+      {{ $currentHoraire := "none" }}
       <div class="card p-4 m-2">
         <span class="fs-4">Sommaire</span>
 
         {{- range sort $recettesList ".dateService" -}}
-
+        
         <div>
-
           {{ if and (ne (.dateService | time.Format "Monday 2 January ") $dateService) }}
-            <a href="#{{ .dateService | time.Format "Monday 2 January" |urlize}}" class="fw-bolder">
-              <slot name='{{.dateService | time.Format "Monday 2 January" | urlize}}'>{{.dateService | time.Format "Monday 2 January"}}</slot>
-            </a>
+            <div class="mt-4">
+              <a href="#{{ .dateService | time.Format "Monday 2 January" |urlize}}" class="fw-bolder text-uppercase">
+                <slot name='{{.dateService | time.Format "Monday 2 January" | urlize}}'>{{.dateService | time.Format "Monday 2 January"}}</slot>
+              </a>
+            </div>
+          {{ end }}
+
+          {{ if ne .horaire $currentHoraire }}
+            <div class="ms-3 fw-semibold mt-1">{{ .horaire }} ({{ .repasBaseAssiettes }} couverts)</div>
           {{ end }}
 
           <div class="ms-5">
             <a href="#recetteID{{ .recetteKey }}">
-              <slot name="{{ .recetteKey }}"></slot>{{.recetteName }} →<span class="small"> ({{.horaire}} - {{.typePlat}} - {{.assiettes}} couverts)</span></a>
+              <slot name="{{ .recetteKey }}"></slot>{{.recetteName }} →
             </a>
+            <span class="small"> ({{.typePlat}} |
+              <span class="{{ if ne .assiettes .repasBaseAssiettes }} fw-semibold {{end}}" >{{.assiettes}} c. </span>)</span>
           </div>
         </div>
 
-        {{/*  Actualiser la date apres le range  */}}
+        {{/*  Actualiser la date et l'horaire apres le range  */}}
         {{ $dateService = (.dateService | time.Format "Monday 2 January ")}}
+        {{ $currentHoraire = .horaire }}
 
         {{end}} {{/*  range recettesList */}}
       </div>
