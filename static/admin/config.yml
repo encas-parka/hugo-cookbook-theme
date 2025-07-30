@@ -13,7 +13,7 @@ backend:
   #GraphQL allows to retrieve data using less individual API requests compared to a REST API. GitHub's GraphQL API still does not support all mutations necessary to completely replace their REST API, so this feature only calls the new GraphQL API where possible.
   use_graphql: true
 
-#By default, saving a post in the CMS interface pushes a commit directly to the publication branch specified in backend. 
+#By default, saving a post in the CMS interface pushes a commit directly to the publication branch specified in backend.
 # This line should *not* be indented
 publish_mode: simple
 
@@ -94,18 +94,26 @@ collections:
     create: true
 
     fields:
+      # - {name: "info", widget: "text-info", default: "Ceci est un exemple de texte d'information pour les utilisateurs.", required: false}
+
       - {
           label: "Intitulé",
           name: "title",
           widget: "string",
-          hint: "Attention à ne pas utiliser un nom de recette déjà existant (sinon, l'une des 2 pages ne sera PAS ACCESSIBLE pas sur le site...). ET si vous modifiez le titre alors que la recette est déjà utilisé dans un évenement, la page de l'événement ne FONCTIONNERA PLUS correctement. Il vous faudra éditer la page de l'événement pour indiquer le nouveau titre de la recette. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-)",
+          hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-)",
           pattern:
             [
               '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
               "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
             ],
         }
-      - { label: "Brouillon", name: "draft", widget: "boolean", default: false, required: false }
+      - {
+          label: "Brouillon",
+          name: "draft",
+          widget: "boolean",
+          default: false,
+          required: false,
+        }
       - { name: "slug", widget: "hidden", default }
       - {
           label: "Image",
@@ -206,7 +214,7 @@ collections:
         widget: "boolean"
         required: false
         default: false
-        hint: "Cochez cette case si les proportions ne changent jamais, quelque-soit le nombre de couvert (par exemple pour les cakes, les tartes, et autres préparations réalisées dans des plats individuels) → Desactive les alertes qui s'affichent en cas de différences significatives entre les quantités d'ingrédients indiquées dans la recette initiale et le nombre de couvert demandé."
+        hint: "Cochez cette case si les proportions ne changent jamais, quelque-soit le nombre de couvert (par exemple pour les cakes, les tartes, et autres préparations réalisées dans des plats individuels) → Désactive les alertes qui s'affichent en cas de différences significatives entre les quantités d'ingrédients indiquées dans la recette initiale et le nombre de couvert demandé."
       - label: "Testé aussi pour ce nombres de couverts : "
         name: "checkfor"
         widget: "number"
@@ -221,7 +229,7 @@ collections:
       - label: "Ingredients"
         name: "ingredients"
         widget: "object"
-        hint: "Vous pouvez retrouver la liste des ingrédients disponibles (et leur catégorie) sur la page https://enka-cookbook.pages.dev/ingredients/ . Pour ajouter des ingrédients qui ne sont pas encore répertorier, voir https://enka-cookbook.pages.dev/docs/editer/autres/"
+        hint: "Vous pouvez retrouver la liste des ingrédients disponibles (et leur catégorie) sur la page https://enka-cookbook.pages.dev/ingredients/ . Pour ajouter des ingrédients qui ne sont pas encore répertoriés, voir https://enka-cookbook.pages.dev/docs/editer/autres/"
         fields:
           - label: "Sec (Legumineuses, céréales)"
             name: "sec"
@@ -259,7 +267,7 @@ collections:
                   name: "commentaire",
                   widget: "string",
                   required: false,
-                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course",
                 }
 
           - label: "Fruits et Legumes"
@@ -271,7 +279,7 @@ collections:
             required: false
             collapsed: true
             summary: "{{fields.title}}: {{fields.quantite}} {{fields.unit}}"
-  
+
             fields:
               - label: "ingredient"
                 name: title
@@ -281,7 +289,7 @@ collections:
                 search_fields: ["ingredients.*.title"]
                 value_field: "ingredients.*.title"
                 options_length: 300
-               
+
               - {
                   label: "Quantité (nombre)",
                   name: "quantite",
@@ -294,18 +302,17 @@ collections:
                   name: "unit",
                   widget: "select",
                   options: ["Kg", "grammes", "unité", "tête·s", "gousse·s"],
-                  hint: "Preférez les quantités en grammes/Kg/litres. La taille des légumes est variable, et lorsque tout est en Kg, grammes ou litres, c'est additionnable pour les listes de course ! ",
+                  hint: "Préférez les quantités en grammes/Kg/litres. La taille des légumes est variable, et lorsque tout est en Kg, grammes ou litres, c'est additionnable pour les listes de course ! ",
                 }
               - {
                   label: "commentaire",
                   name: "commentaire",
                   widget: "string",
                   required: false,
-                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
-
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course",
                 }
 
-          - label: "LOF : Lait, oeuf, farines, huile..."
+          - label: "LOF : Lait, oeuf, farines, huile (NON-FRAIS).."
             name: "lof"
             widget: "list"
             allow_add: true
@@ -343,7 +350,7 @@ collections:
                       "ml",
                       "c. à soupe",
                       "c. à café",
-                      "pincées"
+                      "pincées",
                     ],
                   hint: "Préférez les quantités en grammes/Kg/litres, qui sont additionnables pour les listes de course !",
                 }
@@ -352,7 +359,7 @@ collections:
                   name: "commentaire",
                   widget: "string",
                   required: false,
-                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course",
                 }
 
           - label: "Ingrédients Frais (beurre, yaourt, fromage... )"
@@ -391,10 +398,8 @@ collections:
                   name: "commentaire",
                   widget: "string",
                   required: false,
-                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course",
                 }
-              
-
 
           - label: "Viandes et Poissons (et crustacés, mollusques)"
             name: "animaux"
@@ -432,8 +437,7 @@ collections:
                   name: "commentaire",
                   widget: "string",
                   required: false,
-                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
-
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course",
                 }
 
           - label: "Sucrées"
@@ -475,7 +479,7 @@ collections:
                       "ml",
                       "c. à soupe",
                       "c. à café",
-                      "pincées"
+                      "pincées",
                     ],
                   hint: "Préférez les quantités en grammes/Kg/litres, qui sont additionnables pour les listes de course ! ",
                 }
@@ -484,8 +488,7 @@ collections:
                   name: "commentaire",
                   widget: "string",
                   required: false,
-                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
-
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course",
                 }
 
           - label: "Assaisonnements (Epices, aromatiques, vinaigres, sauces, coulis...)"
@@ -529,7 +532,7 @@ collections:
                       "c. à soupe",
                       "c. à café",
                       "bottes",
-                      "pincées"
+                      "pincées",
                     ],
                   hint: "Préférez les quantités en grammes/Kg/litres, qui sont additionnables pour les listes de course ! ",
                   required: false,
@@ -539,8 +542,7 @@ collections:
                   name: "commentaire",
                   widget: "string",
                   required: false,
-                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
-
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course",
                 }
 
           - label: "Autres (ce qui ne se trouve pas ailleurs...)"
@@ -594,10 +596,10 @@ collections:
                   name: "commentaire",
                   widget: "string",
                   required: false,
-                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course"
-
+                  hint: "Si vous avez quelque-chose à préciser... ⚠ Ne sera pas afficher dans les listes de course",
                 }
 
+      ### ::: Materiel
       - label: "Materiel"
         name: "materiel"
         widget: "relation"
@@ -608,6 +610,7 @@ collections:
         search_fields: ["title"]
         options_length: 30
 
+      ### ::: Preparation
       - label: "Préparation"
         name: "preparation"
         widget: "markdown"
@@ -616,10 +619,9 @@ collections:
         name: "preparation24h"
         widget: "markdown"
         required: false
-        hint: "Si la recette implique de préparer des choses en avance, le préciser ici pour que ce soit mis en avant lors de l'affichage des recettes(ce sera indiquer 'A prévoir a l'avance', a vous de précisez plus précisément quand)."
+        hint: "Si la recette implique de préparer des choses en avance, le préciser ici pour que ce soit mis en avant lors de l'affichage des recettes (ce sera indiquer 'A prévoir a l'avance', à vous de préciser plus précisément quand)."
 
-      ############### ::: PrepAlt
-
+      ### ::: Astuces
       - label: "Astuces"
         name: "astuces"
         widget: "list"
@@ -632,6 +634,7 @@ collections:
             name: "astuce"
             widget: "string"
 
+      ### ::: PrepAlt
       - label: "Préparations Alternatives"
         name: "prepAlt"
         label_singular: "Préparation alternative"
@@ -649,7 +652,7 @@ collections:
               collection: "recettes",
               search_fields: ["title"],
               value_field: "titleslug",
-              display_field: "title",
+              display_fields: ["title"],
             }
 
       - label: "Date de publication"
@@ -657,11 +660,13 @@ collections:
         widget: "datetime"
         # picker_utc: true
 
-      - { label: 'UUID', name: 'uuid', widget: uuid }
-      - {label: "Title Slug", name: "titleslug", widget: "hidden", default: "{{slug}}"}
-
-
-
+      - { label: "UUID", name: "uuid", widget: uuid }
+      - {
+          label: "Title Slug",
+          name: "titleslug",
+          widget: "hidden",
+          default: "{{slug}}",
+        }
 
   ###############################
   ################################
@@ -671,22 +676,30 @@ collections:
   - label: "Evenements"
     label-singular: "Evenement"
     name: "evenement"
-    description: "Pour creer des menus sur un ou plusieurs jours..."
+    description: "Pour créer des menus sur un ou plusieurs jours..."
     folder: content/evenements/
     path: "{{slug}}/index"
+    slug: "{{title}}_{{fields.uuid}}"
     create: true
     fields:
       - {
           label: "Nom de l'évènement",
           name: "title",
           widget: "string",
-          hint: "Attention à ne pas utiliser un nom d'évenement déjà existant (si c'était  le cas, la page n'existera pas sur le site...). Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+          hint: " Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
           pattern:
             [
               '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
               "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
             ],
         }
+      - label: "Outputs"
+        name: "outputs"
+        widget: "hidden"
+        default:
+          - HTML
+          - Poster
+          - Ingredients
 
       - { name: "sitemap_exclude", widget: "hidden", default: "true" }
 
@@ -704,8 +717,8 @@ collections:
               label: "Date",
               name: "date_service",
               widget: "datetime",
-              hint: "Jour ou le repas sera servis",
-              picker_utc: true,
+              hint: "Jour ou le repas sera servis..",
+              date_format: YYYY-MM-DD,
             }
 
           - {
@@ -730,7 +743,7 @@ collections:
             widget: "list"
             allow_add: true
             add_to_top: true
-            summary: "{{recette}} : {{fields.type_plat}}"
+            summary: "{{recette | truncate(35)}} : {{fields.type_plat}} - {{fields.altAssiettes}}"
             fields:
               - label: "Recette"
                 name: "recette"
@@ -739,7 +752,10 @@ collections:
                 value_field: "titleslug"
                 search_fields: ["title"]
                 display_fields: ["title"]
-                options_length: 300
+                options_length: 100
+                filters:
+                  - field: draft
+                    values: [false]
 
               - label: "Entrées/Plats/Desserts ?"
                 name: "type_plat"
@@ -790,6 +806,14 @@ collections:
                   hint: "Si vous avez quelque-chose a préciser...(N'oubliez pas que les pages des menus seront publié en ligne !)",
                   required: false,
                 }
+
+      - { label: ID, name: "uuid", widget: "uuid" }
+      - {
+          label: "Title Slug",
+          name: "titleslug",
+          widget: "hidden",
+          default: "{{slug}}",
+        }
 
   ################################
 
@@ -844,6 +868,7 @@ collections:
 
   - name: "ingredients_index"
     label: "Ingrédients"
+    description: "Listes des ingrédients disponibles pour les recettes. Vous pouvez rechercher rapidement les ingrédients déjà enregistrés et la catégorie à laquelle ils appartiennent  sur la page :  https://enka-cookbook.pages.dev/ingredients/"
     files:
       - name: ingredients_legumes
         label: Légumes et Fruits
