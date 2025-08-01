@@ -26,7 +26,7 @@
       {{- $ingTitle := .title -}}
       {{ range .alergenesIng -}}
            {{$sAllergenes.Add . (slice $ingTitle)}}
-      {{ end }}    
+      {{ end }}
     {{- end -}}
   {{- end -}}
 {{- end -}}  */}}
@@ -52,7 +52,7 @@
 {{- range $index, $element := . -}}
 {{ $ingredientsL = $ingredientsL | append .title}}
 {{- end }}
-{{- end -}} 
+{{- end -}}
 {{- end -}}
 
 {{- $alertGluten := intersect $ingredientsL ($sAllergenes.Get "Gluten") -}}
@@ -84,10 +84,10 @@
       {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
         {{$enkaDevCms = "https://enka-cookbook.netlify.app"}}
       {{ end }}
-      <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index" >Modifier</a> 
+      <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index" >Modifier</a>
       </div>
 
-     
+
 
       <div class="printonly">
         <div class="m-2 p-2 fs-5 text-end print-fs-small">
@@ -102,7 +102,7 @@
           {{- end -}}
         </div>
       </div>
-  
+
     </div>
 
 
@@ -137,7 +137,7 @@
 
   <div class="row mt-3 no-print">
     <div class="col-12 col-md-6 col-lg-6 col-xl-6 no-print">
- 
+
       {{- if eq .Params.check "Oui" -}}
         <span class="no-print">Cette recette a été testée pour {{.Params.plate}} couverts </span>
         {{- if (.Params.checkfor) -}}
@@ -152,7 +152,7 @@
             <span class="card-text">Les auteur•ices de la recette ne l'ont <strong>pas testé</strong> pour le nombre de couverts indiqués par défaut ({{.Params.plate}}).<span class="no-print"> Merci de <a href="{{- $enkaDevCms -}}{{$linkCMSPage}}/index">modifier</a> la recette pour indiquer si vous l'avez testé avec succès, ou pour corriger les quantités d'ingrédients indiquées.</span></span>
           </div>
         </div>
-        
+
       {{- end -}}
 
       <div class="no-print">
@@ -199,12 +199,12 @@
           {{- end -}}
         </div>
       </div>
-      {{- end -}} 
+      {{- end -}}
     </div>
 
   {{ with .Params.description }}
   <div class="row justify-content-center m-3">
-        
+
     <div class="col-md-8">
       <p class="text-center fst-italic">{{.}}</p>
     </div>
@@ -212,7 +212,7 @@
   {{ end }}
 
   {{ with .Params.quantite_desc }}
-  <div class="my-2 no-print">    
+  <div class="my-2 no-print">
       {{.}}
   </div>
   {{ end }}
@@ -231,22 +231,22 @@
         {{- with . -}}
         <div class="card my-2 p-2 " outlined>
           <div>
-            <span class="fw-bold mb-2 me-1">{{ partial "components/icon-svg" (dict "name" $key "size" "1.5rem") }} {{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span>   
+            <span class="fw-bold mb-2 me-1">{{ partial "components/icon-svg" (dict "name" $key "size" "1.5rem") }} {{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span>
             {{ if eq $key "epices"}}
              <span class="small text-muted">(gouttez, ajustez !)</span>
             {{ end }}
           </div>
-          
-          {{- range $index, $element := . -}} 
+
+          {{- range $index, $element := . -}}
           <div class="small ps-2 print-fs-smaller mt-1">
-            • {{ partial "functions/ing4recettes" (dict "ingredient" .title "quantite" .quantite "unit" .unit "alergene" $allergenesList  ) }} 
+            • {{ partial "functions/ing4recettes" (dict "ingredient" .title "quantite" .quantite "unit" .unit "alergene" $allergenesList  ) }}
             {{ with .commentaire }}
             <span class="small fs-6 fw-light ms-2 lh-1 print-fs-smaller">({{.}})</span>
             {{ end }}
           </div>
           {{end}}
         </div>
-       {{- end -}} {{/* with */}} 
+       {{- end -}} {{/* with */}}
       {{- end -}} {{/* range key value */}}
 
       <div class="text-muted small">
@@ -273,7 +273,7 @@
             {{.Params.preparation | markdownify}}
           </div>
       </div>
-      
+
     {{- if .Params.astuces -}}
     {{- range .Params.astuces -}}
     <div class="card my-2  bg-light">
@@ -288,18 +288,18 @@
 
   {{/*  Réccupération des backlink : recettes citant celle-ci comme recette alternative  */}}
   {{ $backlinks := dict }}
-  {{ $page := . }}
+  {{ $currentPage := . }}
+  {{ $currentSlug := .File.ContentBaseName }}
   {{/*  tableau des recettes alternatives signalées pour eviter les doublons avec les backlinks  */}}
   {{ $recetteAlt := slice}}
   {{ range where .Site.RegularPages "Section" "recettes" }}
-  {{ $url := .RelPermalink }}
-  {{ $title := .Title }}
-  {{ $titleslug := .Params.titleslug }}
-  {{ range .Params.prepAlt }} 
-    {{ if eq .recetteAlt $page.Params.titleslug }}
-      {{ $backlinks = merge $backlinks (dict $url $title ) }}
+    {{ $pageURL := .RelPermalink }}
+    {{ $pageTitle := .Title }}
+    {{ range .Params.prepAlt }}
+      {{ if eq .recetteAlt $currentSlug }}
+        {{ $backlinks = merge $backlinks (dict $pageURL $pageTitle) }}
+      {{ end }}
     {{ end }}
-  {{ end }}
   {{ end }}
 
     {{- if  (or .Params.prepAlt $backlinks) -}}
@@ -309,7 +309,7 @@
       {{- range .Params.prepAlt -}}
       {{ $recetteAlt = $recetteAlt | append .recetteAlt }}
         <div>
-          {{ with site.GetPage ( .recetteAlt | urlize) }} 
+          {{ with site.GetPage ( .recetteAlt | urlize) }}
           <a id="toBacklink{{.RelPermalink}}"href="{{ .Permalink}}">{{.Title}}</a>
          {{end}}
         </div>
@@ -318,10 +318,8 @@
 
       {{ with $backlinks }}
       <div>
-        {{ range $url, $title := $backlinks }}
-          {{ if not (in $recetteAlt $page.Params.titleslug) }}
-          <span><a href="{{ $url }}">{{ $title}}</a></span>
-          {{ end }}
+        {{ range $url, $title := . }}
+          <div><a href="{{ $url }}">{{ $title }}</a></div>
         {{ end }}
       </div>
       {{ end }}
@@ -329,9 +327,8 @@
       </div>
     </div>
 
-
   </div>
-  
+
   <br><hr><br>
   <div class="no-print ">
     {{/*  <div class="small">Si vous avez des retour d'experience à partager sur cette recette. Vous pouvez précisions, autres quantités, </div>  */}}
@@ -345,6 +342,3 @@
 {{ partial "footer/esbuild" (dict "src" "js/quantite.js" "load" "async" "transpile" false) -}}
 
 {{ end }}
-
-
-
