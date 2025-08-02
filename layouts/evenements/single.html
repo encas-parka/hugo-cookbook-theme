@@ -391,36 +391,85 @@
         {{- end -}}
       {{- end -}}
 
-      {{/* reccupération des ingredients warning de la recette  */}}
+      {{/* START: Modified section for Allergen Check FIX and Ingredient Grouping */}}
 
-  {{ $ingredientsL := slice }}
+          {{/* Populating ingredientsL for allergen checks (FIX) */}}
+          {{- $ingredientsL := slice -}}
+          {{- $groupedIngredients := dict -}} {{/* Map to hold ingredients grouped by type */}}
 
+          {{/* Re-using resolution logic for both grouping and allergen checks */}}
+          {{- $assiettesRecettes:= (int .Params.plate) -}} {{/* Base plate count for the recipe */}}
 
-    {{- $byAllergen := $.Scratch.Get "byAllergen" -}}
-        {{- $alertGluten := intersect $ingredientsL (index $byAllergen "Gluten" | default slice) -}}
+          {{- range .Params.ingredients -}}
+            {{- $currentIng := . -}} {{/* Store the current ingredient data */}}
+            {{- $ingId := .ingredient | default "" -}}
+            {{- $q := .quantite | default 0 -}}
+            {{- $u := .unit | default "" -}}
+            {{- $c := .commentaire -}}
 
-    {{- $alertPorc := intersect $ingredientsL (index $byAllergen "Porc" | default slice) -}}
+            {{/* Resolve ingredient via the global index */}}
+            {{- $meta := dict -}}
+            {{- if $ingId -}}
+              {{- $slug := $ingId -}}
+              {{- $uuid := "" -}}
+              {{- if in $ingId "_" -}}
+                {{- $parts := split $ingId "_" -}}
+                {{- $slug = index $parts 0 -}}
+                {{- $uuid = index $parts (sub (len $parts) 1) -}}
+              {{- end -}}
+              {{- with (index $bySlug $slug) -}}
+                {{- $meta = . -}}
+              {{- else -}}
+                {{- with (index $byUUID $uuid) -}}
+                  {{- $meta = . -}}
+                {{- end -}}
+              {{- end -}}
+            {{- end -}}
 
-    {{- $alertLait := intersect $ingredientsL (index $byAllergen "Produit laitier" | default slice) -}}
+            {{- $title := (cond (and $meta (isset $meta "title")) ($meta.title) $ingId) -}}
+            {{- $itype := (cond (and $meta (isset $meta "type")) ($meta.type) "") -}}
+            {{- $displayType := ($itype | strings.FirstUpper) -}} {{/* Capitalize for display */}}
 
-    {{- $alertAutresAllergenes := slice -}}
-    {{ range $allergenesLgList }}
-      {{- $toAdd := intersect $ingredientsL (index $byAllergen . | default slice) -}}
-      {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
-    {{ end }}
+            {{/* Apply Legumesfrais special case */}}
+            {{- if and (in $legumesFrais $title) (or (eq $displayType "Legumes") (eq $displayType "Epices")) -}}
+              {{- $displayType = "Legumesfrais" -}}
+            {{- end -}}
 
+            {{/* Add resolved title to $ingredientsL for allergen checks */}}
+            {{- $ingredientsL = $ingredientsL | append $title -}}
 
+            {{/* Group ingredient for display */}}
+            {{- $currentTypeGroup := (index $groupedIngredients $displayType | default slice) -}}
+            {{- $groupedIngredients = merge $groupedIngredients (dict $displayType ($currentTypeGroup | append (dict
+                  "original" $currentIng
+                  "resolvedTitle" $title
+                  "resolvedType" $displayType
+                ))) -}}
+          {{- end -}}
 
+      {{- $byAllergen := $.Scratch.Get "byAllergen" -}}
+      {{- $alertGluten := intersect $ingredientsL (index $byAllergen "Gluten" | default slice) -}}
+      {{- $alertPorc := intersect $ingredientsL (index $byAllergen "Porc" | default slice) -}}
+      {{- $alertLait := intersect $ingredientsL (index $byAllergen "Produit laitier" | default slice) -}}
+
+      {{- $alertAutresAllergenes := slice -}}
+      {{ range $allergenesLgList }}
+        {{- $toAdd := intersect $ingredientsL (index $byAllergen . | default slice) -}}
+        {{- if $toAdd -}} {{/* Only append if there are actual items */}}
+          {{- $alertAutresAllergenes = $alertAutresAllergenes | append $toAdd -}}
+        {{- end -}}
+      {{ end }}
+      {{- $alertAutresAllergenes = $alertAutresAllergenes | uniq -}} {{/* Ensure unique names if an ingredient has multiple non-lg allergens */}}
 
       {{- $assiettesInit := .Params.plate -}}
       {{/*  alert noprint  */}}
         <div class="row justify-content-start mt-2 " v-show="print_alert">
 
        {{/*  <hr class="my-1 no-print">  */}}
-        {{ if ($.Scratch.Get "alertQuantite") }}
+         {{ if $alertQuantite }}
         <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2 my-3">
           <div class="card border-danger shadow small px-4 card-body print-nocard">
-            {{ if not ($.Scratch.Get "checkYes") }}
+            {{ if not $checkYes }}
             <div> <span class="me-1">{{ partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" "1rem") }}</span>
               Le nombre de couverts prévu est significativement différent de celui qui a été déclaré comme testé
               ({{ $.Scratch.Get "compareQuantite" }}): les proportions
@@ -479,62 +528,20 @@
         <span class="me-2">{{ partial "components/icon-svg" (dict "name" "ingredients" "size" "2rem") }}</span>
         Ingredients </h4>
 
+        {{- $assiettes := (int $assiettes) -}}
+        {{- $assiettesRecettes := (int .Params.plate) -}}
 
-      {{- $assiettes:= (int $assiettes)  -}}
-
-
-        {{/*  Reccupération de la variable .Params.plate avec le range suivant, pour pouvoir l'utiliser dans le calcul des quantités correspondant au nombre d'assiete du repas  */}}
-        {{- $assiettesRecettes:= (int .Params.plate) -}}
-
-        <div class="card my-2 p-2 " outlined>
-          <div class="row">
-            <div class="col">
-              <div class="mb-2">
-                <span class="fw-bolder print-fs-small">Ingrédients</span>
-              </div>
-
-              {{- range .Params.ingredients -}}
-                {{- $ingId := .ingredient | default "" -}}
-                {{- $q := .quantite | default 0 -}}
-                {{- $u := .unit | default "" -}}
-                {{- $c := .commentaire -}}
-
-                {{- $meta := dict -}}
-                {{- if $ingId -}}
-                  {{- $slug := $ingId -}}
-                  {{- $uuid := "" -}}
-                  {{- if in $ingId "_" -}}
-                    {{- $parts := split $ingId "_" -}}
-                    {{- $slug = index $parts 0 -}}
-                    {{- $uuid = index $parts (sub (len $parts) 1) -}}
-                  {{- end -}}
-                  {{- with (index $bySlug $slug) -}}
-                    {{- $meta = . -}}
-                  {{- else -}}
-                    {{- with (index $byUUID $uuid) -}}
-                      {{- $meta = . -}}
-                    {{- end -}}
-                  {{- end -}}
-                {{- end -}}
-                {{- $title := (cond (and $meta (isset $meta "title")) ($meta.title) $ingId) -}}
-
-                <div class="ps-2 my-1 print-fs-small">
-                  {{- partial "functions/ing4events.html" (dict
-                      "ingredient" $title
-                      "quantite" $q
-                      "assiettes" $assiettes
-                      "assiettesRecettes" $assiettesRecettes
-                      "unit" $u
-                      "allergenes" $allergenesList
-                    ) -}}
-                  {{- with $c -}}
-                    <span class="print-fs-default ms-2 ">({{.}})</span>
-                  {{- end -}}
-                </div>
-              {{- end -}}
-
-            </div>
-          </div>
+        <div class="my-2">
+          {{- partial "components/ingredients-grouped-list.html" (dict
+              "items" .Params.ingredients
+              "bySlug" $bySlug
+              "byUUID" $byUUID
+              "mode" "evenement"
+              "assiettes" $assiettes
+              "assiettesRecettes" $assiettesRecettes
+              "showAllergenIcon" true
+              "showComment" true
+            ) -}}
         </div>
         <div class="text-muted small">
           {{ partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" ".8rem") }} → Allergènes

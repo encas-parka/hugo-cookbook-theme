@@ -209,69 +209,18 @@
   <div class="col-md-4 print-col-30-100">
     <h4><span class="me-2">{{ partial "components/icon-svg" (dict "name" "ingredients" "size" "2rem") }}</span> Ingredients </h4>
 
-      {{/*  <div class="card my-4 p-2 shadow">
-        <span class="small">{{ partial "inline-svg" (dict "src" "fonticons/exclamation-triangle" "display" "inline" "rem" 1) }} → Allergènes </span>
-      </div>  */}}
+    {{ partial "components/ingredients-grouped-list.html" (dict
+      "items" .Params.ingredients
+      "bySlug" $bySlug
+      "byUUID" $byUUID
+      "mode" "recette"
+      "showAllergenIcon" true
+      "showComment" true
+    ) }}
 
-      {{/* Grouper les ingrédients par type en utilisant l'index global */}}
-      {{ $ingredientsByType := dict }}
-      
-      {{- range .Params.ingredients -}}
-        {{- if .ingredient -}}
-          {{- $slug := .ingredient -}}
-          {{- $meta := index $bySlug $slug -}}
-          {{- if not $meta -}}
-            {{- $uuid := partial "functions/extract-uuid-from-slug.html" $slug -}}
-            {{- if $uuid -}}
-              {{- $meta = index $byUUID $uuid -}}
-            {{- end -}}
-          {{- end -}}
-          {{- if $meta -}}
-            {{- $type := $meta.type | default "autres" -}}
-            {{- $currentList := index $ingredientsByType $type | default slice -}}
-            {{- $ingredientData := dict "meta" $meta "quantite" .quantite "unit" .unit "commentaire" .commentaire -}}
-            {{- $ingredientsByType = merge $ingredientsByType (dict $type ($currentList | append $ingredientData)) -}}
-          {{- else -}}
-            {{- $currentList := index $ingredientsByType "non-trouvés" | default slice -}}
-            {{- $ingredientData := dict "slug" $slug "quantite" .quantite "unit" .unit "commentaire" .commentaire -}}
-            {{- $ingredientsByType = merge $ingredientsByType (dict "non-trouvés" ($currentList | append $ingredientData)) -}}
-          {{- end -}}
-        {{- end -}}
-      {{- end -}}
-
-      {{/* Afficher les ingrédients groupés par type */}}
-      {{- range $type, $ingredients := $ingredientsByType -}}
-        <div class="card my-2 p-2 " outlined>
-          <div>
-            <span class="fw-bold mb-2 me-1">{{ partial "components/icon-svg" (dict "name" $type "size" "1.5rem") }} {{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($type | strings.FirstUpper )) .}} </span>
-            {{ if eq $type "epices"}}
-             <span class="small text-muted">(gouttez, ajustez !)</span>
-            {{ end }}
-          </div>
-
-          {{- range $ingredients -}}
-            {{- if .meta -}}
-              <div class="small ps-2 print-fs-smaller mt-1">
-                • {{ partial "functions/ing4recettes" (dict "meta" .meta "quantite" .quantite "unit" .unit "commentaire" .commentaire) }}
-                {{ with .commentaire }}
-                <span class="small fs-6 fw-light ms-2 lh-1 print-fs-smaller">({{.}})</span>
-                {{ end }}
-              </div>
-            {{- else -}}
-              <div class="small ps-2 print-fs-smaller mt-1 text-danger">
-                • Ingrédient non trouvé: {{ .slug }}
-                {{ with .commentaire }}
-                <span class="small fs-6 fw-light ms-2 lh-1 print-fs-smaller">({{.}})</span>
-                {{ end }}
-              </div>
-            {{- end -}}
-          {{- end -}}
-        </div>
-      {{- end -}}
-
-      <div class="text-muted small">
-        {{ partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" "1rem") }} → Allergènes
-      </div>
+    <div class="text-muted small">
+      {{ partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" "1rem") }} → Allergènes
+    </div>
   </div>
 
 
