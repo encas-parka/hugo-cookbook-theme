@@ -1,0 +1,31 @@
+{{/* Index global recettes: bySlugRecette, byUUIDRecette */}}
+{{- $bySlugRecette := dict -}}
+{{- $byUUIDRecette := dict -}}
+
+{{- $recettesSection := site.GetPage "section" "recettes" -}}
+{{- if $recettesSection -}}
+  {{- range $recettesSection.RegularPages -}}
+    {{- $p := . -}}
+    {{- $slug := $p.File.BaseFileName | default $p.Slug | default $p.RelPermalink -}}
+    {{- $uuid := or $p.Params.uuid "" -}}
+    {{- $title := $p.Title -}}
+    {{- $categories := $p.Params.categories | default (slice) -}}
+
+    {{- $meta := dict
+        "page" $p
+        "slug" $slug
+        "uuid" $uuid
+        "title" $title
+        "categories" $categories
+      -}}
+
+    {{- if $slug -}}
+      {{- $bySlugRecette = merge $bySlugRecette (dict $slug $meta) -}}
+    {{- end -}}
+    {{- if and $uuid (ne $uuid "") -}}
+      {{- $byUUIDRecette = merge $byUUIDRecette (dict $uuid $meta) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- return (dict "bySlugRecette" $bySlugRecette "byUUIDRecette" $byUUIDRecette) -}}

@@ -1,0 +1,59 @@
+{{/* Index global ingrédients: bySlug, byUUID, byAllergen */}}
+{{- $bySlug := dict -}}
+{{- $byUUID := dict -}}
+{{- $byAllergen := dict -}}
+
+{{- $ingredientsSection := site.GetPage "section" "ingredients" -}}
+{{- if $ingredientsSection -}}
+  {{- range $ingredientsSection.RegularPages -}}
+    {{- $p := . -}}
+    {{- $slug := $p.File.BaseFileName | default $p.Slug | default $p.RelPermalink -}}
+    {{- $uuid := or $p.Params.uuid "" -}}
+    {{- $title := $p.Title -}}
+    {{- $type := or $p.Params.type "" -}}
+    {{- $allergenes := (slice) -}}
+    {{- with $p.Params.allergenes -}}
+      {{- if reflect.IsSlice . -}}
+        {{- $allergenes = . -}}
+      {{- else -}}
+        {{- /* Si ce n'est pas une liste (None/str/bool/etc.), on force une slice vide */ -}}
+        {{- $allergenes = (slice) -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{- $meta := dict
+        "page" $p
+        "slug" $slug
+        "uuid" $uuid
+        "title" $title
+        "type" $type
+        "allergenes" $allergenes
+      -}}
+
+    {{- /* bySlug */ -}}
+    {{- if $slug -}}
+      {{- $bySlug = merge $bySlug (dict $slug $meta) -}}
+    {{- end -}}
+
+    {{- /* byUUID */ -}}
+    {{- if and $uuid (ne $uuid "") -}}
+      {{- $byUUID = merge $byUUID (dict $uuid $meta) -}}
+    {{- end -}}
+
+    {{- /* byAllergen: allergene -> [slug] */ -}}
+    {{- range $allergenes -}}
+      {{- $key := . -}}
+      {{- $currentList := index $byAllergen $key | default (slice) -}}
+      {{- $newList := slice -}}
+      {{- range $currentList -}}
+        {{- $newList = $newList | append . -}}
+      {{- end -}}
+      {{- $newList = $newList | append $slug -}}
+      {{- $newList = uniq $newList -}}
+      {{- $byAllergen = merge $byAllergen (dict $key $newList) -}}
+    {{- end -}}
+
+  {{- end -}}
+{{- end -}}
+
+{{- return (dict "bySlug" $bySlug "byUUID" $byUUID "byAllergen" $byAllergen) -}}
