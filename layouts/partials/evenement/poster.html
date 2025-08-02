@@ -3,7 +3,12 @@
 {{ $recetteCat := .recetteCat }}
 {{ $recetteCatFormat := .recetteCatFormat }}
 
-{{ $allergenesIng := (partialCached "functions/allergenesIng.html" . )  }}
+{{/* Charger l'index global des ingrédients */}}
+{{ $ingredientsIndex := partialCached "functions/ingredients-index.html" . }}
+{{ $bySlug := $ingredientsIndex.bySlug }}
+{{ $byUUID := $ingredientsIndex.byUUID }}
+{{ $byAllergen := $ingredientsIndex.byAllergen }}
+
 {{ $dateService := .dateService | time.Format "2006-01-02" }}
 {{ $dateService = replace $dateService "-" "" }}
 {{ $horaire := .horaire }}
@@ -38,32 +43,39 @@
   
       <p v-show="fontRegimes !== 'noDisplay'" class="mb-1 text-center" :class="[[fontRegimes]]" :style=" fontSizeRegimes">{{ partial "functions/regimes-concat.html" .Params.regime }}</p>
   
+      {{/* Collecter les ingrédients avec le nouveau format plat */}}
       {{ $alertAnimaux := slice }}
-      {{ range .Params.ingredients.animaux }}
-        {{- with . -}}
-        {{ $alertAnimaux = $alertAnimaux | append .title}}
-        {{- end }}
-      {{ end }}
-  
       {{ $ingredientsRecette := slice }}
-      {{- range $key, $value := .Params.ingredients -}}
-      {{- with . -}}
-        {{- range $index, $element := . -}}
-        {{ $ingredientsRecette = $ingredientsRecette | append .title}}
-        {{- end }}
-      {{- end -}}
+      
+      {{- range .Params.ingredients -}}
+        {{- if .ingredient -}}
+          {{- $slug := .ingredient -}}
+          {{- $meta := index $bySlug $slug -}}
+          {{- if not $meta -}}
+            {{- $uuid := partial "functions/extract-uuid-from-slug.html" $slug -}}
+            {{- if $uuid -}}
+              {{- $meta = index $byUUID $uuid -}}
+            {{- end -}}
+          {{- end -}}
+          {{- if $meta -}}
+            {{ $ingredientsRecette = $ingredientsRecette | append $meta.title }}
+            {{- if eq $meta.type "animaux" -}}
+              {{ $alertAnimaux = $alertAnimaux | append $meta.title }}
+            {{- end -}}
+          {{- end -}}
+        {{- end -}}
       {{- end -}}
   
       {{- $alertAutresAllergenes := slice -}}
     {{ range $allergenesLgList }}
-      {{- $toAdd := intersect $ingredientsRecette ($allergenesIng.Get . ) -}}
+      {{- $toAdd := intersect $ingredientsRecette (index $byAllergen . | default slice) -}}
       {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
     {{ end }}
   
   
-      {{- $alertGluten := intersect $ingredientsRecette ($allergenesIng.Get "Gluten") -}}
-      {{- $alertPorc := intersect $ingredientsRecette ($allergenesIng.Get "Porc") -}}
-      {{- $alertLait := intersect $ingredientsRecette ($allergenesIng.Get "Produit laitier") -}}
+      {{- $alertGluten := intersect $ingredientsRecette (index $byAllergen "Gluten" | default slice) -}}
+      {{- $alertPorc := intersect $ingredientsRecette (index $byAllergen "Porc" | default slice) -}}
+      {{- $alertLait := intersect $ingredientsRecette (index $byAllergen "Produit laitier" | default slice) -}}
   
       {{ with or ($alertGluten) ($alertPorc) ($alertLait) ($alertAnimaux) ($alertAutresAllergenes) }}
       <p class="m-0 text-center" v-show="fontAlert !== 'noDisplay'">•••</p>

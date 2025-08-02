@@ -3,7 +3,7 @@
 ## Organisation du projet
 
 - Le projet est composé de deux dépôts :
-  - **enka-cookbook-site** : contient principalement le contenu du site, utilise le CMS Decap (configuration dans `/static/admin`).
+  - **enka-cookbook-site** : contient principalement le contenu du site, utilise le CMS Sveltia (configuration dans `/static/admin2`).
   - **hugo-cookbook-theme** : contient le thème Hugo utilisé par le site.
 
 ## Directives générales
@@ -17,9 +17,4 @@
   - Séparer clairement le contenu (dans `enka-cookbook-site`) et la logique de présentation/thème (dans `hugo-cookbook-theme`).
   - Ne pas dupliquer de logique ou de contenu entre les deux dépôts.
 - **CMS** :
-  - Toute modification liée à la gestion de contenu doit prendre en compte la configuration Decap CMS présente dans `/static/admin`.
-
-## Bonnes pratiques
-
-- Toujours vérifier l’impact d’une modification sur l’ensemble du site.
-- Préférer la réutilisation des composants existants.
+  - Toute modification liée à la gestion de contenu doit prendre en compte la configuration Decap CMS présente dans `/static/admin2`.

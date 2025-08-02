@@ -1,7 +1,7 @@
 
 {{/*   bootstrap et alpinejs sont importé depuis app.js. Ici, les import spécifique a certaines page. La concaténation de vuejs bug  */}}
 
-{{ if or (eq .Type "evenements") (eq .Type "ingredients") (eq .Type "recettes")}}
+{{ if or (eq .Type "evenements") (eq .Type "ingredients") (eq .Type "recettes") (hasPrefix .Layout "evenements/") }}
 
 {{/*  {{ $vuejs := resources.Get "js/vue.min.js" | fingerprint }}  */}}
 {{ $fp := resources.Get "flatpickr/flatpickr.min.js" }}

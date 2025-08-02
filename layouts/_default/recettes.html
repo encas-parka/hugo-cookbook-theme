@@ -7,63 +7,49 @@
 {{- end -}}
 
 
-{{/*  TODO json allergenes  */}}
-{{/*  Reccupération des données allergenesIng sur chaque ingrédients. Permet de faire évoluer la liste plutot que de la figer  */}}
-{{/*  {{- $allergenesTypeList := slice -}}
-{{ range $.Site.Data.ingredients }}
-  {{- range .ingredients -}}
-    {{- if .alergenesIng -}}
-      {{- $allergenesTypeList = $allergenesTypeList | append .alergenesIng -}}
-    {{- end -}}
+{{/* Charger l'index global des ingrédients avec cache */}}
+{{ $ingredientsIndex := partialCached "functions/ingredients-index.html" . }}
+{{ $bySlug := $ingredientsIndex.bySlug }}
+{{ $byUUID := $ingredientsIndex.byUUID }}
+{{ $byAllergen := $ingredientsIndex.byAllergen }}
+
+{{/* Liste standardisée des allergènes pour les alertes */}}
+{{ $allergenesLgList := slice "Poisson" "Oeuf" "Soja" "Sésame" "Moutarde" "Fruit à coque" "Céleri" "Crustacé" "Arachide" "Mollusque" }}
+
+{{/* Collecter les slugs d'ingrédients de la recette pour les alertes allergènes */}}
+{{ $ingredientSlugs := slice }}
+
+{{- range .Params.ingredients -}}
+  {{- if .ingredient -}}
+    {{- $ingredientSlugs = $ingredientSlugs | append .ingredient -}}
   {{- end -}}
-  {{ end }}
-{{- $allergenesTypeList = $allergenesTypeList | uniq -}}  */}}
-
-{{/*  {{ $sAllergenes := newScratch }}
-{{- range $.Site.Data.ingredients -}}
-  {{- range .ingredients -}}
-    {{- if .alergenesIng -}}
-      {{- $ingTitle := .title -}}
-      {{ range .alergenesIng -}}
-           {{$sAllergenes.Add . (slice $ingTitle)}}
-      {{ end }}
-    {{- end -}}
-  {{- end -}}
-{{- end -}}  */}}
-
-{{ $sAllergenes := (partialCached "functions/allergenesIng.html" .)  }}
-
-{{ $allergenesLgList := slice "Poisson" "Oeuf" "Soja" "Sésame" "Moutarde" "Fruit à coque" "Céleri" "Crustacé" "Arachide" "Mollusque"}}
-
-
-{{/*  {{ $allergenesDict := dict }}  */}}
-{{ $allergenesList := slice }}
-{{ range $allergenesLgList }} {{/* replace $allergenesTypeList */}}
-  {{/*  {{ $allergenesDict = merge $allergenesDict (dict . ($sAllergenes.Get .)) }}  */}}
-  {{ $allergenesList = append  ($sAllergenes.Get .) $allergenesList }}
-{{ end }}
-
-
-{{/* reccupération des ingredients warning de la recette  */}}
-{{ $ingredientsL := slice }}
-
-{{- range $key, $value := .Params.ingredients -}}
-{{- with . -}}
-{{- range $index, $element := . -}}
-{{ $ingredientsL = $ingredientsL | append .title}}
-{{- end }}
-{{- end -}}
 {{- end -}}
 
-{{- $alertGluten := intersect $ingredientsL ($sAllergenes.Get "Gluten") -}}
-{{- $alertPorc := intersect $ingredientsL ($sAllergenes.Get "Porc") -}}
-{{- $alertLait := intersect $ingredientsL ($sAllergenes.Get "Produit laitier") -}}
-{{- $alertLactose := intersect $ingredientsL ($sAllergenes.Get "lactose") -}}
+{{/* Résoudre les slugs en titres pour les alertes (compatibilité legacy) */}}
+{{ $ingredientTitles := slice }}
+{{- range $slug := $ingredientSlugs -}}
+  {{- $meta := index $bySlug $slug -}}
+  {{- if not $meta -}}
+    {{- $uuid := partial "functions/extract-uuid-from-slug.html" $slug -}}
+    {{- if $uuid -}}
+      {{- $meta = index $byUUID $uuid -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if $meta -}}
+    {{- $ingredientTitles = $ingredientTitles | append $meta.title -}}
+  {{- end -}}
+{{- end -}}
+
+{{/* Calculer les alertes allergènes */}}
+{{- $alertGluten := intersect $ingredientTitles (index $byAllergen "Gluten" | default slice) -}}
+{{- $alertPorc := intersect $ingredientTitles (index $byAllergen "Porc" | default slice) -}}
+{{- $alertLait := intersect $ingredientTitles (index $byAllergen "Produit laitier" | default slice) -}}
+{{- $alertLactose := intersect $ingredientTitles (index $byAllergen "lactose" | default slice) -}}
 {{- $alertAutresAllergenes := slice -}}
-{{ range $allergenesLgList }}
-  {{- $toAdd := intersect $ingredientsL ($sAllergenes.Get . ) -}}
-  {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
-{{ end }}
+{{- range $allergenesLgList -}}
+  {{- $toAdd := intersect $ingredientTitles (index $byAllergen . | default slice) -}}
+  {{- $alertAutresAllergenes = $alertAutresAllergenes | append $toAdd -}}
+{{- end -}}
 
 {{ $svg := partial "components/svg-icon-cat-find" . }}
 <div class="float-start  me-2"></div>
@@ -227,27 +213,61 @@
         <span class="small">{{ partial "inline-svg" (dict "src" "fonticons/exclamation-triangle" "display" "inline" "rem" 1) }} → Allergènes </span>
       </div>  */}}
 
-      {{- range $key, $value := .Params.ingredients  -}}
-        {{- with . -}}
+      {{/* Grouper les ingrédients par type en utilisant l'index global */}}
+      {{ $ingredientsByType := dict }}
+      
+      {{- range .Params.ingredients -}}
+        {{- if .ingredient -}}
+          {{- $slug := .ingredient -}}
+          {{- $meta := index $bySlug $slug -}}
+          {{- if not $meta -}}
+            {{- $uuid := partial "functions/extract-uuid-from-slug.html" $slug -}}
+            {{- if $uuid -}}
+              {{- $meta = index $byUUID $uuid -}}
+            {{- end -}}
+          {{- end -}}
+          {{- if $meta -}}
+            {{- $type := $meta.type | default "autres" -}}
+            {{- $currentList := index $ingredientsByType $type | default slice -}}
+            {{- $ingredientData := dict "meta" $meta "quantite" .quantite "unit" .unit "commentaire" .commentaire -}}
+            {{- $ingredientsByType = merge $ingredientsByType (dict $type ($currentList | append $ingredientData)) -}}
+          {{- else -}}
+            {{- $currentList := index $ingredientsByType "non-trouvés" | default slice -}}
+            {{- $ingredientData := dict "slug" $slug "quantite" .quantite "unit" .unit "commentaire" .commentaire -}}
+            {{- $ingredientsByType = merge $ingredientsByType (dict "non-trouvés" ($currentList | append $ingredientData)) -}}
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+
+      {{/* Afficher les ingrédients groupés par type */}}
+      {{- range $type, $ingredients := $ingredientsByType -}}
         <div class="card my-2 p-2 " outlined>
           <div>
-            <span class="fw-bold mb-2 me-1">{{ partial "components/icon-svg" (dict "name" $key "size" "1.5rem") }} {{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($key  | strings.FirstUpper )) .}} </span>
-            {{ if eq $key "epices"}}
+            <span class="fw-bold mb-2 me-1">{{ partial "components/icon-svg" (dict "name" $type "size" "1.5rem") }} {{ partial "functions/ingredients-types-rename-short" (dict "ingType" ($type | strings.FirstUpper )) .}} </span>
+            {{ if eq $type "epices"}}
              <span class="small text-muted">(gouttez, ajustez !)</span>
             {{ end }}
           </div>
 
-          {{- range $index, $element := . -}}
-          <div class="small ps-2 print-fs-smaller mt-1">
-            • {{ partial "functions/ing4recettes" (dict "ingredient" .title "quantite" .quantite "unit" .unit "alergene" $allergenesList  ) }}
-            {{ with .commentaire }}
-            <span class="small fs-6 fw-light ms-2 lh-1 print-fs-smaller">({{.}})</span>
-            {{ end }}
-          </div>
-          {{end}}
+          {{- range $ingredients -}}
+            {{- if .meta -}}
+              <div class="small ps-2 print-fs-smaller mt-1">
+                • {{ partial "functions/ing4recettes" (dict "meta" .meta "quantite" .quantite "unit" .unit "commentaire" .commentaire) }}
+                {{ with .commentaire }}
+                <span class="small fs-6 fw-light ms-2 lh-1 print-fs-smaller">({{.}})</span>
+                {{ end }}
+              </div>
+            {{- else -}}
+              <div class="small ps-2 print-fs-smaller mt-1 text-danger">
+                • Ingrédient non trouvé: {{ .slug }}
+                {{ with .commentaire }}
+                <span class="small fs-6 fw-light ms-2 lh-1 print-fs-smaller">({{.}})</span>
+                {{ end }}
+              </div>
+            {{- end -}}
+          {{- end -}}
         </div>
-       {{- end -}} {{/* with */}}
-      {{- end -}} {{/* range key value */}}
+      {{- end -}}
 
       <div class="text-muted small">
         {{ partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" "1rem") }} → Allergènes

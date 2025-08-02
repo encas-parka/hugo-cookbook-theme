@@ -1,12 +1,24 @@
+
+{{/* Charger l'index global des ingrédients */}}
+{{ $ingredientsIndex := partialCached "functions/ingredients-index.html" . }}
+{{ $byAllergen := $ingredientsIndex.byAllergen }}
+
+{{/* Créer un scratch pour stocker les allergènes */}}
 {{ $allergenes := newScratch }}
-{{- range $.Site.Data.ingredients -}}
-  {{- range .ingredients -}}
-    {{- if .alergenesIng -}}
-      {{- $ingTitle := .title -}}
-      {{ range .alergenesIng -}}
-           {{$allergenes.Add . (slice $ingTitle)}}
-      {{ end }}    
+
+{{/* Parcourir l'index des allergènes pour construire la structure */}}
+{{- range $allergene, $ingredientSlugs := $byAllergen -}}
+  {{- $ingredientTitles := slice -}}
+  
+  {{- range $slug := $ingredientSlugs -}}
+    {{- $meta := index $ingredientsIndex.bySlug $slug -}}
+    {{- if $meta -}}
+      {{- $ingredientTitles = $ingredientTitles | append $meta.title -}}
     {{- end -}}
+  {{- end -}}
+  
+  {{- if gt (len $ingredientTitles) 0 -}}
+    {{- $allergenes.Set $allergene $ingredientTitles -}}
   {{- end -}}
 {{- end -}}
 

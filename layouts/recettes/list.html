@@ -6,6 +6,12 @@
 <span class="no-print text-muted">{{ hugo.Environment }}  | Layout : layouts/recettes/list.html </span>
 {{ end }}
 
+{{/* Charger l'index global des ingrédients */}}
+{{ $ingredientsIndex := partialCached "functions/ingredients-index.html" . }}
+{{ $bySlug := $ingredientsIndex.bySlug }}
+{{ $byUUID := $ingredientsIndex.byUUID }}
+{{ $byAllergen := $ingredientsIndex.byAllergen }}
+
 {{ $iCategories := slice }}
 {{ $isec := slice}}
 {{ $ianimaux := slice }}
@@ -13,6 +19,7 @@
 {{ $isucres := slice }}
 {{ $ilof := slice }}
 {{ $ifrais := slice }}
+{{ $iepices := slice }}
 {{ $iautres := slice }}
 
 {{- $IngredientList := slice -}}
@@ -22,43 +29,44 @@
 {{- range .Params.categories -}}
   {{ $iCategories = $iCategories | append . }}
 {{- end -}}
+
 {{/* Liste des ingredients par type: pour le multi-select, et les data de l'appfilter */}}
-{{- range .Params.ingredients.sec -}}
-{{ $isec = $isec | append .title }}
-{{- end -}}
-
-{{- range .Params.ingredients.animaux -}}
-{{ $ianimaux = $ianimaux | append .title }}
-{{- end -}}
-
-{{- range .Params.ingredients.legumes -}}
-{{ $ilegumes = $ilegumes | append .title }}
-{{- end -}}
-
-{{- range .Params.ingredients.sucres -}}
-{{ $isucres = $isucres | append .title }}
-{{- end -}}
-
-{{- range .Params.ingredients.lof -}}
-{{ $ilof = $ilof | append .title }}
-{{- end -}}
-
-{{- range .Params.ingredients.frais -}}
-{{ $ifrais = $ifrais | append .title }}
-{{- end }}
-
-{{- range .Params.ingredients.autres -}}
-{{ $iautres = $iautres | append .title }}
-{{- end }}
-
-
-  {{- range $key, $value := .Params.ingredients -}}
-    {{- range $index, $element := . -}}
-    {{- $IngredientList = $IngredientList | append (dict "ingredient" .title) -}}
+{{/* Nouveau format: parcours plat des ingrédients avec groupement par type */}}
+{{- range .Params.ingredients -}}
+  {{- if .ingredient -}}
+    {{- $slug := .ingredient -}}
+    {{- $meta := index $bySlug $slug -}}
+    {{- if not $meta -}}
+      {{- $uuid := partial "functions/extract-uuid-from-slug.html" $slug -}}
+      {{- if $uuid -}}
+        {{- $meta = index $byUUID $uuid -}}
+      {{- end -}}
     {{- end -}}
-  {{ end }}
+    {{- if $meta -}}
+      {{- $type := $meta.type | default "autres" -}}
+      {{- if eq $type "sec" -}}
+        {{ $isec = $isec | append $meta.title }}
+      {{- else if eq $type "animaux" -}}
+        {{ $ianimaux = $ianimaux | append $meta.title }}
+      {{- else if eq $type "legumes" -}}
+        {{ $ilegumes = $ilegumes | append $meta.title }}
+      {{- else if eq $type "sucres" -}}
+        {{ $isucres = $isucres | append $meta.title }}
+      {{- else if eq $type "lof" -}}
+        {{ $ilof = $ilof | append $meta.title }}
+      {{- else if eq $type "frais" -}}
+        {{ $ifrais = $ifrais | append $meta.title }}
+      {{- else if eq $type "epices" -}}
+        {{ $iepices = $iepices | append $meta.title }}
+      {{- else -}}
+        {{ $iautres = $iautres | append $meta.title }}
+      {{- end -}}
+      {{- $IngredientList = $IngredientList | append (dict "ingredient" $meta.title) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
 
-{{ end }}
+{{- end -}}
 
 {{ $iCategories = $iCategories | uniq }}
 
@@ -66,6 +74,7 @@
 {{ $ianimaux = $ianimaux | uniq }}
 {{ $ilegumes = $ilegumes | uniq }}
 {{ $isucres = $isucres | uniq }}
+{{ $iepices = $iepices | uniq }}
 {{ $ilof = $ilof | uniq }}
 {{ $ifrais = $ifrais | uniq }}
 {{ $iautres = $iautres | uniq }}
@@ -380,14 +389,56 @@
           saison: [{{- range .Params.saison -}} "{{ . }}", {{- end -}}],
           categories: [ {{ if .Params.categories }} {{- range sort .Params.categories -}} "{{ . }}",{{- end -}} {{- end -}} ],
           regimes: [ {{- if .Params.regime -}} {{- range sort .Params.regime -}} "{{ . }}", {{- end -}} {{- end -}} ],
-          ilegumes: [{{- range .Params.ingredients.legumes -}} "{{ .title }}",{{- end -}} ],
-          isec: [ {{- range .Params.ingredients.sec -}} "{{ .title }}",{{- end -}} ], 
-          ianimaux: [ {{- range .Params.ingredients.animaux -}} "{{ .title }}",{{- end -}}
+          {{/* Générer les listes d'ingrédients par type à partir du nouveau format plat */}}
+          {{- $ilegumesPage := slice -}}
+          {{- $isecPage := slice -}}
+          {{- $ianimauxPage := slice -}}
+          {{- $ilofPage := slice -}}
+          {{- $isucrePage := slice -}}
+          {{- $ifraisPage := slice -}}
+          {{- $iepicesPage := slice -}}
+          {{- $iautresPage := slice -}}
+          {{- range .Params.ingredients -}}
+            {{- if .ingredient -}}
+              {{- $slug := .ingredient -}}
+              {{- $meta := index $bySlug $slug -}}
+              {{- if not $meta -}}
+                {{- $uuid := partial "functions/extract-uuid-from-slug.html" $slug -}}
+                {{- if $uuid -}}
+                  {{- $meta = index $byUUID $uuid -}}
+                {{- end -}}
+              {{- end -}}
+              {{- if $meta -}}
+                {{- $type := $meta.type | default "autres" -}}
+                {{- if eq $type "legumes" -}}
+                  {{- $ilegumesPage = $ilegumesPage | append $meta.title -}}
+                {{- else if eq $type "sec" -}}
+                  {{- $isecPage = $isecPage | append $meta.title -}}
+                {{- else if eq $type "animaux" -}}
+                  {{- $ianimauxPage = $ianimauxPage | append $meta.title -}}
+                {{- else if eq $type "lof" -}}
+                  {{- $ilofPage = $ilofPage | append $meta.title -}}
+                {{- else if eq $type "sucres" -}}
+                  {{- $isucrePage = $isucrePage | append $meta.title -}}
+                {{- else if eq $type "frais" -}}
+                  {{- $ifraisPage = $ifraisPage | append $meta.title -}}
+                {{- else if eq $type "epices" -}}
+                  {{- $iepicesPage = $iepicesPage | append $meta.title -}}
+                {{- else -}}
+                  {{- $iautresPage = $iautresPage | append $meta.title -}}
+                {{- end -}}
+              {{- end -}}
+            {{- end -}}
+          {{- end -}}
+          ilegumes: [{{- range $ilegumesPage -}} "{{ . }}",{{- end -}} ],
+          isec: [ {{- range $isecPage -}} "{{ . }}",{{- end -}} ], 
+          ianimaux: [ {{- range $ianimauxPage -}} "{{ . }}",{{- end -}}
           ],
-          ilof:  [ {{- range .Params.ingredients.lof -}} "{{ .title }}",{{- end -}} ],
-          isucre:  [ {{- range .Params.ingredients.sucres -}} "{{ .title }}",{{- end -}} ],
-          ifrais:  [ {{- range .Params.ingredients.frais -}} "{{ .title }}",{{- end -}} ],
-          iautres:  [ {{- range .Params.ingredients.autres -}} "{{ .title }}",{{- end -}} ],
+          ilof:  [ {{- range $ilofPage -}} "{{ . }}",{{- end -}} ],
+          isucre:  [ {{- range $isucrePage -}} "{{ . }}",{{- end -}} ],
+          ifrais:  [ {{- range $ifraisPage -}} "{{ . }}",{{- end -}} ],
+          iepices:  [ {{- range $iepicesPage -}} "{{ . }}",{{- end -}} ],
+          iautres:  [ {{- range $iautresPage -}} "{{ . }}",{{- end -}} ],
           specialite: " {{ .Params.spécialité }}",
           temperature: "{{ .Params.temperature }}",
           cuisson: "{{ .Params.cuisson }}",

@@ -1,7 +1,11 @@
   {{/*  TODO : limiter les allergene indiquer / distinguer gluten  */}}
   
-  {{ if in  .alergene  .ingredient }}
-    <span class="fw-bold">{{ .ingredient }}</span>
+  {{ $meta := .meta }}
+  {{ $title := $meta.title }}
+  {{ $allergenes := $meta.allergenes | default slice }}
+  
+  {{ if gt (len $allergenes) 0 }}
+    <span class="fw-bold">{{ $title }}</span>
     {{/* TODO in-line-svg from module ? */}}
     {{ partial "inline-svg" (dict 
           "src" "fonticons/exclamation-triangle"
@@ -10,7 +14,7 @@
           "fs" 5
            ) }}
   {{ else }}
-    <span class="fw-bold">{{- .ingredient -}}</span>
+    <span class="fw-bold">{{- $title -}}</span>
   {{ end }}
 
   {{ $unit := .unit }}
@@ -27,8 +31,8 @@
     <span class="unit"> {{- $unit -}}</span>
 
     {{ if eq .unit (and ("unité") ("c. à café") ("c. à soupe")) }}
-    ( ~<span class="amount">{{ partial "functions/quantite-converter" ( dict "unit" .unit "ingredient" .ingredient "quantite" .quantite "fetchQuantite" true ) }}</span>
-    <span>{{ partial "functions/quantite-converter" ( dict "unit" .unit "ingredient" .ingredient "quantite" .quantite "fetchUnit" true ) }} )</span>
+    ( ~<span class="amount">{{ partial "functions/quantite-converter" ( dict "unit" .unit "ingredient" $title "quantite" .quantite "fetchQuantite" true ) }}</span>
+    <span>{{ partial "functions/quantite-converter" ( dict "unit" .unit "ingredient" $title "quantite" .quantite "fetchUnit" true ) }} )</span>
       
     {{ end }}
   {{ end }}
