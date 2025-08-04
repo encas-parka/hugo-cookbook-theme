@@ -111,7 +111,7 @@
         {{- $title := (cond (and $meta (isset $meta "title")) ($meta.title) $ingId) -}}
         {{- $itype := (cond (and $meta (isset $meta "type")) ($meta.type) "") -}}
         {{- $iType := ($itype | strings.FirstUpper) -}}
-      
+
 
         {{/* Proportion: (quantité recette x assiettes événement) / assiettes recette */}}
         {{- $quantiteCompute:= float "0" -}}
@@ -412,7 +412,7 @@
             {{- $itype := (cond (and $meta (isset $meta "type")) ($meta.type) "") -}}
             {{- $displayType := ($itype | strings.FirstUpper) -}} {{/* Capitalize for display */}}
 
-         
+
 
             {{/* Add resolved title to $ingredientsL for allergen checks */}}
             {{- $ingredientsL = $ingredientsL | append $title -}}

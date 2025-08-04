@@ -182,15 +182,6 @@
   {{- end -}}
 
 
-  {{- .Scratch.Set "IngTypeList" $ingByTypeList -}}
-
-  <!-- <div class="debug my-2">first item of first section (json) $ingByTypeList → {{ (index (index $ingByTypeList 0).items 0) | jsonify }}</div>
-
-  <div class="debug my-2">first section (json) → {{ (index $ingByTypeList 0) | jsonify }}</div>
-  <div class="debug my-2">first section.type → {{ with (index $ingByTypeList 0) }}{{ index . "type" }}{{ end }}</div>
-  <div class="debug my-2">$uniqueIngCount → {{ $uniqueIngCount }}</div> -->
-
-  <!-- <div class="debug">IngTypeListGrouped → {{ $IngTypeListGrouped }}</div> -->
 
 
 
@@ -204,7 +195,7 @@
 {{ end }}
   {{/*  <span class="text-end no-print p-2"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index">Modifier</a></span>  */}}
 
-<div id="app">
+  <div id="app" data-json-src="index.json">
 
 {{ $here := "ingredients"}}
 
@@ -240,7 +231,6 @@
 
 
 {{ partial  "components/event-top-nav" ( dict "inglink" $inglink "recettelink" $recettelink "posterlink" $posterlink "here" $here) }}
-
 
 {{/*  ::: Impression - MODAL  */}}
 <div class="modal modal-xl fade d-print-none" tabindex="-1" id="modalImpression" aria-labelledby="modalImpressionLabel"
@@ -347,7 +337,7 @@
         {{ else }}
           <div class="card border-danger border-3 my-3 p-2">
             <div class="card-body text-danger">
-              <h5 class="card-title mt-1">
+              <h5 class="card-title">
                 Une des recettes de l'évenement n'existe plus !
               </h5>
               <p class="card-text">
@@ -372,9 +362,23 @@
     <div class="no-print" id="TotalIngredients"></div>
     <div class="container-fluid " :class="{'no-print':!toPrint.ingredients}">
       <h3 class="no-print">
-        Listes des {{ (.Scratch.Get "uniqueIngCount") }} ingrédients présents dans les
-        {{ $recettesLength }} recettes des {{ .Params.repas | len }} menus
+        Listes des [[uniqueIngCount]] ingrédients présents dans les
+         [[recettesLength]] recettes des {{ .Params.repas | len }} menus
       </h3>
+
+      <!-- Alertes pour les recettes manquantes -->
+      <div class="no-print mb-4" v-if="missingRecipes && missingRecipes.length > 0">
+        <div class="alert alert-warning">
+          <p class="mb-2">Les recettes suivantes n'ont pas pu être trouvées et ne sont pas incluses dans les calculs :</p>
+          <ul class="mb-0">
+            <li v-for="missing in missingRecipes" :key="missing.recetteSlug">
+              <strong>[[missing.recetteSlug]]</strong>
+              (Date: [[missing.dateService]], Horaire: [[missing.horaire]], Type: [[missing.typePlat]], Assiettes: [[missing.assiettes]])
+              <span class="badge bg-warning text-dark ms-2">[[missing.reason]]</span>
+            </li>
+          </ul>
+        </div>
+      </div>
       <div class="row justify-content-evenly">
         {{/* ::: _Sidebar Total ingredients */}}
         <nav
@@ -483,10 +487,9 @@
               </div>
               <hr />
 
-              {{ $types := .Scratch.Get "types" }}
-              {{ range $types }}
-                <a href="#IngListID{{ . }}"> {{ . }} - </a>
-              {{ end }}
+              <template v-for="type in types">
+                <a :href="'#IngListID' + type"> [[ type ]] - </a>
+              </template>
             </div>
           </div>
         </nav>
@@ -682,7 +685,7 @@
 
           {{/* Renommage des iType */}}
           <div id="tableIng" v-cloak>
-            {{- $types := .Scratch.Get "types" -}}
+            {{- $types := slice "sucres" "sec" "lof" "legumes" "frais" "epices" "autres" "animaux" "absent" -}}
             {{- range $types -}}
               {{- $iTypeName := partial "functions/ingredients-types-rename-short" (dict "ingType" (. | strings.FirstUpper)) -}}
               {{/* ::: _ Card des tableau ingredients petit et grand */}}
@@ -900,22 +903,23 @@
 
 {{/* Données page injectées pour l’app Vue (migration étape 2) */}}
 <script>
-  window.__EVENT_PAGE_DATA__ = {
-    datesRepas: {{ (.Scratch.Get "datesRepas") }},
-    datesTimeRepas: {{ (.Scratch.Get "datesTimeRepas") }},
-    startDate: {{ (.Scratch.Get "startDate") }},
-    endDate: {{ (.Scratch.Get "endDate") }},
-    ingByTypeList: {{ (.Scratch.Get "IngTypeList") }},
-    allIngredients: {{ (.Scratch.Get "allIngredients") }},
-    types: {{ (.Scratch.Get "types") }},
-    {{- /* Build toPrint dict in Hugo and inject as JSON */ -}}
-    {{- $types := .Scratch.Get "types" -}}
-    {{- $toPrint := dict "ingredients" true "LegumesRanges" true "FraisRanges" true "AnimauxRanges" true -}}
-    {{- range $i, $t := $types -}}
-      {{- $toPrint = merge $toPrint (dict $t true) -}}
-    {{- end -}}
-    toPrint: {{ $toPrint }}
-  };
+  // window.__EVENT_PAGE_DATA__ = {
+  //   datesRepas: {{ (.Scratch.Get "datesRepas") }},
+  //   datesTimeRepas: {{ (.Scratch.Get "datesTimeRepas") }},
+  //   startDate: {{ (.Scratch.Get "startDate") }},
+  //   endDate: {{ (.Scratch.Get "endDate") }},
+  //   uniqueIngCount: {{ (.Scratch.Get "uniqueIngCount") }},
+  //   ingByTypeList: {{ (.Scratch.Get "IngTypeList") }},
+  //   allIngredients: {{ (.Scratch.Get "allIngredients") }},
+  //   types: {{ (.Scratch.Get "types") }},
+  //   {{- /* Build toPrint dict in Hugo and inject as JSON */ -}}
+  //   {{- $types := .Scratch.Get "types" -}}
+  //   {{- $toPrint := dict "ingredients" true "LegumesRanges" true "FraisRanges" true "AnimauxRanges" true -}}
+  //   {{- range $i, $t := $types -}}
+  //     {{- $toPrint = merge $toPrint (dict $t true) -}}
+  //   {{- end -}}
+  //   toPrint: {{ $toPrint }}
+  // };
 </script>
 
 {{ $eventJS := resources.Get "js/event/bootstrap.js" | js.Build (dict "targetPath" "assets-bundled/event-utils.js" "minify" true) | fingerprint }}

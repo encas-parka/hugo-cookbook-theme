@@ -1,0 +1,225 @@
+{{- /*
+  single.ingredients.json.json
+  Émet un JSON strictement équivalent aux données initialement injectées via window.__EVENT_PAGE_DATA__
+  par single.ingredients.html (données Scratch).
+  Clés émises:
+    - datesRepas, datesTimeRepas, startDate, endDate
+    - ingByTypeList (équivalent de "IngTypeList" final: slice d’objets {type, items})
+    - allIngredients (flatten trié par dateService asc)
+    - types (triés)
+    - toPrint (avec clés par défaut + chaque type présent)
+    - recettesLength, nbDate
+    - uniqueIng, uniqueIngCount
+  Hypothèses:
+    - Les recettes sont référencées via un slug "title_uuid" dans .Params.repas[].recettes_du_repas[].recette
+    - On extrait l'UUID via partial "functions/extract-uuid-from-slug"
+    - On indexe les recettes via partialCached "functions/recettes-index.html" (byUUIDRecette)
+    - On résout les ingrédients via partial "functions/ingredients-group-builder" avec:
+        items: recettePage.Params.ingredients
+        byUUID: index global ingrédients via partialCached "functions/ingredients-index.html" (byUUID)
+        mode: "evenement"
+        assiettes: altAssiettes si présent, sinon assiettes du repas
+        assiettesRecettes: recettePage.Params.plate
+*/ -}}
+
+{{- /* Index globaux */ -}}
+{{- $recettesIndex := partialCached "functions/recettes-index.html" . -}}
+{{- $byUUIDRecette := cond (and $recettesIndex (isset $recettesIndex "byUUIDRecette")) $recettesIndex.byUUIDRecette (dict) -}}
+{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" . -}}
+{{- $byUUIDIng := cond (and $ingredientsIndex (isset $ingredientsIndex "byUUID")) $ingredientsIndex.byUUID (dict) -}}
+
+{{- /* Structures d’agrégation (miroir single.ingredients) */ -}}
+{{- $IngTypeListGrouped := dict -}}
+{{- $datesRepas := slice -}}
+{{- $datesTimeRepas := slice -}}
+{{- $recettesLength := 0 -}}
+{{- $nbDate := 0 -}}
+{{- $missingRecipes := slice -}}
+
+{{- /* Parcours des repas */ -}}
+{{- range $.Param "repas" -}}
+  {{- $dateService := .date_service -}}
+  {{- $dateTimeService := .date_service -}}
+  {{- $nbDate = add $nbDate 1 -}}
+  {{- $horaire := .horaire -}}
+
+  {{- /* Normalisation du datetime selon l’horaire (miroir) */ -}}
+  {{- if not (findRE "T" $dateService) -}}
+    {{- $dateTimeService = printf "%sT12:00:00" $dateService -}}
+  {{- end -}}
+  {{- if eq $horaire "matin" -}}
+    {{- $dateTimeService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T08:00:00" -}}
+  {{- else if eq $horaire "midi" -}}
+    {{- $dateTimeService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T12:00:00" -}}
+  {{- else if eq $horaire "soir" -}}
+    {{- $dateTimeService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T20:00:00" -}}
+  {{- end -}}
+
+  {{- $datesRepas = $datesRepas | append $dateService -}}
+  {{- $datesTimeRepas = $datesTimeRepas | append $dateTimeService -}}
+  {{- $repasBaseAssiettes := (int .assiettes) -}}
+
+  {{- range .recettes_du_repas -}}
+    {{- $recettesLength = add $recettesLength 1 -}}
+    {{- $assiettesPourCalcul := $repasBaseAssiettes -}}
+    {{- $typePlat := .type_plat -}}
+    {{- if .altAssiettes -}}
+      {{- $assiettesPourCalcul = (int .altAssiettes) -}}
+    {{- end -}}
+
+    {{- $recetteName := .recette | default "Recette inconnue" -}}
+    {{- $recettePage := "" -}}
+    {{- $assiettesRecettes := 1 -}}
+    {{- $ingredients := slice -}}
+
+    {{- /* Tentative de résolution de la recette via UUID */ -}}
+    {{- $uuid := partial "functions/extract-uuid-from-slug" .recette -}}
+    {{- $recetteMeta := cond (and $uuid (ne $uuid "")) (index $byUUIDRecette $uuid) nil -}}
+
+    {{- if $recetteMeta -}}
+      {{- $recetteName = $recetteMeta.title -}}
+      {{- $recettePage = $recetteMeta.page -}}
+    {{- else -}}
+      {{- /* Recette non trouvée, l'ajouter à la liste des recettes manquantes */ -}}
+      {{- $missingRecipeInfo := dict
+        "recetteSlug" .recette
+        "dateService" $dateService
+        "dateTimeService" $dateTimeService
+        "horaire" $horaire
+        "typePlat" $typePlat
+        "assiettes" $assiettesPourCalcul
+        "reason" "Recette non trouvée"
+      -}}
+      {{- $missingRecipes = $missingRecipes | append $missingRecipeInfo -}}
+    {{- end -}}
+
+    {{- if $recettePage -}}
+      {{- $assiettesRecettes = $recettePage.Params.plate -}}
+      {{- $ingredients = $recettePage.Params.ingredients -}}
+      {{- $assiettesRecettes := $recettePage.Params.plate -}}
+      {{- $ingredients := $recettePage.Params.ingredients -}}
+    {{- else if $recetteMeta -}}
+      {{- /* Recette trouvée mais page vide, l'ajouter à la liste des recettes manquantes */ -}}
+      {{- $missingRecipeInfo := dict
+        "recetteSlug" .recette
+        "dateService" $dateService
+        "dateTimeService" $dateTimeService
+        "horaire" $horaire
+        "typePlat" $typePlat
+        "assiettes" $assiettesPourCalcul
+        "reason" "Page vide"
+      -}}
+      {{- $missingRecipes = $missingRecipes | append $missingRecipeInfo -}}
+    {{- end -}}
+
+    {{- /* Builder groupé par type (miroir) */ -}}
+    {{- $groupedForRecette := partial "functions/ingredients-group-builder" (dict
+      "items" $ingredients
+      "byUUID" $byUUIDIng
+      "mode" "evenement"
+      "assiettes" $assiettesPourCalcul
+      "assiettesRecettes" $assiettesRecettes
+    ) -}}
+
+    {{- /* Fusion/Enrichissement: ajouter le contexte attendu par l'app et le template */ -}}
+    {{- if and $groupedForRecette (reflect.IsMap $groupedForRecette) -}}
+      {{- range $type, $list := $groupedForRecette -}}
+        {{- if and $type (reflect.IsSlice $list) -}}
+          {{- $current := index $IngTypeListGrouped $type | default (slice) -}}
+          {{- $enriched := slice -}}
+          {{- range $item := $list -}}
+            {{- if and $item (reflect.IsMap $item) -}}
+              {{- $enrichedItem := merge $item (dict
+                "recette" $recetteName
+                "dateService" $dateService
+                "dateTimeService" $dateTimeService
+                "horaire" $horaire
+                "typePlat" $typePlat
+                "assiettesRecettes" $assiettesRecettes
+                "assiettes" $assiettesPourCalcul
+              ) -}}
+              {{- $enriched = $enriched | append $enrichedItem -}}
+            {{- end -}}
+          {{- end -}}
+          {{- $merged := $current | append $enriched -}}
+          {{- $IngTypeListGrouped = merge $IngTypeListGrouped (dict $type $merged) -}}
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* Dates min/max + tri */ -}}
+{{- $datesTimeRepas = sort $datesTimeRepas -}}
+{{- $datesRepas = sort $datesRepas -}}
+{{- $startDate := cond (gt (len $datesRepas) 0) (index $datesRepas 0) "" -}}
+{{- $endDate := cond (gt (len $datesRepas) 0) (index $datesRepas (sub (len $datesRepas) 1)) "" -}}
+
+{{- /* Types triés depuis les clés du grouping */ -}}
+{{- $types := slice -}}
+{{- range $t, $_ := $IngTypeListGrouped -}}
+  {{- $types = $types | append $t -}}
+{{- end -}}
+{{- $types = sort $types "value" "desc" -}}
+
+{{- /* Construire ingByTypeList comme slice [{type, items}] avec validation et tri comme dans single.ingredients.html */ -}}
+{{- $ingByTypeList := slice -}}
+{{- range $t := $types -}}
+  {{- $raw := index $IngTypeListGrouped $t | default (slice) -}}
+  {{- $validItems := slice -}}
+  {{- range $it := $raw -}}
+    {{- if and $it (reflect.IsMap $it) -}}
+      {{- $validItems = $validItems | append $it -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $list := sort $validItems "ingredient" "asc" -}}
+  {{- $ingByTypeList = $ingByTypeList | append (dict "type" $t "items" $list) -}}
+{{- end -}}
+
+{{- /* Unique ingrédients (UUID) + count */ -}}
+{{- $uniqueIng := slice -}}
+{{- range $type, $list := $IngTypeListGrouped -}}
+  {{- range $list -}}
+    {{- $id := .uuid | default "" -}}
+    {{- if $id -}}
+      {{- $uniqueIng = $uniqueIng | append $id -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- $uniqueIng = uniq $uniqueIng -}}
+{{- $uniqueIngCount := len $uniqueIng -}}
+
+{{- /* Flatten allIngredients trié par dateService asc */ -}}
+{{- $allIngredients := slice -}}
+{{- range $type, $list := $IngTypeListGrouped -}}
+  {{- range $list -}}
+    {{- $allIngredients = $allIngredients | append . -}}
+  {{- end -}}
+{{- end -}}
+{{- $allIngredients = sort $allIngredients "dateService" "asc" -}}
+
+{{- /* IngTypeList final (slice d’objets { type, items }) */ -}}
+{{- /* $ingByTypeList est défini ci-dessus pour matcher le format HTML */ -}}
+
+{{- /* toPrint (miroir exact de la logique) */ -}}
+{{- $toPrint := dict "ingredients" true "LegumesRanges" true "FraisRanges" true "AnimauxRanges" true -}}
+{{- range $i, $t := $types -}}
+  {{- $toPrint = merge $toPrint (dict $t true) -}}
+{{- end -}}
+
+{{- /* Émission finale JSON (strict) */ -}}
+{{- (dict
+  "datesRepas" $datesRepas
+  "datesTimeRepas" $datesTimeRepas
+  "startDate" $startDate
+  "endDate" $endDate
+  "ingByTypeList" $ingByTypeList
+  "allIngredients" $allIngredients
+  "types" $types
+  "toPrint" $toPrint
+  "recettesLength" $recettesLength
+  "nbDate" $nbDate
+  "uniqueIng" $uniqueIng
+  "uniqueIngCount" $uniqueIngCount
+  "missingRecipes" $missingRecipes
+) | jsonify -}}

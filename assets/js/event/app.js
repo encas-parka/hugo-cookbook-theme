@@ -25,6 +25,9 @@ export function createEventApp(initialData = {}) {
     allIngredients = [],
     types = [],
     toPrint = {},
+    uniqueIngCount = 0,
+    recettesLength = 0,
+    missingRecipes = [],
   } = initialData;
 
   return Vue.createApp({
@@ -42,6 +45,7 @@ export function createEventApp(initialData = {}) {
         datesTimeRepas,
         startDate,
         endDate,
+        missingRecipes,
 
         // Sélection date courante (contrôlée par flatpickr)
         startDateSelected: null,
@@ -60,6 +64,8 @@ export function createEventApp(initialData = {}) {
         ingredients: Array.isArray(allIngredients) ? allIngredients : [],
         ingFraisFiltered: [],
         totalRangeWithDetailResults: {},
+        uniqueIngCount,
+        recettesLength,
 
         // Impression
         printSelectIng: false,

@@ -2,15 +2,17 @@
  * bootstrap.js
  * Point d’entrée minimal pour exposer les utilitaires d’export/copie sur window
  * et, si disponible, monter l’app Vue avec des données injectées via
- * window.__EVENT_PAGE_DATA__ (compatibilité ascendante: si absent, on n’essaie
- * pas de monter l’app).
+ * window.__EVENT_PAGE_DATA__ (compatibilité ascendante). À défaut, tenter
+ * de charger des données JSON via:
+ *  - un script inline <script type="application/json" id="event-json">,
+ *  - un fetch sur une URL fournie via data-json-src sur le conteneur #app.
  *
  * Étape 1 (migration utilitaires):
  *  - Expose copyOrExport, copyTable et downloadFile sur window
  *
- * Étape 2 (cette passe):
+ * Étape 2:
  *  - Si window.__EVENT_PAGE_DATA__ est présent, créer et monter l’app Vue
- *    en gardant l’inline comme fallback si non présent.
+ *    sinon, tenter script JSON inline puis fetch via data-json-src.
  */
  
 import { downloadFile } from "./download-file.js";
@@ -32,22 +34,69 @@ import { createEventApp } from "./app.js";
   }
 })();
  
-// Monter l’app Vue si des données sont injectées côté page.
-// On garde le comportement précédent si rien n’est injecté (fallback: app inline).
+// Utilitaire: lecture de données JSON depuis un <script type="application/json" id="event-json">
+function readInlineEventJSON() {
+  try {
+    if (typeof document === "undefined") return null;
+    const el = document.getElementById("event-json");
+    if (!el) return null;
+    const txt = el.textContent || el.innerText || "";
+    if (!txt) return null;
+    return JSON.parse(txt);
+  } catch (_err) {
+    return null;
+  }
+}
+ 
+// Utilitaire: fetch JSON depuis une URL
+async function fetchEventJSON(url) {
+  try {
+    if (!url) return null;
+    const res = await fetch(url, { credentials: "same-origin" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (_err) {
+    return null;
+  }
+}
+ 
+// Monter l’app Vue en priorisant les données disponibles.
+// Ordre: window.__EVENT_PAGE_DATA__ -> script JSON inline -> fetch via data-json-src
 (function maybeMountVueApp() {
   try {
-    if (typeof window === "undefined") return;
-    const data = window.__EVENT_PAGE_DATA__;
-    if (!data) return; // Pas de données injectées => laisser l’app inline existante.
+    if (typeof window === "undefined" || typeof document === "undefined") return;
  
-    // Vérifier la présence du conteneur avant de monter
+    // Vérifier la présence du conteneur avant toute opération
     const appRoot = document.querySelector("#app");
     if (!appRoot) return;
  
-    // Créer et monter l’app
-    const app = createEventApp(data);
-    app.mount("#app");
+    const bootstrapWithData = (data) => {
+      if (!data) return false;
+      try {
+        const app = createEventApp(data);
+        app.mount("#app");
+        return true;
+      } catch (_err) {
+        return false;
+      }
+    };
+ 
+    // 1) Compat ascendante: données injectées globalement
+    if (bootstrapWithData(window.__EVENT_PAGE_DATA__)) return;
+ 
+    // 2) Script inline JSON
+    const inlineData = readInlineEventJSON();
+    if (bootstrapWithData(inlineData)) return;
+ 
+    // 3) Fetch via data-json-src
+    const src = appRoot.getAttribute("data-json-src");
+    if (src) {
+      fetchEventJSON(src).then((fetched) => {
+        bootstrapWithData(fetched);
+      });
+    }
+    // Si aucune des stratégies n’aboutit, on ne monte rien (pas d’app inline).
   } catch (_err) {
-    // Meilleur effort: si un souci survient, on n’empêche pas la version inline de fonctionner.
+    // Meilleur effort: en cas d’erreur inattendue, ne rien monter et laisser la page statique.
   }
 })();
