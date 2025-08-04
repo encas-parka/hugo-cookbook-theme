@@ -7,10 +7,8 @@
 {{- end -}}
 
 
-{{/* Charger l'index global des ingrédients avec cache */}}
+{{/* Charger l'index global des ingrédients avec cache (seulement pour byAllergen, le reste est auto-chargé par ingredients-grouped-list) */}}
 {{ $ingredientsIndex := partialCached "functions/ingredients-index.html" . }}
-{{ $bySlug := $ingredientsIndex.bySlug }}
-{{ $byUUID := $ingredientsIndex.byUUID }}
 {{ $byAllergen := $ingredientsIndex.byAllergen }}
 
 {{/* Liste standardisée des allergènes pour les alertes */}}
@@ -28,15 +26,12 @@
 {{/* Résoudre les slugs en titres pour les alertes (compatibilité legacy) */}}
 {{ $ingredientTitles := slice }}
 {{- range $slug := $ingredientSlugs -}}
-  {{- $meta := index $bySlug $slug -}}
-  {{- if not $meta -}}
-    {{- $uuid := partial "functions/extract-uuid-from-slug.html" $slug -}}
-    {{- if $uuid -}}
-      {{- $meta = index $byUUID $uuid -}}
+  {{- $uuid := partial "functions/extract-uuid-from-slug" $slug -}}
+  {{- with $uuid -}}
+    {{- $meta := index $ingredientsIndex.byUUID . -}}
+    {{- if $meta -}}
+      {{- $ingredientTitles = $ingredientTitles | append $meta.title -}}
     {{- end -}}
-  {{- end -}}
-  {{- if $meta -}}
-    {{- $ingredientTitles = $ingredientTitles | append $meta.title -}}
   {{- end -}}
 {{- end -}}
 
@@ -211,8 +206,6 @@
 
     {{ partial "components/ingredients-grouped-list.html" (dict
       "items" .Params.ingredients
-      "bySlug" $bySlug
-      "byUUID" $byUUID
       "mode" "recette"
       "showAllergenIcon" true
       "showComment" true

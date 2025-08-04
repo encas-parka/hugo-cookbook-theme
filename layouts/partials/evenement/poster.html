@@ -37,22 +37,22 @@
       </button>
     {{- $first = false -}}
     <p v-show="fontDesc !== 'noDisplay'" class="card-text" :class="[[fontDesc]]" :style="[[fontSizeDesc]]">{{.description}}</p>
-    
+
     {{- $url := print .recette | urlize -}}
     {{- with site.GetPage $url -}}
-  
-      <p v-show="fontRegimes !== 'noDisplay'" class="mb-1 text-center" :class="[[fontRegimes]]" :style=" fontSizeRegimes">{{ partial "functions/regimes-concat.html" .Params.regime }}</p>
-  
+
+      <p v-show="fontRegimes !== 'noDisplay'" class="mb-1 text-center" :class="[[fontRegimes]]" :style=" fontSizeRegimes">{{ partial "functions/regimes-concat" .Params.regime }}</p>
+
       {{/* Collecter les ingrédients avec le nouveau format plat */}}
       {{ $alertAnimaux := slice }}
       {{ $ingredientsRecette := slice }}
-      
+
       {{- range .Params.ingredients -}}
         {{- if .ingredient -}}
           {{- $slug := .ingredient -}}
           {{- $meta := index $bySlug $slug -}}
           {{- if not $meta -}}
-            {{- $uuid := partial "functions/extract-uuid-from-slug.html" $slug -}}
+            {{- $uuid := partial "functions/extract-uuid-from-slug" $slug -}}
             {{- if $uuid -}}
               {{- $meta = index $byUUID $uuid -}}
             {{- end -}}
@@ -65,22 +65,22 @@
           {{- end -}}
         {{- end -}}
       {{- end -}}
-  
+
       {{- $alertAutresAllergenes := slice -}}
     {{ range $allergenesLgList }}
       {{- $toAdd := intersect $ingredientsRecette (index $byAllergen . | default slice) -}}
       {{- $alertAutresAllergenes = $alertAutresAllergenes | append  $toAdd -}}
     {{ end }}
-  
-  
+
+
       {{- $alertGluten := intersect $ingredientsRecette (index $byAllergen "Gluten" | default slice) -}}
       {{- $alertPorc := intersect $ingredientsRecette (index $byAllergen "Porc" | default slice) -}}
       {{- $alertLait := intersect $ingredientsRecette (index $byAllergen "Produit laitier" | default slice) -}}
-  
+
       {{ with or ($alertGluten) ($alertPorc) ($alertLait) ($alertAnimaux) ($alertAutresAllergenes) }}
       <p class="m-0 text-center" v-show="fontAlert !== 'noDisplay'">•••</p>
       {{ end }}
-  
+
       <div  v-show="fontAlert !== 'noDisplay'">
         {{- with $alertAutresAllergenes -}}
         <p class="text-center mb-0" :class="[[fontAlert]]" :style="fontSizeAlert"><span class="fw-bold">Alergènes : </span>{{ delimit $alertAutresAllergenes ", "}}</p>
@@ -105,5 +105,5 @@
       {{- end  }}
     </div>
       {{- end }}
-      
+
       {{- end }}

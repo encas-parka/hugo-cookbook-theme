@@ -2,99 +2,49 @@
 {{/*
   ingredients-grouped-list.html
 
-  Partial commun pour afficher une liste d’ingrédients:
-  - Résolution des ingrédients via index global (bySlug, byUUID)
-  - Groupement par type + icône de type + renommage court
-  - Tri alphabétique par titre d’ingrédient
-  - Affichage de l’icône d’allergène sur chaque item (optionnel, true par défaut)
-  - Affichage du commentaire (optionnel, true par défaut) de façon discrète
-  - Gestion du “mode”:
-      • mode: "recette" → quantités telles que définies dans la recette
-      • mode: "evenement" → scaling si assiettes & assiettesRecettes fournis
-  - Formatage des quantités et unités (conversion g↔kg, ml↔l, pluriels simples, arrondis)
-  - Conversion auxiliaire via quantite-converter, après scaling éventuel
+  Partial d’affichage d’une liste d’ingrédients groupée par type.
+  Il délègue désormais toute la logique de résolution/typage/scaling/groupement
+  au partial DRY "functions/ingredients-group-builder.html" et se concentre
+  uniquement sur le rendu HTML.
 
-  Entrée attendue (dict):
-    - items:          (list)  .Params.ingredients d’une page (chacun: {ingredient, quantite, unit, commentaire})
-    - bySlug:         (map)   index des ingrédients par slug
-    - byUUID:         (map)   index des ingrédients par UUID
-    - mode:           (string) "recette" | "evenement"
-    - assiettes:      (int/float, optionnel) nb de couverts événement
+  Entrée (dict):
+    - items:             (list)  .Params.ingredients d’une page (ingrédients)
+    - byUUID:            (map, optionnel) index des ingrédients par UUID
+    - mode:              (string) "recette" | "evenement"
+    - assiettes:         (int/float, optionnel) nb de couverts événement
     - assiettesRecettes: (int/float, optionnel) nb de couverts de la recette
-    - showAllergenIcon: (bool, optionnel, défaut: true)
-    - showComment:    (bool, optionnel, défaut: true)
+    - showAllergenIcon:  (bool, optionnel, défaut: true)
+    - showComment:       (bool, optionnel, défaut: true)
 
-  Sortie:
-    - Rendu HTML de la liste groupée d’ingrédients, triée, avec en-têtes de type + icône
+  Comportement de fallback:
+    - Si byUUID n’est pas fourni (ou vide), le partial charge automatiquement
+      l’index global des ingrédients via un cache côté thème, puis initialise byUUID.
+    - Si byUUID est fourni par l’appelant, il est utilisé tel quel (pas de chargement).
 */}}
 
 {{/* ---- Helpers: paramètres et valeurs par défaut ---- */}}
 {{- $items := .items | default (slice) -}}
-{{- $bySlug := .bySlug | default (dict) -}}
-{{- $byUUID := .byUUID | default (dict) -}}
+{{- $byUUID := .byUUID -}}
 {{- $mode := .mode | default "recette" -}}
 {{- $assiettes := .assiettes -}}
 {{- $assiettesRecettes := .assiettesRecettes -}}
 {{- $showAllergenIcon := cond (ne .showAllergenIcon nil) .showAllergenIcon true -}}
 {{- $showComment := cond (ne .showComment nil) .showComment true -}}
 
-{{/* ---- Fonction utilitaire: extraction UUID depuis slug étendu (legacy) via partial ---- */}}
-
-{{/* ---- Fonction utilitaire: formatage quantité + unité (après scaling) via partial ---- */}}
-
-{{/* ---- Construction: groupement par type avec résolution meta ---- */}}
-{{- $ingredientsByType := dict -}}
-
-{{- range $items -}}
-  {{- $ingId := .ingredient | default "" -}}
-  {{- $q := .quantite | default 0 -}}
-  {{- $u := .unit | default "" -}}
-  {{- $c := .commentaire -}}
-
-  {{- $meta := dict -}}
-  {{- if $ingId -}}
-    {{- $slug := $ingId -}}
-    {{- $uuid := partial "functions/extract-uuid-from-slug" $ingId -}}
-    {{- with (index $bySlug $slug) -}}
-      {{- $meta = . -}}
-    {{- else -}}
-      {{- if $uuid -}}
-        {{- with (index $byUUID $uuid) -}}
-          {{- $meta = . -}}
-        {{- end -}}
-      {{- end -}}
-    {{- end -}}
-  {{- end -}}
-
-  {{- if $meta -}}
-    {{- $type := ( $meta.type | default "autres" ) -}}
-    {{- $current := index $ingredientsByType $type | default (slice) -}}
-
-    {{/* Scaling si mode événement et assiettes fournis */}}
-    {{- $scaledQty := (float $q) -}}
-    {{- if and (eq $mode "evenement") (or (and $assiettes $assiettesRecettes) (and (ne (printf "%v" $assiettes) "") (ne (printf "%v" $assiettesRecettes) ""))) -}}
-      {{- $scaledQty = (div (mul (float $q) (float $assiettes)) (cond (gt (float $assiettesRecettes) 0) (float $assiettesRecettes) 1.0)) -}}
-    {{- end -}}
-
-    {{- $entry := dict
-        "meta" $meta
-        "quantite" $scaledQty
-        "unit" $u
-        "commentaire" $c
-      -}}
-    {{- $ingredientsByType = merge $ingredientsByType (dict $type ($current | append $entry)) -}}
-  {{- else -}}
-    {{/* On met de côté les non-résolus dans "non-trouvés" pour visibilité */}}
-    {{- $current := index $ingredientsByType "non-trouvés" | default (slice) -}}
-    {{- $entry := dict
-        "slug" $ingId
-        "quantite" $q
-        "unit" $u
-        "commentaire" $c
-      -}}
-    {{- $ingredientsByType = merge $ingredientsByType (dict "non-trouvés" ($current | append $entry)) -}}
-  {{- end -}}
+{{/* ---- Construction via builder DRY ---- */}}
+{{/* Auto-fallback: charger l'index si byUUID non fourni */}}
+{{- if or (not $byUUID) (eq (len $byUUID) 0) -}}
+  {{- $ingredientsIndex := partialCached "functions/ingredients-index.html" . -}}
+  {{- $byUUID = $ingredientsIndex.byUUID -}}
 {{- end -}}
+
+{{- $ingredientsByType := partial "functions/ingredients-group-builder" (dict
+  "items" $items
+  "byUUID" $byUUID
+  "mode" $mode
+  "assiettes" $assiettes
+  "assiettesRecettes" $assiettesRecettes
+) -}}
 
 {{/* ---- Rendu: par type, en-tête icône + libellé renommé, puis items triés ---- */}}
 {{- range $type, $list := $ingredientsByType -}}
@@ -109,64 +59,54 @@
       {{- end -}}
     </div>
 
-    {{/* Tri alphabétique robuste: utilise meta.title si présent, sinon slug fallback */}}
+    {{/* Tri alphabétique robuste: utilise title si présent, sinon slug fallback */}}
     {{- $sorted := slice -}}
     {{- range $list -}}
-      {{- $titleKey := cond (and .meta (isset .meta "title") (ne (printf "%v" .meta.title) "")) .meta.title (or .slug "") -}}
+      {{- $titleKey := cond (ne (printf "%v" .title) "") .title (or .slug "") -}}
       {{- $sorted = $sorted | append (dict "item" . "key" ($titleKey | lower)) -}}
     {{- end -}}
     {{- $sorted = sort $sorted "key" -}}
 
     {{- range $sorted -}}
       {{- $it := .item -}}
-      {{- if $it.meta -}}
-        {{- $meta := $it.meta -}}
-        {{- $title := $meta.title -}}
-        {{- $allergenes := $meta.allergenes | default (slice) -}}
-        {{- $q := $it.quantite | default 0 -}}
-        {{- $u := $it.unit | default "" -}}
-        {{- $c := $it.commentaire -}}
+      {{- $title := $it.title -}}
+      {{- $allergenes := $it.allergenes | default (slice) -}}
+      {{- $q := $it.quantite | default 0 -}}
+      {{- $u := $it.unit | default "" -}}
+      {{- $c := $it.commentaire -}}
 
-        <div class="small ps-2 print-fs-smaller mt-1">
-          <span class="fw-bold">• {{- $title -}}</span>
-          {{- if and $showAllergenIcon (gt (len $allergenes) 0) -}}
-            <span class="ms-1 align-middle">
-              {{- partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" ".8rem" "class" "mb-1") -}}
+      <div class="small ps-2 print-fs-smaller mt-1">
+        <span class="fw-bold">• {{- $title -}}</span>
+        {{- if and $showAllergenIcon (gt (len $allergenes) 0) -}}
+          <span class="ms-1 align-middle">
+            {{- partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" ".8rem" "class" "mb-1") -}}
+          </span>
+        {{- end -}}
+
+        {{- if $q -}}
+          : <span class="amount me-1">{{- $q -}}</span>
+          {{- $unitShort := $u -}}
+          {{- if eq $u "grammes" -}}
+            {{- $unitShort = "gr." -}}
+          {{- else if eq $u "litre" -}}
+            {{- $unitShort = "l." -}}
+          {{- else if and (eq $u "unité") (gt $q 1) -}}
+            {{- $unitShort = "unités" -}}
+          {{- end -}}
+          {{- if $unitShort -}}
+            <span class="unit"> {{- $unitShort -}}</span>
+          {{- end -}}
+          {{- if or (eq $u "unité") (eq $u "c. à café") (eq $u "c. à soupe") -}}
+            <span class="ms-1 text-muted">
+              {{- partial "functions/quantite-converter" ( dict "unit" $u "ingredient" $title "quantite" $q "fetchQU" true ) -}}
             </span>
           {{- end -}}
+        {{- end -}}
 
-          {{- if $q -}}
-            : <span class="amount me-1">{{- $q -}}</span>
-            {{- $unitShort := $u -}}
-            {{- if eq $u "grammes" -}}
-              {{- $unitShort = "gr." -}}
-            {{- else if eq $u "litre" -}}
-              {{- $unitShort = "l." -}}
-            {{- else if and (eq $u "unité") (gt $q 1) -}}
-              {{- $unitShort = "unités" -}}
-            {{- end -}}
-            {{- if $unitShort -}}
-              <span class="unit"> {{- $unitShort -}}</span>
-            {{- end -}}
-            {{- if or (eq $u "unité") (eq $u "c. à café") (eq $u "c. à soupe") -}}
-              <span class="ms-1 text-muted">
-                {{- partial "functions/quantite-converter" ( dict "unit" $u "ingredient" $title "quantite" $q "fetchQU" true ) -}}
-              </span>
-            {{- end -}}
-          {{- end -}}
-
-          {{- if and $showComment $c -}}
-            <span class="small text-muted ms-2">({{- $c -}})</span>
-          {{- end -}}
-        </div>
-      {{- else -}}
-        <div class="small ps-2 print-fs-smaller mt-1 text-danger">
-          • Ingrédient non trouvé: {{ $it.slug }}
-          {{- with $it.commentaire -}}
-            <span class="small text-muted ms-2">({{ . }})</span>
-          {{- end -}}
-        </div>
-      {{- end -}}
+        {{- if and $showComment $c -}}
+          <span class="small text-muted ms-2">({{- $c -}})</span>
+        {{- end -}}
+      </div>
     {{- end -}}
   </div>
 {{- end -}}

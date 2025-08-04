@@ -4,138 +4,194 @@
     content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"
   />
 
-  <!--::: Liste qui contiendra tous les ingrédients avec leurs données associés (quantité, recette, date, assietes...). Sert aux tableaux des quantités.  -->
-  {{- $IngredientList := slice -}}
-
-
-  <!-- Liste qui contiendra qui contient les listes de recettes pour chaque date -->
-  {{- $recettesList := slice -}}
-  {{- $recettesLength := 0 -}}
-  {{- $ingname := slice -}}
-
-  {{- $IngredientsTypesList := slice -}}
-  {{- $recetteKey:= 1 -}}
-  {{- $nbDate := 0 -}}
-
-  {{/* Charger les index globaux */}}
+  <!-- Indexes globaux -->
   {{ $ingredientsIndex := partialCached "functions/ingredients-index.html" . }}
-  {{ $bySlug := $ingredientsIndex.bySlug }}
   {{ $byUUID := $ingredientsIndex.byUUID }}
-  {{ $byAllergen := $ingredientsIndex.byAllergen }}
+
+
 
   {{ $recettesIndex := partialCached "functions/recettes-index.html" . }}
   {{ $bySlugRecette := $recettesIndex.bySlugRecette }}
   {{ $byUUIDRecette := $recettesIndex.byUUIDRecette }}
 
-  {{/* Récupérer les ingrédients frais depuis l'index */}}
-  {{- $legumesFrais := slice -}}
-  {{- range $slug, $meta := $bySlug -}}
-    {{- if $meta.pFrais -}}
-      {{- $legumesFrais = $legumesFrais | append $meta.title -}}
-    {{- end -}}
-  {{- end -}}
+  <!-- Structures d'agrégation -->
+  {{- $IngTypeListGrouped := dict -}}
+  {{- $datesRepas := slice -}}
+  {{- $datesTimeRepas := slice -}}
+  {{- $recettesLength := 0 -}}
+  {{- $recetteKey:= 1 -}}
+  {{- $nbDate := 0 -}}
 
   {{- range $.Param "repas" -}}
-    <!-- Creation des variables qui ne seront plus visible au prochain scope. Nous sommes dans les params de l'Evenement -->
     {{- $dateService:=.date_service -}}
+    {{- $dateTimeService:=.date_service -}}
     {{- $nbDate = add $nbDate 1 -}}
     {{- $horaire:=.horaire -}}
 
-    {{/* Modifier l'heure de la date ISO en fonction du parametre $horaire (non défini par l'utilisateur) afin de permettre le tri par date des recettes. */}}
-    {{ if eq $horaire "matin" }}
-      {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T08:00:00" }}
-    {{- else if eq $horaire "midi" -}}
-      {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T12:00:00" -}}
-    {{- else if eq $horaire "soir" -}}
-      {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T20:00:00" -}}
+    {{/* Normalisation heure pour tri par date  */}}
+
+    {{/* S'assurer que la date a un format ISO complet */}}
+    {{- if not (findRE "T" $dateService) -}}
+      {{- $dateTimeService = printf "%sT12:00:00" $dateService -}}
     {{- end -}}
 
+    {{ if eq $horaire "matin" }}
+      {{- $dateTimeService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T08:00:00" }}
+    {{- else if eq $horaire "midi" -}}
+      {{- $dateTimeService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T12:00:00" -}}
+    {{- else if eq $horaire "soir" -}}
+      {{- $dateTimeService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T20:00:00" -}}
+    {{- end -}}
+
+    {{- $datesRepas = $datesRepas | append $dateService -}}
+    {{- $datesTimeRepas = $datesTimeRepas | append $dateTimeService -}}
     {{- $repasBaseAssiettes := (int .assiettes) -}}
 
-    <!--  -->
     {{- range .recettes_du_repas -}}
-      <!--::: Creation des variables qui ne seront plus visible au prochain scope. Nous sommes dans les params de 1er niveau des recettes -->
       {{- $recettesLength = add $recettesLength 1 -}}
       {{- $assiettesPourCalcul := $repasBaseAssiettes -}}
-      {{- $recetteSlug:=.recette -}}
+      {{- $recetteSlugUuid:=.recette -}}
       {{- $typePlat:=.type_plat -}}
-      {{/* Si un nombre de couverts alternatif a été déclaré pour ce plat en particulier, on substitue... */}}
       {{ if .altAssiettes }}
         {{- $assiettesPourCalcul = (int .altAssiettes) -}}
       {{ end }}
 
       {{- $recetteName := "" -}}
       {{- $recettePage := "" -}}
-      {{/* Résoudre la recette via slug avec fallback UUID */}}
-      {{- $recetteMeta := index $bySlugRecette $recetteSlug -}}
-      {{- if not $recetteMeta -}}
-        {{- $uuid := partial "functions/extract-uuid-from-slug.html" $recetteSlug -}}
-        {{- if $uuid -}}
-          {{- $recetteMeta = index $byUUIDRecette $uuid -}}
-        {{- end -}}
-      {{- end -}}
+
+      {{- $uuid := partial "functions/extract-uuid-from-slug" .recette  -}}
+      {{- $recetteMeta := cond (and $uuid (ne $uuid "")) (index $byUUIDRecette $uuid) nil -}}
+
+      <!-- TODO : modifier recettes-index pour qu'elle ne renvoie pas un page entier: selectionner les données qui nous intéressent -->
       {{- if $recetteMeta -}}
         {{- $recetteName = $recetteMeta.title -}}
         {{- $recettePage = $recetteMeta.page -}}
       {{- end -}}
 
-      <!-- Récupération des données sur la page de la recette -->
       {{- if $recettePage -}}
         {{- $assiettesRecettes:= $recettePage.Params.plate -}}
-        <!-- pour tous les parametres ingredients... -->
-        {{- range $key, $value := $recettePage.Params.ingredients -}}
-          <!-- ...on liste/boucle sur tous les sous parametres -->
-          {{- range $index, $element := . -}}
 
-            {{/* On calcule les proportion de quantité : (quantité recette initiale x nombre d'assiettes pour le repas) / nombre de couvert de la recette initiale */}}
-            {{- $quantiteCompute:= float "0" -}}
+        {{/* Construire une structure groupée par type pour cette recette via partial réutilisable */}}
 
-            {{- if .quantite -}}
-              {{- $quantiteCompute = ((div (mul (float .quantite) (float $assiettesPourCalcul )) (float $assiettesRecettes ))) -}}
-            {{- end -}}
+        {{- $groupedForRecette := partial "functions/ingredients-group-builder" (dict
+          "items" $recettePage.Params.ingredients
+          "byUUID" $byUUID
+          "mode" "evenement"
+          "assiettes" $assiettesPourCalcul
+          "assiettesRecettes" $assiettesRecettes
+        ) -}}
 
-            {{- $iType :=  $key | strings.FirstUpper -}}
-            {{- if and  (or (eq $key "legumes") (eq $key "epices") ) (in $legumesFrais .title) -}}
-              {{- $iType = "Legumesfrais" -}}
-            {{- end -}}
-            {{ $ingname = $ingname | append .title }}
-            {{- $IngredientList =
-              $IngredientList | append (dict
-              "ingredient" .title
-              "quantite" $quantiteCompute
-              "unit" .unit
-              "ingType" $iType
+        {{/* Fusionner dans la structure globale en ajoutant le contexte (recette, date, etc.) */}}
+
+        {{- range $type, $list := $groupedForRecette -}}
+
+          {{- $current := index $IngTypeListGrouped $type | default (slice) -}}
+          {{- $enriched := slice -}}
+
+          {{- /* Enrichir chaque élément avec les infos du repas */}}
+          {{- range $item := $list -}}
+            {{- $enrichedItem := merge $item (dict
               "recette" $recetteName
               "dateService" $dateService
+              "dateTimeService" $dateTimeService
               "horaire" $horaire
               "typePlat" $typePlat
               "assiettesRecettes" $assiettesRecettes
               "assiettes" $assiettesPourCalcul
-              )
-            -}}
+            ) -}}
+            {{- $enriched = $enriched | append $enrichedItem -}}
+          {{- end -}}
 
-            {{/* USELESS What ? rm for test */}}
-            {{/* {{ if and  (eq $key "lof") (in $pFrais .title) }}
-            {{ $iType = "Frais" }}
-            {{- $IngredientsTypesList = $IngredientsTypesList | append (dict  "iType" $iType) -}}
-          {{ else }}
-            {{- $IngredientsTypesList = $IngredientsTypesList | append (dict  "iType" ($key | strings.FirstUpper )) -}}
-          {{ end }}
-          */}}
-          {{- $IngredientsTypesList = $IngredientsTypesList | append (dict  "iType" $iType ) -}}
+            {{- /* Fusionner en aplatissant la structure */}}
+            {{- $merged := $current | append $enriched -}}
+            {{- $IngTypeListGrouped = merge $IngTypeListGrouped (dict $type $merged) -}}
         {{- end -}}
       {{- end -}}
+    {{ $recetteKey = (add (int $recetteKey) 1) }}
     {{- end -}}
-    {{/* if $recettePage */}}
   {{- end -}}
-  {{/* recettes_du_repas */}}
-  {{ $recetteKey = (add (int $recetteKey) 1) }}
-{{- end -}}
 
-{{/* range $.param repas */}}
-  {{/* Dédoublage des listes */}}
-  {{- $IngredientsTypesList = $IngredientsTypesList | uniq -}}
-  {{- $ingname = $ingname | uniq -}}
+  {{/* Dates: bornes min/max */}}
+  {{- $datesTimeRepas := sort $datesTimeRepas -}}
+  {{- $datesRepas := sort $datesRepas -}}
+  {{- $startDate := cond (gt (len $datesRepas) 0) (index $datesRepas 0) "" -}}
+  {{- $endDate := cond (gt (len $datesRepas) 0) (index $datesRepas (sub (len $datesRepas) 1)) "" -}}
+
+
+  {{/* Construire la slice des types depuis IngTypeListGrouped → TODO: peut etre fait depuis la construction de $IngTypeListGrouped ? */}}
+  {{- $types := slice -}}
+  {{- range $t, $_ := $IngTypeListGrouped -}}
+    {{- $types = $types | append $t -}}
+  {{- end -}}
+  {{- $types = sort $types "value" "desc" -}}
+
+
+  {{/* Construire la liste unique des ingrédients (slug/uuid) pour l’UI  TODO: peut etre fait depuis la construction de $IngTypeListGrouped ? */}}
+  {{- $uniqueIng := slice -}}
+
+  {{- range $type, $list := $IngTypeListGrouped -}}
+    {{- range $list -}}
+      {{- $id :=  .uuid | default "" -}}
+        {{- if $id -}}
+          {{- $uniqueIng = $uniqueIng | append $id -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $uniqueIng = uniq $uniqueIng -}}
+  {{- $uniqueIngCount := len $uniqueIng  -}}
+
+  {{/* Flatten allIngredients from IngTypeListGrouped for Vue app */}}
+  {{- $flatAllIngredients := slice -}}
+  {{- range $type, $list := $IngTypeListGrouped -}}
+    {{- range $list -}}
+      {{- $flatAllIngredients = $flatAllIngredients | append . -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $flatAllIngredients = sort $flatAllIngredients "dateService" "asc" -}}
+
+  {{/* Stocker en Scratch pour portée globale */}}
+  {{- .Scratch.Set "IngTypeListGrouped" $IngTypeListGrouped -}}
+  {{- .Scratch.Set "types" $types -}}
+  {{- .Scratch.Set "datesRepas" $datesRepas -}}
+  {{- .Scratch.Set "datesTimeRepas" $datesTimeRepas -}}
+  {{- .Scratch.Set "startDate" $startDate -}}
+  {{- .Scratch.Set "endDate" $endDate -}}
+  {{- .Scratch.Set "uniqueIngCount" $uniqueIngCount -}}
+  {{- .Scratch.Set "allIngredients" $flatAllIngredients -}}
+
+  {{/* construire une liste d’objets { type, items } pour Vue (items triés par ingredient) */}}
+  {{- $ingByTypeList := slice -}}
+  {{- range $t := $types -}}
+    {{- $raw := index $IngTypeListGrouped $t | default (slice) -}}
+
+    {{- /* Vérifier que chaque élément est bien une map */}}
+    {{- $validItems := slice -}}
+    {{- range $item := $raw -}}
+      {{- if reflect.IsMap $item -}}
+        {{- $validItems = $validItems | append $item -}}
+      {{- else -}}
+        <div class="debug alert alert-warning">
+          Élément ignoré (type incorrect): {{ printf "%T" $item }} - {{ $item | jsonify }}
+        </div>
+      {{- end -}}
+    {{- end -}}
+
+    {{- /* Trier uniquement les éléments valides */}}
+    {{- $list := sort $validItems "ingredient" "asc" -}}
+    {{- $ingByTypeList = $ingByTypeList | append (dict "type" $t "items" $list) -}}
+  {{- end -}}
+
+
+  {{- .Scratch.Set "IngTypeList" $ingByTypeList -}}
+
+  <!-- <div class="debug my-2">first item of first section (json) $ingByTypeList → {{ (index (index $ingByTypeList 0).items 0) | jsonify }}</div>
+
+  <div class="debug my-2">first section (json) → {{ (index $ingByTypeList 0) | jsonify }}</div>
+  <div class="debug my-2">first section.type → {{ with (index $ingByTypeList 0) }}{{ index . "type" }}{{ end }}</div>
+  <div class="debug my-2">$uniqueIngCount → {{ $uniqueIngCount }}</div> -->
+
+  <!-- <div class="debug">IngTypeListGrouped → {{ $IngTypeListGrouped }}</div> -->
+
 
 
 {{/*  lien vers le CMS de la page  */}}
@@ -168,7 +224,23 @@
     {{ $posterlink = "#"}}
   {{ end }}
 
+  {{/* Construire la liste unique des ingrédients présents pour UI */}}
+  {{- $uniqueIng := slice -}}
+  {{- range $type, $list := $IngTypeListGrouped -}}
+    {{- range $list -}}
+        {{- $id :=  .uuid | default "" -}}
+        {{- if $id -}}
+          {{- $uniqueIng = $uniqueIng | append $id -}}
+        {{- end -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $uniqueIng = uniq $uniqueIng -}}
+  {{- $uniqueIngCount := len $uniqueIng -}}
+
+
+
 {{ partial  "components/event-top-nav" ( dict "inglink" $inglink "recettelink" $recettelink "posterlink" $posterlink "here" $here) }}
+
 
 {{/*  ::: Impression - MODAL  */}}
 <div class="modal modal-xl fade d-print-none" tabindex="-1" id="modalImpression" aria-labelledby="modalImpressionLabel"
@@ -300,7 +372,7 @@
     <div class="no-print" id="TotalIngredients"></div>
     <div class="container-fluid " :class="{'no-print':!toPrint.ingredients}">
       <h3 class="no-print">
-        Listes des {{ len $ingname }} ingrédients présents dans les
+        Listes des {{ (.Scratch.Get "uniqueIngCount") }} ingrédients présents dans les
         {{ $recettesLength }} recettes des {{ .Params.repas | len }} menus
       </h3>
       <div class="row justify-content-evenly">
@@ -411,8 +483,9 @@
               </div>
               <hr />
 
-              {{ range sort $IngredientsTypesList "iType" "desc" }}
-                <a href="#IngListID{{ .iType }}"> {{ .iType }} - </a>
+              {{ $types := .Scratch.Get "types" }}
+              {{ range $types }}
+                <a href="#IngListID{{ . }}"> {{ . }} - </a>
               {{ end }}
             </div>
           </div>
@@ -606,29 +679,30 @@
             </div>
           {{ end }}
 
+
           {{/* Renommage des iType */}}
           <div id="tableIng" v-cloak>
-            {{- range sort $IngredientsTypesList "iType" "desc" -}}
-              {{- $iTypeName := (partial "functions/ingredients-types-rename" (dict "ingType" .iType) .) -}}
-              {{- $IngTypeList := (printf "Ing%sList" .iType) -}}
+            {{- $types := .Scratch.Get "types" -}}
+            {{- range $types -}}
+              {{- $iTypeName := partial "functions/ingredients-types-rename-short" (dict "ingType" (. | strings.FirstUpper)) -}}
               {{/* ::: _ Card des tableau ingredients petit et grand */}}
               <div
-                v-show="totalQuantitesDP.{{ $IngTypeList }} && Object.keys(totalQuantitesDP.{{ $IngTypeList }}).length > 0"
+                v-show="totalQuantitesDP['{{ . }}'] && Object.keys(totalQuantitesDP['{{ . }}']).length > 0"
                 class="card my-2 mb-lg-6  mb-3 print-nocard"
-                :class="{'no-print':!toPrint.{{ .iType }} }"
-                id="IngListID{{ .iType }}"
+                :class="{'no-print':!toPrint.{{ . }} }"
+                id="IngListID{{ . }}"
               >
                 <div class="card-body">
                   <div class="no-print">
                     <span class="float-start me-2"
-                      >{{ partial "components/icon-svg" (dict "name" .iType "size" "2rem") }}</span
+                      >{{ partial "components/icon-svg" (dict "name" . "size" "2rem") }}</span
                     >
                     <span class="fs-4 toCopy"> {{ $iTypeName }} </span>
                     <div class="my-2 float-end no-print">
                       <a
                         class="btn btn-outline-secondary btn-sm text-muted "
                         role="button"
-                        @click="printThis('{{ .iType }}', 'ingredients')"
+                        @click="printThis('{{ . }}', 'ingredients')"
                         >{{ partial "components/icon-svg" (dict "name" "printer" "size" "1.7rem") }}</a
                       >
                     </div>
@@ -647,7 +721,7 @@
                   <table
                     class="table table-responsive toCopy caption-top"
                     :class="{'table-striped': !showAllColIngredients, 'table-bordered' : showAllColIngredients}"
-                    id="table-{{ .iType }}"
+                    id="table-{{ . }}"
                   >
                     <caption class="fs-5 printonly">
                       {{ $iTypeName }} du [[new Date
@@ -674,7 +748,7 @@
                     </thead>
                     <tbody>
                       <template
-                        v-for="(item, ingredient) in totalQuantitesDP.{{ $IngTypeList }}"
+                        v-for="(item, ingredient) in totalQuantitesDP['{{ . }}']"
                       >
                         <tr v-show="showAllColIngredients && !item.qTotalX">
                           <td :class="{'small text-muted': !item.qTotalX}">
@@ -733,7 +807,7 @@
                             <button
                               type="button"
                               class="btn btn-sm btn-outline-primary"
-                              @click="openIngredientModal(item.ingredient, '{{ .iType }}')"
+                              @click="openIngredientModal(item.ingredient, '{{ . }}')"
                               data-bs-toggle="modal"
                               data-bs-target="#ingredientDetailModal">
                               détail
@@ -829,13 +903,8 @@
     range = document.createRange();
     sel = window.getSelection();
     sel.removeAllRanges();
-    try {
-      range.selectNodeContents(el);
-      sel.addRange(range);
-    } catch (e) {
-      range.selectNode(el);
-      sel.addRange(range);
-    }
+    range.selectNodeContents(el);
+    sel.addRange(range);
   } else if (body.createTextRange) {
     range = body.createTextRange();
     range.moveToElementText(el);
@@ -979,18 +1048,25 @@
   }
 </script><script>
   flatpickr.localize(flatpickr.l10ns.fr);
+
+  {{/* Utiliser directement les types natifs issus du builder */}}
+  {{ $types := .Scratch.Get "types" -}}
+  {{ $ingByType := .Scratch.Get "IngTypeListGrouped" }}
+  {{ $ingByTypeList := .Scratch.Get "IngTypeList" }}
+
   {{/*  :::VUEAPP  */}}
   const app = Vue.createApp({
     delimiters: ['[[', ']]'],
     el: '#app',
     data () {
       return {
-        searchInput: '', // For direct v-model binding
+        searchInput: '',
         debouncedSearchQuery: '', // For debounced search logic
         searchDebounceTimer: null, // Timer for debounce
-        datesRepas: [], // liste des dates entre 1er et dernier repas : pour les date marqué event dans le date-picker
-        startDate: null, // re-initialisé dans mounted().
-        endDate: null,
+        datesRepas: {{ (.Scratch.Get "datesRepas") }},
+        datesTimeRepas: {{ (.Scratch.Get "datesTimeRepas")  }},
+        startDate: {{ (.Scratch.Get "startDate")  }},
+        endDate: {{ (.Scratch.Get "endDate")  }},
         startDateSelected: null,
         endDateSelected: null,
         endDateSelectedDebug: null,
@@ -998,99 +1074,27 @@
         startDateMenu: false,
         endDateMenu: false,
         showAllColIngredients: false,
-        {{/*  ingredientsTypesList: [{{ print $IngredientsTypesList }}],  */}}
         displayDetailsRecettes: true,
 
+        ingByTypeList: {{(.Scratch.Get "IngTypeList")  }},
 
-        ingredients: [
-          {{- range $IngredientList -}}
+        ingredients: {{ (.Scratch.Get "allIngredients")  }},
+        ingFraisFiltered: [],
+        totalRangeWithDetailResults: {},
 
-          {{ $dictIngredient := dict "ingredient" .ingredient "quantite" .quantite "unit" .unit }}
-          {{ $unit := .unit}}
-
-          {
-            ingredient: "{{ .ingredient }}",
-            ingredientType: "{{ .ingType }}",
-
-            quantite: {{- partial "functions/quantite-converter" (dict "fetchQuantite" true "ingredient" .ingredient "quantite" .quantite "unit" .unit) -}},
-            unit: "{{ partial "functions/quantite-converter" (dict "fetchUnit" true "ingredient" .ingredient "quantite" .quantite "unit" .unit) }}",
-            {{ if eq $unit (and ("unité") ("c. à café") ("c. à soupe")) }}
-            quantiteOrig: {{.quantite}},
-            unitOrig: "{{.unit}}",
-            {{ end }}
-
-            recette: "{{ .recette }}",
-            dateService:'{{ .dateService }}',
-            horaire: "{{ .horaire }}",
-            typePlat: "{{ .typePlat }}",
-            assiettesRecettes: {{ .assiettesRecettes }},
-            assiettes: {{ .assiettes }},
-          },
-          {{- end -}}
-          ],
-
-          ingFraisFiltered: [],
-          totalRangeWithDetailResults: {},
-          {{/*  TODO : gérer quantité/unit gr→kg ...  */}}
-          {{/*  ingTypeList : Object.freeze({
-            {{- $ingredientType := "" -}}
-            {{- range $IngredientsTypesList -}}
-            {{- $ingredientType = .iType -}}
-            {{ $dictIngredient := dict "ingredient" .ingredient "quantite" .quantite "unit" .unit }}
-            {{ $unit := .unit}}
-            {{printf "Ing%sList" .iType}}: [
-              {{ range $IngredientList -}}
-              {{ if eq .ingType $ingredientType }}
-              {
-                ingredient: "{{ .ingredient }}",
-                ingredientType: "{{ .ingType }}",
-
-                quantite: {{- partial "functions/quantite-converter" (dict "fetchQuantite" true "ingredient" .ingredient "quantite" .quantite "unit" .unit) -}},
-                unit: "{{ partial "functions/quantite-converter" (dict "fetchUnit" true "ingredient" .ingredient "quantite" .quantite "unit" .unit) }}",
-                  {{ if eq $unit (and ("unité") ("c. à café") ("c. à soupe")) }}
-                quantiteOrig: {{.quantite}},
-                unitOrig: "{{.unit}}",
-                  {{ end }}
-
-                recette: "{{ .recette }}",
-                dateService:'{{ .dateService }}',
-                horaire: "{{ .horaire }}",
-                typePlat: "{{ .typePlat }}",
-                assiettesRecettes: {{ .assiettesRecettes }},
-                assiettes: {{ .assiettes }},
-              },
-                {{- end -}}
-                {{- end -}}
-            ],
-            {{- end -}}
-          }),  */}}
-
-          ingTypeList :{
-            IngLegumesfraisList : [],
-            IngEpicesList : [],
-            IngAutresList : [],
-            IngLegumesList : [],
-            IngSucresList : [],
-            IngAnimauxList : [],
-            IngLofList : [],
-            IngSecList : [],
-            IngFraisList : [],
-          },
         {{/*  ::: ___Print parameters  */}}
         printSelectIng: false,
-        toPrint: {
-          ingredients: true,
-          {{- range $IngredientsTypesList -}}
-          {{.iType}}: true,
-          {{- end -}}
-          LegumesRanges: true,
-          FraisRanges: true,
-          AnimauxRanges: true,
-        },
+
+        {{- /* Build toPrint dict in Hugo and inject as JSON */ -}}
+        {{- $toPrint := dict "ingredients" true "LegumesRanges" true "FraisRanges" true "AnimauxRanges" true -}}
+        {{- range $i, $t := $types -}}
+          {{- $toPrint = merge $toPrint (dict $t true) -}}
+        {{- end -}}
+        toPrint: {{ $toPrint }},
 
         printAddCol: [],
 
-        IngredientsTypesList: [{{ range $IngredientsTypesList }} {{ .iType }}, {{ end }} ],
+        types: {{ $types }},
 
         rangesDates: [], // Tableau pour stocker les tranches de dates
         daysPerRange: 3,
@@ -1113,7 +1117,7 @@
         },
 
 
-  } {{/* return */}}
+  }
 }, {{/* data */}}
 
 created () {
@@ -1122,82 +1126,44 @@ created () {
 
 {{/* :::MOUNTED */}}
 mounted () {
+  // Logs de débogage
+  console.log("=== DÉBUG INITIALISATION ===");
+  console.log("Type de this.ingredients:", typeof this.ingredients);
+  console.log("Est un tableau:", Array.isArray(this.ingredients));
+  console.log("Longueur:", this.ingredients.length);
+  console.log("Contenu:", this.ingredients);
+
+  // Validation des données
+  if (!Array.isArray(this.ingredients) || this.ingredients.length === 0) {
+    console.warn("Aucune donnée d'ingrédients trouvée");
+    this.hasData = false;
+    return;
+  }
 
 
-  {{/*  TODO optim → hugo ?  */}}
-  {{/*  ::: __date range  */}}
-  datesRange: {
-    // Trouver la première et la dernière date dans les données
-    this.startDate = new Date(Math.min(
-      ...this.ingredients.map(i => {
-        return new Date(i.dateService);
-      }),
-      ),
-    );
-    this.endDate = new Date(Math.max(
-      ...this.ingredients.map(i => {
-        return new Date(i.dateService);
-      }),
-      ),
-    );
-
-    this.startDate = new Date(this.startDate).toISOString().substr(0, 10);
-    this.endDate = new Date(this.endDate).toISOString().substr(0, 10);
-
+  // Calculer les bornes de dates
+  if (this.datesRepas.length > 0) {
     this.startDateSelected = this.startDate;
-    this.endDateSelected = this.endDate
-    // Derniere date autorisée dans la sélection (ne sera pas mutable puisque dans `mounted:`)
-    this.endDateAllowed = this.endDateSelected;
-  };
-{{/*  TODO : optim : faire avec hugo  */}}
-  datesRepasGen: {
-    // Creer un tableau avec toutes les dateService, éliminer les doublon (Set). Défini le parametre `datesRepas` de `data()`, pour mettre en evidence les dateq où il y a des évenement dans les date-picker; TODO : est-ce encore utile maintenant que les `allowed-dates` fonctionne bien ? doublon ? Ne creer pas les date intermédiare si il y a des trou =>
-    const dates = this.ingredients.map(i => {
-      const datesFormat = i.dateService;
-      return new Date(datesFormat).toISOString().substr(0, 10) // formatage
+    this.endDateSelected = this.endDate;
+    this.endDateAllowed = this.endDate;
+
+    console.log("Dates initialisées:", {
+      startDate: this.startDate,
+      endDate: this.endDate,
+      startDateSelected: this.startDateSelected,
+      endDateSelected: this.endDateSelected
     });
+  }
 
-    this.datesRepas = Array.from(new Set(dates)).sort();
-  };
+  // Initialiser les datepickers
+  this.$nextTick(() => {
+    this.datePickerReset();
+  });
 
-  {{/*  rangeDateEvents: {
-    this.splitDateRanges(this.daysPerRange);
-  };  */}}
+  console.log("=== FIN DEBUG INITIALISATION ===");
 
-  endDateDebugGen: {
-    /* Ajoute un jour a la endDateSelected, pour que les derniers jours soit bien pris en compte par le filtre opéré dans totalsIngredientFiltered.
-    Meme fonction dans watch() pour la mise a jour en fonction de la selection dans le date-picker */
-
-    {{/*  this.endDateSelectedDebug = new Date(lastDateSelected.setDate(lastDateSelected.getDate() + 1 )).toISOString().substr(0, 10);  */}}
-  };
-
-  {{/*  ::: __flatpikr  */}}
-  datePickerInit: {
-    const datePicker = this.datePickerReset();
-  };
-
-  {{/*  Listes des ingrédients filtré par types : utilisé par les filtres dates et search.  */}}
-  ingTypeListGen:  {
-    const ingredientTypes = ["Autres", "Epices", "Frais", "Legumes", "Animaux", "Sec", "Sucres", "Lof"];
-    for (const i of this.ingredients) {
-
-      if (i.unit === 'grammes' || i.unit === 'gr.') {
-        i.quantite = i.quantite / 1000 ;
-        i.unit = 'Kg';
-      }
-      else if (i.unit === 'ml') {
-        i.quantite = i.quantite / 1000 ;
-        i.unit = 'l.';
-      }
-      else if (i.unit === 'litre') {
-        i.unit = 'l.';
-      }
-
-      this.ingTypeList[`Ing${i.ingredientType}List`].push(i);
-    }
-  };
-
-  {{/*  initialise les listes d'ingrédients  par types  */}}
+  // ::: __flatpikr
+  const datePicker = this.datePickerReset();
 
 
 }, // mounted() end
@@ -1210,19 +1176,30 @@ computed: {
   {{/*  :::__Total Date picker Ingredients  */}}
   filterByDatePicker() {
     const filtered = {};
+    if (!this.startDateSelected || !this.endDateSelected) {
+      return filtered;
+    }
     const startDate = new Date(this.startDateSelected);
     const endDate = new Date(this.endDateSelected);
 
-    if ( startDate === this.startDate && endDate === this.endDate ) {
-      return this.ingredients;
-    }
+    // Ajouter un jour à la date de fin pour inclure les événements de ce jour
+    endDate.setDate(endDate.getDate() + 1);
 
-    for (const [type, ingredients] of Object.entries(this.ingTypeList)) {
-      filtered[type] = ingredients.filter(ingredient => {
-        const ingredientDate = new Date(ingredient.dateService);
-        return ingredientDate >= startDate && ingredientDate <= endDate;
-      });
-    }
+    // Reconstruire un objet par type à partir de la liste de sections
+    const sections = Array.isArray(this.ingByTypeList) ? this.ingByTypeList : [];
+    sections.forEach(section => {
+      const items = Array.isArray(section.items) ? section.items : [];
+      if (this.startDateSelected === this.startDate && this.endDateSelected === this.endDate) {
+        // Pas de filtrage si toutes les dates sont sélectionnées
+        filtered[section.type] = items;
+      } else {
+        // Filtrer par date
+        filtered[section.type] = items.filter(ingredient => {
+          const ingredientDate = new Date(ingredient.dateTimeService);
+          return ingredientDate >= startDate && ingredientDate < endDate;
+        });
+      }
+    });
 
     return filtered;
   },
@@ -1286,18 +1263,18 @@ computed: {
     const mergedResult = new Map();
 
     for (const key in ingDetail) {
-      if (ingDetail.hasOwnProperty(key) && ingTotaux.hasOwnProperty(key)) {
+      if ( ingDetail.hasOwnProperty(key) && ingTotaux.hasOwnProperty(key) ) {
         mergedResult[key] = Object.assign({}, ingDetail[key], ingTotaux[key]);
       }
     }
-    // Sort the sub-objects in each Ing...List based on the ingredient value
+    // Tri des sous-objets de chaque type basé sur la valeur de l'ingrédient
     for (const key in mergedResult) {
-      if (mergedResult.hasOwnProperty(key)) {
+      if ( mergedResult.hasOwnProperty(key) ) {
         mergedResult[key] = Object.values(mergedResult[key]).sort((a, b) => a.ingredient.localeCompare(b.ingredient));
       }
     }
 
-    if (this.debouncedSearchQuery.length > 2) {
+    if ( this.debouncedSearchQuery.length > 2 ) {
       return this.searchFilter(mergedResult);
     } else {
       return mergedResult;
@@ -1341,13 +1318,9 @@ watch: {
   },
 
 
-  startDateSelected: function () {
-    this.filterByDatePicker;
-  },
+  // Les computed dépendront automatiquement de startDateSelected
 
-  endDateSelected: function () {
-    this.filterByDatePicker;
-  },
+  // Les computed dépendront automatiquement de endDateSelected
 
   splitDateRanges: function () {
     this.totalRangeWithDetail;
@@ -1467,13 +1440,14 @@ methods: {
   {{/*  tableaux des ingredients filtrés en fonction des dates séléctionné et types  */}}
 
   totalRange(iType, start, end) {
-    // BUG
     const key = `${iType}_${start}_${end}`;
-    if (this.debouncedSearchQuery.length > 2) {
-      return this.searchFilterRange(this.totalRangeWithDetailResults[key])
-    } else {
-      return this.totalRangeWithDetailResults[key]
+    if (!this.totalRangeWithDetailResults[key]) {
+      this.totalRangeWithDetail(iType, start, end);
     }
+    const base = this.totalRangeWithDetailResults[key] || [];
+    return this.debouncedSearchQuery.length > 2
+      ? this.searchFilterRange(base)
+      : base;
   },
 
   totalRangeWithDetail(iType, start, end) {
@@ -1491,7 +1465,8 @@ methods: {
 
     const ingDetailList = this.ingFraisFiltered;
 
-    const result = new Set([...ingDetailList, ...totalArray].sort((a, b) => a.ingredient.localeCompare(b.ingredient)));
+    const result = [...ingDetailList, ...totalArray]
+      .sort((a, b) => a.ingredient.localeCompare(b.ingredient));
     {{/*  console.log("tQWD: ", result);  */}}
 
     this.totalRangeWithDetailResults[key] = result;
@@ -1551,8 +1526,14 @@ methods: {
 
   filteredIngredientsRange: function (iType, start, end, allo) {
     {{/* `allo` sert au debug...  */}}
-    // Récupérer la liste des ingrédients
-    const ingredients = this.ingTypeList[`Ing${iType}List`];
+
+    const sections = Array.isArray(this.ingByTypeList) ? this.ingByTypeList : [];
+    const section = sections.find(s => s.type === iType);
+    const ingredients = section && Array.isArray(section.items) ? section.items : [];
+    if (!Array.isArray(ingredients)) {
+      console.warn('[ingredients] expected array for type', iType);
+      return [];
+    }
 
     // Debug de la date (ajout d'un jour pour que la derniere date soit prise en compte) → si 'end' est définie, alors on envoie à DateAddDays, puis on reformate la date.
     {{/*  end  = this.DateAddDays(end).toISOString().slice(0, 10);  */}}
@@ -1562,8 +1543,8 @@ methods: {
 
       const filtered = ingredients.filter(
         (i) =>
-          i.dateService >= start &&
-          i.dateService <=end
+          i.dateTimeService >= start &&
+          i.dateTimeService <= end
       );
 
     this.ingFraisFiltered = filtered;
@@ -1590,17 +1571,11 @@ methods: {
 
   {{/* :::__ search filter  */}}
   searchFilterRange(totalRange) {
-    const filteredSet = new Set();
-    // BUG searchRange
-    // TODO : diacritique...
-    totalRange.forEach((item) => {
-      // Utiliser searchFormat pour une recherche cohérente (insensible à la casse et aux accents)
-      if (item.toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").includes(this.searchFormat)) {
-        filteredSet.add(item);
-      }
-    });
-
-    return filteredSet;
+    if (!Array.isArray(totalRange)) return [];
+    return totalRange.filter(item =>
+      (item.ingredient || '').normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase()
+        .includes(this.searchFormat)
+    );
   },
 
 
@@ -1621,17 +1596,16 @@ methods: {
     this.selectedIngredient = ingredientName;
 
     // Définir les dates du range basées sur le date picker actuel
-    this.modalDateStart = this.datePickerStart;
-    this.modalDateEnd = this.datePickerEnd;
+    this.modalDateStart = this.startDateSelected;
+    this.modalDateEnd = this.endDateSelected;
 
     // Filtrer les ingrédients pour celui sélectionné dans la période active
     const filteredIngredients = this.filterByDatePicker;
-    const typeList = `Ing${ingredientType}List`;
 
-    if (filteredIngredients[typeList]) {
-      this.ingredientDetails = filteredIngredients[typeList].filter(
+    if (filteredIngredients[ingredientType]) {
+      this.ingredientDetails = filteredIngredients[ingredientType].filter(
         ingredient => ingredient.ingredient === ingredientName
-      ).sort((a, b) => new Date(a.dateService) - new Date(b.dateService));
+      ).sort((a, b) => new Date(a.dateTimeService) - new Date(b.dateTimeService));
     } else {
       this.ingredientDetails = [];
     }
@@ -1651,7 +1625,7 @@ methods: {
     const filtered = this.filteredIngredientsRange(ingredientType, startDate, endDate);
     this.ingredientDetails = filtered.filter(
       ingredient => ingredient.ingredient === ingredientName
-    ).sort((a, b) => new Date(a.dateService) - new Date(b.dateService));
+    ).sort((a, b) => new Date(a.dateTimeService) - new Date(b.dateTimeService));
 
     // Calculer le total pour cet ingrédient
     this.calculateIngredientTotal();

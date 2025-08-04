@@ -17,8 +17,6 @@
 
 {{/* Charger l'index global des ingrédients (conservé) */}}
 {{ $ingredientsIndex := partialCached "functions/ingredients-index.html" . }}
-{{ $bySlug := $ingredientsIndex.bySlug }}
-{{ $byUUID := $ingredientsIndex.byUUID }}
 {{ $byAllergen := $ingredientsIndex.byAllergen }}
 {{ $.Scratch.Set "byAllergen" $byAllergen }}
 
@@ -28,12 +26,7 @@
 
 {{/* Récupérer les ingrédients frais depuis l'index */}}
 {{/* WARN : les legume frais sont à la fois de type "legumes" et pFrais. Créer un fonction dédiée et partialCached ? */}}
-{{- $legumesFrais := slice -}}
-{{- range $slug, $meta := $bySlug -}}
-  {{- if $meta.pFrais -}}
-    {{- $legumesFrais = $legumesFrais | append $meta.title -}}
-  {{- end -}}
-{{- end -}}
+
 
 
 {{- range .Param "repas" -}}
@@ -43,13 +36,13 @@
 
 
   {{/*  Modifier l'heure de la date ISO en fonction du parametre $horaire (non défini par l'utilisateur) afin de permettre le tri par date des recettes.  */}}
-    {{ if eq $horaire "matin" }}
-      {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T08:00:00" }}
-    {{- else if eq $horaire "midi" -}}
-      {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T12:00:00" -}}
-    {{- else if eq $horaire "soir" -}}
-      {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T20:00:00" -}}
-    {{ end -}}
+  {{ if eq $horaire "matin" }}
+    {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T08:00:00" }}
+  {{- else if eq $horaire "midi" -}}
+    {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T12:00:00" -}}
+  {{- else if eq $horaire "soir" -}}
+    {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T20:00:00" -}}
+  {{ end -}}
 
   {{- $repasBaseAssiettes := (int .assiettes) -}}
 
@@ -110,22 +103,15 @@
             {{- $slug = index $parts 0 -}}
             {{- $uuid = index $parts (sub (len $parts) 1) -}}
           {{- end -}}
-          {{- with (index $bySlug $slug) -}}
+          {{- with (index $ingredientsIndex.byUUID $uuid) -}}
             {{- $meta = . -}}
-          {{- else -}}
-            {{- with (index $byUUID $uuid) -}}
-              {{- $meta = . -}}
-            {{- end -}}
           {{- end -}}
         {{- end -}}
 
         {{- $title := (cond (and $meta (isset $meta "title")) ($meta.title) $ingId) -}}
         {{- $itype := (cond (and $meta (isset $meta "type")) ($meta.type) "") -}}
         {{- $iType := ($itype | strings.FirstUpper) -}}
-        {{/* WARN : nous sommes censé vérifié pFrais, ce que fait $legumeFrais, mais est mal nommé... A recheck */}}
-        {{- if and (in $legumesFrais $title) (or (eq $iType "Legumes") (eq $iType "Epices")) -}}
-          {{- $iType = "Legumesfrais" -}}
-        {{- end -}}
+      
 
         {{/* Proportion: (quantité recette x assiettes événement) / assiettes recette */}}
         {{- $quantiteCompute:= float "0" -}}
@@ -228,10 +214,10 @@
       {{- range sort $recettesListLocal ".dateService" -}}
 
       <div>
-        {{ if and (ne (.dateService | time.Format "Monday 2 January ") $dateServiceSommaire) }}
+        {{ if and (ne ((.dateService | time) | time.Format "Monday 2 January ") $dateServiceSommaire) }}
           <div class="mt-4">
-            <a href="#{{ .dateService | time.Format "Monday 2 January" |urlize}}" class="fw-bolder text-uppercase">
-              <slot name='{{.dateService | time.Format "Monday 2 January" | urlize}}'>{{.dateService | time.Format "Monday 2 January"}}</slot>
+            <a href="#{{ (.dateService | time) | time.Format "Monday 2 January" |urlize}}" class="fw-bolder text-uppercase">
+              <slot name='{{ (.dateService | time) | time.Format "Monday 2 January" | urlize}}'>{{ (.dateService | time) | time.Format "Monday 2 January"}}</slot>
             </a>
           </div>
         {{ end }}
@@ -250,7 +236,7 @@
       </div>
 
       {{/*  Actualiser la date et l'horaire apres le range  */}}
-      {{ $dateServiceSommaire = (.dateService | time.Format "Monday 2 January ")}}
+      {{ $dateServiceSommaire = ((.dateService | time) | time.Format "Monday 2 January ")}}
       {{ $currentHoraireSommaire = .horaire }}
 
       {{end}} {{/*  range recettesList */}}
@@ -271,16 +257,16 @@
 {{ $horaire := "none" }}
 {{ range sort $recettesListLocal ".dateService" }}
   <div id="recette_Card-intertitre" class="no-print">
-    {{ if and ( ne (.dateService | time.Format "Monday 2 January ") $dateService )}}
-      <div class="h3 text-center card py-4 mx-6 bg-primary bg-opacity-10 fw-bolder"  id="{{.dateService | time.Format "Monday 2 January" |urlize}}">{{ .dateService | time.Format "Monday 2 January"}}</div>
+    {{ if and ( ne ((.dateService | time) | time.Format "Monday 2 January ") $dateService )}}
+      <div class="h3 text-center card py-4 mx-6 bg-primary bg-opacity-10 fw-bolder"  id="{{ (.dateService | time) | time.Format "Monday 2 January" |urlize}}">{{ (.dateService | time) | time.Format "Monday 2 January"}}</div>
     {{ end }}
 
     {{ if ne .horaire $horaire }}
       <div class="h4 text-center card py-3 mx-6 bg-light">{{ .horaire}} </div>
     {{ end }}
 
-    {{ $dateService = (.dateService | time.Format "Monday 2 January ")}}
-    {{ if eq (.dateService | time.Format "Monday 2 January ") $dateService }}
+    {{ $dateService = ((.dateService | time) | time.Format "Monday 2 January ")}}
+    {{ if eq ((.dateService | time) | time.Format "Monday 2 January ") $dateService }}
       {{ $horaire = .horaire }}
     {{ else }}
       {{ $horaire = "" }}
@@ -334,7 +320,7 @@
 
     <div id="topRecette" class="row">
       <div class="col">
-        <div class="fw-semibold fs-5 print-fs-4"> {{ $dateService | time.Format "Monday 2 January "}} - {{ $horaire }} - {{
+        <div class="fw-semibold fs-5 print-fs-4"> {{ ($dateService | time) | time.Format "Monday 2 January "}} - {{ $horaire }} - {{
           $typePlat }}</div>
         <div class="print-bold">{{ $assiettes }} couverts</div>
         <div class="">
@@ -417,12 +403,8 @@
                 {{- $slug = index $parts 0 -}}
                 {{- $uuid = index $parts (sub (len $parts) 1) -}}
               {{- end -}}
-              {{- with (index $bySlug $slug) -}}
+              {{- with (index $ingredientsIndex.byUUID $uuid) -}}
                 {{- $meta = . -}}
-              {{- else -}}
-                {{- with (index $byUUID $uuid) -}}
-                  {{- $meta = . -}}
-                {{- end -}}
               {{- end -}}
             {{- end -}}
 
@@ -430,10 +412,7 @@
             {{- $itype := (cond (and $meta (isset $meta "type")) ($meta.type) "") -}}
             {{- $displayType := ($itype | strings.FirstUpper) -}} {{/* Capitalize for display */}}
 
-            {{/* Apply Legumesfrais special case */}}
-            {{- if and (in $legumesFrais $title) (or (eq $displayType "Legumes") (eq $displayType "Epices")) -}}
-              {{- $displayType = "Legumesfrais" -}}
-            {{- end -}}
+         
 
             {{/* Add resolved title to $ingredientsL for allergen checks */}}
             {{- $ingredientsL = $ingredientsL | append $title -}}
@@ -534,8 +513,6 @@
         <div class="my-2">
           {{- partial "components/ingredients-grouped-list.html" (dict
               "items" .Params.ingredients
-              "bySlug" $bySlug
-              "byUUID" $byUUID
               "mode" "evenement"
               "assiettes" $assiettes
               "assiettesRecettes" $assiettesRecettes

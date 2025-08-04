@@ -1,31 +1,48 @@
-{{/* Index global recettes: bySlugRecette, byUUIDRecette */}}
-{{- $bySlugRecette := dict -}}
+{{/*
+  recettes-index
+
+  Refactor: UUID as primary key, with slugUuid alias kept for compatibility.
+
+  Output: dict with:
+    - byUUIDRecette: { uuid -> meta }
+    - bySlugRecette: { slugUuid -> meta }  // compatibility alias
+  Meta contains: page, uuid, slugUuid, title, categories[].
+
+  Usage:
+    {{ $index := partial "functions/recettes-index" . }}
+    {{ $byUUID := $index.byUUIDRecette }}
+    {{ $bySlug := $index.bySlugRecette }}
+    {{ with (index $byUUID "cjf5v7d3") }}{{ .title }}{{ end }}
+*/}}
+
+
 {{- $byUUIDRecette := dict -}}
+{{- $bySlugRecette := dict -}}
 
-{{- $recettesSection := site.GetPage "section" "recettes" -}}
-{{- if $recettesSection -}}
-  {{- range $recettesSection.RegularPages -}}
-    {{- $p := . -}}
-    {{- $slug := $p.File.BaseFileName | default $p.Slug | default $p.RelPermalink -}}
-    {{- $uuid := or $p.Params.uuid "" -}}
-    {{- $title := $p.Title -}}
-    {{- $categories := $p.Params.categories | default (slice) -}}
+{{/* Parcourir toutes les pages de la section recettes, même si RegularPages filtre trop */}}
+{{- $pages := where site.Pages "Section" "recettes" -}}
+{{- range $pages -}}
+  {{- $p := . -}}
+  {{- $parentDir := path.Base (path.Dir $p.File.Path) -}}
+  {{- $slugUuid := or $parentDir ($p.Slug | default $p.RelPermalink) -}}
+  {{- $uuid := or $p.Params.uuid (replaceRE "^.*_" "" $slugUuid) -}}
+  {{- $title := $p.Title -}}
+  {{- $categories := $p.Params.categories | default (slice) -}}
 
-    {{- $meta := dict
-        "page" $p
-        "slug" $slug
-        "uuid" $uuid
-        "title" $title
-        "categories" $categories
-      -}}
+  {{- $meta := dict
+      "page" $p
+      "uuid" $uuid
+      "slugUuid" $slugUuid
+      "title" $title
+      "categories" $categories
+    -}}
 
-    {{- if $slug -}}
-      {{- $bySlugRecette = merge $bySlugRecette (dict $slug $meta) -}}
-    {{- end -}}
-    {{- if and $uuid (ne $uuid "") -}}
-      {{- $byUUIDRecette = merge $byUUIDRecette (dict $uuid $meta) -}}
-    {{- end -}}
+  {{- if and $uuid (ne $uuid "") -}}
+    {{- $byUUIDRecette = merge $byUUIDRecette (dict $uuid $meta) -}}
+  {{- end -}}
+  {{- if and $slugUuid (ne $slugUuid "") -}}
+    {{- $bySlugRecette = merge $bySlugRecette (dict $slugUuid $meta) -}}
   {{- end -}}
 {{- end -}}
 
-{{- return (dict "bySlugRecette" $bySlugRecette "byUUIDRecette" $byUUIDRecette) -}}
+{{- return (dict "byUUIDRecette" $byUUIDRecette "bySlugRecette" $bySlugRecette) -}}

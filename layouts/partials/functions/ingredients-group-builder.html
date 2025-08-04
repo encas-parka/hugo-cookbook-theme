@@ -1,0 +1,117 @@
+{{/*
+  ingredients-group-builder.html
+
+  DRY core builder for grouped ingredients by type.
+
+  Purpose:
+    Centralize the logic to:
+      - Resolve each ingredient from global index (byUUID only)
+      - Determine type from meta.type (new data model, no legacy section keys)
+      - Optionally scale quantities for events: (q * assiettes) / assiettesRecettes
+      - Group entries by type
+
+  Input (dict):
+    - items:              (list)  List of items (e.g., .Params.ingredients from a recipe)
+        Each item: { ingredient, quantite, unit, commentaire } where "ingredient" is a slug (must include UUID in the form slug_uuid).
+    - byUUID:             (map)   Ingredients index by UUID (from functions/ingredients-index)
+    - mode:               (string) "recette" | "evenement" (default: "recette")
+    - assiettes:          (int/float, optional) event servings (required if mode = "evenement")
+    - assiettesRecettes:  (int/float, optional) recipe base servings (required if mode = "evenement")
+
+  Output:
+    - dict { type -> [ entries ] }
+      where entry = {
+        title,          // from ingredients index
+        ingredient,     // from ingredients index; alias title
+        type,           // from ingredients index
+        allergenes,     // from ingredients index
+        quantite,       // scaled if mode = "evenement"
+        unit,           // unit as declared on the item
+        commentaire,    // free text
+      }
+
+  Notes:
+    - Unresolved ingredients go under "absent".
+    - Type is read from meta.type (default "autres").
+    - This partial returns data (no HTML render).
+*/}}
+
+{{- $items := .items | default (slice) -}}
+{{- $byUUID := .byUUID | default (dict) -}}
+{{- $mode := .mode | default "recette" -}}
+{{- $assiettes := .assiettes -}}
+{{- $assiettesRecettes := .assiettesRecettes -}}
+
+{{- $grouped := dict -}}
+
+{{- range $items -}}
+  {{- $ingId := .ingredient | default "" -}}
+  {{- $q := .quantite | default 0 -}}
+  {{- $u := .unit | default "" -}}
+  {{- $c := .commentaire -}}
+
+  {{- $meta := dict -}}
+  {{- if $ingId -}}
+    {{- $uuid := partial "functions/extract-uuid-from-slug" $ingId -}}
+    {{- if $uuid -}}
+      {{- with (index $byUUID $uuid) -}}
+        {{- $meta = . -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+
+  {{- if and $meta (gt (len $meta) 0) -}}
+    {{- $type := ($meta.type | default "autres") -}}
+    {{- $title := $meta.title -}}
+    {{- $allergenes := ($meta.allergenes | default (slice)) -}}
+    {{- $uuid := $meta.uuid -}}
+
+    {{/* Scaling for event mode if both assiettes and assiettesRecettes are provided (non-empty) */}}
+    {{- $scaledQty := (float $q) -}}
+    {{- if and (eq $mode "evenement") (ne (printf "%v%v" $assiettes $assiettesRecettes) "") -}}
+      {{- $den := (cond (gt (float $assiettesRecettes) 0) (float $assiettesRecettes) 1.0) -}}
+      {{- $scaledQty = (div (mul (float $q) (float $assiettes)) $den) -}}
+    {{- end -}}
+
+    {{- $entry := dict
+        "title" $title
+        "ingredient" $title
+        "type" $type
+        "allergenes" $allergenes
+        "quantite" $scaledQty
+        "unit" $u
+        "commentaire" $c
+        "uuid" $uuid
+      -}}
+
+    {{- /* Validation explicite de la structure */}}
+    {{- if not (reflect.IsMap $entry) -}}
+      {{- errorf "Erreur: l'entrée n'est pas une map: %v" $entry -}}
+    {{- end -}}
+
+    {{- $current := (index $grouped $type) | default (slice) -}}
+    {{- $grouped = merge $grouped (dict $type ( $current | append $entry )) -}}
+  {{- else -}}
+    {{/* Unresolved ingredient (grouped under "absent") */}}
+    {{- $fallback := cond (ne $ingId "") $ingId "inconnu" -}}
+
+    {{- $entry := dict
+        "slug" $ingId
+        "ingredient" $fallback
+        "quantite" $q
+        "unit" $u
+        "commentaire" $c
+        "uuid" $fallback
+      -}}
+
+    {{- /* Validation explicite de la structure */}}
+    {{- if not (reflect.IsMap $entry) -}}
+      {{- errorf "Erreur: l'entrée n'est pas une map: %v" $entry -}}
+    {{- end -}}
+
+    {{- $current := (index $grouped "absent") | default (slice) -}}
+    {{- $grouped = merge $grouped (dict "absent" ( $current | append $entry )) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- return $grouped -}}
