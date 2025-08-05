@@ -23,9 +23,9 @@
 */ -}}
 
 {{- /* Index globaux */ -}}
-{{- $recettesIndex := partialCached "functions/recettes-index.html" . -}}
+{{- $recettesIndex := partialCached "functions/recettes-index.html" "recettes-index-global" -}}
 {{- $byUUIDRecette := cond (and $recettesIndex (isset $recettesIndex "byUUIDRecette")) $recettesIndex.byUUIDRecette (dict) -}}
-{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" . -}}
+{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" -}}
 {{- $byUUIDIng := cond (and $ingredientsIndex (isset $ingredientsIndex "byUUID")) $ingredientsIndex.byUUID (dict) -}}
 
 {{- /* Structures d’agrégation (miroir single.ingredients) */ -}}
@@ -80,7 +80,7 @@
 
     {{- if $recetteMeta -}}
       {{- $recetteName = $recetteMeta.title -}}
-      {{- $recettePage = $recetteMeta.page -}}
+      {{- /* Recette trouvée via l'index */ -}}
     {{- else -}}
       {{- /* Recette non trouvée, l'ajouter à la liste des recettes manquantes */ -}}
       {{- $missingRecipeInfo := dict
@@ -95,23 +95,9 @@
       {{- $missingRecipes = $missingRecipes | append $missingRecipeInfo -}}
     {{- end -}}
 
-    {{- if $recettePage -}}
-      {{- $assiettesRecettes = $recettePage.Params.plate -}}
-      {{- $ingredients = $recettePage.Params.ingredients -}}
-      {{- $assiettesRecettes := $recettePage.Params.plate -}}
-      {{- $ingredients := $recettePage.Params.ingredients -}}
-    {{- else if $recetteMeta -}}
-      {{- /* Recette trouvée mais page vide, l'ajouter à la liste des recettes manquantes */ -}}
-      {{- $missingRecipeInfo := dict
-        "recetteSlug" .recette
-        "dateService" $dateService
-        "dateTimeService" $dateTimeService
-        "horaire" $horaire
-        "typePlat" $typePlat
-        "assiettes" $assiettesPourCalcul
-        "reason" "Page vide"
-      -}}
-      {{- $missingRecipes = $missingRecipes | append $missingRecipeInfo -}}
+    {{- if $recetteMeta -}}
+      {{- $assiettesRecettes = $recetteMeta.plate -}}
+      {{- $ingredients = $recetteMeta.ingredients -}}
     {{- end -}}
 
     {{- /* Builder groupé par type (miroir) */ -}}

@@ -1,48 +1,131 @@
 {{/*
   recettes-index
 
-  Refactor: UUID as primary key, with slugUuid alias kept for compatibility.
+  But: construire un index global des recettes (section "recettes") pour accès rapide.
+  Clé primaire: UUID.
+  Cet index est optimisé pour contenir toutes les données nécessaires aux templates,
+  afin d'éviter les appels répétés à site.GetPage et d'améliorer les performances.
 
-  Output: dict with:
-    - byUUIDRecette: { uuid -> meta }
-    - bySlugRecette: { slugUuid -> meta }  // compatibility alias
-  Meta contains: page, uuid, slugUuid, title, categories[].
+  Sortie: dict avec:
+    - byUUIDRecette: {uuid -> meta}           // primaire
+    - bySlugRecette: {slugUuid -> meta}       // alias pour compatibilité
+  Meta contient: permalink, uuid, slugUuid, title, type, categories[],
+                 ingredients[], plate, check, checkfor, checkAlwaysOk,
+                 spécialité, materiel[], preparation, preparation24h,
+                 quantite_desc, astuces[], commentaire, regime[], region, saison[].
 
   Usage:
-    {{ $index := partial "functions/recettes-index" . }}
+    {{ $index := partial "functions/recettes-index"  "recettes-index-global" }}
     {{ $byUUID := $index.byUUIDRecette }}
     {{ $bySlug := $index.bySlugRecette }}
-    {{ with (index $byUUID "cjf5v7d3") }}{{ .title }}{{ end }}
+    {{ with (index $byUUID "cjf5v7d3") }}
+      <a href="{{ .permalink }}">{{ .title }}</a>
+      {{ range .ingredients }}
+        {{ .ingredient }} - {{ .quantite }} {{ .unit }}
+      {{ end }}
+    {{ end }}
 */}}
 
 
 {{- $byUUIDRecette := dict -}}
-{{- $bySlugRecette := dict -}}
 
-{{/* Parcourir toutes les pages de la section recettes, même si RegularPages filtre trop */}}
-{{- $pages := where site.Pages "Section" "recettes" -}}
-{{- range $pages -}}
+{{/* Itérer sur les pages de recettes pour construire l'index */}}
+{{- $recettesPages := where site.RegularPages "Section" "recettes" -}}
+{{- range $recettesPages -}}
   {{- $p := . -}}
-  {{- $parentDir := path.Base (path.Dir $p.File.Path) -}}
-  {{- $slugUuid := or $parentDir ($p.Slug | default $p.RelPermalink) -}}
-  {{- $uuid := or $p.Params.uuid (replaceRE "^.*_" "" $slugUuid) -}}
-  {{- $title := $p.Title -}}
-  {{- $categories := $p.Params.categories | default (slice) -}}
-
-  {{- $meta := dict
-      "page" $p
-      "uuid" $uuid
-      "slugUuid" $slugUuid
-      "title" $title
-      "categories" $categories
-    -}}
+  {{- /* Le slug est le nom du dossier parent (ex: "ma-recette_uuid") */}}
+  {{- $slugUuid := $p.Parent.File.BaseFileName -}}
+  {{- $uuid := or $p.Params.uuid (replaceRE `^.*_` "" $slugUuid) -}}
 
   {{- if and $uuid (ne $uuid "") -}}
+    {{- $title := $p.Title -}}
+    {{- $type := or $p.Params.type "" -}}
+    {{- $permalink := $p.Permalink -}}
+
+    {{- $categories := (slice) -}}
+    {{- with $p.Params.categories -}}
+      {{- if reflect.IsSlice . -}}
+        {{- $categories = . -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{- $ingredients := (slice) -}}
+    {{- with $p.Params.ingredients -}}
+      {{- if reflect.IsSlice . -}}
+        {{- $ingredients = . -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{- $materiel := (slice) -}}
+    {{- with $p.Params.materiel -}}
+      {{- if reflect.IsSlice . -}}
+        {{- $materiel = . -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{- $astuces := (slice) -}}
+    {{- with $p.Params.astuces -}}
+      {{- if reflect.IsSlice . -}}
+        {{- $astuces = . -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{- $regime := (slice) -}}
+    {{- with $p.Params.regime -}}
+      {{- if reflect.IsSlice . -}}
+        {{- $regime = . -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{- $saison := (slice) -}}
+    {{- with $p.Params.saison -}}
+      {{- if reflect.IsSlice . -}}
+        {{- $saison = . -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{- $prepAlt := (slice) -}}
+    {{- with $p.Params.prepAlt -}}
+      {{- if reflect.IsSlice . -}}
+        {{- $prepAlt = . -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{- $temperature := or $p.Params.temperature "" -}}
+    {{- $cuisson := or $p.Params.cuisson "Non" -}}
+
+    {{- $meta := dict
+        "permalink" $permalink
+        "uuid" $uuid
+        "slugUuid" $slugUuid
+        "title" $title
+        "type" $type
+        "categories" $categories
+        "ingredients" $ingredients
+        "plate" (or $p.Params.plate 0)
+        "check" (or $p.Params.check "Non")
+        "checkfor" (or $p.Params.checkfor 0)
+        "checkAlwaysOk" (or $p.Params.checkAlwaysOk false)
+        "spécialité" (or $p.Params.spécialité "")
+        "materiel" $materiel
+        "preparation" (or $p.Params.preparation "")
+        "preparation24h" (or $p.Params.preparation24h "")
+        "quantite_desc" (or $p.Params.quantite_desc "")
+        "astuces" $astuces
+        "commentaire" (or $p.Params.commentaire "")
+        "regime" $regime
+        "region" (or $p.Params.region "")
+        "saison" $saison
+        "prepAlt" $prepAlt
+        "temperature" $temperature
+        "cuisson" $cuisson
+      -}}
+
+    {{- /* Index par UUID (clé primaire) */}}
     {{- $byUUIDRecette = merge $byUUIDRecette (dict $uuid $meta) -}}
-  {{- end -}}
-  {{- if and $slugUuid (ne $slugUuid "") -}}
-    {{- $bySlugRecette = merge $bySlugRecette (dict $slugUuid $meta) -}}
+
+
   {{- end -}}
 {{- end -}}
 
-{{- return (dict "byUUIDRecette" $byUUIDRecette "bySlugRecette" $bySlugRecette) -}}
+{{- return (dict "byUUIDRecette" $byUUIDRecette) -}}
