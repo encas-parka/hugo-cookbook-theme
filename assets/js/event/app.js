@@ -22,7 +22,6 @@ export function createEventApp(initialData = {}) {
     startDate = null,
     endDate = null,
     ingByTypeList = [],
-    allIngredients = [],
     types = [],
     toPrint = {},
     uniqueIngCount = 0,
@@ -61,7 +60,6 @@ export function createEventApp(initialData = {}) {
 
         // Groupements/ingrédients
         ingByTypeList,
-        ingredients: Array.isArray(allIngredients) ? allIngredients : [],
         ingFraisFiltered: [],
         totalRangeWithDetailResults: {},
         uniqueIngCount,
@@ -97,22 +95,17 @@ export function createEventApp(initialData = {}) {
     },
 
     mounted() {
-      // Logs de débogage semblables à la version inline
-      try {
-        console.log("=== DÉBUG INITIALISATION ===");
-        console.log("Type de this.ingredients:", typeof this.ingredients);
-        console.log("Est un tableau:", Array.isArray(this.ingredients));
-        console.log("Longueur:", this.ingredients.length);
-        console.log("Contenu:", this.ingredients);
-      } catch (_e) {
-        // Logging best-effort
-      }
 
-      if (!Array.isArray(this.ingredients) || this.ingredients.length === 0) {
-        console.warn("Aucune donnée d'ingrédients trouvée");
-        this.hasData = false;
-        return;
-      }
+      const hasIngredients = Array.isArray(this.ingByTypeList) &&
+                               this.ingByTypeList.length > 0 &&
+                               this.ingByTypeList.some(group => group.items && group.items.length > 0);
+
+        if (!hasIngredients) {
+          console.warn("Aucune donnée d'ingrédients trouvée via ingByTypeList");
+          this.hasData = false;
+          return;
+        }
+
 
       // Initialisation bornes des dates si disponibles
       if (Array.isArray(this.datesRepas) && this.datesRepas.length > 0) {
