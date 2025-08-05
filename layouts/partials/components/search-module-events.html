@@ -1,29 +1,48 @@
 {{/* DOCUMENTATION
-  Module de recherche des recettes alpinejs. Utilisé dans la home-page et dans le header (navbar)
-  Lié au script mis en partial component/js_search-modules, importé par partial/header/header.html (bug depuis footer-script ou header-script) 
+  Module de recherche des événements Vue.js. Utilisé dans la home-page et dans le header (navbar)
+  Il sert de point de montage pour l'application Vue.js et inclut les données des événements.
+  Lié au script dans assets/js/components/search-modules.js.
 */}}
 
-<div x-data="searchEvents">
+{{/* Préparation des données pour la recherche d'événements */}}
+{{- $eventsData := slice -}}
+{{- range(where .Site.RegularPages "Section" "evenements" ) -}}
+    {{- $eventsData = $eventsData | append (dict
+    "title" .Title
+    "url" .RelPermalink
+  ) -}}
+{{- end -}}
+{{- $eventsJSON := $eventsData | jsonify -}}
+
+<div id="app-search-events" data-events='{{ $eventsJSON }}'>
     <input
         type="text"
-        x-on:input.debounce="getEvents"
-        x-on:keydown.escape="closeSearch"
+        v-model="searchEventsInput"
+        @keydown.esc="closeSearch"
+        @keydown.down.prevent="selectNext"
+        @keydown.up.prevent="selectPrevious"
+        @keydown.enter.prevent="navigateToSelected"
         placeholder="Rechercher un évenement...(au moins 4 lettres)"
-        x-model="searchEventsInput"
         class="form-control"
         id="qsearch-events"
+        autofocus
       />
-    
-    <template x-for="event in getEvents" key:="event.url">
-     <a :href="event.url">
-       <div class="searchCard">
-          <span class="fs-5" :href="event.url" x-text="event.title"></span>
-          <div class="float-end">
-          <span  x-text="event.NbRepas"></span>
-         <span x-text="event.NbRecettes"></span>
-        </div>
-        </div>
-     </a>
-    </template>
-</div>
 
+    <div v-if="searchEventsInput.length >= 4 && filteredEvents.length > 0"
+         class="search-results-container"
+         ref="resultsContainer">
+      <a v-for="(event, index) in filteredEvents"
+         :href="event.url"
+         :key="event.url"
+         :class="{ 'active': index === selectedIndex }"
+         ref="resultLinks">
+        <div class="searchCard">
+          <span class="fs-5">[[ event.title ]]</span>
+        </div>
+      </a>
+    </div>
+
+    <div v-if="searchEventsInput.length >= 4 && filteredEvents.length === 0" class="text-muted mt-3 p-3">
+      Aucun événement trouvé correspondant à votre recherche.
+    </div>
+</div>
