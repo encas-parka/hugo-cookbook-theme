@@ -1,0 +1,79 @@
+{{/*
+  Partial: functions/recette-alerts.html
+
+  Rôle
+  - Calculer les alertes d’allergènes pour une page recette.
+  - Source de vérité: ingredients-index.byUUID (les allergènes sont stockés dans meta.allergenes).
+  - Retourne un dictionnaire d’alertes, réutilisable par différents layouts (recettes, évènements).
+
+  Entrée (.) attendu
+  - . : la page recette (Page) ou un contexte qui expose .Params.ingredients (liste d’objets)
+    Chaque item est censé contenir .ingredient = "slug_uuid"
+
+  Sortie (return)
+  - dict {
+      "autres":   []string    // libellés formatés "Allergène: ingrédient1, ingrédient2" selon la liste standardisée
+      "gluten":   []string    // titres des ingrédients contenant "Gluten"
+      "lait":     []string    // titres des ingrédients contenant "Produit laitier"
+      "lactose":  []string    // titres des ingrédients contenant "lactose"
+      "porc":     []string    // titres des ingrédients contenant "Porc"
+    }
+
+  Notes
+  - La liste standardisée des “autres” allergènes est définie ici pour cohérence d’usage.
+  - Les ingrédients non résolus (UUID manquant/non trouvé) sont ignorés pour les alertes.
+*/}}
+
+{{- $ctx := . -}}
+{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" $ctx -}}
+{{- $byUUID := $ingredientsIndex.byUUID -}}
+
+{{/* Liste standardisée des allergènes classés comme "autres" pour l’UI */}}
+{{- $allergenesLgList := slice "Poisson" "Oeuf" "Soja" "Sésame" "Moutarde" "Fruit à coque" "Céleri" "Crustacé" "Arachide" "Mollusque" -}}
+
+{{/* Construire allergene -> [titres d’ingrédients de la recette] */}}
+{{- $allergenToIngredientTitles := dict -}}
+
+{{- range $ctx.Params.ingredients -}}
+  {{- with .ingredient -}}
+    {{- $uuid := "" -}}
+    {{- if in . "_" -}}
+      {{- $parts := split . "_" -}}
+      {{- $uuid = index $parts (sub (len $parts) 1) -}}
+    {{- end -}}
+    {{- with (index $byUUID $uuid) -}}
+      {{- $title := .title -}}
+      {{- $ingsAllergenes := .allergenes | default (slice) -}}
+      {{- range $ingsAllergenes -}}
+        {{- $k := . -}}
+        {{- $cur := index $allergenToIngredientTitles $k | default (slice) -}}
+        {{- $cur = $cur | append $title | uniq -}}
+        {{- $allergenToIngredientTitles = merge $allergenToIngredientTitles (dict $k $cur) -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{/* Groupes d’alertes spécifiques */}}
+{{- $alertGluten := index $allergenToIngredientTitles "Gluten" | default (slice) -}}
+{{- $alertLait := index $allergenToIngredientTitles "Produit laitier" | default (slice) -}}
+{{- $alertLactose := index $allergenToIngredientTitles "lactose" | default (slice) -}}
+{{- $alertPorc := index $allergenToIngredientTitles "Porc" | default (slice) -}}
+
+{{/* Autres allergènes agrégés, libellés "Nom: ingrédient1, ingrédient2" */}}
+{{- $alertAutresAllergenes := slice -}}
+{{- range $allergenesLgList -}}
+  {{- $list := index $allergenToIngredientTitles . | default (slice) -}}
+  {{- if gt (len $list) 0 -}}
+    {{- $label := printf "%s: %s" . (delimit $list ", ") -}}
+    {{- $alertAutresAllergenes = $alertAutresAllergenes | append $label -}}
+  {{- end -}}
+{{- end -}}
+
+{{- return (dict
+  "autres" $alertAutresAllergenes
+  "gluten" $alertGluten
+  "lait" $alertLait
+  "lactose" $alertLactose
+  "porc" $alertPorc
+) -}}

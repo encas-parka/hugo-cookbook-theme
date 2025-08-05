@@ -134,35 +134,6 @@
       </div>
     </div>
 
-    {{/* ::: Warning : missing recipes */}}
-    {{- range $.Param "repas" -}}
-      {{- range .recettes_du_repas -}}
-        {{- $recette:=.recette -}}
-        {{/* FIXME after update recette scheme */}}
-        {{- $url:= print .recette | urlize -}}
-        {{- with site.GetPage $url -}}
-        {{ else }}
-          <div class="card border-danger border-3 my-3 p-2">
-            <div class="card-body text-danger">
-              <h5 class="card-title">
-                Une des recettes de l'évenement n'existe plus !
-              </h5>
-              <p class="card-text">
-                La recette
-                <span class="fw-bolder">" {{ $url -}}"</span> présente dans les
-                menus de l'événement n'existe plus sur le site.
-              </p>
-              <p>
-                La recette à peut être été supprimée. Pour résoudre le problème,
-                il faut modifier la page de l'événement pour remplacer la
-                recette disparue
-              </p>
-            </div>
-          </div>
-        {{- end -}}
-      {{- end -}}
-    {{- end -}}
-
 
     <a href="#" class="scroll-to-top" title="Scroll to top"></a>
 

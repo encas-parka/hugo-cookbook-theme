@@ -7,44 +7,9 @@
 {{- end -}}
 
 
-{{/* Charger l'index global des ingrédients avec cache (seulement pour byAllergen, le reste est auto-chargé par ingredients-grouped-list) */}}
-{{ $ingredientsIndex := partialCached "functions/ingredients-index.html" . }}
-{{ $byAllergen := $ingredientsIndex.byAllergen }}
+{{ $alerts := partial "functions/recette-alerts.html" . }}
 
-{{/* Liste standardisée des allergènes pour les alertes */}}
-{{ $allergenesLgList := slice "Poisson" "Oeuf" "Soja" "Sésame" "Moutarde" "Fruit à coque" "Céleri" "Crustacé" "Arachide" "Mollusque" }}
 
-{{/* Collecter les slugs d'ingrédients de la recette pour les alertes allergènes */}}
-{{ $ingredientSlugs := slice }}
-
-{{- range .Params.ingredients -}}
-  {{- if .ingredient -}}
-    {{- $ingredientSlugs = $ingredientSlugs | append .ingredient -}}
-  {{- end -}}
-{{- end -}}
-
-{{/* Résoudre les slugs en titres pour les alertes (compatibilité legacy) */}}
-{{ $ingredientTitles := slice }}
-{{- range $slug := $ingredientSlugs -}}
-  {{- $uuid := partial "functions/extract-uuid-from-slug" $slug -}}
-  {{- with $uuid -}}
-    {{- $meta := index $ingredientsIndex.byUUID . -}}
-    {{- if $meta -}}
-      {{- $ingredientTitles = $ingredientTitles | append $meta.title -}}
-    {{- end -}}
-  {{- end -}}
-{{- end -}}
-
-{{/* Calculer les alertes allergènes */}}
-{{- $alertGluten := intersect $ingredientTitles (index $byAllergen "Gluten" | default slice) -}}
-{{- $alertPorc := intersect $ingredientTitles (index $byAllergen "Porc" | default slice) -}}
-{{- $alertLait := intersect $ingredientTitles (index $byAllergen "Produit laitier" | default slice) -}}
-{{- $alertLactose := intersect $ingredientTitles (index $byAllergen "lactose" | default slice) -}}
-{{- $alertAutresAllergenes := slice -}}
-{{- range $allergenesLgList -}}
-  {{- $toAdd := intersect $ingredientTitles (index $byAllergen . | default slice) -}}
-  {{- $alertAutresAllergenes = $alertAutresAllergenes | append $toAdd -}}
-{{- end -}}
 
 {{ $svg := partial "components/svg-icon-cat-find" . }}
 <div class="float-start  me-2"></div>
@@ -53,51 +18,47 @@
 </div>
 
 <div class="row">
-      <div class="col-md-6 ">
-      {{- if .Params.auteur -}}
-      <span class="text-muted fs-5 no-print">une recette de {{ .Params.auteur }}</span>
-      {{- end -}}
-    </div>
+  <div class="col-md-6 ">
+    {{- if .Params.auteur -}}
+    <span class="text-muted fs-5 no-print">une recette de {{ .Params.auteur }}</span>
+    {{- end -}}
+  </div>
 
-    <div class="col-md-6 no-print">
-      {{ $linkCMSPage := (path.Join "/admin/#/collections/recettes/entries/" (.Type) (.File.ContentBaseName)) }}
-      {{$enkaDevCms := ""}}
-      {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
-        {{$enkaDevCms = "https://enka-cookbook.netlify.app"}}
-      {{ end }}
-      <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index" >Modifier</a>
-      </div>
+  <div class="col-md-6 no-print">
+    {{ $linkCMSPage := (path.Join "/admin/#/collections/recettes/entries/" (.Type) (.File.ContentBaseName)) }}
+    {{$enkaDevCms := ""}}
+    {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
+      {{$enkaDevCms = "https://enka-cookbook.netlify.app"}}
+    {{ end }}
+    <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index" >Modifier</a></div>
 
-
-
-      <div class="printonly">
-        <div class="m-2 p-2 fs-5 text-end print-fs-small">
-          {{ partial "content/badge-recette.html" . }}
-        </div>
-        <div class="m-2 p-2 text-end print-m-1 print-y-1 ">
-          {{- if .Params.materiel -}}
-            <span class="fw-bold print-fs-smaller">Materiel: </span>
-            {{- range .Params.materiel -}}
-              <span class="badge bg-grey me-1 print-fs-smaller">{{ . }}</span>
-            {{- end -}}
-          {{- end -}}
-        </div>
-      </div>
-
-    </div>
-
-
-    <div class="print-only">
+    <div class="printonly">
       <div class="m-2 p-2 fs-5 text-end print-fs-small">
-        <span class="me-2">{{ partial "content/badge-recette.html" . }}</span>
+        {{ partial "content/badge-recette.html" . }}
+      </div>
+      <div class="m-2 p-2 text-end print-m-1 print-y-1 ">
         {{- if .Params.materiel -}}
           <span class="fw-bold print-fs-smaller">Materiel: </span>
           {{- range .Params.materiel -}}
-            <span class="badge bg-grey print-fs-smaller me-2">{{ . }}</span>
+            <span class="badge bg-grey me-1 print-fs-smaller">{{ . }}</span>
           {{- end -}}
         {{- end -}}
       </div>
     </div>
+  </div>
+
+  <div class="print-only">
+    <div class="m-2 p-2 fs-5 text-end print-fs-small">
+      <span class="me-2">{{ partial "content/badge-recette.html" . }}</span>
+      {{- if .Params.materiel -}}
+        <span class="fw-bold print-fs-smaller">Materiel: </span>
+        {{- range .Params.materiel -}}
+          <span class="badge bg-grey print-fs-smaller me-2">{{ . }}</span>
+        {{- end -}}
+      {{- end -}}
+    </div>
+  </div>
+
   <div class="printonly my-4">
     <div class=" text-center mb-1">
       <span class="fs-6 fw-bolder">
@@ -105,83 +66,48 @@
         {{ with .Params.quantite_desc }}
       </span>
       <span class="text-center printonly ms-2">
-          {{.}}
+        {{.}}
       </span>
       {{ end }}
     </div>
   </div>
 </div>
 
-
-{{/* lien vers le CMS de la page */}}
-
-
-  <div class="row mt-3 no-print">
-    <div class="col-12 col-md-6 col-lg-6 col-xl-6 no-print">
-
-      {{- if eq .Params.check "Oui" -}}
-        <span class="no-print">Cette recette a été testée pour {{.Params.plate}} couverts </span>
-        {{- if (.Params.checkfor) -}}
-          <span class="no-print">et pour {{.Params.checkfor}} couverts</span>
-        {{- end -}}
-      {{- else -}}
-        <div class="card border-danger shadow mb-3">
-          <div class="card-body small">
-            {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
-            {{$enkaDevCms = "https://enka-cookbook.netlify.app/"}}
-            {{ end }}
-            <span class="card-text">Les auteur•ices de la recette ne l'ont <strong>pas testé</strong> pour le nombre de couverts indiqués par défaut ({{.Params.plate}}).<span class="no-print"> Merci de <a href="{{- $enkaDevCms -}}{{$linkCMSPage}}/index">modifier</a> la recette pour indiquer si vous l'avez testé avec succès, ou pour corriger les quantités d'ingrédients indiquées.</span></span>
-          </div>
-        </div>
-
+<div class="row mt-3 no-print">
+  <div class="col-12 col-md-6 col-lg-6 col-xl-6 no-print">
+    {{- if eq .Params.check "Oui" -}}
+      <span class="no-print">Cette recette a été testée pour {{.Params.plate}} couverts </span>
+      {{- if (.Params.checkfor) -}}
+        <span class="no-print">et pour {{.Params.checkfor}} couverts</span>
       {{- end -}}
-
-      <div class="no-print">
-        <span id="quantityInit" style="display:none">{{.Params.plate}}</span>
-        <form>
-          <div class="input-group my-2">
-            <span class="input-group-text" for="amount">Nombre de couverts à servir : </span>
-            <input type="number" class="form-control form-control-lg " id="quantityInput" name="quantityInput" value="{{.Params.plate}}" style="flex: 0 1 120px">
-          </div>
-        </form>
-      </div>
-      </div>
-      {{- with (or ( $alertAutresAllergenes ) ( $alertGluten) ( $alertLait) ( $alertLactose) ( $alertPorc)) -}}
-      <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2 no-print ">
-        <div class="card border-danger shadow small px-4 card-body print-nocard">
-          {{- with $alertAutresAllergenes -}}
-          <div> <span class="me-2"> {{ partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" "1rem") }}</span>
-            Allergènes divers:
-            <span class="fw-bold">{{ delimit $alertAutresAllergenes ", "}}</span>
-          </div>
-          {{- end -}}
-          {{- with $alertGluten -}}
-          <div><span class="me-2">{{ partial "components/icon-svg" (dict "name" "gluten" "size" "1rem") }}</span>
-            Gluten :
-            <span class="fw-bold">{{ delimit $alertGluten ", "}}</span>
-          </div>
-          {{- end -}}
-          {{- with $alertLait -}}
-          <div><span class="me-2">{{ partial "components/icon-svg" (dict "name" "milk-box" "size" "1rem") }}</span>
-            Produits laitier :
-            <span class="fw-bold">{{ delimit $alertLait ", "}}</span>
-          </div>
-          {{- end -}}
-          {{- with $alertLactose -}}
-          <div><span class="me-2">{{ partial "components/icon-svg" (dict "name" "milk-box" "size" "1rem") }}</span>
-            Lactose :
-            <span class="fw-bold">{{ delimit $alertLait ", "}}</span>
-          </div>
-          {{- end -}}
-          {{- with $alertPorc -}}
-          <div><span class="me-2">{{ partial "components/icon-svg" (dict "name" "no-vegan" "size" "1rem") }}</span> Porc:
-            <span class="fw-bold">{{ delimit $alertPorc ", "}}</span>
-          </div>
-          {{- end -}}
+    {{- else -}}
+      <div class="card border-danger shadow mb-3">
+        <div class="card-body small">
+          {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
+          {{$enkaDevCms = "https://enka-cookbook.netlify.app/"}}
+          {{ end }}
+          <span class="card-text">Les auteur•ices de la recette ne l'ont <strong>pas testé</strong> pour le nombre de couverts indiqué par défaut ({{.Params.plate}}).<span class="no-print"> Merci de <a href="{{- $enkaDevCms -}}{{$linkCMSPage}}/index">modifier</a> la recette pour indiquer si vous l'avez testé avec succès, ou pour corriger les quantités d'ingrédients indiquées.</span></span>
         </div>
       </div>
-      {{- end -}}
+    {{- end -}}
+
+    <div class="no-print">
+      <span id="quantityInit" style="display:none">{{.Params.plate}}</span>
+      <form>
+        <div class="input-group my-2">
+          <span class="input-group-text" for="amount">Nombre de couverts à servir : </span>
+          <input type="number" class="form-control form-control-lg " id="quantityInput" name="quantityInput" value="{{.Params.plate}}" style="flex: 0 1 120px">
+        </div>
+      </form>
     </div>
+  </div>
+
+  {{- with $alerts -}}
+   <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2 my-3">
+     {{- partial "components/recette-alerts.html" (dict "alerts" . "iconSize" "1.2rem" "card" true) -}}
+   </div>
+   {{- end -}}
+</div>
 
   {{ with .Params.description }}
   <div class="row justify-content-center m-3">

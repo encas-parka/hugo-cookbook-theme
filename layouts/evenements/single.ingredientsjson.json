@@ -30,6 +30,8 @@
 
 {{- /* Structures d’agrégation (miroir single.ingredients) */ -}}
 {{- $IngTypeListGrouped := dict -}}
+{{- $typesSet := dict -}}
+{{- $uniqueIngSet := dict -}}
 {{- $datesRepas := slice -}}
 {{- $datesTimeRepas := slice -}}
 {{- $recettesLength := 0 -}}
@@ -125,10 +127,15 @@
     {{- if and $groupedForRecette (reflect.IsMap $groupedForRecette) -}}
       {{- range $type, $list := $groupedForRecette -}}
         {{- if and $type (reflect.IsSlice $list) -}}
+          {{- $typesSet = merge $typesSet (dict $type true) -}}
           {{- $current := index $IngTypeListGrouped $type | default (slice) -}}
           {{- $enriched := slice -}}
           {{- range $item := $list -}}
             {{- if and $item (reflect.IsMap $item) -}}
+
+            {{- if .uuid -}}
+              {{- $uniqueIngSet = merge $uniqueIngSet (dict .uuid true) -}}
+            {{- end -}}
               {{- $enrichedItem := merge $item (dict
                 "recette" $recetteName
                 "dateService" $dateService
@@ -155,12 +162,16 @@
 {{- $startDate := cond (gt (len $datesRepas) 0) (index $datesRepas 0) "" -}}
 {{- $endDate := cond (gt (len $datesRepas) 0) (index $datesRepas (sub (len $datesRepas) 1)) "" -}}
 
-{{- /* Types triés depuis les clés du grouping */ -}}
 {{- $types := slice -}}
-{{- range $t, $_ := $IngTypeListGrouped -}}
+{{- range $t, $_ := $typesSet -}}
   {{- $types = $types | append $t -}}
 {{- end -}}
 {{- $types = sort $types "value" "desc" -}}
+
+{{- $uniqueIngCount := len $uniqueIngSet -}}
+
+
+
 
 {{- /* Construire ingByTypeList comme slice [{type, items}] avec validation et tri comme dans single.ingredients.html */ -}}
 {{- $ingByTypeList := slice -}}
@@ -176,27 +187,7 @@
   {{- $ingByTypeList = $ingByTypeList | append (dict "type" $t "items" $list) -}}
 {{- end -}}
 
-{{- /* Unique ingrédients (UUID) + count */ -}}
-{{- $uniqueIng := slice -}}
-{{- range $type, $list := $IngTypeListGrouped -}}
-  {{- range $list -}}
-    {{- $id := .uuid | default "" -}}
-    {{- if $id -}}
-      {{- $uniqueIng = $uniqueIng | append $id -}}
-    {{- end -}}
-  {{- end -}}
-{{- end -}}
-{{- $uniqueIng = uniq $uniqueIng -}}
-{{- $uniqueIngCount := len $uniqueIng -}}
 
-{{- /* Flatten allIngredients trié par dateService asc */ -}}
-{{- $allIngredients := slice -}}
-{{- range $type, $list := $IngTypeListGrouped -}}
-  {{- range $list -}}
-    {{- $allIngredients = $allIngredients | append . -}}
-  {{- end -}}
-{{- end -}}
-{{- $allIngredients = sort $allIngredients "dateService" "asc" -}}
 
 {{- /* IngTypeList final (slice d’objets { type, items }) */ -}}
 {{- /* $ingByTypeList est défini ci-dessus pour matcher le format HTML */ -}}
@@ -214,12 +205,10 @@
   "startDate" $startDate
   "endDate" $endDate
   "ingByTypeList" $ingByTypeList
-  "allIngredients" $allIngredients
   "types" $types
   "toPrint" $toPrint
   "recettesLength" $recettesLength
   "nbDate" $nbDate
-  "uniqueIng" $uniqueIng
   "uniqueIngCount" $uniqueIngCount
   "missingRecipes" $missingRecipes
 ) | jsonify -}}
