@@ -75,7 +75,7 @@
     {{- $ingredients := slice -}}
 
     {{- /* Tentative de résolution de la recette via UUID */ -}}
-    {{- $uuid := partialCached "functions/extract-uuid-from-slug.html" .recette .recette -}}
+    {{- $uuid := partialCached "functions/extract-uuid-from-slug.html" .recette .recette  -}}
     {{- $recetteMeta := cond (and $uuid (ne $uuid "")) (index $byUUIDRecette $uuid) nil -}}
 
     {{- if $recetteMeta -}}
@@ -111,7 +111,7 @@
     ) -}}
 
     {{- /* Builder groupé par type (miroir) */ -}}
-    {{- $groupedForRecette := (partialCached "functions/ingredients-group-builder" $builderContext $recetteID $assiettesPourCalcul).ingredients -}}
+    {{- $groupedForRecette := (partial "functions/ingredients-group-builder" $builderContext $recetteID $assiettesPourCalcul).ingredients -}}
 
     {{- /* Fusion/Enrichissement: ajouter le contexte attendu par l'app et le template */ -}}
     {{- if and $groupedForRecette (reflect.IsMap $groupedForRecette) -}}

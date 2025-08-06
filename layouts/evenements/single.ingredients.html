@@ -160,165 +160,174 @@
           </ul>
         </div>
       </div>
-      <div class="row justify-content-evenly">
-        {{/* ::: _Sidebar Total ingredients */}}
-        <nav
-          class="flex-column col-md-4 col-lg-3 d-md-block bg-light  mt-7 d-print-none "
-        >
-          <div
-            class="sticky-top overflow-y-auto"
-            style="top: 70px; height: 612px"
-          >
-            <div class="my-5 small">
-              <div class="mb-3">
-                <label class="mb-2"
-                  >Selectionner la période que vous souhaitez prendre en
-                  compte</label
-                >
-                <div class="mb-3">
-                  <input
-                    id="datepickerStart"
-                    class="flatpickr flatpickr-input form-control"
-                    type="text"
-                    readonly="readonly"
-                    placeholder="Date de début"
-                    v-model="startDateSelected"
-                  />
+      <div class="row">
+
+            {{/* ::: MODIFICATION : La sidebar est maintenant un composant offcanvas responsive ::: */}}
+            <div class="col-lg-3 d-print-none">
+              <div
+                class="offcanvas-lg offcanvas-start"
+                tabindex="-1"
+                id="sidebarOffcanvas"
+                aria-labelledby="sidebarOffcanvasLabel"
+                style="--bs-offcanvas-width: 280px;"
+              >
+                <div class="offcanvas-header">
+                  <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">Filtres & Options</h5>
+                  <!-- Ce bouton de fermeture ne sera visible que sur les petits écrans (quand c'est un offcanvas) -->
+                  <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebarOffcanvas" aria-label="Close"></button>
                 </div>
-                <div class="mb-3">
-                  <input
-                    id="datepickerEnd"
-                    class="flatpickr flatpickr-input form-control"
-                    type="text"
-                    readonly="readonly"
-                    placeholder="Date de fin"
-                    v-model="endDateSelected"
-                  />
-                </div>
-                <div class="mb-3 text-end">
-                  <button
-                    class="btn btn-primary btn-sm shadow-sm text-white"
-                    @click="datesReset"
-                    type="button"
-                    id="btn-allDate"
+
+                <div class="offcanvas-body">
+                  <div
+                    class="sticky-top overflow-y-auto"
+                    style="top: 20px; height: calc(100vh - 80px);"
                   >
-                    Toutes les dates
-                  </button>
+                    <div class="small">
+                      <div class="mb-3">
+                        <label class="mb-2"
+                          >Selectionner la période que vous souhaitez prendre en
+                          compte</label
+                        >
+                        <div class="mb-3">
+                          <input
+                            id="datepickerStart"
+                            class="flatpickr flatpickr-input form-control"
+                            type="text"
+                            readonly="readonly"
+                            placeholder="Date de début"
+                            v-model="startDateSelected"
+                          />
+                        </div>
+                        <div class="mb-3">
+                          <input
+                            id="datepickerEnd"
+                            class="flatpickr flatpickr-input form-control"
+                            type="text"
+                            readonly="readonly"
+                            placeholder="Date de fin"
+                            v-model="endDateSelected"
+                          />
+                        </div>
+                        <div class="mb-3 text-end">
+                          <button
+                            class="btn btn-primary btn-sm shadow-sm text-white"
+                            @click="datesReset"
+                            type="button"
+                            id="btn-allDate"
+                          >
+                            Toutes les dates
+                          </button>
+                        </div>
+                      </div>
+                      <hr />
+                      <div class="mb-3">
+                        Afficher les quantités des produits frais par périodes
+                      </div>
+                      <div class="mb-1 form-check form-switch">
+                        <input
+                          type="checkbox"
+                          class="form-check-input"
+                          v-model="legumesByRanges"
+                          name="cb-legumesByRanges"
+                          id="cb-legumesByRanges"
+                        />
+                        <label for="cb-legumesByRanges"
+                          >... fruits et legumes frais
+                        </label>
+                      </div>
+                      <div class="mb-1 form-check form-switch">
+                        <input
+                          type="checkbox"
+                          class="form-check-input"
+                          v-model="fraisByRanges"
+                          name="cb-fraisByRanges"
+                          id="cb-fraisByRanges"
+                        />
+                        <label for="cb-fraisByRanges">... autres produit frais</label>
+                      </div>
+                      <div class="mb-1 form-check form-switch">
+                        <input
+                          type="checkbox"
+                          class="form-check-input"
+                          v-model="animauxByRanges"
+                          name="cb-animauxByRanges"
+                          id="cb-animauxByRanges"
+                        />
+                        <label for="cb-animauxByRanges">... viandes et poissons </label>
+                      </div>
+                      <div class="input-group mb-3">
+                        <input
+                          type="number"
+                          v-model="daysPerRange"
+                          class="form-control"
+                          min="1"
+                          max="9"
+                          :disabled="!animauxByRanges && !fraisByRanges && !legumesByRanges "
+                        />
+                        <span class="input-group-text" id="basic-addon2">jours</span>
+                      </div>
+                      <hr />
+                      <div class="form-check form-switch mb-3">
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          v-model="showAllColIngredients"
+                          id="checkRecipeDetail"
+                        />
+                        <label for="checkRecipeDetail"
+                          >Afficher les recettes pour chaque ingrédient</label
+                        >
+                      </div>
+                      <hr />
+                      <!-- DROPDOWN EXPORT/COPY -->
+                      <div class="dropdown mb-3">
+                        <button class="btn btn-outline-primary dropdown-toggle w-100" type="button" id="exportMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                          {{ partialCached "components/icon-svg" (dict "name" "download" "size" "1.1rem") "download-icon" "1.1rem" }}
+                          Exporter / Copier
+                        </button>
+                        <ul class="dropdown-menu w-100" aria-labelledby="exportMenuButton">
+                          <li><h6 class="dropdown-header">Copier dans le presse-papier</h6></li>
+                          <li>
+                            <button class="dropdown-item" type="button" onclick="copyOrExport('text')">
+                              Texte simple
+                            </button>
+                          </li>
+                          <li><hr class="dropdown-divider"></li>
+                          <li><h6 class="dropdown-header">Télécharger le fichier</h6></li>
+                          <li>
+                            <button class="dropdown-item" type="button" onclick="copyOrExport('csv')">
+                              CSV (pour tableur)
+                            </button>
+                          </li>
+                          <li>
+                            <button class="dropdown-item" type="button" onclick="copyOrExport('md')">
+                              Tableau Markdown
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
+
+                      <template v-for="type in types">
+                        <a :href="'#IngListID' + type"> [[ type ]] - </a>
+                      </template>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <hr />
-              <div class="mb-3">
-                Afficher les quantités des produits frais par périodes
-              </div>
-              <div class="mb-1 form-check form-switch">
-                <input
-                  type="checkbox"
-                  class="form-check-input"
-                  v-model="legumesByRanges"
-                  name="cb-legumesByRanges"
-                  id="cb-legumesByRanges"
-                />
-                <label for="cb-legumesByRanges"
-                  >... fruits et legumes frais
-                </label>
-              </div>
-              <div class="mb-1 form-check form-switch">
-                <input
-                  type="checkbox"
-                  class="form-check-input"
-                  v-model="fraisByRanges"
-                  name="cb-fraisByRanges"
-                  id="cb-fraisByRanges"
-                />
-                <label for="cb-fraisByRanges">... autres produit frais</label>
-              </div>
-              <div class="mb-1 form-check form-switch">
-                <input
-                  type="checkbox"
-                  class="form-check-input"
-                  v-model="animauxByRanges"
-                  name="cb-animauxByRanges"
-                  id="cb-animauxByRanges"
-                />
-                <label for="cb-animauxByRanges">... viandes et poissons </label>
-              </div>
-              <div class="input-group mb-3">
-                <input
-                  type="number"
-                  v-model="daysPerRange"
-                  class="form-control"
-                  min="1"
-                  max="9"
-                  :disabled="!animauxByRanges && !fraisByRanges && !legumesByRanges "
-                />
-                <span class="input-group-text" id="basic-addon2">jours</span>
-              </div>
-
-              <hr />
-              <div class="form-check form-switch mb-3">
-                <input
-                  class="form-check-input"
-                  type="checkbox"
-                  v-model="showAllColIngredients"
-                  id="checkRecipeDetail"
-                />
-                <label for="checkRecipeDetail"
-                  >Afficher les recettes pour chaque ingrédient</label
-                >
-              </div>
-              <hr />
-
-              <template v-for="type in types">
-                <a :href="'#IngListID' + type"> [[ type ]] - </a>
-              </template>
             </div>
-          </div>
-        </nav>
 
-        {{/* ::: Total INGREDIENTS */}}
-        <div class="col  print-col-12 ms-md-3">
-          <span
-            class="btn-group no-print my-2 me-2"
-            role="group"
-            aria-label="Exporter / Copier"
-          >
-            <button class="btn btn-outline-secondary" disabled>
-              Copier les tableaux dans le presse-papier :
-            </button>
-            <button
-              type="button"
-              class="btn btn-outline-primary"
-              onclick="copyOrExport('text')"
-            >
-              Texte simple
-            </button>
-            {{/* <button type="button" class="btn btn-outline-primary" onclick="copyOrExport('html')">html</button> */}}
-            {{/* TODO : modal explicatif */}}
-          </span>
+            {{/* ::: Total INGREDIENTS - Contenu principal ::: */}}
+            <!-- MODIFICATION : Le contenu principal prend maintenant 9 colonnes sur grand écran -->
+            <div class="col-lg-9 print-col-12">
 
-          <span
-            class="btn-group no-print my-2"
-            role="group"
-            aria-label="Exporter CSV"
-          >
-            <button class="btn btn-outline-secondary" disabled>
-              Télécharger :
-            </button>
-            <button
-              type="button"
-              class="btn btn-outline-primary"
-              onclick="copyOrExport('csv')"
-            >
-              csv (tableur)
-            </button>
-            <button
-              type="button"
-              class="btn btn-outline-primary"
-              onclick="copyOrExport('md')"
-            >
-              Tableau Markdown
-            </button>
-          </span>
+              <!-- MODIFICATION : Ajout du bouton pour ouvrir l'offcanvas sur les petits écrans -->
+              <div class="no-print d-lg-none mb-3">
+                <button class="btn btn-outline-primary w-100" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas">
+                  {{ partialCached "components/icon-svg" (dict "name" "filter" "size" "1.2rem") "filter-icon" "1.2rem" }}
+                  Afficher les filtres & options
+                </button>
+              </div>
+
 
           <div
             class="border rounded border-transparent bg-dark container-fluid p-2 no-print"
@@ -616,6 +625,7 @@
           </div>
         </div>
       </div>
+    </div>
     </div>
   <!-- Modal pour les détails d'ingrédients -->
   <div class="modal fade" id="ingredientDetailModal" tabindex="-1" aria-labelledby="ingredientDetailModalLabel" aria-hidden="true">
