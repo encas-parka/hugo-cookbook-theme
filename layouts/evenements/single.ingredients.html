@@ -1,4 +1,7 @@
+
+
 {{ define "main" }}
+
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"
@@ -356,7 +359,7 @@
                           class="btn btn-outline-secondary btn-sm text-muted "
                           role="button"
                           @click="printThis('{{ .idR }}', 'ingredients')"
-                          >{{ partial "components/icon-svg" (dict "name" "printer" "size" "1.5rem") }}</a
+                          >{{ partialCached "components/icon-svg" (dict "name" "printer" "size" "1.5rem") "printer" "1.5rem" }}</a
                         >
                       </div>
                     </div>
@@ -673,38 +676,10 @@
 
   </div>
 
-  {{/* Import de flatpiker, utilisé seulement sur cette page */}}
-<script type="text/javascript">
-  // Les fonctions utilitaires de copie/export ont été externalisées
-  // et sont exposées via le bundle Hugo Pipes.
-</script>
-
-{{/* Données page injectées pour l’app Vue (migration étape 2) */}}
-<script>
-  // window.__EVENT_PAGE_DATA__ = {
-  //   datesRepas: {{ (.Scratch.Get "datesRepas") }},
-  //   datesTimeRepas: {{ (.Scratch.Get "datesTimeRepas") }},
-  //   startDate: {{ (.Scratch.Get "startDate") }},
-  //   endDate: {{ (.Scratch.Get "endDate") }},
-  //   uniqueIngCount: {{ (.Scratch.Get "uniqueIngCount") }},
-  //   ingByTypeList: {{ (.Scratch.Get "IngTypeList") }},
-  //   allIngredients: {{ (.Scratch.Get "allIngredients") }},
-  //   types: {{ (.Scratch.Get "types") }},
-  //   {{- /* Build toPrint dict in Hugo and inject as JSON */ -}}
-  //   {{- $types := .Scratch.Get "types" -}}
-  //   {{- $toPrint := dict "ingredients" true "LegumesRanges" true "FraisRanges" true "AnimauxRanges" true -}}
-  //   {{- range $i, $t := $types -}}
-  //     {{- $toPrint = merge $toPrint (dict $t true) -}}
-  //   {{- end -}}
-  //   toPrint: {{ $toPrint }}
-  // };
-</script>
 
 {{ $eventJS := resources.Get "js/event/bootstrap.js" | js.Build (dict "targetPath" "assets-bundled/event-utils.js" "minify" true) | fingerprint }}
 <script src="{{ $eventJS.RelPermalink }}" integrity="{{ $eventJS.Data.Integrity }}" defer></script>
 <script>
   flatpickr.localize(flatpickr.l10ns.fr);
 </script>
-
-
 {{ end }}

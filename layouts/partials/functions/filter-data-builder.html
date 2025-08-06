@@ -1,0 +1,73 @@
+{{- /* Construit les données de filtres pour toutes les recettes avec cache optimisé */ -}}
+{{- $pages := .pages -}}
+{{- $byUUID := .byUUID -}}
+
+{{- /* Initialiser les structures de données */ -}}
+{{- $globalTypes := dict "legumes" (slice) "sec" (slice) "animaux" (slice) "lof" (slice) "sucres" (slice) "frais" (slice) "epices" (slice) "autres" (slice) -}}
+{{- $categories := slice -}}
+{{- $regimes := slice -}}
+{{- $saisons := slice -}}
+{{- $temperature := slice -}}
+{{- $cuisson := slice -}}
+{{- $check := slice -}}
+
+{{- /* Parcourir toutes les pages pour collecter les données */ -}}
+{{- range $pages -}}
+  {{- /* Collecter les catégories */ -}}
+  {{- range .Params.categories -}}
+    {{- $categories = $categories | append . -}}
+  {{- end -}}
+  
+  {{- /* Collecter les régimes */ -}}
+  {{- range .Params.regime -}}
+    {{- $regimes = $regimes | append . -}}
+  {{- end -}}
+  
+  {{- /* Collecter les saisons */ -}}
+  {{- range .Params.saison -}}
+    {{- $saisons = $saisons | append . -}}
+  {{- end -}}
+  
+  {{- /* Collecter les températures */ -}}
+  {{- if .Params.temperature -}}
+    {{- $temperature = $temperature | append .Params.temperature -}}
+  {{- end -}}
+  
+  {{- /* Collecter les cuissons */ -}}
+  {{- if .Params.cuisson -}}
+    {{- $cuisson = $cuisson | append .Params.cuisson -}}
+  {{- end -}}
+  
+  {{- /* Collecter les checks */ -}}
+  {{- if .Params.check -}}
+    {{- $check = $check | append .Params.check -}}
+  {{- end -}}
+  
+  {{- /* Collecter les ingrédients par type */ -}}
+  {{- if .Params.ingredients -}}
+    {{- $groupedIngredients := partialCached "functions/ingredients-group-builder.html" (dict
+      "items" .Params.ingredients
+      "byUUID" $byUUID
+      "mode" "recette"
+    ) (printf "%s-%s" .File.UniqueID (len .Params.ingredients)) -}}
+    
+    {{- range $type, $ingredients := $groupedIngredients -}}
+      {{- $currentTypeList := index $globalTypes $type -}}
+      {{- range $ingredients -}}
+        {{- $currentTypeList = $currentTypeList | append .title -}}
+      {{- end -}}
+      {{- $globalTypes = merge $globalTypes (dict $type $currentTypeList) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* Retourner toutes les données collectées */ -}}
+{{- return (dict
+  "globalTypes" $globalTypes
+  "categories" $categories
+  "regimes" $regimes
+  "saisons" $saisons
+  "temperature" $temperature
+  "cuisson" $cuisson
+  "check" $check
+) -}}

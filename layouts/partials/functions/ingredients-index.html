@@ -8,7 +8,7 @@
     - byAllergen: {allergene -> [slugs]} // liste des slug_uuid par allergène
   Meta contient: slug, uuid, title, type, allergenes[].
   Usage (exemple):
-    {{ $index := partial "functions/ingredients-index" . }}
+    {{ $index := partial "functions/ingredients-index" "ingredients-index" }}
     {{ $ing := index $index.byUUID "30973a63" }}
     {{ with $ing }}{{ .title }}{{ end }}
 */}}

@@ -9,6 +9,7 @@
       - Determine type from meta.type (new data model, no legacy section keys)
       - Optionally scale quantities for events: (q * assiettes) / assiettesRecettes
       - Group entries by type
+      - Analyze dietary regimes based on ingredient types and allergens
 
   Input (dict):
     - items:              (list)  List of items (e.g., .Params.ingredients from a recipe)
@@ -19,7 +20,15 @@
     - assiettesRecettes:  (int/float, optional) recipe base servings (required if mode = "evenement")
 
   Output:
-    - dict { type -> [ entries ] }
+    - dict {
+        "ingredients": { type -> [ entries ] },
+        "regimes": {
+          "vegetarien": bool,
+          "vegan": bool,
+          "sans_gluten": bool,
+          "sans_lactose": bool
+        }
+      }
       where entry = {
         title,          // from ingredients index
         ingredient,     // from ingredients index; alias title
@@ -28,11 +37,17 @@
         quantite,       // scaled if mode = "evenement"
         unit,           // unit as declared on the item
         commentaire,    // free text
+        uuid,           // from ingredients index
       }
 
   Notes:
     - Unresolved ingredients go under "absent".
     - Type is read from meta.type (default "autres").
+    - Regimes analysis:
+        - vegetarien: no type "animaux"
+        - vegan: vegetarien + no allergenes ["Produit laitier", "Oeuf"]
+        - sans_gluten: no allergene "Gluten"
+        - sans_lactose: no allergene "Produit laitier"
     - This partial returns data (no HTML render).
 */}}
 
@@ -44,6 +59,12 @@
 
 {{- $grouped := dict -}}
 
+{{- /* Initialize regime detection variables */}}
+{{- $hasAnimalType := false -}}
+{{- $hasDairyAllergen := false -}}
+{{- $hasEggAllergen := false -}}
+{{- $hasGlutenAllergen := false -}}
+
 {{- range $items -}}
   {{- $ingId := .ingredient | default "" -}}
   {{- $q := .quantite | default 0 -}}
@@ -52,7 +73,7 @@
 
   {{- $meta := dict -}}
   {{- if $ingId -}}
-    {{- $uuid := partial "functions/extract-uuid-from-slug" $ingId -}}
+    {{- $uuid := partialCached "functions/extract-uuid-from-slug.html" $ingId $ingId -}}
     {{- if $uuid -}}
       {{- with (index $byUUID $uuid) -}}
         {{- $meta = . -}}
@@ -91,6 +112,20 @@
 
     {{- $current := (index $grouped $type) | default (slice) -}}
     {{- $grouped = merge $grouped (dict $type ( $current | append $entry )) -}}
+
+    {{- /* Update regime detection flags */}}
+    {{- if eq $type "animaux" -}}
+      {{- $hasAnimalType = true -}}
+    {{- end -}}
+    {{- range $allergenes -}}
+      {{- if eq . "Produit laitier" -}}
+        {{- $hasDairyAllergen = true -}}
+      {{- else if eq . "Oeuf" -}}
+        {{- $hasEggAllergen = true -}}
+      {{- else if eq . "Gluten" -}}
+        {{- $hasGlutenAllergen = true -}}
+      {{- end -}}
+    {{- end -}}
   {{- else -}}
     {{/* Unresolved ingredient (grouped under "absent") */}}
     {{- $fallback := cond (ne $ingId "") $ingId "inconnu" -}}
@@ -114,4 +149,17 @@
   {{- end -}}
 {{- end -}}
 
-{{- return $grouped -}}
+{{- /* Calculate regimes based on detected flags */}}
+{{- $isVegetarien := not $hasAnimalType -}}
+{{- $isVegan := and $isVegetarien (not $hasDairyAllergen) -}}
+{{- $isSansGluten := not $hasGlutenAllergen -}}
+{{- $isSansLactose := not $hasDairyAllergen -}}
+
+{{- $regimes := dict
+  "vegetarien" $isVegetarien
+  "vegan" $isVegan
+  "sans_gluten" $isSansGluten
+  "sans_lactose" $isSansLactose
+-}}
+
+{{- return (dict "ingredients" $grouped "regimes" $regimes) -}}

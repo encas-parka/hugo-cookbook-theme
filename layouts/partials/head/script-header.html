@@ -1,8 +1,6 @@
 
 {{/*   bootstrap et alpinejs sont importé depuis app.js. Ici, les import spécifique a certaines page. La concaténation de vuejs bug  */}}
 
-{{ if or (eq .Type "evenements") (eq .Type "ingredients") (eq .Type "recettes") (hasPrefix .Layout "evenements/") }}
-
 {{/*  {{ $vuejs := resources.Get "js/vue.min.js" | fingerprint }}  */}}
 {{ $fp := resources.Get "flatpickr/flatpickr.min.js" }}
 {{ $fp_fr := resources.Get "flatpickr/l10n/fr.js" }}
@@ -25,7 +23,6 @@
     <script src="{{- $multiselect.Permalink -}}"></script>
   {{end}}
 
-{{ end }}
 
 
 
@@ -37,9 +34,9 @@
     {{ define "page-script"}}
       {{- $script:=  resources.Get "js/quantite.js" | js.Build (dict "sourceMap" "external" ) | resources.Minify | resources.Fingerprint  -}}
       <script type="text/javascript" src="
-      
+
       {{$script.RelPermalink}}" integrity=" {{ $script.Data.Integrity }}"></script>
-    {{end}} 
+    {{end}}
 
     Or For Buddle js:
     {{ define "page-script"}}

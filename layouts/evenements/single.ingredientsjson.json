@@ -12,7 +12,7 @@
     - uniqueIng, uniqueIngCount
   Hypothèses:
     - Les recettes sont référencées via un slug "title_uuid" dans .Params.repas[].recettes_du_repas[].recette
-    - On extrait l'UUID via partial "functions/extract-uuid-from-slug"
+    - On extrait l'UUID via partial "functions/extract-uuid-from-slug.html"
     - On indexe les recettes via partialCached "functions/recettes-index.html" (byUUIDRecette)
     - On résout les ingrédients via partial "functions/ingredients-group-builder" avec:
         items: recettePage.Params.ingredients
@@ -75,7 +75,7 @@
     {{- $ingredients := slice -}}
 
     {{- /* Tentative de résolution de la recette via UUID */ -}}
-    {{- $uuid := partial "functions/extract-uuid-from-slug" .recette -}}
+    {{- $uuid := partialCached "functions/extract-uuid-from-slug.html" .recette .recette -}}
     {{- $recetteMeta := cond (and $uuid (ne $uuid "")) (index $byUUIDRecette $uuid) nil -}}
 
     {{- if $recetteMeta -}}
@@ -100,14 +100,18 @@
       {{- $ingredients = $recetteMeta.ingredients -}}
     {{- end -}}
 
-    {{- /* Builder groupé par type (miroir) */ -}}
-    {{- $groupedForRecette := partial "functions/ingredients-group-builder" (dict
+    {{- $recetteID := $recetteMeta.File.UniqueID -}}
+
+    {{- $builderContext := (dict
       "items" $ingredients
       "byUUID" $byUUIDIng
       "mode" "evenement"
       "assiettes" $assiettesPourCalcul
       "assiettesRecettes" $assiettesRecettes
     ) -}}
+
+    {{- /* Builder groupé par type (miroir) */ -}}
+    {{- $groupedForRecette := (partialCached "functions/ingredients-group-builder" $builderContext $recetteID $assiettesPourCalcul).ingredients -}}
 
     {{- /* Fusion/Enrichissement: ajouter le contexte attendu par l'app et le template */ -}}
     {{- if and $groupedForRecette (reflect.IsMap $groupedForRecette) -}}

@@ -1,6 +1,20 @@
-{{ $cat := "" }}
-{{ range first 1 .Params.categories }}
-  {{ $cat = .  | lower | replaceRE " " "_" }}
-{{ end }}
+{{/*
+  Affiche une icône SVG basée sur la première catégorie de la recette.
+  Fallback sur une icône "recette" par défaut si aucune catégorie n'est trouvée.
+*/}}
 
-{{ partial "components/icon-svg" (dict "name" $cat "size" "3rem") }}
+{{ $cat := "" }}
+
+{{- /* On vérifie si la liste de catégories est non vide */ -}}
+{{- if gt (len .) 0 -}}
+  {{- /* Si oui, on prend la première catégorie */ -}}
+  {{- $firstCategory := index . 0 -}}
+  {{- $cat = $firstCategory | lower | replaceRE " " "_" -}}
+{{- end -}}
+
+{{- /* On affiche l'icône correspondante, avec un fallback si $cat est vide */ -}}
+{{- if $cat -}}
+  {{- partial "components/icon-svg" (dict "name" $cat "size" "1.5em") -}}
+{{- else -}}
+  {{- partial "components/icon-svg" (dict "name" "recette" "size" "1.5em") -}}
+{{- end -}}

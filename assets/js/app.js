@@ -3,7 +3,8 @@
 'use strict';
 
 import bootstrap from 'js/bootstrap.bundle.js';
-import alpinejs from 'js/alpine.min.js';
+import 'js/components/search-modules.js';
+
 
 // // Prefetch in-viewport links during idle time
 // import { listen } from 'quicklink/dist/quicklink.mjs';

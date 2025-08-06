@@ -2,6 +2,8 @@
 {{/*
   ingredients-grouped-list.html
 
+   USELESS ?
+
   Partial d’affichage d’une liste d’ingrédients groupée par type.
   Il délègue désormais toute la logique de résolution/typage/scaling/groupement
   au partial DRY "functions/ingredients-group-builder.html" et se concentre
@@ -34,25 +36,25 @@
 {{/* ---- Construction via builder DRY ---- */}}
 {{/* Auto-fallback: charger l'index si byUUID non fourni */}}
 {{- if or (not $byUUID) (eq (len $byUUID) 0) -}}
-  {{- $ingredientsIndex := partialCached "functions/ingredients-index.html" . -}}
+  {{- $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" -}}
   {{- $byUUID = $ingredientsIndex.byUUID -}}
 {{- end -}}
 
-{{- $ingredientsByType := partial "functions/ingredients-group-builder" (dict
+{{- $ingredientsByType := partialCached "functions/ingredients-group-builder.html" (dict
   "items" $items
   "byUUID" $byUUID
   "mode" $mode
   "assiettes" $assiettes
   "assiettesRecettes" $assiettesRecettes
-) -}}
+) $items $mode $assiettes $assiettesRecettes -}}
 
 {{/* ---- Rendu: par type, en-tête icône + libellé renommé, puis items triés ---- */}}
 {{- range $type, $list := $ingredientsByType -}}
   <div class="card my-2 p-2" outlined>
     <div>
       <span class="fw-bold mb-2 me-1">
-        {{- partial "components/icon-svg" (dict "name" $type "size" "1.3em" "class" "me-1") -}}
-        {{- partial "functions/ingredients-types-rename-short" (dict "ingType" ($type | strings.FirstUpper)) -}}
+        {{- partialCached "components/icon-svg.html" (dict "name" $type "size" "1.3em" "class" "me-1") $type "1.3em" -}}
+        {{- partialCached "functions/ingredients-types-rename-short.html" (dict "ingType" ($type | strings.FirstUpper)) ($type | strings.FirstUpper) -}}
       </span>
       {{- if eq $type "epices" -}}
         <span class="small text-muted">(goûtez, ajustez !)</span>
@@ -79,7 +81,7 @@
         <span class="fw-bold">• {{- $title -}}</span>
         {{- if and $showAllergenIcon (gt (len $allergenes) 0) -}}
           <span class="ms-1 align-middle">
-            {{- partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" ".8rem" "class" "mb-1") -}}
+            {{- partialCached "components/icon-svg.html" (dict "name" "exclamation-triangle" "size" ".8rem" "class" "mb-1") "exclamation-triangle" ".8rem" -}}
           </span>
         {{- end -}}
 

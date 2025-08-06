@@ -9,143 +9,116 @@
 {{ $.Scratch.Set "recettesList" slice }}
 
 {{- $.Scratch.Set "IngredientsTypesList" (slice) -}}
-{{- $recetteKey:= 1 -}}
 
 {{- $alertQuantite := false -}}
 {{- $checkYes := false -}}
 {{- $.Scratch.Set "checkYes" false -}}
 
 {{/* Charger l'index global des ingrédients (conservé) */}}
-{{ $ingredientsIndex := partialCached "functions/ingredients-index.html" . }}
-{{ $byUUID := $ingredientsIndex.byUUID }}
+{{ $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" }}
+{{ $byUUIDIng := $ingredientsIndex.byUUID }}
 
-{{/* NOTE: La résolution des recettes via index recettes est désactivée pour l'instant.
-   single.poster prouve que site.GetPage(urlize(slug)) fonctionne sur le dataset actuel.
-   On s'aligne donc sur ce comportement ici aussi. */}}
+{{/* Charger l'index global des recettes pour résoudre les métadonnées */}}
+{{- $recettesIndex := partialCached "functions/recettes-index" "recettes-index-global" -}}
+{{- $byUUIDRecette := $recettesIndex.byUUIDRecette -}}
+{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" -}}
+{{- $byUUIDIng := $ingredientsIndex.byUUID -}}
 
 {{/* Récupérer les ingrédients frais depuis l'index */}}
 {{/* WARN : les legume frais sont à la fois de type "legumes" et pFrais. Créer un fonction dédiée et partialCached ? */}}
 
 
-
-{{- range .Param "repas" -}}
-  <!-- Creation des variables qui ne seront plus visible au prochain scope. Nous sommes dans les params de l'Evenement -->
-  {{- $dateService:=.date_service -}}
-  {{- $horaire:=.horaire -}}
-
-
-  {{/*  Modifier l'heure de la date ISO en fonction du parametre $horaire (non défini par l'utilisateur) afin de permettre le tri par date des recettes.  */}}
-  {{ if eq $horaire "matin" }}
-    {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T08:00:00" }}
-  {{- else if eq $horaire "midi" -}}
-    {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T12:00:00" -}}
-  {{- else if eq $horaire "soir" -}}
-    {{- $dateService = $dateService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T20:00:00" -}}
-  {{ end -}}
-
-  {{- $repasBaseAssiettes := (int .assiettes) -}}
+{{/* Structures de données pour notre page */}}
+{{- $recettesList := slice -}}
+{{- $groupedIngredientsByRecetteKey := dict -}}
+{{- $recetteKey := 0 -}}
 
 
-  <!--  -->
-  {{- $recettesIndex := partial "functions/recettes-index" . -}}
-  {{- $byUUID := $recettesIndex.byUUIDRecette -}}
-  {{- range .recettes_du_repas -}}
-  <!--::: Creation des variables qui ne seront plus visible au prochain scope. Nous sommes dans les params de 1er niveau des recettes -->
-    {{- $recetteSlug:=.recette -}}
-    {{- $typePlat:=.type_plat -}}
-    {{/*  Si un nombre de couverts alternatif a été déclaré pour ce plat en particulier, on substitue...  */}}
-    {{- $assiettesPourCalcul := $repasBaseAssiettes -}}
-    {{- if .altAssiettes -}}
-      {{- $assiettesPourCalcul = (int .altAssiettes) -}}
-    {{- end -}}
 
-    {{- $recetteName := "" -}}
-    {{- $recettePage := site.GetPage (print $recetteSlug | urlize) -}}
-    {{- if $recettePage -}}
-      {{- $recetteName = $recettePage.Title -}}
-    {{- end -}}
-    {{/*  Envoie de la liste des recettes dans recettesList  */}}
-    {{- $currentList := $.Scratch.Get "recettesList" -}}
-    {{- $newEntry := dict
-        "recetteKey" $recetteKey
-        "recette" $recetteSlug
-        "dateService" $dateService
-        "horaire" $horaire
-        "typePlat" $typePlat
-        "repasBaseAssiettes" $repasBaseAssiettes
-        "assiettes" $assiettesPourCalcul
-        "chef" .chef
-        "commentaire" .commentaire
-        "partof" .partof
-        "recetteName" $recetteName
-    -}}
-    {{- $.Scratch.Set "recettesList" ($currentList | append $newEntry) -}}
+  {{- range .Param "repas" -}}
+      {{- $dateService := .date_service -}}
+      {{- $dateTimeService := .date_service -}}
+      {{- $horaire := .horaire -}}
 
-    {{/*  incrémentation des "id" unique des recettes  */}}
-    {{$recetteKey = (add (int $recetteKey) 1)}}
+      {{/* Logique de normalisation de la date (inchangée) */}}
+      {{- if eq $horaire "matin" -}}
+          {{- $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T08:00:00" -}}
+      {{- else if eq $horaire "midi" -}}
+          {{- $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T12:00:00" -}}
+      {{- else if eq $horaire "soir" -}}
+          {{- $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T20:00:00" -}}
+      {{- end -}}
 
-    <!-- Récupération des données sur la page de la recette -->
-    {{- if $recettePage -}}
-      {{- $assiettesRecettes:= $recettePage.Params.plate -}}
-      <!-- Lecture de la liste plate des ingrédients de la recette (post-migration) -->
-      {{- $assiettesRecettes:= (int $recettePage.Params.plate) -}}
-      {{- range $recettePage.Params.ingredients -}}
-        {{- $ingId := .ingredient | default "" -}}
-        {{- $q := .quantite | default 0 -}}
-        {{- $u := .unit | default "" -}}
+      {{- $repasBaseAssiettes := (int .assiettes) -}}
 
-        {{/* Résoudre l'ingrédient via l'index global  */}}
-        {{- $meta := dict -}}
-        {{- if $ingId -}}
-          {{- $uuid := "" -}}
-          {{- if in $ingId "_" -}}
-            {{- $parts := split $ingId "_" -}}
-            {{- $uuid = index $parts (sub (len $parts) 1) -}}
+      {{- range .recettes_du_repas -}}
+          {{/* 1. On donne un ID unique à cette recette DANS CET ÉVÉNEMENT */}}
+          {{- $recetteKey = add $recetteKey 1 -}}
+
+          {{- $assiettesPourCalcul := $repasBaseAssiettes -}}
+          {{- if .altAssiettes -}}{{- $assiettesPourCalcul = (int .altAssiettes) -}}{{- end -}}
+
+
+          {{/* 2. On résout la recette UNE SEULE FOIS via son UUID */}}
+          {{- $uuid := partialCached "functions/extract-uuid-from-slug.html" .recette .recette -}}
+          {{- $recetteMeta := index $byUUIDRecette $uuid -}}
+
+          {{/*
+            3. On DÉLÈGUE le calcul des quantités et le groupement au partial optimisé.
+               Ce partial remplace votre calcul manuel et la construction de $IngredientList.
+          */}}
+          {{- $groupedData := dict -}}
+          {{- $autoRegimes := dict -}}
+          {{- if $recetteMeta -}}
+              {{- $builderContext := dict
+                  "items"             $recetteMeta.ingredients
+                  "byUUID"            $byUUIDIng
+                  "mode"              "evenement"
+                  "assiettes"         $assiettesPourCalcul
+                  "assiettesRecettes" $recetteMeta.plate
+              -}}
+              {{- $fullIngredientsData := partialCached "functions/ingredients-group-builder.html" $builderContext $uuid $assiettesPourCalcul -}}
+              {{- $groupedData = $fullIngredientsData.ingredients -}}
+              {{- $autoRegimes = $fullIngredientsData.regimes -}}
           {{- end -}}
-          {{- with (index $ingredientsIndex.byUUID $uuid) -}}
-            {{- $meta = . -}}
-          {{- end -}}
-        {{- end -}}
 
-        {{- $title := (cond (and $meta (isset $meta "title")) ($meta.title) $ingId) -}}
-        {{- $itype := (cond (and $meta (isset $meta "type")) ($meta.type) "") -}}
-        {{- $iType := ($itype | strings.FirstUpper) -}}
+          {{/* 4. On stocke les résultats dans nos deux structures de données principales */}}
 
+          {{/* a) Les ingrédients calculés et groupés, associés à la clé unique */}}
+          {{- $groupedIngredientsByRecetteKey = merge $groupedIngredientsByRecetteKey (dict (string $recetteKey) $groupedData) -}}
 
-        {{/* Proportion: (quantité recette x assiettes événement) / assiettes recette */}}
-        {{- $quantiteCompute:= float "0" -}}
-        {{- if $q -}}
-          {{- $quantiteCompute = ((div (mul (float $q) (float $assiettesPourCalcul )) (float $assiettesRecettes ))) -}}
-        {{- end -}}
-
-        {{- $IngredientList =
-          $IngredientList | append (dict
-            "ingredient" $title
-            "quantite" $quantiteCompute
-            "unit" $u
-            "ingType" $iType
-            "recette" $recetteName
-            "dateService" $dateService
-            "horaire" $horaire
-            "typePlat" $typePlat
-            "assiettesRecettes" $assiettesRecettes
-            "assiettes" $assiettesPourCalcul
-          ) -}}
-
-        {{- $.Scratch.Set "IngredientsTypesList" ( ($.Scratch.Get "IngredientsTypesList") | append (dict "iType" $iType) ) -}}
-    {{- end -}} {{/* with $meta */}}
-      {{- end -}} {{/* recettes_du_repas */}}
- {{- end -}}
-{{ end }} {{/* Ferme le range .Param "repas" */}}
-
+          {{/* b) Les métadonnées de la recette pour l'affichage (sommaire, titres des cartes, etc.) */}}
+          {{- $recettesList = $recettesList | append (dict
+              "recetteKey"        $recetteKey
+              "recette"           .recette
+              "recetteMeta"       $recetteMeta
+              "recetteName"       (cond $recetteMeta $recetteMeta.title .recette)
+              "dateService"       $dateService
+              "dateTimeService"   $dateTimeService
+              "horaire"           $horaire
+              "typePlat"          .type_plat
+              "assiettes"         $assiettesPourCalcul
+              "repasBaseAssiettes" $repasBaseAssiettes
+              "chef"              .chef
+              "commentaire"       .commentaire
+              "partof"            .partof
+              "checkfor"          $recetteMeta.Params.checkfor
+              "check"             $recetteMeta.Params.check
+              "categories"        $recetteMeta.categories
+              "permalink"         $recetteMeta.permalink
+              "autoRegimes"       $autoRegimes
+              )
+          -}}
+      {{- end -}} {{/* fin range .recettes_du_repas */}}
+  {{- end -}} {{/* fin range .Param "repas" */}}
 
 {{/*  Dédoublage des listes  */}}
 {{- $.Scratch.Set "IngredientsTypesList" (($.Scratch.Get "IngredientsTypesList") | uniq) -}}
 
 
 
-
-{{- $allergenesData := (partialCached "functions/allergenesIng.html" .)  -}}
+<!-- USELESS ? -->
+{{- $allergenesData := (partialCached "functions/allergenesIng.html" . "allergenesIng")  -}}
 
 {{- $allergenesLgList := slice "Poisson" "Oeuf" "Soja" "Sésame" "Moutarde" "Fruit à coque" "Céleri" "Crustacé" "Arachide" "Mollusque" -}}
 
@@ -180,9 +153,17 @@
 {{- range $.Param "repas" -}}
 {{- range .recettes_du_repas -}}
 {{- $recetteSlug := .recette -}}
-{{- $pageBySlug := site.GetPage (print $recetteSlug | urlize) -}}
-{{- if not $pageBySlug -}}
-  <div class="card border-danger border-3 my-3 p-2">
+{{- $recetteFound := false -}}
+{{- $uuid := "" -}}
+{{- if in $recetteSlug "_" -}}
+  {{- $parts := split $recetteSlug "_" -}}
+  {{- $uuid = index $parts (sub (len $parts) 1) -}}
+{{- end -}}
+{{- with (index $byUUIDRecette $uuid) -}}
+  {{- $recetteFound = true -}}
+{{- end -}}
+{{- if not $recetteFound -}}
+  <div class="card border-danger border-3 my-3 p-2 no-print">
     <div class="card-body text-danger">
       <h5 class="card-title mt-1">Une des recettes de l'évenement n'existe plus !</h5>
       <p class="card-text">La recette <span class="fw-bolder">" {{ $recetteSlug -}}"</span> présente dans les menus de l'événement n'existe plus sur le site. </p>
@@ -199,8 +180,7 @@
 
 {{/* ::: _LES RECETTES   */}}
 <div id="recettesSection" :class="{'no-print' : !toPrint.recettesSection}">
-  {{- $recettesListLocal := $.Scratch.Get "recettesList" | default (slice) -}}
-  <h3 id="Recettes" class="no-print">Les {{ len $recettesListLocal }} recettes prévues pour l'événement "{{ .Page.Title }}"</h3>
+  <h3 id="Recettes" class="no-print">Les {{ len $recettesList }} recettes prévues pour l'événement "{{ .Page.Title }}"</h3>
 
   {{/* ::: Génération du sommaire */}}
   <div id="sommaire"class="no-print">
@@ -210,35 +190,43 @@
     <div class="card p-4 m-2">
       <span class="fs-4">Sommaire</span>
 
-      {{- range sort $recettesListLocal ".dateService" -}}
+      {{- range sort $recettesList ".dateTimeService" -}}
+          {{- $recetteKey := .recetteKey -}}
+          {{- $recetteMeta := .recetteMeta -}} {{- /* Contient les métadonnées complètes de la recette (titre, ingrédients, préparation, catégories, etc.) */ -}}
+          {{- $recetteData := . -}} {{- /* Contient les données spécifiques à cette instance de recette dans l'événement (date, horaire, assiettes calculées, chef, commentaire, etc.) */ -}}
+
+          {{- with $recetteMeta -}}
 
       <div>
-        {{ if and (ne ((.dateService | time) | time.Format "Monday 2 January ") $dateServiceSommaire) }}
+        {{ if and (ne (($recetteData.dateService | time) | time.Format "Monday 2 January ") $dateServiceSommaire) }}
           <div class="mt-4">
-            <a href="#{{ (.dateService | time) | time.Format "Monday 2 January" |urlize}}" class="fw-bolder text-uppercase">
-              <slot name='{{ (.dateService | time) | time.Format "Monday 2 January" | urlize}}'>{{ (.dateService | time) | time.Format "Monday 2 January"}}</slot>
+            <a href="#{{ ($recetteData.dateService | time) | time.Format "Monday 2 January" | urlize}}" class="fw-bolder text-uppercase">
+              <slot name='{{ ($recetteData.dateService | time) | time.Format "Monday 2 January" | urlize}}'>{{ ($recetteData.dateService | time) | time.Format "Monday 2 January"}}</slot>
             </a>
           </div>
         {{ end }}
 
-        {{ if ne .horaire $currentHoraireSommaire }}
-          <div class="ms-3 fw-semibold mt-1">{{ .horaire }} ({{ .repasBaseAssiettes }} couverts)</div>
+        {{ if ne $recetteData.horaire $currentHoraireSommaire }}
+          <div class="ms-3 fw-semibold mt-1">{{ $recetteData.horaire }} ({{ $recetteData.repasBaseAssiettes }} couverts)</div>
         {{ end }}
 
         <div class="ms-5">
-          <a href="#recetteID{{ .recetteKey }}">
-            <slot name="{{ .recetteKey }}"></slot>{{ if .recetteName }}{{ .recetteName }}{{ else }}[Recette introuvable: {{ .recette }}]{{ end }} →
+          <a href="#recetteID{{ $recetteData.recetteKey }}">
+            <slot name="{{ .recetteKey }}"></slot>{{ if $recetteData.recetteName }}{{ $recetteData.recetteName }}{{ else }}[Recette introuvable: {{ .recette }}]{{ end }} →
           </a>
-          <span class="small"> ({{.typePlat}} |
-            <span class="{{ if ne .assiettes .repasBaseAssiettes }} fw-semibold {{end}}" >{{.assiettes}} c. </span>)</span>
+          <span class="small"> ({{$recetteData.typePlat}} |
+            <span class="{{ if ne .assiettes .repasBaseAssiettes }} fw-semibold {{end}}" >{{$recetteData.assiettes}} c. </span>)</span>
         </div>
       </div>
 
-      {{/*  Actualiser la date et l'horaire apres le range  */}}
-      {{ $dateServiceSommaire = ((.dateService | time) | time.Format "Monday 2 January ")}}
-      {{ $currentHoraireSommaire = .horaire }}
+      {{- end -}}
 
-      {{end}} {{/*  range recettesList */}}
+
+      {{/*  Actualiser la date et l'horaire apres le range  */}}
+      {{ $dateServiceSommaire = (($recetteData.dateService | time) | time.Format "Monday 2 January ")}}
+      {{ $currentHoraireSommaire = $recetteData.horaire }}
+
+      {{- end -}} {{/* fin de range recettesList */}}
     </div>
   </div>
 
@@ -254,48 +242,27 @@
 {{/*  ::: __Les intertitres jours  */}}
 {{ $dateService := "none"}}
 {{ $horaire := "none" }}
-{{ range sort $recettesListLocal ".dateService" }}
+{{- range sort $recettesList ".dateTimeService" -}}
+    {{/* On récupère nos données pré-calculées pour cette recette */}}
+    {{- $recetteKey := .recetteKey -}}
+    {{- $recetteMeta := .recetteMeta -}}
+    {{- $recetteData := . -}} {{/* Contient .assiettes, .horaire, etc. */}}
+
+    {{- with $recetteMeta -}}
+    {{/* Logique d'affichage des intertitres de date/horaire (votre code est bon) */}}
   <div id="recette_Card-intertitre" class="no-print">
-    {{ if and ( ne ((.dateService | time) | time.Format "Monday 2 January ") $dateService )}}
-      <div class="h3 text-center card py-4 mx-6 bg-primary bg-opacity-10 fw-bolder"  id="{{ (.dateService | time) | time.Format "Monday 2 January" |urlize}}">{{ (.dateService | time) | time.Format "Monday 2 January"}}</div>
-    {{ end }}
+      {{ if and ( ne (($recetteData.dateService | time) | time.Format "Monday 2 January ") $dateService )}}
+          <div class="h3 text-center card py-4 mx-6 bg-primary bg-opacity-10 fw-bolder" id="{{ ($recetteData.dateService | time) | time.Format "Monday 2 January" |urlize}}">{{ ($recetteData.dateService | time) | time.Format "Monday 2 January"}}</div>
+      {{- end -}}
 
-    {{ if ne .horaire $horaire }}
-      <div class="h4 text-center card py-3 mx-6 bg-light">{{ .horaire}} </div>
-    {{ end }}
-
-    {{ $dateService = ((.dateService | time) | time.Format "Monday 2 January ")}}
-    {{ if eq ((.dateService | time) | time.Format "Monday 2 January ") $dateService }}
-      {{ $horaire = .horaire }}
-    {{ else }}
-      {{ $horaire = "" }}
-    {{ end }}
+      {{ if ne $recetteData.horaire $horaire }}
+          <div class="h4 text-center card py-3 mx-6 bg-light">{{ $recetteData.horaire}} </div>
+      {{ end }}
+      {{ $dateService = (($recetteData.dateService | time) | time.Format "Monday 2 January ")}}
+      {{ $horaire = $recetteData.horaire }}
   </div>
 
-
-
-
-
-{{/* ::: __LES RECETTES cards */}}
-{{/* variable avant GetPage */}}
-{{- $assiettes:= (int .assiettes) -}}
-{{- $recette := .recette -}}
-{{- $recetteName := .recetteName -}}
-{{- $recetteKey := .recetteKey -}}
-{{- $dateService := .dateService -}}
-{{- $horaire := .horaire -}}
-{{- $partof := .partof -}}
-{{- $typePlat := .typePlat -}}
-{{- $assiettes := .assiettes -}}
-{{- $chef := .chef -}}
-{{- $commentaire := .commentaire -}}
-
-
-
-
-{{/* ::: ____A l'intérieur de chaque url de post recettes inclue dans l'evenement */}}
-{{- $url:= print .recette | urlize -}}
-{{- with site.GetPage $url -}}
+  {{/* ::: __LA CARTE RECETTE */}}
 <div
   class="card break-after avoid-break-inside my-5 p-2 bg-light bg-opacity-25 print-nocard"
   id="recetteID{{$recetteKey}}"
@@ -304,104 +271,129 @@
   <div class="card-body py-1">
     <a class="btn btn-sm btn-outline-primary float-end no-print mx-1"
     @click="printThis('recetteID{{$recetteKey}}', 'recettesSection')"
-    >{{ partial "components/icon-svg" (dict "name" "printer" "size" "24px") }}
+    >{{ partialCached "components/icon-svg" (dict "name" "printer" "size" "24px") nil "printer" }}
   </a>
     <a class="btn btn-sm btn-outline-primary float-end no-print mx-1"
-    href="{{.RelPermalink}}"
-    > {{ partial "components/icon-svg" (dict "name" "box-arrow-in-right" "size" "24px") }} </a>
+    href="{{$recetteData.permalink}}"
+    > {{ partialCached "components/icon-svg" (dict "name" "box-arrow-in-right" "size" "24px") nil "box-arrow-in-right" }} </a>
     <div id="titreRecette" class="py-1h2 my-2">
-      <div class="my-2 h2"><span class="me-2">{{ partial "components/icon-recette" . }}</span> {{ if $recetteName }}{{ $recetteName }}{{ else }}[Recette introuvable]{{ end }}
-        {{ if $partof }}
-        <span class="ms-3 fs-5">(pour : {{ $partof }})</span>
+      <div class="my-2 h2"><span class="me-2">{{ partialCached "components/icon-recette" $recetteMeta.categories $recetteMeta.categories  }}</span> {{ $recetteMeta.title }}
+        {{ if $recetteData.partof }}
+        <span class="ms-3 fs-5">(pour : {{ $recetteData.partof }})</span>
         {{ end }}
       </div>
     </div>
 
     <div id="topRecette" class="row">
       <div class="col">
-        <div class="fw-semibold fs-5 print-fs-4"> {{ ($dateService | time) | time.Format "Monday 2 January "}} - {{ $horaire }} - {{
-          $typePlat }}</div>
-        <div class="print-bold">{{ $assiettes }} couverts</div>
+        <div class="fw-semibold fs-5 print-fs-4"> {{($recetteData.dateService | time)| time.Format "Monday 2 January "}} - {{ $recetteData.horaire }} - {{
+          $recetteData.typePlat }}</div>
+        <div class="print-bold">{{ $recetteData.assiettes }} couverts</div>
         <div class="">
 
-          {{ if $chef }}
-          <div>Référent•es: {{ $chef }} - </div>
+          {{ if $recetteData.chef }}
+          <div>Référent•es: {{ $recetteData.chef }} - </div>
           {{ end }}
         </div>
         <div>
-            {{ if .Params.spécialité }}
-            <div class="small">Spécialité : {{ .Params.spécialité }}</div>
+            {{ if $recetteMeta.Params.spécialité }}
+            <div class="small">Spécialité : {{ $recetteMeta.Params.spécialité }}</div>
             {{ end }}
         </div>
 
       </div>
 
       <div class="col text-end">
-        <div class="mb-2">{{ partial "content/badge-recette.html" . }}</div>
-        <div>
-          {{ if .Params.materiel }}
-          {{ range .Params.materiel }}
-          <div class="badge bg-grey float-end me-1">{{ . }}</div>
-          {{ end }}
-          {{ end }}
-        </div>
+
+            <div class="d-flex justify-content-end flex-wrap gap-2">
+              {{/* Afficher les régimes automatiques pour cette recette (pré-calculés) */}}
+             <div class="me-1">
+               {{- with $recetteData.autoRegimes -}}
+               {{- if .vegan -}}
+                 <span class="badge bg-green float-end me-1">vegan</span>
+               {{- else if .vegetarien -}}
+                 <span class="badge bg-green float-end me-1">végétarien</span>
+               {{- end -}}
+               {{- if .sans_gluten -}}
+                 <span class="badge bg-green float-end me-1">sans-gluten</span>
+               {{- end -}}
+               {{- if .sans_lactose -}}
+                 <span class="badge bg-green float-end me-1">sans-lactose</span>
+               {{- end -}}
+             {{- end -}}
+</div>
+              {{ if $recetteMeta.materiel }}
+              <div class="">
+              {{ range $recetteMeta.materiel }}
+              <span class="badge bg-grey float-end me-1">{{ . }}</span>
+              {{ end }}
+              </div>
+              {{ end }}
+            </div>
       </div>
 
 
      {{/*  ::: ___Alertes */}}
-      {{- $assiettesInit := .Params.plate -}}
-      {{- $isCheck := false -}} {{- $checkfor := "" -}} {{- $checkYes := false -}}
+      {{- $assiettesInit := $recetteMeta.repasBaseAssiettes -}}
+      {{- $isCheck := false -}} {{- $checkfor := 0 -}} {{- $checkYes := false -}}
       {{- $compareQuantite := slice -}}
       {{- $alertQuantite := false -}}
-      {{ with .Param "checkfor" }}{{- $checkfor = (int .) -}} {{- end -}}
-      {{ if eq .Params.check "Oui" }}{{- $isCheck = true -}}{{ end }}
-      {{ if (or $isCheck $checkfor) }}{{ $checkYes = true }}{{ end }}
 
-      {{/*  TODO Ajouter proportion fixe : checkAlwaysOk  */}}
+      {{/* On récupère les valeurs depuis $recetteData */}}
+      {{- $checkfor = $recetteData.checkfor | default 0 -}}
+      {{- if eq $recetteData.check "Oui" -}}
+          {{- $isCheck = true -}}
+      {{- end -}}
+      {{- if eq $recetteData.checkAlwaysOk true -}}
+          {{- $checkYes = true -}}
+      {{- end -}}
+
+      {{/*  checkAlwaysOk : si true, pas d'alerte de quantité  */}}
       {{ if eq $checkYes false }}
-        {{ if $checkfor }}
+        {{ if and $checkfor (gt $checkfor 0) }}
           {{ if and
-            (or (gt (div $assiettes 2) $checkfor ) (lt (mul $assiettes 2) $checkfor) )
-            (or (gt (div $assiettes 2) $assiettesInit ) (lt (mul $assiettes 2) $assiettesInit) )
+            (or (gt (div $recetteData.assiettes 2) $checkfor ) (lt (mul $recetteData.assiettes 2) $checkfor) )
+            (or (gt (div $recetteData.assiettes 2) $assiettesInit ) (lt (mul $recetteData.assiettes 2) $assiettesInit) )
             -}}
             {{- $alertQuantite = true -}} {{- $compareQuantite = slice $checkfor $assiettesInit -}}
           {{end}}
-        {{ else }}
-          {{ if or (gt (div $assiettes 2) $assiettesInit ) (lt (mul $assiettes 2) $assiettesInit) }}
+        {{ else if $assiettesInit }}
+          {{ if or (gt (div $recetteData.assiettes 2) $assiettesInit ) (lt (mul $recetteData.assiettes 2) $assiettesInit) }}
             {{- $alertQuantite = true -}} {{- $compareQuantite = $assiettesInit -}}
           {{- end -}}
         {{- end -}}
       {{- end -}}
 
       {{/* Calcul des alertes allergènes via le partial function dédié */}}
-      {{- $alerts := partial "functions/recette-alerts.html" . -}}
+      {{- $alertsContext := dict "Params" (dict "ingredients" $recetteMeta.ingredients) -}}
+      {{- $alerts := partialCached "functions/recette-alerts.html" $alertsContext .uuid -}}
 
       {{/* Rendu via le composant dédié, conditionné par v-show print_alert */}}
       <div class="row justify-content-start mt-2" v-show="print_alert">
-        {{ if $alertQuantite }}
+        {{- if $alertQuantite -}}
         <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2 my-3">
           <div class="card border-danger shadow small px-4 card-body print-nocard">
-            {{ if not $checkYes }}
+            {{- if not $checkYes }}
             <div>
-              <span class="me-1">{{ partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" "1rem") }}</span>
+              <span class="me-1">{{ partialCached "components/icon-svg" (dict "name" "exclamation-triangle" "size" "1rem") "exclamation-triangle" }}</span>
               Le nombre de couverts prévu est significativement différent de celui qui a été déclaré comme testé
-              ({{ $.Scratch.Get "compareQuantite" }}): les proportions sont peut-être à adapter pour certains ingrédients.
+              ({{ if $compareQuantite }}{{ $compareQuantite }}{{ else }}inconnu{{ end }}): les proportions sont peut-être à adapter pour certains ingrédients.
             </div>
-            {{ end }}
+            {{- end -}}
           </div>
         </div>
-        {{ end }}
+        {{- end -}}
 
         {{- with $alerts -}}
         <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2 my-3">
-          {{- partial "components/recette-alerts.html" (dict "alerts" . "iconSize" "1.2rem" "card" true) -}}
+          {{- partialCached "components/recette-alerts.html" (dict "alerts" . "iconSize" "1.2rem" "card" true ) . -}}
         </div>
         {{- end -}}
       </div>
 
-      {{ with .Params.quantite_desc }}
+      {{ with $recetteMeta.quantite_desc }}
       <div class="my-2">
-         Service/Quantité : {{.}}
+        <span class="fw-semibold">Service/Quantité : </span>  {{.}}
       </div>
       {{ end }}
     </div>
@@ -413,50 +405,41 @@
     <div id="IngredientsEtPreparation-recette" class="row justify-content-evenly border-top border-1 pt-2">
       <div id="Ingredients-recette" class="col-md-4 print-col-30-100">
         <h4>
-        <span class="me-2">{{ partial "components/icon-svg" (dict "name" "ingredients" "size" "2rem") }}</span>
+        <span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "ingredients" "size" "2rem") "ingredients"  }}</span>
         Ingredients </h4>
 
-        {{- $assiettes := (int $assiettes) -}}
-        {{- $assiettesRecettes := (int .Params.plate) -}}
-
-        <div class="my-2">
-          {{- partial "components/ingredients-grouped-list.html" (dict
-              "items" .Params.ingredients
-              "mode" "evenement"
-              "assiettes" $assiettes
-              "assiettesRecettes" $assiettesRecettes
-              "showAllergenIcon" true
-              "showComment" true
-            ) -}}
-        </div>
-        <div class="text-muted small">
-          {{ partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" ".8rem") }} → Allergènes
-        </div>
-    </div>
+        {{- $preCalculatedIngredients := index $groupedIngredientsByRecetteKey (string $recetteKey) -}}
+            {{- partial "components/ingredients-display-pre-grouped.html" (dict
+                "ingredientsByType" $preCalculatedIngredients
+                "showAllergenIcon" true
+                "showComment" true
+              )
+            -}}
+      </div>
 
       {{/* ::: ___PREPARATION  */}}
     <div class="col-md-8 print-col-70-100">
       <h4><span class="me-2">{{ partial "components/icon-svg" (dict "name" "preparation" "size" "2.5rem") }}</span> Préparation</h4>
-      {{ if .Params.commentaire }}
+      {{ if .commentaire }}
       <div class="card mb-3">
         <div class="card-body print-nocard">
            <span class="text-muted">{{ partial "components/icon-svg" (dict "name" "exclamation-circle" "size" "1.5rem") }} info </span>
            <br>
-           <span class="small">{{ .Params.commentaire }}</span>
+           <span class="small">{{ .commentaire }}</span>
         </div>
       </div>
       {{ end }}
         <div class=" card card-body print-nocard">
-        {{ if .Params.preparation24h }}
+        {{ if .preparation24h }}
          <div class="card border border-danger mb-4 p-3 " >
            <p class="fs-5 fw-bold text-center" >A prévoir à l'avance !</p>
-           <div class="">{{ .Params.preparation24h | markdownify }}</div>
+           <div class="">{{ .preparation24h | markdownify }}</div>
         </div>
         {{ end }}
-          <div class="">{{ .Params.preparation | markdownify }}</div>
+          <div class="">{{ .preparation | markdownify }}</div>
         </div>
 
-      {{ range .Params.astuces }}
+      {{ range .astuces }}
           <div class="card card-body m-3 small ">
             <span class="fw-bolder">Astuce: </span> <span>{{ .astuce }} </span>
           </div>
@@ -466,20 +449,8 @@
   </div> {{/* .card-body */}}
 </div> {{/* .card */}}
 
-{{- else -}}
-  {{/* This is the ELSE part for site.GetPage $url. It should only contain the "not found" message. */}}
-  <div class="card break-after avoid-break-inside my-5 p-2 bg-light bg-opacity-25 print-nocard">
-      <div class="card-body py-1">
-          <h5 class="text-danger">Recette introuvable: "{{ $recette }}"</h5>
-          <p>La page pour cette recette n'existe pas. Veuillez vérifier le slug dans les paramètres de l'événement.</p>
-      </div>
-  </div>
-{{- end -}} {{/* fin with site.GetPage $url */}}
-
-{{/*  Incrementation en fin de range  pour un unique ID par recettes  */}}
-{{$recetteKey = (add (float $recetteKey) 1)}}
-
-{{ end }} {{/* fin range sort $recettesListLocal: rendu des cartes */}}
+{{- end -}} {{/* with $recetteMeta */}}
+{{- end -}} {{/* range $recettesList */}}
 
 <!-- Fin Contenu réinséré -->
 

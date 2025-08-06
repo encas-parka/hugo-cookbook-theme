@@ -9,22 +9,11 @@
 
 {{ $alerts := partialCached "functions/recette-alerts.html" . .Params.uuid }}
 
-{{- /* Calculate ingredients data and auto-regimes early for use in multiple places */}}
-{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" -}}
-{{- $byUUID := $ingredientsIndex.byUUID -}}
-{{- $ingredientsData := partial "functions/ingredients-group-builder.html" (dict
-  "items" .Params.ingredients
-  "byUUID" $byUUID
-  "mode" "recette"
-) -}}
-{{- $groupedIngredients := $ingredientsData.ingredients -}}
-{{- $autoRegimes := $ingredientsData.regimes -}}
-
 
 
 <div class="float-start  me-2"></div>
 <div class="h1">
-  <span class="print-recette-title ">{{ partialCached "components/icon-recette" .Params.categories .Params.categories  }} {{.Title}}</span>
+  <span class="print-recette-title ">{{ partialCached "components/icon-svg.html" (dict "name" $svg "size" "3rem") $svg "3rem" }} {{.Title}}</span>
 </div>
 
 <div class="row">
@@ -42,26 +31,9 @@
     {{ end }}
     <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index" >Modifier</a></div>
 
-    {{- if $autoRegimes -}}
-      <div class="text-end mx-2 px-2 no-print">
-        {{- if $autoRegimes.vegan -}}
-          <span class="me-1">{{ partialCached "content/badge-regime.html" (slice "vegan") "vegan" }}</span>
-        {{- else if $autoRegimes.vegetarien -}}
-          <span class="me-1">{{ partialCached "content/badge-regime.html" (slice "vegetarien") "vegetarien" }}</span>
-        {{- end -}}
-        {{- if $autoRegimes.sans_gluten -}}
-          <span class="me-1">{{ partialCached "content/badge-regime.html" (slice "sans-gluten") "sans-gluten" }}</span>
-        {{- end -}}
-        {{- if $autoRegimes.sans_lactose -}}
-          <span class="me-1">{{ partialCached "content/badge-regime.html" (slice "sans-lactose") "sans-lactose" }}</span>
-        {{- end -}}
-      </div>
-    {{- end -}}
-
     <div class="printonly">
       <div class="m-2 p-2 fs-5 text-end print-fs-small">
-        {{ partial "content/badge-temperature.html" .Params.temperature .Params.temperature }}
-        {{ partialCached "content/badge-cuisson.html" .Params.cuisson .Params.cuisson }}
+        {{ partial "content/badge-recette.html" . }}
       </div>
       <div class="m-2 p-2 text-end print-m-1 print-y-1 ">
         {{- if .Params.materiel -}}
@@ -76,28 +48,12 @@
 
   <div class="print-only">
     <div class="m-2 p-2 fs-5 text-end print-fs-small">
-      <span class="me-2">{{ partialCached "content/badge-temperature.html" .Params.temperature .Params.temperature }}
-      {{ partialCached "content/badge-cuisson.html" .Params.cuisson .Params.cuisson }}</span>
-
-      {{- if $autoRegimes -}}
-
-        {{- if $autoRegimes.vegan -}}
-        <span class="me-2">
-          <span >{{ partialCached "content/badge-regime.html" (slice "vegan") "vegan" }}</span>
-        {{- else if $autoRegimes.vegetarien -}}
-          <span >{{ partialCached "content/badge-regime.html" (slice "vegetarien") "vegetarien" }}</span>
-        {{- end -}}
-        {{- if $autoRegimes.sans_gluten -}}
-          <span >{{ partialCached "content/badge-regime.html" (slice "sans-gluten") "sans-gluten" }}</span>
-        {{- end -}}
-        {{- if $autoRegimes.sans_lactose -}}
-          <span >{{ partialCached "content/badge-regime.html" (slice "sans-lactose") "sans-lactose" }}</span>
-        {{- end -}}
-      {{- end -}}
-        </span>
+      <span class="me-2">{{ partial "content/badge-recette.html" . }}</span>
       {{- if .Params.materiel -}}
         <span class="fw-bold print-fs-smaller">Materiel: </span>
-        {{ partialCached "content/badge-materiel.html" .Params.materiel (slice .Params.materiel | jsonify) }}
+        {{- range .Params.materiel -}}
+          <span class="badge bg-grey print-fs-smaller me-2">{{ . }}</span>
+        {{- end -}}
       {{- end -}}
     </div>
   </div>
@@ -171,17 +127,17 @@
 
 <div class="row mt-4">
   <div class="col-md-4 print-col-30-100">
-    <h4><span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "ingredients" "size" "2rem") "ingredients" }}</span> Ingredients </h4>
+    <h4><span class="me-2">{{ partialCached "components/icon-svg.html" (dict "name" "ingredients" "size" "2rem") "ingredients" "2rem" }}</span> Ingredients </h4>
 
-
-    {{ partial "components/ingredients-display-pre-grouped.html" (dict
-      "ingredientsByType" $groupedIngredients
+    {{ partialCached "components/ingredients-grouped-list.html" (dict
+      "items" .Params.ingredients
+      "mode" "recette"
       "showAllergenIcon" true
       "showComment" true
-    )  }}
+    ) }}
 
     <div class="text-muted small">
-      {{ partialCached "components/icon-svg" (dict "name" "exclamation-triangle" "size" "1rem") "exclamation-triangle" }} → Allergènes
+      {{ partialCached "components/icon-svg.html" (dict "name" "exclamation-triangle" "size" "1rem") "exclamation-triangle" "1rem" }} → Allergènes
     </div>
   </div>
 
@@ -190,7 +146,7 @@
     <div class="col-md-8 print-col-70-100">
 
 
-      <h4><span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "preparation" "size" "2.3rem") "preparation"  }}</span> Préparation</h4>
+      <h4><span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "preparation" "size" "2.3rem") "preparation" }}</span> Préparation</h4>
       <div class="avoid-break-inside">
           <div class="m-auto">
             {{- if .Params.preparation24h -}}
@@ -218,22 +174,20 @@
 
 
   {{/*  Réccupération des backlink : recettes citant celle-ci comme recette alternative  */}}
-  {{- $recettesIndex := partialCached "functions/recettes-index.html" "recettes-index-global" -}}
-  {{- $byUUIDRecette := $recettesIndex.byUUIDRecette -}}
-  {{- $currentSlug := .File.ContentBaseName -}}
-  {{- $currentUUID := partialCached "functions/extract-uuid-from-slug.html" $currentSlug -}}
-  {{- $backlinks := dict -}}
+  {{ $backlinks := dict }}
+  {{ $currentPage := . }}
+  {{ $currentSlug := .File.ContentBaseName }}
   {{/*  tableau des recettes alternatives signalées pour eviter les doublons avec les backlinks  */}}
-  {{- $recetteAlt := slice -}}
-
-  {{- range $uuid, $meta := $byUUIDRecette -}}
-    {{- range $meta.prepAlt -}}
-      {{- $altUUID := partialCached "functions/extract-uuid-from-slug.html" .recetteAlt .recetteAlt -}}
-      {{- if eq $altUUID $currentUUID -}}
-        {{- $backlinks = merge $backlinks (dict $meta.permalink $meta.title) -}}
-      {{- end -}}
-    {{- end -}}
-  {{- end -}}
+  {{ $recetteAlt := slice}}
+  {{ range where .Site.RegularPages "Section" "recettes" }}
+    {{ $pageURL := .RelPermalink }}
+    {{ $pageTitle := .Title }}
+    {{ range .Params.prepAlt }}
+      {{ if eq .recetteAlt $currentSlug }}
+        {{ $backlinks = merge $backlinks (dict $pageURL $pageTitle) }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
 
     {{- if  (or .Params.prepAlt $backlinks) -}}
     <div class="card my-5  bg-light no-print">
@@ -242,10 +196,9 @@
       {{- range .Params.prepAlt -}}
       {{ $recetteAlt = $recetteAlt | append .recetteAlt }}
         <div>
-          {{- $uuidFromSlug := partialCached "functions/extract-uuid-from-slug.html" .recetteAlt .recetteAlt  -}}
-          {{- with (index $byUUIDRecette $uuidFromSlug) -}}
-          <a id="toBacklink{{.permalink}}"href="{{ .permalink }}">{{.title}}</a>
-          {{- end -}}
+          {{ with site.GetPage ( .recetteAlt | urlize) }}
+          <a id="toBacklink{{.RelPermalink}}"href="{{ .Permalink}}">{{.Title}}</a>
+         {{end}}
         </div>
       {{- end -}}
       {{- end -}}
@@ -273,6 +226,6 @@
 {{/*  :::Script : giscus + quantite  */}}
 {{/*  {{ partial "components/giscus-comment" }}  */}}
 
-{{ partial "footer/esbuild" (dict "src" "js/quantite.js" "load" "async" "transpile" false) -}}
+{{ partialCached "footer/esbuild" (dict "src" "js/quantite.js" "load" "async" "transpile" false) -}}
 
 {{ end }}

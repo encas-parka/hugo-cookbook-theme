@@ -1,0 +1,63 @@
+{{/* -
+  Ce partial  reçoit une liste d'ingrédients DÉJÀ groupée
+  par type et se contente de l'afficher. Aucun calcul n'est fait ici.
+
+  Entrée (dict):
+  - ingredientsByType: (map) La structure de données pré-calculée.
+  - showAllergenIcon:  (bool)
+  - showComment:       (bool)
+- */}}
+
+{{- $ingredientsByType := .ingredientsByType | default (dict) -}}
+{{- $showAllergenIcon := cond (ne .showAllergenIcon nil) .showAllergenIcon true -}}
+{{- $showComment := cond (ne .showComment nil) .showComment true -}}
+
+{{- range $type, $list := $ingredientsByType -}}
+<div class="card my-2 p-2" outlined>
+  <div>
+    <span class="fw-bold mb-2 me-1">
+      {{- partialCached "components/icon-svg.html" (dict "name" $type "size" "1.3em" "class" "me-1") $type "1.3em" -}}
+      {{- partialCached "functions/ingredients-types-rename-short.html" (dict "ingType" ($type | strings.FirstUpper)) ($type | strings.FirstUpper) -}}
+    </span>
+    {{- if eq $type "epices" -}}<span class="small text-muted">(goûtez, ajustez !)</span>{{- end -}}
+  </div>
+
+  {{- $sorted := sort $list "title" "asc" -}}
+  {{- range $sorted -}}
+    {{- $it := . -}}
+    <div class="small ps-2 print-fs-smaller mt-1">
+      <span class="fw-bold">• {{- $it.title -}}</span>
+      {{- if and $showAllergenIcon (gt (len ($it.allergenes | default slice)) 0) -}}
+        <span class="ms-1 align-middle">
+          {{- partialCached "components/icon-svg.html" (dict "name" "exclamation-triangle" "size" ".8rem" "class" "mb-1") "exclamation-triangle" ".8rem" -}}
+        </span>
+      {{- end -}}
+
+
+      {{- if $it.quantite -}}
+        : <span class="amount me-1">{{- $it.quantite -}}</span>
+        {{- $unitShort := $it.unit -}}
+        {{- if eq $it.unit "grammes" -}}
+          {{- $unitShort = "gr." -}}
+        {{- else if eq $it.unit "litre" -}}
+          {{- $unitShort = "l." -}}
+        {{- else if and (eq $it.unit "unité") (gt $it.quantite 1) -}}
+          {{- $unitShort = "unités" -}}
+        {{- end -}}
+        {{- if $unitShort -}}
+          <span class="unit"> {{- $unitShort -}}</span>
+        {{- end -}}
+        {{- if or (eq $it.unit "unité") (eq $it.unit "c. à café") (eq $it.unit "c. à soupe") -}}
+          <span class="ms-1 text-muted">
+            {{- partial "functions/quantite-converter" ( dict "unit" $it.unit "ingredient" $it.title "quantite" $it.quantite "fetchQU" true ) -}}
+          </span>
+        {{- end -}}
+
+        {{- if and $showComment $it.commentaire -}}
+          <span class="small text-muted ms-2">({{- $it.commentaire -}})</span>
+        {{- end -}}
+      {{- end -}}
+    </div>
+  {{- end -}}
+</div>
+{{- end -}}

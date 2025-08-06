@@ -25,7 +25,7 @@
 */}}
 
 {{- $ctx := . -}}
-{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" $ctx -}}
+{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" -}}
 {{- $byUUID := $ingredientsIndex.byUUID -}}
 
 {{/* Liste standardisée des allergènes classés comme "autres" pour l’UI */}}

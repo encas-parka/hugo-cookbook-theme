@@ -86,7 +86,7 @@
               </a>
               <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
                 {{ range (.Site.GetPage "section" "regime").Pages}}
-                <li><a class="dropdown-item" href="{{.RelPermalink}}"> 
+                <li><a class="dropdown-item" href="{{.RelPermalink}}">
                   {{ $svg := (print .Title | lower )}}
                   {{ partial "components/icon-svg" (dict "name" $svg "size" "2rem") }}
                   {{.Title}}</a></li>
@@ -174,12 +174,12 @@
   </div>
 </div>
 
-{{ partial "components/js_search-modules" . }}
+{{ partialCached "components/js_search-modules" . }}
 
 <script>
   function scrollToReveal() {
     return {
-      isScrolled: true, // aussi pour la barre de navigation des pages evenements 
+      isScrolled: true, // aussi pour la barre de navigation des pages evenements
 
       lastPos: window.scrollY + 0,
       scroll() {

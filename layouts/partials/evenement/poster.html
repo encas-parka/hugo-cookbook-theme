@@ -4,7 +4,7 @@
 {{ $recetteCatFormat := .recetteCatFormat }}
 
 {{/* Charger l'index global des ingrédients */}}
-{{ $ingredientsIndex := partialCached "functions/ingredients-index.html" . }}
+{{ $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" }}
 {{ $bySlug := $ingredientsIndex.bySlug }}
 {{ $byUUID := $ingredientsIndex.byUUID }}
 {{ $byAllergen := $ingredientsIndex.byAllergen }}
@@ -52,7 +52,7 @@
           {{- $slug := .ingredient -}}
           {{- $meta := index $bySlug $slug -}}
           {{- if not $meta -}}
-            {{- $uuid := partial "functions/extract-uuid-from-slug" $slug -}}
+            {{- $uuid := partial "functions/extract-uuid-from-slug.html" $slug  -}}
             {{- if $uuid -}}
               {{- $meta = index $byUUID $uuid -}}
             {{- end -}}

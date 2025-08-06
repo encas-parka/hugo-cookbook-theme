@@ -1,9 +1,8 @@
 {{/*  partial pour determiner l'icone associer à une recette, en fonction du premier params categorie  */}}
 
 {{ $cat := "" }}
-{{ range first 1 .Params.categories }}
+{{ range first 1 . }}
   {{ $cat = .  | lower }}
 {{ end }}
 
 {{ return $cat }}
-

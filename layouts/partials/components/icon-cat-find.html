@@ -1,4 +1,6 @@
-{{/*  partial pour determiner l'icone associer à une recette, en fonction du premier params categorie  */}}
+{{/*  partial pour determiner l'icone associer à une recette, en fonction du premier params categorie
+USELESS ?
+*/}}
 
 {{ $cat := "" }}
 {{ range first 1 .Params.categories }}
@@ -15,4 +17,3 @@
 {{ end }}
 
 {{ return $src }}
-

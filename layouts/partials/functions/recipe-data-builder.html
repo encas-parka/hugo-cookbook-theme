@@ -1,0 +1,71 @@
+{{- /* Construit les données d'une recette individuelle pour le JavaScript */ -}}
+{{- $page := .page -}}
+{{- $byUUID := .byUUID -}}
+
+{{- /* Extraire les ingrédients groupés */ -}}
+{{- $groupedIngredients := dict -}}
+{{- if $page.Params.ingredients -}}
+  {{- $groupedIngredients = partialCached "functions/ingredients-group-builder.html" (dict
+    "items" $page.Params.ingredients
+    "byUUID" $byUUID
+    "mode" "recette"
+  ) (printf "%s-%s" $page.File.UniqueID (len $page.Params.ingredients)) -}}
+{{- end -}}
+
+{{- /* Préparer les listes d'ingrédients par type */ -}}
+{{- $ilegumes := slice -}}
+{{- $isec := slice -}}
+{{- $ianimaux := slice -}}
+{{- $ilof := slice -}}
+{{- $isucre := slice -}}
+{{- $ifrais := slice -}}
+{{- $iepices := slice -}}
+{{- $iautres := slice -}}
+
+{{- range $type, $ingredients := $groupedIngredients -}}
+  {{- range $ingredients -}}
+    {{- if eq $type "legumes" -}}
+      {{- $ilegumes = $ilegumes | append .title -}}
+    {{- else if eq $type "sec" -}}
+      {{- $isec = $isec | append .title -}}
+    {{- else if eq $type "animaux" -}}
+      {{- $ianimaux = $ianimaux | append .title -}}
+    {{- else if eq $type "lof" -}}
+      {{- $ilof = $ilof | append .title -}}
+    {{- else if eq $type "sucres" -}}
+      {{- $isucre = $isucre | append .title -}}
+    {{- else if eq $type "frais" -}}
+      {{- $ifrais = $ifrais | append .title -}}
+    {{- else if eq $type "epices" -}}
+      {{- $iepices = $iepices | append .title -}}
+    {{- else if eq $type "autres" -}}
+      {{- $iautres = $iautres | append .title -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* Retourner les données structurées */ -}}
+{{- return (dict
+  "title" $page.Title
+  "url" $page.RelPermalink
+  "type" $page.Params.type
+  "auteur" $page.Params.auteur
+  "specialite" $page.Params.spécialité
+  "plate" $page.Params.plate
+  "check" $page.Params.check
+  "checkfor" $page.Params.checkfor
+  "saison" $page.Params.saison
+  "categories" $page.Params.categories
+  "regimes" $page.Params.regime
+  "ilegumes" $ilegumes
+  "isec" $isec
+  "ianimaux" $ianimaux
+  "ilof" $ilof
+  "isucre" $isucre
+  "ifrais" $ifrais
+  "iepices" $iepices
+  "iautres" $iautres
+  "temperature" $page.Params.temperature
+  "cuisson" $page.Params.cuisson
+  "materiel" $page.Params.materiel
+) -}}

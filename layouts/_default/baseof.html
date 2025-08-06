@@ -1,18 +1,18 @@
 {{/*  DOCUMENTATION
-  La base qui définie la façon dont sont construite chacune des pages. 
+  La base qui définie la façon dont sont construite chacune des pages.
 */}}
 
 <!doctype html>
 <html lang="{{ .Site.LanguageCode | default "fr" }}">
-  {{ partial "head/head.html" . }}
+  {{ partialCached "head/head.html" . .RelPermalink }}
 
   {{/*  Creer un espace au dessus de la navbar en rajoutant la class "section" à body. Mais de maniere générale définit des layout en fonction du type de page... from hyas*/}}
   {{/*  {{- partial "head/body-class.html" . -}}
    <body class="{{ delimit (.Scratch.Get "class") " " }}">   */}}
 
   <body>
-    
-  {{ partial "header/header.html" . }}
+
+  {{ partialCached "header/header.html" . "header" }}
 
     <div class="wrap container" role="document">
       <div class="content">
@@ -21,10 +21,10 @@
     </div>
 
   {{ block "sidebar-footer" . }}{{ end }}
-  {{ partial "footer/footer.html" . }}
-  {{ partial "footer/script-footer.html" . }}
-    
+  {{ partial "footer/footer.html" . "footer" }}
+  {{ partial "footer/script-footer.html" .  .Section }}
+
 
 
   </body>
-</html> 
+</html>

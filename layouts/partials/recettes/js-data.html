@@ -1,0 +1,52 @@
+{{- /* Génère les données JavaScript pour les recettes avec cache optimisé */ -}}
+{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" -}}
+{{- $byUUID := $ingredientsIndex.byUUID -}}
+
+{{- /* Préparer les données de toutes les recettes avec cache par page */ -}}
+{{- $recipesData := slice -}}
+{{- range .RegularPagesRecursive -}}
+  {{- $pageKey := .File.UniqueID -}}
+  
+  {{- /* Clé de cache basée sur les ingrédients et l'UUID de la page */ -}}
+  {{- $cacheKey := printf "recipe-data-%s-%s" $pageKey (len .Params.ingredients) -}}
+  
+  {{- $recipeData := partialCached "functions/recipe-data-builder.html" (dict
+    "page" .
+    "byUUID" $byUUID
+  ) $cacheKey -}}
+  
+  {{- $recipesData = $recipesData | append $recipeData -}}
+{{- end -}}
+
+{{- /* Générer le JavaScript avec les données */ -}}
+<script>
+  const recipes</script>Data = [
+    {{- range $recipesData -}}
+    {
+      title: "{{ .title }}",
+      url: "{{ .url }}",
+      type: "{{ .type }}",
+      auteur: "{{ .auteur }}",
+      specialite: "{{ .specialite }}",
+      plate: "{{ .plate }}",
+      check: "{{ .check }}",
+      checkfor: "{{ .checkfor }}",
+      checkrange: ["{{ .plate }}", "{{ .checkfor }}"],
+      saison: [{{- range .saison -}} "{{ . }}", {{- end -}}],
+      categories: [{{- if .categories -}}{{- range .categories -}} "{{ . }}",{{- end -}}{{- end -}}],
+      regimes: [{{- if .regimes -}}{{- range .regimes -}} "{{ . }}", {{- end -}}{{- end -}}],
+      ilegumes: [{{- range .ilegumes -}} "{{ . }}",{{- end -}}],
+      isec: [{{- range .isec -}} "{{ . }}",{{- end -}}],
+      ianimaux: [{{- range .ianimaux -}} "{{ . }}",{{- end -}}],
+      ilof: [{{- range .ilof -}} "{{ . }}",{{- end -}}],
+      isucre: [{{- range .isucre -}} "{{ . }}",{{- end -}}],
+      ifrais: [{{- range .ifrais -}} "{{ . }}",{{- end -}}],
+      iepices: [{{- range .iepices -}} "{{ . }}",{{- end -}}],
+      iautres: [{{- range .iautres -}} "{{ . }}",{{- end -}}],
+      temperature: "{{ .temperature }}",
+      cuisson: "{{ .cuisson }}",
+      materiel: [{{- range .materiel -}} "{{ . }}", {{- end -}}]
+    },
+    {{- end -}}
+  ];
+</script>

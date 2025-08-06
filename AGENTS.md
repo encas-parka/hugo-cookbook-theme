@@ -30,10 +30,9 @@ Projet multi-dépôts : ce thème Hugo (hugo-cookbook-theme) est utilisé par le
 - components/search-module-* : modules recherche recettes/événements
 - functions/format-qty: formate quantité/unité avec conversions g↔kg, ml↔l
 - functions/quantite-converter: conversions auxiliaires par unité/ingrédient
-- functions/extract-uuid-from-slug: extrait UUID depuis slug étendu
+- functions/extract-uuid-from-slug.html: extrait UUID depuis slug étendu
 - functions/ingredients-index, recettes-index: index globaux d’ingrédients/recettes
 - functions/ingredients-types-rename(-short): renommage lisible des types
-- functions/allergenesIng: utilitaire allergènes par ingrédient
 - bootstrap/* et bootstrap/functions/*: helpers UI Bootstrap (grille, alertes, attrs, url)
 - head/*, header/*, footer/*: SEO/meta, favicons, scripts/styles
 - inline-svg, fontawesome, email, content/*: utilitaires d’inclusion/rendu

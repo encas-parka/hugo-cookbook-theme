@@ -51,15 +51,15 @@
 
     {{- with $autres -}}
     <div>
-      <span class="me-2">{{ partial "components/icon-svg" (dict "name" "exclamation-triangle" "size" $iconSize) }}</span>
+      <span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "exclamation-triangle" "size" $iconSize) "exclamation-triangle" }}</span>
       Allergènes divers:
-      <span class="fw-bold</div>">{{ delimit . ", " }}</span>
+      <span class="fw-bold">{{ delimit . ", " }}</span>
     </div>
     {{- end -}}
 
     {{- with $gluten -}}
     <div>
-      <span class="me-2">{{ partial "components/icon-svg" (dict "name" "gluten" "size" $iconSize) }}</span>
+      <span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "gluten" "size" $iconSize) "gluten" }}</span>
       Gluten :
       <span class="fw-bold">{{ delimit . ", " }}</span>
     </div>
@@ -67,7 +67,7 @@
 
     {{- with $lait -}}
     <div>
-      <span class="me-2">{{ partial "components/icon-svg" (dict "name" "milk-box" "size" $iconSize) }}</span>
+      <span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "milk-box" "size" $iconSize) "milk-box" }}</span>
       Produits laitier :
       <span class="fw-bold">{{ delimit . ", " }}</span>
     </div>
@@ -75,7 +75,7 @@
 
     {{- with $lactose -}}
     <div>
-      <span class="me-2">{{ partial "components/icon-svg" (dict "name" "milk-box" "size" $iconSize) }}</span>
+      <span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "milk-box" "size" $iconSize) "milk-box" }}</span>
       Lactose :
       <span class="fw-bold">{{ delimit . ", " }}</span>
     </div>
@@ -83,7 +83,7 @@
 
     {{- with $porc -}}
     <div>
-      <span class="me-2">{{ partial "components/icon-svg" (dict "name" "no-vegan" "size" $iconSize) }}</span>
+      <span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "no-vegan" "size" $iconSize) "no-vegan" }}</span>
       Porc:
       <span class="fw-bold">{{ delimit . ", " }}</span>
     </div>

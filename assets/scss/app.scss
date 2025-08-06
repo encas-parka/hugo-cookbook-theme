@@ -4,11 +4,11 @@
 
  Bootstrap a été mis "en dure" dans assets, plutot qu'un import depuis node_modules, pour pouvoir etre accessible depuis les sites de contenu sans qu'ils aient besoin de nodejs
 
- TODO: 
+ TODO:
  - importer les sass bootstrap utilisés individuellement
- - checker l'utilité des autres import liés à hyas 
+ - checker l'utilité des autres import liés à hyas
  */
- 
+
  // Configuration
  @import "bootstrap/functions";
  /** Import theme variables */
@@ -67,11 +67,11 @@
 @import "common/global";
 // @import "components/alerts";
 @import "components/buttons";
-// @import "components/code";
+ @import "components/code";
 
 // @import "components/syntax";
-// @import "components/comments";
-// @import "components/forms";
+ @import "components/comments";
+@import "components/forms";
 @import "components/images";
 @import "layouts/footer";
 @import "layouts/header";
@@ -89,3 +89,40 @@
 //
 @import "common/print";
 
+// 3. Custom styles added for search functionality
+// This ensures the search results can scroll and have a max height.
+.search-results-container {
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid #dee2e6; // Matches Bootstrap's default border color
+  border-top: none; // The input field already has a bottom border
+  border-radius: 0 0 .25rem .25rem; // Rounded corners on the bottom
+  margin-top: -1px; // Overlap with the input's bottom border
+}
+
+.search-results-container a {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  padding: 0; // The padding is on the child .searchCard
+}
+
+// The .active class is for arrow-key navigation,
+// and :focus is for Tab-key navigation.
+.search-results-container a.active .searchCard,
+.search-results-container a:focus .searchCard {
+  background-color: #e9ecef; // A light grey, similar to Bootstrap's hover/active states
+  color: #000;
+  outline: none; // The background color is sufficient visual feedback
+}
+
+// Add padding and borders inside the link to make the whole area seem clickable
+.search-results-container .searchCard {
+  padding: .75rem 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+// Remove the border from the last item to avoid a double border effect
+.search-results-container a:last-child .searchCard {
+  border-bottom: none;
+}
