@@ -61,7 +61,8 @@ export function createEventApp(initialData = {}) {
         // Groupements/ingrédients
         ingByTypeList,
         ingFraisFiltered: [],
-        totalRangeWithDetailResults: {},
+        totalRangeWithDetailResults: {}, // Cache for range totals
+         _cachedRawRangeDetails: {}, //  Cache for raw ingredient details by range (key: iType_start_end)
         uniqueIngCount,
         recettesLength,
 
@@ -133,7 +134,7 @@ export function createEventApp(initialData = {}) {
       } catch (_e) {}
     },
 
-    computed: {
+  computed: {
       // Filtrage par datepicker -> produit un objet { type: items[] } selon la période
       filterByDatePicker() {
         const filtered = {};
@@ -168,72 +169,132 @@ export function createEventApp(initialData = {}) {
           .replace(/[\u0300-\u036f]/g, "");
       },
 
+      //  Prépare les détails d'ingrédients pour un accès rapide par type et par ingrédient
+      // C'est une computed property, donc elle est mise en cache par Vue et recalculée uniquement si filterByDatePicker change.
+      filteredItemsByIngredientAndType() {
+        const detailsMap = {};
+        const filteredByDate = this.filterByDatePicker; // Dépendance: filterByDatePicker (c'est une computed, donc déjà efficace)
+
+        for (const type in filteredByDate) {
+          if (!Object.prototype.hasOwnProperty.call(filteredByDate, type)) continue;
+
+          detailsMap[type] = {}; // Map pour les ingrédients dans ce type
+          const itemsForType = filteredByDate[type]; // Tableau d'items bruts pour ce type
+
+          itemsForType.forEach(item => {
+            if (!detailsMap[type][item.ingredient]) {
+              detailsMap[type][item.ingredient] = [];
+            }
+            detailsMap[type][item.ingredient].push(item);
+          });
+
+          // Trie les détails pour chaque ingrédient par dateService pour un affichage cohérent
+          for (const ingredientName in detailsMap[type]) {
+            detailsMap[type][ingredientName].sort((a, b) => new Date(a.dateTimeService) - new Date(b.dateTimeService));
+          }
+        }
+        return detailsMap;
+      },
+
+
       // Calcul des totaux par type pour les ingrédients filtrés par période
       computeTotalDP() {
-        const ingFiltered = this.filterByDatePicker;
-        const ingredientTotals = new Map();
+            const ingFiltered = this.filterByDatePicker;
+            const ingredientTotals = new Map();
 
-        for (const [type, ingredients] of Object.entries(ingFiltered)) {
-          ingredients.forEach((i) => {
-            if (!ingredientTotals[type]) {
-              ingredientTotals[type] = {};
-            }
+            for (const [type, ingredients] of Object.entries(ingFiltered)) {
+              if (!ingredientTotals[type]) {
+                ingredientTotals[type] = {};
+              }
 
-            let ingredientItem = ingredientTotals[type][i.ingredient];
-            if (!ingredientItem) {
-              ingredientItem = {
-                ingredient: i.ingredient,
-                qTotalX: [],
-                totalRecettes: 1,
-                totalAssiettes: i.assiettes,
-                iType: i.ingredientType
-              };
-              ingredientTotals[type][i.ingredient] = ingredientItem;
-            } else {
-              ingredientItem.totalRecettes++;
-              ingredientItem.totalAssiettes += i.assiettes;
-            }
+              ingredients.forEach((i) => {
+                let ingredientItem = ingredientTotals[type][i.ingredient];
+                if (!ingredientItem) {
+                  ingredientItem = {
+                    ingredient: i.ingredient,
+                    qTotalX: [], // Array to hold formatted quantities { value: number, unit: string }
+                    totalRecettes: 0,
+                    totalAssiettes: 0,
+                    iType: i.ingredientType,
+                    // New: Temporary storage for normalized quantities before formatting
+                    _normalizedQuantities: {
+                      weight: 0, // In grams
+                      volume: 0, // In milliliters
+                      other: new Map(), // Stores {unit: totalQuantity} for other types
+                    }
+                  };
+                  ingredientTotals[type][i.ingredient] = ingredientItem;
+                }
 
-            const existingUnit = ingredientItem.qTotalX.find(item => item.unit === i.unit);
-            if (existingUnit) {
-              existingUnit.qTotal += i.quantite;
-            } else {
-              ingredientItem.qTotalX.push({
-                qTotal: i.quantite,
-                unit: i.unit,
+                // Always increment these
+                ingredientItem.totalRecettes++;
+                ingredientItem.totalAssiettes += i.assiettes;
+
+                const { normalizedQuantity, baseUnit, displayUnitCategory } = this.normalizeIngredientQuantity(i);
+
+                if (displayUnitCategory === 'weight' || displayUnitCategory === 'volume') {
+                    ingredientItem._normalizedQuantities[displayUnitCategory] += normalizedQuantity;
+                } else {
+                    // For 'other' units, sum if unit is identical, otherwise keep separate
+                    const currentOtherTotal = ingredientItem._normalizedQuantities.other.get(baseUnit) || 0;
+                    ingredientItem._normalizedQuantities.other.set(baseUnit, currentOtherTotal + normalizedQuantity);
+                }
               });
             }
-          });
-        }
 
-        return ingredientTotals;
-      },
+            // Now, format the normalized quantities for display
+            for (const [type, ingredientsByType] of Object.entries(ingredientTotals)) {
+              for (const ingredientName in ingredientsByType) {
+                const item = ingredientsByType[ingredientName];
+                const quantities = [];
 
-      // Fusionne détails + totaux et applique optionnellement un filtre de recherche
-      totalQuantitesDP() {
-        const ingTotaux = this.computeTotalDP;
-        const ingDetail = this.filterByDatePicker;
-        const mergedResult = new Map();
+                if (item._normalizedQuantities.weight > 0) {
+                  const { value, unit } = this.formatNormalizedQuantity(item._normalizedQuantities.weight, 'weight');
+                  quantities.push({
+                    qTotal: value, // qTotal is now a number
+                    unit: unit // unit is now 'Kg' or 'g'
+                  });
+                }
+                if (item._normalizedQuantities.volume > 0) {
+                  const { value, unit } = this.formatNormalizedQuantity(item._normalizedQuantities.volume, 'volume');
+                  quantities.push({
+                    qTotal: value, // qTotal is now a number
+                    unit: unit // unit is now 'L' or 'ml'
+                  });
+                }
+                // For 'other' units, qTotal should already be a number and unit its original unit
+                item._normalizedQuantities.other.forEach((qTotal, unit) => {
+                    quantities.push({ qTotal: qTotal, unit: unit });
+                });
 
-        for (const key in ingDetail) {
-          if (Object.prototype.hasOwnProperty.call(ingDetail, key) &&
-              Object.prototype.hasOwnProperty.call(ingTotaux, key)) {
-            mergedResult[key] = Object.assign({}, ingDetail[key], ingTotaux[key]);
-          }
-        }
+                item.qTotalX = quantities;
+                delete item._normalizedQuantities; // Clean up temporary data
+              }
+            }
 
-        for (const key in mergedResult) {
-          if (Object.prototype.hasOwnProperty.call(mergedResult, key)) {
-            mergedResult[key] = Object.values(mergedResult[key])
-              .sort((a, b) => a.ingredient.localeCompare(b.ingredient));
-          }
-        }
+            return ingredientTotals;
+          },
 
-        if ((this.debouncedSearchQuery || '').length > 2) {
-          return this.searchFilter(mergedResult);
-        }
-        return mergedResult;
-      },
+
+          totalQuantitesDP() {
+                const ingTotaux = this.computeTotalDP; // Ceci contient déjà les totaux formatés
+
+                const finalResult = {};
+
+                for (const type in ingTotaux) {
+                  if (Object.prototype.hasOwnProperty.call(ingTotaux, type)) {
+                    // ingTotaux[type] est un objet { "nomIngredient": { ingredient: "nom", qTotalX: [...], ... } }
+                    // Nous le convertissons en un tableau pour le tri et l'itération dans le template.
+                    finalResult[type] = Object.values(ingTotaux[type])
+                      .sort((a, b) => a.ingredient.localeCompare(b.ingredient));
+                  }
+                }
+
+                if ((this.debouncedSearchQuery || '').length > 2) {
+                  return this.searchFilter(finalResult);
+                }
+                return finalResult;
+              },
 
       // Découpe datesRepas en tranches de daysPerRange
       splitDateRanges() {
@@ -364,111 +425,260 @@ export function createEventApp(initialData = {}) {
       // --- Calculs des totaux sur une plage ---
       totalRange(iType, start, end) {
         const key = `${iType}_${start}_${end}`;
-        if (!this.totalRangeWithDetailResults[key]) {
-          this.totalRangeWithDetail(iType, start, end);
-        }
-        const base = this.totalRangeWithDetailResults[key] || [];
-        return (this.debouncedSearchQuery || '').length > 2
-          ? this.searchFilterRange(base)
-          : base;
+        const base = this.totalRangeWithDetail(iType, start, end);
+              return (this.debouncedSearchQuery || '').length > 2
+                ? this.searchFilterRange(base)
+                : base;
       },
 
       totalRangeWithDetail(iType, start, end) {
         const key = `${iType}_${start}_${end}`;
-        if (this.totalRangeWithDetailResults[key]) {
-          return this.totalRangeWithDetailResults[key];
-        }
+               if (this.totalRangeWithDetailResults[key]) {
+                 return this.totalRangeWithDetailResults[key];
+               }
 
-        const totalArray = this.totalRangeArray(iType, start, end);
-        const ingDetailList = this.ingFraisFiltered;
+               // totalRangeArray calcule déjà et formate les totaux.
+               // Ce n'est pas censé "fusionner" avec des détails bruts ici, mais fournir les totaux résumés.
+               const totalArray = this.totalRangeArray(iType, start, end);
+               const result = totalArray.sort((a, b) => a.ingredient.localeCompare(b.ingredient));
 
-        const result = [...ingDetailList, ...totalArray]
-          .sort((a, b) => a.ingredient.localeCompare(b.ingredient));
-
-        this.totalRangeWithDetailResults[key] = result;
-        return result;
+               this.totalRangeWithDetailResults[key] = result;
+               return result;
       },
 
       totalRangeArray(iType, start, end) {
-        // Implémente le flux de calcul total -> objets {ingredient, unitTotal, qTotal, totalAssiettes}
-        const total = this.computeTotalRange(this.filteredIngredientsRange(iType, start, end));
-        const result = Object.entries(total).flatMap(([ingredient, values]) => {
-          return values.map(({ unitTotal, qTotal, totalAssiettes }) => ({
-            ingredient,
-            unitTotal,
-            qTotal: Math.round(qTotal * 100) / 100,
-            totalAssiettes,
-          }));
-        });
-        return result;
-      },
+        const filteredIng = this.filteredIngredientsRange(iType, start, end);
+              const totalByIngredient = {}; // Stores { ingredientName: { _normalizedQuantities: { ... }, totalAssiettes, totalRecettes } }
 
-      // --- Calculs / filtres migrés depuis l'app inline ---
-      computeTotalRange(filteredIng) {
-        const totalArray = [];
+              filteredIng.forEach((item) => {
+                if (!totalByIngredient[item.ingredient]) {
+                  totalByIngredient[item.ingredient] = {
+                    ingredient: item.ingredient,
+                    totalAssiettes: 0,
+                    totalRecettes: 0,
+                    _normalizedQuantities: {
+                      weight: 0, // In grams
+                      volume: 0, // In milliliters
+                      other: new Map(), // Stores {unit: totalQuantity} for other types
+                    }
+                  };
+                }
+                const currentTotal = totalByIngredient[item.ingredient];
 
-        filteredIng.forEach((item) => {
-          const converted = this.convertUnit({ ...item });
+                currentTotal.totalAssiettes += item.assiettes;
+                currentTotal.totalRecettes += 1; // Assuming each item is one recipe instance
 
-          const { ingredient, quantite, unit, assiettes } = converted;
+                const { normalizedQuantity, baseUnit, displayUnitCategory } = this.normalizeIngredientQuantity(item);
 
-          if (!totalArray[ingredient]) {
-            totalArray[ingredient] = [];
+                if (displayUnitCategory === 'weight' || displayUnitCategory === 'volume') {
+                  currentTotal._normalizedQuantities[displayUnitCategory] += normalizedQuantity;
+                } else {
+                  const existingOtherUnit = currentTotal._normalizedQuantities.other.get(baseUnit) || 0;
+                  currentTotal._normalizedQuantities.other.set(baseUnit, existingOtherUnit + normalizedQuantity);
+                }
+              });
+
+              const result = Object.values(totalByIngredient).map(item => {
+                       const formattedQuantities = [];
+                       if (item._normalizedQuantities.weight > 0) {
+                         const { value, unit } = this.formatNormalizedQuantity(item._normalizedQuantities.weight, 'weight');
+                         formattedQuantities.push({
+                           qTotal: value, // qTotal is now a number
+                           unitTotal: unit, // unitTotal is now 'Kg' or 'g' (keeping unitTotal for consistency with existing template usage for ranges)
+                         });
+                       }
+                       if (item._normalizedQuantities.volume > 0) {
+                         const { value, unit } = this.formatNormalizedQuantity(item._normalizedQuantities.volume, 'volume');
+                         formattedQuantities.push({
+                           qTotal: value, // qTotal is now a number
+                           unitTotal: unit, // unitTotal is now 'L' or 'ml'
+                         });
+                       }
+                       // For 'other' units, qTotal should already be a number and unit its original unit
+                       item._normalizedQuantities.other.forEach((qTotal, unit) => {
+                           formattedQuantities.push({ qTotal: qTotal, unitTotal: unit });
+                       });
+
+                       return {
+                         ingredient: item.ingredient,
+                         qTotalX: formattedQuantities, // Naming for consistency with computeTotalDP
+                         totalAssiettes: item.totalAssiettes,
+                         totalRecettes: item.totalRecettes,
+                       };
+                     });
+              return result;
+                  },
+
+          getIngredientIndividualDetails(ingredientName, iType, startDate = null, endDate = null) {
+                  let sourceItems;
+                  if (startDate && endDate) {
+                    // Pour les plages de dates spécifiques, utiliser le cache de filteredIngredientsRange
+                    const rangeKey = `${iType}_${startDate}_${endDate}`;
+                    sourceItems = this._cachedRawRangeDetails[rangeKey] || this.filteredIngredientsRange(iType, startDate, endDate);
+                  } else {
+                    // Pour les totaux généraux (dépend de startDateSelected/endDateSelected), utiliser la computed property
+                    sourceItems = this.filteredItemsByIngredientAndType[iType]?.[ingredientName] || [];
+                  }
+
+                  // Si la sourceItems est déjà triée par filteredIngredientsRange ou filteredItemsByIngredientAndType,
+                  // nous n'avons pas besoin de trier à nouveau ici.
+                  // Seul le filtrage par ingredientName est nécessaire si sourceItems contient tous les ingredients du type.
+                  // Mais puisque filteredItemsByIngredientAndType est déjà pré-filtré par ingrédient, c'est un simple retour.
+                  // Pour les plages, filteredIngredientsRange renvoie tous les items pour le type et la plage, donc un filtrage final est nécessaire.
+                  if (startDate && endDate) { // Cas des plages, sourceItems contient tous les items de la plage pour le type
+                    return sourceItems.filter(item => item.ingredient === ingredientName);
+                  } else { // Cas des totaux généraux, sourceItems est déjà la liste des détails de l'ingrédient spécifique
+                    return sourceItems;
+                  }
+                },
+
+      //  Normalise la quantité d'un ingrédient en une unité de base (grammes ou millilitres) et identifie sa catégorie d'affichage.
+    normalizeIngredientQuantity(item) {
+            let normalizedQuantity = item.quantite || 0;
+            let baseUnit = item.unit || 'unknown';
+            let displayUnitCategory = 'other'; // Default category
+
+            const unit = (item.unit || '').toLowerCase().trim();
+
+            if (['grammes', 'gr.', 'g'].includes(unit)) {
+              displayUnitCategory = 'weight';
+              baseUnit = 'g'; // Standard base unit for weight
+            } else if (['kg', 'kilo', 'kilogrammes'].includes(unit)) {
+              normalizedQuantity *= 1000; // Convert to grams
+              displayUnitCategory = 'weight';
+              baseUnit = 'g';
+            } else if (['ml', 'millilitres'].includes(unit)) {
+              displayUnitCategory = 'volume';
+              baseUnit = 'ml'; // Standard base unit for volume
+            } else if (['l.', 'litre', 'litres'].includes(unit)) {
+              normalizedQuantity *= 1000; // Convert to milliliters
+              displayUnitCategory = 'volume';
+              baseUnit = 'ml';
+            }
+            // For other units (e.g., 'pièce', 'unité'), quantity is used as is, and baseUnit is its original unit
+            // and displayUnitCategory remains 'other'.
+
+            return { normalizedQuantity, baseUnit, displayUnitCategory };
+          },
+
+          // Formate une quantité totale normalisée pour l'affichage, retournant un objet { value, unit }
+          formatNormalizedQuantity(totalQuantity, unitCategory) {
+                 if (unitCategory === 'weight') {
+                   if (totalQuantity >= 1000) {
+                     // Retourne la valeur en nombre, et l'unité en 'Kg'
+                     return { value: parseFloat((totalQuantity / 1000).toFixed(2)), unit: 'Kg' };
+                   } else {
+                     // Retourne la valeur en nombre entier, et l'unité en 'g'
+                     return { value: Math.round(totalQuantity), unit: 'g' };
+                   }
+                 } else if (unitCategory === 'volume') {
+                   if (totalQuantity >= 1000) {
+                     // Retourne la valeur en nombre, et l'unité en 'L'
+                     return { value: parseFloat((totalQuantity / 1000).toFixed(2)), unit: 'L' };
+                   } else {
+                     // Retourne la valeur en nombre entier, et l'unité en 'ml'
+                     return { value: Math.round(totalQuantity), unit: 'ml' };
+                   }
+                 }
+                 // Pour les catégories 'other', la quantité est déjà dans son unité native.
+                 // Cette branche ne devrait pas être atteinte si les unités 'other' sont gérées directement
+                 // dans les boucles forEach de computeTotalDP et totalRangeArray, mais comme fallback :
+                 return { value: totalQuantity, unit: 'unité' }; // Unité générique par défaut
+               },
+
+               formatDetailQuantity(detailItem) {
+                     // Normalise la quantité pour pouvoir la traiter (ex: g -> kg ou ml -> L)
+                     const { normalizedQuantity, baseUnit, displayUnitCategory } = this.normalizeIngredientQuantity(detailItem);
+
+                     // Si c'est une unité convertible (poids ou volume), utilise la logique de formatage consolidée
+                     if (displayUnitCategory === 'weight' || displayUnitCategory === 'volume') {
+                       const { value, unit } = this.formatNormalizedQuantity(normalizedQuantity, displayUnitCategory);
+                       return `${value} ${unit}`;
+                     } else {
+                       // Pour les autres unités, affiche la quantité originale (parsée en nombre et arrondie) et son unité
+                       const val = parseFloat(detailItem.quantite) || 0;
+                       const unit = detailItem.unit || '';
+                       return `${this.round2Decimals(val)} ${unit}`;
+                     }
+                   },
+      // computeTotalRange(filteredIng) {
+      //   const totalArray = [];
+
+      //   filteredIng.forEach((item) => {
+      //     const converted = this.convertUnit({ ...item });
+
+      //     const { ingredient, quantite, unit, assiettes } = converted;
+
+      //     if (!totalArray[ingredient]) {
+      //       totalArray[ingredient] = [];
+      //     }
+
+      //     const existingItem = totalArray[ingredient].find((it) => it.unitTotal === unit);
+      //     if (existingItem) {
+      //       existingItem.qTotal += quantite !== 0 ? quantite : 1;
+      //       existingItem.totalAssiettes += assiettes;
+      //       existingItem.totalRecettes += 1;
+      //     } else {
+      //       totalArray[ingredient].push({
+      //         unitTotal: unit,
+      //         qTotal: quantite !== 0 ? quantite : 1,
+      //         totalAssiettes: assiettes,
+      //         totalRecettes: 1,
+      //       });
+      //     }
+      //   });
+
+      //   return totalArray;
+      // },
+
+      // optimisée pour mettre en cache les détails bruts filtrés par plage
+        filteredIngredientsRange(iType, start, end) {
+          const key = `${iType}_${start}_${end}`;
+          if (this._cachedRawRangeDetails[key]) {
+              return this._cachedRawRangeDetails[key];
           }
 
-          const existingItem = totalArray[ingredient].find((it) => it.unitTotal === unit);
-          if (existingItem) {
-            existingItem.qTotal += quantite !== 0 ? quantite : 1;
-            existingItem.totalAssiettes += assiettes;
-            existingItem.totalRecettes += 1;
-          } else {
-            totalArray[ingredient].push({
-              unitTotal: unit,
-              qTotal: quantite !== 0 ? quantite : 1,
-              totalAssiettes: assiettes,
-              totalRecettes: 1,
-            });
+          const sections = Array.isArray(this.ingByTypeList) ? this.ingByTypeList : [];
+          const section = sections.find(s => s.type === iType);
+          const ingredients = section && Array.isArray(section.items) ? section.items : [];
+          if (!Array.isArray(ingredients)) {
+            console.warn('[ingredients] expected array for type', iType);
+            return [];
           }
-        });
 
-        return totalArray;
-      },
+          const filtered = ingredients.filter(
+            (i) =>
+              i.dateTimeService >= start &&
+              i.dateTimeService <= end
+          );
 
-      filteredIngredientsRange(iType, start, end) {
-        const sections = Array.isArray(this.ingByTypeList) ? this.ingByTypeList : [];
-        const section = sections.find(s => s.type === iType);
-        const ingredients = section && Array.isArray(section.items) ? section.items : [];
-        if (!Array.isArray(ingredients)) {
-          console.warn('[ingredients] expected array for type', iType);
-          return [];
-        }
+          // Optionnel: trier ici si les détails doivent toujours être triés par date
+          const sortedFiltered = filtered.sort((a, b) => new Date(a.dateTimeService) - new Date(b.dateTimeService));
 
-        const filtered = ingredients.filter(
-          (i) =>
-            i.dateTimeService >= start &&
-            i.dateTimeService <= end
-        );
+          this.ingFraisFiltered = sortedFiltered; // Conserver pour d'autres usages si nécessaire
+          this._cachedRawRangeDetails[key] = sortedFiltered; // Mettre en cache le résultat
+          return sortedFiltered;
+        },
 
-        this.ingFraisFiltered = filtered;
-        return filtered;
-      },
-
-      convertUnit(item) {
-        if (item && (item.unit === 'grammes' || item.unit === 'gr.')) {
-          item.quantite = item.quantite / 1000;
-          item.unit = 'Kg';
-        }
-        if (item && item.unit === 'ml') {
-          item.quantite = item.quantite / 1000;
-          item.unit = 'l.';
-        }
-        return item;
-      },
+      // convertUnit(item) {
+      //   if (item && (item.unit === 'grammes' || item.unit === 'gr.')) {
+      //     item.quantite = item.quantite / 1000;
+      //     item.unit = 'Kg';
+      //   }
+      //   if (item && item.unit === 'ml') {
+      //     item.quantite = item.quantite / 1000;
+      //     item.unit = 'l.';
+      //   }
+      //   return item;
+      // },
 
       round2Decimals(x) {
-        return Math.round(x * 100) / 100;
+          const num = parseFloat(x); // Tente de convertir en nombre flottant
+          if (isNaN(num)) {
+            return x; // Retourne la valeur originale si elle n'est pas un nombre valide (ex: une chaîne "N/A" ou undefined)
+          }
+          return Math.round(num * 100) / 100;
       },
-
       searchFilterRange(totalRange) {
         if (!Array.isArray(totalRange)) return [];
         return totalRange.filter(item =>
@@ -530,24 +740,46 @@ export function createEventApp(initialData = {}) {
       },
 
       calculateIngredientTotal() {
-        const totals = new Map();
+             // Temporary storage for normalized totals
+             const normalizedTotals = {
+                 weight: 0, // In grams
+                 volume: 0, // In milliliters
+                 other: new Map(), // Stores {unit: totalQuantity} for other types
+             };
 
-        this.ingredientDetails.forEach(detail => {
-          const convertedDetail = this.convertUnit({ ...detail });
-          const unit = convertedDetail.unit;
+             this.ingredientDetails.forEach(detail => {
+                 const { normalizedQuantity, baseUnit, displayUnitCategory } = this.normalizeIngredientQuantity(detail);
 
-          if (totals.has(unit)) {
-            totals.set(unit, totals.get(unit) + convertedDetail.quantite);
-          } else {
-            totals.set(unit, convertedDetail.quantite);
-          }
-        });
+                 if (displayUnitCategory === 'weight' || displayUnitCategory === 'volume') {
+                     normalizedTotals[displayUnitCategory] += normalizedQuantity;
+                 } else {
+                     const currentOtherTotal = normalizedTotals.other.get(baseUnit) || 0;
+                     normalizedTotals.other.set(baseUnit, currentOtherTotal + normalizedQuantity);
+                 }
+             });
 
-        this.ingredientTotalQuantity = Array.from(totals, ([unit, qTotal]) => ({
-          unit,
-          qTotal
-        }));
-      },
-    },
-  });
+             // Format for display
+             const formattedQuantities = [];
+                    if (normalizedTotals.weight > 0) {
+                        const { value, unit } = this.formatNormalizedQuantity(normalizedTotals.weight, 'weight');
+                        formattedQuantities.push({
+                            qTotal: value, // qTotal est maintenant un nombre
+                            unit: unit // unit est maintenant 'Kg' ou 'g'
+                        });
+                    }
+                    if (normalizedTotals.volume > 0) {
+                        const { value, unit } = this.formatNormalizedQuantity(normalizedTotals.volume, 'volume');
+                        formattedQuantities.push({
+                            qTotal: value, // qTotal est maintenant un nombre
+                            unit: unit // unit est maintenant 'L' ou 'ml'
+                        });
+                    }
+                    normalizedTotals.other.forEach((qTotal, unit) => {
+                        formattedQuantities.push({ qTotal: qTotal, unit: unit }); // qTotal est un nombre, unit est l'original
+                    });
+
+                    this.ingredientTotalQuantity = formattedQuantities;
+                  },
+                },
+              });
 }

@@ -8,19 +8,7 @@
   />
 
 
-
-{{/*  lien vers le CMS de la page  */}}
-{{/*  FIXIT : lien vers url slug uuid  */}}
-{{- $linkCMSPage := (path.Join "/admin/#/collections/evenement/entries/" (.Title | urlize)) -}}
-{{/*  FIXIT : Recheck pour généraliser theme  */}}
-{{- $enkaDevCms := "" -}}
-{{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
-{{$enkaDevCms = "https://enka-cookbook.netlify.app/"}}
-{{ end }}
-  {{/*  <span class="text-end no-print p-2"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index">Modifier</a></span>  */}}
-
-  <div id="app" data-json-src="index.json">
-
+    <div id="app" data-json-src="index.json">
 {{ $here := "ingredients"}}
 
 {{/* ::: navbar page */}}
@@ -404,45 +392,28 @@
                       <tbody>
                         <template
                           v-for="item in totalRangeWithDetail('{{ .iType }}', range[0], range[range.length - 1])"
+                          :key="item.ingredient"
                         >
                           <tr
-                            v-show="showAllColIngredients && !item.qTotal"
-                            :class="{'table-secondary fw-bold': item.qTotal}"
-                          >
-                            <td :class="{'small text-muted': !item.qTotal}">
-                              [[item.ingredient]]
-                            </td>
-                            <td v-if="item.recette" class="small">
-                              <span class="fw-bold">[[item.recette]]</span> le
-                              [[new Date
-                              (item.dateService).toISOString().substr(0, 10)]] /
-                              [[item.horaire]] <br />
-                              pour [[item.assiettes]] couverts
-                              <span class="float-end">
-                                <span
-                                  class="fw-bold "
-                                  v-if="item.quantiteOrig && item.unitOrig"
-                                  >[[round2Decimals(item.quantiteOrig)]]
-                                  [[item.unitOrig]] ~=
-                                </span>
-                                <span
-                                  class="fw-bold"
-                                  v-if="item.quantite && item.unit"
-                                  >[[round2Decimals(item.quantite)]]
-                                  [[item.unit]]</span
-                                >
-                              </span>
-                            </td>
-                          </tr>
-
-                          <tr
-                            v-if="item.qTotal"
+                            v-if="item.qTotalX && item.qTotalX.length > 0"
                             :class="{'table-secondary': showAllColIngredients}"
                           >
                             <td class="toCopyTd">[[item.ingredient]]</td>
-                            <td class="small">[[item.totalAssiettes]] c.</td>
+                            <td class="small">
+                              [[item.totalAssiettes]] c. - [[item.totalRecettes]] recettes
+                            </td>
                             <td class="text-end toCopyTd">
-                              <span>[[item.qTotal]] [[item.unitTotal]]</span>
+                              <template v-for="(quantiteEntry, qIndex) in item.qTotalX">
+                                <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null">
+                                  [[round2Decimals(quantiteEntry.qTotal)]] [[quantiteEntry.unitTotal]]
+                                </span>
+                                <span v-else class="small">non précisé</span>
+                                <span
+                                  v-if="qIndex < item.qTotalX.length - 1"
+                                  class="mx-1"
+                                  >+</span
+                                >
+                              </template>
                             </td>
                             <td class="no-print" v-show="!showAllColIngredients">
                               <button
@@ -463,6 +434,28 @@
                               class="printonly print-td-15"
                             ></td>
                           </tr>
+                          <!-- BLOC pour les détails individuels -->
+                          <template v-if="showAllColIngredients">
+                            <tr
+                              v-for="detail in getIngredientIndividualDetails(item.ingredient, '{{ .iType }}', range[0], range[range.length - 1])"
+                              :key="detail.recette + detail.dateService"
+                              class="small text-muted"
+                            >
+                              <td>
+                                &nbsp;&nbsp;&nbsp;&nbsp;[[detail.recette]]
+                              </td>
+                              <td>
+                                le [[new Date(detail.dateService).toLocaleDateString("fr-FR", {weekday: 'short', month: 'short', day: 'numeric'})]] / [[detail.horaire]] <br />
+                                pour [[detail.assiettes]] couverts
+                              </td>
+                              <td class="text-end">
+                                  <strong>[[formatDetailQuantity(detail)]]</strong>
+                              </td>
+                              <td class="no-print"></td>
+                              <td v-show="printAddCol === '1' || printAddCol ===  '2' " class="printonly print-td-15"></td>
+                              <td v-show=" printAddCol ===  '2' || printAddCol ===  '3' " class="printonly print-td-15"></td>
+                            </tr>
+                          </template>
                         </template>
                       </tbody>
                     </table>
@@ -542,36 +535,10 @@
                     <tbody>
                       <template
                         v-for="(item, ingredient) in totalQuantitesDP['{{ . }}']"
+                        :key="item.ingredient"
                       >
-                        <tr v-show="showAllColIngredients && !item.qTotalX">
-                          <td :class="{'small text-muted': !item.qTotalX}">
-                            [[item.ingredient]]
-                          </td>
-                          <td v-if="item.recette " class="small">
-                            <span class="fw-bold">[[item.recette]]</span> le
-                            [[new Date
-                            (item.dateService).toISOString().substr(0, 10)]] /
-                            [[item.horaire]] <br />
-                            pour [[item.assiettes]] couverts
-                            <span class="float-end">
-                              <span
-                                class="fw-bold "
-                                v-if="item.quantiteOrig && item.unitOrig"
-                                >[[round2Decimals(item.quantiteOrig)]]
-                                [[item.unitOrig]] ~=
-                              </span>
-                              <span
-                                class="fw-bold"
-                                v-if="item.quantite && item.unit"
-                                >[[round2Decimals(item.quantite)]]
-                                [[item.unit]]</span
-                              >
-                            </span>
-                          </td>
-                        </tr>
-
                         <tr
-                          v-if="item.qTotalX"
+                          v-if="item.qTotalX && item.qTotalX.length > 0"
                           :class="{'table-secondary': showAllColIngredients}"
                         >
                           <td class="toCopyTd">[[item.ingredient]]</td>
@@ -581,15 +548,15 @@
                           </td>
 
                           <td class="text-end toCopyTd">
-                            <template v-for="(quantite, index) in item.qTotalX">
-                              <span v-if="quantite.unit !== ''">
-                                [[round2Decimals(quantite.qTotal)]]
-                                [[quantite.unit]]
+                            <template v-for="(quantiteEntry, qIndex) in item.qTotalX">
+                              <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unit !== null">
+                                [[round2Decimals(quantiteEntry.qTotal)]]
+                                [[quantiteEntry.unit]]
                               </span>
 
                               <span v-else class="small"> non précisé </span>
                               <span
-                                v-if="index < item.qTotalX.length - 1"
+                                v-if="qIndex < item.qTotalX.length - 1"
                                 class="mx-1"
                                 >+</span
                               >
@@ -616,7 +583,30 @@
                             class="printonly print-td-15"
                           ></td>
                         </tr>
+                        <!--  BLOC pour les détails individuels -->
+                        <template v-if="showAllColIngredients">
+                          <tr
+                            v-for="detail in getIngredientIndividualDetails(item.ingredient, '{{ . }}')"
+                            :key="detail.recette + detail.dateService"
+                            class="small text-muted"
+                          >
+                            <td>
+                              &nbsp;&nbsp;&nbsp;&nbsp;[[detail.recette]]
+                            </td>
+                            <td>
+                              le [[new Date(detail.dateService).toLocaleDateString("fr-FR", {weekday: 'short', month: 'short', day: 'numeric'})]] / [[detail.horaire]] <br />
+                              pour [[detail.assiettes]] couverts
+                            </td>
+                            <td class="text-end">
+                                <strong>[[formatDetailQuantity(detail)]]</strong>
+                            </td>
+                            <td class="no-print"></td>
+                            <td v-show="printAddCol === '1' || printAddCol ===  '2' " class="printonly print-td-15"></td>
+                            <td v-show=" printAddCol ===  '2' || printAddCol ===  '3' " class="printonly print-td-15"></td>
+                          </tr>
+                        </template>
                       </template>
+
                     </tbody>
                   </table>
                 </div>
@@ -625,8 +615,6 @@
           </div>
         </div>
       </div>
-    </div>
-    </div>
   <!-- Modal pour les détails d'ingrédients -->
   <div class="modal fade" id="ingredientDetailModal" tabindex="-1" aria-labelledby="ingredientDetailModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -657,10 +645,7 @@
                  <span class="fw-medium text-nowrap"> [[detail.assiettes]] c. </span>
                 </td>
                 <td class="text-end">
-                  <span v-if="detail.quantiteOrig && detail.unitOrig" class="text-muted small">
-                    [[round2Decimals(detail.quantiteOrig)]] [[detail.unitOrig]] ~=
-                  </span>
-                  <strong>[[round2Decimals(detail.quantite)]] [[detail.unit]]</strong>
+                  <strong>[[formatDetailQuantity(detail)]]</strong>
                 </td>
               </tr>
             </tbody>
@@ -685,7 +670,7 @@
   </div>
 
   </div>
-
+</div>
 
 {{ $eventJS := resources.Get "js/event/bootstrap.js" | js.Build (dict "targetPath" "assets-bundled/event-utils.js" "minify" true) | fingerprint }}
 <script src="{{ $eventJS.RelPermalink }}" integrity="{{ $eventJS.Data.Integrity }}" defer></script>
