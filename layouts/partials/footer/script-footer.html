@@ -1,66 +1,19 @@
+
+
 {{/*  {{ partial "footer/esbuild" (dict "src" "js/vendor/bootstrap.bundle.min.js" "load" "async" "transpile" false) -}}  */}}
 
 <!-- Charge les script js importé dans app.js -->
 {{ partial "footer/esbuild" (dict "src" "js/app.js" "targetPath" "main.js" "load" "async" "transpile" false) -}}
 
+<!-- Script pour la gestion de l'état d'authentification global -->
+{{ partial "footer/esbuild" (dict "src" "js/auth-status.js" "targetPath" "auth-status.js" "load" "async" "transpile" false) -}}
 
-{{ if .Params.zoomable_img }}
-{{ $script := resources.Get "js/zoomable-img.js" | fingerprint }}
-<script type="text/javascript" src="{{ $script.RelPermalink }}"></script>
-{{ end }}
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
 
 {{/* EXAMPLE - only load script for production
 {{ if eq (hugo.Environment) "production" -}}
   {{ partial "footer/esbuild" (dict "src" "js/instantpage.js" "load" "async" "transpile" false) -}}
 {{ end -}}
 */}}
-
-{{/* EXAMPLE - only load script for a page type e.g. contact or gallery
-{{ if eq .Type "gallery" }}
-  {{ partial "footer/esbuild" (dict "src" "js/gallery.js" "load" "async" "transpile" false) -}}
-{{ end }}
-*/}}
-
-
-
-<!-- Script d'authentification - chargé sur toutes les pages -->
-<script type="module" src="{{ "js/authAppwrite.js" | relURL }}"></script>
-
-<!-- Script pour gérer le bouton de connexion dans le header -->
-<script type="module">
-import { Client, Account } from "https://cdn.jsdelivr.net/npm/appwrite@15.0.0/+esm";
-
-// Configuration (même que dans authAppwrite.js)
-const client = new Client()
-  .setEndpoint("https://cloud.appwrite.io/v1")
-  .setProject("689725820024e81781b7");
-
-const account = new Account(client);
-
-// Fonction pour mettre à jour le bouton de connexion
-async function updateLoginButton() {
-  const loginButton = document.getElementById('header-login-button');
-
-  if (!loginButton) return; // Si pas de bouton, on sort
-
-  try {
-    // Vérifier si l'utilisateur est connecté
-    const user = await account.get();
-
-    if (user) {
-      // Utilisateur connecté - bouton mène vers le CMS
-      loginButton.textContent = 'Editer';
-      loginButton.href = '/sveltia/';
-      loginButton.title = `Connecté en tant que ${user.email}`;
-    }
-  } catch (error) {
-    // Utilisateur non connecté - bouton mène vers la page de connexion
-    loginButton.textContent = 'Connexion';
-    loginButton.href = '/login/';
-    loginButton.title = 'Se connecter';
-  }
-}
-
-// Mettre à jour le bouton au chargement de la page
-document.addEventListener('DOMContentLoaded', updateLoginButton);
-</script>

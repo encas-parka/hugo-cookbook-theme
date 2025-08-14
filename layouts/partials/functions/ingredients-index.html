@@ -21,9 +21,12 @@
 {{- if $ingredientsSection -}}
   {{- range $ingredientsSection.RegularPages -}}
     {{- $p := . -}}
-    {{- $uuid := or $p.Params.uuid "" -}}
+    {{- $slug := path.Base $p.File.Dir -}}
+    {{- $uuid := partial "functions/extract-uuid-from-slug.html" $slug -}}
+    {{- if or (not $uuid) (eq $uuid "") -}}
+      {{- $uuid = $p.Params.uuid -}}
+    {{- end -}}
     {{- $title := $p.Title -}}
-    {{- $slug := $p.Parent.File.BaseFileName | default $p.Slug | default $p.RelPermalink |  printf "%s_%s" ($title | urlize) $uuid -}}
     {{- $type := or $p.Params.type "" -}}
     {{- $allergenes := (slice) -}}
     {{- with $p.Params.allergenes -}}

@@ -126,3 +126,7 @@
 .search-results-container a:last-child .searchCard {
   border-bottom: none;
 }
+
+[v-cloak] {
+  display: none;
+}

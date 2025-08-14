@@ -7,4 +7,10 @@
   </header>
   <article>{{.Content}}</article>
 
+
+  {{ if .Params.zoomable_img }}
+  {{ $script := resources.Get "js/zoomable-img.js" | fingerprint }}
+  <script type="text/javascript" src="{{ $script.RelPermalink }}"></script>
+  {{ end }}
+
 {{end}}

@@ -13,20 +13,20 @@ Projet multi-dépôts : ce thème Hugo (hugo-cookbook-theme) est utilisé par le
 2) Style de code
 - Prettier + prettier-plugin-go-template (.prettierrc); parser go-template pour *.html
 - Modules Hugo: github.com/hugomods/*, photoswipe; préférer assets/ (scss, js) et pipelines Hugo
-- JS: ES5/ES6 simple (Alpine, Vue2); utiliser const/let, fonctions pures; pas de TypeScript
+- JS: ES5/ES6 simple (Vuejs3); utiliser const/let, fonctions pures; pas de TypeScript
 - Nommage: fichiers/partials en kebab-case; classes CSS BEM/Bootstrap; données YAML/TOML snake_case
 - Hugo: limiter la logique; utiliser partials, blocks, range, with; vérifier nil/empty avec with/default
 - SCSS: centraliser variables/mixins sous assets/scss; éviter !important; suivre Bootstrap 5
 - Erreurs: JS avec try/catch et guards DOM; Hugo éviter panics via defaults; pas de secrets loggés
 - Accessibilité: alt, aria-*, contrastes; structure sémantique
 - Performance: pipelines Hugo (minify, fingerprint), éviter JS bloquant; images via hugomods/images
-- Règles Cursor/Copilot: aucune trouvée (.cursor/, .cursorrules, .github/copilot-instructions.md absents)
+
 
 3) Partials et fonctions (inventaire bref)
 - components/ingredients-grouped-list: liste d’ingrédients groupée, tri + icônes
 - components/event-top-nav: navigation supérieure pages événement
 - components/breadcrumb, doc-sidebar, backlinks: navigation docs
-- components/*icon*: rendu d’icônes (cat/type/svg/font), giscus-comment
+- components/*icon*: rendu d’icônes (cat/type/svg/font)
 - components/search-module-* : modules recherche recettes/événements
 - functions/format-qty: formate quantité/unité avec conversions g↔kg, ml↔l
 - functions/quantite-converter: conversions auxiliaires par unité/ingrédient
@@ -35,4 +35,20 @@ Projet multi-dépôts : ce thème Hugo (hugo-cookbook-theme) est utilisé par le
 - functions/ingredients-types-rename(-short): renommage lisible des types
 - bootstrap/* et bootstrap/functions/*: helpers UI Bootstrap (grille, alertes, attrs, url)
 - head/*, header/*, footer/*: SEO/meta, favicons, scripts/styles
-- inline-svg, fontawesome, email, content/*: utilitaires d’inclusion/rendu
+- inline-svg, fontawesome, email, content/*: utilitaires d'inclusion/rendu
+
+4) Fonctionnalités d'authentification
+- Page de connexion: intégration Appwrite pour l'authentification
+  - Formulaire email/mot de passe avec gestion des erreurs
+  - Vérification de session et récupération automatique du token CMS
+  - Formulaire de demande d'accès pour les nouveaux utilisateurs
+- Gestion des sessions: localStorage pour 'sveltia-cms.user', 'appwrite-user-email', 'is-authenticated'
+- Page d'invitation: permet aux utilisateurs connectés d'inviter d'autres contributeurs
+- Page d'acceptation d'invitation: traite les liens d'invitation envoyés par Appwrite
+- Page d'inscription: /registration (existante mais non implémentée)
+- Scripts associés:
+  * authAppwrite.js: logique complète de connexion/déconnexion Appwrite
+  * auth-status.js: vérification du statut d'authentification sur les pages protégées
+  * invitation.js: création et envoi d'invitations par email
+  * accept-invitation.js: traitement des liens d'invitation et création de comptes
+- Flux d'authentification: Connexion Appwrite → Vérification session → Appel fonction cms-auth → Stockage token CMS → Accès Sveltia CMS

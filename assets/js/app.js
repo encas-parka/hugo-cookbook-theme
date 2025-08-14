@@ -12,5 +12,3 @@ import 'js/components/search-modules.js';
 
 // // lazy sizes for image loading
 // import 'lazysizes';
-
-

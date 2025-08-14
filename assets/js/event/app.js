@@ -129,6 +129,8 @@ export function createEventApp(initialData = {}) {
         this.datePickerReset();
       });
 
+      this.isLoading = false;
+
       try {
         console.log("=== FIN DEBUG INITIALISATION ===");
       } catch (_e) {}

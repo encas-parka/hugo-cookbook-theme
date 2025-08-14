@@ -129,7 +129,7 @@
     <a href="#" class="scroll-to-top" title="Scroll to top"></a>
 
     <div class="no-print" id="TotalIngredients"></div>
-    <div class="container-fluid " :class="{'no-print':!toPrint.ingredients}">
+    <div class="container-fluid " :class="{'no-print':!toPrint.ingredients}" v-show="!isLoading">
       <h3 class="no-print">
         Listes des [[uniqueIngCount]] ingrédients présents dans les
          [[recettesLength]] recettes des {{ .Params.repas | len }} menus

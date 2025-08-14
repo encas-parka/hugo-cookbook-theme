@@ -366,7 +366,8 @@
 
       {{/* Calcul des alertes allergènes via le partial function dédié */}}
       {{- $alertsContext := dict "Params" (dict "ingredients" $recetteMeta.ingredients) -}}
-      {{- $alerts := partialCached "functions/recette-alerts.html" $alertsContext .uuid -}}
+      {{- $recetteUuid := partialCached "functions/extract-uuid-from-slug.html" $recetteData.recette $recetteData.recette -}}
+      {{- $alerts := partialCached "functions/recette-alerts.html" $alertsContext $recetteUuid -}}
 
       {{/* Rendu via le composant dédié, conditionné par v-show print_alert */}}
       <div class="row justify-content-start mt-2" v-show="print_alert">
@@ -563,4 +564,6 @@
 
   app.mount('#app');
 </script>
+
+
 {{ end }}

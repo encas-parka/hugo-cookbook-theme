@@ -7,7 +7,9 @@
 {{- end -}}
 
 
-{{ $alerts := partialCached "functions/recette-alerts.html" . .Params.uuid }}
+{{- $currentSlug := .File.ContentBaseName -}}
+{{- $currentUUID := partialCached "functions/extract-uuid-from-slug.html" $currentSlug $currentSlug -}}
+{{ $alerts := partialCached "functions/recette-alerts.html" . $currentUUID }}
 
 {{- /* Calculate ingredients data and auto-regimes early for use in multiple places */}}
 {{- $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" -}}
@@ -220,8 +222,7 @@
   {{/*  Réccupération des backlink : recettes citant celle-ci comme recette alternative  */}}
   {{- $recettesIndex := partialCached "functions/recettes-index.html" "recettes-index-global" -}}
   {{- $byUUIDRecette := $recettesIndex.byUUIDRecette -}}
-  {{- $currentSlug := .File.ContentBaseName -}}
-  {{- $currentUUID := partialCached "functions/extract-uuid-from-slug.html" $currentSlug -}}
+  {{- /* currentSlug et currentUUID déjà définis plus haut pour le cache */}}
   {{- $backlinks := dict -}}
   {{/*  tableau des recettes alternatives signalées pour eviter les doublons avec les backlinks  */}}
   {{- $recetteAlt := slice -}}
@@ -263,16 +264,9 @@
 
   </div>
 
-  <br><hr><br>
-  <div class="no-print ">
-    {{/*  <div class="small">Si vous avez des retour d'experience à partager sur cette recette. Vous pouvez précisions, autres quantités, </div>  */}}
-  </div>
-</div>
 
 
-{{/*  :::Script : giscus + quantite  */}}
-{{/*  {{ partial "components/giscus-comment" }}  */}}
 
-{{ partial "footer/esbuild" (dict "src" "js/quantite.js" "load" "async" "transpile" false) -}}
+{{ partialCached "footer/esbuild" (dict "src" "js/quantite.js" "load" "async" "transpile" false) "quantite.js" -}}
 
-{{ end }}
+{{- end -}}

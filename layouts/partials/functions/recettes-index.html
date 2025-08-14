@@ -34,8 +34,9 @@
 {{- range $recettesPages -}}
   {{- $p := . -}}
   {{- /* Le slug est le nom du dossier parent (ex: "ma-recette_uuid") */}}
-  {{- $slugUuid := $p.Parent.File.BaseFileName -}}
-  {{- $uuid := or $p.Params.uuid (replaceRE `^.*_` "" $slugUuid) -}}
+  {{- $slugUuid := path.Base $p.File.Dir -}}
+  {{- $uuid := partial "functions/extract-uuid-from-slug.html" $slugUuid -}}
+
 
   {{- if and $uuid (ne $uuid "") -}}
     {{- $title := $p.Title -}}

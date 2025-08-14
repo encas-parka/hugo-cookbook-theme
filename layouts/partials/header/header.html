@@ -2,131 +2,79 @@
 {{ partial "header/alert.html" . }}
 {{ end -}}
 
-
 <header>
-
-    {{/*  ::: import svg icon  */}}
+  {{/*  ::: import svg icon  */}}
   {{/*  TODO : importer sprite svg comme ressource externe pour mise en cache  */}}
   {{ $sprite := resources.Get "fonticons/sprite-icons.svg" }}
   {{ if $sprite }}
-    {{ $sprite.Content | safeHTML }}
+    <div style="height: 0; overflow: hidden;">{{ $sprite.Content | safeHTML }}</div>
   {{ end }}
+  <div>
 
-
-   <div>
-
-    <nav class="navbar navbar-dark bg-dark navbar-expand-lg no-print p-0 fixed-top">
+    <nav class="navbar navbar-dark bg-dark navbar-expand-lg no-print py-1 fixed-top" id="main-navbar">
       <div class="container-fluid" >
-        <a class="navbar-brand monospace" href="{{ .Site.BaseURL }}"> <img src="/favicon-96x96.png" alt="logo"
-            height="32" class="d-inline-block align-text-center"></a>
+        <a class="navbar-brand monospace" href="{{ .Site.BaseURL }}">
+          <img src="/favicon-96x96.png" alt="logo" height="32" class="d-inline-block align-text-center">
+        </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarHeader"
           aria-controls="navbarHeader" aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse bg-dark" id="navbarHeader">
-          <ul class="navbar-nav mb-0 mb-lg-2 p-0 px-1 text-secondary me-auto">
-            <li class="nav-item">
-              <a class="nav-link px-3" href="/recettes">Explorer</a>
-            </li>
-            <li class="nav-item dropdown ">
-              <a class="nav-link px-3 dropdown-toggle" href="#" id="navbarDropdownTypes" role="button"
-                data-bs-toggle="dropdown" aria-expanded="false">
-                Types
-              </a>
-              <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                {{ range (.Site.GetPage "section" "recettes").Pages}}
-                <li><a class="dropdown-item" href="{{.RelPermalink}}">
-                  {{ $svg := (print .Title | lower )}}
-                  {{ partial "components/icon-svg" (dict "name" $svg "size" "1.5rem") }}
-                  {{.Title}}</a></li>
-                {{ end }}
-              </ul>
-            </li>
-            </li>
-            <div class="">
-              <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownCategories" role="button"
-                  data-bs-toggle="dropdown" aria-expanded="false">
-                  Catégories
-                </a>
-                <div class="dropdown-menu columns-2 " aria-labelledby="navbarDropdown">
-                  <div class="row ">
-                    {{ range (.Site.GetPage "section" "categories").Pages}}
-                    <div class="col-sm-6">
-                      <ul class="multi-column-dropdown overflow-auto">
-                        <li>
-                          <a class="dropdown-item" href="{{.RelPermalink}}">
-                          {{/*  USELESS  */}}
-                          {{/*  {{ $svg := (printf "fonticons/%s.svg" .Title) | lower}}
-                          {{ if resources.Get (printf "fonticons/%s.svg" (.Title | lower) ) }}
-                          <span class="float-start me-2">{{ partial "inline-svg" (dict "src" $svg "display"
-                            "inline-middle" "rem" 3)
-                            . }}</span>
-                          {{ else }}
-                          <span class="float-start me-2">{{ partial "inline-svg" (dict "src" "fonticons/no-cat.svg"
-                            "display"
-                            "inline-middle" "rem" 3) . }}</span>
-                          {{ end }}  */}}
 
-                          {{ partial "components/icon-svg" (dict "name" .Title "size" "1.5rem") }}
-                          {{.Title}}
-                          </a>
-                        </li>
-                      </ul>
-                    </div>
-                    {{ end }}
-                  </div>
-                </div>
-              </li>
-            </div>
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownRegimes" role="button"
-                data-bs-toggle="dropdown" aria-expanded="false">
-                Régimes
-              </a>
-              <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                {{ range (.Site.GetPage "section" "regime").Pages}}
-                <li><a class="dropdown-item" href="{{.RelPermalink}}">
-                  {{ $svg := (print .Title | lower )}}
-                  {{ partial "components/icon-svg" (dict "name" $svg "size" "2rem") }}
-                  {{.Title}}</a></li>
-                {{ end }}
-              </ul>
+          <ul class="navbar-nav  text-secondary me-auto">
+            <li class="nav-item">
+
             </li>
-            <li class="nav-item ">
+            <li class="nav-item">
+              <a class="nav-link px-3" href="/recettes">Recettes</a>
+            </li>
+            <li class="nav-item">
               <a href="" class="nav-link" data-bs-toggle="modal" data-bs-target="#search-events-modal" role="button">
-                Evenements</a>
+                Evenements
+                </a>
             </li>
           </ul>
 
-          <ul class="navbar-nav">
-            <li class="nav-item ">
-              <a href="{{ "/docs" | absURL }}" class="nav-link">
-                la doc
-              </a>
-            </li>
-            <li class="nav-item m-2">
-              <a class="btn btn-outline-primary btn-sm " data-bs-toggle="modal" data-bs-target="#search-recipes-modal">
-                {{ partial "inline-svg" (dict "src" "fonticons/search.svg" "display" "block" "fs" 4) }}
-              </a>
-            </li>
-            {{/* <li class="nav-item m-2">
-              <a href="/registration" class="btn btn-outline-primary btn-sm"
-                style="display: flex; align-items: center;">
-                {{partial "inline-svg" (dict "src" "fonticons/person-circle.svg" "fs" 4 ) }}
-                <span class="mx-2">Inscription</span>
-              </a>
-            </li> */}}
-            {{ if not (eq hugo.Environment "demo") }}
-            <li class="nav-item m-2">
-              <a id="header-login-button" href="/registration" class="btn btn-outline-primary btn-sm"
-                style="display: flex; align-items: center;">
-                {{partial "inline-svg" (dict "src" "fonticons/box-arrow-in-right.svg" "fs" 4 ) }}
-                <span class="mx-2">Connexion</span>
+          <ul class="navbar-nav   text-secondary">
+
+            <!-- État pour les utilisateurs déconnectés -->
+            <li class="nav-item" id="header-logged-out">
+              <a href="/login" class="btn btn-outline-primary btn-sm d-flex align-items-center" aria-label="Se connecter">
+                {{ partial "inline-svg" (dict "src" "fonticons/person-circle.svg"  "fs" 6) }}
+
               </a>
             </li>
 
-            {{ end }}
+            <!-- État pour les utilisateurs connectés (masqué par défaut) -->
+            <li class="nav-item dropdown" id="header-logged-in" style="display: none;">
+              <button class="btn btn-primary btn-sm dropdown-toggle d-flex align-items-center"
+                      id="navbarUserDropdown"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                      aria-label="Menu utilisateur">
+                {{ partial "inline-svg" (dict "src" "fonticons/person-circle.svg"  "fs" 4) }}
+              </button>
+
+              <ul class="dropdown-menu dropdown-menu-end " aria-labelledby="navbarUserDropdown">
+                <li><div class="dropdown-header small text-muted " id="header-user-email-display">Utilisateur</div></li>
+                <li><a class="dropdown-item d-flex align-items-center" href="/sveltia/">
+                  {{ partial "inline-svg" (dict "src" "fonticons/pencil.svg" "fs" 4 "class" "me-2") }}
+                  Administration
+                </a></li>
+                <li><a class="dropdown-item d-flex align-items-center" href="/invitation/">
+                  {{ partial "inline-svg" (dict "src" "fonticons/user-round-plus.svg" "fs" 4 "class" "me-2") }}
+                  Inviter
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><button class="dropdown-item d-flex align-items-center" id="header-logout-button">
+                  {{ partial "inline-svg" (dict "src" "fonticons/log-out.svg" "fs" 4 "class" "me-2") }}
+                  Se déconnecter
+                </button></li>
+              </ul>
+            </li>
+
           </ul>
         </div>
 
@@ -134,19 +82,50 @@
     </nav>
   </div>
 
-  {{/* Barre secondaire de navigation pour les pages 'evenements'. Utilise alpinejs pour vérifier la taille de l'ecran,
-  et adapter les boutons en conséquence. → deplacé vers evenement */}}
-  {{ if eq .Type "evenements" }}
-
-  {{end}}
 </header>
 
-{{*/
-{{ if not .IsHome }}
-<div class="navbar mx-lg-4">{{ partial "components/breadcrumb.html" . }}</div>
-{{ end }}
-*/}}
+<!-- CSS pour l'animation de scroll -->
+<style>
+/* Animation fluide pour le comportement de scroll de la navbar */
+#main-navbar {
+  transition: transform 0.3s ease-in-out;
+}
 
+.navbar-hidden {
+  transform: translateY(-100%);
+}
+
+/* Amélioration visuelle des boutons du header */
+.navbar .btn {
+  border-radius: 6px;
+  min-width: 38px;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navbar .btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Style pour le dropdown menu */
+.dropdown-menu-dark .dropdown-item {
+  transition: background-color 0.15s ease-in-out;
+}
+
+.dropdown-menu-dark .dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Espacement pour les icônes dans le menu */
+.dropdown-item svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.8;
+}
+</style>
 
 {{/* Modal des modules de recherche vuejs */}}
 <div class="modal fade" id="search-recipes-modal" data-toggle="modal" tabindex="0" aria-labelledby="Search Recipes"
@@ -157,7 +136,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        {{ partial "components/search-module-recipes" . }}
+        {{ partialCached "components/search-module-recipes" . "search-recipes" }}
       </div>
     </div>
   </div>
@@ -171,25 +150,65 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        {{ partial "components/search-module-events" . }}
+        {{ partialCached "components/search-module-events" . "search-events" }}
       </div>
     </div>
   </div>
 </div>
 
-{{ partialCached "components/js_search-modules" . }}
-
 <script>
-  function scrollToReveal() {
-    return {
-      isScrolled: true, // aussi pour la barre de navigation des pages evenements
+// Gestion du comportement de scroll de la navbar en JavaScript vanilla
+(function() {
+  let lastScrollTop = 0;
+  const navbar = document.getElementById('main-navbar');
 
-      lastPos: window.scrollY + 0,
-      scroll() {
-        scrolled = window.scrollY > this.$refs.navbar.offsetHeight && this.lastPos > window.scrollY || window.scrollY === 0;
-        this.lastPos = window.scrollY;
-        this.isScrolled = scrolled;
-      }
+  if (!navbar) return;
+
+  function handleScroll() {
+    const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+
+    // Si on est en haut de la page, toujours afficher
+    if (currentScroll <= 0) {
+      navbar.classList.remove('navbar-hidden');
+    }
+    // Si on scroll vers le haut, afficher
+    else if (currentScroll < lastScrollTop) {
+      navbar.classList.remove('navbar-hidden');
+    }
+    // Si on scroll vers le bas et qu'on a dépassé la hauteur de la navbar, cacher
+    else if (currentScroll > lastScrollTop && currentScroll > navbar.offsetHeight) {
+      navbar.classList.add('navbar-hidden');
+    }
+
+    lastScrollTop = currentScroll <= 0 ? 0 : currentScroll;
+  }
+
+  // Attacher l'écouteur d'événement avec throttling pour les performances
+  let ticking = false;
+
+  function requestTick() {
+    if (!ticking) {
+      requestAnimationFrame(handleScroll);
+      ticking = true;
+      setTimeout(() => { ticking = false; }, 10);
     }
   }
+
+  // Initialiser au chargement de la page
+  document.addEventListener('DOMContentLoaded', function() {
+    handleScroll();
+    window.addEventListener('scroll', requestTick, { passive: true });
+  });
+
+  // Si le DOM est déjà chargé
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      handleScroll();
+      window.addEventListener('scroll', requestTick, { passive: true });
+    });
+  } else {
+    handleScroll();
+    window.addEventListener('scroll', requestTick, { passive: true });
+  }
+})();
 </script>

@@ -1,0 +1,80 @@
+{{- /* Debug template pour tester la résolution des UUID */ -}}
+
+<h2>Test de résolution des UUID</h2>
+
+{{- /* Debug des pages de recettes trouvées */ -}}
+{{- $recettesPages := where site.RegularPages "Section" "recettes" -}}
+<h3>Pages de recettes trouvées ({{ len $recettesPages }} pages)</h3>
+<ul>
+{{- range $recettesPages -}}
+  {{- $p := . -}}
+  {{- $slugUuidOld := $p.Parent.File.BaseFileName -}}
+  {{- $slugUuidNew := path.Base $p.File.Dir -}}
+  {{- $uuidOld := partialCached "functions/extract-uuid-from-slug.html" $slugUuidOld $slugUuidOld -}}
+  {{- $uuidNew := partial "functions/extract-uuid-from-slug.html" $slugUuidNew -}}
+  <li>
+    <strong>{{ $p.Title }}</strong><br>
+    → Section: {{ $p.Section }}<br>
+    → Type: {{ $p.Params.type }}<br>
+    → File.Dir: {{ $p.File.Dir }}<br>
+    → OLD method: {{ $slugUuidOld }} → UUID: {{ $uuidOld }}<br>
+    → NEW method: {{ $slugUuidNew }} → UUID: {{ $uuidNew }}<br>
+  </li>
+{{- if gt (len $recettesPages) 5 -}}{{- break -}}{{- end -}}
+{{- end -}}
+</ul>
+
+{{- /* Récupérer les index */ -}}
+{{- $recettesIndex := partialCached "functions/recettes-index.html" "recettes-index-global" -}}
+{{- $byUUIDRecette := cond (and $recettesIndex (isset $recettesIndex "byUUIDRecette")) $recettesIndex.byUUIDRecette (dict) -}}
+
+<h3>Index des recettes ({{ len $byUUIDRecette }} recettes)</h3>
+<ul>
+{{- range $uuid, $meta := $byUUIDRecette -}}
+  <li><strong>{{ $uuid }}</strong>: {{ $meta.title }} ({{ $meta.slugUuid }})</li>
+{{- end -}}
+</ul>
+
+<h3>Test d'extraction d'UUID depuis des slugs d'événements</h3>
+{{- $testSlugs := slice
+  "vinaigrette_pm7r5avd"
+  "tzatziki-vegan_98M8i-fxh2fYdzsmrM8fM"  
+  "-tartinade-pois-casse-oignon-caramelise_j2muiu74"
+  "sauce-blanche-tahin-citron-vegane_1tbcqikrwq2krl27y8-wibrfnsxnn5mjtqym"
+-}}
+
+<table border="1">
+  <tr>
+    <th>Slug événement</th>
+    <th>UUID extrait</th>
+    <th>Trouvé dans index?</th>
+    <th>Titre recette</th>
+  </tr>
+{{- range $testSlugs -}}
+  {{- $slug := . -}}
+  {{- $uuid := partialCached "functions/extract-uuid-from-slug.html" $slug $slug -}}
+  {{- $recetteMeta := cond (and $uuid (ne $uuid "")) (index $byUUIDRecette $uuid) nil -}}
+  <tr>
+    <td>{{ $slug }}</td>
+    <td>{{ $uuid }}</td>
+    <td>{{ cond $recetteMeta "✅ OUI" "❌ NON" }}</td>
+    <td>{{ if $recetteMeta }}{{ $recetteMeta.title }}{{ else }}-{{ end }}</td>
+  </tr>
+{{- end -}}
+</table>
+
+<h3>Recherche des recettes manquantes</h3>
+{{- range $testSlugs -}}
+  {{- $slug := . -}}
+  {{- $uuid := partialCached "functions/extract-uuid-from-slug.html" $slug $slug -}}
+  {{- $recetteMeta := cond (and $uuid (ne $uuid "")) (index $byUUIDRecette $uuid) nil -}}
+  {{- if not $recetteMeta -}}
+    <p><strong>Slug manquant:</strong> {{ $slug }} → UUID: {{ $uuid }}</p>
+    {{- /* Recherche dans toutes les recettes pour voir s'il existe sous un autre nom */ -}}
+    {{- range $existingUuid, $existingMeta := $byUUIDRecette -}}
+      {{- if eq $existingMeta.slugUuid $slug -}}
+        <p style="color: green;">  → Trouvé par slugUuid: {{ $existingMeta.title }}</p>
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}

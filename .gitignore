@@ -5,3 +5,4 @@ public/
 .directories
 *_bak
 **/jsconfig.json
+node_modules/
