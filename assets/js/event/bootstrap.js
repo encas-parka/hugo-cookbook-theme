@@ -14,12 +14,13 @@
  *  - Si window.__EVENT_PAGE_DATA__ est présent, créer et monter l’app Vue
  *    sinon, tenter script JSON inline puis fetch via data-json-src.
  */
- 
+
 import { downloadFile } from "./download-file.js";
 import { copyTable } from "./copy-table.js";
 import { copyOrExport } from "./copy-or-export.js";
 import { createEventApp } from "./app.js";
- 
+
+
 // Exposer temporairement sur window pour compat avec les onclick inline existants
 (function exposeUtilsGlobally() {
   try {
@@ -33,7 +34,7 @@ import { createEventApp } from "./app.js";
     // En contexte SSR ou CSP strict, ignorer silencieusement
   }
 })();
- 
+
 // Utilitaire: lecture de données JSON depuis un <script type="application/json" id="event-json">
 function readInlineEventJSON() {
   try {
@@ -47,7 +48,7 @@ function readInlineEventJSON() {
     return null;
   }
 }
- 
+
 // Utilitaire: fetch JSON depuis une URL
 async function fetchEventJSON(url) {
   try {
@@ -59,17 +60,17 @@ async function fetchEventJSON(url) {
     return null;
   }
 }
- 
+
 // Monter l’app Vue en priorisant les données disponibles.
 // Ordre: window.__EVENT_PAGE_DATA__ -> script JSON inline -> fetch via data-json-src
 (function maybeMountVueApp() {
   try {
     if (typeof window === "undefined" || typeof document === "undefined") return;
- 
+
     // Vérifier la présence du conteneur avant toute opération
     const appRoot = document.querySelector("#app");
     if (!appRoot) return;
- 
+
     const bootstrapWithData = (data) => {
       if (!data) return false;
       try {
@@ -80,14 +81,14 @@ async function fetchEventJSON(url) {
         return false;
       }
     };
- 
+
     // 1) Compat ascendante: données injectées globalement
     if (bootstrapWithData(window.__EVENT_PAGE_DATA__)) return;
- 
+
     // 2) Script inline JSON
     const inlineData = readInlineEventJSON();
     if (bootstrapWithData(inlineData)) return;
- 
+
     // 3) Fetch via data-json-src
     const src = appRoot.getAttribute("data-json-src");
     if (src) {

@@ -23,7 +23,7 @@ a:hover {
 .scroll-to-top {
   position: fixed;
   right: 1rem;
-  bottom: 1rem;
+  bottom: 4rem;
   width: 2em;
   height: 2rem;
   border-radius: 50%;
@@ -307,19 +307,10 @@ a:hover {
   top: 55px;
 }
 
-.topnav2{
-  top: 45px;
+.z1029{
   z-index: 1029;
-  transition:cubic-bezier(1, 0, 0, 1) 0.5s;
 }
 
-.topnav2.scrolled{
-  top: 0px !important;
-  padding: .2rem 0 !important;
-  border-radius: 0 !important;
-
-  z-index: 1032;
-}
 
 // Sidefilter pour la liste des ingredient
 .sidefilter {

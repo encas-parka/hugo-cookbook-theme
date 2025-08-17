@@ -3,7 +3,7 @@
 {{- $byUUID := .byUUID -}}
 
 {{- /* Initialiser les structures de données */ -}}
-{{- $globalTypes := dict "legumes" (slice) "sec" (slice) "animaux" (slice) "lof" (slice) "sucres" (slice) "frais" (slice) "epices" (slice) "autres" (slice) -}}
+{{- $globalTypes := dict "legumesFrais" (slice) "legumesNonFrais" (slice) "sec" (slice) "animaux" (slice) "lof" (slice) "sucres" (slice) "frais" (slice) "epices" (slice) "autres" (slice) -}}
 {{- $categories := slice -}}
 {{- $regimes := slice -}}
 {{- $saisons := slice -}}
@@ -49,12 +49,13 @@
       "items" .Params.ingredients
       "byUUID" $byUUID
       "mode" "recette"
+      "splitLegumes" true
     ) (printf "%s-%s" .File.UniqueID (len .Params.ingredients)) -}}
     
     {{- range $type, $ingredients := $groupedIngredients -}}
       {{- $currentTypeList := index $globalTypes $type -}}
       {{- range $ingredients -}}
-        {{- $currentTypeList = $currentTypeList | append .title -}}
+        {{- $currentTypeList = $currentTypeList | append .ingredient -}}
       {{- end -}}
       {{- $globalTypes = merge $globalTypes (dict $type $currentTypeList) -}}
     {{- end -}}

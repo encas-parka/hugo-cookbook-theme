@@ -1,4 +1,5 @@
 {{ $unit := .unit }}
+{{ $originalUnit := .unit }}
 {{ $ingredient := .ingredient }}
 {{ $quantiteRecette := .quantite }}
 {{ $hasConversion := false }}
@@ -103,43 +104,7 @@
 {{ else if strings.Contains $unit "gousse" }}
   {{ $quantiteRecette = mul $quantiteRecette 6.5  | math.Round }}
   {{ $unit = "gr." }}
-
   {{ $hasConversion = true }}
-
-{{ else if strings.Contains $unit "unit"  }}
-{{ $hasConversion = true }}
-
-    {{ if strings.Contains ($ingredient | lower) "oignon" }}
-      {{ $quantiteRecette = mul $quantiteRecette 100 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if eq ($ingredient | lower) "tomate" }}
-      {{ $quantiteRecette = mul $quantiteRecette 120 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if eq ($ingredient | lower) "poireau" }}
-      {{ $quantiteRecette = mul $quantiteRecette 150 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if strings.Contains ($ingredient | lower) "aubergine" }}
-      {{ $quantiteRecette = mul $quantiteRecette 250 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if eq ($ingredient | lower) "courgette" }}
-      {{ $quantiteRecette = mul $quantiteRecette 200 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if eq ($ingredient | lower) "échalote" }}
-      {{ $quantiteRecette = mul $quantiteRecette 30 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if and (eq ($ingredient | lower) "orange") (not (strings.Contains ($ingredient | lower) "jus")) }}
-      {{ $quantiteRecette = mul $quantiteRecette 200 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if and (strings.Contains ($ingredient | lower) "citron") (not (strings.Contains ($ingredient | lower) "jus")) }}
-      {{ $quantiteRecette = mul $quantiteRecette 100 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if eq ($ingredient | lower) "concombre" }}
-      {{ $quantiteRecette = mul $quantiteRecette 200 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else }}
-    {{ $hasConversion = false }}
-
-    {{ end }}
 
 {{ end }}
 
@@ -156,7 +121,7 @@
 {{/*  Pour les recettes des evenements, renvoie une String d'un nb à 2 décimales  */}}
 {{ else if .fetchQU }}
 {{/* Conversion des grandes quantés si nécessaire */}}
- {{ if and (or (eq $unit "gr.") (eq $unit "ml")) (gt $quantiteRecette 1000) }}
+ {{ if and (ne $unit "unité") (gt $quantiteRecette 1000) }}
     {{ $quantiteRecette = div $quantiteRecette 1000  | lang.FormatNumber 2  | strings.TrimRight "0" | strings.TrimRight ","}}
     {{ if eq $unit "ml" }}
        {{ $unit = "l." }}

@@ -65,7 +65,6 @@
 
           {{/*
             3. On DÉLÈGUE le calcul des quantités et le groupement au partial optimisé.
-               Ce partial remplace votre calcul manuel et la construction de $IngredientList.
           */}}
           {{- $groupedData := dict -}}
           {{- $autoRegimes := dict -}}
@@ -414,13 +413,14 @@
                 "ingredientsByType" $preCalculatedIngredients
                 "showAllergenIcon" true
                 "showComment" true
+                "eventMode" true
               )
             -}}
       </div>
 
       {{/* ::: ___PREPARATION  */}}
     <div class="col-md-8 print-col-70-100">
-      <h4><span class="me-2">{{ partial "components/icon-svg" (dict "name" "preparation" "size" "2.5rem") }}</span> Préparation</h4>
+      <h4><span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "preparation" "size" "2.5rem") "preparation" }}</span> Préparation</h4>
       {{ if .commentaire }}
       <div class="card mb-3">
         <div class="card-body print-nocard">

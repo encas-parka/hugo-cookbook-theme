@@ -8,8 +8,10 @@
 {{ $iTypeName = "Epices, assaisonnements" }}
 {{ else if  eq .ingType "Legumes"}}
 {{ $iTypeName = "Fruits et Légumes non-frais" }}
-{{ else if  eq .ingType "Legumesfrais"}}
-{{ $iTypeName = "Fruits et Légumes frais" }}
+{{ else if  eq .ingType "LegumesFrais"}}
+{{ $iTypeName = "Légumes frais" }}
+{{ else if  eq .ingType "LegumesNonFrais"}}
+{{ $iTypeName = "Fruits et Légumes secs/conserves" }}
 {{ else if  eq .ingType "Sec"}}
 {{ $iTypeName = "Sec : Céréales, légumineuses" }}
 {{ else if  eq .ingType "Sucres"}}

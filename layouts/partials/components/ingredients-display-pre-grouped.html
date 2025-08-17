@@ -6,11 +6,13 @@
   - ingredientsByType: (map) La structure de données pré-calculée.
   - showAllergenIcon:  (bool)
   - showComment:       (bool)
+  - eventMode:         (bool)
 - */}}
 
 {{- $ingredientsByType := .ingredientsByType | default (dict) -}}
 {{- $showAllergenIcon := cond (ne .showAllergenIcon nil) .showAllergenIcon true -}}
 {{- $showComment := cond (ne .showComment nil) .showComment true -}}
+{{- $eventMode := .eventMode | default false -}}
 
 {{- range $type, $list := $ingredientsByType -}}
 <div class="card my-2 p-2" outlined>
@@ -22,11 +24,11 @@
     {{- if eq $type "epices" -}}<span class="small text-muted">(goûtez, ajustez !)</span>{{- end -}}
   </div>
 
-  {{- $sorted := sort $list "title" "asc" -}}
+  {{- $sorted := sort $list "ingredient" "asc" -}}
   {{- range $sorted -}}
     {{- $it := . -}}
     <div class="small ps-2 print-fs-smaller mt-1">
-      <span class="fw-bold">• {{- $it.title -}}</span>
+      <span class="fw-bold">{{- $it.ingredient -}}</span>
       {{- if and $showAllergenIcon (gt (len ($it.allergenes | default slice)) 0) -}}
         <span class="ms-1 align-middle">
           {{- partialCached "components/icon-svg.html" (dict "name" "exclamation-triangle" "size" ".8rem" "class" "mb-1") "exclamation-triangle" ".8rem" -}}
@@ -35,21 +37,19 @@
 
 
       {{- if $it.quantite -}}
-        : <span class="amount me-1">{{- $it.quantite -}}</span>
-        {{- $unitShort := $it.unit -}}
-        {{- if eq $it.unit "grammes" -}}
-          {{- $unitShort = "gr." -}}
-        {{- else if eq $it.unit "litre" -}}
-          {{- $unitShort = "l." -}}
-        {{- else if and (eq $it.unit "unité") (gt $it.quantite 1) -}}
-          {{- $unitShort = "unités" -}}
-        {{- end -}}
-        {{- if $unitShort -}}
-          <span class="unit"> {{- $unitShort -}}</span>
-        {{- end -}}
-        {{- if or (eq $it.unit "unité") (eq $it.unit "c. à café") (eq $it.unit "c. à soupe") -}}
+      {{- /* Utiliser la quantité formatée pour l'affichage principal dans les événements */ -}}
+      {{- $displayQty :=  "" -}}
+       {{- if $eventMode -}}
+         {{- $displayQty = cond $it.quantiteFormatted $it.quantiteFormatted (partial "functions/format-qty.html" (dict "qty" $it.quantite "unit" $it.unit)) -}}
+         : <span class="amount me-1">{{- $displayQty -}}</span>
+       {{- else -}}
+         : <span class="amount me-1">{{- $it.quantite -}}</span>
+          <span class="unit"> {{- $it.unit -}}</span>
+       {{- end -}}
+
+        {{- if or (eq $it.unit "unité") (eq $it.unit "c. à café") (eq $it.unit "c. à soupe") (eq $it.unit "pincées") (eq $it.unit "gousse·s") (eq $it.unit "tête·s") -}}
           <span class="ms-1 text-muted">
-            {{- partial "functions/quantite-converter" ( dict "unit" $it.unit "ingredient" $it.title "quantite" $it.quantite "fetchQU" true ) -}}
+            {{- partial "functions/quantite-converter" ( dict "unit" $it.unit "ingredient" $it.ingredient "quantite" $it.quantite "fetchQU" true ) -}}
           </span>
         {{- end -}}
 

@@ -27,6 +27,7 @@ export function createEventApp(initialData = {}) {
     uniqueIngCount = 0,
     recettesLength = 0,
     missingRecipes = [],
+
   } = initialData;
 
   return Vue.createApp({
@@ -34,6 +35,8 @@ export function createEventApp(initialData = {}) {
 
     data() {
       return {
+
+        isLoading: false,
         // Recherche
         searchInput: '',
         debouncedSearchQuery: '',
@@ -47,6 +50,7 @@ export function createEventApp(initialData = {}) {
         missingRecipes,
 
         // Sélection date courante (contrôlée par flatpickr)
+        dateRangeSelected: null,
         startDateSelected: null,
         endDateSelected: null,
         endDateSelectedDebug: null,
@@ -75,9 +79,14 @@ export function createEventApp(initialData = {}) {
         types: Array.isArray(types) ? types : [],
         rangesDates: [],
         daysPerRange: 3,
-        fraisByRanges: false,
+
+        // Propriété calculée pour les types affichés
+        displayedTypes: [],
+        fraisByRanges: false, // Keep for v-show in HTML
         legumesByRanges: false,
-        animauxByRanges: false,
+        legumesFraisByRanges: false, // Keep for v-show in HTML
+        animauxByRanges: false, // Keep for v-show in HTML
+        showFreshProductsByRange: false, // New master switch for fresh product ranges
 
         // Modal ingrédient
         selectedIngredient: '',
@@ -107,33 +116,51 @@ export function createEventApp(initialData = {}) {
           return;
         }
 
+        // Initialiser les dates sélectionnées
+
 
       // Initialisation bornes des dates si disponibles
       if (Array.isArray(this.datesRepas) && this.datesRepas.length > 0) {
         this.startDateSelected = this.startDate;
         this.endDateSelected = this.endDate;
         this.endDateAllowed = this.endDate;
-
-        try {
-          console.log("Dates initialisées:", {
-            startDate: this.startDate,
-            endDate: this.endDate,
-            startDateSelected: this.startDateSelected,
-            endDateSelected: this.endDateSelected
-          });
-        } catch (_e) {}
       }
 
-      // Initialiser les datepickers via la méthode Vue
-      this.$nextTick(() => {
-        this.datePickerReset();
-      });
 
-      this.isLoading = false;
+        // Initialiser le flatpickr range AVEC bornes
+        this.flatpickrInstance = flatpickr("#daterange", {
+          mode: "range",
+          dateFormat: "Y-m-d",
+          inline: true,
+          position: "center",
+          locale: {
+            firstDayOfWeek: 1,
+          },
+          // Configuration des bornes
+          minDate: this.startDate || "today",
+          maxDate: this.endDate || "1 year",
 
-      try {
-        console.log("=== FIN DEBUG INITIALISATION ===");
-      } catch (_e) {}
+          defaultDate: [this.startDate, this.endDate],
+
+          onChange: function(selectedDates, dateStr, instance) {
+            this.dateRangeSelected = dateStr;
+            if (selectedDates.length === 2) {
+              this.startDateSelected = selectedDates[0];
+              this.endDateSelected = selectedDates[1];
+            }
+          }.bind(this)
+        });
+
+        this.isLoading = false;
+
+        // Focus the search input when the component is mounted, especially for >=lg screens
+        // where the offcanvas is always visible (not a true offcanvas behavior).
+        this.$nextTick(() => {
+          const searchInput = document.querySelector('input[v-model="searchInput"]');
+          if (searchInput) {
+            searchInput.focus();
+          }
+        });
     },
 
   computed: {
@@ -162,6 +189,64 @@ export function createEventApp(initialData = {}) {
         });
 
         return filtered;
+      },
+
+      // Propriété calculée pour synchroniser la navigation avec les tableaux affichés
+      computedTypesForNavigation() {
+        // Types de base qui peuvent être affichés
+        const baseTypes = ['sucres', 'sec', 'lof', 'legumesFrais', 'legumesNonFrais', 'frais', 'epices', 'autres', 'animaux', 'absent'];
+
+        // Filtrer les types qui ont des données et sont donc affichés
+        return baseTypes.filter(type => {
+          // Vérifier si le type a des données (comme dans le template)
+          return this.totalQuantitesDP[type] && Object.keys(this.totalQuantitesDP[type]).length > 0;
+        });
+      },
+
+      // Propriété calculée pour les liens de navigation des tableaux byRange
+      computedRangeLinksForNavigation() {
+        // Vérifier si les produits frais par plage doivent être affichés
+        if (!this.showFreshProductsByRange) {
+          return [];
+        }
+
+        const rangeLinks = [];
+
+        // Pour chaque type de produit frais avec des plages
+        const freshTypes = [
+          { type: 'legumesFrais', enabled: this.legumesFraisByRanges },
+          { type: 'frais', enabled: this.fraisByRanges },
+          { type: 'animaux', enabled: this.animauxByRanges }
+        ];
+
+        // Pour chaque type activé, générer les liens pour chaque plage
+        freshTypes.forEach(freshType => {
+          if (freshType.enabled && this.rangesDates && this.rangesDates.length > 0) {
+            this.rangesDates.forEach((range, index) => {
+              // Vérifier s'il y a des données pour cette plage
+              if (this.totalRange(freshType.type, range[0], range[range.length - 1]).length > 0) {
+                // Créer un ID unique basé sur les dates
+                const startDate = new Date(range[0]);
+                const endDate = new Date(range[range.length - 1]);
+                const id = `${freshType.type}ByRange-${startDate.getDate()}${endDate.getDate()}`;
+
+                // Formater les dates pour l'affichage
+                const startDateFormatted = startDate.toLocaleDateString("fr-FR", { day: 'numeric'});
+                const endDateFormatted = endDate.toLocaleDateString("fr-FR", { day: 'numeric'});
+
+                rangeLinks.push({
+                  id: id,
+                  type: freshType.type,
+                  startDate: range[0],
+                  endDate: range[range.length - 1],
+                  label: `${this.formatTypeShort(freshType.type)} du ${startDateFormatted} au ${endDateFormatted}`
+                });
+              }
+            });
+          }
+        });
+
+        return rangeLinks;
       },
 
       searchFormat() {
@@ -281,7 +366,7 @@ export function createEventApp(initialData = {}) {
           totalQuantitesDP() {
                 const ingTotaux = this.computeTotalDP; // Ceci contient déjà les totaux formatés
 
-                const finalResult = {};
+                let finalResult = {};
 
                 for (const type in ingTotaux) {
                   if (Object.prototype.hasOwnProperty.call(ingTotaux, type)) {
@@ -293,7 +378,21 @@ export function createEventApp(initialData = {}) {
                 }
 
                 if ((this.debouncedSearchQuery || '').length > 2) {
-                  return this.searchFilter(finalResult);
+                  finalResult = this.searchFilter(finalResult);
+                }
+
+                // If the master switch for fresh product ranges is active, hide these categories
+                // from the normal (non-ranged) display by emptying their data.
+                if (this.showFreshProductsByRange) {
+                  if (finalResult.legumesFrais) {
+                    finalResult.legumesFrais = [];
+                  }
+                  if (finalResult.frais) {
+                    finalResult.frais = [];
+                  }
+                  if (finalResult.animaux) {
+                    finalResult.animaux = [];
+                  }
                 }
                 return finalResult;
               },
@@ -332,6 +431,13 @@ export function createEventApp(initialData = {}) {
       splitDateRanges() {
         // trigger dépendances si nécessaire
         this.totalRangeWithDetail;
+      },
+
+      // Watcher to synchronize individual range flags with the master switch
+      showFreshProductsByRange(newValue) {
+        this.fraisByRanges = newValue;
+        this.legumesFraisByRanges = newValue;
+        this.animauxByRanges = newValue;
       },
     },
 
@@ -387,42 +493,46 @@ export function createEventApp(initialData = {}) {
 
       // --- Datepicker (couplé à flatpickr) ---
       datesReset() {
+        this.dateRangeSelected = [this.startDate, this.endDate];
         this.startDateSelected = this.startDate;
-        this.endDateSelected = this.endDateAllowed;
-        this.datePickerReset();
+        this.endDateSelected = this.endDate;
+
+        this.flatpickrInstance.clear();
+
+
       },
 
-      datePickerReset() {
-        // flatpickr doit être disponible globalement à ce stade.
-        const configDPStart = {
-          enableTime: false,
-          dateFormat: "Y-m-d",
-          altInput: true,
-          altFormat: "D d M",
-          defaultDate: this.startDate,
-          minDate: this.startDate,
-          maxDate: this.endDateAllowed,
-        };
-        const configDPEnd = {
-          enableTime: false,
-          dateFormat: "Y-m-d",
-          altInput: true,
-          altFormat: "D d M",
-          defaultDate: this.endDateAllowed,
-          minDate: this.startDate,
-          maxDate: this.endDateAllowed,
-        };
+      // datePickerReset() {
+      //   // flatpickr doit être disponible globalement à ce stade.
+      //   const configDPStart = {
+      //     enableTime: false,
+      //     dateFormat: "Y-m-d",
+      //     altInput: true,
+      //     altFormat: "D d M",
+      //     defaultDate: this.startDate,
+      //     minDate: this.startDate,
+      //     maxDate: this.endDateAllowed,
+      //   };
+      //   const configDPEnd = {
+      //     enableTime: false,
+      //     dateFormat: "Y-m-d",
+      //     altInput: true,
+      //     altFormat: "D d M",
+      //     defaultDate: this.endDateAllowed,
+      //     minDate: this.startDate,
+      //     maxDate: this.endDateAllowed,
+      //   };
 
-        // Ces éléments doivent exister dans le DOM (IDs déjà en place dans le layout)
-        try {
-          // eslint-disable-next-line no-undef
-          flatpickr(datepickerStart, configDPStart);
-          // eslint-disable-next-line no-undef
-          flatpickr(datepickerEnd, configDPEnd);
-        } catch (_e) {
-          // Si flatpickr ou les éléments ne sont pas disponibles, on ignore silencieusement.
-        }
-      },
+      //   // Ces éléments doivent exister dans le DOM (IDs déjà en place dans le layout)
+      //   try {
+      //     // eslint-disable-next-line no-undef
+      //     flatpickr(datepickerStart, configDPStart);
+      //     // eslint-disable-next-line no-undef
+      //     flatpickr(datepickerEnd, configDPEnd);
+      //   } catch (_e) {
+      //     // Si flatpickr ou les éléments ne sont pas disponibles, on ignore silencieusement.
+      //   }
+      // },
 
       // --- Calculs des totaux sur une plage ---
       totalRange(iType, start, end) {
@@ -782,6 +892,31 @@ export function createEventApp(initialData = {}) {
 
                     this.ingredientTotalQuantity = formattedQuantities;
                   },
+
+      formatTypeShort(type) {
+        switch (type) {
+          case 'frais':
+            return 'Produits Frais';
+          case 'legumesFrais':
+            return 'Fruits et Légumes Frais';
+          case 'legumesNonFrais':
+            return 'Fruits et Légumes Conserve/sec';
+          case 'lof':
+            return 'LOF';
+          case 'sucres':
+            return 'Sucrés';
+          case 'epices':
+            return 'Assaisonnements';
+          case 'sec':
+            return 'Produits Secs';
+          case 'animaux':
+            return 'Viandes et Poissons';
+          case 'autres':
+            return 'Autres';
+          default:
+            return type;
+        }
+      },
                 },
               });
 }

@@ -1,326 +1,343 @@
-
-
 {{ define "main" }}
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"
-  />
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"
+/>
 
-
-    <div id="app" data-json-src="index.json">
-{{ $here := "ingredients"}}
-
-{{/* ::: navbar page */}}
-{{/* Nettoyage du permalink pour retirer la partie output format */}}
-{{ $basePermalink := .RelPermalink | replaceRE "/(ingredients|poster)/?.*$" "" }}
-{{ $basePermalink = $basePermalink | replaceRE "/$" "" }}
-
-{{ $inglink := printf "%s/ingredients" $basePermalink }}
-{{ $recettelink := printf "%s" $basePermalink }}
-{{ $posterlink := printf "%s/poster" $basePermalink }}
-  {{ if eq $here "ingredients" }}
-    {{ $inglink = "#"}}
-  {{ else if eq $here "recettes" }}
-    {{ $recettelink = "#"}}
-  {{ else if eq $here "poster" }}
-    {{ $posterlink = "#"}}
-  {{ end }}
-
-
-{{ partial  "components/event-top-nav" ( dict "inglink" $inglink "recettelink" $recettelink "posterlink" $posterlink "here" $here) }}
-
-{{/*  ::: Impression - MODAL  */}}
-<div class="modal modal-xl fade d-print-none" tabindex="-1" id="modalImpression" aria-labelledby="modalImpressionLabel"
-  aria-hidden="true">
-  <div class="modal-dialog modal-dialog-scrollable ">
-    <div class=" modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title mt-0" id="modalImpressionLabel">Imprimer / exporter en PDF</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-
-        <div class="row">
-          <div class="col-md-6">
-
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" v-model="toPrint.ingredients" :value="true" name="cb-ing"
-                id="cb-printIngredient">
-              <label class="form-check-label" for="cb-printIngredient">Imprimer les listes des ingrédients</label>
-            </div>
-
-
-                <div v-show="toPrint.ingredients" class="ms-4">
-                  <div class="form-check form-switch my-2">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      v-model="showAllColIngredients"
-                      id="checkRecipeDetail"
-                    />
-                    <label for="checkRecipeDetail"
-                      >Afficher les recettes pour chaque ingrédient</label
-                    >
-                  </div>
-                  <div class="input-group">
-                    <span class="input-group-text" id="addColSelect"
-                      >+ colonnes :
-                    </span>
-                    <select
-                      v-model="printAddCol"
-                      class="form-select"
-                      aria-describedby="addColSelect"
-                      aria-label="Ajouter des colonnes"
-                    >
-                      <option value="0">0</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                    </select>
-                  </div>
-                  <div class="text-muted fs-7 text-end">
-                    Ajouter des colonnes aux tableaux afin de pouvoir rajouter
-                    des informations manuscrites
-                  </div>
-                </div>
-                {{/* <div class="form-check">
-                  <input class="form-check-input" type="checkbox" v-model="toPrint.affichesSection" :value="false" name="cb-affiche"
-                  id="cb-printAffiches">
-                  <label class="form-check-label" for="cb-printAffiches">Imprimer les Affiches (imprimez à part, sinon bug)</label>
-                  </div>
-                */}}
+<div id="app" data-json-src="index.json">
+  {{ $here := "ingredients"}} {{/* ::: navbar page */}} {{/* Nettoyage du
+  permalink pour retirer la partie output format */}} {{ $basePermalink :=
+  .RelPermalink | replaceRE "/(ingredients|poster)/?.*$" "" }} {{ $basePermalink
+  = $basePermalink | replaceRE "/$" "" }} {{ $inglink := printf "%s/ingredients"
+  $basePermalink }} {{ $recettelink := printf "%s" $basePermalink }} {{
+  $posterlink := printf "%s/poster" $basePermalink }} {{ if eq $here
+  "ingredients" }} {{ $inglink = "#"}} {{ else if eq $here "recettes" }} {{
+  $recettelink = "#"}} {{ else if eq $here "poster" }} {{ $posterlink = "#"}} {{
+  end }} {{ partial "components/event-top-nav" ( dict "inglink" $inglink
+  "recettelink" $recettelink "posterlink" $posterlink "here" $here) }} {{/* :::
+  Impression - MODAL */}}
+  <div
+    class="modal modal-xl fade d-print-none"
+    tabindex="-1"
+    id="modalImpression"
+    aria-labelledby="modalImpressionLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title mt-0" id="modalImpressionLabel">
+            Imprimer / exporter en PDF
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  v-model="toPrint.ingredients"
+                  :value="true"
+                  name="cb-ing"
+                  id="cb-printIngredient"
+                />
+                <label class="form-check-label" for="cb-printIngredient"
+                  >Imprimer les listes des ingrédients</label
+                >
               </div>
-              <div class="col-md-6">
-                <div class="callout small">
-                  <p>
-                    Pour exporter en PDF, dans les options d'impression,
-                    sélectionnez : destination > "enregistrer au format Pdf"
-                    comme imprimante. Pensez aussi à personnaliser les marges
-                    d'impression ou l'échelle afin de redimensionner le contenu
-                    selon ce qui vous convient.
-                  </p>
-                  <p class="fw-bolder">
-                    ⚠ L'impression des listes d'ingredients présente
-                    régulièrement des bug avec Firefox (superposition des
-                    listes). Si c'est le cas, utilisez un navigateur basé sur
-                    chrome (par exemple, "brave"), ou imprimer les listes une à
-                    une grace aux boutons dédiés.
-                  </p>
+
+              <div v-show="toPrint.ingredients" class="ms-4">
+                <div class="form-check form-switch my-2">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    v-model="showAllColIngredients"
+                    id="checkRecipeDetail"
+                  />
+                  <label for="checkRecipeDetail"
+                    >Afficher les recettes pour chaque ingrédient</label
+                  >
+                </div>
+                <div class="input-group">
+                  <span class="input-group-text" id="addColSelect"
+                    >+ colonnes :
+                  </span>
+                  <select
+                    v-model="printAddCol"
+                    class="form-select"
+                    aria-describedby="addColSelect"
+                    aria-label="Ajouter des colonnes"
+                  >
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                  </select>
+                </div>
+                <div class="text-muted fs-7 text-end">
+                  Ajouter des colonnes aux tableaux afin de pouvoir rajouter des
+                  informations manuscrites
                 </div>
               </div>
+              {{/*
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  v-model="toPrint.affichesSection"
+                  :value="false"
+                  name="cb-affiche"
+                  id="cb-printAffiches"
+                />
+                <label class="form-check-label" for="cb-printAffiches"
+                  >Imprimer les Affiches (imprimez à part, sinon bug)</label
+                >
+              </div>
+              */}}
             </div>
+            <div class="col-md-6">
+              <div class="callout small">
+                <p>
+                  Pour exporter en PDF, dans les options d'impression,
+                  sélectionnez : destination > "enregistrer au format Pdf" comme
+                  imprimante. Pensez aussi à personnaliser les marges
+                  d'impression ou l'échelle afin de redimensionner le contenu
+                  selon ce qui vous convient.
+                </p>
+                <p class="fw-bolder">
+                  ⚠ L'impression des listes d'ingredients présente
+                  régulièrement des bug avec Firefox (superposition des listes).
+                  Si c'est le cas, utilisez un navigateur basé sur chrome (par
+                  exemple, "brave"), ou imprimer les listes une à une grace aux
+                  boutons dédiés.
+                </p>
+              </div>
+            </div>
+          </div>
 
-            <hr />
-            <div class="text-end">
-              <a
-                class="btn btn-primary"
-                @click="print"
-                role="button"
-                data-bs-dismiss="modal"
-                >Imprimer !</a
-              >
-            </div>
+          <hr />
+          <div class="text-end">
+            <a
+              class="btn btn-primary"
+              @click="print"
+              role="button"
+              data-bs-dismiss="modal"
+              >Imprimer !</a
+            >
           </div>
         </div>
       </div>
     </div>
+  </div>
 
+  <a href="#" class="scroll-to-top" title="Scroll to top"></a>
 
-    <a href="#" class="scroll-to-top" title="Scroll to top"></a>
+  <div class="no-print" id="TotalIngredients"></div>
+  <div
+    class="container-fluid"
+    :class="{'no-print':!toPrint.ingredients}"
+    v-show="!isLoading"
+  >
+    <h3 class="no-print">
+      Listes des [[uniqueIngCount]] ingrédients présents dans les
+      [[recettesLength]] recettes des {{ .Params.repas | len }} menus
+    </h3>
 
-    <div class="no-print" id="TotalIngredients"></div>
-    <div class="container-fluid " :class="{'no-print':!toPrint.ingredients}" v-show="!isLoading">
-      <h3 class="no-print">
-        Listes des [[uniqueIngCount]] ingrédients présents dans les
-         [[recettesLength]] recettes des {{ .Params.repas | len }} menus
-      </h3>
-
-      <!-- Alertes pour les recettes manquantes -->
-      <div class="no-print mb-4" v-if="missingRecipes && missingRecipes.length > 0">
-        <div class="alert alert-warning">
-          <p class="mb-2">Les recettes suivantes n'ont pas pu être trouvées et ne sont pas incluses dans les calculs :</p>
-          <ul class="mb-0">
-            <li v-for="missing in missingRecipes" :key="missing.recetteSlug">
-              <strong>[[missing.recetteSlug]]</strong>
-              (Date: [[missing.dateService]], Horaire: [[missing.horaire]], Type: [[missing.typePlat]], Assiettes: [[missing.assiettes]])
-              <span class="badge bg-warning text-dark ms-2">[[missing.reason]]</span>
-            </li>
-          </ul>
-        </div>
+    <!-- Alertes pour les recettes manquantes -->
+    <div
+      class="no-print mb-4"
+      v-if="missingRecipes && missingRecipes.length > 0"
+    >
+      <div class="alert alert-warning">
+        <p class="mb-2">
+          Les recettes suivantes n'ont pas pu être trouvées et ne sont pas
+          incluses dans les calculs :
+        </p>
+        <ul class="mb-0">
+          <li v-for="missing in missingRecipes" :key="missing.recetteSlug">
+            <strong>[[missing.recetteSlug]]</strong>
+            (Date: [[missing.dateService]], Horaire: [[missing.horaire]], Type:
+            [[missing.typePlat]], Assiettes: [[missing.assiettes]])
+            <span class="badge bg-warning text-dark ms-2"
+              >[[missing.reason]]</span
+            >
+          </li>
+        </ul>
       </div>
-      <div class="row">
+    </div>
+    <div class="row">
+      {{/* ::: La sidebar offcanvas responsive ::: */}}
+      <div class="col-lg-4 d-print-none pl-4 justify-content-center ">
+        <div
+          class="offcanvas-lg offcanvas-start sticky-lg-top p-lg-4 overflow-auto"  style="height: 96dvh;"
+          tabindex="-1"
+          id="sidebarOffcanvas"
+          aria-labelledby="sidebarOffcanvasLabel"
+        >
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">
+              Filtres & Options
+            </h5>
+            <!-- Ce bouton de fermeture ne sera visible que sur les petits écrans (quand c'est un offcanvas) -->
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="offcanvas"
+              data-bs-target="#sidebarOffcanvas"
+              aria-label="Close"
+            ></button>
+          </div>
 
-            {{/* ::: MODIFICATION : La sidebar est maintenant un composant offcanvas responsive ::: */}}
-            <div class="col-lg-3 d-print-none">
-              <div
-                class="offcanvas-lg offcanvas-start"
-                tabindex="-1"
-                id="sidebarOffcanvas"
-                aria-labelledby="sidebarOffcanvasLabel"
-                style="--bs-offcanvas-width: 280px;"
-              >
-                <div class="offcanvas-header">
-                  <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">Filtres & Options</h5>
-                  <!-- Ce bouton de fermeture ne sera visible que sur les petits écrans (quand c'est un offcanvas) -->
-                  <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebarOffcanvas" aria-label="Close"></button>
-                </div>
-
-                <div class="offcanvas-body">
-                  <div
-                    class="sticky-top overflow-y-auto"
-                    style="top: 20px; height: calc(100vh - 80px);"
-                  >
-                    <div class="small">
-                      <div class="mb-3">
-                        <label class="mb-2"
-                          >Selectionner la période que vous souhaitez prendre en
-                          compte</label
-                        >
-                        <div class="mb-3">
-                          <input
-                            id="datepickerStart"
-                            class="flatpickr flatpickr-input form-control"
-                            type="text"
-                            readonly="readonly"
-                            placeholder="Date de début"
-                            v-model="startDateSelected"
-                          />
-                        </div>
-                        <div class="mb-3">
-                          <input
-                            id="datepickerEnd"
-                            class="flatpickr flatpickr-input form-control"
-                            type="text"
-                            readonly="readonly"
-                            placeholder="Date de fin"
-                            v-model="endDateSelected"
-                          />
-                        </div>
-                        <div class="mb-3 text-end">
-                          <button
-                            class="btn btn-primary btn-sm shadow-sm text-white"
-                            @click="datesReset"
-                            type="button"
-                            id="btn-allDate"
-                          >
-                            Toutes les dates
-                          </button>
-                        </div>
-                      </div>
-                      <hr />
-                      <div class="mb-3">
-                        Afficher les quantités des produits frais par périodes
-                      </div>
-                      <div class="mb-1 form-check form-switch">
-                        <input
-                          type="checkbox"
-                          class="form-check-input"
-                          v-model="legumesByRanges"
-                          name="cb-legumesByRanges"
-                          id="cb-legumesByRanges"
-                        />
-                        <label for="cb-legumesByRanges"
-                          >... fruits et legumes frais
-                        </label>
-                      </div>
-                      <div class="mb-1 form-check form-switch">
-                        <input
-                          type="checkbox"
-                          class="form-check-input"
-                          v-model="fraisByRanges"
-                          name="cb-fraisByRanges"
-                          id="cb-fraisByRanges"
-                        />
-                        <label for="cb-fraisByRanges">... autres produit frais</label>
-                      </div>
-                      <div class="mb-1 form-check form-switch">
-                        <input
-                          type="checkbox"
-                          class="form-check-input"
-                          v-model="animauxByRanges"
-                          name="cb-animauxByRanges"
-                          id="cb-animauxByRanges"
-                        />
-                        <label for="cb-animauxByRanges">... viandes et poissons </label>
-                      </div>
-                      <div class="input-group mb-3">
-                        <input
-                          type="number"
-                          v-model="daysPerRange"
-                          class="form-control"
-                          min="1"
-                          max="9"
-                          :disabled="!animauxByRanges && !fraisByRanges && !legumesByRanges "
-                        />
-                        <span class="input-group-text" id="basic-addon2">jours</span>
-                      </div>
-                      <hr />
-                      <div class="form-check form-switch mb-3">
-                        <input
-                          class="form-check-input"
-                          type="checkbox"
-                          v-model="showAllColIngredients"
-                          id="checkRecipeDetail"
-                        />
-                        <label for="checkRecipeDetail"
-                          >Afficher les recettes pour chaque ingrédient</label
-                        >
-                      </div>
-                      <hr />
-                      <!-- DROPDOWN EXPORT/COPY -->
-                      <div class="dropdown mb-3">
-                        <button class="btn btn-outline-primary dropdown-toggle w-100" type="button" id="exportMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                          {{ partialCached "components/icon-svg" (dict "name" "download" "size" "1.1rem") "download-icon" "1.1rem" }}
-                          Exporter / Copier
-                        </button>
-                        <ul class="dropdown-menu w-100" aria-labelledby="exportMenuButton">
-                          <li><h6 class="dropdown-header">Copier dans le presse-papier</h6></li>
-                          <li>
-                            <button class="dropdown-item" type="button" onclick="copyOrExport('text')">
-                              Texte simple
-                            </button>
-                          </li>
-                          <li><hr class="dropdown-divider"></li>
-                          <li><h6 class="dropdown-header">Télécharger le fichier</h6></li>
-                          <li>
-                            <button class="dropdown-item" type="button" onclick="copyOrExport('csv')">
-                              CSV (pour tableur)
-                            </button>
-                          </li>
-                          <li>
-                            <button class="dropdown-item" type="button" onclick="copyOrExport('md')">
-                              Tableau Markdown
-                            </button>
-                          </li>
-                        </ul>
-                      </div>
-
-                      <template v-for="type in types">
-                        <a :href="'#IngListID' + type"> [[ type ]] - </a>
-                      </template>
-                    </div>
+          <div class="offcanvas-body">
+            <div>
+              <div class="mb-6">
+                <div class="d-lg-inline-block d-none pb-6">
+                  <div class="input-group input-group-lg">
+                    <span class="input-group-text" id="visible-addon">🔍</span>
+                    <input
+                      type="text"
+                      v-model="searchInput"
+                      class="form-control"
+                      placeholder="Rechercher un ingrédient"
+                      autofocus
+                    />
                   </div>
                 </div>
+
+                <div class="my-3 justify-self-center">
+                  <span class="">📅 Sélectionner une période</span>
+                  <input
+                    id="daterange"
+                    class="flatpickr flatpickr-input form-control d-none"
+                    type="text"
+                    readonly="readonly"
+                    placeholder="Sélectionner une période"
+                    v-model="dateRangeSelected"
+                  />
+                  <span v-if="showFreshProductsByRange" class="fw-lighter small fst-italic pt-2">ne concerne pas les ingrédients frais déjà classés par périodes</span>
+                </div>
+
+                <div class="mb-4 text-end">
+                  <button
+                    class="btn btn-primary btn-sm shadow-sm text-white"
+                    @click="datesReset"
+                    type="button"
+                    id="btn-allDate"
+                  >
+                    Toutes les dates
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-check form-switch mb-4">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  v-model="showAllColIngredients"
+                  id="checkRecipeDetail"
+                />
+                <label for="checkRecipeDetail"
+                  >Afficher les recettes pour chaque ingrédient</label
+                >
+              </div>
+              <!-- DROPDOWN EXPORT/COPY -->
+              <div class="dropdown mb-4">
+                <button
+                  class="btn btn-outline-primary dropdown-toggle w-100"
+                  type="button"
+                  id="exportMenuButton"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  {{ partialCached "components/icon-svg" (dict "name" "download"
+                  "size" "1.1rem") "download-icon" "1.1rem" }} Exporter / Copier
+                </button>
+                <ul
+                  class="dropdown-menu w-100"
+                  aria-labelledby="exportMenuButton"
+                >
+                  <li>
+                    <div class="dropdown-header fst-italic">
+                      Copier dans le presse-papier
+                    </div>
+                  </li>
+                  <li>
+                    <button
+                      class="dropdown-item"
+                      type="button"
+                      onclick="copyOrExport('text')"
+                    >
+                      Texte simple
+                    </button>
+                  </li>
+                  <li><hr class="dropdown-divider" /></li>
+                  <li>
+                    <div class="dropdown-header fst-italic">Télécharger le fichier</div>
+                  </li>
+                  <li>
+                    <button
+                      class="dropdown-item"
+                      type="button"
+                      onclick="copyOrExport('csv')"
+                    >
+                      CSV (pour tableur)
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      class="dropdown-item"
+                      type="button"
+                      onclick="copyOrExport('md')"
+                    >
+                      Tableau Markdown
+                    </button>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Liens de navigation vers les tableaux byRange -->
+              <div >
+                <template v-for="rangeLink in computedRangeLinksForNavigation">
+                  <a :href="'#' + rangeLink.id"> [[ rangeLink.label ]] - </a>
+                </template>
+
+                <template v-for="type in computedTypesForNavigation">
+                  <a :href="'#IngListID' + type">
+                    [[ formatTypeShort(type) ]] -
+                  </a>
+                </template>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
 
-            {{/* ::: Total INGREDIENTS - Contenu principal ::: */}}
-            <!-- MODIFICATION : Le contenu principal prend maintenant 9 colonnes sur grand écran -->
-            <div class="col-lg-9 print-col-12">
-
-              <!-- MODIFICATION : Ajout du bouton pour ouvrir l'offcanvas sur les petits écrans -->
-              <div class="no-print d-lg-none mb-3">
-                <button class="btn btn-outline-primary w-100" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas">
-                  {{ partialCached "components/icon-svg" (dict "name" "filter" "size" "1.2rem") "filter-icon" "1.2rem" }}
-                  Afficher les filtres & options
-                </button>
-              </div>
-
-
-          <div
-            class="border rounded border-transparent bg-dark container-fluid p-2 no-print"
-            style="--bs-bg-opacity: .3;"
+      {{/* ::: Total INGREDIENTS - Contenu principal ::: */}}
+      <div class="col-lg-8 print-col-12">
+        <!-- bouton pour ouvrir l'offcanvas sur les petits écrans -->
+        <div class="no-print d-lg-none mb-3">
+          <button
+            class="btn btn-outline-primary w-100"
+            type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#sidebarOffcanvas"
+            aria-controls="sidebarOffcanvas"
           >
+            {{ partialCached "components/icon-svg" (dict "name" "filter" "size"
+            "1.2rem") "filter-icon" "1.2rem" }} Afficher les filtres & options
+          </button>
+        </div>
+
+        <div class="d-lg-none d-flex d-print-none no-print">
+          <div class="input-group input-group-lg mb-3">
+            <span class="input-group-text">🔍</span>
             <input
               type="text"
               v-model="searchInput"
@@ -328,233 +345,131 @@
               placeholder="Rechercher un ingrédient"
             />
           </div>
+        </div>
 
-          {{/* :::_FraisByDayRange */}}
-          {{ $fraisByRanges := slice | append  (dict "idR" "LegumesRanges" "titleR" "Fruits Legumes Frais" "iType" "Legumesfrais" "thisRange" "legumesByRanges") (dict "idR" "AnimauxRanges" "titleR" "Viandes/Poissons Frais" "iType" "Animaux" "thisRange" "animauxByRanges") (dict "idR" "FraisRanges" "titleR" "Autres produits Frais" "iType" "Frais" "thisRange" "fraisByRanges") }}
-
-          {{ range $fraisByRanges }}
-            {{ $indexTable := 1 }}
-            <div id="{{ .idR }}" class="avoid-break-inside">
-              <template v-for="(range, index) in rangesDates">
-                {{/* ::: ___table Frais */}}
-
-
-                <div
-                  v-show="{{ .thisRange }} && totalRangeWithDetail('{{ .iType }}', range[0], range[range.length - 1]).size > 0"
-                  class="card my-2 mb-lg-6 border-danger border-1 mb-3  print-nocard"
-                  :class="{'no-print':!toPrint.{{ .idR }} }"
-                  :id="range[0]"
-                >
-                  <div class="card-body">
-                    <div class="no-print">
-                      <span class="fs-5 toCopy">
-                        {{ .titleR }} du [[ range[0] ]] au [[range[range.length
-                        - 1] ]]
-                      </span>
-                      <div class="my-2 float-end no-print">
-                        <a
-                          class="btn btn-outline-secondary btn-sm text-muted "
-                          role="button"
-                          @click="printThis('{{ .idR }}', 'ingredients')"
-                          >{{ partialCached "components/icon-svg" (dict "name" "printer" "size" "1.5rem") "printer" "1.5rem" }}</a
-                        >
-                      </div>
-                    </div>
-
-                    <table
-                      id="tableFrais"
-                      class="table table-responsive toCopy caption-top mb-4"
-                      :class="{'table-striped': !showAllColIngredients, 'table-bordered' : showAllColIngredients}"
-                    >
-                      <caption
-                        class="fs-5 text-center text-color-black printonly"
-                      >
-                        {{ .titleR }} du [[ range[0] ]] au [[range[range.length
-                        - 1] ]]
-                      </caption>
-                      <thead>
-                        <tr>
-                          <th>Ingredients {{ .iType }}</th>
-                          <th class="text-center">Recettes</th>
-                          <th class="text-end">Total</th>
-                          <th class="no-print" v-show="!showAllColIngredients">Détail</th>
-                          <th
-                            class="printonly"
-                            v-show="printAddCol === '1' || printAddCol ===  '2' "
-                          ></th>
-                          <th
-                            class="printonly"
-                            v-show="printAddCol === '2' "
-                          ></th>
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        <template
-                          v-for="item in totalRangeWithDetail('{{ .iType }}', range[0], range[range.length - 1])"
-                          :key="item.ingredient"
-                        >
-                          <tr
-                            v-if="item.qTotalX && item.qTotalX.length > 0"
-                            :class="{'table-secondary': showAllColIngredients}"
-                          >
-                            <td class="toCopyTd">[[item.ingredient]]</td>
-                            <td class="small">
-                              [[item.totalAssiettes]] c. - [[item.totalRecettes]] recettes
-                            </td>
-                            <td class="text-end toCopyTd">
-                              <template v-for="(quantiteEntry, qIndex) in item.qTotalX">
-                                <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null">
-                                  [[round2Decimals(quantiteEntry.qTotal)]] [[quantiteEntry.unitTotal]]
-                                </span>
-                                <span v-else class="small">non précisé</span>
-                                <span
-                                  v-if="qIndex < item.qTotalX.length - 1"
-                                  class="mx-1"
-                                  >+</span
-                                >
-                              </template>
-                            </td>
-                            <td class="no-print" v-show="!showAllColIngredients">
-                              <button
-                                type="button"
-                                class="btn btn-sm btn-outline-primary"
-                                @click="openIngredientModalRange(item.ingredient, '{{ .iType }}', range[0], range[range.length - 1])"
-                                data-bs-toggle="modal"
-                                data-bs-target="#ingredientDetailModal">
-                                détail
-                              </button>
-                            </td>
-                            <td
-                              v-show="printAddCol === '1' || printAddCol ===  '2' "
-                              class="printonly print-td-15"
-                            ></td>
-                            <td
-                              v-show=" printAddCol ===  '2' || printAddCol ===  '3' "
-                              class="printonly print-td-15"
-                            ></td>
-                          </tr>
-                          <!-- BLOC pour les détails individuels -->
-                          <template v-if="showAllColIngredients">
-                            <tr
-                              v-for="detail in getIngredientIndividualDetails(item.ingredient, '{{ .iType }}', range[0], range[range.length - 1])"
-                              :key="detail.recette + detail.dateService"
-                              class="small text-muted"
-                            >
-                              <td>
-                                &nbsp;&nbsp;&nbsp;&nbsp;[[detail.recette]]
-                              </td>
-                              <td>
-                                le [[new Date(detail.dateService).toLocaleDateString("fr-FR", {weekday: 'short', month: 'short', day: 'numeric'})]] / [[detail.horaire]] <br />
-                                pour [[detail.assiettes]] couverts
-                              </td>
-                              <td class="text-end">
-                                  <strong>[[formatDetailQuantity(detail)]]</strong>
-                              </td>
-                              <td class="no-print"></td>
-                              <td v-show="printAddCol === '1' || printAddCol ===  '2' " class="printonly print-td-15"></td>
-                              <td v-show=" printAddCol ===  '2' || printAddCol ===  '3' " class="printonly print-td-15"></td>
-                            </tr>
-                          </template>
-                        </template>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </template>
+        <div
+          class="no-print d-print-none align-items-center mb-3 d-flex flex-row justify-content-center"
+        >
+          <div class="d-inline-flex w-100 flex-grow-1">
+            <div class="form-check form-switch">
+              <input
+                type="checkbox"
+                class="form-check-input"
+                v-model="showFreshProductsByRange"
+                id="cb-showFreshProductsByRange"
+              />
+              <label for="cb-showFreshProductsByRange" class="fw-medium"
+                >Afficher les produits frais par périodes de :
+              </label>
             </div>
-          {{ end }}
-
-
-          {{/* Renommage des iType */}}
-          <div id="tableIng" v-cloak>
-            {{- $types := slice "sucres" "sec" "lof" "legumes" "frais" "epices" "autres" "animaux" "absent" -}}
-            {{- range $types -}}
-              {{- $iTypeName := partial "functions/ingredients-types-rename-short" (dict "ingType" (. | strings.FirstUpper)) -}}
-              {{/* ::: _ Card des tableau ingredients petit et grand */}}
+          </div>
+          <div class="input-group">
+            <input
+              type="number"
+              v-model="daysPerRange"
+              class="form-control"
+              min="1"
+              max="9"
+              :disabled="!showFreshProductsByRange"
+            />
+            <span class="input-group-text">jours</span>
+          </div>
+        </div>
+        {{/* :::_FraisByDayRange */}}
+        <div v-if="rangesDates.length > 0">
+          <!-- Légumes frais -->
+          <div v-show="legumesFraisByRanges" class="avoid-break-inside">
+            <template v-for="(range, index) in rangesDates" :key="range[0]">
               <div
-                v-show="totalQuantitesDP['{{ . }}'] && Object.keys(totalQuantitesDP['{{ . }}']).length > 0"
-                class="card my-2 mb-lg-6  mb-3 print-nocard"
-                :class="{'no-print':!toPrint.{{ . }} }"
-                id="IngListID{{ . }}"
+                v-if="totalRange('legumesFrais', range[0], range[range.length - 1]).length > 0"
+                class="card my-2 mb-lg-6 border-danger border-1 mb-3 print-nocard"
+                :class="{'no-print':!toPrint.ingredients}"
+                :id="`legumesFraisByRange-${new Date(range[0]).getDate()}${new Date(range[range.length - 1]).getDate()}`"
               >
                 <div class="card-body">
                   <div class="no-print">
-                    <span class="float-start me-2"
-                      >{{ partial "components/icon-svg" (dict "name" . "size" "2rem") }}</span
+                    <span class="fs-5 toCopy"
+                      >Fruits et Légumes frais du
+                      <strong>
+                        [[ new Date(range[0]).toLocaleDateString("fr-FR",
+                        {weekday: 'short', month: 'short', day: 'numeric'})
+                        ]]</strong
+                      >
+                      au
+                      <strong
+                        >[[ new Date(range[range.length -
+                        1]).toLocaleDateString("fr-FR", {weekday: 'short',
+                        month: 'short', day: 'numeric'}) ]]</strong
+                      ></span
                     >
-                    <span class="fs-4 toCopy"> {{ $iTypeName }} </span>
                     <div class="my-2 float-end no-print">
                       <a
-                        class="btn btn-outline-secondary btn-sm text-muted "
+                        class="btn btn-outline-secondary btn-sm text-muted"
                         role="button"
-                        @click="printThis('{{ . }}', 'ingredients')"
-                        >{{ partial "components/icon-svg" (dict "name" "printer" "size" "1.7rem") }}</a
+                        @click="printThis('ingredients', 'ingredients')"
+                        >{{ partialCached "components/icon-svg" (dict "name"
+                        "printer" "size" "1.5rem") "printer" "1.5rem" }}</a
                       >
                     </div>
                   </div>
-                  <div
-                    v-show="startDate !== startDateSelected || endDate !== endDateSelected"
-                    class="fs-5 p-2 text-center fw-semibold toCopyDate no-print"
-                  >
-                    Du [[new Date
-                    (startDateSelected).toLocaleDateString("fr-FR", {weekday:
-                    'long', month: 'long', day: 'numeric'})]] au [[new Date
-                    (endDateSelected).toLocaleDateString("fr-FR", {weekday:
-                    'long', month: 'long', day: 'numeric'})]]
-                  </div>
-                  {{/* ::: __Table ingrédients */}}
+
                   <table
-                    class="table table-responsive toCopy caption-top"
+                    class="table table-responsive toCopy caption-top mb-4"
                     :class="{'table-striped': !showAllColIngredients, 'table-bordered' : showAllColIngredients}"
-                    id="table-{{ . }}"
                   >
-                    <caption class="fs-5 printonly">
-                      {{ $iTypeName }} du [[new Date
-                      (startDateSelected).toLocaleDateString("fr-FR", {weekday:
-                      'long', month: 'long', day: 'numeric'})]] au [[new Date
-                      (endDateSelected).toLocaleDateString("fr-FR", {weekday:
-                      'long', month: 'long', day: 'numeric'})]]
+                    <caption
+                      class="fs-5 text-center text-color-black printonly"
+                    >
+                      Fruits Légumes frais du
+                      <strong>
+                        [[ new Date(range[0]).toLocaleDateString("fr-FR",
+                        {weekday: 'short', month: 'short', day: 'numeric'})
+                        ]]</strong
+                      >
+                      au
+                      <strong
+                        >[[ new Date(range[range.length -
+                        1]).toLocaleDateString("fr-FR", {weekday: 'short',
+                        month: 'short', day: 'numeric'}) ]]</strong
+                      >
                     </caption>
                     <thead>
                       <tr>
-                        <th>Ingredients</th>
-                        <th>Recettes</th>
+                        <th>Ingrédients - légumes frais</th>
+                        <th class="text-center">Recettes</th>
                         <th class="text-end">Total</th>
-                        <th class="no-print" v-show="!showAllColIngredients">Détail</th>
+                        <th class="no-print" v-show="!showAllColIngredients">
+                          Détail
+                        </th>
                         <th
                           class="printonly"
-                          v-show="printAddCol === '1' || printAddCol ===  '2' "
+                          v-show="printAddCol === '1' || printAddCol === '2'"
                         ></th>
-                        <th
-                          class="printonly"
-                          v-show="printAddCol === '2' "
-                        ></th>
+                        <th class="printonly" v-show="printAddCol === '2'"></th>
                       </tr>
                     </thead>
                     <tbody>
                       <template
-                        v-for="(item, ingredient) in totalQuantitesDP['{{ . }}']"
+                        v-for="item in totalRange('legumesFrais', range[0], range[range.length - 1])"
                         :key="item.ingredient"
                       >
-                        <tr
-                          v-if="item.qTotalX && item.qTotalX.length > 0"
-                          :class="{'table-secondary': showAllColIngredients}"
-                        >
+                        <tr :class="{'table-secondary': showAllColIngredients}">
                           <td class="toCopyTd">[[item.ingredient]]</td>
                           <td class="small">
                             [[item.totalAssiettes]] c. - [[item.totalRecettes]]
                             recettes
                           </td>
-
                           <td class="text-end toCopyTd">
-                            <template v-for="(quantiteEntry, qIndex) in item.qTotalX">
-                              <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unit !== null">
+                            <template
+                              v-for="(quantiteEntry, qIndex) in item.qTotalX"
+                            >
+                              <span
+                                v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null"
+                              >
                                 [[round2Decimals(quantiteEntry.qTotal)]]
-                                [[quantiteEntry.unit]]
+                                [[quantiteEntry.unitTotal]]
                               </span>
-
-                              <span v-else class="small"> non précisé </span>
+                              <span v-else class="small">non précisé</span>
                               <span
                                 v-if="qIndex < item.qTotalX.length - 1"
                                 class="mx-1"
@@ -562,118 +477,642 @@
                               >
                             </template>
                           </td>
-
                           <td class="no-print" v-show="!showAllColIngredients">
                             <button
                               type="button"
                               class="btn btn-sm btn-outline-primary"
-                              @click="openIngredientModal(item.ingredient, '{{ . }}')"
+                              @click="openIngredientModalRange(item.ingredient, 'legumesFrais', range[0], range[range.length - 1])"
                               data-bs-toggle="modal"
-                              data-bs-target="#ingredientDetailModal">
+                              data-bs-target="#ingredientDetailModal"
+                            >
                               détail
                             </button>
                           </td>
-
                           <td
-                            v-show="printAddCol === '1' || printAddCol ===  '2' "
+                            v-show="printAddCol === '1' || printAddCol === '2'"
                             class="printonly print-td-15"
                           ></td>
                           <td
-                            v-show=" printAddCol ===  '2' || printAddCol ===  '3' "
+                            v-show="printAddCol === '2'"
                             class="printonly print-td-15"
                           ></td>
                         </tr>
-                        <!--  BLOC pour les détails individuels -->
+                        <!-- Détails individuels -->
                         <template v-if="showAllColIngredients">
                           <tr
-                            v-for="detail in getIngredientIndividualDetails(item.ingredient, '{{ . }}')"
+                            v-for="detail in getIngredientIndividualDetails(item.ingredient, 'legumesFrais', range[0], range[range.length - 1])"
                             :key="detail.recette + detail.dateService"
                             class="small text-muted"
                           >
+                            <td>&nbsp;&nbsp;&nbsp;&nbsp;[[detail.recette]]</td>
                             <td>
-                              &nbsp;&nbsp;&nbsp;&nbsp;[[detail.recette]]
-                            </td>
-                            <td>
-                              le [[new Date(detail.dateService).toLocaleDateString("fr-FR", {weekday: 'short', month: 'short', day: 'numeric'})]] / [[detail.horaire]] <br />
+                              le [[new
+                              Date(detail.dateService).toLocaleDateString("fr-FR",
+                              {weekday: 'short', month: 'short', day:
+                              'numeric'})]] / [[detail.horaire]] <br />
                               pour [[detail.assiettes]] couverts
                             </td>
                             <td class="text-end">
-                                <strong>[[formatDetailQuantity(detail)]]</strong>
+                             [[formatDetailQuantity(detail)]]
                             </td>
-                            <td class="no-print"></td>
-                            <td v-show="printAddCol === '1' || printAddCol ===  '2' " class="printonly print-td-15"></td>
-                            <td v-show=" printAddCol ===  '2' || printAddCol ===  '3' " class="printonly print-td-15"></td>
+                            <td
+                              v-show="printAddCol === '1' || printAddCol === '2'"
+                              class="printonly print-td-15"
+                            ></td>
+                            <td
+                              v-show="printAddCol === '2'"
+                              class="printonly print-td-15"
+                            ></td>
                           </tr>
                         </template>
                       </template>
-
                     </tbody>
                   </table>
                 </div>
               </div>
-            {{ end }}
+            </template>
           </div>
+
+          <!-- Autres produits frais -->
+          <div v-show="fraisByRanges" class="avoid-break-inside">
+            <template v-for="(range, index) in rangesDates" :key="range[0]">
+              <div
+                v-if="totalRange('frais', range[0], (range[range.length - 1])).length > 0"
+                class="card my-2 mb-lg-6 border-danger border-1 mb-3 print-nocard"
+                :class="{'no-print':!toPrint.ingredients}"
+                :id="`fraisByRange-${new Date(range[0]).getDate()}${new Date(range[range.length - 1]).getDate()}`"
+              >
+                <div class="card-body">
+                  <div class="no-print">
+                    <span class="fs-5 toCopy"
+                      >Autres produits frais du
+                      <strong>
+                        [[ new Date(range[0]).toLocaleDateString("fr-FR",
+                        {weekday: 'short', month: 'short', day: 'numeric'})
+                        ]]</strong
+                      >
+                      au
+                      <strong
+                        >[[ new Date(range[range.length -
+                        1]).toLocaleDateString("fr-FR", {weekday: 'short',
+                        month: 'short', day: 'numeric'}) ]]</strong
+                      ></span
+                    >
+                    <div class="my-2 float-end no-print">
+                      <a
+                        class="btn btn-outline-secondary btn-sm text-muted"
+                        role="button"
+                        @click="printThis('ingredients', 'ingredients')"
+                        >{{ partialCached "components/icon-svg" (dict "name"
+                        "printer" "size" "1.5rem") "printer" "1.5rem" }}</a
+                      >
+                    </div>
+                  </div>
+
+                  <table
+                    class="table table-responsive toCopy caption-top mb-4"
+                    :class="{'table-striped': !showAllColIngredients, 'table-bordered' : showAllColIngredients}"
+                  >
+                    <caption
+                      class="fs-5 text-center text-color-black printonly"
+                    >
+                      Autres produits frais du
+                      <strong>
+                        [[ new Date(range[0]).toLocaleDateString("fr-FR",
+                        {weekday: 'short', month: 'short', day: 'numeric'})
+                        ]]</strong
+                      >
+                      au
+                      <strong
+                        >[[ new Date(range[range.length -
+                        1]).toLocaleDateString("fr-FR", {weekday: 'short',
+                        month: 'short', day: 'numeric'}) ]]</strong
+                      >
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th>Ingrédients - p. frais</th>
+                        <th class="text-center">Recettes</th>
+                        <th class="text-end">Total</th>
+                        <th class="no-print" v-show="!showAllColIngredients">
+                          Détail
+                        </th>
+                        <th
+                          class="printonly"
+                          v-show="printAddCol === '1' || printAddCol === '2'"
+                        ></th>
+                        <th class="printonly" v-show="printAddCol === '2'"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template
+                        v-for="item in totalRange('frais', range[0], range[range.length - 1])"
+                        :key="item.ingredient"
+                      >
+                        <tr :class="{'table-secondary': showAllColIngredients}">
+                          <td class="toCopyTd">[[item.ingredient]]</td>
+                          <td class="small">
+                            [[item.totalAssiettes]] c. - [[item.totalRecettes]]
+                            recettes
+                          </td>
+                          <td class="text-end toCopyTd">
+                            <template
+                              v-for="(quantiteEntry, qIndex) in item.qTotalX"
+                            >
+                              <span
+                                v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null"
+                              >
+                                [[round2Decimals(quantiteEntry.qTotal)]]
+                                [[quantiteEntry.unitTotal]]
+                              </span>
+                              <span v-else class="small">non précisé</span>
+                              <span
+                                v-if="qIndex < item.qTotalX.length - 1"
+                                class="mx-1"
+                                >+</span
+                              >
+                            </template>
+                          </td>
+                          <td class="no-print" v-show="!showAllColIngredients">
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-outline-primary"
+                              @click="openIngredientModalRange(item.ingredient, 'frais', range[0], range[range.length - 1])"
+                              data-bs-toggle="modal"
+                              data-bs-target="#ingredientDetailModal"
+                            >
+                              détail
+                            </button>
+                          </td>
+                          <td
+                            v-show="printAddCol === '1' || printAddCol === '2'"
+                            class="printonly print-td-15"
+                          ></td>
+                          <td
+                            v-show="printAddCol === '2'"
+                            class="printonly print-td-15"
+                          ></td>
+                        </tr>
+                        <!-- Détails individuels -->
+                        <template v-if="showAllColIngredients">
+                          <tr
+                            v-for="detail in getIngredientIndividualDetails(item.ingredient, 'frais', range[0], range[range.length - 1])"
+                            :key="detail.recette + detail.dateService"
+                            class="small text-muted"
+                          >
+                            <td>&nbsp;&nbsp;&nbsp;&nbsp;[[detail.recette]]</td>
+                            <td>
+                              le [[new
+                              Date(detail.dateService).toLocaleDateString("fr-FR",
+                              {weekday: 'short', month: 'short', day:
+                              'numeric'})]] / [[detail.horaire]] <br />
+                              pour [[detail.assiettes]] couverts
+                            </td>
+                            <td class="text-end">
+                             [[formatDetailQuantity(detail)]]
+                            </td>
+                            <td
+                              v-show="printAddCol === '1' || printAddCol === '2'"
+                              class="printonly print-td-15"
+                            ></td>
+                            <td
+                              v-show="printAddCol === '2'"
+                              class="printonly print-td-15"
+                            ></td>
+                          </tr>
+                        </template>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- Viandes et poissons -->
+          <div v-show="animauxByRanges" class="avoid-break-inside">
+            <template v-for="(range, index) in rangesDates" :key="range[0]">
+              <div
+                v-if="totalRange('animaux', range[0], (range[range.length - 1])).length > 0"
+                class="card my-2 mb-lg-6 border-danger border-1 mb-3 print-nocard"
+                :class="{'no-print':!toPrint.ingredients}"
+                :id="`animauxByRange-${new Date(range[0]).getDate()}${new Date(range[range.length - 1]).getDate()}`"
+              >
+                <div class="card-body">
+                  <div class="no-print">
+                    <span class="fs-5 toCopy"
+                      >Viandes/Poissons du
+                      <strong>
+                        [[ new Date(range[0]).toLocaleDateString("fr-FR",
+                        {weekday: 'short', month: 'short', day: 'numeric'})
+                        ]]</strong
+                      >
+                      au
+                      <strong
+                        >[[ new Date(range[range.length -
+                        1]).toLocaleDateString("fr-FR", {weekday: 'short',
+                        month: 'short', day: 'numeric'}) ]]</strong
+                      ></span
+                    >
+                    <div class="my-2 float-end no-print">
+                      <a
+                        class="btn btn-outline-secondary btn-sm text-muted"
+                        role="button"
+                        @click="printThis('ingredients', 'ingredients')"
+                        >{{ partialCached "components/icon-svg" (dict "name"
+                        "printer" "size" "1.5rem") "printer" "1.5rem" }}</a
+                      >
+                    </div>
+                  </div>
+
+                  <table
+                    class="table table-responsive toCopy caption-top mb-4"
+                    :class="{'table-striped': !showAllColIngredients, 'table-bordered' : showAllColIngredients}"
+                  >
+                    <caption
+                      class="fs-5 text-center text-color-black printonly"
+                    >
+                      Viandes/Poissons du
+                      <strong>
+                        [[ new Date(range[0]).toLocaleDateString("fr-FR",
+                        {weekday: 'short', month: 'short', day: 'numeric'})
+                        ]]</strong
+                      >
+                      au
+                      <strong
+                        >[[ new Date(range[range.length -
+                        1]).toLocaleDateString("fr-FR", {weekday: 'short',
+                        month: 'short', day: 'numeric'}) ]]</strong
+                      >
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th>Ingrédients - viandes/poissons</th>
+                        <th class="text-center">Recettes</th>
+                        <th class="text-end">Total</th>
+                        <th class="no-print" v-show="!showAllColIngredients">
+                          Détail
+                        </th>
+                        <th
+                          class="printonly"
+                          v-show="printAddCol === '1' || printAddCol === '2'"
+                        ></th>
+                        <th class="printonly" v-show="printAddCol === '2'"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template
+                        v-for="item in totalRange('animaux', range[0], range[range.length - 1])"
+                        :key="item.ingredient"
+                      >
+                        <tr :class="{'table-secondary': showAllColIngredients}">
+                          <td class="toCopyTd">[[item.ingredient]]</td>
+                          <td class="small">
+                            [[item.totalAssiettes]] c. - [[item.totalRecettes]]
+                            recettes
+                          </td>
+                          <td class="text-end toCopyTd">
+                            <template
+                              v-for="(quantiteEntry, qIndex) in item.qTotalX"
+                            >
+                              <span
+                                v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null"
+                              >
+                                [[round2Decimals(quantiteEntry.qTotal)]]
+                                [[quantiteEntry.unitTotal]]
+                              </span>
+                              <span v-else class="small">non précisé</span>
+                              <span
+                                v-if="qIndex < item.qTotalX.length - 1"
+                                class="mx-1"
+                                >+</span
+                              >
+                            </template>
+                          </td>
+                          <td class="no-print" v-show="!showAllColIngredients">
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-outline-primary"
+                              @click="openIngredientModalRange(item.ingredient, 'animaux', range[0], range[range.length - 1])"
+                              data-bs-toggle="modal"
+                              data-bs-target="#ingredientDetailModal"
+                            >
+                              détail
+                            </button>
+                          </td>
+                          <td
+                            v-show="printAddCol === '1' || printAddCol === '2'"
+                            class="printonly print-td-15"
+                          ></td>
+                          <td
+                            v-show="printAddCol === '2'"
+                            class="printonly print-td-15"
+                          ></td>
+                        </tr>
+                        <!-- Détails individuels -->
+                        <template v-if="showAllColIngredients">
+                          <tr
+                            v-for="detail in getIngredientIndividualDetails(item.ingredient, 'animaux', range[0], range[range.length - 1])"
+                            :key="detail.recette + detail.dateService"
+                            class="small text-muted"
+                          >
+                            <td>&nbsp;&nbsp;&nbsp;&nbsp;[[detail.recette]]</td>
+                            <td>
+                              le [[new
+                              Date(detail.dateService).toLocaleDateString("fr-FR",
+                              {weekday: 'short', month: 'short', day:
+                              'numeric'})]] / [[detail.horaire]] <br />
+                              pour [[detail.assiettes]] couverts
+                            </td>
+                            <td class="text-end">
+                             [[formatDetailQuantity(detail)]]
+                            </td>
+                            <td
+                              v-show="printAddCol === '1' || printAddCol === '2'"
+                              class="printonly print-td-15"
+                            ></td>
+                            <td
+                              v-show="printAddCol === '2'"
+                              class="printonly print-td-15"
+                            ></td>
+                          </tr>
+                        </template>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div id="tableIng" v-cloak>
+          {{- $types := slice "sucres" "sec" "lof" "legumesFrais"
+          "legumesNonFrais" "frais" "epices" "autres" "animaux" "absent" -}} {{-
+          range $types -}} {{- $iTypeName := partial
+          "functions/ingredients-types-rename-short" (dict "ingType" (. |
+          strings.FirstUpper)) -}} {{/* ::: _ Card des tableau ingredients petit
+          et grand */}}
+          <div
+            v-show="totalQuantitesDP['{{ . }}'] && Object.keys(totalQuantitesDP['{{ . }}']).length > 0"
+            class="card my-2 mb-lg-6 mb-3 print-nocard"
+            :class="{'no-print':!toPrint.{{ . }} }"
+            id="IngListID{{ . }}"
+          >
+            <div class="card-body">
+              <div class="no-print">
+                <span class="float-start me-2"
+                  >{{ partial "components/icon-svg" (dict "name" . "size"
+                  "2rem") }}</span
+                >
+                <span class="fs-4 toCopy"> {{ $iTypeName }} </span>
+                <div class="my-2 float-end no-print">
+                  <a
+                    class="btn btn-outline-secondary btn-sm text-muted"
+                    role="button"
+                    @click="printThis('{{ . }}', 'ingredients')"
+                    >{{ partial "components/icon-svg" (dict "name" "printer"
+                    "size" "1.7rem") }}</a
+                  >
+                </div>
+              </div>
+              <div
+                v-show="startDate !== startDateSelected || endDate !== endDateSelected"
+                class="fs-5 p-2 text-center fw-semibold toCopyDate no-print"
+              >
+                Du [[new Date (startDateSelected).toLocaleDateString("fr-FR",
+                {weekday: 'long', month: 'long', day: 'numeric'})]] au [[new
+                Date (endDateSelected).toLocaleDateString("fr-FR", {weekday:
+                'long', month: 'long', day: 'numeric'})]]
+              </div>
+              {{/* ::: __Table ingrédients */}}
+              <table
+                class="table table-responsive toCopy caption-top"
+                :class="{'table-striped': !showAllColIngredients, 'table-bordered' : showAllColIngredients}"
+                id="table-{{ . }}"
+              >
+                <caption class="fs-5 printonly">
+                  {{ $iTypeName }} du [[new Date
+                  (startDateSelected).toLocaleDateString("fr-FR", {weekday:
+                  'long', month: 'long', day: 'numeric'})]] au [[new Date
+                  (endDateSelected).toLocaleDateString("fr-FR", {weekday:
+                  'long', month: 'long', day: 'numeric'})]]
+                </caption>
+                <thead>
+                  <tr>
+                    <th>Ingredients</th>
+                    <th>Recettes</th>
+                    <th class="text-end">Total</th>
+                    <th class="no-print" v-show="!showAllColIngredients">
+                      Détail
+                    </th>
+                    <th
+                      class="printonly"
+                      v-show="printAddCol === '1' || printAddCol ===  '2' "
+                    ></th>
+                    <th class="printonly" v-show="printAddCol === '2' "></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template
+                    v-for="(item, ingredient) in totalQuantitesDP['{{ . }}']"
+                    :key="item.ingredient"
+                  >
+                    <tr
+                      v-if="item.qTotalX && item.qTotalX.length > 0"
+                      :class="{'table-secondary': showAllColIngredients}"
+                    >
+                      <td class="toCopyTd">[[item.ingredient]]</td>
+                      <td class="small">
+                        [[item.totalAssiettes]] c. - [[item.totalRecettes]]
+                        recettes
+                      </td>
+
+                      <td class="text-end toCopyTd">
+                        <template
+                          v-for="(quantiteEntry, qIndex) in item.qTotalX"
+                        >
+                          <span
+                            v-if="quantiteEntry.qTotal !== null && quantiteEntry.unit !== null"
+                              :class="{'fw-semibold': showAllColIngredients}"
+                          >
+                            [[round2Decimals(quantiteEntry.qTotal)]]
+                            [[quantiteEntry.unit]]
+                          </span>
+
+                          <span v-else class="small"> non précisé </span>
+                          <span
+                            v-if="qIndex < item.qTotalX.length - 1"
+                            class="mx-1"
+                            >+</span
+                          >
+                        </template>
+                      </td>
+
+                      <td class="no-print" v-show="!showAllColIngredients">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-primary"
+                          @click="openIngredientModal(item.ingredient, '{{ . }}')"
+                          data-bs-toggle="modal"
+                          data-bs-target="#ingredientDetailModal"
+                        >
+                          détail
+                        </button>
+                      </td>
+
+                      <td
+                        v-show="printAddCol === '1' || printAddCol ===  '2' "
+                        class="printonly print-td-15"
+                      ></td>
+                      <td
+                        v-show=" printAddCol ===  '2' || printAddCol ===  '3' "
+                        class="printonly print-td-15"
+                      ></td>
+                    </tr>
+                    <!--  BLOC pour les détails individuels -->
+                    <template v-if="showAllColIngredients">
+                      <tr
+                        v-for="detail in getIngredientIndividualDetails(item.ingredient, '{{ . }}')"
+                        :key="detail.recette + detail.dateService"
+                        class="small text-muted"
+                      >
+                        <td>&nbsp;&nbsp;&nbsp;&nbsp;[[detail.recette]]</td>
+                        <td>
+                          le [[new
+                          Date(detail.dateService).toLocaleDateString("fr-FR",
+                          {weekday: 'short', month: 'short', day: 'numeric'})]]
+                          / [[detail.horaire]] <br />
+                          pour [[detail.assiettes]] couverts
+                        </td>
+                        <td class="text-end">
+                         [[formatDetailQuantity(detail)]]
+                        </td>
+                        <td
+                          v-show="printAddCol === '1' || printAddCol ===  '2' "
+                          class="printonly print-td-15"
+                        ></td>
+                        <td
+                          v-show=" printAddCol ===  '2' || printAddCol ===  '3' "
+                          class="printonly print-td-15"
+                        ></td>
+                      </tr>
+                    </template>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {{ end }}
         </div>
       </div>
-  <!-- Modal pour les détails d'ingrédients -->
-  <div class="modal fade" id="ingredientDetailModal" tabindex="-1" aria-labelledby="ingredientDetailModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <div class="modal-title fs-5 fw-semibold" id="ingredientDetailModalLabel">Détail : [[selectedIngredient]]
-<!-- afficher range des dates prise en comptes -->
-            <span v-if="modalDateStart && modalDateEnd" class="text-muted">
-              <br><small>Période : [[ formatDateRange(modalDateStart, modalDateEnd) ]]</small>
-            </span>
+    </div>
+    <!-- Modal pour les détails d'ingrédients -->
+    <div
+      class="modal fade"
+      id="ingredientDetailModal"
+      tabindex="-1"
+      aria-labelledby="ingredientDetailModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div
+              class="modal-title fs-5 fw-semibold"
+              id="ingredientDetailModalLabel"
+            >
+              Détail : [[selectedIngredient]]
+              <!-- afficher range des dates prise en comptes -->
+              <span v-if="modalDateStart && modalDateEnd" class="text-muted">
+                <br /><small
+                  >Période : [[ formatDateRange(modalDateStart, modalDateEnd)
+                  ]]</small
+                >
+              </span>
+            </div>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
           </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th>Recette</th>
-                <th>Date / Horaire / Couverts</th>
-                <th class="text-end">Quantité</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="detail in ingredientDetails" :key="detail.recette + detail.dateService">
-                <td class="fw-medium lh-1">[[detail.recette]]</td>
-                <td>
-                  [[new Date(detail.dateService).toLocaleDateString("fr-FR", {weekday: 'short', month: 'short', day: 'numeric'})]] - [[detail.horaire]] /
-                 <span class="fw-medium text-nowrap"> [[detail.assiettes]] c. </span>
-                </td>
-                <td class="text-end">
-                  <strong>[[formatDetailQuantity(detail)]]</strong>
-                </td>
-              </tr>
-            </tbody>
-            <tfoot v-if="ingredientTotalQuantity">
-              <tr class="table-secondary">
-                <td colspan="2"><strong>Total</strong></td>
-                <td class="text-end">
-                  <template v-for="(total, index) in ingredientTotalQuantity">
-                    <strong>[[round2Decimals(total.qTotal)]] [[total.unit]]</strong>
-                    <span v-if="index < ingredientTotalQuantity.length - 1" class="mx-1">+</span>
-                  </template>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+          <div class="modal-body">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Recette</th>
+                  <th>Date / Horaire / Couverts</th>
+                  <th class="text-end">Quantité</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="detail in ingredientDetails"
+                  :key="detail.recette + detail.dateService"
+                >
+                  <td class="fw-medium lh-1">[[detail.recette]]</td>
+                  <td>
+                    [[new Date(detail.dateService).toLocaleDateString("fr-FR",
+                    {weekday: 'short', month: 'short', day: 'numeric'})]] -
+                    [[detail.horaire]] /
+                    <span class="fw-medium text-nowrap">
+                      [[detail.assiettes]] c.
+                    </span>
+                  </td>
+                  <td class="text-end">
+                   [[formatDetailQuantity(detail)]]
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot v-if="ingredientTotalQuantity">
+                <tr class="table-secondary">
+                  <td colspan="2"><strong>Total</strong></td>
+                  <td class="text-end">
+                    <template v-for="(total, index) in ingredientTotalQuantity">
+                      <strong
+                        >[[round2Decimals(total.qTotal)]] [[total.unit]]</strong
+                      >
+                      <span
+                        v-if="index < ingredientTotalQuantity.length - 1"
+                        class="mx-1"
+                        >+</span
+                      >
+                    </template>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Fermer
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
-
-  </div>
 </div>
 
-{{ $eventJS := resources.Get "js/event/bootstrap.js" | js.Build (dict "targetPath" "assets-bundled/event-utils.js" "minify" true) | fingerprint }}
-<script src="{{ $eventJS.RelPermalink }}" integrity="{{ $eventJS.Data.Integrity }}" defer></script>
+{{ $fp := resources.Get "flatpickr/flatpickr.min.js" }} {{ $fp_fr :=
+resources.Get "flatpickr/l10n/fr.js" }}
+
+<script src="{{- $fp.Permalink -}}"></script>
+<script src="{{- $fp_fr.Permalink -}}"></script>
+
+{{ $eventJS := resources.Get "js/event/bootstrap.js" | js.Build (dict
+"targetPath" "assets-bundled/event-utils.js" "minify" true) | fingerprint }}
+<script
+  src="{{ $eventJS.RelPermalink }}"
+  integrity="{{ $eventJS.Data.Integrity }}"
+  defer
+></script>
 <script>
   flatpickr.localize(flatpickr.l10ns.fr);
 </script>

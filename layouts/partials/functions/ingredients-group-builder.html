@@ -9,6 +9,7 @@
       - Determine type from meta.type (new data model, no legacy section keys)
       - Optionally scale quantities for events: (q * assiettes) / assiettesRecettes
       - Group entries by type
+      - For legumes, optionally split by pFrais attribute
       - Analyze dietary regimes based on ingredient types and allergens
 
   Input (dict):
@@ -18,6 +19,7 @@
     - mode:               (string) "recette" | "evenement" (default: "recette")
     - assiettes:          (int/float, optional) event servings (required if mode = "evenement")
     - assiettesRecettes:  (int/float, optional) recipe base servings (required if mode = "evenement")
+    - splitLegumes:       (bool, optional) whether to split legumes by pFrais attribute (default: false)
 
   Output:
     - dict {
@@ -30,19 +32,20 @@
         }
       }
       where entry = {
-        title,          // from ingredients index
-        ingredient,     // from ingredients index; alias title
+        ingredient,     // from ingredients index
         type,           // from ingredients index
         allergenes,     // from ingredients index
         quantite,       // scaled if mode = "evenement"
         unit,           // unit as declared on the item
         commentaire,    // free text
-        uuid,           // from ingredients index
+        pFrais,         // from ingredients index
+        pSurgel,        // from ingredients index
       }
 
   Notes:
     - Unresolved ingredients go under "absent".
     - Type is read from meta.type (default "autres").
+    - When splitLegumes=true, legumes are separated into "legumesFrais" and "legumesNonFrais"
     - Regimes analysis:
         - vegetarien: no type "animaux"
         - vegan: vegetarien + no allergenes ["Produit laitier", "Oeuf"]
@@ -56,6 +59,7 @@
 {{- $mode := .mode | default "recette" -}}
 {{- $assiettes := .assiettes -}}
 {{- $assiettesRecettes := .assiettesRecettes -}}
+{{- $splitLegumes := .splitLegumes | default false -}}
 
 {{- $grouped := dict -}}
 
@@ -86,6 +90,19 @@
     {{- $title := $meta.title -}}
     {{- $allergenes := ($meta.allergenes | default (slice)) -}}
     {{- $uuid := $meta.uuid -}}
+    {{- /* Récupération des champs pFrais et pSurgel */ -}}
+    {{- $pFrais := $meta.pFrais | default false -}}
+    {{- $pSurgel := $meta.pSurgel | default false -}}
+
+    {{- /* Determine group type, with special handling for legumes if splitLegumes is true */}}
+    {{- $groupType := $type -}}
+    {{- if and (eq $type "legumes") $splitLegumes -}}
+      {{- if $pFrais -}}
+        {{- $groupType = "legumesFrais" -}}
+      {{- else -}}
+        {{- $groupType = "legumesNonFrais" -}}
+      {{- end -}}
+    {{- end -}}
 
     {{/* Scaling for event mode if both assiettes and assiettesRecettes are provided (non-empty) */}}
     {{- $scaledQty := (float $q) -}}
@@ -94,15 +111,25 @@
       {{- $scaledQty = (div (mul (float $q) (float $assiettes)) $den) -}}
     {{- end -}}
 
+    {{- /* Formater la quantité si en mode evenement */}}
+    {{- $formattedQty := $scaledQty -}}
+    {{- if eq $mode "evenement" -}}
+      {{- $formattedQty = partial "functions/format-qty.html" (dict "qty" $scaledQty "unit" $u) -}}
+    {{- end -}}
+
+    <!-- uuid : pour le decompte uniqIngSet/count -->
+    {{- $entryType := cond $splitLegumes $groupType $type -}}
     {{- $entry := dict
-        "title" $title
         "ingredient" $title
-        "type" $type
+        "type" $entryType
         "allergenes" $allergenes
         "quantite" $scaledQty
+        "quantiteFormatted" $formattedQty
         "unit" $u
         "commentaire" $c
         "uuid" $uuid
+        "pFrais" $pFrais
+        "pSurgel" $pSurgel
       -}}
 
     {{- /* Validation explicite de la structure */}}
@@ -110,8 +137,10 @@
       {{- errorf "Erreur: l'entrée n'est pas une map: %v" $entry -}}
     {{- end -}}
 
-    {{- $current := (index $grouped $type) | default (slice) -}}
-    {{- $grouped = merge $grouped (dict $type ( $current | append $entry )) -}}
+
+
+    {{- $current := (index $grouped $groupType) | default (slice) -}}
+    {{- $grouped = merge $grouped (dict $groupType ( $current | append $entry )) -}}
 
     {{- /* Update regime detection flags */}}
     {{- if eq $type "animaux" -}}
@@ -136,7 +165,6 @@
         "quantite" $q
         "unit" $u
         "commentaire" $c
-        "uuid" $fallback
       -}}
 
     {{- /* Validation explicite de la structure */}}

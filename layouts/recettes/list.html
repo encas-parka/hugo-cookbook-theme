@@ -32,7 +32,7 @@
 
   {{- range $type, $ingredients := $ingredientsData.ingredients -}}
     {{- range $ingredients -}}
-      {{- $globalTypes = merge $globalTypes (dict $type (index $globalTypes $type | append .title)) -}}
+      {{- $globalTypes = merge $globalTypes (dict $type (index $globalTypes $type | append .ingredient)) -}}
     {{- end -}}
   {{- end -}}
 
@@ -391,42 +391,42 @@
             {{- end -}}
           ],
           {{- with index $ingredientsData "legumes" -}}
-            ilegumes: [{{- range . -}} "{{ .title }}",{{- end -}} ],
+            ilegumes: [{{- range . -}} "{{ .ingredient }}",{{- end -}} ],
           {{- else -}}
             ilegumes: [],
           {{- end -}}
           {{- with index $ingredientsData "sec" -}}
-            isec: [{{- range . -}} "{{ .title }}",{{- end -}} ],
+            isec: [{{- range . -}} "{{ .ingredient }}",{{- end -}} ],
           {{- else -}}
             isec: [],
           {{- end -}}
           {{- with index $ingredientsData "animaux" -}}
-            ianimaux: [{{- range . -}} "{{ .title }}",{{- end -}} ],
+            ianimaux: [{{- range . -}} "{{ .ingredient }}",{{- end -}} ],
           {{- else -}}
             ianimaux: [],
           {{- end -}}
           {{- with index $ingredientsData "lof" -}}
-            ilof: [{{- range . -}} "{{ .title }}",{{- end -}} ],
+            ilof: [{{- range . -}} "{{ .ingredient }}",{{- end -}} ],
           {{- else -}}
             ilof: [],
           {{- end -}}
           {{- with index $ingredientsData "sucres" -}}
-            isucre: [{{- range . -}} "{{ .title }}",{{- end -}} ],
+            isucre: [{{- range . -}} "{{ .ingredient }}",{{- end -}} ],
           {{- else -}}
             isucre: [],
           {{- end -}}
           {{- with index $ingredientsData "frais" -}}
-            ifrais: [{{- range . -}} "{{ .title }}",{{- end -}} ],
+            ifrais: [{{- range . -}} "{{ .ingredient }}",{{- end -}} ],
           {{- else -}}
             ifrais: [],
           {{- end -}}
           {{- with index $ingredientsData "epices" -}}
-            iepices: [{{- range . -}} "{{ .title }}",{{- end -}} ],
+            iepices: [{{- range . -}} "{{ .ingredient }}",{{- end -}} ],
           {{- else -}}
             iepices: [],
           {{- end -}}
           {{- with index $ingredientsData "autres" -}}
-            iautres: [{{- range . -}} "{{ .title }}",{{- end -}} ],
+            iautres: [{{- range . -}} "{{ .ingredient }}",{{- end -}} ],
           {{- else -}}
             iautres: [],
           {{- end -}}

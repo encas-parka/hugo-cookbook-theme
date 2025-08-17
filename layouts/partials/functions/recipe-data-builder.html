@@ -6,14 +6,16 @@
 {{- $groupedIngredients := dict -}}
 {{- if $page.Params.ingredients -}}
   {{- $groupedIngredients = partialCached "functions/ingredients-group-builder.html" (dict
-    "items" $page.Params.ingredients
-    "byUUID" $byUUID
-    "mode" "recette"
-  ) (printf "%s-%s" $page.File.UniqueID (len $page.Params.ingredients)) -}}
+      "items" $page.Params.ingredients
+      "byUUID" $byUUID
+      "mode" "recette"
+      "splitLegumes" true
+    ) (printf "%s-%s" $page.File.UniqueID (len $page.Params.ingredients)) -}}
 {{- end -}}
 
 {{- /* Préparer les listes d'ingrédients par type */ -}}
-{{- $ilegumes := slice -}}
+{{- $ilegumesFrais := slice -}}
+{{- $ilegumesNonFrais := slice -}}
 {{- $isec := slice -}}
 {{- $ianimaux := slice -}}
 {{- $ilof := slice -}}
@@ -24,22 +26,24 @@
 
 {{- range $type, $ingredients := $groupedIngredients -}}
   {{- range $ingredients -}}
-    {{- if eq $type "legumes" -}}
-      {{- $ilegumes = $ilegumes | append .title -}}
+    {{- if eq $type "legumesFrais" -}}
+      {{- $ilegumesFrais = $ilegumesFrais | append .ingredient -}}
+    {{- else if eq $type "legumesNonFrais" -}}
+      {{- $ilegumesNonFrais = $ilegumesNonFrais | append .ingredient -}}
     {{- else if eq $type "sec" -}}
-      {{- $isec = $isec | append .title -}}
+      {{- $isec = $isec | append .ingredient -}}
     {{- else if eq $type "animaux" -}}
-      {{- $ianimaux = $ianimaux | append .title -}}
+      {{- $ianimaux = $ianimaux | append .ingredient -}}
     {{- else if eq $type "lof" -}}
-      {{- $ilof = $ilof | append .title -}}
+      {{- $ilof = $ilof | append .ingredient -}}
     {{- else if eq $type "sucres" -}}
-      {{- $isucre = $isucre | append .title -}}
+      {{- $isucre = $isucre | append .ingredient -}}
     {{- else if eq $type "frais" -}}
-      {{- $ifrais = $ifrais | append .title -}}
+      {{- $ifrais = $ifrais | append .ingredient -}}
     {{- else if eq $type "epices" -}}
-      {{- $iepices = $iepices | append .title -}}
+      {{- $iepices = $iepices | append .ingredient -}}
     {{- else if eq $type "autres" -}}
-      {{- $iautres = $iautres | append .title -}}
+      {{- $iautres = $iautres | append .ingredient -}}
     {{- end -}}
   {{- end -}}
 {{- end -}}
@@ -57,7 +61,8 @@
   "saison" $page.Params.saison
   "categories" $page.Params.categories
   "regimes" $page.Params.regime
-  "ilegumes" $ilegumes
+  "ilegumesFrais" $ilegumesFrais
+  "ilegumesNonFrais" $ilegumesNonFrais
   "isec" $isec
   "ianimaux" $ianimaux
   "ilof" $ilof

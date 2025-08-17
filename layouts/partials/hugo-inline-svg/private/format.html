@@ -1,8 +1,8 @@
-{{/* 
+{{/*
 	hugo-inline-svg/private/format.html partial
-	
+
 	@author @sean-au
-	
+
 	@access private
 
   @context map of sanitized params
@@ -55,9 +55,8 @@
     {{ $class = $class | append "d-block" }}
   {{ else if eq .display "inline" }}
     {{ $class = $class | append "d-inline-block" }}
-  {{/*  TEST  */}}
   {{ else if eq .display "inline-middle" }}
-    {{ $class = $class | append "d-inline-block" }}
+    {{ $class = $class | append "d-inline-block" | append "align-middle" }}
   {{ end }}
 
   {{ $class = printf `class="%s"` (delimit $class " ") }}

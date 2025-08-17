@@ -108,6 +108,7 @@
       "mode" "evenement"
       "assiettes" $assiettesPourCalcul
       "assiettesRecettes" $assiettesRecettes
+      "splitLegumes" true
     ) -}}
 
     {{- /* Builder groupé par type (miroir) */ -}}
@@ -134,7 +135,7 @@
                 "typePlat" $typePlat
                 "assiettesRecettes" $assiettesRecettes
                 "assiettes" $assiettesPourCalcul
-              ) -}}
+              )  $item -}}
               {{- $enriched = $enriched | append $enrichedItem -}}
             {{- end -}}
           {{- end -}}
@@ -147,8 +148,8 @@
 {{- end -}}
 
 {{- /* Dates min/max + tri */ -}}
-{{- $datesTimeRepas = sort $datesTimeRepas -}}
-{{- $datesRepas = sort $datesRepas -}}
+{{- $datesTimeRepas = sort $datesTimeRepas | uniq -}}
+{{- $datesRepas = sort $datesRepas | uniq -}}
 {{- $startDate := cond (gt (len $datesRepas) 0) (index $datesRepas 0) "" -}}
 {{- $endDate := cond (gt (len $datesRepas) 0) (index $datesRepas (sub (len $datesRepas) 1)) "" -}}
 
