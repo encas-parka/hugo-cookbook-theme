@@ -2,76 +2,76 @@ const { createApp } = Vue;
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  // --- Vue.js App for Recipes Search ---
-  const recipesSearchApp = createApp({
-    delimiters: ['[[', ']]'],
-    data() {
-      return {
-        searchRecipesInput: "",
-        recipesData: [],
-        selectedIndex: -1,
-      };
-    },
-    watch: {
-      // When the user types, reset the selection.
-      searchRecipesInput() {
-        this.selectedIndex = -1;
-      }
-    },
-    computed: {
-      filteredRecipes() {
-        if (this.searchRecipesInput.length > 2) {
-          const searchTerm = this.searchRecipesInput.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
-          return this.recipesData.filter((recipe) => {
-            return searchTerm.split(' ').every(
-              v => recipe.title.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(v) ||
-              (recipe.auteur && recipe.auteur.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(v)) ||
-              (recipe.specialite && recipe.specialite.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(v))
-            );
-          });
-        }
-        return [];
-      },
-    },
-    methods: {
-      closeSearch() {
-        this.searchRecipesInput = "";
-        this.selectedIndex = -1;
-      },
-      setRecipesData(data) {
-        this.recipesData = data;
-      },
-      selectNext() {
-        if (this.filteredRecipes.length === 0) return;
-        this.selectedIndex = (this.selectedIndex + 1) % this.filteredRecipes.length;
-        this.ensureVisible();
-      },
-      selectPrevious() {
-        if (this.filteredRecipes.length === 0) return;
-        if (this.selectedIndex <= 0) { // This handles both 0 and the initial -1 case
-          this.selectedIndex = this.filteredRecipes.length - 1;
-        } else {
-          this.selectedIndex--;
-        }
-        this.ensureVisible();
-      },
-      navigateToSelected() {
-        if (this.selectedIndex > -1 && this.filteredRecipes[this.selectedIndex]) {
-          window.location.href = this.filteredRecipes[this.selectedIndex].url;
-        }
-      },
-      ensureVisible() {
-        this.$nextTick(() => {
-          const links = this.$refs.resultLinks;
-          if (links && links[this.selectedIndex]) {
-            links[this.selectedIndex].scrollIntoView({
-              block: 'nearest',
-            });
-          }
-        });
-      }
-    }
-  });
+  // // --- Vue.js App for Recipes Search ---
+  // const recipesSearchApp = createApp({
+  //   delimiters: ['[[', ']]'],
+  //   data() {
+  //     return {
+  //       searchRecipesInput: "",
+  //       recipesData: [],
+  //       selectedIndex: -1,
+  //     };
+  //   },
+  //   watch: {
+  //     // When the user types, reset the selection.
+  //     searchRecipesInput() {
+  //       this.selectedIndex = -1;
+  //     }
+  //   },
+  //   computed: {
+  //     filteredRecipes() {
+  //       if (this.searchRecipesInput.length > 2) {
+  //         const searchTerm = this.searchRecipesInput.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  //         return this.recipesData.filter((recipe) => {
+  //           return searchTerm.split(' ').every(
+  //             v => recipe.title.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(v) ||
+  //             (recipe.auteur && recipe.auteur.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(v)) ||
+  //             (recipe.specialite && recipe.specialite.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(v))
+  //           );
+  //         });
+  //       }
+  //       return [];
+  //     },
+  //   },
+  //   methods: {
+  //     closeSearch() {
+  //       this.searchRecipesInput = "";
+  //       this.selectedIndex = -1;
+  //     },
+  //     setRecipesData(data) {
+  //       this.recipesData = data;
+  //     },
+  //     selectNext() {
+  //       if (this.filteredRecipes.length === 0) return;
+  //       this.selectedIndex = (this.selectedIndex + 1) % this.filteredRecipes.length;
+  //       this.ensureVisible();
+  //     },
+  //     selectPrevious() {
+  //       if (this.filteredRecipes.length === 0) return;
+  //       if (this.selectedIndex <= 0) { // This handles both 0 and the initial -1 case
+  //         this.selectedIndex = this.filteredRecipes.length - 1;
+  //       } else {
+  //         this.selectedIndex--;
+  //       }
+  //       this.ensureVisible();
+  //     },
+  //     navigateToSelected() {
+  //       if (this.selectedIndex > -1 && this.filteredRecipes[this.selectedIndex]) {
+  //         window.location.href = this.filteredRecipes[this.selectedIndex].url;
+  //       }
+  //     },
+  //     ensureVisible() {
+  //       this.$nextTick(() => {
+  //         const links = this.$refs.resultLinks;
+  //         if (links && links[this.selectedIndex]) {
+  //           links[this.selectedIndex].scrollIntoView({
+  //             block: 'nearest',
+  //           });
+  //         }
+  //       });
+  //     }
+  //   }
+  // });
 
   const recipesSearchElement = document.getElementById('app-search-recipes');
   if (recipesSearchElement) {

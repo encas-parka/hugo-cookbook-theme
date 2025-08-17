@@ -4,5 +4,6 @@ public/
 .vscode/
 .directories
 *_bak
+*_BAK
 **/jsconfig.json
 node_modules/
