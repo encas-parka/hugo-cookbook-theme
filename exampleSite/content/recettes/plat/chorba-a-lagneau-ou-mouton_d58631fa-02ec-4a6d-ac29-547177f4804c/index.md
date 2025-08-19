@@ -17,7 +17,7 @@ ingredients:
   - title: Cumin
   - alergene: true
     title: Ras el hanout
-  - title: Canelle
+  - title: cannelle_sk1gbb
   - commentaire: noir
     title: Poivre
   - commentaire: fraiche
