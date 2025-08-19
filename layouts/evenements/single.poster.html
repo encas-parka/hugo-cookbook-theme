@@ -1,33 +1,33 @@
 {{ define "main" }}
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
 
+
 <div id="app">
-  {{ $here := "poster"}}
-
-  {{/* ::: navbar page */}}
-  {{/* Nettoyage du permalink pour retirer la partie output format */}}
-  {{ $basePermalink := .RelPermalink | replaceRE "/(ingredients|poster)/?.*$" "" }}
-  {{ $basePermalink = $basePermalink | replaceRE "/$" "" }}
-
-  {{ $inglink := printf "%s/ingredients" $basePermalink }}
-  {{ $recettelink := printf "%s" $basePermalink }}
-  {{ $posterlink := printf "%s/poster" $basePermalink }}
-  {{ if eq $here "ingredients" }}
-    {{ $inglink = "#"}}
-  {{ else if eq $here "recettes" }}
-    {{ $recettelink = "#"}}
-  {{ else if eq $here "poster" }}
-    {{ $posterlink = "#"}}
-  {{ end }}
-
-{{ partial  "components/event-top-nav" ( dict "inglink" $inglink "recettelink" $recettelink "posterlink" $posterlink "here" $here) }}
 
   <div class="row" >
     <h2 class="text-center no-print mt-5">Les Affiches</h2>
-    <div class="col-md-4  no-print">
-      <div id="affiches">
+    {{/* ::: La sidebar offcanvas responsive ::: */}}
+    <div id="configuration" class="col-xl-4 justify-content-center no-print">
+      <div class="offcanvas-xl offcanvas-start sticky-xl-top p-xl-4 overflow-auto" tabindex="-1"
+      id="sidebarOffcanvas"
+      aria-labelledby="sidebarOffcanvasLabel"
+    >
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">
+          Options
+        </h5>
 
-        <div class="row">
+        <!-- Ce bouton de fermeture ne sera visible que sur les petits écrans (quand c'est un offcanvas) -->
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="offcanvas"
+          data-bs-target="#sidebarOffcanvas"
+          aria-label="Close"
+        ></button>
+      </div>
+
+        <div class="row offcanvas-body">
           <div class="col-8"><div class="fw-bold">Police: </div></div>
           <div class="col-4"><div class="fw-bold">Taille: </div></div>
         </div>
@@ -58,7 +58,6 @@
             <label class="small" for="dateByPageBreak">Date en haut de chaque page</label>
           </div>
         </div>
-      </div>
 
       <div class="form-floating my-3">
         <input type="text" class="form-control" id="messageBottomInput" placeholder="Ajouter un message en bas de chaque fiche" v-model="messageBottom">
@@ -66,7 +65,9 @@
       </div>
     </div>
 
-    <div id="affichesSection" class="col-md-8 print-col-12 break-before" :class="{'no-print' : !toPrint.affichesSection}">
+    </div>
+
+    <div id="affichesSection" class="col-xl-8 print-col-12 break-before" :class="{'no-print' : !toPrint.affichesSection}">
 
 
 
@@ -121,7 +122,32 @@
         {{ end }}
     </div>
   </div>
+
+
+  <!-- bouton pour ouvrir l'offcanvas sur les petits écrans -->
+    <button
+      class="no-print d-xl-none fab-openCanvas"
+      type="button"
+      data-bs-toggle="offcanvas"
+      data-bs-target="#sidebarOffcanvas"
+      aria-controls="sidebarOffcanvas"
+    >
+    </button>
+
+
+  <button class="fab-print no-print"
+          aria-label="Imprimer"
+          @click="printGlobal">
+  </button>
+
+  <a href="#" class="scroll-to-top " title="Scroll to top"></a>
+
+
 </div>
+
+
+
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:ital,wght@0,400;0,700;0,900;1,900&family=Gluten:wght@500&family=Montserrat:wght@100..900&family=Pacifico&display=swap" rel="stylesheet">

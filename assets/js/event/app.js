@@ -132,7 +132,7 @@ export function createEventApp(initialData = {}) {
           mode: "range",
           dateFormat: "Y-m-d",
           inline: true,
-          position: "center",
+          position: "auto center",
           locale: {
             firstDayOfWeek: 1,
           },
@@ -498,6 +498,8 @@ export function createEventApp(initialData = {}) {
         this.endDateSelected = this.endDate;
 
         this.flatpickrInstance.clear();
+        this.flatpickrInstance.setDate([this.startDate, this.endDate],
+        );
 
 
       },

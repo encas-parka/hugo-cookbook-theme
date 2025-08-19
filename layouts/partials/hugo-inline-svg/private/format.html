@@ -62,7 +62,15 @@
   {{ $class = printf `class="%s"` (delimit $class " ") }}
 {{ end }}
 
-
+{{/* AJOUT : ajouter stroke-width comme attribut direct du SVG */}}
+{{- $svgAttrs := (slice .height .width .viewBox $class $ariaTitle $ariaDesc) -}}
+{{- if .strokeWidth -}}
+  {{- $svgAttrs = $svgAttrs | append (printf "stroke-width=\"%s\"" .strokeWidth) -}}
+{{- end -}}
+{{- $styleAttr := partial "hugo-inline-svg/private/inline-styles" . -}}
+{{- if $styleAttr -}}
+  {{- $svgAttrs = $svgAttrs | append $styleAttr -}}
+{{- end -}}
 
 {{/* assemble attributes for svg tag */}}
 {{- $attr := (slice .height .width .viewBox $class $ariaTitle $ariaDesc $styleAttr) -}}

@@ -1,3 +1,86 @@
+
+outputs:
+  home:
+    - HTML
+    - REDIRECTS
+    - HEADERS
+  page:
+    - HTML
+
+
+mediaTypes:
+  application/json:
+    suffixes:
+      - json
+  text/netlify:
+    suffixes:
+      - ""
+    delimiter: ""
+
+outputFormats:
+
+  Menus:
+    mediaType: "text/html"
+    baseName: "menus/index"
+    isHTML: true
+    permalinkable: true
+
+  Recettes:
+    mediaType: "text/html"
+    baseName: "recettes/index"
+    isHTML: true
+    permalinkable: true
+
+  Poster:
+    mediaType: "text/html"
+    baseName: "poster/index"
+    isHTML: true
+    permalinkable: true
+
+  Ingredients:
+    mediaType: "text/html"
+    baseName: "ingredients/index"
+    isHTML: true
+    permalinkable: true
+
+  IngredientsJSON:
+    mediaType: "application/json"
+    baseName: "ingredients/index"
+    isPlainText: true
+    notAlternative: true
+
+  JSON:
+    mediaType: application/json
+    baseName: index
+    isPlainText: true
+    notAlternative: true
+
+  REDIRECTS:
+    mediatype: text/netlify
+    baseName: _redirects
+    isPlainText: true
+    notAlternative: true
+    permalinkable: false
+
+  HEADERS:
+    mediatype: text/netlify
+    baseName: _headers
+    isPlainText: true
+    notAlternative: true
+
+caches:
+  getjson:
+    dir: :cacheDir/:project
+    maxAge: 10s
+sitemap:
+  changefreq: monthly
+  filename: sitemap.xml
+  priority: 0.5
+
+permalinks:
+  blog: /:title/
+
+
 menus:
   docs:
     - name: Découvrir

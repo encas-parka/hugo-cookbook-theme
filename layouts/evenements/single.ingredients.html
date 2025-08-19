@@ -1,3 +1,4 @@
+
 {{ define "main" }}
 
 <meta
@@ -5,18 +6,11 @@
   content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"
 />
 
+
+
 <div id="app" data-json-src="index.json">
-  {{ $here := "ingredients"}} {{/* ::: navbar page */}} {{/* Nettoyage du
-  permalink pour retirer la partie output format */}} {{ $basePermalink :=
-  .RelPermalink | replaceRE "/(ingredients|poster)/?.*$" "" }} {{ $basePermalink
-  = $basePermalink | replaceRE "/$" "" }} {{ $inglink := printf "%s/ingredients"
-  $basePermalink }} {{ $recettelink := printf "%s" $basePermalink }} {{
-  $posterlink := printf "%s/poster" $basePermalink }} {{ if eq $here
-  "ingredients" }} {{ $inglink = "#"}} {{ else if eq $here "recettes" }} {{
-  $recettelink = "#"}} {{ else if eq $here "poster" }} {{ $posterlink = "#"}} {{
-  end }} {{ partial "components/event-top-nav" ( dict "inglink" $inglink
-  "recettelink" $recettelink "posterlink" $posterlink "here" $here) }} {{/* :::
-  Impression - MODAL */}}
+
+   {{/*- :::  Impression - MODAL -*/}}
   <div
     class="modal modal-xl fade d-print-none"
     tabindex="-1"
@@ -137,7 +131,6 @@
     </div>
   </div>
 
-  <a href="#" class="scroll-to-top" title="Scroll to top"></a>
 
   <div class="no-print" id="TotalIngredients"></div>
   <div
@@ -172,17 +165,18 @@
         </ul>
       </div>
     </div>
-    <div class="row">
+    <div class="d-flex justify-content-center">
       {{/* ::: La sidebar offcanvas responsive ::: */}}
-      <div class="col-lg-4 d-print-none pl-4 justify-content-center ">
+      <div class="col-xl-4 d-print-none pl-xl-4 justify-content-center ">
         <div
-          class="offcanvas-lg offcanvas-start sticky-lg-top p-lg-4 overflow-auto"  style="height: 96dvh;"
+          class="offcanvas-xl offcanvas-start sticky-xl-top p-xl-4 pt-xl-5 overflow-auto justify-content-center"
+
           tabindex="-1"
           id="sidebarOffcanvas"
           aria-labelledby="sidebarOffcanvasLabel"
         >
           <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">
+            <h5 class="mt-2 offcanvas-title" id="sidebarOffcanvasLabel">
               Filtres & Options
             </h5>
             <!-- Ce bouton de fermeture ne sera visible que sur les petits écrans (quand c'est un offcanvas) -->
@@ -195,10 +189,10 @@
             ></button>
           </div>
 
-          <div class="offcanvas-body">
-            <div>
-              <div class="mb-6">
-                <div class="d-lg-inline-block d-none pb-6">
+          <div class="offcanvas-body pt-xl-3">
+            <div class="">
+              <div class="mb-6 w-100">
+                <div class="d-xl-inline d-none pb-6">
                   <div class="input-group input-group-lg">
                     <span class="input-group-text" id="visible-addon">🔍</span>
                     <input
@@ -211,11 +205,11 @@
                   </div>
                 </div>
 
-                <div class="my-3 justify-self-center">
+                <div class="my-3">
                   <span class="">📅 Sélectionner une période</span>
                   <input
                     id="daterange"
-                    class="flatpickr flatpickr-input form-control d-none"
+                    class="flatpickr form-control d-none"
                     type="text"
                     readonly="readonly"
                     placeholder="Sélectionner une période"
@@ -224,7 +218,7 @@
                   <span v-if="showFreshProductsByRange" class="fw-lighter small fst-italic pt-2">ne concerne pas les ingrédients frais déjà classés par périodes</span>
                 </div>
 
-                <div class="mb-4 text-end">
+                <div class="mb-4">
                   <button
                     class="btn btn-primary btn-sm shadow-sm text-white"
                     @click="datesReset"
@@ -320,20 +314,7 @@
       </div>
 
       {{/* ::: Total INGREDIENTS - Contenu principal ::: */}}
-      <div class="col-lg-8 print-col-12">
-        <!-- bouton pour ouvrir l'offcanvas sur les petits écrans -->
-        <div class="no-print d-lg-none mb-3">
-          <button
-            class="btn btn-outline-primary w-100"
-            type="button"
-            data-bs-toggle="offcanvas"
-            data-bs-target="#sidebarOffcanvas"
-            aria-controls="sidebarOffcanvas"
-          >
-            {{ partialCached "components/icon-svg" (dict "name" "filter" "size"
-            "1.2rem") "filter-icon" "1.2rem" }} Afficher les filtres & options
-          </button>
-        </div>
+      <div class="col-xl-8 print-col-12">
 
         <div class="d-lg-none d-flex d-print-none no-print">
           <div class="input-group input-group-lg mb-3">
@@ -350,29 +331,29 @@
         <div
           class="no-print d-print-none align-items-center mb-3 d-flex flex-row justify-content-center"
         >
-          <div class="d-inline-flex w-100 flex-grow-1">
-            <div class="form-check form-switch">
+          <div class="d-flex flex-wrap align-items-center w-100">
+            <div class="form-check form-switch me-3" style="min-width: 200px;">
               <input
                 type="checkbox"
                 class="form-check-input"
                 v-model="showFreshProductsByRange"
                 id="cb-showFreshProductsByRange"
               />
-              <label for="cb-showFreshProductsByRange" class="fw-medium"
+              <label for="cb-showFreshProductsByRange" class="fw-medium "
                 >Afficher les produits frais par périodes de :
               </label>
             </div>
-          </div>
-          <div class="input-group">
-            <input
-              type="number"
-              v-model="daysPerRange"
-              class="form-control"
-              min="1"
-              max="9"
-              :disabled="!showFreshProductsByRange"
-            />
-            <span class="input-group-text">jours</span>
+            <div class="input-group ms-auto" style="max-width: 150px;">
+              <input
+                type="number"
+                v-model="daysPerRange"
+                class="form-control"
+                min="1"
+                max="9"
+                :disabled="!showFreshProductsByRange"
+              />
+              <span class="input-group-text">jours</span>
+            </div>
           </div>
         </div>
         {{/* :::_FraisByDayRange */}}
@@ -846,7 +827,7 @@
           </div>
         </div>
 
-        <div id="tableIng" v-cloak>
+        <div id="tableIng" class="p-1 p-lg-4" v-cloak>
           {{- $types := slice "sucres" "sec" "lof" "legumesFrais"
           "legumesNonFrais" "frais" "epices" "autres" "animaux" "absent" -}} {{-
           range $types -}} {{- $iTypeName := partial
@@ -855,7 +836,7 @@
           et grand */}}
           <div
             v-show="totalQuantitesDP['{{ . }}'] && Object.keys(totalQuantitesDP['{{ . }}']).length > 0"
-            class="card my-2 mb-lg-6 mb-3 print-nocard"
+            class="card my-lg-2 mb-lg-6 mb-3 print-nocard"
             :class="{'no-print':!toPrint.{{ . }} }"
             id="IngListID{{ . }}"
           >
@@ -957,7 +938,8 @@
                           data-bs-toggle="modal"
                           data-bs-target="#ingredientDetailModal"
                         >
-                          détail
+                          <span class="d-md-none">+</span>
+                          <span class="d-md-block d-none">détail</span>
                         </button>
                       </td>
 
@@ -1098,7 +1080,22 @@
       </div>
     </div>
   </div>
+  <a href="#" class="scroll-to-top" title="Scroll to top"></a>
 </div>
+
+<!-- bouton pour ouvrir l'offcanvas sur les petits écrans -->
+  <button
+    class="no-print d-xl-none fab-openCanvas"
+    type="button"
+    data-bs-toggle="offcanvas"
+    data-bs-target="#sidebarOffcanvas"
+    aria-controls="sidebarOffcanvas"
+  >
+  </button>
+
+{{ partialCached "components/print-button.html" . "print-btn " }}
+
+
 
 {{ $fp := resources.Get "flatpickr/flatpickr.min.js" }} {{ $fp_fr :=
 resources.Get "flatpickr/l10n/fr.js" }}

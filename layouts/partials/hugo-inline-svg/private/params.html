@@ -1,8 +1,8 @@
-{{/* 
+{{/*
 	hugo-inline-svg/private/params.html partial
-	
+
 	@author @sean-au
-	
+
 	@access private
 
   @context params from partial passed in as dict
@@ -21,6 +21,7 @@
 {{ $title := "" }}
 {{ $desc := "" }}
 {{ $fs := "" }}
+{{ $strokeWidth := "" }}
 
 {{/* if dict passed as context to partial */}}
 {{ if reflect.IsMap . }}
@@ -39,6 +40,9 @@
   {{ end }}
   {{ with .fs }}
     {{ $fs = . }}
+  {{ end }}
+  {{ with .strokeWidth }}  <!-- NOUVEAU : récupérer le paramètre stroke-width -->
+    {{ $strokeWidth = . }}
   {{ end }}
 
 {{/* if called with {{ partial "svg-font" "/icons/name.svg" }}  */}}
@@ -65,6 +69,7 @@
   "title" $title
   "desc" $desc
   "fs" $fs
+  "strokeWidth" $strokeWidth
   ) }}
 
 {{ return $params }}

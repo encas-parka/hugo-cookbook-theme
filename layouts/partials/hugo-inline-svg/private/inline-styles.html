@@ -3,35 +3,35 @@
   {{ $inline := (slice  "color: inherit;" "fill: currentColor;"  ) }}
 
   {{ if eq .display "block" }}
-    {{ $inline = $inline | append (slice 
-      "display: block;" 
-      "height: 1em;" 
+    {{ $inline = $inline | append (slice
+      "display: block;"
+      "height: 1em;"
       "width: 1em;"
       "vertical-align: middle;"
       ) }}
   {{ else if eq .display "inline" }}
-    {{ $inline = $inline | append (slice 
-      "display: inline-block;" 
-      "height: 0.7em;" 
+    {{ $inline = $inline | append (slice
+      "display: inline-block;"
+      "height: 0.7em;"
       "width: 0.7em;"
       "vertical-align: baseline;"
       "margin-right: 0.1em;"
       "margin-left: 0.1em;"
-  
+
       ) }}
   {{/*  TEST  */}}
   {{ else if eq .display "inline-middle" }}
-    {{ $inline = $inline | append (slice 
-      "display: inline-block;" 
-      "height: 1em;" 
+    {{ $inline = $inline | append (slice
+      "display: inline-block;"
+      "height: 1em;"
       "width: 1em;"
       "vertical-align: middle ;"
-  
+
       ) }}
   {{ end }}
 
   {{ if .fs }}
-    {{ $fsMap := (dict 
+    {{ $fsMap := (dict
       "1" "2.5"
       "2" "2"
       "3" "1.75"
@@ -46,6 +46,18 @@
   {{ else }}
     {{ $inline = $inline | append (slice "font-size: inherit;") }}
   {{ end }}
+
+  {{/* AJOUT : gérer le strokeWidth paramètre */}}
+   {{ if .strokeWidth }}
+     {{ $inline = $inline | append (slice (printf "stroke-width: %s;" .strokeWidth)) }}
+   {{ else }}
+     {{/* Valeur par défaut si non spécifié */}}
+     {{ if eq .display "inline" }}
+       {{ $inline = $inline | append (slice "stroke-width: 0.07em;") }}
+     {{ else }}
+       {{ $inline = $inline | append (slice "stroke-width: 0.05em;") }}
+     {{ end }}
+   {{ end }}
 
 
   {{/* create string */}}

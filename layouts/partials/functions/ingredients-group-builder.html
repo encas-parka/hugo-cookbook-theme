@@ -132,12 +132,6 @@
         "pSurgel" $pSurgel
       -}}
 
-    {{- /* Validation explicite de la structure */}}
-    {{- if not (reflect.IsMap $entry) -}}
-      {{- errorf "Erreur: l'entrée n'est pas une map: %v" $entry -}}
-    {{- end -}}
-
-
 
     {{- $current := (index $grouped $groupType) | default (slice) -}}
     {{- $grouped = merge $grouped (dict $groupType ( $current | append $entry )) -}}
@@ -166,11 +160,6 @@
         "unit" $u
         "commentaire" $c
       -}}
-
-    {{- /* Validation explicite de la structure */}}
-    {{- if not (reflect.IsMap $entry) -}}
-      {{- errorf "Erreur: l'entrée n'est pas une map: %v" $entry -}}
-    {{- end -}}
 
     {{- $current := (index $grouped "absent") | default (slice) -}}
     {{- $grouped = merge $grouped (dict "absent" ( $current | append $entry )) -}}

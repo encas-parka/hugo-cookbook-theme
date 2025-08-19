@@ -73,13 +73,13 @@ document.addEventListener('DOMContentLoaded', () => {
   //   }
   // });
 
-  const recipesSearchElement = document.getElementById('app-search-recipes');
-  if (recipesSearchElement) {
-    const rawRecipesData = recipesSearchElement.dataset.recipes;
-    const parsedRecipesData = JSON.parse(rawRecipesData || '[]');
-    const appInstance = recipesSearchApp.mount(recipesSearchElement);
-    appInstance.setRecipesData(parsedRecipesData);
-  }
+  // const recipesSearchElement = document.getElementById('app-search-recipes');
+  // if (recipesSearchElement) {
+  //   const rawRecipesData = recipesSearchElement.dataset.recipes;
+  //   const parsedRecipesData = JSON.parse(rawRecipesData || '[]');
+  //   const appInstance = recipesSearchApp.mount(recipesSearchElement);
+  //   appInstance.setRecipesData(parsedRecipesData);
+  // }
 
   // --- Vue.js App for Events Search ---
   const eventsSearchApp = createApp({

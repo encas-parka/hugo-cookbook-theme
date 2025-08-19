@@ -11,18 +11,14 @@
   {{ end }}
   <div>
 
-    <nav class="navbar navbar-dark bg-dark navbar-expand-lg no-print py-1 fixed-top" id="main-navbar">
+    <nav class="navbar navbar-dark navbar-expand bg-dark no-print py-1 fixed-top" id="main-navbar">
       <div class="container-fluid" >
         <a class="navbar-brand monospace" href="{{ .Site.BaseURL }}">
           <img src="/favicon-96x96.png" alt="logo" height="32" class="d-inline-block align-text-center">
         </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarHeader"
-          aria-controls="navbarHeader" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse bg-dark" id="navbarHeader">
 
-          <ul class="navbar-nav  text-secondary me-auto">
+
+          <ul class="navbar-nav text-secondary me-auto">
             <li class="nav-item">
 
             </li>
@@ -36,16 +32,14 @@
             </li>
           </ul>
 
-          <ul class="navbar-nav   text-secondary">
-
+          <ul class="navbar-nav text-secondary ms-auto">
             <!-- État pour les utilisateurs déconnectés -->
-            <li class="nav-item" id="header-logged-out">
+            <li class="nav-item " id="header-logged-out">
               <a href="/login" class="btn btn-outline-primary btn-sm d-flex align-items-center" aria-label="Se connecter">
                 {{ partial "inline-svg" (dict "src" "fonticons/person-circle.svg"  "fs" 6) }}
 
               </a>
             </li>
-
             <!-- État pour les utilisateurs connectés (masqué par défaut) -->
             <li class="nav-item dropdown" id="header-logged-in" style="display: none;">
               <button class="btn btn-primary btn-sm dropdown-toggle d-flex align-items-center"
@@ -159,56 +153,89 @@
 <script>
 // Gestion du comportement de scroll de la navbar en JavaScript vanilla
 (function() {
-  let lastScrollTop = 0;
   const navbar = document.getElementById('main-navbar');
-
   if (!navbar) return;
 
+  // --- 1. Calculer et exposer la hauteur de la navbar ---
+  const updateNavbarHeight = () => {
+    const navbarHeight = navbar.offsetHeight;
+    document.documentElement.style.setProperty('--main-navbar-height', `${navbarHeight}px`);
+
+    // Appliquer la classe visible immédiatement
+    const eventNavbar = document.getElementById('navbarEvent');
+    if (eventNavbar) {
+      eventNavbar.classList.add('visible');
+    }
+  };
+
+  // Exécuter AU CHARGEMENT (pas après)
+  document.addEventListener('DOMContentLoaded', updateNavbarHeight);
+
+  // Mettre à jour en cas de redimensionnement
+  window.addEventListener('resize', updateNavbarHeight);
+
+  // Écouter l'ouverture/fermeture du menu burger
+  const navbarCollapse = document.getElementById('navbarHeader');
+  if (navbarCollapse) {
+    navbarCollapse.addEventListener('shown.bs.collapse', updateNavbarHeight);
+    navbarCollapse.addEventListener('hidden.bs.collapse', updateNavbarHeight);
+  }
+
+
+  // --- 2. Gérer le masquage de la navbar au scroll ---
+  let lastScrollTop = 0;
   function handleScroll() {
     const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
-
-    // Si on est en haut de la page, toujours afficher
+    const eventNavbar = document.getElementById('navbarEvent');
     if (currentScroll <= 0) {
-      navbar.classList.remove('navbar-hidden');
-    }
-    // Si on scroll vers le haut, afficher
-    else if (currentScroll < lastScrollTop) {
-      navbar.classList.remove('navbar-hidden');
-    }
-    // Si on scroll vers le bas et qu'on a dépassé la hauteur de la navbar, cacher
-    else if (currentScroll > lastScrollTop && currentScroll > navbar.offsetHeight) {
-      navbar.classList.add('navbar-hidden');
-    }
+       navbar.classList.remove('navbar-hidden');
+       if (eventNavbar) {
+         eventNavbar.style.top = 'var(--main-navbar-height)';
+       }
+     } else if (currentScroll < lastScrollTop) {
+       navbar.classList.remove('navbar-hidden');
+       if (eventNavbar) {
+         eventNavbar.style.top = 'var(--main-navbar-height)';
+       }
+     } else if (currentScroll > lastScrollTop && currentScroll > navbar.offsetHeight) {
+       navbar.classList.add('navbar-hidden');
+       if (eventNavbar) {
+         eventNavbar.style.top = '0';
+       }
+     }
+     lastScrollTop = currentScroll <= 0 ? 0 : currentScroll;
+   }
 
-    lastScrollTop = currentScroll <= 0 ? 0 : currentScroll;
-  }
+    // Observer pour détecter quand la navbar principale est masquée/affichée
+    const navbarObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          const eventNavbar = document.getElementById('navbarEvent');
+          if (eventNavbar && navbar.classList.contains('navbar-hidden')) {
+            eventNavbar.style.top = '0';
+          }
+        }
+      });
+    });
 
-  // Attacher l'écouteur d'événement avec throttling pour les performances
+    // Observer la navbar principale
+    navbarObserver.observe(navbar, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+  // Optimisation de l'événement scroll
   let ticking = false;
-
   function requestTick() {
     if (!ticking) {
-      requestAnimationFrame(handleScroll);
+      requestAnimationFrame(() => {
+        handleScroll();
+        ticking = false;
+      });
       ticking = true;
-      setTimeout(() => { ticking = false; }, 10);
     }
   }
 
-  // Initialiser au chargement de la page
-  document.addEventListener('DOMContentLoaded', function() {
-    handleScroll();
-    window.addEventListener('scroll', requestTick, { passive: true });
-  });
-
-  // Si le DOM est déjà chargé
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      handleScroll();
-      window.addEventListener('scroll', requestTick, { passive: true });
-    });
-  } else {
-    handleScroll();
-    window.addEventListener('scroll', requestTick, { passive: true });
-  }
+  window.addEventListener('scroll', requestTick, { passive: true });
 })();
 </script>
