@@ -3,7 +3,7 @@
 backend:
   name: github
   repo: encas-parka/enka-cookbook-site
-  branch: ing-merged-mig
+  branch: final-ingmig
   base_url: https://enka-cookbook.pages.dev
 
   auth_type: github
@@ -517,7 +517,9 @@ collections:
           "Sésame",
           "Sulfites",
           "Lupin",
-          "Mollusque"]
+          "Mollusque",
+          "Alcool",
+          "Vérifiez l'emballage"]
 
       - label: "Saisons"
         name: "saisons"
