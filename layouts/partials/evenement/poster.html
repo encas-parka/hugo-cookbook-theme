@@ -78,11 +78,43 @@
 
 
 
-   <div v-show="recipeVisibility['{{$dateService}}{{$horaire}}_{{.recette}}']" class="mb-3 ">
-      <p class="text-center fw-bold mb-1 text-lowercase" style="font-size: 2em" :class=" [[fontRecettes]] " :style="fontSizeRecettes">{{$recetteName}}</p>
-      <button @click="toggleRecipeVisibility('{{$dateService}}{{$horaire}}_{{.recette}}')" class="btn btn-sm btn-outline-secondary no-print float-end">
-        [[ recipeVisibility['{{$dateService}}{{$horaire}}_{{.recette}}'] ? 'Cacher' : 'Show' ]]
-      </button>
+   <!-- Placeholder pour recette masquée -->
+   <div v-show="!recipeVisibility['{{$dateService}}{{$horaire}}_{{.recette}}']" class="recipe-hidden-placeholder mb-3 no-print">
+     <button @click="toggleRecipeVisibility('{{$dateService}}{{$horaire}}_{{.recette}}')" 
+             class="btn btn-outline-primary btn-sm">
+       <i class="fas fa-eye"></i> Afficher [[ getRecipeName('{{$dateService}}{{$horaire}}_{{.recette}}', {{$recetteName | default .recette | jsonify}}) ]]
+     </button>
+   </div>
+
+   <!-- Contenu de la recette -->
+   <div v-show="recipeVisibility['{{$dateService}}{{$horaire}}_{{.recette}}']" class="mb-3 recipe-container">
+      <div class="recipe-actions no-print">
+        <button @click="startEditingRecipe('{{$dateService}}{{$horaire}}_{{.recette}}')" 
+                class="btn btn-sm btn-outline-info me-1" 
+                title="Modifier le nom">
+          <i class="fas fa-edit"></i>
+        </button>
+        <button @click="toggleRecipeVisibility('{{$dateService}}{{$horaire}}_{{.recette}}')" 
+                class="btn btn-sm btn-outline-secondary" 
+                title="Masquer la recette">
+          <i class="fas fa-eye-slash"></i>
+        </button>
+      </div>
+
+      <p class="text-center fw-bold mb-1 text-lowercase" style="font-size: 2em" :class=" [[fontRecettes]] " :style="fontSizeRecettes">
+        <span v-if="editingRecipe !== '{{$dateService}}{{$horaire}}_{{.recette}}'">
+          [[ getRecipeName('{{$dateService}}{{$horaire}}_{{.recette}}', {{$recetteName | default .recette | jsonify}}) ]]
+        </span>
+        <input v-if="editingRecipe === '{{$dateService}}{{$horaire}}_{{.recette}}'"
+               type="text"
+               class="recipe-name-edit"
+               id="recipe-edit-{{$dateService}}{{$horaire}}_{{.recette}}"
+               :value="getRecipeName('{{$dateService}}{{$horaire}}_{{.recette}}', {{$recetteName | default .recette | jsonify}})"
+               @input="updateRecipeName('{{$dateService}}{{$horaire}}_{{.recette}}', $event.target.value)"
+               @blur="finishEditingRecipe()"
+               @keydown.enter="finishEditingRecipe()"
+               @keydown.escape="finishEditingRecipe()">
+      </p>
     {{- $first = false -}}
     <p v-show="fontDesc !== 'noDisplay'" class="card-text" :class="[[fontDesc]]" :style="[[fontSizeDesc]]">{{.description}}</p>
 

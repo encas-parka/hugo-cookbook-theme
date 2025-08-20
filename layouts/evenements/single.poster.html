@@ -1,257 +1,486 @@
 {{ define "main" }}
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
-
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"
+/>
 
 <div id="app" v-cloak>
-
-  <div class="row" >
+  <div class="row">
     <h2 class="text-center no-print mt-5">Les Affiches</h2>
     {{/* ::: La sidebar offcanvas responsive ::: */}}
     <div id="configuration" class="col-xl-4 justify-content-center no-print">
-      <div class="offcanvas-xl offcanvas-start sticky-xl-top p-xl-4 overflow-auto" tabindex="-1"
-      id="sidebarOffcanvas"
-      aria-labelledby="sidebarOffcanvasLabel"
-    >
-      <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">
-          Options
-        </h5>
+      <div
+        class="offcanvas-xl offcanvas-start sticky-xl-top p-xl-4 overflow-auto"
+        tabindex="-1"
+        id="sidebarOffcanvas"
+        aria-labelledby="sidebarOffcanvasLabel"
+      >
+        <div class="offcanvas-header">
+          <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">Options</h5>
 
-        <!-- Ce bouton de fermeture ne sera visible que sur les petits écrans (quand c'est un offcanvas) -->
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="offcanvas"
-          data-bs-target="#sidebarOffcanvas"
-          aria-label="Close"
-        ></button>
-      </div>
-
-        <div class="row offcanvas-body">
-          <div class="col-8"><div class="fw-bold">Police: </div></div>
-          <div class="col-4"><div class="fw-bold">Taille: </div></div>
-        </div>
-        {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Date" "displayCheckbox" "true" "label" "Date")}}
-
-        {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Horaire" "displayCheckbox" "true" "label" "Horaire")}}
-
-        {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Desc" "displayCheckbox" "true" "label" "Description")}}
-
-        {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Cat" "displayCheckbox" "true" "label" "Catégories")}}
-
-        {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Recettes"  "label" "Recette")}}
-
-        {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Regimes" "displayCheckbox" "true" "label" "Régimes")}}
-
-        {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Alert" "displayCheckbox" "true" "label" "Allergenes")}}
-
-        {{ partial "evenement/poster-custom-ui.html" (dict "vmodel" "Ing" "displayCheckbox" "true" "label" "Liste Ingredients")}}
-
-        <div class="card p-2">
-          <div class="h6 mt-2">Options impressions: </div>
-          <div class="form-check form-switch mb-3">
-            <input class="form-check-input" type="checkbox" v-model="catPageBreak" id="catPageBreak">
-            <label class="small" for="catPageBreak">Nouvelle page par catégorie (entrée/plat/dessert)</label>
-          </div>
-          <div v-if="catPageBreak" class="form-check form-switch mb-3">
-            <input class="form-check-input" type="checkbox" v-model="dateByPageBreak" id="dateByPageBreak">
-            <label class="small" for="dateByPageBreak">Date en haut de chaque page</label>
-          </div>
+          <!-- Ce bouton de fermeture ne sera visible que sur les petits écrans (quand c'est un offcanvas) -->
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="offcanvas"
+            data-bs-target="#sidebarOffcanvas"
+            aria-label="Close"
+          ></button>
         </div>
 
-      <div class="form-floating my-3">
-        <input type="text" class="form-control" id="messageBottomInput" placeholder="Ajouter un message en bas de chaque fiche" v-model="messageBottom">
-        <label for="messageBottomInput">Ajouter un message en bas de chaque fiche</label>
-      </div>
-    </div>
+        <div class="row offcanvas-body p-2">
+          <div class="mb-3">
+          {{ partialCached "evenement/poster-custom-ui.html" (dict "vmodel"
+          "Date" "displayCheckbox" "true" "label" "Date") "date"}} {{
+          partialCached "evenement/poster-custom-ui.html" (dict "vmodel"
+          "Horaire" "displayCheckbox" "true" "label" "Horaire") "horaire"}} {{
+          partialCached "evenement/poster-custom-ui.html" (dict "vmodel" "Desc"
+          "displayCheckbox" "true" "label" "Description") "description"}} {{
+          partialCached "evenement/poster-custom-ui.html" (dict "vmodel" "Cat"
+          "displayCheckbox" "true" "label" "Catégories") "categories"}} {{
+          partialCached "evenement/poster-custom-ui.html" (dict "vmodel"
+          "Recettes" "label" "Recette") "recettes"}} {{ partialCached
+          "evenement/poster-custom-ui.html" (dict "vmodel" "Regimes"
+          "displayCheckbox" "true" "label" "Régimes") "regimes"}} {{
+          partialCached "evenement/poster-custom-ui.html" (dict "vmodel" "Alert"
+          "displayCheckbox" "true" "label" "Allergenes") "allergenes"}} {{
+          partialCached "evenement/poster-custom-ui.html" (dict "vmodel" "Ing"
+          "displayCheckbox" "true" "label" "Liste Ingredients") "ingredients"}}
+</div>
 
-    </div>
-
-    <div id="affichesSection" class="col-xl-8 print-col-12 break-before" :class="{'no-print' : !toPrint.affichesSection}">
-
-
-
-      {{- range sort .Params.repas ".date_service" -}}
-      {{ $dateService := .date_service | time.Format "2006-01-02" }}
-      {{ $dateService = replace $dateService "-" "" }}
-
-      <div id="affiche{{$dateService}}{{.horaire}}" class="page-break-after " :class="{ 'no-print' : !toPrint.affiche{{$dateService}}{{.horaire}} }" >
-          <div class="card mb-3 print-nocard">
-
-            {{/*  <button type="button" class="btn btn-outline-primary" onclick="downloadInnerHtml('affiche{{$dateService}}{{.horaire}}', 'affiche{{$dateService}}{{.horaire}}')">Download</button>  */}}
-            <div class="card-body pt-2" >
-              <div>
-                <a class="btn btn-sm btn-outline-secondary no-print mx-1"
-                @click="showAllRecipes('{{$dateService}}{{.horaire}}')">Tout afficher</a>
-
-                <a class="btn btn-sm btn-outline-primary no-print mx-1"
-                  @click="printThis('affiche{{$dateService}}{{.horaire}}', 'affichesSection')">{{ partial "components/icon-svg" (dict "name" "printer" "size" "1.7rem") }}</a>
-              </div>
-
-                <div>
-                  <p v-show="fontDate !== 'noDisplay'" class="m-0 text-center h3" :class="[[fontDate]]" :style="fontSizeDate">{{.date_service | time.Format "Monday 2 January "}}</p>
-                  <p v-show="fontHoraire !== 'noDisplay'" class="text-center m-0 h3" :class="[[fontHoraire]]" :style="fontSizeHoraire" >{{ .horaire }}</p>
-                  <p v-show="fontHoraire !== 'noDisplay' || fontDate !== 'noDisplay'" class="fs-4 text-center fw-bold m-0">·•·•·•·•·•·•··•·•·•·•·•·•·</p>
-                </div>
-
-                <div class="avoid-break-inside" >{{ partial "evenement/poster.html" (dict "recettes_du_repas" .recettes_du_repas  "recetteCat" "entree" "recetteCatFormat" "Entrée" "dateService" .date_service "horaire" .horaire) }}</div>
-
-              <div :class="{'page-break-before' : catPageBreak}">
-                <div v-if="dateByPageBreak && catPageBreak" class="printonly ">
-                  <p v-show="fontDate !== 'noDisplay'" class="m-0 text-center h3" :class="[[fontDate]]" :style="fontSizeDate">{{.date_service | time.Format "Monday 2 January "}}</p>
-                  <p v-show="fontHoraire !== 'noDisplay'" class="text-center m-0 h3" :class="[[fontHoraire]]" :style="fontSizeHoraire" >{{ .horaire }}</p>
-                  <p v-show="fontHoraire !== 'noDisplay' || fontDate !== 'noDisplay'" class="fs-4 text-center fw-bold m-0">·•·•·•·•·•·•··•·•·•·•·•·•·</p>
-                </div>
-                <div class="avoid-break-inside">{{ partial "evenement/poster.html" (dict "recettes_du_repas" .recettes_du_repas  "recetteCat" "plat" "recetteCatFormat" "Plat" "dateService" .date_service "horaire" .horaire) }}</div>
-              </div>
-
-
-              <div :class="{'page-break-before' : catPageBreak}">
-                <div v-if="dateByPageBreak && catPageBreak" class="printonly ">
-                  <p v-show="fontDate !== 'noDisplay'" class="m-0 text-center h3" :class="[[fontDate]]" :style="fontSizeDate">{{.date_service | time.Format "Monday 2 January "}}</p>
-                  <p v-show="fontHoraire !== 'noDisplay'" class="text-center m-0 h3" :class="[[fontHoraire]]" :style="fontSizeHoraire" >{{ .horaire }}</p>
-                  <p v-show="fontHoraire !== 'noDisplay' || fontDate !== 'noDisplay'" class="fs-4 text-center fw-bold m-0">·•·•·•·•·•·•··•·•·•·•·•·•·</p>
-                </div>
-                <div class="avoid-break-inside">{{ partial "evenement/poster.html" (dict "recettes_du_repas" .recettes_du_repas  "recetteCat" "dessert" "recetteCatFormat" "Dessert" "dateService" .date_service "horaire" .horaire) }}</div>
-              </div>
-              <div class="text-center fw-bolder mt-5">[[messageBottom]]</div>
+            <div class="h6 mt-2">Options impressions:</div>
+            <div class="form-check form-switch mb-3">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                v-model="catPageBreak"
+                id="catPageBreak"
+              />
+              <label class="small" for="catPageBreak"
+                >Nouvelle page par catégorie (entrée/plat/dessert)</label
+              >
             </div>
+            <div v-if="catPageBreak" class="form-check form-switch mb-3">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                v-model="dateByPageBreak"
+                id="dateByPageBreak"
+              />
+              <label class="small" for="dateByPageBreak"
+                >Date en haut de chaque page</label
+              >
+            </div>
+
+          <div class="form w-100">
+            <label for="messageBottomInput"
+              >Ajouter un message en bas de chaque fiche</label
+            >
+            <input
+              type="text"
+              class="form-control"
+              id="messageBottomInput"
+              placeholder="Ajouter un message en bas de chaque fiche"
+              v-model="messageBottom"
+            />
+
           </div>
         </div>
+      </div>
+    </div>
 
-        {{ end }}
+    <div
+      id="affichesSection"
+      class="col-xl-8 print-col-12 break-before"
+      :class="{'no-print' : !toPrint.affichesSection}"
+    >
+      {{- range sort .Params.repas ".date_service" -}} {{ $dateService :=
+      .date_service | time.Format "2006-01-02" }} {{ $dateService = replace
+      $dateService "-" "" }}
+
+      <div
+        id="affiche{{$dateService}}{{.horaire}}"
+        class="page-break-after"
+        :class="{ 'no-print' : !toPrint.affiche{{$dateService}}{{.horaire}} }"
+      >
+        <div class="card mb-3 print-nocard">
+          {{/*
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            onclick="downloadInnerHtml('affiche{{$dateService}}{{.horaire}}', 'affiche{{$dateService}}{{.horaire}}')"
+          >
+            Download
+          </button>
+          */}}
+          <div class="card-body pt-2">
+            <div>
+               <a
+                class="btn btn-sm btn-outline-primary no-print mx-1"
+                @click="printThis('affiche{{$dateService}}{{.horaire}}', 'affichesSection')"
+                >{{ partial "components/icon-svg" (dict "name" "printer" "size"
+                "1.7rem") }}</a
+              >
+            </div>
+
+            <div>
+              <p
+                v-show="fontDate !== 'noDisplay'"
+                class="m-0 text-center h3"
+                :class="[[fontDate]]"
+                :style="fontSizeDate"
+              >
+                {{.date_service | time.Format "Monday 2 January "}}
+              </p>
+              <p
+                v-show="fontHoraire !== 'noDisplay'"
+                class="text-center m-0 h3"
+                :class="[[fontHoraire]]"
+                :style="fontSizeHoraire"
+              >
+                {{ .horaire }}
+              </p>
+              <p
+                v-show="fontHoraire !== 'noDisplay' || fontDate !== 'noDisplay'"
+                class="fs-4 text-center fw-bold m-0"
+              >
+                ·•·•·•·•·•·•··•·•·•·•·•·•·
+              </p>
+            </div>
+
+            <div class="avoid-break-inside">
+              {{ partial "evenement/poster.html" (dict "recettes_du_repas"
+              .recettes_du_repas "recetteCat" "entree" "recetteCatFormat"
+              "Entrée" "dateService" .date_service "horaire" .horaire) }}
+            </div>
+
+            <div :class="{'page-break-before' : catPageBreak}">
+              <div v-if="dateByPageBreak && catPageBreak" class="printonly">
+                <p
+                  v-show="fontDate !== 'noDisplay'"
+                  class="m-0 text-center h3"
+                  :class="[[fontDate]]"
+                  :style="fontSizeDate"
+                >
+                  {{.date_service | time.Format "Monday 2 January "}}
+                </p>
+                <p
+                  v-show="fontHoraire !== 'noDisplay'"
+                  class="text-center m-0 h3"
+                  :class="[[fontHoraire]]"
+                  :style="fontSizeHoraire"
+                >
+                  {{ .horaire }}
+                </p>
+                <p
+                  v-show="fontHoraire !== 'noDisplay' || fontDate !== 'noDisplay'"
+                  class="fs-4 text-center fw-bold m-0"
+                >
+                  ·•·•·•·•·•·•··•·•·•·•·•·•·
+                </p>
+              </div>
+              <div class="avoid-break-inside">
+                {{ partial "evenement/poster.html" (dict "recettes_du_repas"
+                .recettes_du_repas "recetteCat" "plat" "recetteCatFormat" "Plat"
+                "dateService" .date_service "horaire" .horaire) }}
+              </div>
+            </div>
+
+            <div :class="{'page-break-before' : catPageBreak}">
+              <div v-if="dateByPageBreak && catPageBreak" class="printonly">
+                <p
+                  v-show="fontDate !== 'noDisplay'"
+                  class="m-0 text-center h3"
+                  :class="[[fontDate]]"
+                  :style="fontSizeDate"
+                >
+                  {{.date_service | time.Format "Monday 2 January "}}
+                </p>
+                <p
+                  v-show="fontHoraire !== 'noDisplay'"
+                  class="text-center m-0 h3"
+                  :class="[[fontHoraire]]"
+                  :style="fontSizeHoraire"
+                >
+                  {{ .horaire }}
+                </p>
+                <p
+                  v-show="fontHoraire !== 'noDisplay' || fontDate !== 'noDisplay'"
+                  class="fs-4 text-center fw-bold m-0"
+                >
+                  ·•·•·•·•·•·•··•·•·•·•·•·•·
+                </p>
+              </div>
+              <div class="avoid-break-inside">
+                {{ partial "evenement/poster.html" (dict "recettes_du_repas"
+                .recettes_du_repas "recetteCat" "dessert" "recetteCatFormat"
+                "Dessert" "dateService" .date_service "horaire" .horaire) }}
+              </div>
+            </div>
+            <div class="text-center fw-bolder mt-5">[[messageBottom]]</div>
+          </div>
+        </div>
+      </div>
+
+      {{ end }}
     </div>
   </div>
 
-
   <!-- bouton pour ouvrir l'offcanvas sur les petits écrans -->
-    <button
-      class="no-print d-xl-none fab-openCanvas"
-      type="button"
-      data-bs-toggle="offcanvas"
-      data-bs-target="#sidebarOffcanvas"
-      aria-controls="sidebarOffcanvas"
+  <button
+    class="no-print d-xl-none fab-openCanvas"
+    type="button"
+    data-bs-toggle="offcanvas"
+    data-bs-target="#sidebarOffcanvas"
+    aria-controls="sidebarOffcanvas"
+  ></button>
+
+  <button
+    class="fab-print no-print"
+    aria-label="Imprimer"
+    @click="printGlobal"
+  ></button>
+
+  <a href="#" class="scroll-to-top" title="Scroll to top"></a>
+
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div
+      id="liveToast"
+      class="toast"
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+      :class="{ 'show': showToast }"
     >
-    </button>
-
-
-  <button class="fab-print no-print"
-          aria-label="Imprimer"
-          @click="printGlobal">
-  </button>
-
-  <a href="#" class="scroll-to-top " title="Scroll to top"></a>
-
-
+      <div class="toast-header">
+        <strong class="me-auto">Notification</strong>
+        <small>Maintenant</small>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="toast"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="toast-body">[[ toastMessage ]]</div>
+    </div>
+  </div>
 </div>
 
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Fira+Sans:ital,wght@0,400;0,700;0,900;1,900&family=Gluten:wght@500&family=Montserrat:wght@100..900&family=Pacifico&display=swap"
+  rel="stylesheet"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+/>
 
+<style>
+  .recipe-container {
+    position: relative;
+  }
 
+  .recipe-actions {
+    position: absolute;
+    top: 0;
+    right: 0;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+  }
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:ital,wght@0,400;0,700;0,900;1,900&family=Gluten:wght@500&family=Montserrat:wght@100..900&family=Pacifico&display=swap" rel="stylesheet">
+  .recipe-container:hover .recipe-actions {
+    opacity: 1;
+  }
+
+  .recipe-hidden-placeholder {
+    text-align: center;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+  }
+
+  .recipe-name-edit {
+    display: inline-block;
+    min-width: 200px;
+    text-align: center;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: inherit;
+    font-family: inherit;
+    font-weight: inherit;
+    color: inherit;
+    text-transform: inherit;
+  }
+
+  .recipe-name-edit:focus {
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid #007bff;
+    border-radius: 4px;
+    padding: 2px 8px;
+  }
+
+  @media print {
+    .recipe-actions {
+      display: none !important;
+    }
+
+    .recipe-hidden-placeholder {
+      display: none !important;
+    }
+  }
+</style>
 
 <script>
-  const app = Vue.createApp({
-    delimiters: ['[[', ']]'],
-    el: '#app',
-    data () {
-      return {
-        fontDate: "montserrat-font",
-        fontSizeDate: "font-size: 24px",
-        fontHoraire: "montserrat-font",
-        fontSizeHoraire: "font-size: 24px",
-        fontCat: "montserrat-font",
-        fontSizeCat: "font-size: 24px",
-        fontRecettes: "pacifico-regular",
-        fontSizeRecettes: "font-size: 32px",
-        fontDesc: "noDisplay",
-        fontSizeDesc: "font-size: 16px",
-        fontRegimes: "noDisplay",
-        fontSizeRegimes: "font-size: 18px",
-        fontAlert: "noDisplay",
-        fontSizeAlert: "font-size: 14px",
-        fontIng: "noDisplay",
-        fontSizeIng: "font-size: 14px",
+    const app = Vue.createApp({
+      delimiters: ['[[', ']]'],
+      el: '#app',
+      data () {
+        return {
+          fontDate: "montserrat-font",
+          fontSizeDate: "font-size: 24px",
+          fontHoraire: "montserrat-font",
+          fontSizeHoraire: "font-size: 24px",
+          fontCat: "montserrat-font",
+          fontSizeCat: "font-size: 24px",
+          fontRecettes: "pacifico-regular",
+          fontSizeRecettes: "font-size: 32px",
+          fontDesc: "noDisplay",
+          fontSizeDesc: "font-size: 16px",
+          fontRegimes: "noDisplay",
+          fontSizeRegimes: "font-size: 18px",
+          fontAlert: "noDisplay",
+          fontSizeAlert: "font-size: 14px",
+          fontIng: "noDisplay",
+          fontSizeIng: "font-size: 14px",
 
-        catPageBreak: false,
-        dateByPageBreak: false,
-        toPrint: {
-          affichesSection: false,
-          {{- range sort .Params.repas ".date_service" -}}
-          {{ $dateService := .date_service | time.Format "2006-01-02" }}
-          {{ $dateService = replace $dateService "-" "" }}
-          "affiche{{$dateService}}{{.horaire}}": true,
-          {{ end }}
-        },
-        recipeVisibility: {},
-        messageBottom: "",
-      }
-    },
+          catPageBreak: false,
+          dateByPageBreak: false,
+          toPrint: {
+            affichesSection: false,
+            {{- range sort .Params.repas ".date_service" -}}
+            {{ $dateService := .date_service | time.Format "2006-01-02" }}
+            {{ $dateService = replace $dateService "-" "" }}
+            "affiche{{$dateService}}{{.horaire}}": true,
+            {{ end }}
+          },
+          recipeVisibility: {},
+          recipeNames: {},
+          editingRecipe: null,
+          messageBottom: "",
+          showToast: false,
+          toastMessage: "",
+          notificationHasShown: false,
+        }
+      },
 
-  methods: {
-    {{/*  ::: __print  */}}
-    printThis(el, section) {
-      this.$nextTick(() => {
-        let printThat = [el, section];
+    methods: {
+      {{/*  ::: __print  */}}
+      printThis(el, section) {
+        this.$nextTick(() => {
+          let printThat = [el, section];
+          Object.keys(this.toPrint).forEach((param) => {
+            if (!printThat.includes(param)) {
+              this.toPrint[param] = false;
+            } else {
+              this.toPrint[param] = true;
+            }
+          });
+          this.$nextTick(() => {
+            window.print();
+          });
+        });
+      },
+
+      printGlobal() {
         Object.keys(this.toPrint).forEach((param) => {
-          if (!printThat.includes(param)) {
-            this.toPrint[param] = false;
-          } else {
-            this.toPrint[param] = true;
-          }
+          this.toPrint[param] = true;
         });
         this.$nextTick(() => {
           window.print();
         });
-      });
-    },
+      },
 
-    printGlobal() {
-      Object.keys(this.toPrint).forEach((param) => {
-        this.toPrint[param] = true;
-      });
-      this.$nextTick(() => {
-        window.print();
-      });
-    },
-
-
-    toggleRecipeVisibility(recipeId) {
-      this.recipeVisibility[recipeId] = !this.recipeVisibility[recipeId];
-    },
-
-    showAllRecipes(dateHoraire) {
-      Object.keys(this.recipeVisibility).forEach(key => {
-        if (key.startsWith(dateHoraire)) {
-          this.recipeVisibility[key] = true;
+      showToastNotification(message) {
+        if (!this.notificationHasShown) {
+          this.toastMessage = message;
+          this.showToast = true;
+          setTimeout(() => {
+            this.showToast = false;
+            this.toastMessage = "";
+            this.notificationHasShown = true;
+          }, 4000); // Hide toast after 4 seconds
         }
-      });
-    },
+      },
 
-    initializeRecipeVisibility() {
-      {{ range .Params.repas }}
-        {{ $dateService := .date_service | time.Format "2006-01-02" }}
-        {{ $dateService = replace $dateService "-" "" }}
-        {{$horaire := .horaire}}
-        {{ range .recettes_du_repas }}
-          this.recipeVisibility["{{$dateService}}{{$horaire}}_{{.recette}}"] = true;
+
+      toggleRecipeVisibility(recipeId) {
+        this.recipeVisibility[recipeId] = !this.recipeVisibility[recipeId];
+        if (!this.recipeVisibility[recipeId]) {
+          this.showToastNotification("Les modifications ne sont pas enregistrées. Elles sont temporaires pour l'impression.");
+        }
+      },
+
+      startEditingRecipe(recipeId) {
+        this.editingRecipe = recipeId;
+        this.$nextTick(() => {
+          const input = document.querySelector('#recipe-edit-' + recipeId);
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        });
+      },
+
+      finishEditingRecipe() {
+        this.editingRecipe = null;
+      },
+
+      updateRecipeName(recipeId, newName) {
+        this.recipeNames[recipeId] = newName;
+        this.showToastNotification("Les modifications ne sont pas enregistrées. Elles sont temporaires pour l'impression.");
+      },
+      getRecipeName(recipeId, originalName) {
+        let name = this.recipeNames[recipeId] || originalName;
+        // Trim leading and trailing double quotes if they exist
+        if (typeof name === 'string') {
+          name = name.replace(/^"|"$/g, '');
+        }
+        return name;
+      },
+
+
+      initializeRecipeVisibility() {
+        {{ range .Params.repas }}
+          {{ $dateService := .date_service | time.Format "2006-01-02" }}
+          {{ $dateService = replace $dateService "-" "" }}
+          {{$horaire := .horaire}}
+          {{ range .recettes_du_repas }}
+            {{- $recetteName := "" -}}
+            {{- $url := print .recette | urlize -}}
+            {{- with site.GetPage $url -}}
+              {{- $recetteName = .Params.title -}}
+            {{- end -}}
+            this.recipeVisibility["{{$dateService}}{{$horaire}}_{{.recette}}"] = true;
+            this.recipeNames["{{$dateService}}{{$horaire}}_{{.recette}}"] = {{$recetteName | default .recette | jsonify}};
+          {{ end }}
         {{ end }}
-      {{ end }}
-    }
-  },
-  mounted() {
-    this.initializeRecipeVisibility();
-  },
-});
+      }
+    },
+    mounted() {
+      this.initializeRecipeVisibility();
+    },
+  });
 
 
 
-app.mount('#app')
-
-
+  app.mount('#app')
 </script>
-
 
 {{ end }}
