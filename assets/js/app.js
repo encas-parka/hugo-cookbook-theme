@@ -3,8 +3,11 @@
 // Il est responsable de l'initialisation des scripts globaux et des bibliothèques.
 
 'use strict';
-// Import du module d'initialisation Appwrite (utilisé par auth-status)
 
+// Importer appwrite-client seulement si on n'est pas sur la page de login
+// pour éviter les conflits avec authAppwrite.js
+if (window.location.pathname !== '/login/' && window.location.pathname !== '/login') {
+  import('./appwrite-client.js');
+}
 
-import './appwrite-client.js';
 import bootstrap from 'js/bootstrap.bundle.js';

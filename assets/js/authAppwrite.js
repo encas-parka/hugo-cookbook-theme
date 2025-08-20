@@ -1,6 +1,11 @@
 // Fichier : assets/js/authAppwrite.js
 // Ce script est conçu pour s'exécuter uniquement sur la page /login
 
+console.log("📦 [authAppwrite.js] === SCRIPT CHARGÉ ===");
+console.log("📦 [authAppwrite.js] URL:", window.location.pathname);
+console.log("📦 [authAppwrite.js] SDK Appwrite:", !!window.Appwrite);
+console.log("📦 [authAppwrite.js] DOM ready:", document.readyState);
+
 import { getAppwriteClients, getAccount, getFunctions, getConfig, getLocalCmsUser, isAuthenticated, getUserEmail, clearAuthData, setAuthData } from './appwrite-client.js';
 
 // Récupération de la configuration
@@ -37,7 +42,7 @@ function showUIState(state) {
  */
 async function setupCmsAuthentication() {
   console.log("Appel de la fonction Appwrite pour obtenir le token CMS...");
-  
+
   const functions = await getFunctions();
   const response = await functions.createExecution(
     APPWRITE_FUNCTION_ID,
@@ -63,47 +68,95 @@ async function setupCmsAuthentication() {
  * Logique principale exécutée au chargement de la page de connexion.
  */
 async function handleLoginPageLoad() {
-  console.log("handleLoginPageLoad: Démarrage de la vérification de session...");
-  showUIState('loading'); // Assure que l'état de chargement est affiché dès le début
+  console.log("🔄 [handleLoginPageLoad] === DÉMARRAGE ===");
+  console.log("🔄 [handleLoginPageLoad] URL actuelle:", window.location.pathname);
 
-  const cmsUser = getLocalCmsUser();
-  console.log("handleLoginPageLoad: Token CMS local (getLocalCmsUser) -", cmsUser ? "Présent et valide" : "Absent ou invalide");
+  // Afficher l'état de chargement immédiatement
+  showUIState('loading');
+  console.log("🔄 [handleLoginPageLoad] État de chargement affiché");
 
-  // CAS 1: Token CMS valide -> L'utilisateur est connecté
-  if (cmsUser) {
-    console.log("handleLoginPageLoad: CAS 1 - Token CMS valide. L'utilisateur est connecté.");
-    try {
-      const account = await getAccount();
-      const appwriteUser = await account.get();
-      console.log("handleLoginPageLoad: Session Appwrite active pour", appwriteUser.email);
-      setAuthData(appwriteUser.email, cmsUser);
-      if (userEmailDisplay) userEmailDisplay.textContent = ` (${appwriteUser.email})`;
-      showUIState('loggedIn');
-      return;
-    } catch (appwriteError) {
-      console.warn("handleLoginPageLoad: Token CMS présent mais pas de session Appwrite. Nettoyage...");
-      // Si le token CMS existe mais pas de session Appwrite, on nettoie tout
-      clearAuthData();
-    }
-  }
-
-  // CAS 2: Pas de token CMS -> L'utilisateur n'est pas connecté
-  console.log("handleLoginPageLoad: CAS 2 - Pas de token CMS. Déconnexion forcée d'Appwrite si nécessaire.");
-  
-  // S'assurer qu'il n'y a pas de session Appwrite résiduelle
   try {
-    const account = await getAccount();
-    await account.deleteSession('current');
-    console.log("handleLoginPageLoad: Session Appwrite résiduelle supprimée.");
-  } catch (e) {
-    // Pas de session active, c'est normal
-    console.log("handleLoginPageLoad: Aucune session Appwrite à supprimer.");
+    // Vérifier d'abord si le SDK Appwrite est disponible
+    if (!window.Appwrite) {
+      console.error("❌ [handleLoginPageLoad] SDK Appwrite non disponible !");
+      throw new Error("SDK Appwrite non chargé");
+    }
+    console.log("✅ [handleLoginPageLoad] SDK Appwrite disponible");
+
+    const cmsUser = getLocalCmsUser();
+    console.log("🔍 [handleLoginPageLoad] Token CMS local:", cmsUser ? "✅ Présent et valide" : "❌ Absent ou invalide");
+
+    // CAS 1: Token CMS valide -> L'utilisateur est connecté
+    if (cmsUser) {
+      console.log("🔒 [handleLoginPageLoad] === CAS 1: Token CMS valide ===");
+      try {
+        console.log("🔄 [handleLoginPageLoad] Initialisation du client Appwrite...");
+        const account = await getAccount();
+        console.log("✅ [handleLoginPageLoad] Client Appwrite initialisé");
+
+        console.log("🔄 [handleLoginPageLoad] Récupération des données utilisateur Appwrite...");
+        const appwriteUser = await account.get();
+        console.log("✅ [handleLoginPageLoad] Utilisateur Appwrite récupéré:", appwriteUser.email);
+
+        setAuthData(appwriteUser.email, cmsUser);
+        if (userEmailDisplay) userEmailDisplay.textContent = ` (${appwriteUser.email})`;
+
+        console.log("🎉 [handleLoginPageLoad] Utilisateur connecté - affichage interface");
+        showUIState('loggedIn');
+        return;
+      } catch (appwriteError) {
+        console.warn("⚠️ [handleLoginPageLoad] Token CMS présent mais erreur Appwrite:", appwriteError.message);
+        clearAuthData();
+        console.log("🧹 [handleLoginPageLoad] Données nettoyées après erreur Appwrite");
+      }
+    }
+
+    // CAS 2: Pas de token CMS -> L'utilisateur n'est pas connecté
+    console.log("🔓 [handleLoginPageLoad] === CAS 2: Pas de token CMS ===");
+
+    // Nettoyer toutes les clés d'authentification locales d'abord
+    clearAuthData();
+    console.log("🧹 [handleLoginPageLoad] Données locales nettoyées");
+
+    // Tenter de supprimer la session Appwrite résiduelle avec timeout
+    try {
+      console.log("🔄 [handleLoginPageLoad] Initialisation client pour nettoyage session...");
+      const account = await getAccount();
+console.log("✅ [handleLoginPageLoad] Client Appwrite prêt pour nettoyage");
+
+      console.log("🔄 [handleLoginPageLoad] Suppression session Appwrite résiduelle (timeout: 3s)...");
+      // Créer une promesse avec timeout réduit pour éviter les blocages
+      const deleteSessionPromise = account.deleteSession('current');
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout')), 3000)
+      );
+
+      await Promise.race([deleteSessionPromise, timeoutPromise]);
+      console.log("✅ [handleLoginPageLoad] Session Appwrite résiduelle supprimée");
+    } catch (e) {
+      if (e.message === 'Timeout') {
+        console.warn("⏰ [handleLoginPageLoad] Timeout suppression session (3s) - poursuite");
+      } else if (e.code === 401) {
+        console.log("ℹ️ [handleLoginPageLoad] Aucune session active à supprimer");
+      } else {
+        console.log("ℹ️ [handleLoginPageLoad] Erreur suppression session (normale):", e.message);
+      }
+    }
+
+    console.log("🎯 [handleLoginPageLoad] Affichage interface de connexion");
+    showUIState('loggedOut');
+console.log("✅ [handleLoginPageLoad] === TERMINÉ AVEC SUCCÈS ===");
+
+  } catch (error) {
+    // Gestion d'erreur globale pour s'assurer qu'on ne reste jamais bloqué sur le spinner
+    console.error("💥 [handleLoginPageLoad] === ERREUR CRITIQUE ===");
+    console.error("💥 [handleLoginPageLoad] Détails:", error);
+    console.error("💥 [handleLoginPageLoad] Stack:", error.stack);
+
+    clearAuthData();
+    showUIState('loggedOut');
+    console.log("🔧 [handleLoginPageLoad] Interface de connexion forcée après erreur");
   }
-
-  // Nettoyer toutes les clés d'authentification locales
-  clearAuthData();
-
-  showUIState('loggedOut');
 }
 
 /**
@@ -123,10 +176,10 @@ if (loginForm) {
       const account = await getAccount();
       await account.createEmailPasswordSession(email, password);
       console.log("Connexion Appwrite réussie.");
-      
+
       // Récupérer le token CMS
       await setupCmsAuthentication();
-      
+
       // Relancer la logique de la page pour mettre à jour l'UI
       await handleLoginPageLoad();
 
@@ -155,7 +208,7 @@ if (logoutButton) {
     try {
       // Supprimer d'abord les données d'authentification locales (notre source de vérité)
       clearAuthData();
-      
+
       // Puis tenter de déconnecter d'Appwrite
       const account = await getAccount();
       await account.deleteSession('current');
@@ -194,7 +247,7 @@ if (accessRequestForm) {
 
     try {
       const payload = JSON.stringify({ email, message });
-      
+
       const functions = await getFunctions();
       const result = await functions.createExecution(
         ACCESS_REQUEST_FUNCTION_ID,
@@ -231,4 +284,14 @@ if (accessRequestForm) {
 }
 
 // Lancement de la logique au chargement du DOM
-document.addEventListener('DOMContentLoaded', handleLoginPageLoad);
+document.addEventListener('DOMContentLoaded', () => {
+  console.log("📄 [authAppwrite.js] DOMContentLoaded déclenché");
+  console.log("📄 [authAppwrite.js] URL:", window.location.pathname);
+  console.log("📄 [authAppwrite.js] SDK Appwrite disponible:", !!window.Appwrite);
+
+  // Ajouter un délai minimal pour s'assurer que tous les scripts sont chargés
+  setTimeout(() => {
+    console.log("📄 [authAppwrite.js] Lancement handleLoginPageLoad après délai");
+    handleLoginPageLoad();
+  }, 10);
+});

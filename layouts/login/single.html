@@ -197,4 +197,6 @@
 
 <!-- Script d'authentification - chargé uniquement sur la page de login, traité par ESBuild -->
 {{ partial "footer/esbuild" (dict "src" "js/authAppwrite.js" "targetPath"
-"authAppwrite.js" "load" "async" "transpile" false) -}} {{ end }}
+"authAppwrite.js" "load" "defer" "transpile" false) -}}
+
+{{ end }}

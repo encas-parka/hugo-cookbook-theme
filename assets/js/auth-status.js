@@ -25,11 +25,12 @@ function updateHeaderUI() {
   const authenticated = isAuthenticated();
   const userEmail = getUserEmail();
 
-  console.log("auth-status.js: updateHeaderUI appelée.");
-  console.log("auth-status.js: isAuthenticated (from CMS token):", authenticated);
-  console.log("auth-status.js: userEmail (from localStorage):", userEmail);
+  console.log("🎨 [Auth-Status] updateHeaderUI appelée");
+  console.log("🎨 [Auth-Status] isAuthenticated (from CMS token):", authenticated);
+  console.log("🎨 [Auth-Status] userEmail (from localStorage):", userEmail);
 
   if (authenticated && loggedInState) {
+    console.log("✅ [Auth-Status] Utilisateur connecté - affichage état connecté");
     // Utilisateur est considéré comme connecté
     // Masquer l'état déconnecté (s'il existe)
     if (loggedOutState) loggedOutState.style.display = 'none';
@@ -38,8 +39,10 @@ function updateHeaderUI() {
 
     if (userEmailDisplay && userEmail) {
       userEmailDisplay.textContent = userEmail;
+      console.log("📧 [Auth-Status] Email affiché:", userEmail);
     }
   } else {
+    console.log("🔓 [Auth-Status] Utilisateur déconnecté - masquage état connecté");
     // Utilisateur déconnecté (c'est l'état par défaut)
     if (loggedInState) loggedInState.style.display = 'none';
     // loggedOutState est affiché par défaut, pas besoin de le modifier
@@ -49,7 +52,10 @@ function updateHeaderUI() {
   const loadingState = document.getElementById('header-auth-loading');
   if (loadingState) {
     loadingState.style.display = 'none';
+    console.log("🔄 [Auth-Status] État de chargement masqué");
   }
+  
+  console.log("🎨 [Auth-Status] updateHeaderUI terminée");
 }
 
 /**
@@ -82,25 +88,43 @@ async function handleLogout() {
  
 // --- LOGIQUE PRINCIPALE ---
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log("📄 [Auth-Status] === DÉMARRAGE ===");
+  console.log("📄 [Auth-Status] URL actuelle:", window.location.pathname);
+  console.log("📄 [Auth-Status] SDK Appwrite disponible:", !!window.Appwrite);
+  console.log("📄 [Auth-Status] Éléments DOM:", {
+    loggedOutState: !!loggedOutState,
+    loggedInState: !!loggedInState,
+    userEmailDisplay: !!userEmailDisplay,
+    logoutButton: !!logoutButton
+  });
+
   // Vérifier si on est sur la page de login pour éviter les conflits
   if (window.location.pathname === '/login/' || window.location.pathname === '/login') {
-    console.log("[Auth-Status] Page de login détectée, délégation à authAppwrite.js");
+    console.log("⚠️ [Auth-Status] Page de login détectée, délégation à authAppwrite.js - ARRÊT");
     return;
   }
 
   try {
+    console.log("🔄 [Auth-Status] Initialisation du client Appwrite...");
     // Initialiser le client Appwrite via le module commun
     await getAccount();
-    console.log("[Auth-Status] Client Appwrite prêt");
+    console.log("✅ [Auth-Status] Client Appwrite prêt");
   } catch (error) {
-    console.error("[Auth-Status] Erreur lors de l'initialisation Appwrite:", error);
+    console.error("❌ [Auth-Status] Erreur lors de l'initialisation Appwrite:", error);
+    console.error("❌ [Auth-Status] Stack:", error.stack);
   }
 
   // 1. Mettre à jour l'interface au chargement initial de la page
+  console.log("🔄 [Auth-Status] Mise à jour de l'interface...");
   updateHeaderUI();
 
   // 2. Attacher l'écouteur d'événement pour la déconnexion
   if (logoutButton) {
+    console.log("✅ [Auth-Status] Écouteur de déconnexion attaché");
     logoutButton.addEventListener('click', handleLogout);
+  } else {
+    console.log("ℹ️ [Auth-Status] Pas de bouton de déconnexion trouvé");
   }
+  
+  console.log("✅ [Auth-Status] === TERMINÉ ===");
 });
