@@ -5,9 +5,10 @@ backend:
   repo: encas-parka/enka-cookbook-site
   branch: final-ingmig
   base_url: https://enka-cookbook.pages.dev
-
   auth_type: github
-  # Vérifier si ca marche bien : si un article est modifier plusieur fpos avant d'etre mergé/publié, un seul commit avec rebased.
+  automatic_deployments: true
+
+  # Vérifier si ca marche bien : si un article est modifier plusieur fois avant d'etre mergé/publié, un seul commit avec rebased.
   squash_merges: true
 
 media_folder: "static/images"
@@ -17,7 +18,7 @@ slug:
   clean_accents: true
   sanitize_replacement: "-"
 editor:
-  preview: false
+  preview: true
 
 # ::: Collection Recettes
 #
@@ -25,11 +26,14 @@ collections:
   - name: "recettes"
     label: "Recettes"
     label_singular: "Recette"
+    icon: chef_hat
     folder: "content/recettes/"
     path: "{{type}}/{{slug}}/index"
     slug: "{{title}}_{{uuid_short}}"
     filter: { field: "layout", value: "recettes" }
-    description: "Liste de l'ensemble des recettes. Vous pouvez utiliser les filtres ci-dessous pour classer / filtrer les recettes. Ou faire 'ctrl+f' pour rechercher une recette avec votre navigateur."
+    description: "Liste de l'ensemble des recettes. Vous pouvez utiliser les filtres ci-dessous pour classer / filtrer les recettes."
+    media_folder: "/recettes/**"
+    public_folder: "/recettes/**"
     sortable_fields: ["title", "publishDate"]
 
     view_filters:
@@ -50,6 +54,8 @@ collections:
         pattern: "Non"
 
     view_groups:
+      default: draft
+      groups:
       - label: "Catégorie: "
         field: type
       - label: "Sous-catégories: "
@@ -60,6 +66,10 @@ collections:
         field: cuisson
       - label: "Sevice chaud/froid: "
         field: temperature
+      - label: "Brouillons"
+        name: draft
+        field: draft
+
     summary: "{{title}} ({{type}} - {{auteur}})"
 
     create: true
@@ -78,7 +88,7 @@ collections:
               "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
             ],
         }
-      - { label: "Brouillon", name: "draft", widget: "boolean", default: false, required: false }
+      - { label: "Brouillon", name: "draft", widget: "boolean", default: false, required: false, hint: "les brouillons " }
       - {
           label: "Image",
           name: "img",
@@ -248,6 +258,7 @@ collections:
         add_to_top: true
         label_singular: "astuce"
         required: false
+        allow_reorder: true
         fields:
           - label: "Astuce"
             name: "astuce"
@@ -278,9 +289,8 @@ collections:
         name: "publishDate"
         widget: "datetime"
         picker_utc: true
+        time_format: false
         default: "{{now}}"
-
-
 
 
   ###############################
@@ -291,12 +301,17 @@ collections:
   - label: "Evenements"
     label_singular: "Evenement"
     name: "evenement"
+    icon: calendar_month
     description: "Pour créer des menus sur un ou plusieurs jours..."
     folder: content/evenements/
     path: "{{slug}}/index"
     slug: "{{title}}_{{uuid_shorter}}"
     create: true
-    sortable_fields: ["title", "publishDate"]
+    sortable_fields:
+      fields: ["title", "publishDate"]
+      defaults:
+        field: publishDate
+        direction: descending
     fields:
       - {
           label: "Nom de l'évènement",
@@ -318,6 +333,7 @@ collections:
         allow_add: true
         add_to_top: true
         collapsed: true
+        allow_reorder: true
         summary: "{{fields.date_service | date('DD/MM/YYYY')}} : {{fields.horaire}} ({{fields.assiettes}} p.)"
         hint: "Ajouter un menu pour un service"
 
@@ -353,6 +369,7 @@ collections:
             allow_add: true
             add_to_top: true
             collapsed: true
+            allow_reorder: true
             summary: "{{recette}} : {{fields.type_plat}} - {{fields.altAssiettes}}"
             fields:
               - label: "Recette"
@@ -414,59 +431,14 @@ collections:
                   required: false,
                 }
 
-
-
-
+  - divider: true
   ################################
 
-  # ::: COLLECTION : Materiel
-
-  - label: "Materiel"
-    name: "materiel"
-    folder: content/materiel
-    create: true
-    path: "{{slug}}/index"
-    url: "{{slug}}"
-    widget: "list"
-    fields:
-      - name: "title"
-        label: "Nom"
-        widget: "string"
-        hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes"
-        pattern:
-          [
-            '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
-            "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
-          ]
-      - name: "sitemap_exclude"
-        widget: "hidden"
-        default: "true"
-
-  ###########################
-
-  # ::: Categories collections
-  - label: "sous-catégorie (recettes)"
-    name: "sous-categories"
-    folder: content/categories/
-    path: "{{slug}}/index"
-    url: "{{slug}}"
-    create: true
-    widget: "list"
-    fields:
-      - {
-          label: "Nom",
-          name: "title",
-          widget: "string",
-          hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
-          pattern:
-            [
-              '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
-              "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
-            ],
-        }
+  # ::: Ingredients
 
   - name: "ingredients_index"
     label: "Ingrédients"
+    icon: grocery
     description: "Liste des ingrédients disponibles pour les recettes."
     folder: "content/ingredients"
     create: true
@@ -517,3 +489,52 @@ collections:
       - { label: "Produit Frais ?", name: "pFrais", widget: "boolean", required: false, hint: "Fruits et légumes frais (ni surgelé, ni conserve, ni séché, etc.), ou ingrédients qui se conserve au frigo" }
 
       - { label: "Produit Surgelé ?", name: "pSurgel", widget: "boolean", required: false, hint: "Ingrédients qui se conserve au congélateur" }
+
+
+  # ::: COLLECTION : Materiel
+
+  - label: "Materiel"
+    name: "materiel"
+    icon: microwave_gen
+    folder: content/materiel
+    create: true
+    path: "{{slug}}/index"
+    url: "{{slug}}"
+    widget: "list"
+    fields:
+      - name: "title"
+        label: "Nom"
+        widget: "string"
+        hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes"
+        pattern:
+          [
+            '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+            "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+          ]
+      - name: "sitemap_exclude"
+        widget: "hidden"
+        default: "true"
+
+  ###########################
+
+  # ::: Categories collections
+  - label: "sous-catégorie (recettes)"
+    name: "sous-categories"
+    icon: yoshoku
+    folder: content/categories/
+    path: "{{slug}}/index"
+    url: "{{slug}}"
+    create: true
+    widget: "list"
+    fields:
+      - {
+          label: "Nom",
+          name: "title",
+          widget: "string",
+          hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+          pattern:
+            [
+              '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
+              "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
+            ],
+        }
