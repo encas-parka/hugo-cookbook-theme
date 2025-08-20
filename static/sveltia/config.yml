@@ -32,8 +32,6 @@ collections:
     slug: "{{title}}_{{uuid_short}}"
     filter: { field: "layout", value: "recettes" }
     description: "Liste de l'ensemble des recettes. Vous pouvez utiliser les filtres ci-dessous pour classer / filtrer les recettes."
-    media_folder: "/recettes/**"
-    public_folder: "/recettes/**"
     sortable_fields: ["title", "publishDate"]
 
     view_filters:
