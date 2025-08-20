@@ -2,7 +2,7 @@
 
 import { getAppwriteClients, getAccount, getTeams, getConfig, isAuthenticated } from './appwrite-client.js';
 
-console.log("[Handle-Invitation] Script chargé");
+// console.log("[Handle-Invitation] Script chargé");
 
 // Récupération de la configuration
 const { APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID } = getConfig();
@@ -55,7 +55,7 @@ let statusContainer, statusMessage, statusDetails, loginButton;
  */
 function debugLog(message, data = null) {
     if (DEBUG_MODE) {
-        console.log(`[Handle-Invitation Debug] ${message}`, data || '');
+        // console.log(`[Handle-Invitation Debug] ${message}`, data || '');
     }
 }
 

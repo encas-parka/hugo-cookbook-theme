@@ -21,13 +21,13 @@ let initializationPromise = null;
 function waitForAppwrite(maxAttempts = 50, interval = 100) {
     return new Promise((resolve, reject) => {
         let attempts = 0;
-        
+
         function checkAppwrite() {
             attempts++;
-            console.log(`[Appwrite Client] Vérification SDK - tentative ${attempts}/${maxAttempts}`);
-            
+            // console.log(`[Appwrite Client] Vérification SDK - tentative ${attempts}/${maxAttempts}`);
+
             if (window.Appwrite && window.Appwrite.Client && window.Appwrite.Account) {
-                console.log("[Appwrite Client] SDK Appwrite chargé avec succès");
+                // console.log("[Appwrite Client] SDK Appwrite chargé avec succès");
                 resolve();
             } else if (attempts >= maxAttempts) {
                 console.error("[Appwrite Client] SDK Appwrite non chargé après le nombre maximum de tentatives");
@@ -36,7 +36,7 @@ function waitForAppwrite(maxAttempts = 50, interval = 100) {
                 setTimeout(checkAppwrite, interval);
             }
         }
-        
+
         checkAppwrite();
     });
 }
@@ -48,36 +48,36 @@ function waitForAppwrite(maxAttempts = 50, interval = 100) {
 async function initializeAppwrite() {
     // Si déjà initialisé, retourner les clients existants
     if (client && account && functions) {
-        console.log("[Appwrite Client] Clients déjà initialisés, réutilisation");
+        // console.log("[Appwrite Client] Clients déjà initialisés, réutilisation");
         return { client, account, functions };
     }
 
     // Si une initialisation est en cours, attendre qu'elle se termine
     if (initializationPromise) {
-        console.log("[Appwrite Client] Initialisation en cours, attente...");
+        // console.log("[Appwrite Client] Initialisation en cours, attente...");
         return initializationPromise;
     }
 
     // Commencer une nouvelle initialisation
     initializationPromise = (async () => {
         try {
-            console.log("[Appwrite Client] Début de l'initialisation");
-            
+            // console.log("[Appwrite Client] Début de l'initialisation");
+
             // Attendre que le SDK soit chargé
             await waitForAppwrite();
-            
+
             // Initialiser les clients
             const { Client, Account, Functions } = window.Appwrite;
-            
+
             client = new Client()
                 .setEndpoint(APPWRITE_ENDPOINT)
                 .setProject(APPWRITE_PROJECT_ID);
-            
+
             account = new Account(client);
             functions = new Functions(client);
-            
-            console.log("[Appwrite Client] Initialisation terminée avec succès");
-            
+
+            // console.log("[Appwrite Client] Initialisation terminée avec succès");
+
             return { client, account, functions };
         } catch (error) {
             console.error("[Appwrite Client] Erreur lors de l'initialisation:", error);
@@ -198,7 +198,7 @@ function clearAuthData() {
     localStorage.removeItem('sveltia-cms.user');
     localStorage.removeItem('appwrite-user-email');
     localStorage.removeItem('is-authenticated'); // Nettoyage de l'ancienne clé pour la compatibilité
-    console.log("[Appwrite Client] Données d'authentification locales nettoyées");
+    // console.log("[Appwrite Client] Données d'authentification locales nettoyées");
 }
 
 /**

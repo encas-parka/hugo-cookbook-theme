@@ -53,8 +53,8 @@ function getQueryParams() {
  * Lève une exception en cas d'erreur.
  */
 async function setupCmsAuthentication() {
-  console.log("Appel de la fonction Appwrite pour obtenir le token CMS...");
-  
+  // console.log("Appel de la fonction Appwrite pour obtenir le token CMS...");
+
   const functions = await getFunctions();
   const response = await functions.createExecution(
     APPWRITE_FUNCTION_ID,
@@ -90,11 +90,11 @@ async function updateUserPassword(newPassword, confirmPassword) {
   if (newPassword !== confirmPassword) {
     throw new Error("Les mots de passe ne correspondent pas.");
   }
-  
+
   const account = await getAccount();
   // L'appel à l'API est déjà dans un contexte authentifié
   await account.updatePassword(newPassword);
-  console.log("Le mot de passe de l'utilisateur a été mis à jour avec succès.");
+  // console.log("Le mot de passe de l'utilisateur a été mis à jour avec succès.");
 }
 
 /**
@@ -118,8 +118,8 @@ async function acceptInvitation() {
     }
 
     // Accepte l'invitation. Une session est créée en arrière-plan.
-    console.log("Acceptation de l'invitation:", { teamId, membershipId, userId, secret });
-    
+    // console.log("Acceptation de l'invitation:", { teamId, membershipId, userId, secret });
+
     const teams = await getTeams();
     await teams.updateMembershipStatus(teamId, membershipId, userId, secret);
 

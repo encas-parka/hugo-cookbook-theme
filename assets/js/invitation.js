@@ -62,10 +62,10 @@ if (invitationForm) {
       // 1. Vérifier que l'utilisateur est bien connecté (important pour les permissions)
       const account = await getAccount();
       const currentUser = await account.get();
-      console.log("Utilisateur connecté et autorisé:", currentUser.email);
+      // console.log("Utilisateur connecté et autorisé:", currentUser.email);
 
       // 2. Appeler directement l'API Teams pour créer l'invitation
-      console.log(`Envoi de l'invitation à ${email} pour l'équipe ${TEAM_ID}`);
+      // console.log(`Envoi de l'invitation à ${email} pour l'équipe ${TEAM_ID}`);
 
       const teams = await getTeams();
       await teams.createMembership(
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       showUIState('granted');
     } catch (error) {
       // Si account.get() échoue (par exemple, pas de session active ou session expirée)
-      console.log("Pas de session Appwrite active ou session invalide pour l'invitation.");
+      // console.log("Pas de session Appwrite active ou session invalide pour l'invitation.");
       showUIState('denied');
     }
   } catch (error) {

@@ -1,10 +1,10 @@
 // Fichier : assets/js/authAppwrite.js
 // Ce script est conçu pour s'exécuter uniquement sur la page /login
 
-console.log("📦 [authAppwrite.js] === SCRIPT CHARGÉ ===");
-console.log("📦 [authAppwrite.js] URL:", window.location.pathname);
-console.log("📦 [authAppwrite.js] SDK Appwrite:", !!window.Appwrite);
-console.log("📦 [authAppwrite.js] DOM ready:", document.readyState);
+// console.log("📦 [authAppwrite.js] === SCRIPT CHARGÉ ===");
+// console.log("📦 [authAppwrite.js] URL:", window.location.pathname);
+// console.log("📦 [authAppwrite.js] SDK Appwrite:", !!window.Appwrite);
+// console.log("📦 [authAppwrite.js] DOM ready:", document.readyState);
 
 import { getAppwriteClients, getAccount, getFunctions, getConfig, getLocalCmsUser, isAuthenticated, getUserEmail, clearAuthData, setAuthData } from './appwrite-client.js';
 
@@ -41,7 +41,7 @@ function showUIState(state) {
  * Lève une exception en cas d'erreur.
  */
 async function setupCmsAuthentication() {
-  console.log("Appel de la fonction Appwrite pour obtenir le token CMS...");
+  // console.log("Appel de la fonction Appwrite pour obtenir le token CMS...");
 
   const functions = await getFunctions();
   const response = await functions.createExecution(
@@ -61,19 +61,19 @@ async function setupCmsAuthentication() {
 
   const cmsAuth = JSON.parse(response.responseBody);
   setAuthData(null, cmsAuth); // L'email sera défini plus tard
-  console.log("Authentification CMS stockée dans localStorage.");
+  // console.log("Authentification CMS stockée dans localStorage.");
 }
 
 /**
  * Logique principale exécutée au chargement de la page de connexion.
  */
 async function handleLoginPageLoad() {
-  console.log("🔄 [handleLoginPageLoad] === DÉMARRAGE ===");
-  console.log("🔄 [handleLoginPageLoad] URL actuelle:", window.location.pathname);
+  // console.log("🔄 [handleLoginPageLoad] === DÉMARRAGE ===");
+  // console.log("🔄 [handleLoginPageLoad] URL actuelle:", window.location.pathname);
 
   // Afficher l'état de chargement immédiatement
   showUIState('loading');
-  console.log("🔄 [handleLoginPageLoad] État de chargement affiché");
+  // console.log("🔄 [handleLoginPageLoad] État de chargement affiché");
 
   try {
     // Vérifier d'abord si le SDK Appwrite est disponible
@@ -81,50 +81,50 @@ async function handleLoginPageLoad() {
       console.error("❌ [handleLoginPageLoad] SDK Appwrite non disponible !");
       throw new Error("SDK Appwrite non chargé");
     }
-    console.log("✅ [handleLoginPageLoad] SDK Appwrite disponible");
+    // console.log("✅ [handleLoginPageLoad] SDK Appwrite disponible");
 
     const cmsUser = getLocalCmsUser();
-    console.log("🔍 [handleLoginPageLoad] Token CMS local:", cmsUser ? "✅ Présent et valide" : "❌ Absent ou invalide");
+    // console.log("🔍 [handleLoginPageLoad] Token CMS local:", cmsUser ? "✅ Présent et valide" : "❌ Absent ou invalide");
 
     // CAS 1: Token CMS valide -> L'utilisateur est connecté
     if (cmsUser) {
-      console.log("🔒 [handleLoginPageLoad] === CAS 1: Token CMS valide ===");
+      // console.log("🔒 [handleLoginPageLoad] === CAS 1: Token CMS valide ===");
       try {
-        console.log("🔄 [handleLoginPageLoad] Initialisation du client Appwrite...");
+        // console.log("🔄 [handleLoginPageLoad] Initialisation du client Appwrite...");
         const account = await getAccount();
-        console.log("✅ [handleLoginPageLoad] Client Appwrite initialisé");
+        // console.log("✅ [handleLoginPageLoad] Client Appwrite initialisé");
 
-        console.log("🔄 [handleLoginPageLoad] Récupération des données utilisateur Appwrite...");
+        // console.log("🔄 [handleLoginPageLoad] Récupération des données utilisateur Appwrite...");
         const appwriteUser = await account.get();
-        console.log("✅ [handleLoginPageLoad] Utilisateur Appwrite récupéré:", appwriteUser.email);
+        // console.log("✅ [handleLoginPageLoad] Utilisateur Appwrite récupéré:", appwriteUser.email);
 
         setAuthData(appwriteUser.email, cmsUser);
         if (userEmailDisplay) userEmailDisplay.textContent = ` (${appwriteUser.email})`;
 
-        console.log("🎉 [handleLoginPageLoad] Utilisateur connecté - affichage interface");
+        // console.log("🎉 [handleLoginPageLoad] Utilisateur connecté - affichage interface");
         showUIState('loggedIn');
         return;
       } catch (appwriteError) {
         console.warn("⚠️ [handleLoginPageLoad] Token CMS présent mais erreur Appwrite:", appwriteError.message);
         clearAuthData();
-        console.log("🧹 [handleLoginPageLoad] Données nettoyées après erreur Appwrite");
+        // console.log("🧹 [handleLoginPageLoad] Données nettoyées après erreur Appwrite");
       }
     }
 
     // CAS 2: Pas de token CMS -> L'utilisateur n'est pas connecté
-    console.log("🔓 [handleLoginPageLoad] === CAS 2: Pas de token CMS ===");
+    // console.log("🔓 [handleLoginPageLoad] === CAS 2: Pas de token CMS ===");
 
     // Nettoyer toutes les clés d'authentification locales d'abord
     clearAuthData();
-    console.log("🧹 [handleLoginPageLoad] Données locales nettoyées");
+    // console.log("🧹 [handleLoginPageLoad] Données locales nettoyées");
 
     // Tenter de supprimer la session Appwrite résiduelle avec timeout
     try {
-      console.log("🔄 [handleLoginPageLoad] Initialisation client pour nettoyage session...");
+      // console.log("🔄 [handleLoginPageLoad] Initialisation client pour nettoyage session...");
       const account = await getAccount();
-console.log("✅ [handleLoginPageLoad] Client Appwrite prêt pour nettoyage");
+// console.log("✅ [handleLoginPageLoad] Client Appwrite prêt pour nettoyage");
 
-      console.log("🔄 [handleLoginPageLoad] Suppression session Appwrite résiduelle (timeout: 3s)...");
+      // console.log("🔄 [handleLoginPageLoad] Suppression session Appwrite résiduelle (timeout: 3s)...");
       // Créer une promesse avec timeout réduit pour éviter les blocages
       const deleteSessionPromise = account.deleteSession('current');
       const timeoutPromise = new Promise((_, reject) =>
@@ -132,20 +132,20 @@ console.log("✅ [handleLoginPageLoad] Client Appwrite prêt pour nettoyage");
       );
 
       await Promise.race([deleteSessionPromise, timeoutPromise]);
-      console.log("✅ [handleLoginPageLoad] Session Appwrite résiduelle supprimée");
+      // console.log("✅ [handleLoginPageLoad] Session Appwrite résiduelle supprimée");
     } catch (e) {
       if (e.message === 'Timeout') {
         console.warn("⏰ [handleLoginPageLoad] Timeout suppression session (3s) - poursuite");
       } else if (e.code === 401) {
-        console.log("ℹ️ [handleLoginPageLoad] Aucune session active à supprimer");
+        // console.log("ℹ️ [handleLoginPageLoad] Aucune session active à supprimer");
       } else {
-        console.log("ℹ️ [handleLoginPageLoad] Erreur suppression session (normale):", e.message);
+        // console.log("ℹ️ [handleLoginPageLoad] Erreur suppression session (normale):", e.message);
       }
     }
 
-    console.log("🎯 [handleLoginPageLoad] Affichage interface de connexion");
+    // console.log("🎯 [handleLoginPageLoad] Affichage interface de connexion");
     showUIState('loggedOut');
-console.log("✅ [handleLoginPageLoad] === TERMINÉ AVEC SUCCÈS ===");
+// console.log("✅ [handleLoginPageLoad] === TERMINÉ AVEC SUCCÈS ===");
 
   } catch (error) {
     // Gestion d'erreur globale pour s'assurer qu'on ne reste jamais bloqué sur le spinner
@@ -155,7 +155,7 @@ console.log("✅ [handleLoginPageLoad] === TERMINÉ AVEC SUCCÈS ===");
 
     clearAuthData();
     showUIState('loggedOut');
-    console.log("🔧 [handleLoginPageLoad] Interface de connexion forcée après erreur");
+    // console.log("🔧 [handleLoginPageLoad] Interface de connexion forcée après erreur");
   }
 }
 
@@ -175,7 +175,7 @@ if (loginForm) {
     try {
       const account = await getAccount();
       await account.createEmailPasswordSession(email, password);
-      console.log("Connexion Appwrite réussie.");
+      // console.log("Connexion Appwrite réussie.");
 
       // Récupérer le token CMS
       await setupCmsAuthentication();
@@ -212,12 +212,12 @@ if (logoutButton) {
       // Puis tenter de déconnecter d'Appwrite
       const account = await getAccount();
       await account.deleteSession('current');
-      console.log("Déconnexion Appwrite réussie.");
+      // console.log("Déconnexion Appwrite réussie.");
     } catch (error) {
       console.warn("Erreur lors de la déconnexion Appwrite (peut-être déjà déconnecté):", error);
     } finally {
       // Toujours afficher l'état déconnecté
-      console.log("Déconnexion terminée. Affichage du formulaire.");
+      // console.log("Déconnexion terminée. Affichage du formulaire.");
       showUIState('loggedOut');
     }
   });
@@ -285,13 +285,13 @@ if (accessRequestForm) {
 
 // Lancement de la logique au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
-  console.log("📄 [authAppwrite.js] DOMContentLoaded déclenché");
-  console.log("📄 [authAppwrite.js] URL:", window.location.pathname);
-  console.log("📄 [authAppwrite.js] SDK Appwrite disponible:", !!window.Appwrite);
+  // console.log("📄 [authAppwrite.js] DOMContentLoaded déclenché");
+  // console.log("📄 [authAppwrite.js] URL:", window.location.pathname);
+  // console.log("📄 [authAppwrite.js] SDK Appwrite disponible:", !!window.Appwrite);
 
   // Ajouter un délai minimal pour s'assurer que tous les scripts sont chargés
   setTimeout(() => {
-    console.log("📄 [authAppwrite.js] Lancement handleLoginPageLoad après délai");
+    // console.log("📄 [authAppwrite.js] Lancement handleLoginPageLoad après délai");
     handleLoginPageLoad();
   }, 10);
 });
