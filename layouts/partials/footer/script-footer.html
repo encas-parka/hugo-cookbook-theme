@@ -1,19 +1,4 @@
+<script src="https://cdn.jsdelivr.net/npm/appwrite@18.2.0"></script>
 
-
-{{/*  {{ partial "footer/esbuild" (dict "src" "js/vendor/bootstrap.bundle.min.js" "load" "async" "transpile" false) -}}  */}}
-
-<!-- Charge les script js importé dans app.js -->
+<!-- Charge les script js importé dans app.js (bootstrap, auth-status)-->
 {{ partial "footer/esbuild" (dict "src" "js/app.js" "targetPath" "main.js" "load" "async" "transpile" false) -}}
-
-<!-- Script pour la gestion de l'état d'authentification global -->
-{{ partial "footer/esbuild" (dict "src" "js/auth-status.js" "targetPath" "auth-status.js" "load" "async" "transpile" false) -}}
-
-
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-
-
-{{/* EXAMPLE - only load script for production
-{{ if eq (hugo.Environment) "production" -}}
-  {{ partial "footer/esbuild" (dict "src" "js/instantpage.js" "load" "async" "transpile" false) -}}
-{{ end -}}
-*/}}

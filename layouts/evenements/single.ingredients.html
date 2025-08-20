@@ -1096,12 +1096,17 @@
 {{ partialCached "components/print-button.html" . "print-btn " }}
 
 
+{{ $fp := resources.Get "flatpickr/flatpickr.min.js" | fingerprint }} {{ $fp_fr :=
+resources.Get "flatpickr/l10n/fr.js" | fingerprint }}
 
-{{ $fp := resources.Get "flatpickr/flatpickr.min.js" }} {{ $fp_fr :=
-resources.Get "flatpickr/l10n/fr.js" }}
-
-<script src="{{- $fp.Permalink -}}"></script>
-<script src="{{- $fp_fr.Permalink -}}"></script>
+<script
+  src="{{ $fp.RelPermalink }}"
+  integrity="{{ $fp.Data.Integrity }}"
+></script>
+<script
+  src="{{ $fp_fr.RelPermalink }}"
+  integrity="{{ $fp_fr.Data.Integrity }}"
+></script>
 
 {{ $eventJS := resources.Get "js/event/bootstrap.js" | js.Build (dict
 "targetPath" "assets-bundled/event-utils.js" "minify" true) | fingerprint }}

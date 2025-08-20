@@ -7,17 +7,8 @@ backend:
   base_url: https://enka-cookbook.pages.dev
 
   auth_type: github
-
   # Vérifier si ca marche bien : si un article est modifier plusieur fpos avant d'etre mergé/publié, un seul commit avec rebased.
   squash_merges: true
-
-
-
-# when using the default proxy server port
-# for local cms developpement.
-# Need to run : 'npx decap-server' from the root directory of the above repository.
-# local_backend:
-#   url: http://localhost:8081/api/v1 # when using a custom proxy server port
 
 media_folder: "static/images"
 public_folder: "/images"

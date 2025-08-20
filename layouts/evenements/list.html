@@ -1,27 +1,69 @@
-<!-- copy of single for evenements/event/_index.md -->
-
 {{ define "main" }}
-  <section class="main-content">
-    <h2 class="page-title">{{ .Title }}</h2>
-    <div class="card-container">
-      <div class="card card-body">
-        <a href="menus" class="card-link ">
-          <h3 class="card-title">Menus et Recettes</h3>
-          <p class="card-description">Explorez toutes les recettes de l'événement.</p>
-        </a>
-      </div>
-      <div class="card card-body">
-        <a href="ingredients" class="card-link ">
-          <h3 class="card-title">Ingrédients</h3>
-          <p class="card-description">Consultez la liste complète des ingrédients.</p>
-        </a>
-      </div>
-      <div class="card card-body">
-        <a href="poster" class="card-link ">
-          <h3 class="card-title">Posters</h3>
-          <p class="card-description">Les affiches des menus.</p>
-        </a>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 offset-lg-2">
+        <h1 class="mb-4 text-center">{{ .Title }}</h1>
+
+        {{/* Préparation des données pour la recherche d'événements */}}
+        {{- $eventsData := slice -}}
+        {{- range(where .Site.RegularPages "Section" "evenements" ) -}}
+            {{- $eventsData = $eventsData | append (dict
+            "title" .Title
+            "url" (printf "%smenus" .RelPermalink)
+          ) -}}
+        {{- end -}}
+        {{- $eventsJSON := $eventsData | jsonify -}}
+
+        <div id="app-search-events" data-events='{{ $eventsJSON }}'>
+          <div class="mb-3">
+            <input
+                type="text"
+                v-model="searchEventsInput"
+                @keydown.esc="closeSearch"
+                @keydown.down.prevent="selectNext"
+                @keydown.up.prevent="selectPrevious"
+                @keydown.enter.prevent="navigateToSelected"
+                placeholder="Rechercher un évenement..."
+                class="form-control form-control-lg"
+                id="qsearch-events"
+                autofocus
+                ref="searchEventsInput"
+              />
+
+            <small v-if="!isAuthenticated" class="form-text text-muted">Saisissez au moins 4 caractères pour lancer la recherche.</small>
+          </div>
+
+          <!-- Conteneur de résultats : s'affiche s'il y a des événements à montrer -->
+          <div v-if="filteredEvents.length > 0"
+               class="shadow-sm mt-3"
+               ref="resultsContainer">
+            <a v-for="(event, index) in filteredEvents"
+               :href="event.url"
+               :key="event.url"
+               :class="{ 'card mb-2 text-decoration-none text-dark': true, 'border border-primary': index === selectedIndex }"
+               @mouseover="selectedIndex = index"
+               @mouseleave="selectedIndex = -1"
+               ref="resultLinks">
+                <div class="card-body p-3">
+                    <span class="card-title fs-5">[[ event.title ]]</span>
+                </div>
+            </a>
+          </div>
+
+          <!-- Message "aucun résultat" : s'affiche seulement après une recherche infructueuse -->
+          <div v-if="searchEventsInput.length >= 4 && filteredEvents.length === 0" class="alert alert-info mt-3">
+            Aucun événement trouvé correspondant à votre recherche.
+          </div>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
+{{ $searchModuleScript := resources.Get "js/components/search-modules.js" }}
+{{ if $searchModuleScript }}
+  <script src="{{ $searchModuleScript.RelPermalink }}"></script>
+
+{{ else }}
+  {{ warnf "Le script js/components/search-modules.js n'a pas été trouvé." }}
+{{ end }}
+
 {{ end }}

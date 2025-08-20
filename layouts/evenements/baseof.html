@@ -2,7 +2,9 @@
 <!doctype html>
 <html lang="{{ .Site.LanguageCode | default "fr" }}">
   {{ partialCached "head/head.html" . .RelPermalink }}
-  {{ partial "components/event-top-nav" . }}
+  {{ if ne .Kind "section" }}
+    {{ partial "components/event-top-nav" . }}
+  {{ end }}
 
   <style>
   .event-container {
@@ -31,7 +33,6 @@
       </div>
     </div>
 
-  {{ block "sidebar-footer" . }}{{ end }}
   {{ partial "footer/footer.html" . "footer" }}
   {{ partial "footer/script-footer.html" .  .Section }}
 

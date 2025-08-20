@@ -26,9 +26,7 @@
               <a class="nav-link px-3" href="/recettes">Recettes</a>
             </li>
             <li class="nav-item">
-              <a href="" class="nav-link" data-bs-toggle="modal" data-bs-target="#search-events-modal" role="button">
-                Evenements
-                </a>
+              <a class="nav-link" href="/evenements">Evenements</a>
             </li>
           </ul>
 
@@ -122,33 +120,10 @@
 </style>
 
 {{/* Modal des modules de recherche vuejs */}}
-<!-- <div class="modal fade" id="search-recipes-modal" data-toggle="modal" tabindex="0" aria-labelledby="Search Recipes"
-  aria-hidden="true">
-  <div class="modal-dialog modal-dialog-scrollable modal-lg">
-    <div class="modal-content ">
-      <div class="modal-header py-2">
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        {{/* partialCached "components/search-module-recipes" . "search-recipes" */}}
-      </div>
-    </div>
-  </div>
+
 </div> -->
 
-<div class="modal fade" id="search-events-modal" data-toggle="modal" tabindex="0" aria-labelledby="Search Events"
-  aria-hidden="true">
-  <div class="modal-dialog modal-dialog-scrollable modal-lg">
-    <div class="modal-content ">
-      <div class="modal-header py-2">
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        {{ partialCached "components/search-module-events" . "search-events" }}
-      </div>
-    </div>
-  </div>
-</div>
+
 
 <script>
 // Gestion du comportement de scroll de la navbar en JavaScript vanilla
