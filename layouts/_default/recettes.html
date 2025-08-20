@@ -29,6 +29,9 @@
   <span class="print-recette-title ">{{ partialCached "components/icon-recette" .Params.categories .Params.categories  }} {{.Title}}</span>
 </div>
 
+
+
+
 <div class="row">
   <div class="col-md-6 ">
     {{- if .Params.auteur -}}
@@ -37,12 +40,9 @@
   </div>
 
   <div class="col-md-6 no-print">
-    {{ $linkCMSPage := (path.Join "/admin/#/collections/recettes/entries/" (.Type) (.File.ContentBaseName)) }}
-    {{$enkaDevCms := ""}}
-    {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
-      {{$enkaDevCms = "https://enka-cookbook.netlify.app"}}
-    {{ end }}
-    <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index" >Modifier</a></div>
+    {{ $linkCMSPage := (path.Join "/sveltia/#/collections/recettes/entries/" (.Type) (.File.ContentBaseName)) }}
+
+    <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $linkCMSPage -}}/index" >Modifier</a></div>
 
 
   </div>
@@ -74,6 +74,14 @@
     </div>
   </div>
 
+  {{ with .Params.img }}
+  <div class="recipe-banner-parallax">
+      <div class="recipe-banner-image-wrapper">
+          <img src="{{ . }}" alt="Bannière de la recette " class="img-fluid">
+      </div>
+  </div>
+  {{ end }}
+
   <div class="printonly my-4">
     <div class=" text-center mb-1">
       <span class="fs-6 fw-bolder">
@@ -98,10 +106,8 @@
     {{- else -}}
       <div class="card border-danger shadow mb-3">
         <div class="card-body small">
-          {{ if eq .Site.BaseURL "enka-cookbook.pages.dev"}}
-          {{$enkaDevCms = "https://enka-cookbook.netlify.app/"}}
-          {{ end }}
-          <span class="card-text">Les auteur•ices de la recette ne l'ont <strong>pas testé</strong> pour le nombre de couverts indiqué par défaut ({{.Params.plate}}).<span class="no-print"> Merci de <a href="{{- $enkaDevCms -}}{{$linkCMSPage}}/index">modifier</a> la recette pour indiquer si vous l'avez testé avec succès, ou pour corriger les quantités d'ingrédients indiquées.</span></span>
+
+          <span class="card-text">Les auteur•ices de la recette ne l'ont <strong>pas testé</strong> pour le nombre de couverts indiqué par défaut ({{.Params.plate}}).<span class="no-print"> Merci de <a href="{{$linkCMSPage}}/index">modifier</a> la recette pour indiquer si vous l'avez testé avec succès, ou pour corriger les quantités d'ingrédients indiquées.</span></span>
         </div>
       </div>
     {{- end -}}
@@ -238,9 +244,117 @@
 
   </div>
 
+{{ with .Params.img }}
+<style>
+.recipe-banner-parallax {
+    position: relative;
+    height: 450px;
+    overflow: hidden;
+    margin-bottom: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.recipe-banner-image-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 200%; /* Augmente la hauteur pour permettre le défilement */
+    transform: translateZ(0);
+    will-change: transform;
 
 
+
+    img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+}
+
+/* Effet parallaxe au scroll */
+.recipe-banner-parallax {
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+/* Pour le scroll sur mobile */
+@media (max-width: 768px) {
+    .recipe-banner-parallax {
+        height: 200px;
+    }
+    .recipe-banner-image-wrapper {
+        height: 110%;
+    }
+}
+
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const parallaxElements = document.querySelectorAll('.recipe-banner-parallax');
+
+    if (parallaxElements.length === 0) return;
+
+    // Création d'un IntersectionObserver pour détecter quand l'élément est dans le viewport
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                // L'élément est visible, on active le parallaxe
+                entry.target.dataset.active = 'true';
+
+                // Listener pour le scroll
+                window.addEventListener('scroll', handleParallax);
+                handleParallax(); // Initialisation
+            } else {
+                // L'élément n'est plus visible, on désactive le parallaxe
+                entry.target.dataset.active = 'false';
+                window.removeEventListener('scroll', handleParallax);
+            }
+        });
+    }, {
+        rootMargin: '0px',
+        threshold: 0.1
+    });
+
+    parallaxElements.forEach(el => {
+        observer.observe(el);
+    });
+
+    function handleParallax() {
+        parallaxElements.forEach(el => {
+            if (el.dataset.active !== 'true') return;
+
+            const scrolled = window.pageYOffset;
+            const rate = scrolled * -0.5; // Vitesse de défilement (ajustable)
+
+            const imageWrapper = el.querySelector('.recipe-banner-image-wrapper');
+            if (imageWrapper) {
+                imageWrapper.style.transform = `translateY(${rate}px)`;
+            }
+        });
+    }
+
+    // Nettoyage à la décharge
+    window.addEventListener('beforeunload', () => {
+        parallaxElements.forEach(el => {
+            if (el.dataset.active === 'true') {
+                window.removeEventListener('scroll', handleParallax);
+            }
+        });
+    });
+});
+</script>
+
+{{ end }}
 
 {{ partialCached "footer/esbuild" (dict "src" "js/quantite.js" "load" "async" "transpile" false) "quantite.js" -}}
+
+
 
 {{- end -}}
