@@ -2,26 +2,13 @@
 // Ce script gère la logique de la page d'acceptation d'invitation en utilisant l'API Teams d'Appwrite
 // Et la finalisation du compte avec la définition du mot de passe.
 
-// Utilise le SDK Appwrite depuis le CDN
-// Les objets Client, Account et Teams sont disponibles globalement via window.Appwrite
+import { getAccount, getTeams, getFunctions, getConfig, setAuthData, clearAuthData } from './appwrite-client.js';
 
-// --- CONFIGURATION APPWRITE ---
-const APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1";
-const APPWRITE_PROJECT_ID = "689725820024e81781b7";
-const TEAM_ID = "689bf6fe0006627d8959"; // ID de votre équipe de contributeurs
-const APPWRITE_FUNCTION_ID = "68976500002eb5c6ee4f"; // ID de la fonction cms-auth-function
+// Récupération de la configuration
+const { APPWRITE_FUNCTION_ID } = getConfig();
 
-// Crée le client Appwrite une seule fois
-// Accède aux classes Appwrite via l'objet global
-const { Client, Account, Teams, Functions } = window.Appwrite;
-
-const client = new Client()
-  .setEndpoint(APPWRITE_ENDPOINT)
-  .setProject(APPWRITE_PROJECT_ID);
-
-const account = new Account(client);
-const teams = new Teams(client);
-const functions = new Functions(client);
+// ID de l'équipe de contributeurs
+const TEAM_ID = "689bf6fe0006627d8959";
 
 // Récupère les éléments du DOM
 const loadingState = document.getElementById("accept-invitation-loading");
@@ -67,6 +54,8 @@ function getQueryParams() {
  */
 async function setupCmsAuthentication() {
   console.log("Appel de la fonction Appwrite pour obtenir le token CMS...");
+  
+  const functions = await getFunctions();
   const response = await functions.createExecution(
     APPWRITE_FUNCTION_ID,
     '', // Le corps de la requête est vide
@@ -83,8 +72,8 @@ async function setupCmsAuthentication() {
   }
 
   const cmsAuth = JSON.parse(response.responseBody);
-  localStorage.setItem('sveltia-cms.user', JSON.stringify(cmsAuth));
-  console.log("Authentification CMS stockée dans localStorage.");
+  // setAuthData sera appelé avec l'email depuis l'extérieur
+  return cmsAuth;
 }
 
 /**
@@ -101,6 +90,8 @@ async function updateUserPassword(newPassword, confirmPassword) {
   if (newPassword !== confirmPassword) {
     throw new Error("Les mots de passe ne correspondent pas.");
   }
+  
+  const account = await getAccount();
   // L'appel à l'API est déjà dans un contexte authentifié
   await account.updatePassword(newPassword);
   console.log("Le mot de passe de l'utilisateur a été mis à jour avec succès.");
@@ -128,9 +119,9 @@ async function acceptInvitation() {
 
     // Accepte l'invitation. Une session est créée en arrière-plan.
     console.log("Acceptation de l'invitation:", { teamId, membershipId, userId, secret });
+    
+    const teams = await getTeams();
     await teams.updateMembershipStatus(teamId, membershipId, userId, secret);
-
-    localStorage.setItem('is-authenticated', 'true');
 
     // Affiche le message de succès et le formulaire pour définir le mot de passe
     showUIState('setPassword');
@@ -170,10 +161,17 @@ if (setPasswordForm) {
       // Étape 1: Mettre à jour le mot de passe
       await updateUserPassword(newPassword, confirmPassword);
 
-      // Étape 2: Obtenir le token CMS
-      await setupCmsAuthentication();
+      // Étape 2: Récupérer l'utilisateur pour obtenir son email
+      const account = await getAccount();
+      const currentUser = await account.get();
 
-      // Étape 3: Afficher le succès final
+      // Étape 3: Obtenir le token CMS
+      const cmsAuth = await setupCmsAuthentication();
+
+      // Étape 4: Stocker les données d'authentification
+      setAuthData(currentUser.email, cmsAuth);
+
+      // Étape 5: Afficher le succès final
       if(successState) successState.style.display = 'none';
       if(setPasswordSection) setPasswordSection.style.display = 'none';
       if(finalSuccessMessage) finalSuccessMessage.style.display = 'block';

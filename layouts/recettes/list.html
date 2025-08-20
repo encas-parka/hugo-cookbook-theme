@@ -1,3 +1,4 @@
+
 {{ define "main" }}
 
 
@@ -415,7 +416,7 @@
 </div>
 <!-- bouton pour ouvrir l'offcanvas sur les petits écrans -->
   <button
-    class="no-print d-xl-none fab-openCanvas"
+    class="no-print d-lg-none fab-openCanvas"
     type="button"
     data-bs-toggle="offcanvas"
     data-bs-target="#filtersOffcanvas"
@@ -443,25 +444,34 @@
     transition: box-shadow 0.2s ease-in-out;
   }
 </style>
+{{/* SCRIPT VUE - Charger depuis les assets */}}
+{{ $vueJs := resources.Get "js/vue.global.js" }}
+{{ $vueProd := resources.Get "js/vue.global.prod.js" }}
 
-{{ $multiselectCss := resources.Get "multiselect/multi-select.css" }}
-<link rel="stylesheet" href="{{ $multiselectCss.Permalink }}">
+{{ if and $vueJs hugo.IsDevelopment }}
+  <script src="{{ $vueJs.RelPermalink }}"></script>
+  {{ else if and $vueProd hugo.IsProduction }}
+  <script src="{{ $vueProd.RelPermalink }}"></script>
+{{ else }}
+  {{ warnf "Le script Vue.js n'a pas été trouvé dans assets/js/" }}
+{{ end }}
 
-  {{ $fp := resources.Get "flatpickr/flatpickr.min.js" }}
-  {{ $fp_fr := resources.Get "flatpickr/l10n/fr.js" }}
-  {{ $multiselect := resources.Get "multiselect/multiselectmin.js" }}
 
-  {{ $bundlejs := slice $fp $fp_fr $multiselect | resources.Concat "js/bundle.js" | fingerprint }}
+{{/* Bundle des autres scripts */}}
+{{ $fp := resources.Get "flatpickr/flatpickr.min.js" }}
+{{ $fp_fr := resources.Get "flatpickr/l10n/fr.js" }}
+{{ $multiselect := resources.Get "multiselect/multiselectmin.js" }}
 
-    {{ if or (hugo.IsProduction) (eq (hugo.Environment) "demo") }}
-      <script src="{{- $bundlejs.Permalink -}}" integrity="{{ $bundlejs.Data.Integrity }}"></script>
+{{/* Créer le bundle */}}
+{{ $bundlejs := slice $fp $fp_fr $multiselect | resources.Concat "js/bundle.js" | fingerprint }}
 
-    {{ else }}
+{{/* Inclure le bundle */}}
+{{ if or (hugo.IsProduction) (eq (hugo.Environment) "demo") }}
+  <script src="{{- $bundlejs.Permalink -}}" integrity="{{ $bundlejs.Data.Integrity }}"></script>
+{{ else }}
+  <script src="{{- $bundlejs.Permalink -}}"></script>
+{{end}}
 
-      <script src="{{- $fp.Permalink -}}"></script>
-      <script src="{{- $fp_fr.Permalink -}}"></script>
-      <script src="{{- $multiselect.Permalink -}}"></script>
-    {{end}}
 
 {{/*  :::SCRIPT VUE  */}}
 

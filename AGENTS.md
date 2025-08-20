@@ -51,4 +51,7 @@ Projet multi-dépôts : ce thème Hugo (hugo-cookbook-theme) est utilisé par le
   * auth-status.js: vérification du statut d'authentification sur les pages protégées
   * invitation.js: création et envoi d'invitations par email
   * accept-invitation.js: traitement des liens d'invitation et création de comptes
+  * **Gestion du chargement des scripts d'authentification :**
+    * Le CDN Appwrite et `auth-status.js` sont chargés dans le `<head>` avec `defer` pour s'assurer qu'ils sont disponibles tôt et que l'interface utilisateur est mise à jour rapidement, réduisant le "flash" de contenu non authentifié.
+    * `app.js` (contenant d'autres scripts globaux comme Bootstrap) est chargé dans le `<footer>` avec `defer`, car il n'est pas critique pour l'authentification initiale et peut être chargé plus tard.
 - Flux d'authentification: Connexion Appwrite → Vérification session → Appel fonction cms-auth → Stockage token CMS → Accès Sveltia CMS

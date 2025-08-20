@@ -6,6 +6,9 @@
     {{ partial "components/event-top-nav" . }}
   {{ end }}
 
+  {{ partialCached "header/header.html" . "header" }}
+
+
   <style>
   .event-container {
     margin-top: 50px;
@@ -25,13 +28,24 @@
 
   <body>
 
-  {{ partialCached "header/header.html" . "header" }}
+
+  {{/* SCRIPT VUE - Charger depuis les assets */}}
+  {{ $vueJs := resources.Get "js/vue.global.js" }}
+  {{ $vueProd := resources.Get "js/vue.global.prod.js" }}
+  {{ if and $vueJs hugo.IsDevelopment }}
+    <script src="{{ $vueJs.RelPermalink }}"></script>
+    {{ else if and $vueProd hugo.IsProduction }}
+    <script src="{{ $vueProd.RelPermalink }}"></script>
+  {{ else }}
+    {{ warnf "Le script Vue.js n'a pas été trouvé dans assets/js/" }}
+  {{ end }}
 
     <div class="event-container" role="document">
       <div class="content">
         {{ block "main" . }}{{ end }}
       </div>
     </div>
+
 
   {{ partial "footer/footer.html" . "footer" }}
   {{ partial "footer/script-footer.html" .  .Section }}

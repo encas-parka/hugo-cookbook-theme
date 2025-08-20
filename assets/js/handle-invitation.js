@@ -1,10 +1,12 @@
 // hugo-cookbook-theme/assets/js/handle-invitation.js
 
+import { getAppwriteClients, getAccount, getTeams, getConfig, isAuthenticated } from './appwrite-client.js';
+
 console.log("[Handle-Invitation] Script chargé");
 
-// --- CONFIGURATION APPWRITE ---
-const APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1";
-const APPWRITE_PROJECT_ID = "689725820024e81781b7";
+// Récupération de la configuration
+const { APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID } = getConfig();
+
 // L'ID de l'équipe dans laquelle inviter (l'équipe principale, PAS les admins)
 const TEAM_ID_TO_INVITE = "689bf6fe0006627d8959";
 
@@ -55,38 +57,6 @@ function debugLog(message, data = null) {
     if (DEBUG_MODE) {
         console.log(`[Handle-Invitation Debug] ${message}`, data || '');
     }
-}
-
-/**
- * Vérifie que le SDK Appwrite est chargé
- */
-function waitForAppwrite(maxAttempts = 50, interval = 100) {
-    return new Promise((resolve, reject) => {
-        let attempts = 0;
-
-        function checkAppwrite() {
-            attempts++;
-            debugLog(`Vérification Appwrite - tentative ${attempts}/${maxAttempts}`);
-            debugLog("État de window.Appwrite:", {
-                hasAppwrite: !!window.Appwrite,
-                hasClient: !!(window.Appwrite && window.Appwrite.Client),
-                hasAccount: !!(window.Appwrite && window.Appwrite.Account),
-                hasTeams: !!(window.Appwrite && window.Appwrite.Teams)
-            });
-
-            if (window.Appwrite && window.Appwrite.Client && window.Appwrite.Account && window.Appwrite.Teams) {
-                debugLog("Appwrite SDK est chargé");
-                resolve(window.Appwrite);
-            } else if (attempts >= maxAttempts) {
-                debugLog("Appwrite SDK non chargé après le nombre maximum de tentatives");
-                reject(new Error("Le SDK Appwrite n'a pas pu être chargé. Veuillez rafraîchir la page."));
-            } else {
-                setTimeout(checkAppwrite, interval);
-            }
-        }
-
-        checkAppwrite();
-    });
 }
 
 /**
@@ -151,17 +121,10 @@ async function handleInvitation() {
         // 1. Initialiser les éléments DOM
         initializeDOMElements();
 
-        // 2. Attendre que Appwrite soit chargé
-        updateStatusMessage("Chargement du SDK Appwrite...");
-        const { Client, Account, Teams } = await waitForAppwrite();
-
-        // 3. Initialiser les clients Appwrite
-        const client = new Client()
-            .setEndpoint(APPWRITE_ENDPOINT)
-            .setProject(APPWRITE_PROJECT_ID);
-
-        const account = new Account(client);
-        const teams = new Teams(client);
+        // 2. Initialiser les clients Appwrite via le module commun
+        updateStatusMessage("Initialisation du client Appwrite...");
+        const account = await getAccount();
+        const teams = await getTeams();
 
         debugLog("Clients Appwrite initialisés");
         debugLog("Configuration:", {
@@ -170,7 +133,7 @@ async function handleInvitation() {
             teamId: TEAM_ID_TO_INVITE
         });
 
-        // 4. Extraire l'email du demandeur depuis l'URL
+        // 3. Extraire l'email du demandeur depuis l'URL
         const params = new URLSearchParams(window.location.search);
         requesterEmail = params.get('requester');
 
@@ -183,7 +146,7 @@ async function handleInvitation() {
             return;
         }
 
-        // 5. Vérifier si l'administrateur est connecté
+        // 4. Vérifier si l'administrateur est connecté
         updateStatusMessage("Vérification de votre authentification...");
         debugLog("Tentative de récupération de l'utilisateur courant...");
         const currentUser = await account.get();
@@ -196,7 +159,7 @@ async function handleInvitation() {
 
         updateStatusMessage(`Connecté en tant que ${currentUser.name}. Envoi de l'invitation à ${requesterEmail}...`);
 
-        // 6. Vérifier si une invitation a déjà été envoyée pour cet email
+        // 5. Vérifier si une invitation a déjà été envoyée pour cet email
         debugLog("Vérification des invitations précédentes", { email: requesterEmail });
 
         if (hasInvitationBeenSent(requesterEmail)) {
@@ -217,7 +180,7 @@ async function handleInvitation() {
             return;
         }
 
-        // 7. Envoyer l'invitation à l'équipe
+        // 6. Envoyer l'invitation à l'équipe
         debugLog("Envoi de l'invitation à l'équipe", {
             teamId: TEAM_ID_TO_INVITE,
             email: requesterEmail,
@@ -234,7 +197,7 @@ async function handleInvitation() {
             `${window.location.origin}/accept-invitation` // Page de redirection pour l'invité
         );
 
-        // 8. Stocker l'email pour éviter les doublons
+        // 7. Stocker l'email pour éviter les doublons
         markInvitationAsSent(requesterEmail);
 
         debugLog("Invitation envoyée avec succès", { membershipId: membership.$id });
@@ -282,36 +245,6 @@ async function handleInvitation() {
 }
 
 /**
- * Vérification initiale rapide du SDK Appwrite
- */
-function checkInitialAppwriteStatus() {
-    const status = {
-        hasAppwrite: !!window.Appwrite,
-        hasClient: !!(window.Appwrite && window.Appwrite.Client),
-        hasAccount: !!(window.Appwrite && window.Appwrite.Account),
-        hasTeams: !!(window.Appwrite && window.Appwrite.Teams)
-    };
-
-    debugLog("Vérification initiale du SDK Appwrite:", status);
-
-    if (!status.hasAppwrite) {
-        console.error("ERREUR: window.Appwrite n'existe pas");
-        return false;
-    }
-
-    if (!status.hasClient || !status.hasAccount || !status.hasTeams) {
-        console.error("ERREUR: SDK Appwrite incomplet. Composants manquants:", {
-            Client: status.hasClient,
-            Account: status.hasAccount,
-            Teams: status.hasTeams
-        });
-        return false;
-    }
-
-    return true;
-}
-
-/**
  * Démarrer le processus lorsque le DOM est chargé
  */
 
@@ -331,12 +264,6 @@ if (document.readyState === 'loading') {
  * Fonction principale pour démarrer le processus d'invitation
  */
 function startInvitationProcess() {
-    // Vérification initiale du SDK
-    if (!checkInitialAppwriteStatus()) {
-        debugLog("ERREUR: SDK Appwrite non disponible au chargement du DOM");
-        // On continue quand même, car waitForAppwrite va tenter de charger le SDK
-    }
-
     handleInvitation().catch(error => {
         console.error("Erreur non capturée dans handleInvitation:", error);
         debugLog("ERREUR CRITIQUE non capturée", error);

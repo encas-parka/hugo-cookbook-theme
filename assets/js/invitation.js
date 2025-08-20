@@ -1,24 +1,10 @@
 // hugo-cookbook-theme/assets/js/invitation.js
 // Ce script gère la logique de la page d'invitation en utilisant une fonction Appwrite
 
-// Utilise le SDK Appwrite depuis le CDN
-// Les objets Client, Account et Functions sont disponibles globalement via window.Appwrite
+import { getAccount, getTeams, isAuthenticated } from './appwrite-client.js';
 
-// --- CONFIGURATION APPWRITE ---
-const APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1";
-const APPWRITE_PROJECT_ID = "689725820024e81781b7";
+// --- CONFIGURATION ---
 const TEAM_ID = "689bf6fe0006627d8959"
-
-// Crée le client Appwrite une seule fois
-// Accède aux classes Appwrite via l'objet global
-const { Client, Account, Teams } = window.Appwrite;
-
-const client = new Client()
-  .setEndpoint(APPWRITE_ENDPOINT)
-  .setProject(APPWRITE_PROJECT_ID);
-
-const account = new Account(client);
-const teams = new Teams(client);
 
 // Récupère les éléments du DOM
 const loadingState = document.getElementById("invitation-auth-loading");
@@ -42,14 +28,6 @@ function showUIState(state) {
 }
 
 /**
- * Vérifie si l'utilisateur est authentifié
- * @returns {boolean} - True si l'utilisateur est authentifié, false sinon
- */
-function isAuthenticated() {
-  return localStorage.getItem('is-authenticated') === 'true';
-}
-
-/**
  * Gère la soumission du formulaire d'invitation
  */
 if (invitationForm) {
@@ -67,7 +45,6 @@ if (invitationForm) {
     // Nettoie et valide l'email
     const email = invitationEmail.value.trim();
 
-
     // Validation côté client de l'email
     if (!isValidEmail(email)) {
       if (errorMessage) {
@@ -83,50 +60,54 @@ if (invitationForm) {
 
     try {
       // 1. Vérifier que l'utilisateur est bien connecté (important pour les permissions)
-           const currentUser = await account.get();
-           console.log("Utilisateur connecté et autorisé:", currentUser.email);
+      const account = await getAccount();
+      const currentUser = await account.get();
+      console.log("Utilisateur connecté et autorisé:", currentUser.email);
 
-           // 2. Appeler directement l'API Teams pour créer l'invitation
-           console.log(`Envoi de l'invitation à ${email} pour l'équipe ${TEAM_ID}`);
+      // 2. Appeler directement l'API Teams pour créer l'invitation
+      console.log(`Envoi de l'invitation à ${email} pour l'équipe ${TEAM_ID}`);
 
-           await teams.createMembership(
-             TEAM_ID,
-             ['owner'], // Rôle donné à la personne invitée. Mettez 'owner' pour qu'ils puissent inviter à leur tour.
-             email,
-             undefined, // userId (non requis pour une invitation par email)
-             undefined, // phone (non requis)
-             `${window.location.origin}/accept-invitation` // URL de redirection après acceptation
-           );
+      const teams = await getTeams();
+      await teams.createMembership(
+        TEAM_ID,
+        ['owner'], // Rôle donné à la personne invitée. Mettez 'owner' pour qu'ils puissent inviter à leur tour.
+        email,
+        undefined, // userId (non requis pour une invitation par email)
+        undefined, // phone (non requis)
+        `${window.location.origin}/accept-invitation` // URL de redirection après acceptation
+      );
 
-           // 3. Afficher le message de succès
-           if (successMessage) {
-             successMessage.textContent = `L'invitation a été envoyée avec succès à ${email} !`;
-             successMessage.style.display = "block";
-           }
-           invitationForm.reset();
+      // 3. Afficher le message de succès
+      if (successMessage) {
+        successMessage.textContent = `L'invitation a été envoyée avec succès à ${email} !`;
+        successMessage.style.display = "block";
+      }
+      invitationForm.reset();
 
-         } catch (error) {
-           console.error("Erreur lors de l'envoi de l'invitation:", error);
-           let errorMsg = "Une erreur est survenue.";
+    } catch (error) {
+      console.error("Erreur lors de l'envoi de l'invitation:", error);
+      let errorMsg = "Une erreur est survenue.";
 
-           if (error.code === 401) { // Unauthorized
-             errorMsg = "Vous n'avez pas la permission d'inviter des membres. Seuls les propriétaires de l'équipe le peuvent.";
-           } else if (error.code === 409) { // Conflict
-             errorMsg = "Cette personne est déjà membre de l'équipe ou a déjà une invitation en attente.";
-           } else if (error.message) {
-             errorMsg = error.message;
-           }
+      if (error.code === 401) { // Unauthorized
+        errorMsg = "Vous n'avez pas la permission d'inviter des membres. Seuls les propriétaires de l'équipe le peuvent.";
+      } else if (error.code === 409) { // Conflict
+        errorMsg = "Cette personne est déjà membre de l'équipe ou a déjà une invitation en attente.";
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
 
-           if (errorMessage) {
-             errorMessage.textContent = errorMsg;
-             errorMessage.style.display = "block";
-           }
-         } finally {
-           if (spinner) spinner.style.display = "none";
-           if (invitationButton) invitationButton.disabled = false;
-         }
+      if (errorMessage) {
+        errorMessage.textContent = errorMsg;
+        errorMessage.style.display = "block";
+      }
+    } finally {
+      if (spinner) spinner.style.display = "none";
+      if (invitationButton) invitationButton.disabled = false;
+    }
   });
 }
+
+
 
 /**
  * Valide le format d'une adresse email
@@ -179,6 +160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Vérifie la session Appwrite
     try {
+      const account = await getAccount();
       await account.get(); // Tente de récupérer la session Appwrite pour vérifier son état
       showUIState('granted');
     } catch (error) {

@@ -27,7 +27,7 @@
           </div>
 
           <!-- Success state after invitation is accepted -->
-          <div id="accept-invitation-success" style="display: none;">
+          <div id="accept-invitation-success  my-3" style="display: none;">
             <div class="alert alert-success" role="alert">
               <div class="alert-heading">Bienvenue</div>
               <p id="success-message">Votre compte a été créé avec succès. Pour finaliser, veuillez définir votre mot de passe.</p>
@@ -46,9 +46,9 @@
                 <input type="password" class="form-control" id="confirm-password" required minlength="8">
               </div>
 
-              <div id="set-password-error" class="alert alert-danger" style="display: none;"></div>
+              <div id="set-password-error" class="alert alert-danger  my-3" style="display: none;"></div>
 
-              <button type="submit" id="set-password-button" class="btn btn-primary">
+              <button type="submit" id="set-password-button" class="btn btn-primary m-3">
                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
                 Définir le mot de passe et terminer
               </button>
@@ -57,11 +57,11 @@
 
           <!-- Final success message after password is set -->
           <div id="final-success-message" style="display: none;" class="alert alert-success">
-            <div class="alert-heading">Compte finalisé !</div>
+            <div class="alert-heading my-3">Compte finalisé !</div>
             <p>Votre compte est prêt. Vous pouvez maintenant accéder à l'interface d'édition.</p>
             <hr>
           </div>
-            <a href="/login" class="btn btn-primary">Se connecter à l'interface d'édition</a>
+            <a href="/login" class="btn btn-primary m-3">Se connecter à l'interface d'édition</a>
 
         </div>
       </div>

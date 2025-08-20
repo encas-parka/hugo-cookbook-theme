@@ -1,7 +1,3 @@
+<script src="https://cdn.jsdelivr.net/npm/appwrite@18.2.0"></script>
 
-
-{{ if hugo.IsDevelopment }}
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-{{ else }}
-<script src="https://unpkg.com/vue@3/dist/vue.global.min.js"></script>
-{{ end }}
+{{ partial "footer/esbuild" (dict "src" "js/auth-status.js" "targetPath" "auth-status.js" "load" "defer") }}

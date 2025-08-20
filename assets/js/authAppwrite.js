@@ -1,26 +1,10 @@
 // Fichier : assets/js/authAppwrite.js
 // Ce script est conçu pour s'exécuter uniquement sur la page /login
 
-// Utilise le SDK Appwrite depuis le CDN
-// Les objets Client, Account et Functions sont disponibles globalement via window.Appwrite
+import { getAppwriteClients, getAccount, getFunctions, getConfig, getLocalCmsUser, isAuthenticated, getUserEmail, clearAuthData, setAuthData } from './appwrite-client.js';
 
-// --- CONFIGURATION APPWRITE ---
-const APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1"; // ou votre endpoint self-hosted
-const APPWRITE_PROJECT_ID = "689725820024e81781b7"; // Remplacez par votre vrai Project ID
-const APPWRITE_FUNCTION_ID = "68976500002eb5c6ee4f"; // ID de votre fonction cms-auth-function
-
-// --------------------
-
-// Crée le client Appwrite une seule fois
-// Accède aux classes Appwrite via l'objet global
-const { Client, Account, Functions } = window.Appwrite;
-
-const client = new Client()
-  .setEndpoint(APPWRITE_ENDPOINT)
-  .setProject(APPWRITE_PROJECT_ID);
-
-const account = new Account(client);
-const functions = new Functions(client);
+// Récupération de la configuration
+const { APPWRITE_FUNCTION_ID, ACCESS_REQUEST_FUNCTION_ID } = getConfig();
 
 // Récupère les éléments du DOM
 const loadingState = document.getElementById("loading-state");
@@ -45,27 +29,7 @@ function showUIState(state) {
   if (loggedOutSections) loggedOutSections.style.display = (state === 'loggedOut') ? 'block' : 'none';
 }
 
-/**
- * Vérifie l'authentification CMS locale.
- * @returns {object|null} - L'objet utilisateur s'il est valide, sinon null.
- */
-function getLocalCmsUser() {
-  const cmsUser = localStorage.getItem('sveltia-cms.user');
-  if (!cmsUser) return null;
-  try {
-    const parsedUser = JSON.parse(cmsUser);
-    if (parsedUser.token && parsedUser.id) {
-      return parsedUser;
-    }
-    // Si les données sont invalides, on les supprime
-    localStorage.removeItem('sveltia-cms.user');
-    return null;
-  } catch (e) {
-    console.warn('Données CMS corrompues dans localStorage. Nettoyage...');
-    localStorage.removeItem('sveltia-cms.user');
-    return null;
-  }
-}
+
 
 /**
  * Configure l'authentification du CMS en appelant la fonction Appwrite.
@@ -73,6 +37,8 @@ function getLocalCmsUser() {
  */
 async function setupCmsAuthentication() {
   console.log("Appel de la fonction Appwrite pour obtenir le token CMS...");
+  
+  const functions = await getFunctions();
   const response = await functions.createExecution(
     APPWRITE_FUNCTION_ID,
     '', // Le corps de la requête est vide
@@ -89,10 +55,9 @@ async function setupCmsAuthentication() {
   }
 
   const cmsAuth = JSON.parse(response.responseBody);
-  localStorage.setItem('sveltia-cms.user', JSON.stringify(cmsAuth));
+  setAuthData(null, cmsAuth); // L'email sera défini plus tard
   console.log("Authentification CMS stockée dans localStorage.");
 }
-
 
 /**
  * Logique principale exécutée au chargement de la page de connexion.
@@ -108,19 +73,17 @@ async function handleLoginPageLoad() {
   if (cmsUser) {
     console.log("handleLoginPageLoad: CAS 1 - Token CMS valide. L'utilisateur est connecté.");
     try {
+      const account = await getAccount();
       const appwriteUser = await account.get();
       console.log("handleLoginPageLoad: Session Appwrite active pour", appwriteUser.email);
-      localStorage.setItem('appwrite-user-email', appwriteUser.email);
-      localStorage.setItem('is-authenticated', 'true');
+      setAuthData(appwriteUser.email, cmsUser);
       if (userEmailDisplay) userEmailDisplay.textContent = ` (${appwriteUser.email})`;
       showUIState('loggedIn');
       return;
     } catch (appwriteError) {
       console.warn("handleLoginPageLoad: Token CMS présent mais pas de session Appwrite. Nettoyage...");
       // Si le token CMS existe mais pas de session Appwrite, on nettoie tout
-      localStorage.removeItem('sveltia-cms.user');
-      localStorage.removeItem('appwrite-user-email');
-      localStorage.removeItem('is-authenticated');
+      clearAuthData();
     }
   }
 
@@ -129,6 +92,7 @@ async function handleLoginPageLoad() {
   
   // S'assurer qu'il n'y a pas de session Appwrite résiduelle
   try {
+    const account = await getAccount();
     await account.deleteSession('current');
     console.log("handleLoginPageLoad: Session Appwrite résiduelle supprimée.");
   } catch (e) {
@@ -137,9 +101,7 @@ async function handleLoginPageLoad() {
   }
 
   // Nettoyer toutes les clés d'authentification locales
-  localStorage.removeItem('sveltia-cms.user');
-  localStorage.removeItem('appwrite-user-email');
-  localStorage.removeItem('is-authenticated');
+  clearAuthData();
 
   showUIState('loggedOut');
 }
@@ -158,6 +120,7 @@ if (loginForm) {
     const password = document.getElementById("login-password").value;
 
     try {
+      const account = await getAccount();
       await account.createEmailPasswordSession(email, password);
       console.log("Connexion Appwrite réussie.");
       
@@ -190,12 +153,11 @@ if (logoutButton) {
   logoutButton.addEventListener("click", async () => {
     showUIState('loading');
     try {
-      // Supprimer d'abord le token CMS (notre source de vérité)
-      localStorage.removeItem('sveltia-cms.user');
-      localStorage.removeItem('appwrite-user-email');
-      localStorage.removeItem('is-authenticated');
+      // Supprimer d'abord les données d'authentification locales (notre source de vérité)
+      clearAuthData();
       
       // Puis tenter de déconnecter d'Appwrite
+      const account = await getAccount();
       await account.deleteSession('current');
       console.log("Déconnexion Appwrite réussie.");
     } catch (error) {
@@ -208,16 +170,12 @@ if (logoutButton) {
   });
 }
 
-
 // --- GESTION DU FORMULAIRE DE DEMANDE D'ACCÈS ---
 
 const accessRequestForm = document.getElementById('access-request-form');
 const formFeedback = document.getElementById('form-feedback');
 const submitButton = accessRequestForm?.querySelector('button[type="submit"]');
 const submitSpinner = submitButton?.querySelector('.spinner-border');
-
-// Remplacez cette valeur par l'ID de votre fonction d'envoi d'email
-const ACCESS_REQUEST_FUNCTION_ID = "689cdea5001a4d74549d";
 
 if (accessRequestForm) {
   accessRequestForm.addEventListener('submit', async (event) => {
@@ -236,7 +194,8 @@ if (accessRequestForm) {
 
     try {
       const payload = JSON.stringify({ email, message });
-
+      
+      const functions = await getFunctions();
       const result = await functions.createExecution(
         ACCESS_REQUEST_FUNCTION_ID,
         payload,
@@ -270,7 +229,6 @@ if (accessRequestForm) {
     }
   });
 }
-
 
 // Lancement de la logique au chargement du DOM
 document.addEventListener('DOMContentLoaded', handleLoginPageLoad);
