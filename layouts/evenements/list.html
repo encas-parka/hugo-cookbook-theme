@@ -58,7 +58,7 @@
       </div>
     </div>
   </div>
-{{ $searchModuleScript := resources.Get "js/components/search-modules.js" }}
+{{ $searchModuleScript := resources.Get "js/components/search-modules.js" | minify | fingerprint }}
 {{ if $searchModuleScript }}
   <script src="{{ $searchModuleScript.RelPermalink }}"></script>
 

@@ -197,7 +197,6 @@ function getUserEmail() {
 function clearAuthData() {
     localStorage.removeItem('sveltia-cms.user');
     localStorage.removeItem('appwrite-user-email');
-    localStorage.removeItem('is-authenticated'); // Nettoyage de l'ancienne clé pour la compatibilité
     // console.log("[Appwrite Client] Données d'authentification locales nettoyées");
 }
 

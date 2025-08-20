@@ -1,3 +1,5 @@
+
+
 const { createApp } = Vue;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -16,7 +18,21 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       created() {
         // Check authentication status from localStorage when the app is created
-        this.isAuthenticated = localStorage.getItem('is-authenticated') === 'true';
+        const cmsUser = localStorage.getItem('sveltia-cms.user');
+        if (!cmsUser) {
+          this.isAuthenticated = false;
+        } else {
+          try {
+            const parsedUser = JSON.parse(cmsUser);
+            if (parsedUser && parsedUser.token && parsedUser.id) {
+              this.isAuthenticated = true;
+            } else {
+              this.isAuthenticated = false;
+            }
+          } catch (e) {
+            this.isAuthenticated = false;
+          }
+        }
       },
       mounted() {
         // Set focus on the search input when the component is mounted
