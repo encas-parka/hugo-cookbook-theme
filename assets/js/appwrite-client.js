@@ -208,7 +208,6 @@ function clearAuthData() {
 function setAuthData(email, cmsAuth) {
     localStorage.setItem('appwrite-user-email', email);
     localStorage.setItem('sveltia-cms.user', JSON.stringify(cmsAuth));
-    // Ne plus utiliser is-authenticated, la présence du token CMS est suffisante
 }
 
 // Export des fonctions publiques
