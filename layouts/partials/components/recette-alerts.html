@@ -23,7 +23,6 @@
       • Allergènes divers (liste déjà libellée "Nom: ingrédients…")
       • Gluten
       • Produits laitier
-      • Lactose
       • Porc
   - N’affiche rien si toutes les listes sont vides.
 */}}
@@ -37,10 +36,9 @@
 {{- $autres := (index $alerts "autres") | default (slice) -}}
 {{- $gluten := (index $alerts "gluten") | default (slice) -}}
 {{- $lait := (index $alerts "lait") | default (slice) -}}
-{{- $lactose := (index $alerts "lactose") | default (slice) -}}
 {{- $porc := (index $alerts "porc") | default (slice) -}}
 
-{{- $hasAny := or (len $autres) (len $gluten) (len $lait) (len $lactose) (len $porc) -}}
+{{- $hasAny := or (len $autres) (len $gluten) (len $lait) (len $porc) -}}
 {{- if $hasAny -}}
 
   {{- if $useCard -}}
@@ -73,13 +71,6 @@
     </div>
     {{- end -}}
 
-    {{- with $lactose -}}
-    <div>
-      <span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "milk-box" "size" $iconSize) "milk-box" }}</span>
-      Lactose :
-      <span class="fw-bold">{{ delimit . ", " }}</span>
-    </div>
-    {{- end -}}
 
     {{- with $porc -}}
     <div>

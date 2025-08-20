@@ -29,7 +29,7 @@
 {{- $byUUID := $ingredientsIndex.byUUID -}}
 
 {{/* Liste standardisée des allergènes classés comme "autres" pour l’UI */}}
-{{- $allergenesLgList := slice "Poisson" "Oeuf" "Soja" "Sésame" "Moutarde" "Fruit à coque" "Céleri" "Crustacé" "Arachide" "Mollusque" -}}
+{{- $allergenesLgList := slice "Poisson" "Oeuf" "Soja" "Sésame" "Moutarde" "Fruit à coque" "Céleri" "Crustacé" "Arachide" "Mollusque" "Sulfites" "Lupin" "Alcool" "Vérifiez l'emballage" -}}
 
 {{/* Construire allergene -> [titres d’ingrédients de la recette] */}}
 {{- $allergenToIngredientTitles := dict -}}
@@ -57,7 +57,6 @@
 {{/* Groupes d’alertes spécifiques */}}
 {{- $alertGluten := index $allergenToIngredientTitles "Gluten" | default (slice) -}}
 {{- $alertLait := index $allergenToIngredientTitles "Produit laitier" | default (slice) -}}
-{{- $alertLactose := index $allergenToIngredientTitles "lactose" | default (slice) -}}
 {{- $alertPorc := index $allergenToIngredientTitles "Porc" | default (slice) -}}
 
 {{/* Autres allergènes agrégés, libellés "Nom: ingrédient1, ingrédient2" */}}
@@ -74,6 +73,5 @@
   "autres" $alertAutresAllergenes
   "gluten" $alertGluten
   "lait" $alertLait
-  "lactose" $alertLactose
   "porc" $alertPorc
 ) -}}

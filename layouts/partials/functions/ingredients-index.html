@@ -55,15 +55,16 @@
       {{- $byUUID = merge $byUUID (dict $uuid $meta) -}}
     {{- end -}}
 
-    <!-- USELESS → les allerges sont déjà dans $meta ! -->
-    {{- /* byAllergen: allergene -> [slug_uuid] */ -}}
-       {{- range $allergenes -}}
-         {{- $key := . -}}
-         {{- $currentList := index $byAllergen $key | default (slice) -}}
-         {{- /* On ajoute le slug à la liste existante et on s'assure de l'unicité */}}
-         {{- $newList := $currentList | append $slug | uniq -}}
-         {{- $byAllergen = merge $byAllergen (dict $key $newList) -}}
-       {{- end -}}
+    {{/* USELESS → les allerges sont déjà dans $meta ! */}}
+
+    {{/*- byAllergen: allergene -> [uuid] -*/}}
+    {{- range $allergenes -}}
+      {{- $key := . -}}
+      {{- $currentList := index $byAllergen $key | default (slice) -}}
+      {{- /* On ajoute le UUID à la liste existante et on s'assure de l'unicité */}}
+      {{- $newList := $currentList | append $uuid | uniq -}}
+      {{- $byAllergen = merge $byAllergen (dict $key $newList) -}}
+    {{- end -}}
 
   {{- end -}}
 {{- end -}}

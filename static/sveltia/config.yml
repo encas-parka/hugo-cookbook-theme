@@ -421,7 +421,7 @@ collections:
 
   # ::: COLLECTION : Materiel
 
-  - label: "Materiel test"
+  - label: "Materiel"
     name: "materiel"
     folder: content/materiel
     create: true
@@ -480,25 +480,26 @@ collections:
         required: true
         options:
           - { label: "Ingrédients Frais (beurre, yaourt, fromage...)", value: "frais" }
-          - { label: "Fruits et Légumes", value: "legumes" }
+          - { label: "Fruits et Légumes (frais, secs, en conserves...)", value: "legumes" }
           - { label: "LOF : Lait, oeuf, farines, huile...", value: "lof" }
           - { label: "Sucrés (Miel, biscuits, jus de fruits, chocolats...)", value: "sucres" }
           - { label: "Assaisonnements (Epices, aromatiques, vinaigres, sauces, coulis...)", value: "epices" }
           - { label: "Sec (Légumineuses, céréales)", value: "sec" }
-          - { label: "Viandes et Poissons (et crustacés, mollusques)", value: "animaux" }
+          - { label: "Viandes et Poissons (et crustacés, mollusques...)", value: "animaux" }
           - { label: "Autres (ce qui ne se trouve pas ailleurs...)", value: "autres" }
       - label: "Allergènes"
         name: "allergenes"
         widget: "select"
         multiple: true
         required: false
+        hint: "Y compris 'alcool', 'porc', 'Non-Vegan', ou 'Vérifier l'emballage'... Permettra aussi de classer les recettes utilisant cet ingrédients comme 'vegan', 'sans-lacose', 'sans-gluten', etc."
         options:
-          ["Produit laitier",
+          [ "Non-Vegan",
+          "Produit Laitier",
           "Gluten",
           "Crustacé",
           "Oeuf",
           "Poisson",
-          "Viande",
           "Porc",
           "Arachides",
           "Soja",
@@ -512,17 +513,6 @@ collections:
           "Alcool",
           "Vérifiez l'emballage"]
 
-      - label: "Saisons"
-        name: "saisons"
-        hint: "...si l'ingrédient se trouvent surtout à certaines saisons"
-        widget: "select"
-        multiple: true
-        required: false
-        options:
-          - { label: "Printemps", value: "printemps" }
-          - { label: "Eté", value: "ete" }
-          - { label: "Automne", value: "automne" }
-          - { label: "Hiver", value: "hiver" }
 
       - { label: "Produit Frais ?", name: "pFrais", widget: "boolean", required: false, hint: "Fruits et légumes frais (ni surgelé, ni conserve, ni séché, etc.), ou ingrédients qui se conserve au frigo" }
 

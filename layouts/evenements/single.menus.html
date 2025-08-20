@@ -125,8 +125,8 @@
   {{- end -}} {{/* fin range .Param "repas" */}}
 
 
-
-
+<div id="app">
+<div class="container-xl" >
 {{/*  ::: Warning : missing recipes  */}}
 {{- $missingRecipes := $.Scratch.Get "missingRecipes" -}}
 {{- if gt (len $missingRecipes) 0 -}}
@@ -151,7 +151,7 @@
   <h3 id="Recettes" class="no-print">Les {{ len $recettesList }} recettes prévues pour l'événement "{{ .Page.Title }}"</h3>
 
   {{/* ::: Génération du sommaire */}}
-  <div id="sommaire"class="no-print">
+  <div id="sommaire"class="no-print" style="max-height: 80dvh; overflow: auto;">
     {{/* Variable permettant de vérifier si les recettes sont de la meme date et du meme horaire ou pas; pour gérer leur affichage / l'organisation des recettes */}}
     {{ $dateServiceSommaire := "none"}}
     {{ $currentHoraireSommaire := "none" }}
@@ -276,7 +276,7 @@
             <div class="d-flex justify-content-end flex-wrap gap-2">
               {{/* Afficher les régimes automatiques pour cette recette (pré-calculés) */}}
              <div class="me-1">
-               {{- with $recetteData.autoRegimes -}}
+              {{- with $recetteData.autoRegimes -}}
                {{- if .vegan -}}
                  <span class="badge bg-green float-end me-1">vegan</span>
                {{- else if .vegetarien -}}
@@ -289,7 +289,7 @@
                  <span class="badge bg-green float-end me-1">sans-lactose</span>
                {{- end -}}
              {{- end -}}
-</div>
+            </div>
               {{ if $recetteMeta.materiel }}
               <div class="">
               {{ range $recetteMeta.materiel }}
@@ -332,16 +332,17 @@
         {{- end -}}
       {{- end -}}
 
-      <!-- TODO Optimize ? : le calcul des allegernes se fait ils vraiment sur les données des ingrédients avec le partial recette-alerts ??? -->
       {{/* Calcul des alertes allergènes via le partial function dédié */}}
       {{- $alertsContext := dict "Params" (dict "ingredients" $recetteMeta.ingredients) -}}
       {{- $recetteUuid := partialCached "functions/extract-uuid-from-slug.html" $recetteData.recette $recetteData.recette -}}
       {{- $alerts := partialCached "functions/recette-alerts.html" $alertsContext $recetteUuid -}}
 
       {{/* Rendu via le composant dédié, conditionné par v-show print_alert */}}
-      <div class="row justify-content-start mt-2" v-show="print_alert">
+
+
+      <div class="row justify-content-start py-1" v-show="print_alert">
         {{- if $alertQuantite -}}
-        <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2 my-3">
+        <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-12 my-3">
           <div class="card border-danger shadow small px-4 card-body print-nocard">
             {{- if not $checkYes }}
             <div>
@@ -355,7 +356,7 @@
         {{- end -}}
 
         {{- with $alerts -}}
-        <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-2 my-3">
+        <div class="col-12 col-md-6 col-lg-6 col-xl-6 print-col-12 my-2">
           {{- partialCached "components/recette-alerts.html" (dict "alerts" . "iconSize" "1.2rem" "card" true ) . -}}
         </div>
         {{- end -}}
@@ -372,7 +373,7 @@
 
 
     {{/* :::  ___LES INGREDIENTS  */}}
-    <div id="IngredientsEtPreparation-recette" class="row justify-content-evenly border-top border-1 pt-2">
+    <div id="IngredientsEtPreparation-recette" class="row justify-content-evenly mt-1 border-top border-1 pt-2">
       <div id="Ingredients-recette" class="col-md-4 print-col-30-100">
         <h4>
         <span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "ingredients" "size" "2rem") "ingredients"  }}</span>
@@ -392,7 +393,7 @@
     <div class="col-md-8 print-col-70-100">
       <h4><span class="me-2">{{ partialCached "components/icon-svg" (dict "name" "preparation" "size" "2.5rem") "preparation" }}</span> Préparation</h4>
       {{ if .commentaire }}
-      <div class="card mb-3">
+      <div class="card mb-3 ">
         <div class="card-body print-nocard">
            <span class="text-muted">{{ partial "components/icon-svg" (dict "name" "exclamation-circle" "size" "1.5rem") }} info </span>
            <br>
@@ -400,7 +401,7 @@
         </div>
       </div>
       {{ end }}
-        <div class=" card card-body print-nocard">
+        <div class=" card-body print-nocard">
         {{ if .preparation24h }}
          <div class="card border border-danger mb-4 p-3 " >
            <p class="fs-5 fw-bold text-center" >A prévoir à l'avance !</p>
@@ -419,11 +420,9 @@
     </div> {{/* #IngredientsEtPreparation-recette */}}
   </div> {{/* .card-body */}}
 </div> {{/* .card */}}
-
 {{- end -}} {{/* with $recetteMeta */}}
 {{- end -}} {{/* range $recettesList */}}
 
-<!-- Fin Contenu réinséré -->
 
 {{/*  ::: Impression - MODAL  */}}
 <div class="modal modal-xl fade d-print-none" tabindex="-1" id="modalImpression" aria-labelledby="modalImpressionLabel"
@@ -473,8 +472,14 @@
   </div>
 </div>
 
+</div>
+<button class="fab-print no-print"
+        aria-label="Imprimer"
+        @click="print">
+</button>
+</div>
 
-{{ partialCached "components/print-button.html" . "print-btn " }}
+
 
 
 
@@ -514,11 +519,7 @@
         setTimeout(() => {
           window.print();
         }, 500);
-        this.$nextTick(() => {
-          if (this.print_alert === false) {
-            this.print_alert = true;
-          }
-        });
+
       },
     },
     mounted() {

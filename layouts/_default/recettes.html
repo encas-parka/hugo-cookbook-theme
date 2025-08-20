@@ -44,39 +44,10 @@
     {{ end }}
     <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $enkaDevCms -}}{{- $linkCMSPage -}}/index" >Modifier</a></div>
 
-    {{- if $autoRegimes -}}
-      <div class="text-end mx-2 px-2 no-print">
-        {{- if $autoRegimes.vegan -}}
-          <span class="me-1">{{ partialCached "content/badge-regime.html" (slice "vegan") "vegan" }}</span>
-        {{- else if $autoRegimes.vegetarien -}}
-          <span class="me-1">{{ partialCached "content/badge-regime.html" (slice "vegetarien") "vegetarien" }}</span>
-        {{- end -}}
-        {{- if $autoRegimes.sans_gluten -}}
-          <span class="me-1">{{ partialCached "content/badge-regime.html" (slice "sans-gluten") "sans-gluten" }}</span>
-        {{- end -}}
-        {{- if $autoRegimes.sans_lactose -}}
-          <span class="me-1">{{ partialCached "content/badge-regime.html" (slice "sans-lactose") "sans-lactose" }}</span>
-        {{- end -}}
-      </div>
-    {{- end -}}
 
-    <div class="printonly">
-      <div class="m-2 p-2 fs-5 text-end print-fs-small">
-        {{ partial "content/badge-temperature.html" .Params.temperature .Params.temperature }}
-        {{ partialCached "content/badge-cuisson.html" .Params.cuisson .Params.cuisson }}
-      </div>
-      <div class="m-2 p-2 text-end print-m-1 print-y-1 ">
-        {{- if .Params.materiel -}}
-          <span class="fw-bold print-fs-smaller">Materiel: </span>
-          {{- range .Params.materiel -}}
-            <span class="badge bg-grey me-1 print-fs-smaller">{{ . }}</span>
-          {{- end -}}
-        {{- end -}}
-      </div>
-    </div>
   </div>
 
-  <div class="print-only">
+  <div class="">
     <div class="m-2 p-2 fs-5 text-end print-fs-small">
       <span class="me-2">{{ partialCached "content/badge-temperature.html" .Params.temperature .Params.temperature }}
       {{ partialCached "content/badge-cuisson.html" .Params.cuisson .Params.cuisson }}</span>
@@ -98,7 +69,6 @@
       {{- end -}}
         </span>
       {{- if .Params.materiel -}}
-        <span class="fw-bold print-fs-smaller">Materiel: </span>
         {{ partialCached "content/badge-materiel.html" .Params.materiel (slice .Params.materiel | jsonify) }}
       {{- end -}}
     </div>

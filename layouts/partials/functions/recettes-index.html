@@ -71,12 +71,6 @@
       {{- end -}}
     {{- end -}}
 
-    {{- $regime := (slice) -}}
-    {{- with $p.Params.regime -}}
-      {{- if reflect.IsSlice . -}}
-        {{- $regime = . -}}
-      {{- end -}}
-    {{- end -}}
 
     {{- $saison := (slice) -}}
     {{- with $p.Params.saison -}}
@@ -114,7 +108,6 @@
         "quantite_desc" (or $p.Params.quantite_desc "")
         "astuces" $astuces
         "commentaire" (or $p.Params.commentaire "")
-        "regime" $regime
         "region" (or $p.Params.region "")
         "saison" $saison
         "prepAlt" $prepAlt

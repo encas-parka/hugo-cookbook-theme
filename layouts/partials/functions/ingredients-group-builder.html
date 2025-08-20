@@ -68,6 +68,7 @@
 {{- $hasDairyAllergen := false -}}
 {{- $hasEggAllergen := false -}}
 {{- $hasGlutenAllergen := false -}}
+{{- $hasNonVeganAllergen := false -}}
 
 {{- range $items -}}
   {{- $ingId := .ingredient | default "" -}}
@@ -141,10 +142,12 @@
       {{- $hasAnimalType = true -}}
     {{- end -}}
     {{- range $allergenes -}}
-      {{- if eq . "Produit laitier" -}}
+      {{- if or ( eq . "Produit laitier") (eq . "Lactose") -}}
         {{- $hasDairyAllergen = true -}}
       {{- else if eq . "Oeuf" -}}
         {{- $hasEggAllergen = true -}}
+      {{- else if eq . "Non-Vegan" -}}
+        {{- $hasNonVeganAllergen = true -}}
       {{- else if eq . "Gluten" -}}
         {{- $hasGlutenAllergen = true -}}
       {{- end -}}
@@ -168,7 +171,7 @@
 
 {{- /* Calculate regimes based on detected flags */}}
 {{- $isVegetarien := not $hasAnimalType -}}
-{{- $isVegan := and $isVegetarien (not $hasDairyAllergen) -}}
+{{- $isVegan := and $isVegetarien (not $hasDairyAllergen) (not $hasEggAllergen) (not $hasNonVeganAllergen) -}}
 {{- $isSansGluten := not $hasGlutenAllergen -}}
 {{- $isSansLactose := not $hasDairyAllergen -}}
 
