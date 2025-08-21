@@ -5,6 +5,7 @@ backend:
   repo: encas-parka/enka-cookbook-site
   branch: final-ingmig
   base_url: https://enka-cookbook.pages.dev
+  logout_redirect_url: https://enka-cookbook.pages.dev/
   auth_type: github
   automatic_deployments: false
 
@@ -217,7 +218,6 @@ collections:
             widget: "relation"
             collection: "ingredients_index"
             search_fields: ["title"]
-            value_field: ["slug"]
             display_fields: ["title"]
           - label: "Quantité (nombre)"
             name: quantite
@@ -283,15 +283,13 @@ collections:
         collapsed: false
         required: false
         add_to_top: true
-        hint: "Si elles existent, signalez ici les recettes alternatives à celle-ci pour des régimes particuliers (végan, sans gluten, etc.); ou pour un nombres de couverts significativement différents (nécessitant des proportions d'ingrédients différents). Il n'y aura pas besoin de faire la réciproque, elle se fera automatiquement."
+        hint: "Si elles existent, signalez ici les recettes alternatives à celle-ci pour des régimes particuliers (végan, sans gluten, etc.); ou pour un nombres de couverts significativement différents (nécessitant des proportions d'ingrédients différents)."
         fields:
           - {
               label: "recettes",
               name: "recetteAlt",
               widget: "relation",
               collection: "recettes",
-              search_fields: ["title"],
-              value_field: ["slug"],
               display_fields: ["title"],
             }
 

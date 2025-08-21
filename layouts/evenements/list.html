@@ -6,15 +6,38 @@
 
         {{/* Préparation des données pour la recherche d'événements */}}
         {{- $eventsData := slice -}}
-        {{- range(where .Site.RegularPages "Section" "evenements" ) -}}
+        {{- range (where .Site.RegularPages "Section" "evenements")  -}}
+            {{- $eventDate := "" -}}
+            {{- if .Params.repas -}}
+                {{- if reflect.IsSlice .Params.repas -}}
+                    {{- if gt (len .Params.repas) 0 -}}
+                        {{- $firstRepas := index .Params.repas 0 -}}
+                        {{- if $firstRepas.date_service -}}
+                            {{- $dateObj := time $firstRepas.date_service -}}
+                            {{- $eventDate = $dateObj.Format "2006-01-02" -}}
+                        {{- end -}}
+                    {{- end -}}
+                {{- end -}}
+            {{- end -}}
             {{- $eventsData = $eventsData | append (dict
-            "title" .Title
-            "url" (printf "%smenus" .RelPermalink)
-          ) -}}
+                "title" .Title
+                "url" (printf "%smenus" .RelPermalink)
+                "slug" .File.ContentBaseName
+                "date" $eventDate
+            ) -}}
         {{- end -}}
         {{- $eventsJSON := $eventsData | jsonify -}}
 
+
+
         <div id="app-search-events" data-events='{{ $eventsJSON }}'>
+          <!-- Bouton créer un événement (visible seulement si authentifié) -->
+          <div class="mb-3 text-end" v-show="isAuthenticated">
+            <a href="/sveltia/#/collections/evenement/new" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+              <i class="fas fa-plus me-1"></i>Créer un événement
+            </a>
+          </div>
+
           <div class="mb-3">
             <input
                 type="text"
@@ -37,17 +60,29 @@
           <div v-if="filteredEvents.length > 0"
                class="shadow-sm mt-3"
                ref="resultsContainer">
-            <a v-for="(event, index) in filteredEvents"
-               :href="event.url"
+            <div v-for="(event, index) in filteredEvents"
                :key="event.url"
-               :class="{ 'card mb-2 text-decoration-none text-dark': true, 'border border-primary': index === selectedIndex }"
+               :class="{ 'card mb-2': true, 'border border-primary': index === selectedIndex }"
                @mouseover="selectedIndex = index"
-               @mouseleave="selectedIndex = -1"
-               ref="resultLinks">
-                <div class="card-body p-3">
-                    <span class="card-title fs-5">[[ event.title ]]</span>
+               @mouseleave="selectedIndex = -1">
+                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                    <a :href="event.url"
+                       class="text-decoration-none text-dark flex-grow-1"
+                       ref="resultLinks">
+                        <span class="card-title fs-5">[[ event.title ]]</span>
+                    </a>
+                    <!-- Bouton modifier (visible seulement si authentifié) -->
+                    <a v-if="isAuthenticated"
+                       :href="'/sveltia/#/collections/evenements/entries/' + event.slug + '/index'"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="btn btn-outline-primary btn-sm ms-2"
+                       title="Modifier l'événement"
+                       @click.stop>
+                        <i class="fas fa-edit"></i>
+                    </a>
                 </div>
-            </a>
+            </div>
           </div>
 
           <!-- Message "aucun résultat" : s'affiche seulement après une recherche infructueuse -->

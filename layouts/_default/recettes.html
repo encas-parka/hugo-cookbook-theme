@@ -22,6 +22,7 @@
 {{- $groupedIngredients := $ingredientsData.ingredients -}}
 {{- $autoRegimes := $ingredientsData.regimes -}}
 
+{{ $linkCMSPage := (path.Join "/sveltia/#/collections/recettes/entries/" (.Type) (.File.ContentBaseName)) }}
 
 
 <div class="float-start  me-2"></div>
@@ -39,13 +40,7 @@
     {{- end -}}
   </div>
 
-  <div class="col-md-6 no-print">
-    {{ $linkCMSPage := (path.Join "/sveltia/#/collections/recettes/entries/" (.Type) (.File.ContentBaseName)) }}
 
-    <div class="text-end mx-2 px-2 no-print"><a target="_blank" rel="noopener noreferrer" href="{{- $linkCMSPage -}}/index" >Modifier</a></div>
-
-
-  </div>
 
   <div class="">
     <div class="m-2 p-2 fs-5 text-end print-fs-small">
@@ -75,7 +70,7 @@
   </div>
 
   {{ with .Params.img }}
-  <div class="recipe-banner-parallax">
+  <div class="recipe-banner-parallax no-print">
       <div class="recipe-banner-image-wrapper">
           <img src="{{ . }}" alt="Bannière de la recette " class="img-fluid">
       </div>
@@ -237,9 +232,19 @@
 
       </div>
     </div>
-    <div class="text-muted small text-end mt-4">
-      <div>Publié le : {{ .PublishDate.Format "02/01/2006" }}</div>
-      <div>Dernière modification : {{ .Lastmod.Format "02/01/2006" }}</div>
+
+    <div class=" no-print mt-4">
+
+      <div class="text-end no-print mb-2" id="edit-recipe-button" style="display: none;">
+        <a target="_blank" rel="noopener noreferrer" href="{{- $linkCMSPage -}}/index" class="btn btn-outline-secondary btn-sm">
+          <i class="fas fa-edit me-1"></i>Modifier
+        </a>
+      </div>
+
+    <div class="text-muted small text-end ">
+      <span class="me-4">Publié le : {{ .PublishDate.Format "02/01/2006" }}</span>
+      <span>Dernière modification : {{ .Lastmod.Format "02/01/2006" }}</span>
+    </div>
     </div>
 
   </div>
@@ -355,6 +360,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {{ partialCached "footer/esbuild" (dict "src" "js/quantite.js" "load" "async" "transpile" false) "quantite.js" -}}
 
-
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Attendre que les modules soient chargés
+  setTimeout(function() {
+    if (window.AppwriteClient && window.AppwriteClient.isAuthenticated()) {
+      const editButton = document.getElementById('edit-recipe-button');
+      if (editButton) {
+        editButton.style.display = 'block';
+      }
+    }
+  }, 100);
+});
+</script>
 
 {{- end -}}

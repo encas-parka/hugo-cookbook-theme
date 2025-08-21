@@ -111,15 +111,57 @@ document.addEventListener("DOMContentLoaded", () => {
           throw new Error(result.error || 'Une erreur est survenue lors de l\'inscription.');
         }
 
-        // --- UI: SUCCÈS ---
-        successMessage.textContent = 'Inscription réussie ! Vous allez être redirigé vers la page de connexion.';
+        // --- UI: SUCCÈS - ÉTAPE 1: INSCRIPTION TERMINÉE ---
+        successMessage.textContent = 'Inscription réussie ! Connexion en cours et envoi de l\'email de vérification...';
         successMessage.style.display = 'block';
         registrationForm.style.display = 'none'; // Cacher le formulaire
 
-        // Rediriger après 3 secondes
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 3000);
+        // --- ÉTAPE 2: CONNEXION ET ENVOI DE L'EMAIL DE VÉRIFICATION ---
+        try {
+          // Créer une session pour l'utilisateur nouvellement inscrit
+          const { account } = await getAppwriteClients();
+          await account.createEmailPasswordSession(email, password);
+          
+          // Envoyer immédiatement l'email de vérification
+          // L'URL de redirection pointera vers une page de vérification
+          const verificationURL = `${window.location.origin}/verify-email`;
+          await account.createVerification(verificationURL);
+          
+          // Mettre à jour le message de succès
+          successMessage.innerHTML = `
+            <strong>Inscription terminée !</strong><br>
+            Un email de vérification a été envoyé à <strong>${email}</strong>.<br>
+            <small class="text-muted">Vérifiez aussi votre dossier spam/courrier indésirable.</small><br>
+            Vous allez être redirigé vers la page de connexion.
+          `;
+          
+          // Rediriger après 3 secondes pour améliorer l'UX
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 3000);
+          
+        } catch (verificationError) {
+          console.warn('Erreur lors de l\'envoi de l\'email de vérification:', verificationError);
+          
+          // Gestion spécifique des erreurs Appwrite
+          let errorMsg = 'L\'email de vérification n\'a pas pu être envoyé.';
+          if (verificationError.code === 429) {
+            errorMsg = 'Trop de demandes d\'emails. Veuillez patienter quelques minutes avant de réessayer.';
+          } else if (verificationError.code === 401) {
+            errorMsg = 'Session expirée. Veuillez vous reconnecter.';
+          }
+          
+          successMessage.innerHTML = `
+            <strong>Inscription réussie !</strong><br>
+            <span class="text-warning">Attention : ${errorMsg}</span><br>
+            Vous pouvez vous connecter et renvoyer l'email depuis votre profil.<br>
+            Redirection vers la page de connexion...
+          `;
+          
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 3000);
+        }
 
       } catch (e) {
         // --- UI: ERREUR ---

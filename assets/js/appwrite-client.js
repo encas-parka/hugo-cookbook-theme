@@ -159,17 +159,36 @@ function isInitialized() {
  */
 function getLocalCmsUser() {
     const cmsUser = localStorage.getItem('sveltia-cms.user');
-    if (!cmsUser) return null;
+    // console.log('🔍 [getLocalCmsUser] Token brut depuis localStorage:', cmsUser);
+
+    if (!cmsUser) {
+        // console.log('ℹ️ [getLocalCmsUser] Aucun token CMS dans localStorage');
+        return null;
+    }
+
     try {
         const parsedUser = JSON.parse(cmsUser);
-        if (parsedUser.token && parsedUser.id) {
+        // console.log('🔍 [getLocalCmsUser] Token parsé:', {
+        //     hasToken: !!parsedUser.token,
+        //     tokenType: typeof parsedUser.token,
+        //     tokenLength: parsedUser.token ? parsedUser.token.length : 0,
+        //     tokenPreview: parsedUser.token ? parsedUser.token.substring(0, 20) + '...' : 'N/A',
+        //     hasId: !!parsedUser.id,
+        //     hasEmail: !!parsedUser.email,
+        //     backendName: parsedUser.backendName
+        // });
+
+        if (parsedUser.token && typeof parsedUser.token === 'string' && parsedUser.token.trim() !== '') {
+            // console.log('✅ [getLocalCmsUser] Token CMS valide');
             return parsedUser;
         }
+
         // Si les données sont invalides, on les supprime
+        // console.log('⚠️ [getLocalCmsUser] Token CMS invalide - nettoyage');
         localStorage.removeItem('sveltia-cms.user');
         return null;
     } catch (e) {
-        console.warn('[Appwrite Client] Données CMS corrompues dans localStorage. Nettoyage...');
+        console.warn('❌ [getLocalCmsUser] Données CMS corrompues dans localStorage. Nettoyage...', e);
         localStorage.removeItem('sveltia-cms.user');
         return null;
     }
@@ -184,6 +203,95 @@ function isAuthenticated() {
 }
 
 /**
+ * Vérifie si l'email de l'utilisateur est vérifié
+ * @returns {Promise<boolean>} True si l'email est vérifié
+ */
+async function isEmailVerified() {
+    try {
+        const account = await getAccount();
+        const user = await account.get();
+        return user.emailVerification || false;
+    } catch (error) {
+        console.warn('[AppwriteClient] Impossible de vérifier l\'état de vérification d\'email:', error);
+        return false;
+    }
+}
+
+/**
+ * Envoie un email de vérification à l'utilisateur connecté
+ * @param {string} redirectURL - URL vers laquelle rediriger après vérification
+ * @returns {Promise<void>}
+ */
+async function sendVerificationEmail(redirectURL = null) {
+    try {
+        const account = await getAccount();
+        const verificationURL = redirectURL || `${window.location.origin}/verify-email`;
+        await account.createVerification(verificationURL);
+        console.log('[AppwriteClient] Email de vérification envoyé avec succès');
+    } catch (error) {
+        console.error('[AppwriteClient] Erreur lors de l\'envoi de l\'email de vérification:', error);
+        throw error;
+    }
+}
+
+/**
+ * Vérifie l'email avec les paramètres de vérification
+ * @param {string} userId - ID de l'utilisateur
+ * @param {string} secret - Secret de vérification
+ * @returns {Promise<void>}
+ */
+async function verifyEmail(userId, secret) {
+    try {
+        const account = await getAccount();
+        await account.updateVerification(userId, secret);
+        console.log('[AppwriteClient] Email vérifié avec succès');
+    } catch (error) {
+        console.error('[AppwriteClient] Erreur lors de la vérification d\'email:', error);
+        throw error;
+    }
+}
+
+/**
+ * Récupère l'état d'authentification complet de l'utilisateur
+ * @returns {Promise<object>} État d'authentification avec vérification email
+ */
+async function getAuthenticationState() {
+    const cmsUser = getLocalCmsUser();
+    const userEmail = getUserEmail();
+    const userName = getUserName();
+    
+    if (!cmsUser) {
+        return {
+            isAuthenticated: false,
+            isEmailVerified: false,
+            email: null,
+            name: null,
+            requiresAction: false
+        };
+    }
+
+    try {
+        const emailVerified = await isEmailVerified();
+        return {
+            isAuthenticated: true,
+            isEmailVerified: emailVerified,
+            email: userEmail,
+            name: userName,
+            requiresAction: !emailVerified
+        };
+    } catch (error) {
+        console.warn('[AppwriteClient] Erreur lors de la récupération de l\'état d\'authentification:', error);
+        return {
+            isAuthenticated: true,
+            isEmailVerified: false,
+            email: userEmail,
+            name: userName,
+            requiresAction: true
+        };
+    }
+}
+
+/**
  * Récupère l'email de l'utilisateur depuis le localStorage
  * @returns {string|null} L'email de l'utilisateur ou null
  */
@@ -192,21 +300,50 @@ function getUserEmail() {
 }
 
 /**
+ * Récupère le nom de l'utilisateur depuis le localStorage
+ * @returns {string|null} Le nom de l'utilisateur ou null
+ */
+function getUserName() {
+    return localStorage.getItem('appwrite-user-name');
+}
+
+/**
  * Nettoie toutes les données d'authentification locales
  */
 function clearAuthData() {
     localStorage.removeItem('sveltia-cms.user');
     localStorage.removeItem('appwrite-user-email');
+    localStorage.removeItem('appwrite-user-name');
     // console.log("[Appwrite Client] Données d'authentification locales nettoyées");
+}
+
+/**
+ * Déconnexion globale - supprime la session Appwrite et nettoie les données locales
+ * @returns {Promise<void>}
+ */
+async function logoutGlobal() {
+    try {
+        // Nettoyer d'abord les données locales
+        clearAuthData();
+
+        // Supprimer la session Appwrite
+        const account = await getAccount();
+        await account.deleteSession('current');
+        // console.log("[Appwrite Client] Déconnexion globale réussie");
+    } catch (error) {
+        console.warn("[Appwrite Client] Erreur lors de la déconnexion Appwrite (peut-être déjà déconnecté):", error);
+    }
 }
 
 /**
  * Configure les données d'authentification locales
  * @param {string} email - L'email de l'utilisateur
+ * @param {string} name - Le nom de l'utilisateur
  * @param {object} cmsAuth - L'objet d'authentification CMS
  */
-function setAuthData(email, cmsAuth) {
+function setAuthData(email, name, cmsAuth) {
     localStorage.setItem('appwrite-user-email', email);
+    localStorage.setItem('appwrite-user-name', name);
     localStorage.setItem('sveltia-cms.user', JSON.stringify(cmsAuth));
 }
 
@@ -222,6 +359,37 @@ export {
     getLocalCmsUser,
     isAuthenticated,
     getUserEmail,
+    getUserName,
     clearAuthData,
-    setAuthData
+    setAuthData,
+    logoutGlobal,
+    isEmailVerified,
+    sendVerificationEmail,
+    verifyEmail,
+    getAuthenticationState
 };
+
+
+// Exposition globale pour compatibilité avec les scripts non-module
+if (typeof window !== 'undefined') {
+    window.AppwriteClient = {
+        getAppwriteClients,
+        getAccount,
+        getFunctions,
+        getTeams,
+        getConfig,
+        isInitialized,
+        initializeAppwrite,
+        getLocalCmsUser,
+        isAuthenticated,
+        getUserEmail,
+        getUserName,
+        clearAuthData,
+        setAuthData,
+        logoutGlobal,
+        isEmailVerified,
+        sendVerificationEmail,
+        verifyEmail,
+        getAuthenticationState
+    };
+}

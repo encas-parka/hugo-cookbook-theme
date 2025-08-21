@@ -1,5 +1,3 @@
-
-
 const { createApp } = Vue;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
           eventsData: [],
           selectedIndex: -1,
           isAuthenticated: false, // Default state
+          showModificationButton: false,
         };
       },
       created() {
@@ -33,6 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
             this.isAuthenticated = false;
           }
         }
+        if (this.isAuthenticated) {
+          this.showModificationButton = true;
+        }
       },
       mounted() {
         // Set focus on the search input when the component is mounted
@@ -44,15 +46,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       },
       computed: {
+        // Tri des événements par date (plus récent en premier)
+        sortedEventsData() {
+          return [...this.eventsData].sort((a, b) => {
+            // Si pas de date, mettre à la fin
+            if (!a.date && !b.date) return 0;
+            if (!a.date) return 1;
+            if (!b.date) return -1;
+
+            // Conversion des dates YYYY-MM-DD en objets Date pour comparaison
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+
+            // Tri décroissant (plus récent en premier)
+            return dateB - dateA;
+          });
+        },
+
         filteredEvents() {
           const searchTerm = this.searchEventsInput.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
 
           // Authenticated users: show all events by default, filter as they type
           if (this.isAuthenticated) {
             if (!searchTerm) {
-              return this.eventsData; // Show all if input is empty
+              return this.sortedEventsData; // Show all sorted events if input is empty
             }
-            return this.eventsData.filter((event) => {
+            return this.sortedEventsData.filter((event) => {
               return searchTerm.split(' ').every(
                 v => event.title.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(v)
               );
@@ -61,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // Unauthenticated users: original behavior, show results only after 4+ characters
           if (this.searchEventsInput.length >= 4) {
-            return this.eventsData.filter((event) => {
+            return this.sortedEventsData.filter((event) => {
               return searchTerm.split(' ').every(
                 v => event.title.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(v)
               );
@@ -70,6 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
           return [];
         },
+
+
       },
       methods: {
         closeSearch() {

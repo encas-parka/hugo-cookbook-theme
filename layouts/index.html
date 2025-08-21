@@ -10,11 +10,29 @@
   <div class="mb-5 d-block"><img src="/cover.png" alt="" width="256" class="d-block m-auto"></div>
   <h1 class="text-center">{{.Site.Title}}</h1>
 
+  <!-- Boutons de création (visible seulement si authentifié) -->
+  <div class="text-center mt-4" id="homepage-create-buttons" style="display: none;">
+    <h4 id="welcome-user" class="text-center"></h4>
+    <div id="user-encas-gmx" class="alert alert-warning my-4" role="alert"  style="display: none">
+      Vous êtes connecté·e avec le compte encas-cookbook, qui sera probablement desactivé dans un certain temps. Vous êtes encouragé·e à créer un compte personnel pour pouvoir continuer à utiliser le site.
+      <div mx-auto>
+      <button class="btn btn-warning my-4 " onclick="handleNewRegistration()"><i class="fa-regular fa-hand-point-right me-2"></i>Créer un compte personnel<i class="fa-regular fa-hand-point-left ms-2"></i></button></div>
+    </div>
+    <div class="d-flex justify-content-center gap-3 flex-wrap">
+      <a href="/sveltia/#/collections/recettes/new" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-outline btn">
+        <i class="fas fa-plus me-2"></i>Créer une recette
+      </a>
+      <a href="/sveltia/#/collections/evenements/new" target="_blank" rel="noopener noreferrer" class="btn  btn-outline-primary btn">
+        <i class="fas fa-plus me-2"></i>Créer un événement
+      </a>
+    </div>
+  </div>
+
 </div>
 
 <div class="section py-4 my-4">
-  <div class="row justify-content-center">
-    <div class="col-lg-4 "><a href="/recettes" class=" btn btn-outline-danger btn-lg mb-4">Explorer parmis toutes les recettes</a></div>
+  <div class="text-center">
+    <a href="/recettes" class=" btn btn-outline-danger btn-lg mb-4 m-auto">Explorer parmis toutes les recettes</a>
   </div>
   <div class="row justify-content-center">
     <div class="row">
@@ -29,5 +47,46 @@
 
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Attendre que les modules soient chargés
+  setTimeout(function() {
+    if (window.AppwriteClient && window.AppwriteClient.isAuthenticated()) {
+      const createButtons = document.getElementById('homepage-create-buttons');
+      const userEncasGmxAlert = document.getElementById('user-encas-gmx');
+      const userName = localStorage.getItem('appwrite-user-name');
+
+      if (createButtons) {
+        createButtons.style.display = 'block';
+      }
+      if (userEncasGmxAlert && userName === 'encas-cookbook') {
+        userEncasGmxAlert.style.display = 'block';
+      }
+      const welcomeUser = document.getElementById('welcome-user');
+      if (welcomeUser && userName) {
+        welcomeUser.textContent = `Bienvenue ${userName} !`;
+      }
+    }
+  }, 100);
+});
+</script>
+
+<script>
+async function handleNewRegistration() {
+  try {
+    // Déconnexion globale
+    if (window.AppwriteClient && window.AppwriteClient.logoutGlobal) {
+      await window.AppwriteClient.logoutGlobal();
+    }
+    
+    // Redirection vers la page d'inscription
+    window.location.href = '/registration';
+  } catch (error) {
+    console.error('Erreur lors de la déconnexion:', error);
+    // Redirection même en cas d'erreur
+    window.location.href = '/registration';
+  }
+}
+</script>
 
 {{end}}

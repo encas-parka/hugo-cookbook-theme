@@ -32,12 +32,12 @@
 
           <ul class="navbar-nav text-secondary ms-auto">
             <!-- État pour les utilisateurs déconnectés -->
-            <li class="nav-item " id="header-logged-out">
+            <li class="nav-item " id="header-logged-out" style="display: none;">
               <a href="/login" class="btn btn-outline-primary btn-sm d-flex align-items-center" aria-label="Se connecter">
-                {{ partial "inline-svg" (dict "src" "fonticons/person-circle.svg"  "fs" 6) }}
-
+                <i class="fas fa-user-circle"></i>
               </a>
             </li>
+
             <!-- État pour les utilisateurs connectés (masqué par défaut) -->
             <li class="nav-item dropdown" id="header-logged-in" style="display: none;">
               <button class="btn btn-primary btn-sm dropdown-toggle d-flex align-items-center"
@@ -46,22 +46,33 @@
                       data-bs-toggle="dropdown"
                       aria-expanded="false"
                       aria-label="Menu utilisateur">
-                {{ partial "inline-svg" (dict "src" "fonticons/person-circle.svg"  "fs" 4) }}
+                <i class="fas fa-user-circle"></i>
               </button>
 
               <ul class="dropdown-menu dropdown-menu-end " aria-labelledby="navbarUserDropdown">
                 <li><div class="dropdown-header small text-muted " id="header-user-email-display">Utilisateur</div></li>
                 <li><a class="dropdown-item d-flex align-items-center" href="/sveltia/">
-                  {{ partial "inline-svg" (dict "src" "fonticons/pencil.svg" "fs" 4 "class" "me-2") }}
+                  <i class="fas fa-pencil-alt me-2"></i>
                   Administration
                 </a></li>
+                <li >
+                    <a href="/sveltia/#/collections/recettes/new" target="_blank" rel="noopener noreferrer" class="dropdown-item d-flex align-items-center ms-2" title="Créer une recette">
+                      <i class="fas fa-plus me-1"></i>Recette
+                    </a>
+                </li>
+                <li >
+                    <a href="/sveltia/#/collections/evenements/new" target="_blank" rel="noopener noreferrer" class="dropdown-item d-flex align-items-center ms-2" title="Créer un événement">
+                      <i class="fas fa-plus me-1"></i>Événement
+                    </a>
+                </li>
                 <li><a class="dropdown-item d-flex align-items-center" href="/invitation/">
-                  {{ partial "inline-svg" (dict "src" "fonticons/user-round-plus.svg" "fs" 4 "class" "me-2") }}
+                  <i class="fas fa-user-plus me-2"></i>
                   Inviter
                 </a></li>
+
                 <li><hr class="dropdown-divider"></li>
                 <li><button class="dropdown-item d-flex align-items-center" id="header-logout-button">
-                  {{ partial "inline-svg" (dict "src" "fonticons/log-out.svg" "fs" 4 "class" "me-2") }}
+                  <i class="fas fa-sign-out-alt me-2"></i>
                   Se déconnecter
                 </button></li>
               </ul>
@@ -70,7 +81,6 @@
           </ul>
         </div>
 
-      </div>
     </nav>
   </div>
 
@@ -127,6 +137,7 @@
 
 
 <script>
+
 // Gestion du comportement de scroll de la navbar en JavaScript vanilla
 (function() {
   const navbar = document.getElementById('main-navbar');
