@@ -148,7 +148,8 @@ function isValidEmail(email) {
 /**
  * Logique principale exécutée au chargement de la page
  */
-document.addEventListener('DOMContentLoaded', async () => {
+async function initInvitationPage() {
+  console.log("[Appwrite Client] Initialisation du client Appwrite");
   showUIState('loading');
 
   try {
@@ -162,6 +163,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const account = await getAccount();
       await account.get(); // Tente de récupérer la session Appwrite pour vérifier son état
+      console.log("[Appwrite Client] Récupération du compte Appwrite réussie", account);
+
       showUIState('granted');
     } catch (error) {
       // Si account.get() échoue (par exemple, pas de session active ou session expirée)
@@ -172,4 +175,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error("Erreur inattendue au chargement de la page d'invitation:", error);
     showUIState('denied');
   }
-});
+}
+
+/**
+ * Gestion du chargement du script avec async
+ * Vérifie si le DOM est déjà chargé ou non
+ */
+if (document.readyState === 'loading') {
+  // Le DOM est encore en cours de chargement, on ajoute l'écouteur d'événements
+  document.addEventListener('DOMContentLoaded', initInvitationPage);
+} else {
+  // Le DOM est déjà chargé, on exécute directement
+  initInvitationPage();
+}

@@ -48,20 +48,20 @@ function waitForAppwrite(maxAttempts = 50, interval = 100) {
 async function initializeAppwrite() {
     // Si déjà initialisé, retourner les clients existants
     if (client && account && functions) {
-        // console.log("[Appwrite Client] Clients déjà initialisés, réutilisation");
+        console.log("[Appwrite Client] Clients déjà initialisés, réutilisation");
         return { client, account, functions };
     }
 
     // Si une initialisation est en cours, attendre qu'elle se termine
     if (initializationPromise) {
-        // console.log("[Appwrite Client] Initialisation en cours, attente...");
+        console.log("[Appwrite Client] Initialisation en cours, attente...");
         return initializationPromise;
     }
 
     // Commencer une nouvelle initialisation
     initializationPromise = (async () => {
         try {
-            // console.log("[Appwrite Client] Début de l'initialisation");
+            console.log("[Appwrite Client] Début de l'initialisation");
 
             // Attendre que le SDK soit chargé
             await waitForAppwrite();
@@ -76,7 +76,7 @@ async function initializeAppwrite() {
             account = new Account(client);
             functions = new Functions(client);
 
-            // console.log("[Appwrite Client] Initialisation terminée avec succès");
+            console.log("[Appwrite Client] Initialisation terminée avec succès");
 
             return { client, account, functions };
         } catch (error) {
@@ -107,6 +107,11 @@ async function getAppwriteClients() {
  */
 async function getAccount() {
     const { account } = await initializeAppwrite();
+    if (account) {
+        console.log("[Appwrite Client] Récupération du compte Appwrite réussie", account);
+    } else {
+        console.error("[Appwrite Client] Récupération du compte Appwrite échouée");
+    }
     return account;
 }
 
@@ -159,7 +164,7 @@ function isInitialized() {
  */
 function getLocalCmsUser() {
     const cmsUser = localStorage.getItem('sveltia-cms.user');
-    console.log('🔍 [getLocalCmsUser] Token brut depuis localStorage:', cmsUser);
+    // console.log('🔍 [getLocalCmsUser] Token brut depuis localStorage:', cmsUser);
 
     if (!cmsUser) {
         console.log('ℹ️ [getLocalCmsUser] Aucun token CMS dans localStorage');
@@ -200,6 +205,10 @@ function getLocalCmsUser() {
 function isAuthenticatedCms() {
   console.log('getLocalCmsUser(): ', getLocalCmsUser() !== null);
     return getLocalCmsUser() !== null;
+}
+
+function isAuthenticatedAppwrite() {
+  getAccount
 }
 
 /**

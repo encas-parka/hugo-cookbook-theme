@@ -119,9 +119,14 @@ async function acceptInvitation() {
 
     // Accepte l'invitation. Une session est créée en arrière-plan.
     // console.log("Acceptation de l'invitation:", { teamId, membershipId, userId, secret });
+    const account = await getAccount();
+    const user = await account.get();
+    localStorage.setItem('appwrite-user-email', user.email);
+    localStorage.setItem('appwrite-user-name', user.name);
 
     const teams = await getTeams();
     await teams.updateMembershipStatus(teamId, membershipId, userId, secret);
+
 
     // Affiche le message de succès et le formulaire pour définir le mot de passe
     showUIState('setPassword');
@@ -141,6 +146,7 @@ async function acceptInvitation() {
 
     if (errorMessage) errorMessage.textContent = errorMsg;
     showUIState('error');
+
   }
 }
 

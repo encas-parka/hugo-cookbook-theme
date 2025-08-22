@@ -1,7 +1,6 @@
 // Chargé par /login
 
 import {
-  getAppwriteClients,
   getAccount,
   getFunctions,
   getConfig,
@@ -32,115 +31,187 @@ const welcomeUser = document.getElementById("welcome-user");
 const headerLoggedOut = document.getElementById("header-logged-out");
 const headerLoggedIn = document.getElementById("header-logged-in");
 const emailNotVerifiedState = document.getElementById("email-not-verified");
-const resendVerificationButton = document.getElementById("resend-verification");
+const resendVerificationButton = document.getElementById(
+  "resend-verification",
+);
 const logoutButtonUnverified = document.getElementById(
   "logout-button-unverified",
 );
 
+const formEmailPwd = document.getElementById("email-pwd-login");
+const formPasswordForgotten = document.getElementById("password-forgotten");
+const forgotPasswordButton = document.getElementById('forgot-password-button');
+const passwordForgottenForm = document.getElementById('password-forgotten-form');
+const submitPasswordForgottenButton = document.getElementById('submit-password-forgotten');
+const submitPasswordForgottenSpinner = submitPasswordForgottenButton?.querySelector('.spinner-border');
+
+
+
 /**
  * Affiche un état de l'UI et masque les autres.
- * @param {string} state - L'état à afficher ('loading', 'loggedIn', 'loggedOut', 'emailNotVerified')
+ * @param {string} state - L'état à afficher ('loading', 'loggedIn', 'loggedOut', 'emailNotVerified', 'forgotPassword')
+ * @param {string} message - Message optionnel à afficher dans la bannière d'erreur/info.
  */
-function showUIState(state) {
-  if (loadingState)
-    loadingState.style.display = state === "loading" ? "block" : "none";
-  const appWriteUserName = localStorage.getItem("appwrite-user-name");
+function showUIState(state, message = '') {
+  // Masquer toutes les sections principales d'abord
+  if (loadingState) loadingState.style.display = 'none';
+  if (loggedInState) loggedInState.style.display = 'none';
+  if (loggedOutState) loggedOutState.style.display = 'none';
+  if (emailNotVerifiedState) emailNotVerifiedState.style.display = 'none';
+  if (loggedOutSections) loggedOutSections.style.display = 'none';
+  if (formEmailPwd) formEmailPwd.style.display = 'none';
+  if (formPasswordForgotten) formPasswordForgotten.style.display = 'none';
 
-  if (state === "loggedIn") {
-    if (loggedInState) loggedInState.style.display = "block";
-    if (loggedOutState) loggedOutState.style.display = "none";
-    if (loggedOutSections) loggedOutSections.style.display = "none";
-    if (emailNotVerifiedState) emailNotVerifiedState.style.display = "none";
-    if (headerLoggedOut) headerLoggedOut.style.display = "none";
-    if (headerLoggedIn) headerLoggedIn.style.display = "block";
-
-    if (userEncasGmx && appWriteUserName) {
-      if (appWriteUserName === "encas-cookbook") {
+  // Afficher les sections en fonction de l'état
+  switch (state) {
+    case 'loading':
+      if (loadingState) loadingState.style.display = 'block';
+      break;
+    case 'loggedIn':
+      if (loggedInState) loggedInState.style.display = 'block';
+      if (headerLoggedIn) headerLoggedIn.style.display = 'flex';
+      if (headerLoggedOut) headerLoggedOut.style.display = 'none';
+      const appWriteUserName = localStorage.getItem("appwrite-user-name");
+      if (userEncasGmx && appWriteUserName === "encas-cookbook") {
         userEncasGmx.style.display = "block";
-      } else {
+      } else if (welcomeUser && appWriteUserName) {
         welcomeUser.textContent = `Bienvenue ${appWriteUserName}`;
       }
-    }
-  } else if (state === "loggedOut") {
-    if (loggedInState) loggedInState.style.display = "none";
-    if (loggedOutState) loggedOutState.style.display = "block";
-    if (loggedOutSections) loggedOutSections.style.display = "block";
-    if (emailNotVerifiedState) emailNotVerifiedState.style.display = "none";
-    if (headerLoggedOut) headerLoggedOut.style.display = "block";
-    if (headerLoggedIn) headerLoggedIn.style.display = "none";
-  } else if (state === "emailNotVerified") {
-    if (loggedInState) loggedInState.style.display = "none";
-    if (loggedOutState) loggedOutState.style.display = "none";
-    if (loggedOutSections) loggedOutSections.style.display = "none";
-    if (emailNotVerifiedState) emailNotVerifiedState.style.display = "block";
-    if (headerLoggedOut) headerLoggedOut.style.display = "none";
-    if (headerLoggedIn) headerLoggedIn.style.display = "none";
+      break;
+    case 'loggedOut':
+      if (loggedOutState) loggedOutState.style.display = 'block';
+      if (loggedOutSections) loggedOutSections.style.display = 'flex';
+      if (formEmailPwd) formEmailPwd.style.display = 'block';
+      if (headerLoggedOut) headerLoggedOut.style.display = 'flex';
+      if (headerLoggedIn) headerLoggedIn.style.display = 'none';
+      break;
+    case 'emailNotVerified':
+      if (emailNotVerifiedState) emailNotVerifiedState.style.display = 'block';
+      if (loggedOutSections) loggedOutSections.style.display = 'flex';
+      if (headerLoggedOut) headerLoggedOut.style.display = 'flex';
+      if (headerLoggedIn) headerLoggedIn.style.display = 'none';
+      break;
+    case 'forgotPassword':
+      if (loggedOutState) loggedOutState.style.display = 'block';
+      if (loggedOutSections) loggedOutSections.style.display = 'flex';
+      if (formPasswordForgotten) formPasswordForgotten.style.display = 'block';
+      if (headerLoggedOut) headerLoggedOut.style.display = 'flex';
+      if (headerLoggedIn) headerLoggedIn.style.display = 'none';
+      break;
+  }
+
+  // Afficher le message d'erreur si fourni
+  if (errorMessage && message) {
+    errorMessage.textContent = message;
+    errorMessage.style.display = 'block';
+  } else if (errorMessage) {
+    errorMessage.style.display = 'none';
   }
 }
 
 /**
- * Configure l'authentification du CMS en appelant la fonction Appwrite.
- * Lève une exception en cas d'erreur.
+ * Gère la soumission du formulaire de mot de passe oublié.
+ * Envoie un email de récupération de mot de passe via Appwrite.
+ * @param {Event} event - L'événement de soumission du formulaire.
  */
-async function setupCmsAuthentication() {
-  // console.log("🔄 [setupCmsAuthentication] Appel de la fonction Appwrite pour obtenir le token CMS...");
+async function handlePasswordForgottenSubmit(event) {
+  event.preventDefault();
+  console.log('[AuthAppwrite] Soumission du formulaire de mot de passe oublié');
+
+  const emailInput = document.getElementById('email'); // L'ID de l'input email dans le formulaire "password-forgotten-form"
+  const email = emailInput ? emailInput.value : '';
+
+  if (!email) {
+    showUIState('forgotPassword', 'Veuillez entrer votre adresse email.');
+    return;
+  }
+
+  if (submitPasswordForgottenButton) submitPasswordForgottenButton.disabled = true;
+  if (submitPasswordForgottenSpinner) submitPasswordForgottenSpinner.style.display = 'inline-block';
+  if (errorMessage) errorMessage.style.display = 'none';
 
   try {
-    // Vérifier d'abord si l'utilisateur a confirmé son email
     const account = await getAccount();
-    const appwriteUser = await account.get();
+    // L'URL de redirection est l'URL où Appwrite redirigera l'utilisateur après qu'il ait cliqué sur le lien dans l'email.
+    // Cette page (e.g., /reset-password) sera responsable de finaliser la réinitialisation avec updateRecovery.
+    const resetURL = `${window.location.origin}/reset-password`;
+    await account.createRecovery(email, resetURL);
+    console.log('[AuthAppwrite] Email de réinitialisation de mot de passe envoyé.');
+    showUIState('loggedOut', 'Un email de réinitialisation de mot de passe a été envoyé à votre adresse. Veuillez vérifier votre boîte de réception.');
+  } catch (error) {
+    console.error('[AuthAppwrite] Erreur lors de l\'envoi de l\'email de réinitialisation:', error);
+    let userMessage = 'Une erreur est survenue lors de l\'envoi de l\'email de réinitialisation.';
+    if (error.response && error.response.code === 404) {
+      userMessage = 'Aucun compte n\'est associé à cette adresse email.';
+    }
+    showUIState('forgotPassword', userMessage);
+  } finally {
+    if (submitPasswordForgottenButton) submitPasswordForgottenButton.disabled = false;
+    if (submitPasswordForgottenSpinner) submitPasswordForgottenSpinner.style.display = 'none';
+  }
+}
 
+/**
+ * Gère la navigation vers le formulaire de mot de passe oublié.
+ */
+function handleForgotPasswordClick(e) {
+  e.preventDefault();
+  showUIState('forgotPassword');
+}
 
-    if (!appwriteUser.emailVerification) {
-      localStorage.setItem("email-verification-status", "not_verified");
-      console.warn(
-        "⚠️ [setupCmsAuthentication] Email non vérifié - impossible d'obtenir le token CMS",
-      );
+/**
+ * Gère le processus d'authentification CMS après une connexion Appwrite réussie.
+ * Appelle la fonction Appwrite 'cms-auth-function' pour obtenir un token CMS.
+ */
+async function setupCmsAuthentication() {
+  const account = await getAccount();
+  const functions = await getFunctions();
+
+  try {
+    const user = await account.get();
+    // console.log("✅ [setupCmsAuthentication] Utilisateur Appwrite récupéré:", user.email);
+
+    if (!user.emailVerification) {
+      // console.warn("⚠️ [setupCmsAuthentication] Email non vérifié pour:", user.email);
       throw new Error("EMAIL_NOT_VERIFIED");
     }
 
-    const functions = await getFunctions();
-    const response = await functions.createExecution(
+    const payload = JSON.stringify({ email: user.email });
+    // console.log("🔄 [setupCmsAuthentication] Appel de la fonction cms-auth avec payload:", payload);
+
+    const result = await functions.createExecution(
       APPWRITE_FUNCTION_ID,
-      "", // Le corps de la requête est vide
-      false,
+      payload,
+      false, // Pas de lecture
+      `/cms-auth/${user.email}`,
+      "POST",
     );
 
-    // console.log("🔍 [setupCmsAuthentication] Réponse reçue - Status:", response.responseStatusCode);
-    // console.log("🔍 [setupCmsAuthentication] Corps de réponse:", response.responseBody);
+    // console.log("✅ [setupCmsAuthentication] Exécution de la fonction Appwrite réussie:", result);
 
-    if (response.responseStatusCode !== 200) {
-      let serverError = response.responseBody;
-      try {
-        const parsedBody = JSON.parse(response.responseBody);
-        if (parsedBody.error) serverError = parsedBody.error;
-      } catch (p_err) {
-        /* ignore */
-      }
+    const responseData = JSON.parse(result.responseBody);
+    // console.log("🔍 [setupCmsAuthentication] Réponse de la fonction CMS:", responseData);
+
+    if (responseData && responseData.token) {
+      const cmsAuth = {
+        token: responseData.token,
+        id: responseData.user_id, // Ou l'ID retourné par la fonction
+        email: user.email,
+        name: user.name,
+        backendName: "appwrite",
+      };
+      setAuthData(user.email, user.name, cmsAuth);
+      return cmsAuth;
+    } else {
       console.error(
-        "❌ [setupCmsAuthentication] Erreur de la fonction:",
-        serverError,
+        "❌ [setupCmsAuthentication] Réponse de la fonction CMS invalide:",
+        responseData,
       );
-      throw new Error(
-        `Erreur de la fonction (${response.responseStatusCode}): ${serverError}`,
-      );
+      throw new Error("Token CMS manquant dans la réponse de la fonction.");
     }
-
-    const cmsAuth = JSON.parse(response.responseBody);
-    // console.log("🔍 [setupCmsAuthentication] Token CMS parsé:", {
-    //   hasToken: !!cmsAuth.token,
-    //   tokenLength: cmsAuth.token ? cmsAuth.token.length : 0,
-    //   hasId: !!cmsAuth.id,
-    //   hasEmail: !!cmsAuth.email,
-    //   backendName: cmsAuth.backendName
-    // });
-
-    localStorage.setItem("sveltia-cms.user", JSON.stringify(cmsAuth)); // Stocker directement le token CMS
-    // console.log("✅ [setupCmsAuthentication] Authentification CMS stockée dans localStorage");
-    return cmsAuth;
   } catch (error) {
     console.error(
-      "❌ [setupCmsAuthentication] Erreur lors de la configuration CMS:",
+      "❌ [setupCmsAuthentication] Erreur dans setupCmsAuthentication:",
       error,
     );
     throw error;
@@ -148,7 +219,8 @@ async function setupCmsAuthentication() {
 }
 
 /**
- * Logique principale exécutée au chargement de la page de connexion.
+ * Gère la logique de la page de connexion au chargement.
+ * Vérifie l'état d'authentification et met à jour l'UI en conséquence.
  */
 async function handleLoginPageLoad() {
   showUIState("loading");
@@ -239,7 +311,7 @@ async function handleLoginPageLoad() {
           console.warn(
             "⚠️ [handleLoginPageLoad] Email non vérifié - affichage du message approprié",
           );
-          // Ne pas nettoyer la session, l'utilisateur doit pouvoir vérifier son email
+          // Ne pas nettoyer la session, l'utilisateur doit pouvoir pouvoir vérifier son email
           showUIState("emailNotVerified"); // Utiliser le nouvel état spécifique
           return;
         }
@@ -281,302 +353,192 @@ async function handleLoginPageLoad() {
 
 /**
  * Gère la soumission du formulaire de connexion.
+ * Crée une session Appwrite et tente de récupérer un token CMS.
+ * @param {Event} event - L'événement de soumission du formulaire.
  */
-if (loginForm) {
-  loginForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (loginSpinner) loginSpinner.style.display = "inline-block";
-    if (loginButton) loginButton.disabled = true;
-    if (errorMessage) errorMessage.style.display = "none";
+async function handleLoginSubmit(event) {
+  event.preventDefault();
+  if (loginButton) loginButton.disabled = true;
+  if (loginSpinner) loginSpinner.style.display = "inline-block";
+  if (errorMessage) errorMessage.style.display = "none";
 
-    const email = document.getElementById("login-email").value;
-    const password = document.getElementById("login-password").value;
+  const email = document.getElementById("login-email").value;
+  const password = document.getElementById("login-password").value;
 
-    try {
-      // console.log("🔄 [Connexion] Début de la connexion pour:", email);
+  try {
+    const account = await getAccount();
+    const session = await account.createEmailPasswordSession(email, password);
+    // console.log("✅ [handleLoginSubmit] Session Appwrite créée:", session);
 
-      // 1. Connexion Appwrite
-      const account = await getAccount();
-      await account.createEmailPasswordSession(email, password);
-      // console.log("✅ [Connexion] Session Appwrite créée avec succès");
+    // Tenter de récupérer le token CMS
+    await setupCmsAuthentication();
 
-      // 1.1 Vérifier immédiatement si l'email est vérifié
-      const appwriteUser = await account.get();
-      if (!appwriteUser.emailVerification) {
-        console.warn("⚠️ [Connexion] Email non vérifié lors de la connexion");
-        if (loginSpinner) loginSpinner.style.display = "none";
-        if (loginButton) loginButton.disabled = false;
-        // Ne pas nettoyer la session, l'utilisateur doit pouvoir vérifier son email
-        showUIState("emailNotVerified");
-        return;
-      }
-
-      // 2. Les détails utilisateur sont déjà récupérés ci-dessus
-      // console.log("✅ [Connexion] Détails utilisateur récupérés:", appwriteUser.email);
-
-      // 3. LANCER LA FONCTION DISTANTE POUR CRÉER LE TOKEN CMS
-      // console.log("🔄 [Connexion] Récupération du token CMS...");
-      await setupCmsAuthentication();
-
-      // 4. Vérifier que le token CMS a bien été créé
-      const cmsUser = getLocalCmsUser();
-      // console.log("🔍 [Connexion] Token CMS reçu:", cmsUser);
-
-      const isValidCmsUser =
-        cmsUser &&
-        cmsUser.token &&
-        typeof cmsUser.token === "string" &&
-        cmsUser.token.trim() !== "" &&
-        cmsUser.token !== "[]" &&
-        cmsUser.token !== "undefined" &&
-        cmsUser.token !== "null";
-
-      if (!isValidCmsUser) {
-        console.error("❌ [Connexion] Token CMS invalide:", {
-          exists: !!cmsUser,
-          hasToken: !!(cmsUser && cmsUser.token),
-          tokenType: typeof (cmsUser && cmsUser.token),
-          tokenLength: cmsUser && cmsUser.token ? cmsUser.token.length : 0,
-          tokenValue:
-            cmsUser && cmsUser.token
-              ? cmsUser.token.substring(0, 20) + "..."
-              : "N/A",
-        });
-        throw new Error("Le token CMS n'a pas été créé correctement");
-      }
-
-      // console.log("✅ [Connexion] Token CMS valide - longueur:", cmsUser.token.length);
-
-      // 5. Configurer les données d'authentification finales
-      setAuthData(appwriteUser.email, appwriteUser.name, cmsUser);
-
-      // 6. Mettre à jour l'interface
-      if (userEmailDisplay)
-        userEmailDisplay.textContent = ` (${appwriteUser.email})`;
-      // console.log("✅ [Connexion] Connexion terminée avec succès");
-      showUIState("loggedIn");
-    } catch (error) {
-      console.error("❌ [Connexion] Erreur lors de la connexion:", error);
-
-      // Gestion spécifique de l'erreur "email non vérifié"
-      if (error.message === "EMAIL_NOT_VERIFIED") {
-        console.warn(
-          "⚠️ [Connexion] Email non vérifié - affichage de l'état approprié",
-        );
-        if (loginSpinner) loginSpinner.style.display = "none";
-        if (loginButton) loginButton.disabled = false;
-        // Ne pas nettoyer la session, l'utilisateur doit pouvoir vérifier son email
-        showUIState("emailNotVerified");
-        return;
-      }
-
-      // Gestion des erreurs Appwrite spécifiques lors de la création de session
-      if (error.code === 401 && error.type === "user_email_not_confirmed") {
-        console.warn("⚠️ [Connexion] Email non confirmé selon Appwrite");
-        if (loginSpinner) loginSpinner.style.display = "none";
-        if (loginButton) loginButton.disabled = false;
-        showUIState("emailNotVerified");
-        return;
-      }
-
-      // Nettoyage en cas d'échec pour les autres erreurs
-      try {
-        const account = await getAccount();
-        await account.deleteSession("current");
-        // console.log("🧹 [Connexion] Session Appwrite nettoyée");
-      } catch (cleanupError) {
-        console.warn(
-          "⚠️ [Connexion] Nettoyage session échoué:",
-          cleanupError.message,
-        );
-      }
-
-      clearAuthData();
-
-      // Message d'erreur utilisateur
-      let errorMsg = "Une erreur est survenue. Veuillez réessayer.";
-      if (error.type === "user_invalid_credentials") {
-        errorMsg = "L'email ou le mot de passe est incorrect.";
-      } else if (error.code === 429) {
-        errorMsg =
-          "Trop de tentatives de connexion. Veuillez réessayer plus tard.";
-      } else if (
-        error.message &&
-        error.message.includes("Erreur de la fonction")
-      ) {
-        errorMsg =
-          "La configuration de l'accès a échoué. Veuillez contacter un administrateur.";
-      } else if (error.message && error.message.includes("token CMS")) {
-        errorMsg =
-          "Erreur lors de la création du token d'accès. Veuillez contacter un administrateur.";
-      }
-
-      if (errorMessage) {
-        errorMessage.textContent = errorMsg;
-        errorMessage.style.display = "block";
-      }
-      if (loginSpinner) loginSpinner.style.display = "none";
-      if (loginButton) loginButton.disabled = false;
-      showUIState("loggedOut");
+    const cmsUser = getLocalCmsUser();
+    if (cmsUser) {
+      // console.log("✅ [handleLoginSubmit] Authentification CMS réussie après login.");
+      setAuthData(email, session.providerUid, cmsUser); // Utiliser providerUid comme nom temporaire si le nom n'est pas disponible
+      window.location.reload(); // Recharger la page pour afficher l'état connecté
+    } else {
+      console.error(
+        "❌ [handleLoginSubmit] Impossible de récupérer le token CMS après la connexion.",
+      );
+      throw new Error("Impossible de récupérer le token CMS.");
     }
-  });
+  } catch (error) {
+    console.error("❌ [handleLoginSubmit] Erreur de connexion:", error);
+    let userMessage = "Échec de la connexion. Veuillez vérifier vos identifiants.";
+
+    if (error.code === 401 || error.code === 400) {
+      userMessage = "Email ou mot de passe incorrect.";
+    } else if (error.message === "EMAIL_NOT_VERIFIED") {
+      userMessage = "Votre email n'est pas vérifié. Veuillez vérifier votre boîte de réception ou cliquer sur 'Renvoyer l'email'.";
+      showUIState("emailNotVerified", userMessage);
+      return;
+    } else if (error.message.includes("Account with the given email already exists")) {
+        userMessage = "Un compte avec cet email existe déjà.";
+    }
+
+    showUIState("loggedOut", userMessage); // Afficher l'état déconnecté avec un message d'erreur
+  } finally {
+    if (loginButton) loginButton.disabled = false;
+    if (loginSpinner) loginSpinner.style.display = "none";
+  }
 }
 
 /**
- * Gère la déconnexion.
+ * Gère la déconnexion de l'utilisateur.
+ * Supprime la session Appwrite et nettoie les données locales.
  */
-if (logoutButton) {
-  logoutButton.addEventListener("click", async () => {
-    showUIState("loading");
-    try {
-      // Supprimer d'abord les données d'authentification locales (notre source de vérité)
-      clearAuthData();
-
-      // Puis tenter de déconnecter d'Appwrite
-      const account = await getAccount();
-      await account.deleteSession("current");
-      // console.log("Déconnexion Appwrite réussie.");
-    } catch (error) {
-      console.warn(
-        "Erreur lors de la déconnexion Appwrite (peut-être déjà déconnecté):",
-        error,
-      );
-    } finally {
-      // console.log("Déconnexion terminée. Affichage du formulaire.");
-      showUIState("loggedOut");
-    }
-  });
+async function handleLogout() {
+  clearAuthData(); // Nettoyer les données locales immédiatement
+  try {
+    const account = await getAccount();
+    await account.deleteSession("current");
+    console.log("✅ [handleLogout] Déconnexion Appwrite réussie.");
+  } catch (error) {
+    console.warn(
+      "⚠️ [handleLogout] Erreur lors de la déconnexion Appwrite (peut-être déjà déconnecté):",
+      error,
+    );
+  } finally {
+    window.location.reload(); // Recharger la page pour afficher l'état déconnecté
+  }
 }
 
-// --- GESTION DU FORMULAIRE DE DEMANDE D'ACCÈS ---
+/**
+ * Gère le renvoi de l'email de vérification.
+ */
+async function handleResendVerification() {
+  try {
+    await sendVerificationEmail();
+    showUIState("emailNotVerified", "Email de vérification renvoyé ! Veuillez vérifier votre boîte de réception.");
+  } catch (error) {
+    console.error("❌ [handleResendVerification] Erreur lors du renvoi de l'email de vérification:", error);
+    showUIState("emailNotVerified", "Erreur lors du renvoi de l'email de vérification. Veuillez réessayer plus tard.");
+  }
+}
 
-const accessRequestForm = document.getElementById("access-request-form");
-const formFeedback = document.getElementById("form-feedback");
-const submitButton = accessRequestForm?.querySelector('button[type="submit"]');
-const submitSpinner = submitButton?.querySelector(".spinner-border");
+// Fonction pour gérer l'envoi de la demande d'accès
+async function handleAccessRequest(event) {
+  event.preventDefault();
+  const form = event.target;
+  const submitButton = form.querySelector('#Form-submit');
+  const submitSpinner = submitButton.querySelector('.spinner-border');
+  const emailInput = form.querySelector('#contact-form-email');
+  const messageInput = form.querySelector('#contact-form-message');
+  const formFeedback = document.getElementById('form-feedback');
 
-if (accessRequestForm) {
-  accessRequestForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  if (submitButton) submitButton.disabled = true;
+  if (submitSpinner) submitSpinner.style.display = 'inline-block';
+  if (formFeedback) {
+    formFeedback.style.display = 'none';
+    formFeedback.className = 'mb-3'; // Réinitialiser les classes
+  }
 
-    // UI: Démarrage de la soumission
-    if (submitButton) submitButton.disabled = true;
-    if (submitSpinner) submitSpinner.style.display = "inline-block";
+  const email = emailInput.value;
+  const message = messageInput.value;
+
+  if (!email || !message) {
     if (formFeedback) {
-      formFeedback.innerHTML = ""; // Nettoyer les messages précédents
-      formFeedback.className = "mb-3"; // Reset class
+      formFeedback.textContent = 'Veuillez remplir tous les champs.';
+      formFeedback.classList.add('alert', 'alert-danger');
+      formFeedback.style.display = 'block';
     }
+    if (submitButton) submitButton.disabled = false;
+    if (submitSpinner) submitSpinner.style.display = 'none';
+    return;
+  }
 
-    const email = document.getElementById("contact-form-email").value;
-    const message = document.getElementById("contact-form-message").value;
+  try {
+    const functions = await getFunctions();
+    const payload = JSON.stringify({ email, message });
+    console.log("[AccessRequest] Appel de la fonction de demande d'accès avec payload:", payload);
 
-    try {
-      const payload = JSON.stringify({ email, message });
+    const result = await functions.createExecution(
+      ACCESS_REQUEST_FUNCTION_ID,
+      payload,
+      false, // Ne pas lire
+      `/access-request/${email}`,
+      "POST",
+    );
 
-      const functions = await getFunctions();
-      const result = await functions.createExecution(
-        ACCESS_REQUEST_FUNCTION_ID,
-        payload,
-        false, // `async` = false, pour attendre le résultat
-      );
+    console.log("[AccessRequest] Exécution de la fonction Appwrite réussie:", result);
 
-      const responseBody = JSON.parse(result.responseBody);
-
-      if (result.responseStatusCode === 200 && responseBody.success) {
-        // Succès
-        if (formFeedback) {
-          formFeedback.className = "alert alert-success my-4";
-          formFeedback.textContent =
-            "Votre demande a bien été envoyée. Les administrateur·ices essayeront de répondre à votre demande bientôt.";
-        }
-        accessRequestForm.reset(); // Vider le formulaire
-      } else {
-        // Échec côté serveur
-        throw new Error(
-          responseBody.error || "Une erreur inconnue est survenue.",
-        );
-      }
-    } catch (error) {
-      console.error("Erreur lors de l'envoi de la demande d'accès:", error);
+    if (result.statusCode === 200) {
       if (formFeedback) {
-        formFeedback.className = "alert alert-danger my-4";
-        formFeedback.textContent = `Erreur : ${error.message || "Impossible d'envoyer la demande. Veuillez réessayer plus tard."}`;
+        formFeedback.textContent = 'Votre demande d\'accès a été envoyée avec succès ! Nous vous recontacterons bientôt.';
+        formFeedback.classList.add('alert', 'alert-success');
+        formFeedback.style.display = 'block';
       }
-    } finally {
-      // UI: Fin de la soumission
-      if (submitButton) submitButton.disabled = false;
-      if (submitSpinner) submitSpinner.style.display = "none";
+      form.reset();
+    } else {
+      const errorData = JSON.parse(result.responseBody);
+      throw new Error(errorData.message || `Erreur Appwrite: ${result.statusCode}`);
     }
-  });
+  } catch (error) {
+    console.error('[AccessRequest] Erreur lors de l\'envoi de la demande d\'accès:', error);
+    if (formFeedback) {
+      formFeedback.textContent = `Erreur : ${error.message || 'Une erreur est survenue lors de l\'envoi de votre demande.'}`;
+      formFeedback.classList.add('alert', 'alert-danger');
+      formFeedback.style.display = 'block';
+    }
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+    if (submitSpinner) submitSpinner.style.display = 'none';
+  }
 }
 
-// --- GESTION DU RENVOI D'EMAIL DE VÉRIFICATION ---
 
-if (resendVerificationButton) {
-  resendVerificationButton.addEventListener("click", async (event) => {
-    event.preventDefault();
-
-    // UI: Démarrage du processus
-    resendVerificationButton.disabled = true;
-    resendVerificationButton.textContent = "Envoi en cours...";
-
-    try {
-      const verificationURL = `${window.location.origin}/verify-email`;
-      await sendVerificationEmail(verificationURL);
-
-      // Succès
-      resendVerificationButton.textContent = "Email envoyé !";
-      resendVerificationButton.className = "btn btn-success";
-
-      // Revert after 3 seconds
-      setTimeout(() => {
-        resendVerificationButton.textContent =
-          "renvoyer l'email de vérification";
-        resendVerificationButton.className = "alert-link";
-        resendVerificationButton.disabled = false;
-      }, 3000);
-    } catch (error) {
-      console.error("Erreur lors du renvoi d'email de vérification:", error);
-      resendVerificationButton.textContent = "Erreur - Réessayer";
-      resendVerificationButton.className = "btn btn-danger btn-sm";
-
-      // Revert after 3 seconds
-      setTimeout(() => {
-        resendVerificationButton.textContent =
-          "renvoyer l'email de vérification";
-        resendVerificationButton.className = "alert-link";
-        resendVerificationButton.disabled = false;
-      }, 3000);
-    }
-  });
-}
-
-// --- GESTION DU BOUTON DÉCONNEXION (état email non vérifié) ---
-
-if (logoutButtonUnverified) {
-  logoutButtonUnverified.addEventListener("click", async () => {
-    showUIState("loading");
-    try {
-      clearAuthData();
-      const account = await getAccount();
-      await account.deleteSession("current");
-    } catch (error) {
-      console.warn("Erreur lors de la déconnexion Appwrite:", error);
-    } finally {
-      showUIState("loggedOut");
-    }
-  });
-}
-
-// Lancement de la logique au chargement du DOM
+// Attacher les écouteurs d'événements une fois que le DOM est chargé
 document.addEventListener("DOMContentLoaded", () => {
-  // console.log("📄 [authAppwrite.js] DOMContentLoaded déclenché");
-  // console.log("📄 [authAppwrite.js] URL:", window.location.pathname);
-  // console.log("📄 [authAppwrite.js] SDK Appwrite disponible:", !!window.Appwrite);
+  handleLoginPageLoad();
 
-  // Ajouter un délai minimal pour s'assurer que tous les scripts sont chargés
-  setTimeout(() => {
-    // console.log("📄 [authAppwrite.js] Lancement handleLoginPageLoad après délai");
-    handleLoginPageLoad();
-  }, 50); // Augmenter légèrement le délai pour s'assurer que tout est chargé
+  if (loginForm) {
+    loginForm.addEventListener("submit", handleLoginSubmit);
+  }
+
+  if (logoutButton) {
+    logoutButton.addEventListener("click", handleLogout);
+  }
+
+  if (logoutButtonUnverified) {
+    logoutButtonUnverified.addEventListener("click", handleLogout);
+  }
+
+  if (resendVerificationButton) {
+    resendVerificationButton.addEventListener("click", handleResendVerification);
+  }
+
+  if (forgotPasswordButton) {
+    forgotPasswordButton.addEventListener('click', handleForgotPasswordClick);
+  }
+
+  if (passwordForgottenForm) {
+    passwordForgottenForm.addEventListener('submit', handlePasswordForgottenSubmit);
+  }
+
+  const accessRequestForm = document.getElementById('access-request-form');
+  if (accessRequestForm) {
+    accessRequestForm.addEventListener('submit', handleAccessRequest);
+  }
 });
