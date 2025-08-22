@@ -3,7 +3,7 @@
 backend:
   name: github
   repo: encas-parka/enka-cookbook-site
-  branch: final-ingmig
+  branch: main
   logout_redirect_url: https://enka-cookbook.pages.dev/
   auth_type: github
   automatic_deployments: false
