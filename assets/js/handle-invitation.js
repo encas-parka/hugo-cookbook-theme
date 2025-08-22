@@ -1,6 +1,6 @@
 // hugo-cookbook-theme/assets/js/handle-invitation.js
 
-import { getAppwriteClients, getAccount, getTeams, getConfig, isAuthenticated } from './appwrite-client.js';
+import { getAppwriteClients, getAccount, getTeams, getConfig, isAuthenticatedCms } from './appwrite-client.js';
 
 // console.log("[Handle-Invitation] Script chargé");
 

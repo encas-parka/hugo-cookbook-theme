@@ -1,7 +1,7 @@
 // hugo-cookbook-theme/assets/js/invitation.js
 // Ce script gère la logique de la page d'invitation en utilisant une fonction Appwrite
 
-import { getAccount, getTeams, isAuthenticated } from './appwrite-client.js';
+import { getAccount, getTeams, isAuthenticatedCms } from './appwrite-client.js';
 
 // --- CONFIGURATION ---
 const TEAM_ID = "689bf6fe0006627d8959"
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     // Vérifie si l'utilisateur est authentifié
-    if (!isAuthenticated()) {
+    if (!isAuthenticatedCms()) {
       showUIState('denied');
       return;
     }

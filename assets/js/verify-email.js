@@ -1,7 +1,7 @@
 // hugo-cookbook-theme/assets/js/verify-email.js
 // Script pour gérer la vérification d'email via les paramètres URL
 
-import { verifyEmail, getAuthenticationState, getAccount, setAuthData, getLocalCmsUser } from './appwrite-client.js';
+import { verifyEmail, getAccount, setAuthData, getLocalCmsUser } from './appwrite-client.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // --- ÉLÉMENTS DU DOM ---
@@ -37,11 +37,11 @@ document.addEventListener('DOMContentLoaded', async () => {
    */
   async function setupCmsAuthentication() {
     const { APPWRITE_FUNCTION_ID } = await import('./appwrite-client.js').then(module => module.getConfig());
-    
+
     try {
       const account = await getAccount();
       const appwriteUser = await account.get();
-      
+
       if (!appwriteUser.emailVerification) {
         throw new Error("EMAIL_NOT_VERIFIED");
       }
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Configurer les données d'authentification
       setAuthData(appwriteUser.email, appwriteUser.name, cmsUser);
-      
+
       console.log('[Verify Email] Configuration CMS terminée avec succès');
       return true;
     } catch (error) {
@@ -97,19 +97,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       console.log('[Verify Email] Tentative de vérification avec userId:', userId);
       await verifyEmail(userId, secret);
-      
+      localStorage.removeItem('email-verification-status')
+
       // Succès de la vérification
       console.log('[Verify Email] Vérification réussie');
-      
+
       // Afficher l'état de configuration
       showState('config');
-      
+
       // Configurer l'authentification CMS
       try {
         await setupCmsAuthentication();
         console.log('[Verify Email] Configuration complète terminée');
         showState('success');
-        
+
         // Activer le bouton d'édition
         if (editButton) {
           editButton.disabled = false;
@@ -123,10 +124,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         showState('error');
       }
-      
+
     } catch (error) {
       console.error('[Verify Email] Erreur lors de la vérification:', error);
-      
+
       // Analyser le type d'erreur
       if (error.code === 401 || error.message?.includes('invalid') || error.message?.includes('expired')) {
         // Lien invalide ou expiré
@@ -147,16 +148,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       retryButton.disabled = true;
       if (retrySpinner) retrySpinner.style.display = 'inline-block';
       showState('loading');
-      
+
       await attemptVerification();
-      
+
       retryButton.disabled = false;
       if (retrySpinner) retrySpinner.style.display = 'none';
     });
   }
 
   // --- LOGIQUE PRINCIPALE ---
-  
+
   // Vérifier la présence des paramètres requis
   if (!userId || !secret) {
     console.warn('[Verify Email] Paramètres manquants - userId:', !!userId, 'secret:', !!secret);

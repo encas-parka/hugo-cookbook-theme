@@ -159,32 +159,31 @@ function isInitialized() {
  */
 function getLocalCmsUser() {
     const cmsUser = localStorage.getItem('sveltia-cms.user');
-    // console.log('🔍 [getLocalCmsUser] Token brut depuis localStorage:', cmsUser);
+    console.log('🔍 [getLocalCmsUser] Token brut depuis localStorage:', cmsUser);
 
     if (!cmsUser) {
-        // console.log('ℹ️ [getLocalCmsUser] Aucun token CMS dans localStorage');
+        console.log('ℹ️ [getLocalCmsUser] Aucun token CMS dans localStorage');
         return null;
     }
 
     try {
         const parsedUser = JSON.parse(cmsUser);
         // console.log('🔍 [getLocalCmsUser] Token parsé:', {
-        //     hasToken: !!parsedUser.token,
-        //     tokenType: typeof parsedUser.token,
-        //     tokenLength: parsedUser.token ? parsedUser.token.length : 0,
-        //     tokenPreview: parsedUser.token ? parsedUser.token.substring(0, 20) + '...' : 'N/A',
-        //     hasId: !!parsedUser.id,
-        //     hasEmail: !!parsedUser.email,
-        //     backendName: parsedUser.backendName
+          //     hasToken: !!parsedUser.token,
+          //     tokenType: typeof parsedUser.token,
+          //     tokenLength: parsedUser.token ? parsedUser.token.length : 0,
+          //     tokenPreview: parsedUser.token ? parsedUser.token.substring(0, 20) + '...' : 'N/A',
+          //     hasId: !!parsedUser.id,
+          //     hasEmail: !!parsedUser.email,
+          //     backendName: parsedUser.backendName
         // });
 
         if (parsedUser.token && typeof parsedUser.token === 'string' && parsedUser.token.trim() !== '') {
-            // console.log('✅ [getLocalCmsUser] Token CMS valide');
+            console.log('✅ [getLocalCmsUser] Token CMS valide');
             return parsedUser;
         }
 
-        // Si les données sont invalides, on les supprime
-        // console.log('⚠️ [getLocalCmsUser] Token CMS invalide - nettoyage');
+        console.log('⚠️ [getLocalCmsUser] Token CMS invalide - nettoyage');
         localStorage.removeItem('sveltia-cms.user');
         return null;
     } catch (e) {
@@ -198,7 +197,8 @@ function getLocalCmsUser() {
  * Vérifie si l'utilisateur est authentifié (basé sur le token CMS)
  * @returns {boolean} True si l'utilisateur est authentifié
  */
-function isAuthenticated() {
+function isAuthenticatedCms() {
+  console.log('getLocalCmsUser(): ', getLocalCmsUser() !== null);
     return getLocalCmsUser() !== null;
 }
 
@@ -259,7 +259,7 @@ async function getAuthenticationState() {
     const cmsUser = getLocalCmsUser();
     const userEmail = getUserEmail();
     const userName = getUserName();
-    
+
     if (!cmsUser) {
         return {
             isAuthenticated: false,
@@ -307,6 +307,11 @@ function getUserName() {
     return localStorage.getItem('appwrite-user-name');
 }
 
+function getLocalEmailVerificationStatus() {
+    return localStorage.getItem('email-verification-status') ;
+}
+
+
 /**
  * Nettoie toutes les données d'authentification locales
  */
@@ -314,6 +319,7 @@ function clearAuthData() {
     localStorage.removeItem('sveltia-cms.user');
     localStorage.removeItem('appwrite-user-email');
     localStorage.removeItem('appwrite-user-name');
+    localStorage.removeItem('email-verification-status');
     // console.log("[Appwrite Client] Données d'authentification locales nettoyées");
 }
 
@@ -357,7 +363,7 @@ export {
     isInitialized,
     initializeAppwrite,
     getLocalCmsUser,
-    isAuthenticated,
+    isAuthenticatedCms ,
     getUserEmail,
     getUserName,
     clearAuthData,
@@ -366,7 +372,7 @@ export {
     isEmailVerified,
     sendVerificationEmail,
     verifyEmail,
-    getAuthenticationState
+    getLocalEmailVerificationStatus
 };
 
 
@@ -381,7 +387,7 @@ if (typeof window !== 'undefined') {
         isInitialized,
         initializeAppwrite,
         getLocalCmsUser,
-        isAuthenticated,
+        isAuthenticatedCms,
         getUserEmail,
         getUserName,
         clearAuthData,
@@ -390,6 +396,6 @@ if (typeof window !== 'undefined') {
         isEmailVerified,
         sendVerificationEmail,
         verifyEmail,
-        getAuthenticationState
+        getLocalEmailVerificationStatus
     };
 }

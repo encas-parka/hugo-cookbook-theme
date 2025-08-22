@@ -121,12 +121,18 @@ document.addEventListener("DOMContentLoaded", () => {
           // Créer une session pour l'utilisateur nouvellement inscrit
           const { account } = await getAppwriteClients();
           await account.createEmailPasswordSession(email, password);
-          
+
           // Envoyer immédiatement l'email de vérification
           // L'URL de redirection pointera vers une page de vérification
           const verificationURL = `${window.location.origin}/verify-email`;
           await account.createVerification(verificationURL);
-          
+
+          // Stockage des informations de l'utilisateur
+          localStorage.setItem('appwrite-user-email', email);
+          localStorage.setItem('appwrite-user-name', name);
+          localStorage.setItem('email-verification-status', 'not_verified');
+
+
           // Mettre à jour le message de succès
           successMessage.innerHTML = `
             <strong>Inscription terminée !</strong><br>
@@ -134,15 +140,15 @@ document.addEventListener("DOMContentLoaded", () => {
             <small class="text-muted">Vérifiez aussi votre dossier spam/courrier indésirable.</small><br>
             Vous allez être redirigé vers la page de connexion.
           `;
-          
+
           // Rediriger après 3 secondes pour améliorer l'UX
           setTimeout(() => {
             window.location.href = '/login';
           }, 3000);
-          
+
         } catch (verificationError) {
           console.warn('Erreur lors de l\'envoi de l\'email de vérification:', verificationError);
-          
+
           // Gestion spécifique des erreurs Appwrite
           let errorMsg = 'L\'email de vérification n\'a pas pu être envoyé.';
           if (verificationError.code === 429) {
@@ -150,14 +156,14 @@ document.addEventListener("DOMContentLoaded", () => {
           } else if (verificationError.code === 401) {
             errorMsg = 'Session expirée. Veuillez vous reconnecter.';
           }
-          
+
           successMessage.innerHTML = `
             <strong>Inscription réussie !</strong><br>
             <span class="text-warning">Attention : ${errorMsg}</span><br>
             Vous pouvez vous connecter et renvoyer l'email depuis votre profil.<br>
             Redirection vers la page de connexion...
           `;
-          
+
           setTimeout(() => {
             window.location.href = '/login';
           }, 3000);

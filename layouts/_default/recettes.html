@@ -364,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function() {
   // Attendre que les modules soient chargés
   setTimeout(function() {
-    if (window.AppwriteClient && window.AppwriteClient.isAuthenticated()) {
+    if (window.AppwriteClient && window.AppwriteClient.isAuthenticatedCms()) {
       const editButton = document.getElementById('edit-recipe-button');
       if (editButton) {
         editButton.style.display = 'block';

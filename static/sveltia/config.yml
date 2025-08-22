@@ -4,16 +4,16 @@ backend:
   name: github
   repo: encas-parka/enka-cookbook-site
   branch: final-ingmig
-  base_url: https://enka-cookbook.pages.dev
   logout_redirect_url: https://enka-cookbook.pages.dev/
   auth_type: github
   automatic_deployments: false
-
   # Vérifier si ca marche bien : si un article est modifier plusieur fois avant d'etre mergé/publié, un seul commit avec rebased.
   squash_merges: true
 
 media_folder: ""
 public_folder: ""
+base_url: https://enka-cookbook.pages.dev
+
 
 media_libraries:
   default:
