@@ -33,7 +33,7 @@
         <div id="app-search-events" data-events='{{ $eventsJSON }}'>
           <!-- Bouton créer un événement (visible seulement si authentifié) -->
           <div class="mb-3 text-end" v-show="isAuthenticated">
-            <a href="/sveltia/#/collections/evenement/new" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+            <a href="/sveltia/#/collections/evenements/new" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
               <i class="fas fa-plus me-1"></i>Créer un événement
             </a>
           </div>
@@ -62,12 +62,13 @@
                ref="resultsContainer">
             <div v-for="(event, index) in filteredEvents"
                :key="event.url"
-               :class="{ 'card mb-2': true, 'border border-primary': index === selectedIndex }"
+               :class="{ 'mb-2': true, 'bg-dark-subtle': index === selectedIndex }"
+               class="rounded"
                @mouseover="selectedIndex = index"
                @mouseleave="selectedIndex = -1">
-                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                <div class="d-flex justify-content-between align-items-center">
                     <a :href="event.url"
-                       class="text-decoration-none text-dark flex-grow-1"
+                       class="text-decoration-none text-dark flex-grow-1 p-2"
                        ref="resultLinks">
                         <span class="card-title fs-5">[[ event.title ]]</span>
                     </a>
@@ -76,7 +77,7 @@
                        :href="'/sveltia/#/collections/evenements/entries/' + event.slug + '/index'"
                        target="_blank"
                        rel="noopener noreferrer"
-                       class="btn btn-outline-primary btn-sm ms-2"
+                       class="btn btn-outline-primary btn-sm me-2"
                        title="Modifier l'événement"
                        @click.stop>
                         <i class="fas fa-edit"></i>

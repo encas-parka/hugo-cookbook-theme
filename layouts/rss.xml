@@ -13,7 +13,7 @@
     {{ with .OutputFormats.Get "RSS" }}
         {{ printf "<atom:link href=%q rel=\"self\" type=%q />" .Permalink .MediaType | safeHTML }}
     {{ end }}
-    {{ range .Pages }}{{ if ne .Params.feed_exclude true }}
+    {{ range where .Site.RegularPages "Section" "recettes" }}{{ if ne .Params.feed_exclude true }}
     <item>
       <title>{{ .Title }}</title>
       <link>{{ .Permalink }}</link>

@@ -1,6 +1,8 @@
 User-agent: *
 {{ if eq (hugo.Environment) "production" -}}
-Allow: /
+Disallow: /
+Allow: /$
+Allow: /recettes/
 {{ else -}}
 Disallow: /
 {{ end }}
