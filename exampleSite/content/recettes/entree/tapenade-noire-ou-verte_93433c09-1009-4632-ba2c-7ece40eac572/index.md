@@ -11,10 +11,10 @@ ingredients:
     unit: unité
   - quantite: 100
     title: Olives noires à la grecque
-    unit: grammes
+    unit: gr.
   - quantite: 100
     title: Olives vertes dénoyautées
-    unit: grammes
+    unit: gr.
   lof:
   - quantite: 4
     title: huile d'olive

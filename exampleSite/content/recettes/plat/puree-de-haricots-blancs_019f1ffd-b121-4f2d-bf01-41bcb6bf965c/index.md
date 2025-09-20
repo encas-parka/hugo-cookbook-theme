@@ -15,7 +15,7 @@ ingredients:
   sec:
   - quantite: 70
     title: Haricots blancs
-    unit: grammes
+    unit: gr.
   sucres:
   - quantite: 25
     title: Jus de citron

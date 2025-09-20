@@ -22,23 +22,23 @@ ingredients:
       unit: c. à café
     - quantite: 60
       title: Levure chimique
-      unit: grammes
+      unit: gr.
   epices: []
   legumes: []
   lof:
     - quantite: 0.3
       title: huile de colza
-      unit: litre
+      unit: l.
     - quantite: 1.5
       title: Yaourt de soja
       unit: Kg
   sec:
     - quantite: 60
       title: Amande
-      unit: grammes
+      unit: gr.
     - quantite: 900
       title: Semoule fine (blé)
-      unit: grammes
+      unit: gr.
   sucres:
     - quantite: 9
       title: Jus de citron
@@ -59,11 +59,11 @@ preparation: >-
 
   Cuire environ 30 à 35 min à 180°C. Le gâteau est légèrement doré.
 
-   
+
 
   Pendant ce temps, préparer le sirop en versant tous les ingrédients dans une casserole et porter à ébullition. Le sucre doit être totalement dissout.
 
-   
+
 
   A la sortie du four, découper les parts de gâteau, y mettre une amande au centre de chaque part et puis verser une bonne dose de sirop sur le gâteau. Bien répartir pour que chaque partie du gâteau s'imbibe bien. Enfin, filmer de manière complètement hermétique jusqu'au moment de le servir.
 publishDate: 2024-03-26 18:32:31.905000+00:00

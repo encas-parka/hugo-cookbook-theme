@@ -10,11 +10,11 @@ ingredients:
   autres:
   - quantite: 0.8
     title: Eau
-    unit: litre
+    unit: l.
   epices:
   - quantite: 25
     title: Gros sel
-    unit: grammes
+    unit: gr.
   - quantite: 3
     title: Aneth aromatique
     unit: c. à soupe

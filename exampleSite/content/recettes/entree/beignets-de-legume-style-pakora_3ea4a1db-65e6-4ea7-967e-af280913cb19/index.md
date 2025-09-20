@@ -40,7 +40,7 @@ ingredients:
     unit: Kg
   - quantite: 12
     title: huile de tournesol
-    unit: litre
+    unit: l.
   - quantite: 4
     title: Farine de pois chiche
     unit: Kg

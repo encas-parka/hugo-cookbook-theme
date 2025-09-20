@@ -36,7 +36,7 @@ ingredients:
   sucres:
   - quantite: 1
     title: Jus de citron
-    unit: litre
+    unit: l.
 layout: recettes
 plate: 190
 preparation: 'Faire cuire les pois chiche mais qu''ils restent fermes

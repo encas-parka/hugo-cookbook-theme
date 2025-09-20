@@ -24,6 +24,9 @@
   //   padding: 0;
   // }
 
+  .content {
+    padding: 0 !important;
+  }
 
   .no-print {
       display: none
@@ -91,7 +94,7 @@
   .fw-bold {
     font-weight: 600 !important;
   }
-  
+
   .print-nocard {
     border: 0;
     margin: 0 !important;
@@ -733,7 +736,7 @@ li {
     border-color: #dee2e6;
   }
 
-  
+
 
 
 
@@ -742,7 +745,7 @@ li {
     box-shadow: none ! important
   }
 
- 
+
 
 
   // Font Size
@@ -757,7 +760,7 @@ li {
   .print-fs-medium {
     font-size: medium !important;
     }
-  
+
   .print-fs-large {
     font-size: large !important;
     }

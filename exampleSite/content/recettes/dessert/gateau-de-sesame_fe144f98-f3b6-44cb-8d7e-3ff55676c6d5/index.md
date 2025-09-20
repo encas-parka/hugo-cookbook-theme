@@ -9,7 +9,7 @@ ingredients:
   autres:
   - quantite: 70
     title: Levure chimique
-    unit: grammes
+    unit: gr.
   - alergene: true
     quantite: 1
     title: Purée de sésame noir
@@ -23,7 +23,7 @@ ingredients:
   lof:
   - quantite: 1
     title: Crème liquide
-    unit: litre
+    unit: l.
   - quantite: 25
     title: Oeuf
     unit: unité

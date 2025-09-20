@@ -8,14 +8,14 @@ ingredients:
   autres:
   - quantite: 100
     title: Tahin
-    unit: grammes
+    unit: gr.
   - quantite: 3
     title: Eau
     unit: c. à soupe
   epices:
   - quantite: 0.5
     title: Paprika
-    unit: grammes
+    unit: gr.
   legumes:
   - quantite: 1
     title: Ail
@@ -27,7 +27,7 @@ ingredients:
   sec:
   - quantite: 300
     title: Pois chiche cuit
-    unit: grammes
+    unit: gr.
   sucres:
   - quantite: 2
     title: Jus de citron

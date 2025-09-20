@@ -44,7 +44,7 @@ ingredients:
   lof:
   - quantite: 1
     title: huile d'olive
-    unit: litre
+    unit: l.
   sec:
   - quantite: 3.5
     title: Pâtes - langue d'oiseau

@@ -1,178 +1,178 @@
-{{ $unit := .unit }}
-{{ $ingredient := .ingredient }}
-{{ $quantiteRecette := .quantite }}
-{{ $hasConversion := false }}
+{{/*
+  quantite-converter.html
+
+  DOIT ETRE COHERENT avec conversion-rule dans ingredientsjson.json
+
+  Partial to convert and normalize ingredient quantities.
+  It can return either a structured dictionary (dict) for data processing
+  or a formatted string for direct display (backward compatibility).
+
+  Input (dict):
+    - quantite:       (number) The quantity.
+    - unit:           (string) The unit (e.g., "c. à soupe", "kg", "gr.").
+    - ingredient:     (string, optional) The ingredient name, for context-sensitive conversions.
+    - fetch:          (string, optional) Defines the output format.
+                        - "dict" (default): Returns a structured dict.
+                        - "QU", "Unit", "Quantite": Legacy modes for string output.
+
+  Output (if fetch="dict"):
+    - A dict: {
+        "quantiteEq":    (float) The converted quantity in the base unit (gr. or ml).
+        "unitEq":        (string) The base unit ("gr." or "ml").
+        "hasConversion": (bool) True if a conversion was successfully performed.
+      }
+
+  Output (legacy modes):
+    - A formatted string (e.g., "(~ 15 gr.)").
+
+  Normalization & Conversion Logic:
+    - Standard units (kg, g, l, ml) are normalized to "gr." or "ml".
+    - Volumetric units ("c. à soupe", "c. à café") are converted to "gr." or "ml" based on the ingredient.
+    - Piece-based units ("unité", "gousse", "tête") are converted to "gr." based on the ingredient.
+    - If no conversion rule is found, hasConversion is false.
+*/}}
+
+{{- $quantite := .quantite | default 0.0 -}}
+{{- $unit := .unit | default "" -}}
+{{- $ingredient := .ingredient | default "" -}}
+{{- $fetchMode := .fetch | default "dict" -}}
+
+{{- /* Prepare normalized variables for internal logic */}}
+{{- $qFloat := float $quantite -}}
+{{- $unitLower := $unit | lower -}}
+{{- $ingLower := $ingredient | lower -}}
+
+{{- /* Initialize result variables */}}
+{{- $quantiteEq := $qFloat -}}
+{{- $unitEq := $unit -}}
+{{- $hasConversion := false -}}
+{{- $conversionRule := "" -}}
+{{- $baseUnit := "" -}} {{/* "gr." or "ml" */}}
+
+{{- /* --- Conversion & Normalization Logic --- */}}
 
 
-{{ if strings.Contains $unit "caf" }}
-   {{ if  eq ($ingredient | lower) "sucre" }}
-      {{ $quantiteRecette = mul $quantiteRecette 15 | math.Round }}
-      {{ $unit = "gr." }}
-   {{ else if eq ($ingredient | lower) "sel" }}
-      {{ $quantiteRecette = mul $quantiteRecette 15 | math.Round }}
-      {{ $unit = "gr." }}
-   {{ else if eq ($ingredient | lower) "farine" }}
-      {{ $quantiteRecette = mul $quantiteRecette 4 | math.Round }}
-      {{ $unit = "gr." }}
-  {{ else if eq ($ingredient | lower) "semoule" }}
-      {{ $quantiteRecette = mul $quantiteRecette 4 | math.Round }}
-      {{ $unit = "gr." }}
-  {{ else if eq ($ingredient | lower) "poivre" }}
-      {{ $quantiteRecette = mul $quantiteRecette 3 | math.Round }}
-      {{ $unit = "gr." }}
-  {{ else if eq ($ingredient | lower) "cacao" }}
-      {{ $quantiteRecette = mul $quantiteRecette 3 | math.Round }}
-      {{ $unit = "gr." }}
-  {{ else if eq ($ingredient | lower) "sucre glace" }}
-      {{ $quantiteRecette = mul $quantiteRecette 3 | math.Round }}
-      {{ $unit = "gr." }}
-  {{ else if eq ($ingredient | lower) "maïzena" }}
-      {{ $quantiteRecette = mul $quantiteRecette 3 | math.Round }}
-      {{ $unit = "gr." }}
-  {{ else if strings.Contains ($ingredient | lower) "crème épaisse"  }}
-      {{ $quantiteRecette = mul $quantiteRecette 7  | math.Round }} {{ $unit = "ml"}}
-  {{ else if strings.Contains ($ingredient | lower) "bicarbonate"  }}
-     {{ $quantiteRecette = mul $quantiteRecette 6  | math.Round }} {{ $unit = "gr."}}
-   {{ else if eq ($ingredient | lower) "curcuma" }}
-      {{ $quantiteRecette = mul $quantiteRecette 1.5 | math.Round }}
-      {{ $unit = "gr." }}
-   {{ else if eq ($ingredient | lower) "cumin" }}
-      {{ $quantiteRecette = mul $quantiteRecette 1.5 | math.Round }}
-      {{ $unit = "gr." }}
-   {{ else if eq ($ingredient | lower) "curry" }}
-      {{ $quantiteRecette = mul $quantiteRecette 2 | math.Round }}
-      {{ $unit = "gr." }}
-   {{ else if eq ($ingredient | lower) "muscade" }}
-      {{ $quantiteRecette = mul $quantiteRecette 2 | math.Round }}
-      {{ $unit = "gr." }}
-   {{ else if eq ($ingredient | lower) "paprika" }}
-      {{ $quantiteRecette = mul $quantiteRecette 1.5 | math.Round }}
-      {{ $unit = "gr." }}
-   {{ else }}
-     {{ $quantiteRecette = mul $quantiteRecette 5  | math.Round }} {{ $unit = "ml"}}
-   {{ end }}
 
-   {{ $hasConversion = true }}
+{{- if strings.Contains $unitLower "caf" -}}
+  {{- $hasConversion = true -}}
+  {{- $baseUnit = "gr." -}}
+  {{- if strings.Contains $ingLower "sucre" }}{{ $quantiteEq = mul $qFloat 5 }}{{ $conversionRule = "1 c. à café = 5 gr." }}
+  {{ else if eq $ingLower "sel" }}{{ $quantiteEq = mul $qFloat 5 }}{{ $conversionRule = "1 c. à café de sel = 5 gr." }}
+  {{ else if eq $ingLower "farine" }}{{ $quantiteEq = mul $qFloat 3 }}{{ $conversionRule = "1 c. à café de farine = 3 gr." }}
+  {{ else if eq $ingLower "semoule" }}{{ $quantiteEq = mul $qFloat 4 }}{{ $conversionRule = "1 c. à café de semoule = 4 gr." }}
+  {{ else if eq $ingLower "poivre" }}{{ $quantiteEq = mul $qFloat 2.5 }}{{ $conversionRule = "1 c. à café de poivre = 2.5 gr." }}
+  {{ else if eq $ingLower "cacao" }}{{ $quantiteEq = mul $qFloat 2.5 }}{{ $conversionRule = "1 c. à café de cacao = 2.5 gr." }}
+  {{ else if eq $ingLower "sucre glace" }}{{ $quantiteEq = mul $qFloat 3 }}{{ $conversionRule = "1 c. à café de sucre glace = 3 gr." }}
+  {{ else if strings.Contains $ingLower "maïzena" }}{{ $quantiteEq = mul $qFloat 3 }}{{ $conversionRule = "1 c. à café de maïzena = 3 gr." }}
+  {{ else if strings.Contains $ingLower "crème épaisse" }}{{ $quantiteEq = mul $qFloat 5 }}{{ $baseUnit = "ml" }}{{ $conversionRule = "1 c. à café de crème épaisse = 5 ml." }}
+  {{ else if strings.Contains $ingLower "bicarbonate" }}{{ $quantiteEq = mul $qFloat 5 }}{{ $baseUnit = "gr" }}{{ $conversionRule = "1 c. à café de bicarbonate = 5 gr." }}
+  {{ else if eq $ingLower "curcuma" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $baseUnit = "gr" }}{{ $conversionRule = "1 c. à café de curcuma = 2 gr." }}
+  {{ else if eq $ingLower "cumin" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $baseUnit = "gr" }}{{ $conversionRule = "1 c. à café de cumin = 2 gr." }}
+  {{ else if eq $ingLower "curry" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $baseUnit = "gr" }}{{ $conversionRule = "1 c. à café de curry = 2 gr." }}
+  {{ else if eq $ingLower "muscade" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $baseUnit = "gr" }}{{ $conversionRule = "1 c. à café de muscade = 2 gr." }}
+  {{ else if eq $ingLower "paprika" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $baseUnit = "gr" }}{{ $conversionRule = "1 c. à café de paprika = 2 gr." }}
+  {{ else }}{{ $quantiteEq = mul $qFloat 5 }}{{ $baseUnit = "ml" }} {{$conversionRule = "1 c. à café = 5 ml."}} {{ end -}}
 
+{{- else if strings.Contains $unitLower "soupe" -}}
+  {{- $hasConversion = true -}}
+  {{- $baseUnit = "gr." -}}
+  {{- if strings.Contains $ingLower "sucre" }} {{ $quantiteEq = mul $qFloat 15 }} {{$conversionRule = "1 c. à soupe de sucre = 15 gr."}}
+  {{ else if eq $ingLower "sel" }}{{ $quantiteEq = mul $qFloat 15 }} {{$conversionRule = "1 c. à soupe de sel = 15 gr."}}
+  {{ else if eq $ingLower "farine" }}{{ $quantiteEq = mul $qFloat 10 }} {{$conversionRule = "1 c. à soupe de farine = 10 gr."}}
+  {{ else if eq $ingLower "semoule" }}{{ $quantiteEq = mul $qFloat 12 }} {{$conversionRule = "1 c. à soupe de semoule = 12 gr."}}
+  {{ else if eq $ingLower "poivre" }}{{ $quantiteEq = mul $qFloat 8 }} {{$conversionRule = "1 c. à soupe de poivre = 8 gr."}}
+  {{ else if eq $ingLower "cacao" }}{{ $quantiteEq = mul $qFloat 8 }} {{$conversionRule = "1 c. à soupe de cacao = 8 gr."}}
+  {{ else if eq $ingLower "sucre glace" }}{{ $quantiteEq = mul $qFloat 15 }} {{$conversionRule = "1 c. à soupe de sucre glace = 15 gr."}}
+  {{ else if strings.Contains $ingLower  "maïzena" }}{{ $quantiteEq = mul $qFloat 10 }} {{$conversionRule = "1 c. à soupe de maïzena = 10 gr."}}
+  {{ else if strings.Contains $ingLower "crème épaisse" }}{{ $quantiteEq = mul $qFloat 15 }}{{ $baseUnit = "ml" }}{{ $conversionRule = "1 c. à soupe de crème épaisse = 15 ml."}}
+  {{ else if strings.Contains $ingLower "bicarbonate" }}{{ $quantiteEq = mul $qFloat 15 }} {{ $conversionRule = "1 c. à soupe de bicarbonate = 15 gr."}}
+  {{ else if eq $ingLower "curcuma" }}{{ $quantiteEq = mul $qFloat 6 }} {{ $conversionRule = "1 c. à soupe de curcuma = 6 gr."}}
+  {{ else if eq $ingLower "cumin" }}{{ $quantiteEq = mul $qFloat 6 }} {{ $conversionRule = "1 c. à soupe de cumin = 6 gr."}}
+  {{ else if eq $ingLower "curry" }}{{ $quantiteEq = mul $qFloat 6 }} {{ $conversionRule = "1 c. à soupe de curry = 6 gr."}}
+  {{ else if eq $ingLower "muscade" }}{{ $quantiteEq = mul $qFloat 7 }} {{ $conversionRule = "1 c. à soupe de muscade = 7 gr."}}
+  {{ else if eq $ingLower "paprika" }}{{ $quantiteEq = mul $qFloat 6 }} {{ $conversionRule = "1 c. à soupe de paprika = 6 gr."}}
+  {{ else }}{{ $quantiteEq = mul $qFloat 15 }}{{ $baseUnit = "ml" }} {{$conversionRule = "1 c. à soupe = 15 ml."}} {{ end -}}
 
-{{ else if strings.Contains $unit "soupe" }}
-   {{ if eq ($ingredient | lower) "sucre" }}
-      {{ $quantiteRecette = mul $quantiteRecette 15 | math.Round }}
-      {{ $unit = "gr." }}
-   {{ else if eq ($ingredient | lower) "sel" }}
-      {{ $quantiteRecette = mul $quantiteRecette 15 | math.Round }}
-      {{ $unit = "gr." }}
-  {{ else if eq ($ingredient | lower) "farine" }}
-     {{ $quantiteRecette = mul $quantiteRecette 12  | math.Round }} {{ $unit = "gr."}}
-   {{ else if eq ($ingredient | lower) "semoule" }}
-     {{ $quantiteRecette = mul $quantiteRecette 12 | math.Round }}
-     {{ $unit = "gr." }}
-   {{ else if eq ($ingredient | lower) "poivre" }}
-     {{ $quantiteRecette = mul $quantiteRecette 9 | math.Round }}
-     {{ $unit = "gr." }}
-   {{ else if eq ($ingredient | lower) "cacao" }}
-      {{ $quantiteRecette = mul $quantiteRecette 9 | math.Round }}
-      {{ $unit = "gr." }}
-   {{ else if eq ($ingredient | lower) "sucre glace" }}
-      {{ $quantiteRecette = mul $quantiteRecette 9 | math.Round }}
-      {{ $unit = "gr." }}
-   {{ else if eq ($ingredient | lower) "maïzena" }}
-      {{ $quantiteRecette = mul $quantiteRecette 9 | math.Round }}
-      {{ $unit = "gr." }}
-  {{ else if strings.Contains ($ingredient | lower) "crème épaisse"  }}
-     {{ $quantiteRecette = mul $quantiteRecette 20  | math.Round }} {{ $unit = "ml"}}
-  {{ else if strings.Contains ($ingredient | lower) "bicarbonate"  }}
-     {{ $quantiteRecette = mul $quantiteRecette 18  | math.Round }} {{ $unit = "gr."}}
-  {{ else if eq ($ingredient | lower) "curcuma"  }}
-     {{ $quantiteRecette = mul $quantiteRecette 5  | math.Round }} {{ $unit = "gr."}}
-  {{ else if eq ($ingredient | lower) "cumin"  }}
-     {{ $quantiteRecette = mul $quantiteRecette 5  | math.Round }} {{ $unit = "gr."}}
-  {{ else if eq ($ingredient | lower) "curry"  }}
-     {{ $quantiteRecette = mul $quantiteRecette 6  | math.Round }} {{ $unit = "gr."}}
-   {{ else if eq ($ingredient | lower) "muscade" }}
-     {{ $quantiteRecette = mul $quantiteRecette 6 | math.Round }}
-     {{ $unit = "gr." }}
-  {{ else if eq ($ingredient | lower) "paprika"  }}
-     {{ $quantiteRecette = mul $quantiteRecette 5  | math.Round }} {{ $unit = "gr."}}
-   {{ else }}
-     {{ $quantiteRecette = mul $quantiteRecette 15  | math.Round }} {{ $unit = "ml"}}
-   {{ end }}
+{{- else if strings.Contains $unitLower "pinc"}}   {{- $hasConversion = true -}} {{- $baseUnit = "gr." -}} {{ $quantiteEq = mul $qFloat 0.4 }}  {{ $conversionRule = "1 pincée = 0,4 gr."}}
 
+{{- else if and (strings.Contains $unitLower "gousse") (eq $ingLower "ail") -}}
+  {{- $quantiteEq = mul $qFloat 6.5 -}}
+  {{- $baseUnit = "gr." -}}
+  {{- $hasConversion = true -}}
+  {{- $conversionRule = "1 gousse = 6.5 gr."}}
+{{- else if and (strings.Contains $unitLower "tête") (eq $ingLower "ail") -}}
+  {{- $quantiteEq = mul $qFloat 80 -}}
+  {{- $baseUnit = "gr." -}}
+  {{- $hasConversion = true -}}
+  {{- $conversionRule = "1 tête = 80 gr."}}
+
+{{- else if strings.Contains $unitLower "unit" -}}
+  {{- $baseUnit = "gr." -}}
   {{ $hasConversion = true }}
+  {{- if strings.Contains $ingLower "oignon" }}{{ $quantiteEq = mul $qFloat 120 }} {{$conversionRule = "un oignon = 120 gr."}}
+  {{ else if eq $ingLower "ail" }}{{ $quantiteEq = mul $qFloat 6.5 }} {{$conversionRule = "un ail = 6.5 gr."}}
+  {{ else if eq $ingLower "tomate" }}{{ $quantiteEq = mul $qFloat 120 }} {{$conversionRule = "une tomate = 120 gr."}}
+  {{ else if eq $ingLower "poireau" }}{{ $quantiteEq = mul $qFloat 150 }} {{$conversionRule = "un poireau = 150 gr."}}
+  {{ else if strings.Contains $ingLower "aubergine" }}{{ $quantiteEq = mul $qFloat 250 }} {{$conversionRule = "une aubergine = 250 gr."}}
+  {{ else if eq $ingLower "courgette" }}{{ $quantiteEq = mul $qFloat 200 }} {{$conversionRule = "une courgette = 200 gr."}}
+  {{ else if eq $ingLower "échalote" }}{{ $quantiteEq = mul $qFloat 30 }} {{$conversionRule = "une échalote = 30 gr."}}
+  {{ else if and (eq $ingLower "orange") (not (strings.Contains $ingLower "jus")) }}{{ $quantiteEq = mul $qFloat 200 }} {{$conversionRule = "une orange = 200 gr."}}
+  {{ else if and (strings.Contains $ingLower "citron") (not (strings.Contains $ingLower "jus")) }}{{ $quantiteEq = mul $qFloat 100 }} {{$conversionRule = "un citron = 100 gr."}}
+  {{ else if eq $ingLower "concombre" }} {{ $quantiteEq = mul $qFloat 200 }} {{$conversionRule = "un concombre = 200 gr."}}
+  {{ else if eq $ingLower "levure chimique" }}{{ $quantiteEq = mul $qFloat 11 }} {{$conversionRule = "une levure chimique = 11 gr."}}
+  {{ else if eq $ingLower "carotte" }} {{ $quantiteEq = mul $qFloat 125 }} {{$conversionRule = "une carotte = 125 gr."}}
+  {{ else }}{{ $hasConversion = false }} {{ end -}}
+{{- end -}}
 
-{{ else if strings.Contains $unit "gousse" }}
-  {{ $quantiteRecette = mul $quantiteRecette 6.5  | math.Round }}
-  {{ $unit = "gr." }}
+{{- /* --- Standard Unit Normalization --- */}}
+{{- /* Handle standard units (kg, l., ml, gr.) that need normalization */}}
+{{- if not $hasConversion -}}
+  {{- if eq $unitLower "kg" -}}
+    {{- $quantiteEq = mul $qFloat 1000 -}}
+    {{- $unitEq = "gr." -}}
+      {{- $hasConversion = false -}}
+  {{- else if eq $unitLower "l." -}}
+    {{- $quantiteEq = mul $qFloat 1000 -}}
+    {{- $unitEq = "ml" -}}
+    {{- $hasConversion = false -}}
+  {{- else if eq $unitLower "gr." -}}
+    {{- $quantiteEq = $qFloat -}}
+    {{- $unitEq = "gr." -}}
+    {{- $hasConversion = false -}}
+  {{- else if eq $unitLower "ml" -}}
+    {{- $quantiteEq = $qFloat -}}
+    {{- $unitEq = "ml" -}}
+    {{- $hasConversion = false -}}
+  {{- end -}}
+{{- end -}}
 
-  {{ $hasConversion = true }}
+{{- if $hasConversion -}}
+  {{- $unitEq = $baseUnit -}}
+{{- end -}}
 
-{{ else if strings.Contains $unit "unit"  }}
-{{ $hasConversion = true }}
+{{- /* --- Output Generation --- */}}
 
-    {{ if strings.Contains ($ingredient | lower) "oignon" }}
-      {{ $quantiteRecette = mul $quantiteRecette 100 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if eq ($ingredient | lower) "tomate" }}
-      {{ $quantiteRecette = mul $quantiteRecette 120 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if eq ($ingredient | lower) "poireau" }}
-      {{ $quantiteRecette = mul $quantiteRecette 150 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if strings.Contains ($ingredient | lower) "aubergine" }}
-      {{ $quantiteRecette = mul $quantiteRecette 250 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if eq ($ingredient | lower) "courgette" }}
-      {{ $quantiteRecette = mul $quantiteRecette 200 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if eq ($ingredient | lower) "échalote" }}
-      {{ $quantiteRecette = mul $quantiteRecette 30 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if and (eq ($ingredient | lower) "orange") (not (strings.Contains ($ingredient | lower) "jus")) }}
-      {{ $quantiteRecette = mul $quantiteRecette 200 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if and (strings.Contains ($ingredient | lower) "citron") (not (strings.Contains ($ingredient | lower) "jus")) }}
-      {{ $quantiteRecette = mul $quantiteRecette 100 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else if eq ($ingredient | lower) "concombre" }}
-      {{ $quantiteRecette = mul $quantiteRecette 200 | math.Round }}
-      {{ $unit = "gr." }}
-    {{ else }}
-    {{ $hasConversion = false }}
-
-    {{ end }}
-
-{{ end }}
-
-
-
-{{ $result := "" }}
-
-{{ if .fetchUnit }}
-  {{ $result = $unit }}
-
-{{ else if .fetchQuantite }}
-   {{ $result = $quantiteRecette }}
-
-{{/*  Pour les recettes des evenements, renvoie une String d'un nb à 2 décimales  */}}
-{{ else if .fetchQU }}
-{{/* Conversion des grandes quantés si nécessaire */}}
- {{ if and (or (eq $unit "gr.") (eq $unit "ml")) (gt $quantiteRecette 1000) }}
-    {{ $quantiteRecette = div $quantiteRecette 1000  | lang.FormatNumber 2  | strings.TrimRight "0" | strings.TrimRight ","}}
-    {{ if eq $unit "ml" }}
-       {{ $unit = "l." }}
-    {{ else if eq $unit "gr." }}
-       {{ $unit = "Kg" }}
-    {{ end }}
- {{ end }}
-
- {{/* Afficher l'équivalence seulement si une conversion a eu lieu */}}
- {{ if $hasConversion }}
-    {{ $quantiteRecette = $quantiteRecette | string }}
-    {{ $result =  printf "(~ %s %s )" $quantiteRecette $unit }}
- {{ end }}
-
-
-
-{{ end }}
-
-{{- return $result -}}
+{{- if eq $fetchMode "dict" -}}
+  {{- /* Return structured data */}}
+  {{- return (dict
+        "quantiteEq" $quantiteEq
+        "unitEq" $unitEq
+        "hasConversion" $hasConversion
+        "conversionRule" $conversionRule
+      )
+  -}}
+{{- else -}}
+  {{- /* Legacy string output for backward compatibility */}}
+  {{- $result := "" -}}
+  {{- if eq $fetchMode "fetchUnit" -}}
+    {{- $result = $unit -}}
+  {{- else if eq $fetchMode "fetchQuantite" -}}
+    {{- $result = $quantite -}}
+  {{- else if eq $fetchMode "fetchQU" -}}
+    {{- if $hasConversion -}}
+      {{- $displayQty := partial "functions/format-qty.html" (dict "qty" $quantiteEq "unit" $unitEq) -}}
+      {{- $result = printf "(~ %s)" $displayQty -}}
+    {{- end -}}
+  {{- end -}}
+  {{- return $result -}}
+{{- end -}}

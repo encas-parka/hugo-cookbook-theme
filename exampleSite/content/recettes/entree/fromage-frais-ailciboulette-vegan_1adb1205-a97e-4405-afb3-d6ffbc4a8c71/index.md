@@ -10,7 +10,7 @@ ingredients:
   autres:
   - quantite: 0.6
     title: Eau
-    unit: litre
+    unit: l.
   epices:
   - quantite: 4
     title: Ciboulette
@@ -22,12 +22,12 @@ ingredients:
   lof:
   - quantite: 1
     title: huile de colza
-    unit: litre
+    unit: l.
   sec: []
   sucres:
   - quantite: 0.15
     title: Jus de citron
-    unit: litre
+    unit: l.
 layout: recettes
 plate: 50
 preparation: "\n\nAjouter un peu plus de la moitié de chaque ingrédient (sauf la ciboulette),\

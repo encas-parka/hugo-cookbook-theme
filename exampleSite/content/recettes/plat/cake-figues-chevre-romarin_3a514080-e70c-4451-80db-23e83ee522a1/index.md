@@ -8,7 +8,7 @@ ingredients:
   autres:
   - quantite: 10
     title: Levure chimique
-    unit: grammes
+    unit: gr.
   epices:
   - quantite: 2
     title: Romarin
@@ -16,27 +16,27 @@ ingredients:
   frais:
   - quantite: 150
     title: Bûche de chèvre
-    unit: grammes
+    unit: gr.
   lof:
   - quantite: 180
     title: Farine de blé
-    unit: grammes
+    unit: gr.
   - quantite: 0.1
     title: huile d'olive
-    unit: litre
+    unit: l.
   - quantite: 3
     title: Oeuf
     unit: unité
   - quantite: 0.12
     title: Lait demi-écrémé
-    unit: litre
+    unit: l.
   - quantite: 100
     title: Comté
-    unit: grammes
+    unit: gr.
   sucres:
   - quantite: 150
     title: Figues Sèches
-    unit: grammes
+    unit: gr.
 layout: recettes
 materiel:
 - moule a cake

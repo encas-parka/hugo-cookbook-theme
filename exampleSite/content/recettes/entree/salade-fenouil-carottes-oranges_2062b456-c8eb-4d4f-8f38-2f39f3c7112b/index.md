@@ -20,11 +20,11 @@ ingredients:
   lof:
   - quantite: 76.5
     title: huile d'olive
-    unit: litre
+    unit: l.
   sucres:
   - quantite: 32
     title: Jus d'orange
-    unit: litre
+    unit: l.
 layout: recettes
 plate: 50
 preparation: 'Couper en finesse les fenouils.

@@ -4,7 +4,6 @@ backend:
   name: github
   repo: encas-parka/enka-cookbook-site
   branch: main
-  logout_redirect_url: https://enka-cookbook.pages.dev/
   auth_type: github
   automatic_deployments: false
   # Vérifier si ca marche bien : si un article est modifier plusieur fois avant d'etre mergé/publié, un seul commit avec rebased.
@@ -13,6 +12,7 @@ backend:
 media_folder: ""
 public_folder: ""
 base_url: https://enka-cookbook.pages.dev
+logout_redirect_url: https://enka-cookbook.pages.dev/
 
 
 media_libraries:
@@ -226,7 +226,8 @@ collections:
           - label: "Unité (quantité en...)"
             name: unit
             widget: select
-            options: ["Kg", "grammes", "unité", "litre", "ml", "c. à soupe", "c. à café", "pincées", "tête·s", "gousse·s", "bottes"]
+            options: ["Kg", "gr.", "unité", "l.", "ml", "c. à soupe", "c. à café", "pincées", "tête·s", "gousse·s", "bottes"]
+            hint: "Les quantités en Kg/gr. l./ml sont fortement recommandées, pour eviter les approximations liées aux tailles variables des légumes, et faciliter la génération des listes de course"
           - label: "commentaire"
             name: commentaire
             widget: string
