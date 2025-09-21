@@ -71,7 +71,7 @@
   {{ else if eq $ingLower "muscade" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $conversionRule = "1 c. à café de muscade = 2 gr." }}
   {{ else if eq $ingLower "paprika" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $conversionRule = "1 c. à café de paprika = 2 gr." }}
   {{ else if eq $ingLower "miel" }}{{ $quantiteEq = mul $qFloat 10 }}{{ $conversionRule = "1 c. à café de miel = 10 gr." }}
-  {{/* pour les ml */}
+  {{/* pour les ml */}}
   {{ else if strings.Contains $ingLower "crème épaisse" }}{{ $quantiteEq = mul $qFloat 5 }}{{ $baseUnit = "ml" }}{{ $conversionRule = "1 c. à café de crème épaisse = 5 ml." }}
   {{ else }}{{ $quantiteEq = mul $qFloat 5 }}{{ $baseUnit = "ml" }} {{$conversionRule = "1 c. à café = 5 ml."}} {{ end -}}
 
