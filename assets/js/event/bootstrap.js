@@ -18,7 +18,7 @@
 import { downloadFile } from "./download-file.js";
 import { copyTable } from "./copy-table.js";
 import { copyOrExport } from "./copy-or-export.js";
-import { createEventApp } from "./ingredients_list.js";
+import { createEventApp } from "./ingredients_list_refactored.js";
 
 
 // Exposer temporairement sur window pour compat avec les onclick inline existants

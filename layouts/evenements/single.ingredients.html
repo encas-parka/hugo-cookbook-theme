@@ -357,11 +357,11 @@
                             <!-- Total "Transparent" -->
                             <div v-if="doesTransparentTotalDivergeForRange(item.ingredient, 'legumesFrais', range[0], range[range.length - 1])" class="small text-muted fst-italic">
                               (
-                              <template v-for="(quantiteEntry, qIndex) in item.qTotalX">
+                              <template v-for="(quantiteEntry, qIndex) in item.qTotalXOriginal">
                                 <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null">
                                   [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unitTotal)]]
                                   [[quantiteEntry.unitTotal]]
-                                  <span v-if="qIndex < item.qTotalX.length - 1" class="mx-1">+</span>
+                                  <span v-if="qIndex < item.qTotalXOriginal.length - 1" class="mx-1">+</span>
                                 </span>
                               </template>
                               )
@@ -518,11 +518,11 @@
                             <!-- Total "Transparent" -->
                             <div v-if="doesTransparentTotalDivergeForRange(item.ingredient, 'frais', range[0], range[range.length - 1])" class="small text-muted fst-italic">
                               (
-                              <template v-for="(quantiteEntry, qIndex) in item.qTotalX">
+                              <template v-for="(quantiteEntry, qIndex) in item.qTotalXOriginal">
                                 <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null">
                                   [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unitTotal)]]
                                   [[quantiteEntry.unitTotal]]
-                                  <span v-if="qIndex < item.qTotalX.length - 1" class="mx-1">+</span>
+                                  <span v-if="qIndex < item.qTotalXOriginal.length - 1" class="mx-1">+</span>
                                 </span>
                               </template>
                               )
@@ -679,11 +679,11 @@
                             <!-- Total "Transparent" -->
                             <div v-if="doesTransparentTotalDivergeForRange(item.ingredient, 'animaux', range[0], range[range.length - 1])" class="small text-muted fst-italic">
                               (
-                              <template v-for="(quantiteEntry, qIndex) in item.qTotalX">
+                              <template v-for="(quantiteEntry, qIndex) in item.qTotalXOriginal">
                                 <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null">
                                   [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unitTotal)]]
                                   [[quantiteEntry.unitTotal]]
-                                  <span v-if="qIndex < item.qTotalX.length - 1" class="mx-1">+</span>
+                                  <span v-if="qIndex < item.qTotalXOriginal.length - 1" class="mx-1">+</span>
                                 </span>
                               </template>
                               )
