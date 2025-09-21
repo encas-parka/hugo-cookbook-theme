@@ -1,13 +1,17 @@
-{{/* -
-  Ce partial  reçoit une liste d'ingrédients DÉJÀ groupée
-  par type et se contente de l'afficher. Aucun calcul n'est fait ici.
+{{/*
+  ingredients-display-pre-grouped.html
 
-  Entrée (dict):
-  - ingredientsByType: (map) La structure de données pré-calculée.
-  - showAllergenIcon:  (bool)
-  - showComment:       (bool)
-  - eventMode:         (bool)
-- */}}
+  Displays a pre-grouped list of ingredients. This partial is purely for presentation
+  and performs no calculations. It relies on the data structure provided by
+  `ingredients-group-builder.html`.
+
+  Input (dict):
+    - ingredientsByType: (map) The pre-calculated data structure { type -> [entries] }.
+                         Each entry must contain `hasConversion`, `quantiteEq`, `unitEq`, etc.
+    - showAllergenIcon:  (bool) Whether to display the allergen icon.
+    - showComment:       (bool) Whether to display the comment.
+    - eventMode:         (bool) If true, uses `quantiteFormatted` for display.
+*/}}
 
 {{- $ingredientsByType := .ingredientsByType | default (dict) -}}
 {{- $showAllergenIcon := cond (ne .showAllergenIcon nil) .showAllergenIcon true -}}
@@ -35,21 +39,22 @@
         </span>
       {{- end -}}
 
-
       {{- if $it.quantite -}}
-      {{- /* Utiliser la quantité formatée pour l'affichage principal dans les événements */ -}}
-      {{- $displayQty :=  "" -}}
-       {{- if $eventMode -}}
-         {{- $displayQty = cond $it.quantiteFormatted $it.quantiteFormatted (partial "functions/format-qty.html" (dict "qty" $it.quantite "unit" $it.unit)) -}}
-         : <span class="amount me-1">{{- $displayQty -}}</span>
-       {{- else -}}
-         : <span class="amount me-1">{{- $it.quantite -}}</span>
-          <span class="unit"> {{- $it.unit -}}</span>
-       {{- end -}}
+        :
+        {{- if $eventMode -}}
+          {{- /* In event mode, use the pre-formatted quantity string */ -}}
+          <span class="amount ms-1">{{- $it.quantiteFormatted -}}</span>
+        {{- else -}}
+          {{- /* In recipe mode, display the raw quantity and unit */ -}}
+          <span class="amount ms-1">{{- $it.quantite -}}</span>
+          <span class="unit">{{- $it.unit -}}</span>
+        {{- end -}}
 
-        {{- if or (eq $it.unit "unité") (eq $it.unit "c. à café") (eq $it.unit "c. à soupe") (eq $it.unit "pincées") (eq $it.unit "gousse·s") (eq $it.unit "tête·s") -}}
+        {{- /* Display the equivalence if a conversion was possible */ -}}
+        {{- if $it.hasConversion -}}
           <span class="ms-1 text-muted">
-            {{- partial "functions/quantite-converter" ( dict "unit" $it.unit "ingredient" $it.ingredient "quantite" $it.quantite "fetchQU" true ) -}}
+            (~ <span class="amount">{{- $it.quantiteEq -}}</span>
+            <span class="unit">{{- $it.unitEq -}}</span>)
           </span>
         {{- end -}}
 

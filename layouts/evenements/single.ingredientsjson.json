@@ -183,13 +183,19 @@
 {{- /* IngTypeList final (slice d’objets { type, items }) */ -}}
 {{- /* $ingByTypeList est défini ci-dessus pour matcher le format HTML */ -}}
 
-{{- /* toPrint (miroir exact de la logique) */ -}}
+{{- /* toPrint */ -}}
 {{- $toPrint := dict "ingredients" true "LegumesRanges" true "FraisRanges" true "AnimauxRanges" true -}}
 {{- range $i, $t := $types -}}
   {{- $toPrint = merge $toPrint (dict $t true) -}}
 {{- end -}}
 
 {{- /* Émission finale JSON (strict) */ -}}
+
+
+
+
+
+
 {{- (dict
   "datesRepas" $datesRepas
   "datesTimeRepas" $datesTimeRepas

@@ -10,21 +10,21 @@ ingredients:
   autres:
   - quantite: 6.5
     title: Eau
-    unit: litre
+    unit: l.
   epices:
   - title: Poivre
   - quantite: 10
     title: Cumin
-    unit: grammes
+    unit: gr.
   - quantite: 70
     title: Paprika fumé
-    unit: grammes
+    unit: gr.
   - quantite: 5
     title: Gros sel
     unit: c. à café
   - quantite: 1.3
     title: Sauce soja
-    unit: litre
+    unit: l.
   legumes:
   - quantite: 26
     title: Ail
@@ -42,7 +42,7 @@ ingredients:
   sec:
   - quantite: 500
     title: Noix
-    unit: grammes
+    unit: gr.
   - quantite: 4.3
     title: Flocons d'avoine
     unit: Kg

@@ -358,6 +358,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {{ end }}
 
+<!-- TODO : ajuster les quantités quantite-converter -->
 {{ partialCached "footer/esbuild" (dict "src" "js/quantite.js" "load" "async" "transpile" false) "quantite.js" -}}
 
 <script>

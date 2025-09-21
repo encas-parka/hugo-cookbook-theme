@@ -29,50 +29,50 @@ Certains champs sont optionnels, d'autres sont obligatoires. De nombreux champs 
 {{% /bs/alert %}}
 
 
-{{< img-grid 
-  from="content" 
-  match="img/recette-erreur*.jpg" 
-  size="12 lg:4" 
+{{< img-grid
+  from="content"
+  match="img/recette-erreur*.jpg"
+  size="12 lg:4"
   description="Une page 'événement' avec erreur si une de ses recettes n'existe plus (ou à été renommée)"
   >}}
 
 
 ## Les ingrédients
-L'ajout des ingrédients se fait à partir de champs répartis dans différentes catégories d'ingrédients. 
+L'ajout des ingrédients se fait à partir de champs répartis dans différentes catégories d'ingrédients.
 
-Lorsque vous commencez à taper le nom d'un ingrédient, une liste de propositions apparaît : les ingrédients sont pré-enregistré afin de permettre certaines classifications automatiques (présence d’allergènes notamment).   
+Lorsque vous commencez à taper le nom d'un ingrédient, une liste de propositions apparaît : les ingrédients sont pré-enregistré afin de permettre certaines classifications automatiques (présence d’allergènes notamment).
 
 Vous pouvez rapidement vérifier l'existence d'un ingrédient sur la page [ingrédients](https://enka-cookbook.netlify.app/ingredients/). Lorsque vous souhaitez ajouter une recette avec des ingrédients peu commun, il peut être malin de se rendre sur cette page au préalable pour vérifier leur existence, et commencer par [ajouter les ingrédients manquant au site]({{< ref "docs/editer/autres/index.md#les-ingrédients" >}}) avant de rédiger la recette.
 
-Indiquer les quantités en Kg, grammes, litres ou mili-litres est fortement encouragé, afin de permettre l'élaboration des listes de courses lorsque les recettes sont utilisées par une page événement.  
+Indiquer les quantités en Kg, gr., l.s ou mili-l.s est fortement encouragé, afin de permettre l'élaboration des listes de courses lorsque les recettes sont utilisées par une page événement.
 
 {{< zoomable-img img_content="img/1-ingredient.jpg" alt="ingredients" >}}
 
 
 Il est possible de "réduire" les ingrédients déjà ajoutés pour avoir une meilleure visibilité de l'ensemble.
-{{< img-grid 
-  from="content" 
-  match="img/gallery-ing/*" 
-  size="12 lg:6" 
+{{< img-grid
+  from="content"
+  match="img/gallery-ing/*"
+  size="12 lg:6"
   >}}
 
 ## Préparation à faire la veille
 Un champ est dédié aux préparations à effectuer la veille du service. Ce qui est inscrit dans ce champ sera mis en évidence dans la recette, afin d'éviter les oublis.
 
-{{< img-grid 
-  from="content" 
-  match="img/gallery-veille/*" 
-  size="12 lg:6" 
+{{< img-grid
+  from="content"
+  match="img/gallery-veille/*"
+  size="12 lg:6"
   max_height="300px"
 >}}
 
 ## Préparations alternatives
-S'il existe des préparations alternatives à celle que vous ajoutez (alternatives végés, ou avec d'autres proportions, etc.), il existe un champ qui permet de les indiquer. Les recettes ainsi liées entre-elles auront alors un lien indiquant l'alternative en bas de leur page. 
+S'il existe des préparations alternatives à celle que vous ajoutez (alternatives végés, ou avec d'autres proportions, etc.), il existe un champ qui permet de les indiquer. Les recettes ainsi liées entre-elles auront alors un lien indiquant l'alternative en bas de leur page.
 blue
-{{< img-grid 
-  from="content" 
-  match="img/gallery-prepalt/*" 
-  size="12 lg:6" 
+{{< img-grid
+  from="content"
+  match="img/gallery-prepalt/*"
+  size="12 lg:6"
 >}}
 
 ## Publier une recette
@@ -87,17 +87,17 @@ Pour publier une recette, il faut :
 {{% bs/alert warning %}}
 
 ## Publier plusieurs recettes
-Si vous ajoutez plusieurs recettes en une session, il est recommandé de ne pas les publier immédiatement (étape 3. ci-dessus). 
+Si vous ajoutez plusieurs recettes en une session, il est recommandé de ne pas les publier immédiatement (étape 3. ci-dessus).
 
-Il est préférable de créer d'abord toute les recettes, de les enregistrer, puis lorsque c'est fait, de les publier toutes d'un coup depuis l'onglet "Flux". 
+Il est préférable de créer d'abord toute les recettes, de les enregistrer, puis lorsque c'est fait, de les publier toutes d'un coup depuis l'onglet "Flux".
 
 Cela permet de limiter le nombre de "reconstruction" du site: l’hébergement gratuit de ce site implique une limitation du nombre mensuelle de publication autorisée, et si on est plein à modifier le site sur une même période, cette limite risque d'être atteinte et les nouvelles publications seront bloquées jusqu'au mois suivant (environs 600 modifications/publications par mois possibles)...
 
 {{% /bs/alert %}}
 
-{{< img-grid 
-  from="content" 
-  match="img/save/*save-workflow.jpg" 
+{{< img-grid
+  from="content"
+  match="img/save/*save-workflow.jpg"
   size="12 lg:6"
-  description="Publier plusieurs recettes en un session" 
+  description="Publier plusieurs recettes en un session"
 >}}

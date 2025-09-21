@@ -12,7 +12,7 @@ ingredients:
   - alergene: true
     quantite: 0.25
     title: Vinaigre balsamique
-    unit: litre
+    unit: l.
   legumes:
   - quantite: 3
     title: Oignon
@@ -24,7 +24,7 @@ ingredients:
   sucres:
   - quantite: 250
     title: Sucre en poudre
-    unit: grammes
+    unit: gr.
 layout: recettes
 materiel:
 - Bruleur

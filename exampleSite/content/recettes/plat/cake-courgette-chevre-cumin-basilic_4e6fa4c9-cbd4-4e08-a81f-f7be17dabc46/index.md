@@ -9,7 +9,7 @@ ingredients:
   autres:
   - quantite: 10
     title: Levure chimique
-    unit: grammes
+    unit: gr.
   epices:
   - commentaire: sec
     quantite: 1
@@ -24,10 +24,10 @@ ingredients:
     unit: c. à soupe
   - quantite: 100
     title: Comté
-    unit: grammes
+    unit: gr.
   - quantite: 180
     title: Bûche de chèvre
-    unit: grammes
+    unit: gr.
   legumes:
   - quantite: 2
     title: Courgette
@@ -44,7 +44,7 @@ ingredients:
     unit: unité
   - quantite: 170
     title: Farine de blé
-    unit: grammes
+    unit: gr.
   - quantite: 120
     title: Lait demi-écrémé
     unit: ml

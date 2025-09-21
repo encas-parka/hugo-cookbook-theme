@@ -11,7 +11,7 @@ ingredients:
   epices:
   - quantite: 100
     title: Paprika
-    unit: grammes
+    unit: gr.
   - title: Sel
   - title: Poivre
   legumes:
@@ -21,7 +21,7 @@ ingredients:
   lof:
   - quantite: 0.75
     title: huile d'olive
-    unit: litre
+    unit: l.
   sec:
   - quantite: 1.5
     title: Pois chiches
@@ -29,7 +29,7 @@ ingredients:
   sucres:
   - quantite: 0.75
     title: Jus de citron
-    unit: litre
+    unit: l.
 layout: recettes
 plate: 100
 preparation: '• Épépinez et coupez les poivrons. Arrosez d''un bon filet d’huile d’olive. Faire

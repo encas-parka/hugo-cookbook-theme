@@ -21,24 +21,24 @@ ingredients:
   - commentaire: zeste
     quantite: 120
     title: Citron jaune
-    unit: grammes
+    unit: gr.
   lof:
   - quantite: 250
     title: Yaourt de soja
-    unit: grammes
+    unit: gr.
   - quantite: 0.11
     title: huile de tournesol
-    unit: litre
+    unit: l.
   - quantite: 250
     title: Farine de blé
-    unit: grammes
+    unit: gr.
   sucres:
   - quantite: 0.8
     title: Jus de citron
-    unit: litre
+    unit: l.
   - quantite: 280
     title: sucre de canne (blond)
-    unit: grammes
+    unit: gr.
 layout: recettes
 materiel:
 - moule a cake

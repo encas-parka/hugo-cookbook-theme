@@ -10,7 +10,7 @@ ingredients:
   epices:
   - quantite: 0.03
     title: Sésame noir
-    unit: grammes
+    unit: gr.
   - quantite: 4
     title: Tamari (sauce)
     unit: c. à soupe
@@ -29,7 +29,7 @@ ingredients:
   sucres:
   - quantite: 30
     title: Sucre en poudre
-    unit: grammes
+    unit: gr.
 layout: recettes
 materiel:
 - Grand Saladier

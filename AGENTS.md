@@ -23,7 +23,6 @@ Projet multi-dépôts : ce thème Hugo (hugo-cookbook-theme) est utilisé par le
 
 
 3) Partials et fonctions (inventaire bref)
-- components/ingredients-grouped-list: liste d’ingrédients groupée, tri + icônes
 - components/event-top-nav: navigation supérieure pages événement
 - components/breadcrumb, doc-sidebar, backlinks: navigation docs
 - components/*icon*: rendu d’icônes (cat/type/svg/font)

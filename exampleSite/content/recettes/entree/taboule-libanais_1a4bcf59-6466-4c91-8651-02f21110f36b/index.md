@@ -17,7 +17,7 @@ ingredients:
   legumes:
   - quantite: 600
     title: Echalote
-    unit: grammes
+    unit: gr.
   - commentaire: grosses tomates de préférences
     quantite: 10
     title: Tomate
@@ -25,7 +25,7 @@ ingredients:
   lof:
   - quantite: 2
     title: huile d'olive
-    unit: litre
+    unit: l.
   sec:
   - quantite: 1.2
     title: Semoule
@@ -33,7 +33,7 @@ ingredients:
   sucres:
   - quantite: 2
     title: Jus de citron
-    unit: litre
+    unit: l.
 layout: recettes
 plate: 100
 prepAlt: []

@@ -37,6 +37,8 @@ const resendVerificationButton = document.getElementById(
 const logoutButtonUnverified = document.getElementById(
   "logout-button-unverified",
 );
+const infoMessage = document.getElementById("info-message");
+const userEmailToVerify = document.getElementById("user-email-to-verify");
 
 const formEmailPwd = document.getElementById("email-pwd-login");
 const formPasswordForgotten = document.getElementById("password-forgotten");
@@ -106,6 +108,16 @@ function showUIState(state, message = '') {
     errorMessage.style.display = 'block';
   } else if (errorMessage) {
     errorMessage.style.display = 'none';
+  }
+
+  // Gérer le message d'information pour l'état emailNotVerified
+  if (infoMessage) {
+    if (state === 'emailNotVerified' && message && message.includes('succès')) {
+      infoMessage.textContent = message;
+      infoMessage.style.display = 'block';
+    } else {
+      infoMessage.style.display = 'none';
+    }
   }
 }
 
@@ -311,6 +323,10 @@ async function handleLoginPageLoad() {
           console.warn(
             "⚠️ [handleLoginPageLoad] Email non vérifié - affichage du message approprié",
           );
+          // Afficher l'email de l'utilisateur à vérifier
+          if (userEmailToVerify && appwriteUser) {
+            userEmailToVerify.textContent = appwriteUser.email;
+          }
           // Ne pas nettoyer la session, l'utilisateur doit pouvoir pouvoir vérifier son email
           showUIState("emailNotVerified"); // Utiliser le nouvel état spécifique
           return;
@@ -429,12 +445,22 @@ async function handleLogout() {
  * Gère le renvoi de l'email de vérification.
  */
 async function handleResendVerification() {
+  if (resendVerificationButton) resendVerificationButton.disabled = true;
+
+  // Récupérer le spinner existant dans le bouton
+  const resendSpinner = resendVerificationButton?.querySelector('.spinner-border');
+  if (resendSpinner) resendSpinner.style.display = 'inline-block';
+
   try {
     await sendVerificationEmail();
-    showUIState("emailNotVerified", "Email de vérification renvoyé ! Veuillez vérifier votre boîte de réception.");
+    showUIState("emailNotVerified", "Email de vérification renvoyé avec succès ! Veuillez vérifier votre boîte de réception.");
   } catch (error) {
     console.error("❌ [handleResendVerification] Erreur lors du renvoi de l'email de vérification:", error);
     showUIState("emailNotVerified", "Erreur lors du renvoi de l'email de vérification. Veuillez réessayer plus tard.");
+  } finally {
+    if (resendVerificationButton) resendVerificationButton.disabled = false;
+    // Masquer le spinner
+    if (resendSpinner) resendSpinner.style.display = 'none';
   }
 }
 

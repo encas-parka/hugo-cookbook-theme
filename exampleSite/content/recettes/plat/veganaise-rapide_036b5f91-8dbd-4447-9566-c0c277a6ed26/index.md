@@ -16,7 +16,7 @@ ingredients:
   lof:
   - quantite: 1.2
     title: huile de tournesol
-    unit: litre
+    unit: l.
   - quantite: 600
     title: Crème Végétale
     unit: ml

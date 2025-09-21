@@ -8,11 +8,11 @@ ingredients:
   - commentaire: levure chimique pour les vegan et l'absence de gluten...
     quantite: 51
     title: Levure chimique
-    unit: grammes
+    unit: gr.
   epices:
   - quantite: 80
     title: Sel
-    unit: grammes
+    unit: gr.
   frais:
   - quantite: 4
     title: Feta

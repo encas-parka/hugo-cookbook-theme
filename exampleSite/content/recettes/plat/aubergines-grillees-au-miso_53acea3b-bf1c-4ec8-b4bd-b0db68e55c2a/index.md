@@ -9,7 +9,7 @@ ingredients:
   autres:
   - quantite: 100
     title: Miso
-    unit: grammes
+    unit: gr.
   epices:
   - quantite: 50
     title: Vinaigre de riz
@@ -19,14 +19,14 @@ ingredients:
     unit: ml
   - quantite: 0.01
     title: Sésame doré
-    unit: grammes
+    unit: gr.
   - quantite: 1
     title: Sauce soja
     unit: c. à soupe
   legumes:
   - quantite: 50
     title: Cébette - Ciboule - Cive - Oignon vert
-    unit: grammes
+    unit: gr.
   - quantite: 1.3
     title: Aubergine
     unit: Kg

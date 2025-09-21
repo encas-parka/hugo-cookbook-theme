@@ -10,126 +10,6 @@
 
 <div id="app" data-json-src="index.json">
 
-   {{/*- :::  Impression - MODAL -*/}}
-  <div
-    class="modal modal-xl fade d-print-none"
-    tabindex="-1"
-    id="modalImpression"
-    aria-labelledby="modalImpressionLabel"
-    aria-hidden="true"
-  >
-    <div class="modal-dialog modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title mt-0" id="modalImpressionLabel">
-            Imprimer / exporter en PDF
-          </h5>
-          <button
-            type="button"
-            class="btn-close"
-            data-bs-dismiss="modal"
-            aria-label="Close"
-          ></button>
-        </div>
-        <div class="modal-body">
-          <div class="row">
-            <div class="col-md-6">
-              <div class="form-check">
-                <input
-                  class="form-check-input"
-                  type="checkbox"
-                  v-model="toPrint.ingredients"
-                  :value="true"
-                  name="cb-ing"
-                  id="cb-printIngredient"
-                />
-                <label class="form-check-label" for="cb-printIngredient"
-                  >Imprimer les listes des ingrédients</label
-                >
-              </div>
-
-              <div v-show="toPrint.ingredients" class="ms-4">
-                <div class="form-check form-switch my-2">
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    v-model="showAllColIngredients"
-                    id="checkRecipeDetail"
-                  />
-                  <label for="checkRecipeDetail"
-                    >Afficher les recettes pour chaque ingrédient</label
-                  >
-                </div>
-                <div class="input-group">
-                  <span class="input-group-text" id="addColSelect"
-                    >+ colonnes :
-                  </span>
-                  <select
-                    v-model="printAddCol"
-                    class="form-select"
-                    aria-describedby="addColSelect"
-                    aria-label="Ajouter des colonnes"
-                  >
-                    <option value="0">0</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                  </select>
-                </div>
-                <div class="text-muted fs-7 text-end">
-                  Ajouter des colonnes aux tableaux afin de pouvoir rajouter des
-                  informations manuscrites
-                </div>
-              </div>
-              {{/*
-              <div class="form-check">
-                <input
-                  class="form-check-input"
-                  type="checkbox"
-                  v-model="toPrint.affichesSection"
-                  :value="false"
-                  name="cb-affiche"
-                  id="cb-printAffiches"
-                />
-                <label class="form-check-label" for="cb-printAffiches"
-                  >Imprimer les Affiches (imprimez à part, sinon bug)</label
-                >
-              </div>
-              */}}
-            </div>
-            <div class="col-md-6">
-              <div class="callout small">
-                <p>
-                  Pour exporter en PDF, dans les options d'impression,
-                  sélectionnez : destination > "enregistrer au format Pdf" comme
-                  imprimante. Pensez aussi à personnaliser les marges
-                  d'impression ou l'échelle afin de redimensionner le contenu
-                  selon ce qui vous convient.
-                </p>
-                <p class="fw-bolder">
-                  ⚠ L'impression des listes d'ingredients présente
-                  régulièrement des bug avec Firefox (superposition des listes).
-                  Si c'est le cas, utilisez un navigateur basé sur chrome (par
-                  exemple, "brave"), ou imprimer les listes une à une grace aux
-                  boutons dédiés.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <hr />
-          <div class="text-end">
-            <a
-              class="btn btn-primary"
-              @click="print"
-              role="button"
-              data-bs-dismiss="modal"
-              >Imprimer !</a
-            >
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
 
   <div class="no-print" id="TotalIngredients"></div>
@@ -138,10 +18,11 @@
     :class="{'no-print':!toPrint.ingredients}"
     v-show="!isLoading"
   >
-    <h3 class="no-print">
+    <div class="fs-2 fw-bold no-print mt-4">{{ .Page.Title }}</div>
+    <div class="fs-4 fw-bold no-print mb-5">
       Listes des [[uniqueIngCount]] ingrédients présents dans les
       [[recettesLength]] recettes des {{ .Params.repas | len }} menus
-    </h3>
+    </div>
 
     <!-- Alertes pour les recettes manquantes -->
     <div
@@ -169,7 +50,7 @@
       {{/* ::: La sidebar offcanvas responsive ::: */}}
       <div class="col-xl-4 d-print-none pl-xl-4 justify-content-center ">
         <div
-          class="offcanvas-xl offcanvas-start sticky-xl-top p-xl-4 pt-xl-5 overflow-auto justify-content-center"
+          class="offcanvas-xl offcanvas-start sticky-xl-top p-xl-5 pt-xl-5 overflow-auto"
 
           tabindex="-1"
           id="sidebarOffcanvas"
@@ -189,8 +70,8 @@
             ></button>
           </div>
 
-          <div class="offcanvas-body pt-xl-3">
-            <div class="">
+          <div class="offcanvas-body mt-xl-5">
+            <div class="mx-auto" style="max-width: 350px;">
               <div class="mb-6 w-100">
                 <div class="d-xl-inline d-none pb-6">
                   <div class="input-group input-group-lg">
@@ -200,12 +81,11 @@
                       v-model="searchInput"
                       class="form-control"
                       placeholder="Rechercher un ingrédient"
-                      autofocus
                     />
                   </div>
                 </div>
 
-                <div class="my-3">
+                <div class="my-3" v-show="activeTab === 'normal'">
                   <span class="">📅 Sélectionner une période</span>
                   <input
                     id="daterange"
@@ -215,10 +95,9 @@
                     placeholder="Sélectionner une période"
                     v-model="dateRangeSelected"
                   />
-                  <span v-if="showFreshProductsByRange" class="fw-lighter small fst-italic pt-2">ne concerne pas les ingrédients frais déjà classés par périodes</span>
                 </div>
 
-                <div class="mb-4">
+                <div class="mb-4" v-show="activeTab === 'normal'">
                   <button
                     class="btn btn-primary btn-sm shadow-sm text-white"
                     @click="datesReset"
@@ -227,6 +106,22 @@
                   >
                     Toutes les dates
                   </button>
+                </div>
+
+                <!-- Input pour les jours par range (onglet byRange seulement) -->
+                <div v-show="activeTab === 'byRange'" class="my-4">
+                  <label for="daysPerRangeInput" class="form-label">Jours par période :</label>
+                  <div class="input-group">
+                    <input
+                      type="number"
+                      v-model="daysPerRange"
+                      class="form-control"
+                      min="1"
+                      max="9"
+                      id="daysPerRangeInput"
+                    />
+                    <span class="input-group-text">jours</span>
+                  </div>
                 </div>
               </div>
 
@@ -296,15 +191,15 @@
                 </ul>
               </div>
 
-              <!-- Liens de navigation vers les tableaux byRange -->
-              <div >
-                <template v-for="rangeLink in computedRangeLinksForNavigation">
-                  <a :href="'#' + rangeLink.id"> [[ rangeLink.label ]] - </a>
+              <!-- Liens de navigation -->
+              <div>
+                <template v-if="activeTab === 'byRange'" v-for="rangeLink in computedRangeLinksForNavigation">
+                  <a :href="'#' + rangeLink.id" class="btn btn-sm btn-outline-primary mx-1 mb-1"> [[ rangeLink.label ]] </a>
                 </template>
 
-                <template v-for="type in computedTypesForNavigation">
-                  <a :href="'#IngListID' + type">
-                    [[ formatTypeShort(type) ]] -
+                <template v-if="activeTab === 'normal'" v-for="type in computedTypesForNavigation">
+                  <a :href="'#IngListID' + type" class="btn btn-sm btn-outline-primary mx-1 mb-1">
+                    [[ formatTypeShort(type) ]]
                   </a>
                 </template>
               </div>
@@ -316,7 +211,41 @@
       {{/* ::: Total INGREDIENTS - Contenu principal ::: */}}
       <div class="col-xl-8 print-col-12">
 
-        <div class="d-lg-none d-flex d-print-none no-print">
+        <!-- Système d'onglets -->
+        <div class="no-print mb-4">
+          <ul class="nav nav-tabs" id="ingredientsTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link"
+                :class="{'active': activeTab === 'normal'}"
+                @click="switchToTab('normal')"
+                id="normal-tab"
+                type="button"
+                role="tab"
+                aria-controls="normal"
+                :aria-selected="activeTab === 'normal'"
+              >
+                Tous les ingrédients
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link"
+                :class="{'active': activeTab === 'byRange'}"
+                @click="switchToTab('byRange')"
+                id="byRange-tab"
+                type="button"
+                role="tab"
+                aria-controls="byRange"
+                :aria-selected="activeTab === 'byRange'"
+              >
+                Produits frais par périodes
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <div class="d-xl-none d-flex d-print-none no-print">
           <div class="input-group input-group-lg mb-3">
             <span class="input-group-text">🔍</span>
             <input
@@ -328,38 +257,13 @@
           </div>
         </div>
 
-        <div
-          class="no-print d-print-none align-items-center mb-3 d-flex flex-row justify-content-center"
-        >
-          <div class="d-flex flex-wrap align-items-center w-100">
-            <div class="form-check form-switch me-3" style="min-width: 200px;">
-              <input
-                type="checkbox"
-                class="form-check-input"
-                v-model="showFreshProductsByRange"
-                id="cb-showFreshProductsByRange"
-              />
-              <label for="cb-showFreshProductsByRange" class="fw-medium "
-                >Afficher les produits frais par périodes de :
-              </label>
-            </div>
-            <div class="input-group ms-auto" style="max-width: 150px;">
-              <input
-                type="number"
-                v-model="daysPerRange"
-                class="form-control"
-                min="1"
-                max="9"
-                :disabled="!showFreshProductsByRange"
-              />
-              <span class="input-group-text">jours</span>
-            </div>
-          </div>
-        </div>
-        {{/* :::_FraisByDayRange */}}
-        <div v-if="rangesDates.length > 0">
+
+        <!-- Contenu de l'onglet byRange -->
+        <div v-if="activeTab === 'byRange'" class="tab-pane fade show active" id="byRange" role="tabpanel" aria-labelledby="byRange-tab">
+          {{/* :::_FraisByDayRange */}}
+          <div v-if="rangesDates.length > 0">
           <!-- Légumes frais -->
-          <div v-show="legumesFraisByRanges" class="avoid-break-inside">
+          <div class="avoid-break-inside">
             <template v-for="(range, index) in rangesDates" :key="range[0]">
               <div
                 v-if="totalRange('legumesFrais', range[0], range[range.length - 1]).length > 0"
@@ -419,7 +323,7 @@
                         <th>Ingrédients - légumes frais</th>
                         <th class="text-center">Recettes</th>
                         <th class="text-end">Total</th>
-                        <th class="no-print" v-show="!showAllColIngredients">
+                        <th class="no-print text-end" v-show="!showAllColIngredients">
                           Détail
                         </th>
                         <th
@@ -441,24 +345,29 @@
                             recettes
                           </td>
                           <td class="text-end toCopyTd">
-                            <template
-                              v-for="(quantiteEntry, qIndex) in item.qTotalX"
-                            >
-                              <span
-                                v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null"
-                              >
-                                [[round2Decimals(quantiteEntry.qTotal)]]
-                                [[quantiteEntry.unitTotal]]
-                              </span>
-                              <span v-else class="small">non précisé</span>
-                              <span
-                                v-if="qIndex < item.qTotalX.length - 1"
-                                class="mx-1"
-                                >+</span
-                              >
-                            </template>
+                            <!-- Total "Standardisé" -->
+                            <div v-if="getCachedStandardizedIngredientForRange(item.ingredient, 'legumesFrais', range[0], range[range.length - 1])"
+                                :class="{'fw-semibold': showAllColIngredients}">
+                              <template v-for="(quantiteEntry, qIndex) in getCachedStandardizedIngredientForRange(item.ingredient, 'legumesFrais', range[0], range[range.length - 1]).qTotalX">
+                                [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unit)]]
+                                [[quantiteEntry.unit]]
+                                <span v-if="qIndex < getCachedStandardizedIngredientForRange(item.ingredient, 'legumesFrais', range[0], range[range.length - 1]).qTotalX.length - 1" class="mx-1">+</span>
+                              </template>
+                            </div>
+                            <!-- Total "Transparent" -->
+                            <div v-if="doesTransparentTotalDivergeForRange(item.ingredient, 'legumesFrais', range[0], range[range.length - 1])" class="small text-muted fst-italic">
+                              (
+                              <template v-for="(quantiteEntry, qIndex) in item.qTotalXOriginal">
+                                <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null">
+                                  [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unitTotal)]]
+                                  [[quantiteEntry.unitTotal]]
+                                  <span v-if="qIndex < item.qTotalXOriginal.length - 1" class="mx-1">+</span>
+                                </span>
+                              </template>
+                              )
+                            </div>
                           </td>
-                          <td class="no-print" v-show="!showAllColIngredients">
+                          <td class="no-print text-end" v-show="!showAllColIngredients">
                             <button
                               type="button"
                               class="btn btn-sm btn-outline-primary"
@@ -515,7 +424,7 @@
           </div>
 
           <!-- Autres produits frais -->
-          <div v-show="fraisByRanges" class="avoid-break-inside">
+          <div class="avoid-break-inside">
             <template v-for="(range, index) in rangesDates" :key="range[0]">
               <div
                 v-if="totalRange('frais', range[0], (range[range.length - 1])).length > 0"
@@ -597,22 +506,27 @@
                             recettes
                           </td>
                           <td class="text-end toCopyTd">
-                            <template
-                              v-for="(quantiteEntry, qIndex) in item.qTotalX"
-                            >
-                              <span
-                                v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null"
-                              >
-                                [[round2Decimals(quantiteEntry.qTotal)]]
-                                [[quantiteEntry.unitTotal]]
-                              </span>
-                              <span v-else class="small">non précisé</span>
-                              <span
-                                v-if="qIndex < item.qTotalX.length - 1"
-                                class="mx-1"
-                                >+</span
-                              >
-                            </template>
+                            <!-- Total "Standardisé" -->
+                            <div v-if="getCachedStandardizedIngredientForRange(item.ingredient, 'frais', range[0], range[range.length - 1])"
+                                :class="{'fw-semibold': showAllColIngredients}">
+                              <template v-for="(quantiteEntry, qIndex) in getCachedStandardizedIngredientForRange(item.ingredient, 'frais', range[0], range[range.length - 1]).qTotalX">
+                                [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unit)]]
+                                [[quantiteEntry.unit]]
+                                <span v-if="qIndex < getCachedStandardizedIngredientForRange(item.ingredient, 'frais', range[0], range[range.length - 1]).qTotalX.length - 1" class="mx-1">+</span>
+                              </template>
+                            </div>
+                            <!-- Total "Transparent" -->
+                            <div v-if="doesTransparentTotalDivergeForRange(item.ingredient, 'frais', range[0], range[range.length - 1])" class="small text-muted fst-italic">
+                              (
+                              <template v-for="(quantiteEntry, qIndex) in item.qTotalXOriginal">
+                                <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null">
+                                  [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unitTotal)]]
+                                  [[quantiteEntry.unitTotal]]
+                                  <span v-if="qIndex < item.qTotalXOriginal.length - 1" class="mx-1">+</span>
+                                </span>
+                              </template>
+                              )
+                            </div>
                           </td>
                           <td class="no-print" v-show="!showAllColIngredients">
                             <button
@@ -671,7 +585,7 @@
           </div>
 
           <!-- Viandes et poissons -->
-          <div v-show="animauxByRanges" class="avoid-break-inside">
+          <div class="avoid-break-inside">
             <template v-for="(range, index) in rangesDates" :key="range[0]">
               <div
                 v-if="totalRange('animaux', range[0], (range[range.length - 1])).length > 0"
@@ -753,22 +667,27 @@
                             recettes
                           </td>
                           <td class="text-end toCopyTd">
-                            <template
-                              v-for="(quantiteEntry, qIndex) in item.qTotalX"
-                            >
-                              <span
-                                v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null"
-                              >
-                                [[round2Decimals(quantiteEntry.qTotal)]]
-                                [[quantiteEntry.unitTotal]]
-                              </span>
-                              <span v-else class="small">non précisé</span>
-                              <span
-                                v-if="qIndex < item.qTotalX.length - 1"
-                                class="mx-1"
-                                >+</span
-                              >
-                            </template>
+                            <!-- Total "Standardisé" -->
+                            <div v-if="getCachedStandardizedIngredientForRange(item.ingredient, 'animaux', range[0], range[range.length - 1])"
+                                :class="{'fw-semibold': showAllColIngredients}">
+                              <template v-for="(quantiteEntry, qIndex) in getCachedStandardizedIngredientForRange(item.ingredient, 'animaux', range[0], range[range.length - 1]).qTotalX">
+                                [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unit)]]
+                                [[quantiteEntry.unit]]
+                                <span v-if="qIndex < getCachedStandardizedIngredientForRange(item.ingredient, 'animaux', range[0], range[range.length - 1]).qTotalX.length - 1" class="mx-1">+</span>
+                              </template>
+                            </div>
+                            <!-- Total "Transparent" -->
+                            <div v-if="doesTransparentTotalDivergeForRange(item.ingredient, 'animaux', range[0], range[range.length - 1])" class="small text-muted fst-italic">
+                              (
+                              <template v-for="(quantiteEntry, qIndex) in item.qTotalXOriginal">
+                                <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null">
+                                  [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unitTotal)]]
+                                  [[quantiteEntry.unitTotal]]
+                                  <span v-if="qIndex < item.qTotalXOriginal.length - 1" class="mx-1">+</span>
+                                </span>
+                              </template>
+                              )
+                            </div>
                           </td>
                           <td class="no-print" v-show="!showAllColIngredients">
                             <button
@@ -825,15 +744,19 @@
               </div>
             </template>
           </div>
+          </div>
         </div>
 
-        <div id="tableIng" class="p-1 p-lg-4" v-cloak>
+        <!-- Contenu de l'onglet normal -->
+        <div v-if="activeTab === 'normal'" class="tab-pane fade show active" id="normal" role="tabpanel" aria-labelledby="normal-tab">
+          <div id="tableIng" class="p-1" v-cloak>
           {{- $types := slice "sucres" "sec" "lof" "legumesFrais"
           "legumesNonFrais" "frais" "epices" "autres" "animaux" "absent" -}} {{-
           range $types -}} {{- $iTypeName := partial
           "functions/ingredients-types-rename-short" (dict "ingType" (. |
-          strings.FirstUpper)) -}} {{/* ::: _ Card des tableau ingredients petit
-          et grand */}}
+          strings.FirstUpper)) -}}
+
+          {{/* ::: _ Card des tableau ingredients petit et grand, range par type */}}
           <div
             v-show="totalQuantitesDP['{{ . }}'] && Object.keys(totalQuantitesDP['{{ . }}']).length > 0"
             class="card my-lg-2 mb-lg-6 mb-3 print-nocard"
@@ -884,7 +807,7 @@
                     <th>Ingredients</th>
                     <th>Recettes</th>
                     <th class="text-end">Total</th>
-                    <th class="no-print" v-show="!showAllColIngredients">
+                    <th class="no-print text-end" v-show="!showAllColIngredients">
                       Détail
                     </th>
                     <th
@@ -909,28 +832,38 @@
                         recettes
                       </td>
 
-                      <td class="text-end toCopyTd">
-                        <template
-                          v-for="(quantiteEntry, qIndex) in item.qTotalX"
-                        >
-                          <span
-                            v-if="quantiteEntry.qTotal !== null && quantiteEntry.unit !== null"
-                              :class="{'fw-semibold': showAllColIngredients}"
-                          >
-                            [[round2Decimals(quantiteEntry.qTotal)]]
-                            [[quantiteEntry.unit]]
-                          </span>
 
-                          <span v-else class="small"> non précisé </span>
-                          <span
-                            v-if="qIndex < item.qTotalX.length - 1"
-                            class="mx-1"
-                            >+</span
-                          >
-                        </template>
-                      </td>
 
-                      <td class="no-print" v-show="!showAllColIngredients">
+                        <td class="text-end toCopyTd">
+
+                          <!-- Total "Standardisé" -->
+
+                          <div v-if="totalQuantitesStandardDP['{{ . }}'] && totalQuantitesStandardDP['{{ . }}'][ingredient]"
+
+                              :class="{'fw-semibold': showAllColIngredients}">
+                            <template v-for="(quantiteEntry, qIndex) in totalQuantitesStandardDP['{{ . }}'][ingredient].qTotalX">
+                              [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unit)]]
+                              [[quantiteEntry.unit]]
+                              <span v-if="qIndex < totalQuantitesStandardDP['{{ . }}'][ingredient].qTotalX.length - 1" class="mx-1">+</span>
+                            </template>
+                          </div>
+                          <!-- Total "Transparent" -->
+                          <div v-if="doesTransparentTotalDiverge(item)" class="small text-muted fst-italic">
+                                (
+                            <template v-for="(quantiteEntry, qIndex) in item.qTotalXOriginal" >
+                              <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null"
+                                >
+                                [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unitTotal)]]
+                                [[quantiteEntry.unitTotal]]
+                              <span v-if="qIndex < item.qTotalXOriginal.length - 1" class="mx-1">+</span>
+                              </span>
+                            </template>
+                              )
+                          </div>
+                        </td>
+
+
+                      <td class="no-print text-end" v-show="!showAllColIngredients">
                         <button
                           type="button"
                           class="btn btn-sm btn-outline-primary"
@@ -986,9 +919,132 @@
             </div>
           </div>
           {{ end }}
+          </div>
         </div>
       </div>
     </div>
+
+
+    {{/*- :::  Impression - MODAL -*/}}
+   <div
+     class="modal modal-xl fade d-print-none"
+     tabindex="-1"
+     id="modalImpression"
+     aria-labelledby="modalImpressionLabel"
+     aria-hidden="true"
+   >
+     <div class="modal-dialog modal-dialog-scrollable">
+       <div class="modal-content">
+         <div class="modal-header">
+           <h5 class="modal-title mt-0" id="modalImpressionLabel">
+             Imprimer / exporter en PDF
+           </h5>
+           <button
+             type="button"
+             class="btn-close"
+             data-bs-dismiss="modal"
+             aria-label="Close"
+           ></button>
+         </div>
+         <div class="modal-body">
+           <div class="row">
+             <div class="col-md-6">
+               <div class="form-check">
+                 <input
+                   class="form-check-input"
+                   type="checkbox"
+                   v-model="toPrint.ingredients"
+                   :value="true"
+                   name="cb-ing"
+                   id="cb-printIngredient"
+                 />
+                 <label class="form-check-label" for="cb-printIngredient"
+                   >Imprimer les listes des ingrédients</label
+                 >
+               </div>
+
+               <div v-show="toPrint.ingredients" class="ms-4">
+                 <div class="form-check form-switch my-2">
+                   <input
+                     class="form-check-input"
+                     type="checkbox"
+                     v-model="showAllColIngredients"
+                     id="checkRecipeDetail"
+                   />
+                   <label for="checkRecipeDetail"
+                     >Afficher les recettes pour chaque ingrédient</label
+                   >
+                 </div>
+                 <div class="input-group">
+                   <span class="input-group-text" id="addColSelect"
+                     >+ colonnes :
+                   </span>
+                   <select
+                     v-model="printAddCol"
+                     class="form-select"
+                     aria-describedby="addColSelect"
+                     aria-label="Ajouter des colonnes"
+                   >
+                     <option value="0">0</option>
+                     <option value="1">1</option>
+                     <option value="2">2</option>
+                   </select>
+                 </div>
+                 <div class="text-muted fs-7 text-end">
+                   Ajouter des colonnes aux tableaux afin de pouvoir rajouter des
+                   informations manuscrites
+                 </div>
+               </div>
+               {{/*
+               <div class="form-check">
+                 <input
+                   class="form-check-input"
+                   type="checkbox"
+                   v-model="toPrint.affichesSection"
+                   :value="false"
+                   name="cb-affiche"
+                   id="cb-printAffiches"
+                 />
+                 <label class="form-check-label" for="cb-printAffiches"
+                   >Imprimer les Affiches (imprimez à part, sinon bug)</label
+                 >
+               </div>
+               */}}
+             </div>
+             <div class="col-md-6">
+               <div class="callout small">
+                 <p>
+                   Pour exporter en PDF, dans les options d'impression,
+                   sélectionnez : destination > "enregistrer au format Pdf" comme
+                   imprimante. Pensez aussi à personnaliser les marges
+                   d'impression ou l'échelle afin de redimensionner le contenu
+                   selon ce qui vous convient.
+                 </p>
+                 <p class="fw-bolder">
+                   ⚠ L'impression des listes d'ingredients présente
+                   régulièrement des bug avec Firefox (superposition des listes).
+                   Si c'est le cas, utilisez un navigateur basé sur chrome (par
+                   exemple, "brave"), ou imprimer les listes une à une grace aux
+                   boutons dédiés.
+                 </p>
+               </div>
+             </div>
+           </div>
+
+           <hr />
+           <div class="text-end">
+             <a
+               class="btn btn-primary"
+               @click="print"
+               role="button"
+               data-bs-dismiss="modal"
+               >Imprimer !</a
+             >
+           </div>
+         </div>
+       </div>
+     </div>
+   </div>
     <!-- Modal pour les détails d'ingrédients -->
     <div
       class="modal fade"
@@ -1048,25 +1104,43 @@
                   </td>
                 </tr>
               </tbody>
-              <tfoot v-if="ingredientTotalQuantity">
+              <tfoot v-if="ingredientTotalQuantityStandard && ingredientTotalQuantityStandard.length > 0">
                 <tr class="table-secondary">
-                  <td colspan="2"><strong>Total</strong></td>
-                  <td class="text-end">
-                    <template v-for="(total, index) in ingredientTotalQuantity">
-                      <strong
-                        >[[round2Decimals(total.qTotal)]] [[total.unit]]</strong
-                      >
-                      <span
-                        v-if="index < ingredientTotalQuantity.length - 1"
-                        class="mx-1"
-                        >+</span
-                      >
-                    </template>
+                  <td colspan="1"><strong>Total</strong></td>
+                  <td colspan="2" class="text-end">
+                    <!-- Total Standardisé -->
+                    <div v-if="ingredientTotalQuantityStandard && ingredientTotalQuantityStandard.length > 0">
+                      <template v-for="(total, index) in ingredientTotalQuantityStandard">
+                        <strong>[[round2Decimals(total.qTotal, total.unit)]] [[total.unit]]</strong>
+                        <span v-if="index < ingredientTotalQuantityStandard.length - 1" class="mx-1">+</span>
+                      </template>
+                    </div>
+
+                    <!-- Total Transparent (conditionnel) -->
+                    <div v-if="doesTransparentTotalDiverge(ingredientDetails)"
+                         class="small text-muted fst-italic">
+                      (
+                      <template v-for="(total, index) in ingredientTotalQuantityTransparent">
+                        [[total.qTotal]] [[total.unit]]
+                        <span v-if="index < ingredientTotalQuantityTransparent.length - 1" class="mx-1">+</span>
+                      </template>
+                      )
+                    </div>
                   </td>
+
                 </tr>
               </tfoot>
             </table>
+            <div v-if="ingredientConversionRules && ingredientConversionRules.length > 0" class="mt-3 small text-muted border-top pt-2">
+                      <p class="mb-1 fw-semibold">Équivalence(s) utilisée(s) pour le calcul :</p>
+                      <ul class="list-unstyled mb-0">
+                        <li v-for="rule in ingredientConversionRules" :key="rule">
+                          - [[ rule ]]
+                        </li>
+                      </ul>
+                    </div>
           </div>
+
           <div class="modal-footer">
             <button
               type="button"

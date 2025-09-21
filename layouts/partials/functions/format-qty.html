@@ -6,7 +6,6 @@
        - unit (string)        : unité d’entrée ("gr.", "Kg", "ml", "l.", "unité", etc.)
 
      Règles:
-       - Normalisation simple des unités ("grammes" -> "gr.", "litre" -> "l.")
        - Pluriel "unité" -> "unités" si qty > 1
        - Conversions:
            • gr. <-> Kg (seuil ≈ 1000)
@@ -27,12 +26,9 @@
 {{- $q := (float (cond (eq (printf "%T" $qty) "string") ($qty | float) $qty)) -}}
 {{- $u := $unit -}}
 
-{{/* Normalisation simple des unités et pluriels */}}
-{{- if eq $u "grammes" -}}
-  {{- $u = "gr." -}}
-{{- else if eq $u "litre" -}}
-  {{- $u = "l." -}}
-{{- else if and (eq $u "unité") (gt $q 1) -}}
+{{/* Normalisation unités  pluriels */}}
+
+{{- if and (eq $u "unité") (gt $q 1) -}}
   {{- $u = "unités" -}}
 {{- end -}}
 

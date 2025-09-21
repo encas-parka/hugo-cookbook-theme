@@ -1,57 +1,40 @@
 {{/*
   ingredients-group-builder.html
 
-  DRY core builder for grouped ingredients by type.
+  DRY core builder for grouped ingredients by type. This partial is the central
+  point for processing ingredient data for both single recipes and events.
 
   Purpose:
-    Centralize the logic to:
-      - Resolve each ingredient from global index (byUUID only)
-      - Determine type from meta.type (new data model, no legacy section keys)
-      - Optionally scale quantities for events: (q * assiettes) / assiettesRecettes
-      - Group entries by type
-      - For legumes, optionally split by pFrais attribute
-      - Analyze dietary regimes based on ingredient types and allergens
+    - Resolve each ingredient from the global index (byUUID).
+    - Group ingredients by their `type` metadata.
+    - Scale quantities for events based on servings (`assiettes`).
+    - **NEW**: Normalize and convert quantities into standard base units (gr, ml)
+      by calling `functions/quantite-converter.html`.
+    - Optionally split legumes into "frais" and "non-frais" groups.
+    - Analyze dietary regimes based on ingredient types and allergens.
 
   Input (dict):
-    - items:              (list)  List of items (e.g., .Params.ingredients from a recipe)
-        Each item: { ingredient, quantite, unit, commentaire } where "ingredient" is a slug (must include UUID in the form slug_uuid).
-    - byUUID:             (map)   Ingredients index by UUID (from functions/ingredients-index)
-    - mode:               (string) "recette" | "evenement" (default: "recette")
-    - assiettes:          (int/float, optional) event servings (required if mode = "evenement")
-    - assiettesRecettes:  (int/float, optional) recipe base servings (required if mode = "evenement")
-    - splitLegumes:       (bool, optional) whether to split legumes by pFrais attribute (default: false)
+    - items:              (list) List of recipe ingredients { ingredient, quantite, unit, ... }.
+    - byUUID:             (map) Global ingredients index by UUID.
+    - mode:               (string) "recette" | "evenement".
+    - assiettes:          (int/float, optional) Event servings.
+    - assiettesRecettes:  (int/float, optional) Recipe base servings.
+    - splitLegumes:       (bool, optional) Whether to split legumes by `pFrais`.
 
   Output:
     - dict {
         "ingredients": { type -> [ entries ] },
-        "regimes": {
-          "vegetarien": bool,
-          "vegan": bool,
-          "sans_gluten": bool,
-          "sans_lactose": bool
-        }
+        "regimes": { ... }
       }
-      where entry = {
-        ingredient,     // from ingredients index
-        type,           // from ingredients index
-        allergenes,     // from ingredients index
-        quantite,       // scaled if mode = "evenement"
-        unit,           // unit as declared on the item
-        commentaire,    // free text
-        pFrais,         // from ingredients index
-        pSurgel,        // from ingredients index
-      }
-
-  Notes:
-    - Unresolved ingredients go under "absent".
-    - Type is read from meta.type (default "autres").
-    - When splitLegumes=true, legumes are separated into "legumesFrais" and "legumesNonFrais"
-    - Regimes analysis:
-        - vegetarien: no type "animaux"
-        - vegan: vegetarien + no allergenes ["Produit laitier", "Oeuf"]
-        - sans_gluten: no allergene "Gluten"
-        - sans_lactose: no allergene "Produit laitier"
-    - This partial returns data (no HTML render).
+      where each entry is an enriched ingredient map containing:
+        - ingredient, type, allergenes, commentaire, pFrais, pSurgel, uuid
+        - quantite: The scaled quantity (for events).
+        - unit: The original unit.
+        - quantiteFormatted: A display-ready formatted quantity string.
+        - quantiteEq: (float) The quantity normalized to a base unit (gr/ml).
+        - unitEq: (string) The base unit ("gr." or "ml").
+        - hasConversion: (bool) True if a conversion was possible.
+        - conversionRule: (string) The conversion rule for the ingredient.
 */}}
 
 {{- $items := .items | default (slice) -}}
@@ -91,11 +74,9 @@
     {{- $title := $meta.title -}}
     {{- $allergenes := ($meta.allergenes | default (slice)) -}}
     {{- $uuid := $meta.uuid -}}
-    {{- /* Récupération des champs pFrais et pSurgel */ -}}
     {{- $pFrais := $meta.pFrais | default false -}}
     {{- $pSurgel := $meta.pSurgel | default false -}}
 
-    {{- /* Determine group type, with special handling for legumes if splitLegumes is true */}}
     {{- $groupType := $type -}}
     {{- if and (eq $type "legumes") $splitLegumes -}}
       {{- if $pFrais -}}
@@ -105,20 +86,39 @@
       {{- end -}}
     {{- end -}}
 
-    {{/* Scaling for event mode if both assiettes and assiettesRecettes are provided (non-empty) */}}
     {{- $scaledQty := (float $q) -}}
     {{- if and (eq $mode "evenement") (ne (printf "%v%v" $assiettes $assiettesRecettes) "") -}}
       {{- $den := (cond (gt (float $assiettesRecettes) 0) (float $assiettesRecettes) 1.0) -}}
       {{- $scaledQty = (div (mul (float $q) (float $assiettes)) $den) -}}
     {{- end -}}
 
-    {{- /* Formater la quantité si en mode evenement */}}
     {{- $formattedQty := $scaledQty -}}
     {{- if eq $mode "evenement" -}}
       {{- $formattedQty = partial "functions/format-qty.html" (dict "qty" $scaledQty "unit" $u) -}}
     {{- end -}}
 
-    <!-- uuid : pour le decompte uniqIngSet/count -->
+    {{/*
+    {{- if eq $mode "ingredientsJson" -}}
+      {{- if eq "Kg" $u) -}}
+        {{- $scaledQty = mul $qFloat 1000 -}}
+        {{- $u = "gr." -}}
+      {{- else if eq "l." $u) -}}
+        {{- $scaledQty = mul $qFloat 1000 -}}
+        {{- $u = "ml" -}}
+      {{- end -}}
+    {{- end -}}
+    */}}
+
+
+    {{- /* Call the converter to get standardized quantities */ -}}
+    {{- $conversionResult := partial "functions/quantite-converter.html" (dict
+        "quantite" $scaledQty
+        "unit" $u
+        "ingredient" $title
+        "fetch" "dict"
+      )
+    -}}
+
     {{- $entryType := cond $splitLegumes $groupType $type -}}
     {{- $entry := dict
         "ingredient" $title
@@ -131,8 +131,7 @@
         "uuid" $uuid
         "pFrais" $pFrais
         "pSurgel" $pSurgel
-      -}}
-
+      | merge $conversionResult -}} {{/* Merge the conversion results here */}}
 
     {{- $current := (index $grouped $groupType) | default (slice) -}}
     {{- $grouped = merge $grouped (dict $groupType ( $current | append $entry )) -}}
@@ -155,15 +154,14 @@
   {{- else -}}
     {{/* Unresolved ingredient (grouped under "absent") */}}
     {{- $fallback := cond (ne $ingId "") $ingId "inconnu" -}}
-
     {{- $entry := dict
         "slug" $ingId
         "ingredient" $fallback
         "quantite" $q
         "unit" $u
         "commentaire" $c
+        "hasConversion" false
       -}}
-
     {{- $current := (index $grouped "absent") | default (slice) -}}
     {{- $grouped = merge $grouped (dict "absent" ( $current | append $entry )) -}}
   {{- end -}}

@@ -21,7 +21,7 @@ ingredients:
   legumes:
   - quantite: 375
     title: Champignon noir
-    unit: grammes
+    unit: gr.
   - quantite: 2.8
     title: Pousses de soja
     unit: Kg
@@ -34,7 +34,7 @@ ingredients:
   lof:
   - quantite: 10
     title: huile de tournesol
-    unit: litre
+    unit: l.
   sec:
   - quantite: 1.75
     title: Vermicelle de Riz

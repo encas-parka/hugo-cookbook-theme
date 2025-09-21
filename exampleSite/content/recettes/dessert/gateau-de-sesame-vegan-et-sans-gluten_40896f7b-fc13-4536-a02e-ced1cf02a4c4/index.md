@@ -13,30 +13,30 @@ ingredients:
     unit: c. à café
   - quantite: 150
     title: Purée de sésame noir
-    unit: grammes
+    unit: gr.
   epices:
   - title: Sel
   lof:
   - quantite: 200
     title: Fécule de maïs (Maïzena)
-    unit: grammes
+    unit: gr.
   - quantite: 0.2
     title: Crème d'amande
-    unit: litre
+    unit: l.
   - quantite: 0.8
     title: lait d’amande
-    unit: litre
+    unit: l.
   - quantite: 0.4
     title: huile de tournesol
-    unit: litre
+    unit: l.
   sec: []
   sucres:
   - quantite: 400
     title: Chocolat noir
-    unit: grammes
+    unit: gr.
   - quantite: 700
     title: Sucre en poudre
-    unit: grammes
+    unit: gr.
 layout: recettes
 materiel:
 - Gastro 1/1 (Fins)

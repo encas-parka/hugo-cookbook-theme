@@ -7,7 +7,7 @@ ingredients:
   autres:
   - quantite: 400
     title: Tahin
-    unit: grammes
+    unit: gr.
   epices:
   - title: Poivre
   - title: Sel
@@ -18,11 +18,11 @@ ingredients:
   lof:
   - quantite: 1
     title: huile d'olive
-    unit: litre
+    unit: l.
   sucres:
   - quantite: 0.4
     title: Jus de citron
-    unit: litre
+    unit: l.
 layout: recettes
 materiel:
 - Bruleur
