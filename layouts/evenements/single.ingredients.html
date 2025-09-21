@@ -50,7 +50,7 @@
       {{/* ::: La sidebar offcanvas responsive ::: */}}
       <div class="col-xl-4 d-print-none pl-xl-4 justify-content-center ">
         <div
-          class="offcanvas-xl offcanvas-start sticky-xl-top p-xl-5 pt-xl-5 overflow-auto r"
+          class="offcanvas-xl offcanvas-start sticky-xl-top p-xl-5 pt-xl-5 overflow-auto"
 
           tabindex="-1"
           id="sidebarOffcanvas"
@@ -70,8 +70,8 @@
             ></button>
           </div>
 
-          <div class="offcanvas-body pt-xl-3">
-            <div class="">
+          <div class="offcanvas-body mt-xl-5">
+            <div class="mx-auto" style="max-width: 350px;">
               <div class="mb-6 w-100">
                 <div class="d-xl-inline d-none pb-6">
                   <div class="input-group input-group-lg">
@@ -194,12 +194,12 @@
               <!-- Liens de navigation -->
               <div>
                 <template v-if="activeTab === 'byRange'" v-for="rangeLink in computedRangeLinksForNavigation">
-                  <a :href="'#' + rangeLink.id"> [[ rangeLink.label ]] - </a>
+                  <a :href="'#' + rangeLink.id" class="btn btn-sm btn-outline-primary mx-1 mb-1"> [[ rangeLink.label ]] </a>
                 </template>
 
                 <template v-if="activeTab === 'normal'" v-for="type in computedTypesForNavigation">
-                  <a :href="'#IngListID' + type">
-                    [[ formatTypeShort(type) ]] -
+                  <a :href="'#IngListID' + type" class="btn btn-sm btn-outline-primary mx-1 mb-1">
+                    [[ formatTypeShort(type) ]]
                   </a>
                 </template>
               </div>
@@ -245,7 +245,7 @@
           </ul>
         </div>
 
-        <div class="d-lg-none d-flex d-print-none no-print">
+        <div class="d-xl-none d-flex d-print-none no-print">
           <div class="input-group input-group-lg mb-3">
             <span class="input-group-text">🔍</span>
             <input
@@ -749,7 +749,7 @@
 
         <!-- Contenu de l'onglet normal -->
         <div v-if="activeTab === 'normal'" class="tab-pane fade show active" id="normal" role="tabpanel" aria-labelledby="normal-tab">
-          <div id="tableIng" class="p-1 p-lg-4" v-cloak>
+          <div id="tableIng" class="p-1" v-cloak>
           {{- $types := slice "sucres" "sec" "lof" "legumesFrais"
           "legumesNonFrais" "frais" "epices" "autres" "animaux" "absent" -}} {{-
           range $types -}} {{- $iTypeName := partial
@@ -850,12 +850,12 @@
                           <!-- Total "Transparent" -->
                           <div v-if="doesTransparentTotalDiverge(item)" class="small text-muted fst-italic">
                                 (
-                            <template v-for="(quantiteEntry, qIndex) in item.qTotalX" >
-                              <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unit !== null"
+                            <template v-for="(quantiteEntry, qIndex) in item.qTotalXOriginal" >
+                              <span v-if="quantiteEntry.qTotal !== null && quantiteEntry.unitTotal !== null"
                                 >
-                                [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unit)]]
-                                [[quantiteEntry.unit]]
-                              <span v-if="qIndex < item.qTotalX.length - 1" class="mx-1">+</span>
+                                [[round2Decimals(quantiteEntry.qTotal, quantiteEntry.unitTotal)]]
+                                [[quantiteEntry.unitTotal]]
+                              <span v-if="qIndex < item.qTotalXOriginal.length - 1" class="mx-1">+</span>
                               </span>
                             </template>
                               )

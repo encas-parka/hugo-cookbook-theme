@@ -12,8 +12,8 @@
     - unit:           (string) The unit (e.g., "c. à soupe", "kg", "gr.").
     - ingredient:     (string, optional) The ingredient name, for context-sensitive conversions.
     - fetch:          (string, optional) Defines the output format.
-                        - "dict" (default): Returns a structured dict.
-                        - "QU", "Unit", "Quantite": Legacy modes for string output.
+    - "dict" (default): Returns a structured dict.
+    - "QU", "Unit", "Quantite": Legacy modes for string output.
 
   Output (if fetch="dict"):
     - A dict: {
@@ -121,6 +121,7 @@
   {{ else if eq $ingLower "concombre" }} {{ $quantiteEq = mul $qFloat 200 }} {{$conversionRule = "un concombre = 200 gr."}}
   {{ else if eq $ingLower "levure chimique" }}{{ $quantiteEq = mul $qFloat 11 }} {{$conversionRule = "une levure chimique = 11 gr."}}
   {{ else if eq $ingLower "carotte" }} {{ $quantiteEq = mul $qFloat 125 }} {{$conversionRule = "une carotte = 125 gr."}}
+{{ else if eq $ingLower "betterave rouge"}} {{ $quantiteEq = mul $qFloat 250 }} {{$conversionRule = "une betterave rouge = 250 gr."}}
   {{ else }}{{ $hasConversion = false }} {{ end -}}
 {{- end -}}
 

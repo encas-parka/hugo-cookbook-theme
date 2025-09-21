@@ -192,61 +192,7 @@
 {{- /* Émission finale JSON (strict) */ -}}
 
 
-{{/*
-  generate-conversion-rules-json.html
-  Génère un objet JSON contenant toutes les règles de conversion.
-  La clé est une combinaison de l'unité et de l'ingrédient pour une recherche facile.
-  DOIT ETRE COHERENT avec quantite-converter. Utilisé par single.ingredients.html
-*/}}
-{{- $conversionRules := dict
-  "soupe-sucre" "1 c. à soupe ≈ 15 gr."
-  "soupe-sel" "1 c. à soupe ≈ 15 gr."
-  "soupe-farine" "1 c. à soupe ≈ 10 gr."
-  "soupe-crème épaisse" "1 c. à soupe ≈ 15 ml"
-  "café-sucre" "1 c. à café ≈ 5 gr."
-  "café-sel" "1 c. à café ≈ 5 gr."
-  "café-farine" "1 c. à café ≈ 3 gr."
-  "gousse-ail" "1 gousse ≈ 6.5 gr."
-  "tête-ail" "1 tête ≈ 80 gr."
-  "unité-oignon" "1 unité ≈ 120 gr."
-  "unité-tomate" "1 unité ≈ 120 gr."
-  "unité-poireau" "1 unité ≈ 150 gr."
-  "unité-aubergine" "1 unité ≈ 250 gr."
-  "unité-courgette" "1 unité ≈ 200 gr."
-  "unité-échalote" "1 unité ≈ 30 gr."
-  "unité-orange" "1 unité ≈ 200 gr."
-  "unité-citron" "1 unité ≈ 100 gr."
-  "unité-concombre" "1 unité ≈ 200 gr."
-  "unité-levure chimique" "1 unité ≈ 11 gr."
-  "unité-carotte" "1 unité ≈ 125 gr."
-  "café-semoule" "1 c. à café ≈ 4 gr."
-  "café-poivre" "1 c. à café ≈ 2.5 gr."
-  "café-cacao" "1 c. à café ≈ 2.5 gr."
-  "café-sucre glace" "1 c. à café ≈ 3 gr."
-  "café-maïzena" "1 c. à café ≈ 3 gr."
-  "café-crème épaisse" "1 c. à café ≈ 5 ml"
-  "café-bicarbonate" "1 c. à café ≈ 5 gr."
-  "café-curcuma" "1 c. à café ≈ 2 gr."
-  "café-cumin" "1 c. à café ≈ 2 gr."
-  "café-curry" "1 c. à café ≈ 2 gr."
-  "café-muscade" "1 c. à café ≈ 2 gr."
-  "café-paprika" "1 c. à café ≈ 2 gr."
-  "soupe-semoule" "1 c. à soupe ≈ 12 gr."
-  "soupe-poivre" "1 c. à soupe ≈ 8 gr."
-  "soupe-cacao" "1 c. à soupe ≈ 8 gr."
-  "soupe-sucre glace" "1 c. à soupe ≈ 10 gr."
-  "soupe-maïzena" "1 c. à soupe ≈ 10 gr."
-  "soupe-bicarbonate" "1 c. à soupe ≈ 15 gr."
-  "soupe-curcuma" "1 c. à soupe ≈ 6 gr."
-  "soupe-cumin" "1 c. à soupe ≈ 6 gr."
-  "soupe-curry" "1 c. à soupe ≈ 6 gr."
-  "soupe-muscade" "1 c. à soupe ≈ 7 gr."
-  "soupe-paprika" "1 c. à soupe ≈ 6 gr."
-  "unité-ail" "1 unité ≈ 6.5 gr."
-  "soupe-gen" "1 c. à soupe ≈ 15 ml"
-  "café-gen" "1 c. à café ≈ 5 ml"
-  "pinc-gen" "1 pincée ≈ 0.4 gr."
-  -}}
+
 
 
 
@@ -262,5 +208,4 @@
   "nbDate" $nbDate
   "uniqueIngCount" $uniqueIngCount
   "missingRecipes" $missingRecipes
-  "conversionRules" $conversionRules
 ) | jsonify -}}
