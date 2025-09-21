@@ -140,6 +140,7 @@ collections:
         name: "auteur"
         widget: "string"
         required: false
+        hint: "votre nom/pseudo. Aide à distinguer les recettes ressemblantes, et vous permet de les retrouver / filtrer plus facilement. "
 
         ## ::: __Description ##
 
@@ -232,7 +233,7 @@ collections:
             name: commentaire
             widget: string
             required: false
-            hint: "Si vous avez quelque-chose à préciser... S'affiche à coté de l'ingrédients dans la recette. ⚠ Ne sera pas affiché dans les listes de course"
+            hint: "Si vous avez quelque-chose à préciser... S'affiche entre parenthèses à coté de l'ingrédient dans la recette. ⚠ Ne sera pas affiché dans les listes de course"
 
       ### ::: Materiel
       - label: "Materiel"
@@ -257,7 +258,7 @@ collections:
         widget: "markdown"
         editor_components: [""]
         required: false
-        hint: "Si la recette implique de préparer des choses en avance, le préciser ici pour que ce soit mis en avant lors de l'affichage des recettes (ce sera indiquer 'A prévoir a l'avance', à vous de préciser plus précisément quand)."
+        hint: "Si la recette implique de préparer des choses en avance, précisez-le ici pour que ce soit mis en avant lors de l'affichage des recettes (ce sera indiquer 'A prévoir a l'avance', à vous de préciser plus précisément quand)."
 
 
       ### ::: Astuces
@@ -341,7 +342,7 @@ collections:
         collapsed: true
         allow_reorder: true
         summary: "{{fields.date_service | date('DD/MM/YYYY')}} : {{fields.horaire}} ({{fields.assiettes}} p.)"
-        hint: "Ajouter un menu pour un service"
+        hint: "Ajoutez un menu pour un service"
 
         fields:
           - {
@@ -433,7 +434,7 @@ collections:
                   label: "Commentaire",
                   name: "commentaire",
                   widget: "text",
-                  hint: "Si vous avez quelque-chose a préciser...(N'oubliez pas que les pages des menus seront publié en ligne !)",
+                  hint: "Si vous avez quelque-chose a préciser...",
                   required: false,
                 }
 
