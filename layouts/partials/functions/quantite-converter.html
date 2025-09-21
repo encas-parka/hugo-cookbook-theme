@@ -64,13 +64,15 @@
   {{ else if eq $ingLower "cacao" }}{{ $quantiteEq = mul $qFloat 2.5 }}{{ $conversionRule = "1 c. à café de cacao = 2.5 gr." }}
   {{ else if eq $ingLower "sucre glace" }}{{ $quantiteEq = mul $qFloat 3 }}{{ $conversionRule = "1 c. à café de sucre glace = 3 gr." }}
   {{ else if strings.Contains $ingLower "maïzena" }}{{ $quantiteEq = mul $qFloat 3 }}{{ $conversionRule = "1 c. à café de maïzena = 3 gr." }}
+  {{ else if strings.Contains $ingLower "bicarbonate" }}{{ $quantiteEq = mul $qFloat 5 }}{{ $conversionRule = "1 c. à café de bicarbonate = 5 gr." }}
+  {{ else if eq $ingLower "curcuma" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $conversionRule = "1 c. à café de curcuma = 2 gr." }}
+  {{ else if eq $ingLower "cumin" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $conversionRule = "1 c. à café de cumin = 2 gr." }}
+  {{ else if eq $ingLower "curry" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $conversionRule = "1 c. à café de curry = 2 gr." }}
+  {{ else if eq $ingLower "muscade" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $conversionRule = "1 c. à café de muscade = 2 gr." }}
+  {{ else if eq $ingLower "paprika" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $conversionRule = "1 c. à café de paprika = 2 gr." }}
+  {{ else if eq $ingLower "miel" }}{{ $quantiteEq = mul $qFloat 10 }}{{ $conversionRule = "1 c. à café de miel = 10 gr." }}
+  {{/* pour les ml */}
   {{ else if strings.Contains $ingLower "crème épaisse" }}{{ $quantiteEq = mul $qFloat 5 }}{{ $baseUnit = "ml" }}{{ $conversionRule = "1 c. à café de crème épaisse = 5 ml." }}
-  {{ else if strings.Contains $ingLower "bicarbonate" }}{{ $quantiteEq = mul $qFloat 5 }}{{ $baseUnit = "gr" }}{{ $conversionRule = "1 c. à café de bicarbonate = 5 gr." }}
-  {{ else if eq $ingLower "curcuma" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $baseUnit = "gr" }}{{ $conversionRule = "1 c. à café de curcuma = 2 gr." }}
-  {{ else if eq $ingLower "cumin" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $baseUnit = "gr" }}{{ $conversionRule = "1 c. à café de cumin = 2 gr." }}
-  {{ else if eq $ingLower "curry" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $baseUnit = "gr" }}{{ $conversionRule = "1 c. à café de curry = 2 gr." }}
-  {{ else if eq $ingLower "muscade" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $baseUnit = "gr" }}{{ $conversionRule = "1 c. à café de muscade = 2 gr." }}
-  {{ else if eq $ingLower "paprika" }}{{ $quantiteEq = mul $qFloat 2 }}{{ $baseUnit = "gr" }}{{ $conversionRule = "1 c. à café de paprika = 2 gr." }}
   {{ else }}{{ $quantiteEq = mul $qFloat 5 }}{{ $baseUnit = "ml" }} {{$conversionRule = "1 c. à café = 5 ml."}} {{ end -}}
 
 {{- else if strings.Contains $unitLower "soupe" -}}
@@ -82,7 +84,7 @@
   {{ else if eq $ingLower "semoule" }}{{ $quantiteEq = mul $qFloat 12 }} {{$conversionRule = "1 c. à soupe de semoule = 12 gr."}}
   {{ else if eq $ingLower "poivre" }}{{ $quantiteEq = mul $qFloat 8 }} {{$conversionRule = "1 c. à soupe de poivre = 8 gr."}}
   {{ else if eq $ingLower "cacao" }}{{ $quantiteEq = mul $qFloat 8 }} {{$conversionRule = "1 c. à soupe de cacao = 8 gr."}}
-  {{ else if eq $ingLower "sucre glace" }}{{ $quantiteEq = mul $qFloat 15 }} {{$conversionRule = "1 c. à soupe de sucre glace = 15 gr."}}
+  {{ else if eq $ingLower "sucre glace" }}{{ $quantiteEq = mul $qFloat 9 }} {{$conversionRule = "1 c. à soupe de sucre glace = 9 gr."}}
   {{ else if strings.Contains $ingLower  "maïzena" }}{{ $quantiteEq = mul $qFloat 10 }} {{$conversionRule = "1 c. à soupe de maïzena = 10 gr."}}
   {{ else if strings.Contains $ingLower "crème épaisse" }}{{ $quantiteEq = mul $qFloat 15 }}{{ $baseUnit = "ml" }}{{ $conversionRule = "1 c. à soupe de crème épaisse = 15 ml."}}
   {{ else if strings.Contains $ingLower "bicarbonate" }}{{ $quantiteEq = mul $qFloat 15 }} {{ $conversionRule = "1 c. à soupe de bicarbonate = 15 gr."}}
@@ -91,6 +93,7 @@
   {{ else if eq $ingLower "curry" }}{{ $quantiteEq = mul $qFloat 6 }} {{ $conversionRule = "1 c. à soupe de curry = 6 gr."}}
   {{ else if eq $ingLower "muscade" }}{{ $quantiteEq = mul $qFloat 7 }} {{ $conversionRule = "1 c. à soupe de muscade = 7 gr."}}
   {{ else if eq $ingLower "paprika" }}{{ $quantiteEq = mul $qFloat 6 }} {{ $conversionRule = "1 c. à soupe de paprika = 6 gr."}}
+  {{ else if eq $ingLower "miel" }}{{ $quantiteEq = mul $qFloat 30 }} {{ $conversionRule = "1 c. à soupe de miel = 30 gr."}}
   {{ else }}{{ $quantiteEq = mul $qFloat 15 }}{{ $baseUnit = "ml" }} {{$conversionRule = "1 c. à soupe = 15 ml."}} {{ end -}}
 
 {{- else if strings.Contains $unitLower "pinc"}}   {{- $hasConversion = true -}} {{- $baseUnit = "gr." -}} {{ $quantiteEq = mul $qFloat 0.4 }}  {{ $conversionRule = "1 pincée = 0,4 gr."}}
