@@ -18,6 +18,21 @@
 {{- $showComment := cond (ne .showComment nil) .showComment true -}}
 {{- $eventMode := .eventMode | default false -}}
 
+{{- /* Format quantity function similar to quantite.js */ -}}
+{{- define "formatQuantity" -}}
+  {{- $qty := .qty -}}
+  {{- $unit := .unit -}}
+  {{- if and $unit (eq $unit "l.") -}}
+    {{- printf "%.2f" $qty -}}
+  {{- else if and $unit (eq $unit "Kg") -}}
+    {{- printf "%.2f" $qty -}}
+  {{- else if and $unit (or (eq $unit "ml") (eq $unit "gr.")) -}}
+    {{- printf "%.0f" $qty -}}
+  {{- else -}}
+    {{- printf "%.1f" $qty -}}
+  {{- end -}}
+{{- end -}}
+
 {{- range $type, $list := $ingredientsByType -}}
 <div class="card my-2 p-2" outlined>
   <div>
@@ -42,8 +57,8 @@
       {{- if $it.quantite -}}
         :
         {{- if $eventMode -}}
-          {{- /* In event mode, use the pre-formatted quantity string */ -}}
-          <span class="amount ms-1">{{- $it.quantiteFormatted -}}</span>
+          {{- /* In event mode, use the pre-formatted quantity string with rounding */ -}}
+          <span class="amount ms-1">{{- template "formatQuantity" (dict "qty" $it.quantite "unit" $it.unit) -}} </span> <span class="unit ms-1">{{- $it.unit -}}</span>
         {{- else -}}
           {{- /* In recipe mode, display the raw quantity and unit */ -}}
           <span class="amount ms-1">{{- $it.quantite -}}</span>
@@ -53,8 +68,8 @@
         {{- /* Display the equivalence if a conversion was possible */ -}}
         {{- if $it.hasConversion -}}
           <span class="ms-1 text-muted">
-            (~ <span class="amount">{{- $it.quantiteEq -}}</span>
-            <span class="unit">{{- $it.unitEq -}}</span>)
+            (~ <span class="amount">{{- template "formatQuantity" (dict "qty" $it.quantiteEq "unit" $it.unitEq) -}}</span>
+            <span class="ms-1 unit">{{- $it.unitEq -}}</span>)
           </span>
         {{- end -}}
 
