@@ -50,11 +50,11 @@
           <span class="unit">{{- $it.unit -}}</span>
         {{- end -}}
 
-        {{- /* NEW: Display the equivalence if a conversion was possible */ -}}
+        {{- /* Display the equivalence if a conversion was possible */ -}}
         {{- if $it.hasConversion -}}
           <span class="ms-1 text-muted">
-            {{- $displayEq := partial "functions/format-qty.html" (dict "qty" $it.quantiteEq "unit" $it.unitEq) -}}
-            (~ {{ $displayEq }})
+            (~ <span class="amount">{{- $it.quantiteEq -}}</span>
+            <span class="unit">{{- $it.unitEq -}}</span>)
           </span>
         {{- end -}}
 
