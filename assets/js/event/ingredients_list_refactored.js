@@ -97,6 +97,9 @@ export function createEventApp(initialData = {}) {
         // Autres
         hasData: true,
         _rangeStandardizedCache: {},
+
+        // Collaborative list creation
+        isCreatingList: false,
       };
     },
 
@@ -165,11 +168,11 @@ export function createEventApp(initialData = {}) {
           if (!Object.prototype.hasOwnProperty.call(ingFiltered, type)) continue;
 
           // Traiter les ingrédients avec le module externe en incluant les quantités originales pour l'affichage transparent
-          const processedIngredients = processIngredients(ingFiltered[type], { 
-            useStandardized: true, 
-            includeOriginalQuantities: true 
+          const processedIngredients = processIngredients(ingFiltered[type], {
+            useStandardized: true,
+            includeOriginalQuantities: true
           });
-          
+
           finalGroupedByType[type] = {};
           processedIngredients.forEach(item => {
             // Corriger le iType pour qu'il corresponde au type de la boucle
@@ -213,7 +216,7 @@ export function createEventApp(initialData = {}) {
             ['legumesFrais', 'frais', 'animaux'].forEach(type => {
               const filteredIng = this.filteredIngredientsRange(type, startDate, endDate);
               const processedIngredients = processIngredients(filteredIng, { useStandardized: true });
-              
+
               const key = `${type}_${rangeKey}`;
               standardizedByRange[key] = processedIngredients;
             });
@@ -229,16 +232,16 @@ export function createEventApp(initialData = {}) {
         if (!this.startDateSelected || !this.endDateSelected) {
           return filtered;
         }
-        
+
         const startDate = new Date(this.startDateSelected);
         const endDate = new Date(this.endDateSelected);
         endDate.setDate(endDate.getDate() + 1);
 
         const sections = Array.isArray(this.ingByTypeList) ? this.ingByTypeList : [];
-        
+
         sections.forEach((section) => {
           const items = Array.isArray(section.items) ? section.items : [];
-          
+
           if (this.startDateSelected === this.startDate && this.endDateSelected === this.endDate) {
             filtered[section.type] = items;
           } else {
@@ -329,7 +332,7 @@ export function createEventApp(initialData = {}) {
             );
           }
         }
-        
+
         return detailsMap;
       },
 
@@ -340,13 +343,13 @@ export function createEventApp(initialData = {}) {
 
         for (const [type, ingredients] of Object.entries(ingFiltered)) {
           // Inclure les quantités originales pour l'affichage transparent
-          const processedIngredients = processIngredients(ingredients, { 
-            useStandardized: false, 
-            includeOriginalQuantities: true 
+          const processedIngredients = processIngredients(ingredients, {
+            useStandardized: false,
+            includeOriginalQuantities: true
           });
-          
+
           ingredientTotals[type] = {};
-          
+
           // M'assurer que chaque ingrédient a le bon iType (le type de la boucle)
           processedIngredients.forEach(item => {
             // Corriger le iType pour qu'il corresponde au type de la boucle
@@ -382,7 +385,7 @@ export function createEventApp(initialData = {}) {
             }
           });
         }
-        
+
         return finalResult;
       },
 
@@ -482,7 +485,7 @@ export function createEventApp(initialData = {}) {
         const hasAnyConversion = details.some(detail => {
           return detail.hasConversion === true;
         });
-        
+
         return hasAnyConversion;
       },
 
@@ -560,9 +563,9 @@ export function createEventApp(initialData = {}) {
 
         const filteredIng = this.filteredIngredientsRange(iType, start, end);
         // Inclure les quantités originales pour l'affichage transparent dans les tableaux byRange
-        const result = processIngredients(filteredIng, { 
-          useStandardized: false, 
-          includeOriginalQuantities: true 
+        const result = processIngredients(filteredIng, {
+          useStandardized: false,
+          includeOriginalQuantities: true
         })
           .sort((a, b) => a.ingredient.localeCompare(b.ingredient));
 
@@ -613,7 +616,7 @@ export function createEventApp(initialData = {}) {
         const sections = Array.isArray(this.ingByTypeList) ? this.ingByTypeList : [];
         const section = sections.find((s) => s.type === iType);
         const ingredients = section && Array.isArray(section.items) ? section.items : [];
-        
+
         if (!Array.isArray(ingredients)) {
           console.warn("[ingredients] expected array for type", iType);
           return [];
@@ -765,6 +768,122 @@ export function createEventApp(initialData = {}) {
       },
 
       formatTypeShort,
-    },
+
+      // --- Méthodes pour les listes collaboratives ---
+      async createCollaborativeList() {
+        if (this.isCreatingList) return;
+
+        this.isCreatingList = true;
+
+        try {
+          // Vérifier si une liste existe déjà pour cet événement
+          const eventId = this.getEventId();
+          const existingList = await this.checkExistingList(eventId);
+
+          if (existingList) {
+            // Rediriger vers la liste existante
+            this.redirectToCollaborativeList(existingList.$id);
+            return;
+          }
+
+          // Créer une nouvelle liste
+          const listData = await this.createNewCollaborativeList(eventId);
+          this.redirectToCollaborativeList(listData.$id);
+
+        } catch (error) {
+          console.error('Erreur lors de la création de la liste collaborative:', error);
+          alert('Erreur lors de la création de la liste collaborative. Veuillez réessayer.');
+        } finally {
+          this.isCreatingList = false;
+        }
+      },
+
+      getEventId() {
+      // Extraire l'ID de l'événement depuis l'URL ou les données de la page
+      const pathname = window.location.pathname;
+      const eventMatch = pathname.match(/\/evenements\/([^\/]+)/);
+      return eventMatch ? eventMatch[1] : `event_${Date.now()}`;
+      },
+
+      async checkExistingList(eventId) {
+      // TODO: Implémenter la vérification avec l'API Appwrite
+      // Pour l'instant, retourner null (pas de liste existante)
+      return null;
+      },
+
+      async createNewCollaborativeList(eventId) {
+      // Transformer les données actuelles en format Appwrite
+      const transformedData = this.transformDataForAppwrite();
+
+      // TODO: Implémenter la création avec l'API Appwrite
+      // Pour l'instant, retourner un ID factice
+      return {
+        $id: `list_${eventId}_${Date.now()}`,
+        eventId: eventId,
+        name: `Liste collaborative - ${document.title}`,
+        ingredients: transformedData
+      };
+      },
+
+      transformDataForAppwrite() {
+      const transformedIngredients = [];
+
+      // Parcourir tous les types d'ingrédients
+      this.ingByTypeList.forEach(typeGroup => {
+        if (!typeGroup.items) return;
+
+        typeGroup.items.forEach(item => {
+          // Créer les recipeOccurrences pour chaque ingrédient
+          const recipeOccurrence = {
+            recipeName: item.recette || 'Recette inconnue',
+            quantity: item.quantite,
+            unit: item.unit,
+            dateService: item.dateService,
+            horaire: item.horaire,
+            typePlat: item.typePlat,
+            assiettes: item.assiettes
+          };
+
+          // Chercher si cet ingrédient existe déjà dans la liste transformée
+          let existingIngredient = transformedIngredients.find(
+            ing => ing.ingredientName === item.ingredient && ing.ingType === typeGroup.type
+          );
+
+          if (existingIngredient) {
+            // Ajouter cette occurrence à l'ingrédient existant
+            existingIngredient.originalData.recipeOccurrences.push(recipeOccurrence);
+          } else {
+            // Créer un nouvel ingrédient
+            transformedIngredients.push({
+              ingredientName: item.ingredient,
+              ingType: typeGroup.type,
+              isModified: false,
+              isMerged: false,
+              originalData: {
+                recipeOccurrences: [recipeOccurrence]
+              },
+              trackingData: {
+                purchases: [],
+                stock: { effective: [] },
+                status: { ok: false },
+                mergedWith: []
+              }
+            });
+          }
+        });
+      });
+
+      return transformedIngredients;
+      },
+
+      redirectToCollaborativeList(listId) {
+      // Construire l'URL vers l'application collaborative
+      const baseUrl = window.location.origin;
+      const collaborativeUrl = `${baseUrl}/app/ingredients-collaborative/demo/`;
+
+      // Rediriger vers l'application collaborative
+      window.location.href = collaborativeUrl;
+      }
+    }
   });
 }

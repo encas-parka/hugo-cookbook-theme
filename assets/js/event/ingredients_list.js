@@ -39,6 +39,15 @@ export function createEventApp(initialData = {}) {
         missingRecipes,
         conversionRules,
 
+        // Gestion des listes collaboratives
+        isCreatingList: false,
+        collaborativeListId: null,
+        appwriteConfig: {
+          endpoint: 'https://cloud.appwrite.io/v1',
+          projectId: '', // À configurer
+          databaseId: '689d15b10003a5a13636'
+        },
+
         // Sélection date courante (contrôlée par flatpickr)
         dateRangeSelected: null,
         startDateSelected: null,
@@ -1442,6 +1451,122 @@ export function createEventApp(initialData = {}) {
           default:
             return type;
         }
+      },
+
+      // --- Méthodes pour les listes collaboratives ---
+      async createCollaborativeList() {
+        if (this.isCreatingList) return;
+        
+        this.isCreatingList = true;
+        
+        try {
+          // Vérifier si une liste existe déjà pour cet événement
+          const eventId = this.getEventId();
+          const existingList = await this.checkExistingList(eventId);
+          
+          if (existingList) {
+            // Rediriger vers la liste existante
+            this.redirectToCollaborativeList(existingList.$id);
+            return;
+          }
+          
+          // Créer une nouvelle liste
+          const listData = await this.createNewCollaborativeList(eventId);
+          this.redirectToCollaborativeList(listData.$id);
+          
+        } catch (error) {
+          console.error('Erreur lors de la création de la liste collaborative:', error);
+          alert('Erreur lors de la création de la liste collaborative. Veuillez réessayer.');
+        } finally {
+          this.isCreatingList = false;
+        }
+      },
+
+      getEventId() {
+        // Extraire l'ID de l'événement depuis l'URL ou les données de la page
+        const pathname = window.location.pathname;
+        const eventMatch = pathname.match(/\/evenements\/([^\/]+)/);
+        return eventMatch ? eventMatch[1] : `event_${Date.now()}`;
+      },
+
+      async checkExistingList(eventId) {
+        // TODO: Implémenter la vérification avec l'API Appwrite
+        // Pour l'instant, retourner null (pas de liste existante)
+        return null;
+      },
+
+      async createNewCollaborativeList(eventId) {
+        // Transformer les données actuelles en format Appwrite
+        const transformedData = this.transformDataForAppwrite();
+        
+        // TODO: Implémenter la création avec l'API Appwrite
+        // Pour l'instant, retourner un ID factice
+        return {
+          $id: `list_${eventId}_${Date.now()}`,
+          eventId: eventId,
+          name: `Liste collaborative - ${document.title}`,
+          ingredients: transformedData
+        };
+      },
+
+      transformDataForAppwrite() {
+        const transformedIngredients = [];
+        
+        // Parcourir tous les types d'ingrédients
+        this.ingByTypeList.forEach(typeGroup => {
+          if (!typeGroup.items) return;
+          
+          typeGroup.items.forEach(item => {
+            // Créer les recipeOccurrences pour chaque ingrédient
+            const recipeOccurrence = {
+              recipeName: item.recette || 'Recette inconnue',
+              quantity: item.quantite,
+              unit: item.unit,
+              dateService: item.dateService,
+              horaire: item.horaire,
+              typePlat: item.typePlat,
+              assiettes: item.assiettes
+            };
+            
+            // Chercher si cet ingrédient existe déjà dans la liste transformée
+            let existingIngredient = transformedIngredients.find(
+              ing => ing.ingredientName === item.ingredient && ing.ingType === typeGroup.type
+            );
+            
+            if (existingIngredient) {
+              // Ajouter cette occurrence à l'ingrédient existant
+              existingIngredient.originalData.recipeOccurrences.push(recipeOccurrence);
+            } else {
+              // Créer un nouvel ingrédient
+              transformedIngredients.push({
+                ingredientName: item.ingredient,
+                ingType: typeGroup.type,
+                isModified: false,
+                isMerged: false,
+                originalData: {
+                  recipeOccurrences: [recipeOccurrence]
+                },
+                trackingData: {
+                  purchases: [],
+                  stock: { effective: [] },
+                  status: { ok: false },
+                  mergedWith: []
+                }
+              });
+            }
+          });
+        });
+        
+        return transformedIngredients;
+      },
+
+      redirectToCollaborativeList(listId) {
+        // Construire l'URL vers l'application collaborative
+        const baseUrl = window.location.origin;
+        const collaborativeUrl = `${baseUrl}/app/ingredients-collaborative/demo/`;
+        
+        // Rediriger vers l'application collaborative
+        window.location.href = collaborativeUrl;
       },
     },
   });

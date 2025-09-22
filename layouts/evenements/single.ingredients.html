@@ -191,6 +191,25 @@
                 </ul>
               </div>
 
+              <!-- Bouton pour créer une liste collaborative -->
+              <div class="mb-4">
+                <button
+                  class="btn btn-success w-100"
+                  type="button"
+                  id="createCollaborativeListBtn"
+                  @click="createCollaborativeList"
+                  :disabled="isCreatingList"
+                >
+                  <span v-if="isCreatingList" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  {{ partialCached "components/icon-svg" (dict "name" "plus" "size" "1.1rem") "plus-icon" "1.1rem" }}
+                  <span v-if="!isCreatingList">Créer une liste modifiable</span>
+                  <span v-else>Création en cours...</span>
+                </button>
+                <small class="form-text text-muted mt-1">
+                  Transformez cette liste en tableau collaboratif pour gérer vos achats en équipe
+                </small>
+              </div>
+
               <!-- Liens de navigation -->
               <div>
                 <template v-if="activeTab === 'byRange'" v-for="rangeLink in computedRangeLinksForNavigation">

@@ -1,5 +1,9 @@
 {
   "devDependencies": {
     "prettier-plugin-go-template": "^0.0.15"
+  },
+  "dependencies": {
+    "@tanstack/vue-table": "^8.21.3",
+    "pinia": "^3.0.3"
   }
 }

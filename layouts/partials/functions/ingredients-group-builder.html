@@ -1,4 +1,4 @@
-{{/*
+{{- /*
   ingredients-group-builder.html
 
   DRY core builder for grouped ingredients by type. This partial is the central
@@ -8,7 +8,7 @@
     - Resolve each ingredient from the global index (byUUID).
     - Group ingredients by their `type` metadata.
     - Scale quantities for events based on servings (`assiettes`).
-    - **NEW**: Normalize and convert quantities into standard base units (gr, ml)
+    - Normalize and convert quantities into standard base units (gr, ml)
       by calling `functions/quantite-converter.html`.
     - Optionally split legumes into "frais" and "non-frais" groups.
     - Analyze dietary regimes based on ingredient types and allergens.
@@ -97,19 +97,6 @@
       {{- $formattedQty = partial "functions/format-qty.html" (dict "qty" $scaledQty "unit" $u) -}}
     {{- end -}}
 
-    {{/*
-    {{- if eq $mode "ingredientsJson" -}}
-      {{- if eq "Kg" $u) -}}
-        {{- $scaledQty = mul $qFloat 1000 -}}
-        {{- $u = "gr." -}}
-      {{- else if eq "l." $u) -}}
-        {{- $scaledQty = mul $qFloat 1000 -}}
-        {{- $u = "ml" -}}
-      {{- end -}}
-    {{- end -}}
-    */}}
-
-
     {{- /* Call the converter to get standardized quantities */ -}}
     {{- $conversionResult := partial "functions/quantite-converter.html" (dict
         "quantite" $scaledQty
@@ -123,6 +110,7 @@
     {{- $entry := dict
         "ingredient" $title
         "type" $entryType
+        "iType" $type
         "allergenes" $allergenes
         "quantite" $scaledQty
         "quantiteFormatted" $formattedQty
@@ -131,7 +119,7 @@
         "uuid" $uuid
         "pFrais" $pFrais
         "pSurgel" $pSurgel
-      | merge $conversionResult -}} {{/* Merge the conversion results here */}}
+      | merge $conversionResult -}}
 
     {{- $current := (index $grouped $groupType) | default (slice) -}}
     {{- $grouped = merge $grouped (dict $groupType ( $current | append $entry )) -}}
@@ -152,7 +140,7 @@
       {{- end -}}
     {{- end -}}
   {{- else -}}
-    {{/* Unresolved ingredient (grouped under "absent") */}}
+    {{- /* Unresolved ingredient (grouped under "absent") */}}
     {{- $fallback := cond (ne $ingId "") $ingId "inconnu" -}}
     {{- $entry := dict
         "slug" $ingId
