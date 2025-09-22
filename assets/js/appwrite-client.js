@@ -12,6 +12,8 @@ const ACCESS_REQUEST_FUNCTION_ID = "689cdea5001a4d74549d"; // ID de la fonction 
 let client = null;
 let account = null;
 let functions = null;
+let databases = null;
+let ID = null;
 let initializationPromise = null;
 
 /**
@@ -43,13 +45,13 @@ function waitForAppwrite(maxAttempts = 50, interval = 100) {
 
 /**
  * Initialise les clients Appwrite (une seule fois)
- * @returns {Promise<{client, account, functions}>} Les clients initialisés
+ * @returns {Promise<{client, account, functions, databases, ID}>} Les clients initialisés
  */
 async function initializeAppwrite() {
     // Si déjà initialisé, retourner les clients existants
-    if (client && account && functions) {
+    if (client && account && functions && databases) {
         console.log("[Appwrite Client] Clients déjà initialisés, réutilisation");
-        return { client, account, functions };
+        return { client, account, functions, databases, ID };
     }
 
     // Si une initialisation est en cours, attendre qu'elle se termine
@@ -67,7 +69,7 @@ async function initializeAppwrite() {
             await waitForAppwrite();
 
             // Initialiser les clients
-            const { Client, Account, Functions } = window.Appwrite;
+            const { Client, Account, Functions, Databases, ID } = window.Appwrite;
 
             client = new Client()
                 .setEndpoint(APPWRITE_ENDPOINT)
@@ -75,16 +77,19 @@ async function initializeAppwrite() {
 
             account = new Account(client);
             functions = new Functions(client);
+            databases = new Databases(client);
 
             console.log("[Appwrite Client] Initialisation terminée avec succès");
 
-            return { client, account, functions };
+            return { client, account, functions, databases, ID };
         } catch (error) {
             console.error("[Appwrite Client] Erreur lors de l'initialisation:", error);
             // Réinitialiser les variables en cas d'erreur
             client = null;
             account = null;
             functions = null;
+            databases = null;
+            ID = null;
             initializationPromise = null;
             throw error;
         }
@@ -95,7 +100,7 @@ async function initializeAppwrite() {
 
 /**
  * Récupère les clients Appwrite initialisés
- * @returns {Promise<{client, account, functions}>} Les clients Appwrite
+ * @returns {Promise<{client, account, functions, databases}>} Les clients Appwrite
  */
 async function getAppwriteClients() {
     return await initializeAppwrite();
@@ -114,6 +119,14 @@ async function getAccount() {
     }
     return account;
 }
+async function getTeams() {
+    const { Client, Teams } = window.Appwrite;
+    if (!client) {
+        await initializeAppwrite();
+    }
+    const teams = new Teams(client);
+    return teams;
+}
 
 /**
  * Récupère uniquement le client Functions
@@ -125,16 +138,12 @@ async function getFunctions() {
 }
 
 /**
- * Récupère uniquement le client Teams
- * @returns {Promise<Teams>} Le client Teams
+ * Récupère uniquement le client Databases
+ * @returns {Promise<Databases>} Le client Databases
  */
-async function getTeams() {
-    const { Client, Teams } = window.Appwrite;
-    if (!client) {
-        await initializeAppwrite();
-    }
-    const teams = new Teams(client);
-    return teams;
+async function getDatabases() {
+    const { databases } = await initializeAppwrite();
+    return databases;
 }
 
 /**
@@ -155,7 +164,7 @@ function getConfig() {
  * @returns {boolean} True si les clients sont initialisés
  */
 function isInitialized() {
-    return !!(client && account && functions);
+    return !!(client && account && functions && databases);
 }
 
 /**
@@ -333,6 +342,140 @@ function clearAuthData() {
 }
 
 /**
+ * Crée une liste collaborative à partir d'un événement
+ * @param {string} eventId - L'ID de l'événement
+ * @returns {Promise<void>}
+ */
+async function createCollaborativeListFromEvent(eventId) {
+    try {
+        console.log(`[Appwrite Client] Création d'une liste collaborative pour l'événement ${eventId}`);
+
+        // 1. Récupérer les données de l'événement
+        const response = await fetch(`/evenements/${eventId}/ingredients_aw/index.json`);
+        if (!response.ok) {
+            throw new Error(`Impossible de récupérer les données de l'événement: ${response.status}`);
+        }
+
+        const eventData = await response.json();
+        console.log(`[Appwrite Client] Données de l'événement récupérées:`, eventData);
+
+        // 2. Initialiser Appwrite
+        const { client, account, databases, ID } = await initializeAppwrite();
+
+        // 3. Vérifier l'authentification
+        const user = await account.get();
+        console.log(`[Appwrite Client] Utilisateur authentifié: ${user.$id}`);
+
+        // 4. Vérifier si une liste existe déjà
+        const existingLists = await databases.listDocuments(
+            '689d15b10003a5a13636',
+            'ingredient_lists',
+            [
+                `equal("eventId", "${eventId}")`
+            ]
+        );
+
+        if (existingLists.total > 0) {
+            console.log(`[Appwrite Client] Une liste existe déjà pour l'événement ${eventId}`);
+            window.location.href = `/app/ingredients-collaborative/list/${eventId}`;
+            return;
+        }
+
+        // 5. Créer le document dans la collection ingredient_lists
+        const listData = {
+            eventId: eventId,
+            name: eventData.name || `Événement ${eventId}`,
+            createdBy: user.$id,
+            isActive: true
+        };
+
+        console.log(`[Appwrite Client] Création de la liste avec les données:`, listData);
+
+        const newList = await databases.createDocument({
+            databaseId: '689d15b10003a5a13636',
+            collectionId: 'ingredient_lists',
+            documentId: ID.unique(),
+            data: listData,
+            permissions: [
+                `read("user:${user.$id}")`,
+                `update("user:${user.$id}")`,
+                `delete("user:${user.$id}")`
+            ]
+        });
+
+        console.log(`[Appwrite Client] Liste créée avec l'ID: ${newList.$id}`);
+
+        // 6. Parcourir les ingrédients et les créer
+        if (eventData.ingredients && Array.isArray(eventData.ingredients)) {
+            console.log(`[Appwrite Client] Création de ${eventData.ingredients.length} ingrédients`);
+            
+            for (const ingredient of eventData.ingredients) {
+                const ingredientData = {
+                    listId: newList.$id,
+                    ingredientUuid: ingredient.uuid || ID.unique(),
+                    ingredientName: ingredient.name || '',
+                    ingType: ingredient.type || '',
+                    totalNeededByCategory: JSON.stringify(ingredient.total_needed_consolidated || []),
+                    totalNeededConsolidated: JSON.stringify(ingredient.total_needed_consolidated || []),
+                    purchases: '[]',
+                    recipeOccurrences: ingredient.recipe_occurrences || []
+                };
+
+                try {
+                    await databases.createDocument({
+                        databaseId: '689d15b10003a5a13636',
+                        collectionId: 'ingredients',
+                        documentId: ID.unique(),
+                        data: ingredientData,
+                        permissions: [
+                            `read("user:${user.$id}")`,
+                            `update("user:${user.$id}")`,
+                            `delete("user:${user.$id}")`
+                        ]
+                    });
+                    console.log(`[Appwrite Client] Ingrédient créé: ${ingredientData.ingredientName}`);
+                } catch (error) {
+                    console.error(`[Appwrite Client] Erreur lors de la création de l'ingrédient ${ingredientData.ingredientName}:`, error);
+                }
+            }
+        }
+
+        // 7. Rediriger vers la page de l'application
+        console.log(`[Appwrite Client] Redirection vers l'application collaborative`);
+        window.location.href = `/app/ingredients-collaborative/list/${eventId}`;
+
+    } catch (error) {
+        console.error('[Appwrite Client] Erreur lors de la création de la liste collaborative:', error);
+        throw error;
+    }
+}
+
+/**
+ * Vérifie si une liste collaborative existe déjà pour un événement
+ * @param {string} eventId - L'ID de l'événement
+ * @returns {Promise<boolean>} True si une liste existe
+ */
+async function checkExistingCollaborativeList(eventId) {
+    try {
+        const { databases } = await initializeAppwrite();
+
+        const existingLists = await databases.listDocuments(
+            '689d15b10003a5a13636',
+            'ingredient_lists',
+            [
+                `equal("eventId", "${eventId}")`
+            ]
+        );
+
+        return existingLists.total > 0;
+
+    } catch (error) {
+        console.error('[Appwrite Client] Erreur lors de la vérification de la liste existante:', error);
+        return false;
+    }
+}
+
+/**
  * Déconnexion globale - supprime la session Appwrite et nettoie les données locales
  * @returns {Promise<void>}
  */
@@ -368,6 +511,7 @@ export {
     getAccount,
     getFunctions,
     getTeams,
+    getDatabases,
     getConfig,
     isInitialized,
     initializeAppwrite,
@@ -381,7 +525,9 @@ export {
     isEmailVerified,
     sendVerificationEmail,
     verifyEmail,
-    getLocalEmailVerificationStatus
+    getLocalEmailVerificationStatus,
+    createCollaborativeListFromEvent,
+    checkExistingCollaborativeList
 };
 
 
@@ -391,7 +537,7 @@ if (typeof window !== 'undefined') {
         getAppwriteClients,
         getAccount,
         getFunctions,
-        getTeams,
+        getDatabases,
         getConfig,
         isInitialized,
         initializeAppwrite,
@@ -405,6 +551,8 @@ if (typeof window !== 'undefined') {
         isEmailVerified,
         sendVerificationEmail,
         verifyEmail,
-        getLocalEmailVerificationStatus
+        getLocalEmailVerificationStatus,
+        createCollaborativeListFromEvent,
+        checkExistingCollaborativeList
     };
 }

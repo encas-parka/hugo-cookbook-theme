@@ -45,6 +45,7 @@ function readInlineEventJSON() {
     if (!txt) return null;
     return JSON.parse(txt);
   } catch (_err) {
+    console.error("Failed to parse inline event JSON:", _err);
     return null;
   }
 }
@@ -54,9 +55,12 @@ async function fetchEventJSON(url) {
   try {
     if (!url) return null;
     const res = await fetch(url, { credentials: "same-origin" });
+    // console.log("Fetch response:", res);
     if (!res.ok) return null;
+    // console.log("Fetch response body:", await res.text());
     return await res.json();
   } catch (_err) {
+    // console.error("Failed to fetch event JSON:", _err);
     return null;
   }
 }

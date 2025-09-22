@@ -100,6 +100,7 @@ export function createEventApp(initialData = {}) {
 
         // Collaborative list creation
         isCreatingList: false,
+        existingListExists: false,
       };
     },
 
@@ -120,6 +121,9 @@ export function createEventApp(initialData = {}) {
         this.hasData = false;
         return;
       }
+
+      // Vérifier si une liste collaborative existe déjà pour cet événement
+      this.checkExistingListOnInit();
 
       // Initialiser les dates sélectionnées
       if (Array.isArray(this.datesRepas) && this.datesRepas.length > 0) {
@@ -776,25 +780,31 @@ export function createEventApp(initialData = {}) {
         this.isCreatingList = true;
 
         try {
-          // Vérifier si une liste existe déjà pour cet événement
+          // Utiliser la fonction du client Appwrite
           const eventId = this.getEventId();
-          const existingList = await this.checkExistingList(eventId);
-
-          if (existingList) {
-            // Rediriger vers la liste existante
-            this.redirectToCollaborativeList(existingList.$id);
-            return;
-          }
-
-          // Créer une nouvelle liste
-          const listData = await this.createNewCollaborativeList(eventId);
-          this.redirectToCollaborativeList(listData.$id);
-
+          await window.AppwriteClient.createCollaborativeListFromEvent(eventId);
+          
         } catch (error) {
           console.error('Erreur lors de la création de la liste collaborative:', error);
           alert('Erreur lors de la création de la liste collaborative. Veuillez réessayer.');
         } finally {
           this.isCreatingList = false;
+        }
+      },
+
+      viewExistingCollaborativeList() {
+        const eventId = this.getEventId();
+        this.redirectToCollaborativeList(eventId);
+      },
+
+      async checkExistingListOnInit() {
+        try {
+          const eventId = this.getEventId();
+          this.existingListExists = await window.AppwriteClient.checkExistingCollaborativeList(eventId);
+          console.log(`[Vue App] Liste existante pour l'événement ${eventId}: ${this.existingListExists}`);
+        } catch (error) {
+          console.error('Erreur lors de la vérification de la liste existante:', error);
+          this.existingListExists = false;
         }
       },
 
@@ -806,9 +816,8 @@ export function createEventApp(initialData = {}) {
       },
 
       async checkExistingList(eventId) {
-      // TODO: Implémenter la vérification avec l'API Appwrite
-      // Pour l'instant, retourner null (pas de liste existante)
-      return null;
+        // Utiliser la fonction du client Appwrite
+        return await window.AppwriteClient.checkExistingCollaborativeList(eventId);
       },
 
       async createNewCollaborativeList(eventId) {
@@ -877,12 +886,12 @@ export function createEventApp(initialData = {}) {
       },
 
       redirectToCollaborativeList(listId) {
-      // Construire l'URL vers l'application collaborative
-      const baseUrl = window.location.origin;
-      const collaborativeUrl = `${baseUrl}/app/ingredients-collaborative/demo/`;
+        // Construire l'URL vers l'application collaborative
+        const baseUrl = window.location.origin;
+        const collaborativeUrl = `${baseUrl}/app/ingredients-collaborative/list/${listId}`;
 
-      // Rediriger vers l'application collaborative
-      window.location.href = collaborativeUrl;
+        // Rediriger vers l'application collaborative
+        window.location.href = collaborativeUrl;
       }
     }
   });
