@@ -6,15 +6,11 @@
   content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"
 />
 
-
-
 <div id="app" data-json-src="index.json">
-
-
 
   <div class="no-print" id="TotalIngredients"></div>
   <div
-    class="container-fluid"
+    class=""
     :class="{'no-print':!toPrint.ingredients}"
     v-show="!isLoading"
   >
@@ -48,9 +44,9 @@
     </div>
     <div class="d-flex justify-content-center">
       {{/* ::: La sidebar offcanvas responsive ::: */}}
-      <div class="col-xl-4 d-print-none pl-xl-4 justify-content-center ">
+      <div class="col-xl-4 d-print-none  justify-content-center ">
         <div
-          class="offcanvas-xl offcanvas-start sticky-xl-top p-xl-5 pt-xl-5 overflow-auto"
+          class="offcanvas-xl offcanvas-start sticky-xl-top p-xl-5 pt-xl-4 overflow-auto"
 
           tabindex="-1"
           id="sidebarOffcanvas"
@@ -193,21 +189,37 @@
 
               <!-- Bouton pour créer une liste collaborative -->
               <div class="mb-4">
-                <button
-                  class="btn btn-success w-100"
-                  type="button"
-                  id="createCollaborativeListBtn"
-                  @click="createCollaborativeList"
-                  :disabled="isCreatingList"
-                >
-                  <span v-if="isCreatingList" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  {{ partialCached "components/icon-svg" (dict "name" "plus" "size" "1.1rem") "plus-icon" "1.1rem" }}
-                  <span v-if="!isCreatingList">Créer une liste modifiable</span>
-                  <span v-else>Création en cours...</span>
-                </button>
-                <small class="form-text text-muted mt-1">
-                  Transformez cette liste en tableau collaboratif pour gérer vos achats en équipe
-                </small>
+                <div v-if="existingListExists">
+                  <button
+                    class="btn btn-info w-100"
+                    type="button"
+                    id="viewExistingListBtn"
+                    @click="viewExistingCollaborativeList"
+                  >
+                    {{ partialCached "components/icon-svg" (dict "name" "eye" "size" "1.1rem") "eye-icon" "1.1rem" }}
+                    Voir la liste existante
+                  </button>
+                  <small class="form-text text-muted mt-1">
+                    Une liste collaborative existe déjà pour cet événement
+                  </small>
+                </div>
+                <div v-else>
+                  <button
+                    class="btn btn-success w-100"
+                    type="button"
+                    id="createCollaborativeListBtn"
+                    @click="createCollaborativeList"
+                    :disabled="isCreatingList"
+                  >
+                    <span v-if="isCreatingList" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    {{ partialCached "components/icon-svg" (dict "name" "plus" "size" "1.1rem") "plus-icon" "1.1rem" }}
+                    <span v-if="!isCreatingList">Créer une liste modifiable</span>
+                    <span v-else>Création en cours...</span>
+                  </button>
+                  <small class="form-text text-muted mt-1">
+                    Transformez cette liste en tableau collaboratif pour gérer vos achats en équipe
+                  </small>
+                </div>
               </div>
 
               <!-- Liens de navigation -->
@@ -228,7 +240,7 @@
       </div>
 
       {{/* ::: Total INGREDIENTS - Contenu principal ::: */}}
-      <div class="col-xl-8 print-col-12">
+      <div class="col-xl-8 print-col-12 col-12">
 
         <!-- Système d'onglets -->
         <div class="no-print mb-4">
