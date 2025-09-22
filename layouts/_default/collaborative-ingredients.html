@@ -1,0 +1,54 @@
+{{ define "main" }}
+<div id="collaborativeApp">
+    <!-- Indicateur de chargement initial -->
+    <div class="loading-spinner">
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+            <p class="mt-2">Chargement de la liste collaborative...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Meta tags pour la configuration Appwrite -->
+<meta name="appwrite-endpoint" content="{{ .Site.Params.appwrite.endpoint | default "https://cloud.appwrite.io/v1" }}">
+<meta name="appwrite-project-id" content="{{ .Site.Params.appwrite.projectId | default "6742b5d300099026c7fa" }}">
+<meta name="appwrite-database-id" content="{{ .Site.Params.appwrite.databaseId | default "689d15b10003a5a13636" }}">
+
+<!-- CSS pour l'application collaborative -->
+{{ $collaborativeCSS := resources.Get "scss/collaborative-ingredients.scss" | css.Sass | resources.Minify | fingerprint }}
+<link rel="stylesheet" href="{{ $collaborativeCSS.RelPermalink }}" integrity="{{ $collaborativeCSS.Data.Integrity }}">
+
+<!-- Vue.js -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+
+<!-- Application collaborative -->
+{{ $collaborativeBootstrap := resources.Get "js/collaborative-ingredients/bootstrap.js" | js.Build (dict
+    "targetPath" "assets-bundled/collaborative-ingredients.js"
+    "minify" false
+) | fingerprint }}
+<script type="module" src="{{ $collaborativeBootstrap.RelPermalink }}"></script>
+
+<!-- Script de validation (développement uniquement) -->
+{{ if eq hugo.Environment "development" }}
+{{ $validationScript := resources.Get "js/collaborative-ingredients/validation.js" | js.Build (dict
+    "targetPath" "assets-bundled/validation.js"
+    "minify" false
+) | fingerprint }}
+<script src="{{ $validationScript.RelPermalink }}"></script>
+{{ end }}
+
+<!-- Configuration Hugo pour JavaScript -->
+<script>
+    window.__HUGO_PARAMS__ = {
+        appwrite: {
+            endpoint: {{ .Site.Params.appwrite.endpoint | default "https://cloud.appwrite.io/v1" | jsonify | safeJS }},
+            projectId: {{ .Site.Params.appwrite.projectId | default "6742b5d300099026c7fa" | jsonify | safeJS }},
+            databaseId: {{ .Site.Params.appwrite.databaseId | default "689d15b10003a5a13636" | jsonify | safeJS }}
+        },
+        listId: {{ .Params.listId | default "demo_list_123" | jsonify | safeJS }}
+    };
+</script>
+{{ end }}
