@@ -1,0 +1,138 @@
+<!-- Tableau des ingrédients -->
+<div class="row">
+  <div class="col-md-12">
+    <div class="table-container">
+      <table class="table table-hover">
+        <thead class="sticky-header table-light">
+          <tr>
+            <th width="50">
+              <input 
+                type="checkbox" 
+                class="form-check-input" 
+                :checked="selectAllChecked"
+                @change="handleSelectAll"
+              >
+            </th>
+            <th width="50">Statut</th>
+            <th @click="sortBy('ingredientName')" class="sortable-column" :class="getSortClass('ingredientName')">
+              Ingrédient [[ getSortIcon('ingredientName') ]]
+            </th>
+            <th @click="sortBy('ingType')" class="sortable-column" :class="getSortClass('ingType')">
+              Type [[ getSortIcon('ingType') ]]
+            </th>
+            <th @click="sortBy('totalNeedDisplay')" class="sortable-column" :class="getSortClass('totalNeedDisplay')">
+              Besoin Total [[ getSortIcon('totalNeedDisplay') ]]
+            </th>
+            <th @click="sortBy('stockDisplay')" class="sortable-column" :class="getSortClass('stockDisplay')">
+              En Stock [[ getSortIcon('stockDisplay') ]]
+            </th>
+            <th @click="sortBy('purchasesDisplay')" class="sortable-column" :class="getSortClass('purchasesDisplay')">
+              Acheté [[ getSortIcon('purchasesDisplay') ]]
+            </th>
+            <th @click="sortBy('balanceDisplay')" class="sortable-column" :class="getSortClass('balanceDisplay')">
+              Manque [[ getSortIcon('balanceDisplay') ]]
+            </th>
+            <th @click="sortBy('storesDisplay')" class="sortable-column" :class="getSortClass('storesDisplay')">
+              Magasin [[ getSortIcon('storesDisplay') ]]
+            </th>
+            <th @click="sortBy('responsibleDisplay')" class="sortable-column" :class="getSortClass('responsibleDisplay')">
+              Qui [[ getSortIcon('responsibleDisplay') ]]
+            </th>
+            <th width="100">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="ingredient in filteredIngredients"
+            :key="ingredient.$id"
+            class="ingredient-row"
+            :class="{ 'modified': ingredient.isModified }"
+          >
+            <!-- Checkbox de sélection -->
+            <td>
+              <input
+                type="checkbox"
+                class="form-check-input"
+                :checked="selectedIngredients.includes(ingredient.$id)"
+                @change="handleIngredientSelect(ingredient.$id)"
+              >
+            </td>
+
+            <!-- Checkbox de statut -->
+            <td>
+              <span v-if="ingredient.status === 'sufficient'" class="text-success">✅</span>
+              <span v-else-if="ingredient.status === 'missing'" class="text-danger">❌</span>
+              <span v-else-if="ingredient.status === 'partial'" class="text-warning">⚠️</span>
+              <span v-else class="text-muted">➖</span>
+            </td>
+
+            <!-- Nom de l'ingrédient -->
+            <td>
+              <strong>[[ ingredient.ingredientName ]]</strong>
+            </td>
+
+            <!-- Type -->
+            <td>
+              <span class="badge bg-secondary badge-ingredient-type">[[ ingredient.typeDisplay ]]</span>
+            </td>
+
+            <!-- Besoin Total -->
+            <td>[[ ingredient.totalNeedDisplay ]]</td>
+
+            <!-- En Stock -->
+            <td>
+              <button
+                class="btn btn-sm btn-outline-primary"
+                @click="handleEditStock(ingredient)"
+              >
+                [[ ingredient.stockDisplay ]]
+              </button>
+            </td>
+
+            <!-- Acheté -->
+            <td>
+              <button
+                class="btn btn-sm btn-outline-success"
+                @click="handleEditPurchases(ingredient)"
+              >
+                [[ ingredient.purchasesDisplay ]]
+              </button>
+            </td>
+
+            <!-- Manque -->
+            <td>
+              <span :class="ingredient.balanceClass">
+                [[ ingredient.balanceDisplay ]]
+              </span>
+            </td>
+
+            <!-- Magasin -->
+            <td class="text-fade">[[ ingredient.storesDisplay ]]</td>
+
+            <!-- Qui -->
+            <td class="text-fade">[[ ingredient.responsibleDisplay ]]</td>
+
+            <!-- Actions -->
+            <td>
+              <button
+                class="btn btn-sm btn-outline-info btn-icon me-1"
+                @click="handleShowDetails(ingredient)"
+                title="Voir les détails"
+              >
+                👁️
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Message si aucun ingrédient -->
+      <div v-if="filteredIngredients.length === 0" class="text-center py-5">
+        <div class="text-muted">
+          <h5>Aucun ingrédient trouvé</h5>
+          <p>Ajustez vos filtres ou créez une nouvelle liste d'ingrédients.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

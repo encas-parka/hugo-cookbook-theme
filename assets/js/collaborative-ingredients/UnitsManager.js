@@ -180,10 +180,25 @@ export class UnitsManager {
 
   /**
    * Formate les quantités consolidées pour l'affichage
-   * @param {Object} consolidated - Quantités consolidées
+   * @param {Object|Array} consolidated - Quantités consolidées (objet ou array)
    * @returns {Array} Quantités formatées {value, unit, formatted}
    */
   formatConsolidatedQuantities(consolidated) {
+    // Si consolidated est un tableau, le convertir en objet consolidé
+    if (Array.isArray(consolidated)) {
+      const quantities = consolidated.map(item => ({
+        value: item.value || 0,
+        unit: item.unit || '',
+        ingredientName: ''
+      }));
+      consolidated = this.consolidateQuantities(quantities);
+    }
+
+    // Si consolidated est undefined ou null, retourner un tableau vide
+    if (!consolidated) {
+      return [];
+    }
+
     const result = [];
 
     // Formatter les poids
@@ -209,15 +224,17 @@ export class UnitsManager {
     }
 
     // Formatter les autres unités
-    consolidated.other.forEach((value, unit) => {
-      const rounded = this.roundToAppropriateDecimals(value, unit);
-      result.push({
-        value: rounded,
-        unit: unit,
-        formatted: `${rounded} ${unit}`,
-        category: 'other'
+    if (consolidated.other && consolidated.other.forEach) {
+      consolidated.other.forEach((value, unit) => {
+        const rounded = this.roundToAppropriateDecimals(value, unit);
+        result.push({
+          value: rounded,
+          unit: unit,
+          formatted: `${rounded} ${unit}`,
+          category: 'other'
+        });
       });
-    });
+    }
 
     return result;
   }

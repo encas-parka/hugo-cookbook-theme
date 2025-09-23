@@ -27,16 +27,16 @@
         {{- if $data.has_equivalence  -}}
         "totalNeededRaw": [
           {{- $firstCategory := true -}}
-          {{- if gt $data.category_weight 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.3f" $data.category_weight -}}, "unit": "gr.", "category": "weight" }{{- end -}}
-          {{- if gt $data.category_volume 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.3f" $data.category_volume -}}, "unit": "ml", "category": "volume" }{{- end -}}
-          {{- range $unit, $quantity := $data.category_other -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.3f" $quantity -}}, "unit": {{ $unit | jsonify }}, "category": "other" }{{- end -}}
+          {{- if gt $data.category_weight 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.3f" $data.category_weight | jsonify -}}, "unit": "gr.", "category": "weight" }{{- end -}}
+          {{- if gt $data.category_volume 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.3f" $data.category_volume | jsonify -}}, "unit": "ml", "category": "volume" }{{- end -}}
+          {{- range $unit, $quantity := $data.category_other -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.3f" $quantity | jsonify -}}, "unit": {{ $unit | jsonify }}, "category": "other" }{{- end -}}
         ],
         {{- end -}}
         "totalNeededConsolidated": [
           {{- $firstConsolidated := true -}}
-          {{- if gt $data.consolidated_weight 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.3f" $data.consolidated_weight -}}, "unit": "gr.", "category": "weight" }{{- end -}}
-          {{- if gt $data.consolidated_volume 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.3f" $data.consolidated_volume -}}, "unit": "ml", "category": "volume" }{{- end -}}
-          {{- range $unit, $quantity := $data.consolidated_other -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.3f" $quantity -}}, "unit": {{ $unit | jsonify }}, "category": "other" }{{- end -}}
+          {{- if gt $data.consolidated_weight 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.3f" $data.consolidated_weight | jsonify -}}, "unit": "gr.", "category": "weight" }{{- end -}}
+          {{- if gt $data.consolidated_volume 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.3f" $data.consolidated_volume | jsonify -}}, "unit": "ml", "category": "volume" }{{- end -}}
+          {{- range $unit, $quantity := $data.consolidated_other -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.3f" $quantity | jsonify -}}, "unit": {{ $unit | jsonify }}, "category": "other" }{{- end -}}
         ],
         {{- /*  FIX : il n'y a pas de "delimit" avec hugo ?? */ -}}
         "recipeOccurrences": [
@@ -49,7 +49,7 @@
               "horaire": {{ $occurrence.horaire | jsonify }},
               "typePlat": {{ $occurrence.typePlat | jsonify }},
               "assiettes": {{ $occurrence.assiettes }},
-              "quantity": {{- printf "%.3f" $occurrence.quantite -}},
+              "quantity": {{- printf "%.3f" $occurrence.quantite | jsonify -}},
               "unit": {{ $occurrence.unit | jsonify }}
             }
           {{- end -}}

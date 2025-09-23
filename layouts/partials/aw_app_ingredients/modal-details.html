@@ -1,0 +1,203 @@
+<!-- Modal des détails d'ingrédient - Version Vue.js seulement -->
+<div v-if="showDetailsModal && editingIngredient" class="vue-modal-overlay" @click.self="closeDetailsModal">
+  <div class="vue-modal vue-modal-xl">
+    <div class="vue-modal-header">
+      <h5 class="vue-modal-title">
+        📊 Détails complets - [[ editingIngredient?.ingredientName ]]
+      </h5>
+      <button type="button" class="vue-modal-close" @click="closeDetailsModal" aria-label="Close">
+        <span>&times;</span>
+      </button>
+    </div>
+    <div class="vue-modal-body">
+      <div class="row">
+        <!-- Informations générales -->
+        <div class="col-md-4">
+          <div class="vue-card">
+            <div class="vue-card-header">
+              <h6 class="vue-card-title mb-0">🏷️ Informations générales</h6>
+            </div>
+            <div class="vue-card-body">
+              <p><strong>Nom:</strong> [[ editingIngredient?.ingredientName ]]</p>
+              <p><strong>Type:</strong> [[ formatTypeShort(editingIngredient?.ingType) ]]</p>
+              <p><strong>Statut:</strong> 
+                <span class="badge" :class="editingIngredient?.status === 'sufficient' ? 'bg-success' : 'bg-warning'">
+                  [[ editingIngredient?.status === 'sufficient' ? '✅ Complet' : '⏳ En cours' ]]
+                </span>
+              </p>
+              <p><strong>Modifié:</strong> 
+                <span class="badge" :class="editingIngredient?.isModified ? 'bg-info' : 'bg-light text-dark'">
+                  [[ editingIngredient?.isModified ? '✏️ Oui' : '📝 Non' ]]
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calculs et balance -->
+        <div class="col-md-4">
+          <div class="vue-card">
+            <div class="vue-card-header">
+              <h6 class="vue-card-title mb-0">📈 Calculs</h6>
+            </div>
+            <div class="vue-card-body">
+              <div class="mb-2">
+                <strong>Besoin total:</strong><br>
+                <span class="text-primary">[[ editingIngredient?.totalNeedDisplay ]]</span>
+              </div>
+              <div class="mb-2">
+                <strong>Stock disponible:</strong><br>
+                <span class="text-info">[[ editingIngredient?.stockDisplay ]]</span>
+              </div>
+              <div class="mb-2">
+                <strong>Quantité achetée:</strong><br>
+                <span class="text-success">[[ editingIngredient?.purchasesDisplay ]]</span>
+              </div>
+              <hr>
+              <div class="mb-2">
+                <strong>Balance finale:</strong><br>
+                <span :class="editingIngredient?.balanceClass" class="fs-5">[[ editingIngredient?.balanceDisplay ]]</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions rapides -->
+        <div class="col-md-4">
+          <div class="vue-card">
+            <div class="vue-card-header">
+              <h6 class="vue-card-title mb-0">⚡ Actions rapides</h6>
+            </div>
+            <div class="vue-card-body d-grid gap-2">
+              <button class="btn btn-success" @click="openPurchaseModalFromDetails">
+                🛒 Ajouter un achat
+              </button>
+              <button class="btn btn-primary" @click="openStockModalFromDetails">
+                📦 Modifier le stock
+              </button>
+              <button 
+                class="btn btn-outline-warning" 
+                @click="toggleIngredientStatus(editingIngredient)"
+              >
+                [[ editingIngredient?.status === 'sufficient' ? '⏳ Marquer incomplet' : '✅ Marquer complet' ]]
+              </button>
+              <hr>
+              <button class="btn btn-outline-secondary btn-sm" @click="exportIngredientData">
+                📄 Exporter les données
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Onglets pour les détails -->
+      <div class="mt-4">
+        <ul class="nav nav-tabs" id="detailsTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="recipes-tab" data-bs-toggle="tab" data-bs-target="#recipes" type="button" role="tab">
+              🍽️ Recettes ([[ editingIngredient?.originalData?.recipeOccurrences?.length || 0 ]])
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="purchases-tab" data-bs-toggle="tab" data-bs-target="#purchases" type="button" role="tab">
+              🛒 Achats ([[ editingIngredient?.trackingData?.purchases?.length || 0 ]])
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="stock-tab" data-bs-toggle="tab" data-bs-target="#stock" type="button" role="tab">
+              📦 Stock ([[ editingIngredient?.trackingData?.stock?.effective?.length || 0 ]])
+            </button>
+          </li>
+        </ul>
+        <div class="tab-content" id="detailsTabsContent">
+          <!-- Onglet Recettes -->
+          <div class="tab-pane fade show active" id="recipes" role="tabpanel">
+            <div class="table-responsive mt-3">
+              <table class="table table-striped table-sm">
+                <thead>
+                  <tr>
+                    <th>Recette</th>
+                    <th>Quantité</th>
+                    <th>Date service</th>
+                    <th>Horaire</th>
+                    <th>Type plat</th>
+                    <th>Assiettes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!editingIngredient?.originalData?.recipeOccurrences?.length">
+                    <td colspan="6" class="text-muted text-center">Aucune recette trouvée</td>
+                  </tr>
+                  <tr v-for="recipe in editingIngredient?.originalData?.recipeOccurrences" :key="recipe.recipeName + recipe.dateService">
+                    <td><strong>[[ recipe.recipeName ]]</strong></td>
+                    <td>[[ recipe.quantity ]] [[ recipe.unit ]]</td>
+                    <td>[[ formatDate(recipe.dateService) ]]</td>
+                    <td>[[ recipe.horaire || '-' ]]</td>
+                    <td>[[ recipe.typePlat || '-' ]]</td>
+                    <td>[[ recipe.assiettes || '-' ]]</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Onglet Achats -->
+          <div class="tab-pane fade" id="purchases" role="tabpanel">
+            <div class="table-responsive mt-3">
+              <table class="table table-striped table-sm">
+                <thead>
+                  <tr>
+                    <th>Quantité</th>
+                    <th>Magasin</th>
+                    <th>Qui</th>
+                    <th>Date</th>
+                    <th>Prix</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!editingIngredient?.trackingData?.purchases?.length">
+                    <td colspan="6" class="text-muted text-center">Aucun achat enregistré</td>
+                  </tr>
+                  <tr v-for="purchase in editingIngredient?.trackingData?.purchases" :key="purchase.id">
+                    <td><strong>[[ purchase.value ]] [[ purchase.unit ]]</strong></td>
+                    <td>[[ purchase.store || '-' ]]</td>
+                    <td>[[ purchase.who || '-' ]]</td>
+                    <td>[[ formatDate(purchase.date) ]]</td>
+                    <td>[[ purchase.price ? purchase.price + ' €' : '-' ]]</td>
+                    <td>[[ purchase.notes || '-' ]]</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Onglet Stock -->
+          <div class="tab-pane fade" id="stock" role="tabpanel">
+            <div class="table-responsive mt-3">
+              <table class="table table-striped table-sm">
+                <thead>
+                  <tr>
+                    <th>Quantité</th>
+                    <th>Notes</th>
+                    <th>Dernière mise à jour</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!editingIngredient?.trackingData?.stock?.effective?.length">
+                    <td colspan="3" class="text-muted text-center">Aucun stock enregistré</td>
+                  </tr>
+                  <tr v-for="stock in editingIngredient?.trackingData?.stock?.effective" :key="stock.id || Math.random()">
+                    <td><strong>[[ stock.value ]] [[ stock.unit ]]</strong></td>
+                    <td>[[ stock.notes || '-' ]]</td>
+                    <td>[[ formatDate(stock.updatedAt) || 'N/A' ]]</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

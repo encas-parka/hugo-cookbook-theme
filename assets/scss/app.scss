@@ -44,12 +44,12 @@
 // @import "bootstrap/pagination";
 @import "bootstrap/badge";
 @import "bootstrap/alert";
-// @import "bootstrap/progress";
+@import "bootstrap/progress";
 @import "bootstrap/list-group";
 @import "bootstrap/close";
 @import "bootstrap/toasts";
 @import "bootstrap/modal";
-// @import "bootstrap/tooltip";
+@import "bootstrap/tooltip";
 @import "bootstrap/popover";
 // @import "bootstrap/carousel";
 @import "bootstrap/spinners";
@@ -65,7 +65,7 @@
 /** Import theme styles */
 // @import "common/fonts";
 @import "common/global";
-// @import "components/alerts";
+@import "components/alerts";
 @import "components/buttons";
  @import "components/code";
 

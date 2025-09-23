@@ -1,7 +1,15 @@
 {{ define "main" }}
 <div id="collaborativeApp">
-    <!-- Indicateur de chargement initial -->
-    <div class="loading-spinner">
+    <!-- Template principal de l'application Vue.js -->
+    <div class="container-fluid">
+        {{ partial "aw_app_ingredients/app-header.html" . }}
+        {{ partial "aw_app_ingredients/app-filters.html" . }}
+        {{ partial "aw_app_ingredients/ingredients-table.html" . }}
+        {{ partial "aw_app_ingredients/app-modals.html" . }}
+    </div>
+
+    <!-- Indicateur de chargement initial (sera masqué par Vue.js) -->
+    <div class="loading-spinner" v-show="isLoading">
         <div class="text-center">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Chargement...</span>
@@ -36,14 +44,6 @@
 ) | fingerprint }}
 <script type="module" src="{{ $collaborativeBootstrap.RelPermalink }}"></script>
 
-<!-- Script de validation (développement uniquement) -->
-{{ if eq hugo.Environment "development" }}
-{{ $validationScript := resources.Get "js/collaborative-ingredients/validation.js" | js.Build (dict
-    "targetPath" "assets-bundled/validation.js"
-    "minify" false
-) | fingerprint }}
-<script src="{{ $validationScript.RelPermalink }}"></script>
-{{ end }}
 
 <!-- Configuration Hugo pour JavaScript -->
 <script>
