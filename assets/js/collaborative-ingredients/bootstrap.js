@@ -4,7 +4,7 @@
  * Initialise l'app Vue avec les données Appwrite et la configuration
  */
 
-import { createCollaborativeApp } from './app.js';
+import { createCollaborativeApp } from './app_aw_ingredients.js';
 import { getAppwriteClients, getConfig } from '../appwrite-client.js';
 
 /**
@@ -63,7 +63,7 @@ async function initializeCollaborativeApp(config = {}) {
 
   } catch (error) {
     console.error('[Collaborative Bootstrap] Erreur lors de l\'initialisation:', error);
-    
+
     // Afficher un message d'erreur à l'utilisateur
     const appRoot = document.querySelector('#collaborativeApp');
     if (appRoot) {
@@ -90,7 +90,7 @@ async function createTestDataIfNeeded(config) {
     const client = new Client()
       .setEndpoint(config.appwriteConfig.endpoint)
       .setProject(config.appwriteConfig.projectId);
-    
+
     const databases = new Databases(client);
 
     // Vérifier si la liste de test existe
@@ -237,12 +237,12 @@ function getHugoConfig() {
 
   async function init() {
     const hugoConfig = getHugoConfig();
-    
+
     // Créer les données de test si nécessaire (uniquement en mode démo)
     if (hugoConfig.listId && hugoConfig.listId.includes('demo')) {
       await createTestDataIfNeeded(hugoConfig);
     }
-    
+
     initializeCollaborativeApp(hugoConfig);
   }
 

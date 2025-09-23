@@ -2,7 +2,7 @@
   single.ingredientsjson.json
   Émet un JSON équivalent à l'ancienne version.
   Utilise le partial mis en cache "event-data-processor.html" pour obtenir les données.
-*/}}
+*/ -}}
 
 {{- $eventData := partialCached "functions/event-data-processor.html" . .File.UniqueID -}}
 

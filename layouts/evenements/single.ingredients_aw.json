@@ -2,7 +2,7 @@
   single.ingredients_aw.json
   Génère un JSON avec les ingrédients consolidés.
   Utilise le partial mis en cache "event-data-processor.html" pour obtenir les données.
-*/}}
+*/ -}}
 
 {{- $eventData := partialCached "functions/event-data-processor.html" . .File.UniqueID -}}
 {{- $ingredient_totals := $eventData.ingredient_totals -}}
@@ -13,42 +13,43 @@
   "name": {{ .Title | jsonify }},
   "ingredients": [
     {{- $first := true -}}
-    {{- range $name, $data := $ingredient_totals -}}
+    {{- range $name, $data := sort $ingredient_totals "name" -}}
       {{- if not $first }},{{ end }}{{- $first = false -}}
       {
-        "uuid": {{ $data.uuid | jsonify }},
-        "name": {{ $data.name | jsonify }},
-        "type": {{ $data.type | jsonify }},
+        "ingredientUuid": {{ $data.uuid | jsonify }},
+        "ingredientName": {{ $data.name | jsonify }},
+        "ingType": {{ $data.type | jsonify }},
         {{- if $data.pFrais }}"pFrais": true,{{ end -}}
         {{- if $data.pSurgel }}"pSurgel": true,{{ end -}}
-        {{- if and $data.has_conversion (gt (len $data.conversion_rules) 0) -}}
+        {{- if and $data.has_equivalence (gt (len $data.conversion_rules) 0) -}}
           "conversionRules": {{ $data.conversion_rules | jsonify }},
         {{- end -}}
-        {{- if $data.has_conversion -}}
-        "total_needed_by_category": [
+        {{- if $data.has_equivalence  -}}
+        "totalNeededRaw": [
           {{- $firstCategory := true -}}
           {{- if gt $data.category_weight 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.3f" $data.category_weight -}}, "unit": "gr.", "category": "weight" }{{- end -}}
           {{- if gt $data.category_volume 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.3f" $data.category_volume -}}, "unit": "ml", "category": "volume" }{{- end -}}
           {{- range $unit, $quantity := $data.category_other -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.3f" $quantity -}}, "unit": {{ $unit | jsonify }}, "category": "other" }{{- end -}}
         ],
         {{- end -}}
-        "total_needed_consolidated": [
+        "totalNeededConsolidated": [
           {{- $firstConsolidated := true -}}
           {{- if gt $data.consolidated_weight 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.3f" $data.consolidated_weight -}}, "unit": "gr.", "category": "weight" }{{- end -}}
           {{- if gt $data.consolidated_volume 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.3f" $data.consolidated_volume -}}, "unit": "ml", "category": "volume" }{{- end -}}
           {{- range $unit, $quantity := $data.consolidated_other -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.3f" $quantity -}}, "unit": {{ $unit | jsonify }}, "category": "other" }{{- end -}}
         ],
-        "recipe_occurrences": [
+        {{- /*  FIX : il n'y a pas de "delimit" avec hugo ?? */ -}}
+        "recipeOccurrences": [
           {{- $firstOccurrence := true -}}
-          {{- range $occurrence := index $ingredient_occurrences $name -}}
+          {{- range $occurrence := index $ingredient_occurrences $data.name -}}
             {{- if not $firstOccurrence }},{{ end }}{{- $firstOccurrence = false -}}
             {
-              "recipe_name": {{ $occurrence.recipe_name | jsonify }},
+              "recipeName": {{ $occurrence.recipe_name | jsonify }},
               "dateTimeService": {{ $occurrence.dateTimeService | jsonify }},
               "horaire": {{ $occurrence.horaire | jsonify }},
               "typePlat": {{ $occurrence.typePlat | jsonify }},
               "assiettes": {{ $occurrence.assiettes }},
-              "quantite": {{- printf "%.3f" $occurrence.quantite -}},
+              "quantity": {{- printf "%.3f" $occurrence.quantite -}},
               "unit": {{ $occurrence.unit | jsonify }}
             }
           {{- end -}}

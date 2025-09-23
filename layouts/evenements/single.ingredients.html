@@ -1,5 +1,13 @@
 
 {{ define "main" }}
+<!--
+  Layout de la listes figé des ingrédients d'un événement
+  - Template vuejs, lié à l'app asset/js/event/app_ingredients_list.js
+  - Data recupéré du JSON généré par le layout hugo single.ingredientsjson.json
+
+  - Permet d'acceder / de créer un tableau collaboratif appwrite : createCollaborativeList (assets/js/appwrite-client.js)
+  - Permet les export : `copyOrExport`
+-->
 
 <meta
   name="viewport"
@@ -188,7 +196,7 @@
               </div>
 
               <!-- Bouton pour créer une liste collaborative -->
-              <div class="mb-4">
+              <div class="mb-4" v-if="isAuthenticated">
                 <div v-if="existingListExists">
                   <button
                     class="btn btn-info w-100"
@@ -212,7 +220,7 @@
                     :disabled="isCreatingList"
                   >
                     <span v-if="isCreatingList" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    {{ partialCached "components/icon-svg" (dict "name" "plus" "size" "1.1rem") "plus-icon" "1.1rem" }}
+                    <i class="fas fa-plus me-2" style="font-size: 1.1rem;"></i>
                     <span v-if="!isCreatingList">Créer une liste modifiable</span>
                     <span v-else>Création en cours...</span>
                   </button>
@@ -1200,6 +1208,13 @@
 
 {{ partialCached "components/print-button.html" . "print-btn " }}
 
+
+{{- $eventData := partialCached "functions/event-data-processor.html" . .File.UniqueID -}}
+{{- $contentHash := $eventData | jsonify | md5 -}}
+<script>
+    window.__HUGO_PARAMS__ = window.__HUGO_PARAMS__ || {};
+    window.__HUGO_PARAMS__.listContentHash = {{ $contentHash | jsonify | safeJS }};
+</script>
 
 {{ $fp := resources.Get "flatpickr/flatpickr.min.js" | fingerprint }} {{ $fp_fr :=
 resources.Get "flatpickr/l10n/fr.js" | fingerprint }}

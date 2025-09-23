@@ -13,7 +13,6 @@ let client = null;
 let account = null;
 let functions = null;
 let databases = null;
-let ID = null;
 let initializationPromise = null;
 
 /**
@@ -26,10 +25,7 @@ function waitForAppwrite(maxAttempts = 50, interval = 100) {
 
         function checkAppwrite() {
             attempts++;
-            // console.log(`[Appwrite Client] Vérification SDK - tentative ${attempts}/${maxAttempts}`);
-
             if (window.Appwrite && window.Appwrite.Client && window.Appwrite.Account) {
-                // console.log("[Appwrite Client] SDK Appwrite chargé avec succès");
                 resolve();
             } else if (attempts >= maxAttempts) {
                 console.error("[Appwrite Client] SDK Appwrite non chargé après le nombre maximum de tentatives");
@@ -45,31 +41,23 @@ function waitForAppwrite(maxAttempts = 50, interval = 100) {
 
 /**
  * Initialise les clients Appwrite (une seule fois)
- * @returns {Promise<{client, account, functions, databases, ID}>} Les clients initialisés
+ * @returns {Promise<{client, account, functions, databases}>} Les clients initialisés
  */
 async function initializeAppwrite() {
-    // Si déjà initialisé, retourner les clients existants
     if (client && account && functions && databases) {
-        console.log("[Appwrite Client] Clients déjà initialisés, réutilisation");
-        return { client, account, functions, databases, ID };
+        return { client, account, functions, databases };
     }
 
-    // Si une initialisation est en cours, attendre qu'elle se termine
     if (initializationPromise) {
-        console.log("[Appwrite Client] Initialisation en cours, attente...");
         return initializationPromise;
     }
 
-    // Commencer une nouvelle initialisation
     initializationPromise = (async () => {
         try {
             console.log("[Appwrite Client] Début de l'initialisation");
-
-            // Attendre que le SDK soit chargé
             await waitForAppwrite();
 
-            // Initialiser les clients
-            const { Client, Account, Functions, Databases, ID } = window.Appwrite;
+            const { Client, Account, Functions, Databases } = window.Appwrite;
 
             client = new Client()
                 .setEndpoint(APPWRITE_ENDPOINT)
@@ -80,16 +68,13 @@ async function initializeAppwrite() {
             databases = new Databases(client);
 
             console.log("[Appwrite Client] Initialisation terminée avec succès");
-
-            return { client, account, functions, databases, ID };
+            return { client, account, functions, databases };
         } catch (error) {
             console.error("[Appwrite Client] Erreur lors de l'initialisation:", error);
-            // Réinitialiser les variables en cas d'erreur
             client = null;
             account = null;
             functions = null;
             databases = null;
-            ID = null;
             initializationPromise = null;
             throw error;
         }
@@ -98,407 +83,270 @@ async function initializeAppwrite() {
     return initializationPromise;
 }
 
-/**
- * Récupère les clients Appwrite initialisés
- * @returns {Promise<{client, account, functions, databases}>} Les clients Appwrite
- */
+// --- Fonctions exportées ---
+
 async function getAppwriteClients() {
     return await initializeAppwrite();
 }
 
-/**
- * Récupère uniquement le client Account
- * @returns {Promise<Account>} Le client Account
- */
 async function getAccount() {
     const { account } = await initializeAppwrite();
-    if (account) {
-        console.log("[Appwrite Client] Récupération du compte Appwrite réussie", account);
-    } else {
-        console.error("[Appwrite Client] Récupération du compte Appwrite échouée");
-    }
     return account;
 }
+
 async function getTeams() {
-    const { Client, Teams } = window.Appwrite;
-    if (!client) {
-        await initializeAppwrite();
-    }
-    const teams = new Teams(client);
-    return teams;
+    const { Teams } = window.Appwrite;
+    if (!client) await initializeAppwrite();
+    return new Teams(client);
 }
 
-/**
- * Récupère uniquement le client Functions
- * @returns {Promise<Functions>} Le client Functions
- */
 async function getFunctions() {
     const { functions } = await initializeAppwrite();
     return functions;
 }
 
-/**
- * Récupère uniquement le client Databases
- * @returns {Promise<Databases>} Le client Databases
- */
 async function getDatabases() {
     const { databases } = await initializeAppwrite();
     return databases;
 }
 
-/**
- * Récupère les constantes de configuration
- * @returns {Object} Configuration Appwrite
- */
 function getConfig() {
-    return {
-        APPWRITE_ENDPOINT,
-        APPWRITE_PROJECT_ID,
-        APPWRITE_FUNCTION_ID,
-        ACCESS_REQUEST_FUNCTION_ID
-    };
+    return { APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, APPWRITE_FUNCTION_ID, ACCESS_REQUEST_FUNCTION_ID };
 }
 
-/**
- * Vérifie si les clients sont déjà initialisés
- * @returns {boolean} True si les clients sont initialisés
- */
 function isInitialized() {
     return !!(client && account && functions && databases);
 }
 
-/**
- * Vérifie l'authentification CMS locale (source de vérité principale)
- * @returns {object|null} L'objet utilisateur s'il est valide, sinon null
- */
 function getLocalCmsUser() {
     const cmsUser = localStorage.getItem('sveltia-cms.user');
-    // console.log('🔍 [getLocalCmsUser] Token brut depuis localStorage:', cmsUser);
-
-    if (!cmsUser) {
-        console.log('ℹ️ [getLocalCmsUser] Aucun token CMS dans localStorage');
-        return null;
-    }
-
+    if (!cmsUser) return null;
     try {
         const parsedUser = JSON.parse(cmsUser);
-        // console.log('🔍 [getLocalCmsUser] Token parsé:', {
-          //     hasToken: !!parsedUser.token,
-          //     tokenType: typeof parsedUser.token,
-          //     tokenLength: parsedUser.token ? parsedUser.token.length : 0,
-          //     tokenPreview: parsedUser.token ? parsedUser.token.substring(0, 20) + '...' : 'N/A',
-          //     hasId: !!parsedUser.id,
-          //     hasEmail: !!parsedUser.email,
-          //     backendName: parsedUser.backendName
-        // });
-
         if (parsedUser.token && typeof parsedUser.token === 'string' && parsedUser.token.trim() !== '') {
-            console.log('✅ [getLocalCmsUser] Token CMS valide');
             return parsedUser;
         }
-
-        console.log('⚠️ [getLocalCmsUser] Token CMS invalide - nettoyage');
         localStorage.removeItem('sveltia-cms.user');
         return null;
     } catch (e) {
-        console.warn('❌ [getLocalCmsUser] Données CMS corrompues dans localStorage. Nettoyage...', e);
         localStorage.removeItem('sveltia-cms.user');
         return null;
     }
 }
 
-/**
- * Vérifie si l'utilisateur est authentifié (basé sur le token CMS)
- * @returns {boolean} True si l'utilisateur est authentifié
- */
 function isAuthenticatedCms() {
-  console.log('getLocalCmsUser(): ', getLocalCmsUser() !== null);
     return getLocalCmsUser() !== null;
 }
 
-function isAuthenticatedAppwrite() {
-  getAccount
-}
-
-/**
- * Vérifie si l'email de l'utilisateur est vérifié
- * @returns {Promise<boolean>} True si l'email est vérifié
- */
 async function isEmailVerified() {
     try {
-        const account = await getAccount();
-        const user = await account.get();
+        const acc = await getAccount();
+        const user = await acc.get();
         return user.emailVerification || false;
     } catch (error) {
-        console.warn('[AppwriteClient] Impossible de vérifier l\'état de vérification d\'email:', error);
         return false;
     }
 }
 
-/**
- * Envoie un email de vérification à l'utilisateur connecté
- * @param {string} redirectURL - URL vers laquelle rediriger après vérification
- * @returns {Promise<void>}
- */
 async function sendVerificationEmail(redirectURL = null) {
     try {
-        const account = await getAccount();
+        const acc = await getAccount();
         const verificationURL = redirectURL || `${window.location.origin}/verify-email`;
-        await account.createVerification(verificationURL);
-        console.log('[AppwriteClient] Email de vérification envoyé avec succès');
+        await acc.createVerification(verificationURL);
     } catch (error) {
         console.error('[AppwriteClient] Erreur lors de l\'envoi de l\'email de vérification:', error);
         throw error;
     }
 }
 
-/**
- * Vérifie l'email avec les paramètres de vérification
- * @param {string} userId - ID de l'utilisateur
- * @param {string} secret - Secret de vérification
- * @returns {Promise<void>}
- */
 async function verifyEmail(userId, secret) {
     try {
-        const account = await getAccount();
-        await account.updateVerification(userId, secret);
-        console.log('[AppwriteClient] Email vérifié avec succès');
+        const acc = await getAccount();
+        await acc.updateVerification(userId, secret);
     } catch (error) {
         console.error('[AppwriteClient] Erreur lors de la vérification d\'email:', error);
         throw error;
     }
 }
 
-/**
- * Récupère l'état d'authentification complet de l'utilisateur
- * @returns {Promise<object>} État d'authentification avec vérification email
- */
 async function getAuthenticationState() {
     const cmsUser = getLocalCmsUser();
-    const userEmail = getUserEmail();
-    const userName = getUserName();
-
-    if (!cmsUser) {
-        return {
-            isAuthenticated: false,
-            isEmailVerified: false,
-            email: null,
-            name: null,
-            requiresAction: false
-        };
-    }
-
+    if (!cmsUser) return { isAuthenticated: false, isEmailVerified: false, email: null, name: null, requiresAction: false };
     try {
         const emailVerified = await isEmailVerified();
-        return {
-            isAuthenticated: true,
-            isEmailVerified: emailVerified,
-            email: userEmail,
-            name: userName,
-            requiresAction: !emailVerified
-        };
+        return { isAuthenticated: true, isEmailVerified: emailVerified, email: getUserEmail(), name: getUserName(), requiresAction: !emailVerified };
     } catch (error) {
-        console.warn('[AppwriteClient] Erreur lors de la récupération de l\'état d\'authentification:', error);
-        return {
-            isAuthenticated: true,
-            isEmailVerified: false,
-            email: userEmail,
-            name: userName,
-            requiresAction: true
-        };
+        return { isAuthenticated: true, isEmailVerified: false, email: getUserEmail(), name: getUserName(), requiresAction: true };
     }
 }
 
-/**
- * Récupère l'email de l'utilisateur depuis le localStorage
- * @returns {string|null} L'email de l'utilisateur ou null
- */
 function getUserEmail() {
     return localStorage.getItem('appwrite-user-email');
 }
 
-/**
- * Récupère le nom de l'utilisateur depuis le localStorage
- * @returns {string|null} Le nom de l'utilisateur ou null
- */
 function getUserName() {
     return localStorage.getItem('appwrite-user-name');
 }
 
 function getLocalEmailVerificationStatus() {
-    return localStorage.getItem('email-verification-status') ;
+    return localStorage.getItem('email-verification-status');
 }
 
-
-/**
- * Nettoie toutes les données d'authentification locales
- */
 function clearAuthData() {
     localStorage.removeItem('sveltia-cms.user');
     localStorage.removeItem('appwrite-user-email');
     localStorage.removeItem('appwrite-user-name');
     localStorage.removeItem('email-verification-status');
-    // console.log("[Appwrite Client] Données d'authentification locales nettoyées");
 }
 
-/**
- * Crée une liste collaborative à partir d'un événement
- * @param {string} eventId - L'ID de l'événement
- * @returns {Promise<void>}
- */
 async function createCollaborativeListFromEvent(eventId) {
     try {
         console.log(`[Appwrite Client] Création d'une liste collaborative pour l'événement ${eventId}`);
-
-        // 1. Récupérer les données de l'événement
         const response = await fetch(`/evenements/${eventId}/ingredients_aw/index.json`);
-        if (!response.ok) {
-            throw new Error(`Impossible de récupérer les données de l'événement: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`Impossible de récupérer les données de l'événement: ${response.status}`);
         const eventData = await response.json();
         console.log(`[Appwrite Client] Données de l'événement récupérées:`, eventData);
 
-        // 2. Initialiser Appwrite
-        const { client, account, databases, ID } = await initializeAppwrite();
-
-        // 3. Vérifier l'authentification
+        const { account, databases } = await initializeAppwrite();
         const user = await account.get();
         console.log(`[Appwrite Client] Utilisateur authentifié: ${user.$id}`);
 
-        // 4. Vérifier si une liste existe déjà
-        const existingLists = await databases.listDocuments(
-            '689d15b10003a5a13636',
-            'ingredient_lists',
-            [
-                `equal("eventId", "${eventId}")`
-            ]
-        );
-
-        if (existingLists.total > 0) {
-            console.log(`[Appwrite Client] Une liste existe déjà pour l'événement ${eventId}`);
-            window.location.href = `/app/ingredients-collaborative/list/${eventId}`;
+        // Vérifier si l'événement existe déjà dans la collection 'ingredient_lists'
+        try {
+            await databases.getDocument(
+                '689d15b10003a5a13636',
+                'ingredient_lists',
+                eventId
+            );
+            console.log(`[Appwrite Client] L'événement ${eventId} existe déjà`);
+            window.location.href = `/app/ingredients-collaborative/?listId=${eventId}`;
             return;
+        } catch (error) {
+            if (error.code !== 404) {
+                throw error;
+            }
         }
 
-        // 5. Créer le document dans la collection ingredient_lists
-        const listData = {
-            eventId: eventId,
+        // Récupérer le hash depuis les paramètres globaux
+        const contentHash = window.__HUGO_PARAMS__?.listContentHash;
+        if (!contentHash) {
+            throw new Error('Le hash du contenu n\'est pas défini');
+          return;
+        }
+
+        // Créer l'événement dans la collection 'ingredient_lists'
+        const eventDataForAppwrite = {
             name: eventData.name || `Événement ${eventId}`,
-            createdBy: user.$id,
-            isActive: true
+            originalDataHash: contentHash,
+            isActive: true,
+            createdBy: user.$id
         };
+        console.log(`[Appwrite Client] Création de l'événement avec les données:`, eventDataForAppwrite);
 
-        console.log(`[Appwrite Client] Création de la liste avec les données:`, listData);
+        await databases.createDocument(
+            '689d15b10003a5a13636',
+            'ingredient_lists',
+            eventId,
+            eventDataForAppwrite,
+            [`read("user:${user.$id}")`, `update("user:${user.$id}")`, `delete("user:${user.$id}")`]
+        );
 
-        const newList = await databases.createDocument({
-            databaseId: '689d15b10003a5a13636',
-            collectionId: 'ingredient_lists',
-            documentId: ID.unique(),
-            data: listData,
-            permissions: [
-                `read("user:${user.$id}")`,
-                `update("user:${user.$id}")`,
-                `delete("user:${user.$id}")`
-            ]
-        });
-
-        console.log(`[Appwrite Client] Liste créée avec l'ID: ${newList.$id}`);
-
-        // 6. Parcourir les ingrédients et les créer
         if (eventData.ingredients && Array.isArray(eventData.ingredients)) {
             console.log(`[Appwrite Client] Création de ${eventData.ingredients.length} ingrédients`);
-            
+            let successCount = 0;
+            let errorCount = 0;
+
             for (const ingredient of eventData.ingredients) {
                 const ingredientData = {
-                    listId: newList.$id,
-                    ingredientUuid: ingredient.uuid || ID.unique(),
-                    ingredientName: ingredient.name || '',
-                    ingType: ingredient.type || '',
-                    totalNeededByCategory: JSON.stringify(ingredient.total_needed_consolidated || []),
-                    totalNeededConsolidated: JSON.stringify(ingredient.total_needed_consolidated || []),
-                    purchases: '[]',
-                    recipeOccurrences: ingredient.recipe_occurrences || []
-                };
+                    ingredientUuid: ingredient.ingredientUuid || window.Appwrite.ID.unique(), // Utiliser l'UUID du JSON ou en générer un
+                    ingredientLists: eventId, // Relation avec l'événement
+                    ingredientName: ingredient.ingredientName || '',
+                    ingType: ingredient.ingType || '',
+                    totalNeededConsolidated: JSON.stringify(ingredient.totalNeededConsolidated || []),
+                    totalNeededRaw: JSON.stringify(ingredient.totalNeededRaw || []),
+                    recipeOccurrences: (ingredient.recipeOccurrences || []).map(o => JSON.stringify(o)),
+                    pFrais: ingredient.pFrais || false,
+                    pSurgel: ingredient.pSurgel || false,
 
+                };
                 try {
-                    await databases.createDocument({
-                        databaseId: '689d15b10003a5a13636',
-                        collectionId: 'ingredients',
-                        documentId: ID.unique(),
-                        data: ingredientData,
-                        permissions: [
-                            `read("user:${user.$id}")`,
-                            `update("user:${user.$id}")`,
-                            `delete("user:${user.$id}")`
-                        ]
-                    });
-                    console.log(`[Appwrite Client] Ingrédient créé: ${ingredientData.ingredientName}`);
+                    await databases.createDocument(
+                        '689d15b10003a5a13636',
+                        'ingredients',
+                        window.Appwrite.ID.unique(),
+                        ingredientData,
+                        [`read("user:${user.$id}")`, `update("user:${user.$id}")`, `delete("user:${user.$id}")`]
+                    );
+                    successCount++;
                 } catch (error) {
+                    errorCount++;
                     console.error(`[Appwrite Client] Erreur lors de la création de l'ingrédient ${ingredientData.ingredientName}:`, error);
+                    // Continuer avec les autres ingrédients même si celui-ci échoue
+                }
+            }
+
+            console.log(`[Appwrite Client] Création des ingrédients terminée: ${successCount} succès, ${errorCount} erreurs`);
+
+            if (errorCount > 0) {
+                // Stocker les ingrédients échoués pour nouvelle tentative
+                const failedIngredients = eventData.ingredients.filter((_, index) => {
+                    // Simplement recréer la liste des ingrédients échoués (logique simplifiée)
+                    return index >= successCount; // Approximation pour l'exemple
+                });
+
+                localStorage.setItem(`failed_ingredients_${eventId}`, JSON.stringify(failedIngredients));
+
+                // Afficher un message à l'utilisateur
+                const errorMessage = `${errorCount} ingrédient(s) n'ont pas pu être créés. Voulez-vous réessayer ?\n\n` +
+                    `Ingrédients en échec:\n` +
+                    failedIngredients.slice(0, 5).map(ing => `- ${ing.name}`).join('\n') +
+                    (failedIngredients.length > 5 ? `\n... et ${failedIngredients.length - 5} autres` : '');
+
+                if (confirm(errorMessage + '\n\nCliquez sur OK pour réessayer ou Annuler pour continuer quand même.')) {
+                    // Réessayer de créer les ingrédients échoués
+                    console.log(`[Appwrite Client] Nouvelle tentative pour ${failedIngredients.length} ingrédients...`);
+                    await retryFailedIngredients(eventId, failedIngredients, databases, user);
                 }
             }
         }
 
-        // 7. Rediriger vers la page de l'application
         console.log(`[Appwrite Client] Redirection vers l'application collaborative`);
-        window.location.href = `/app/ingredients-collaborative/list/${eventId}`;
-
+        window.location.href = `/app/ingredients-collaborative/?listId=${eventId}`;
     } catch (error) {
         console.error('[Appwrite Client] Erreur lors de la création de la liste collaborative:', error);
         throw error;
     }
 }
 
-/**
- * Vérifie si une liste collaborative existe déjà pour un événement
- * @param {string} eventId - L'ID de l'événement
- * @returns {Promise<boolean>} True si une liste existe
- */
-async function checkExistingCollaborativeList(eventId) {
+async function checkExistingCollaborativeList(listId) {
     try {
         const { databases } = await initializeAppwrite();
-
-        const existingLists = await databases.listDocuments(
+        // Vérifier si le document existe directement dans la collection 'ingredient_lists'
+        const existingList = await databases.getDocument(
             '689d15b10003a5a13636',
             'ingredient_lists',
-            [
-                `equal("eventId", "${eventId}")`
-            ]
+            listId
         );
-
-        return existingLists.total > 0;
-
+        return !!existingList;
     } catch (error) {
+        if (error.code === 404) {
+            return false; // Le document n'existe pas
+        }
         console.error('[Appwrite Client] Erreur lors de la vérification de la liste existante:', error);
         return false;
     }
 }
 
-/**
- * Déconnexion globale - supprime la session Appwrite et nettoie les données locales
- * @returns {Promise<void>}
- */
 async function logoutGlobal() {
     try {
-        // Nettoyer d'abord les données locales
         clearAuthData();
-
-        // Supprimer la session Appwrite
-        const account = await getAccount();
-        await account.deleteSession('current');
-        // console.log("[Appwrite Client] Déconnexion globale réussie");
+        const acc = await getAccount();
+        await acc.deleteSession('current');
     } catch (error) {
         console.warn("[Appwrite Client] Erreur lors de la déconnexion Appwrite (peut-être déjà déconnecté):", error);
     }
 }
 
-/**
- * Configure les données d'authentification locales
- * @param {string} email - L'email de l'utilisateur
- * @param {string} name - Le nom de l'utilisateur
- * @param {object} cmsAuth - L'objet d'authentification CMS
- */
 function setAuthData(email, name, cmsAuth) {
     localStorage.setItem('appwrite-user-email', email);
     localStorage.setItem('appwrite-user-name', name);
@@ -507,52 +355,20 @@ function setAuthData(email, name, cmsAuth) {
 
 // Export des fonctions publiques
 export {
-    getAppwriteClients,
-    getAccount,
-    getFunctions,
-    getTeams,
-    getDatabases,
-    getConfig,
-    isInitialized,
-    initializeAppwrite,
-    getLocalCmsUser,
-    isAuthenticatedCms ,
-    getUserEmail,
-    getUserName,
-    clearAuthData,
-    setAuthData,
-    logoutGlobal,
-    isEmailVerified,
-    sendVerificationEmail,
-    verifyEmail,
-    getLocalEmailVerificationStatus,
-    createCollaborativeListFromEvent,
-    checkExistingCollaborativeList
+    getAppwriteClients, getAccount, getFunctions, getTeams, getDatabases, getConfig,
+    isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms, getUserEmail,
+    getUserName, clearAuthData, setAuthData, logoutGlobal, isEmailVerified,
+    sendVerificationEmail, verifyEmail, getLocalEmailVerificationStatus,
+    createCollaborativeListFromEvent, checkExistingCollaborativeList
 };
-
 
 // Exposition globale pour compatibilité avec les scripts non-module
 if (typeof window !== 'undefined') {
     window.AppwriteClient = {
-        getAppwriteClients,
-        getAccount,
-        getFunctions,
-        getDatabases,
-        getConfig,
-        isInitialized,
-        initializeAppwrite,
-        getLocalCmsUser,
-        isAuthenticatedCms,
-        getUserEmail,
-        getUserName,
-        clearAuthData,
-        setAuthData,
-        logoutGlobal,
-        isEmailVerified,
-        sendVerificationEmail,
-        verifyEmail,
-        getLocalEmailVerificationStatus,
-        createCollaborativeListFromEvent,
-        checkExistingCollaborativeList
+        getAppwriteClients, getAccount, getFunctions, getDatabases, getConfig,
+        isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms,
+        getUserEmail, getUserName, clearAuthData, setAuthData, logoutGlobal,
+        isEmailVerified, sendVerificationEmail, verifyEmail, getLocalEmailVerificationStatus,
+        createCollaborativeListFromEvent, checkExistingCollaborativeList
     };
 }

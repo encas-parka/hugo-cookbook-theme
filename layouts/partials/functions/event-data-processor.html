@@ -126,7 +126,7 @@
                   {{- $unit := $item.unit | default "" -}}
                   {{- $quantiteEq := $item.quantiteEq | default $quantite -}}
                   {{- $unitEq := $item.unitEq | default $unit -}}
-                  {{- $hasConversion := $item.hasConversion | default false -}}
+                  {{- $hasEquivalence := $item.hasConversion | default false -}}
                   {{- $conversionRule := $item.conversionRule | default "" -}}
 
                   {{- /* Ajout de l'occurrence */}}
@@ -134,8 +134,8 @@
                   {{- $ingredient_occurrences = merge $ingredient_occurrences (dict $name ((index $ingredient_occurrences $name) | append $occurrence)) -}}
 
                   {{- /* Mise à jour des flags et règles de conversion */}}
-                  {{- if $hasConversion -}}
-                    {{- $current = merge $current (dict "has_conversion" true) -}}
+                  {{- if $hasEquivalence -}}
+                    {{- $current = merge $current (dict "has_equivalence" true) -}}
                     {{- if and (ne $conversionRule "") (not (in $current.conversion_rules $conversionRule)) -}}
                       {{- $current = merge $current (dict "conversion_rules" ($current.conversion_rules | append $conversionRule)) -}}
                     {{- end -}}

@@ -18,7 +18,7 @@
 import { downloadFile } from "./download-file.js";
 import { copyTable } from "./copy-table.js";
 import { copyOrExport } from "./copy-or-export.js";
-import { createEventApp } from "./ingredients_list_refactored.js";
+import { createEventApp } from "./app_ingredients_list.js";
 
 
 // Exposer temporairement sur window pour compat avec les onclick inline existants
@@ -36,19 +36,20 @@ import { createEventApp } from "./ingredients_list_refactored.js";
 })();
 
 // Utilitaire: lecture de données JSON depuis un <script type="application/json" id="event-json">
-function readInlineEventJSON() {
-  try {
-    if (typeof document === "undefined") return null;
-    const el = document.getElementById("event-json");
-    if (!el) return null;
-    const txt = el.textContent || el.innerText || "";
-    if (!txt) return null;
-    return JSON.parse(txt);
-  } catch (_err) {
-    console.error("Failed to parse inline event JSON:", _err);
-    return null;
-  }
-}
+// USELESS - NON FONCTIONNEL
+// function readInlineEventJSON() {
+//   try {
+//     if (typeof document === "undefined") return null;
+//     const el = document.getElementById("event-json");
+//     if (!el) return null;
+//     const txt = el.textContent || el.innerText || "";
+//     if (!txt) return null;
+//     return JSON.parse(txt);
+//   } catch (_err) {
+//     console.error("Failed to parse inline event JSON:", _err);
+//     return null;
+//   }
+// }
 
 // Utilitaire: fetch JSON depuis une URL
 async function fetchEventJSON(url) {
@@ -90,8 +91,8 @@ async function fetchEventJSON(url) {
     if (bootstrapWithData(window.__EVENT_PAGE_DATA__)) return;
 
     // 2) Script inline JSON
-    const inlineData = readInlineEventJSON();
-    if (bootstrapWithData(inlineData)) return;
+    // const inlineData = readInlineEventJSON();
+    // if (bootstrapWithData(inlineData)) return;
 
     // 3) Fetch via data-json-src
     const src = appRoot.getAttribute("data-json-src");

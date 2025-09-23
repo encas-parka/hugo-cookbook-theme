@@ -12,13 +12,18 @@
 </div>
 
 <!-- Meta tags pour la configuration Appwrite -->
-<meta name="appwrite-endpoint" content="{{ .Site.Params.appwrite.endpoint | default "https://cloud.appwrite.io/v1" }}">
-<meta name="appwrite-project-id" content="{{ .Site.Params.appwrite.projectId | default "6742b5d300099026c7fa" }}">
+<meta name="appwrite-endpoint" content="{{ .Site.Params.appwrite.endpoint | default "https://fra.cloud.appwrite.io/v1" }}">
+<meta name="appwrite-project-id" content="{{ .Site.Params.appwrite.projectId | default "689725820024e81781b7" }}">
 <meta name="appwrite-database-id" content="{{ .Site.Params.appwrite.databaseId | default "689d15b10003a5a13636" }}">
 
 <!-- CSS pour l'application collaborative -->
 {{ $collaborativeCSS := resources.Get "scss/collaborative-ingredients.scss" | css.Sass | resources.Minify | fingerprint }}
 <link rel="stylesheet" href="{{ $collaborativeCSS.RelPermalink }}" integrity="{{ $collaborativeCSS.Data.Integrity }}">
+
+<!-- Scripts Appwrite (nécessaires pour l'application collaborative) -->
+<script src="https://cdn.jsdelivr.net/npm/appwrite@18.2.0"></script>
+
+{{ partial "footer/esbuild" (dict "src" "js/appwrite-client.js" "targetPath" "appwrite-client.js" "load" "defer") }}
 
 <!-- Vue.js -->
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -42,13 +47,20 @@
 
 <!-- Configuration Hugo pour JavaScript -->
 <script>
+
+{{/* On récupère les mêmes données que celles utilisées pour générer le JSON */}}
+ {{- $eventData := partialCached "functions/event-data-processor.html" . .File.UniqueID -}}
+ {{/* On génère le hash MD5 de ces données converties en JSON. Sert a detecter les modifications par rapport au donnée stocké sur appwrite */}}
+ {{- $contentHash := $eventData | jsonify | md5 -}}
+
     window.__HUGO_PARAMS__ = {
         appwrite: {
             endpoint: {{ .Site.Params.appwrite.endpoint | default "https://cloud.appwrite.io/v1" | jsonify | safeJS }},
-            projectId: {{ .Site.Params.appwrite.projectId | default "6742b5d300099026c7fa" | jsonify | safeJS }},
+            projectId: {{ .Site.Params.appwrite.projectId | default "689725820024e81781b7" | jsonify | safeJS }},
             databaseId: {{ .Site.Params.appwrite.databaseId | default "689d15b10003a5a13636" | jsonify | safeJS }}
         },
-        listId: {{ .Params.listId | default "demo_list_123" | jsonify | safeJS }}
+        listId: {{ .Params.listId | default "demo_list_123" | jsonify | safeJS }},
+        listContentHash: {{ $contentHash | jsonify | safeJS }}
     };
 </script>
 {{ end }}

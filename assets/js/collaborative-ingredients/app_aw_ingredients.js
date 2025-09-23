@@ -3,6 +3,12 @@
  * Application Vue.js collaborative pour la gestion des listes d'ingrédients
  * Utilise Appwrite pour la persistance et la synchronisation temps réel
  */
+ 
+ /** TO Check 
+ 
+ * vérifier le fonctionnement stock (client, calculé) / stockReel (appwrite, renseigné)
+
+ */
 
 import { unitsManager } from './UnitsManager.js';
 import { mainTemplate } from './components/MainTemplate.js';
@@ -33,11 +39,15 @@ export function createCollaborativeApp(config = {}) {
         isLoading: true,
         error: null,
         realtimeStatus: 'connecting',
+        showUpdatePrompt: false,
 
-        // Données de la liste
-        currentList: null,
-        ingredients: [],
-        originalIngredients: [],
+        // Données Appwrite brutes
+        event: null,              // Document depuis la collection 'evenements'
+        ingredients: [],          // Documents depuis la collection 'ingredients'
+        purchases: [],            // Documents depuis la collection 'purchase'
+
+        // Données calculées pour l'UI
+        ingredientsWithBalance: [], // Ingrédients avec solde calculé
 
         // Interface utilisateur
         searchQuery: '',
@@ -51,7 +61,6 @@ export function createCollaborativeApp(config = {}) {
         selectAllChecked: false,
 
         // Modals
-        showSnapshotsModal: false,
         showPurchaseModal: false,
         showDetailsModal: false,
         editingIngredient: null,
@@ -73,7 +82,7 @@ export function createCollaborativeApp(config = {}) {
     computed: {
       // Ingrédients filtrés et triés
       filteredIngredients() {
-        let filtered = [...this.ingredients];
+        let filtered = [...this.ingredientsWithBalance];
 
         // Filtre par recherche
         if (this.searchQuery.trim()) {
@@ -94,15 +103,14 @@ export function createCollaborativeApp(config = {}) {
         if (this.selectedStatusFilter) {
           filtered = filtered.filter(ingredient => {
             const balance = this.getIngredientBalance(ingredient);
-            const isComplete = ingredient.trackingData?.status?.ok || false;
 
             switch (this.selectedStatusFilter) {
               case 'missing':
-                return balance < 0 && !isComplete;
+                return balance < 0;
               case 'complete':
-                return isComplete || balance >= 0;
+                return balance >= 0;
               case 'partial':
-                return balance < 0 && !isComplete && this.hasPurchases(ingredient);
+                return balance < 0 && ingredient.hasPurchases;
               default:
                 return true;
             }
@@ -137,29 +145,29 @@ export function createCollaborativeApp(config = {}) {
 
       // Types disponibles
       availableTypes() {
-        const types = [...new Set(this.ingredients.map(ing => ing.ingType))];
+        const types = [...new Set(this.ingredientsWithBalance.map(ing => ing.ingType))];
         return types.sort();
       },
 
       // Statistiques
       totalIngredients() {
-        return this.ingredients.length;
+        return this.ingredientsWithBalance.length;
       },
 
       missingIngredients() {
-        return this.ingredients.filter(ing =>
-          this.getIngredientBalance(ing) < 0 && !ing.trackingData?.status?.ok
+        return this.ingredientsWithBalance.filter(ing =>
+          this.getIngredientBalance(ing) < 0
         ).length;
       },
 
       completeIngredients() {
-        return this.ingredients.filter(ing =>
-          ing.trackingData?.status?.ok || this.getIngredientBalance(ing) >= 0
+        return this.ingredientsWithBalance.filter(ing =>
+          this.getIngredientBalance(ing) >= 0
         ).length;
       },
 
       modifiedIngredients() {
-        return this.ingredients.filter(ing => ing.isModified).length;
+        return this.ingredientsWithBalance.filter(ing => ing.isModified).length;
       },
 
       // Historique des actions
@@ -206,7 +214,7 @@ export function createCollaborativeApp(config = {}) {
             .setProject(this.appwriteConfig.projectId);
 
           this.database = new Appwrite.Databases(this.appwrite);
-          
+
           console.log('[Collaborative App] Appwrite initialisé avec succès');
         } catch (error) {
           console.error('[Collaborative App] Erreur lors de l\'initialisation d\'Appwrite:', error);
@@ -222,59 +230,92 @@ export function createCollaborativeApp(config = {}) {
 
       async loadList() {
         try {
-          console.log(`[Collaborative App] Chargement de la liste ${this.listId}...`);
-          
-          // Charger les métadonnées de la liste
-          const listDoc = await this.database.getDocument(
+          console.log(`[Collaborative App] Chargement de l'événement ${this.listId}...`);
+          const currentHugoHash = window.__HUGO_PARAMS__.listContentHash;
+
+          // Charger les métadonnées de l'événement
+          this.event = await this.database.getDocument(
             this.appwriteConfig.databaseId,
             'ingredient_lists',
             this.listId
           );
-          this.currentList = listDoc;
-          console.log('[Collaborative App] Métadonnées de la liste chargées:', listDoc.name);
+          console.log('[Collaborative App] Métadonnées de l\'événement chargées:', this.event.name);
 
-          // Charger les ingrédients
-          const ingredientsResponse = await this.database.listDocuments(
+          // Vérifier si les données Hugo ont changé
+          if (this.event.originalDataHash !== currentHugoHash) {
+            console.warn('[Collaborative App] Le contenu Hugo a changé !');
+            this.showUpdatePrompt = true;
+          }
+
+          // Charger les ingrédients liés à cet événement via la relation
+          this.ingredients = await this.database.listDocuments(
             this.appwriteConfig.databaseId,
             'ingredients',
             [
-              Appwrite.Query.equal('listId', this.listId),
+              Appwrite.Query.equal('ingredientLists', this.listId),
               Appwrite.Query.limit(500)
             ]
           );
 
-          this.ingredients = ingredientsResponse.documents.map(doc => ({
-            ...doc,
-            originalData: JSON.parse(doc.originalData),
-            trackingData: JSON.parse(doc.trackingData)
-          }));
+          // Charger les achats pour cet événement
+          this.purchases = await this.database.listDocuments(
+            this.appwriteConfig.databaseId,
+            'purchase',
+            [
+              Appwrite.Query.equal('list', this.listId),
+              Appwrite.Query.limit(1000)
+            ]
+          );
 
-          this.originalIngredients = JSON.parse(JSON.stringify(this.ingredients));
-          
-          console.log(`[Collaborative App] ${this.ingredients.length} ingrédients chargés avec succès`);
+          // Calculer les soldes pour chaque ingrédient
+          this.calculateIngredientsBalance();
+
+          console.log(`[Collaborative App] ${this.ingredients.total} ingrédients et ${this.purchases.total} achats chargés`);
 
         } catch (error) {
           console.error('[Collaborative App] Erreur lors du chargement:', error);
-          
+
           // Gestion d'erreurs spécifiques
           if (error.code === 404) {
-            this.error = `Liste "${this.listId}" introuvable. Vérifiez que la liste existe ou créez-en une nouvelle.`;
+            this.error = `Événement "${this.listId}" introuvable.`;
           } else if (error.code === 401) {
             this.error = 'Accès non autorisé. Veuillez vous authentifier.';
           } else {
             this.error = `Erreur de chargement: ${error.message}`;
           }
-          
+
           throw error;
         }
+      },
+
+      // Calculer les soldes pour tous les ingrédients
+      calculateIngredientsBalance() {
+        this.ingredientsWithBalance = this.ingredients.documents.map(ingredient => {
+          const ingredientPurchases = this.getIngredientPurchases(ingredient.$id);
+          const totalNeed = this.calculateTotalNeed(ingredient);
+          const totalPurchased = this.calculateTotalPurchases(ingredientPurchases);
+          const totalStock = this.calculateTotalStock(ingredient);
+
+          return {
+            ...ingredient,
+            totalNeed,
+            totalPurchased,
+            totalStock,
+            balance: totalStock + totalPurchased - totalNeed,
+            purchases: ingredientPurchases,
+            hasPurchases: ingredientPurchases.length > 0,
+            isModified: ingredientPurchases.length > 0
+          };
+        });
       },
 
       async setupRealtime() {
         try {
           console.log('[Collaborative App] Configuration du temps réel...');
-          
+
           this.realtime = this.appwrite.subscribe([
-            `databases.${this.appwriteConfig.databaseId}.collections.ingredients.documents`
+            `databases.${this.appwriteConfig.databaseId}.collections.ingredients.documents`,
+            `databases.${this.appwriteConfig.databaseId}.collections.purchase.documents`
           ], (response) => {
             console.log('[Collaborative App] Mise à jour temps réel reçue:', response.events);
             this.handleRealtimeUpdate(response);
@@ -285,7 +326,7 @@ export function createCollaborativeApp(config = {}) {
         } catch (error) {
           console.error('[Collaborative App] Erreur realtime:', error);
           this.realtimeStatus = 'disconnected';
-          
+
           // Retry connection after 5 seconds
           console.log('[Collaborative App] Tentative de reconnexion dans 5 secondes...');
           setTimeout(() => this.setupRealtime(), 5000);
@@ -295,178 +336,292 @@ export function createCollaborativeApp(config = {}) {
       handleRealtimeUpdate(response) {
         const { events, payload } = response;
 
-        if (!payload.listId || payload.listId !== this.listId) {
-          return; // Pas pour notre liste
+        // Gérer les mises à jour d'ingrédients
+        if (payload.ingredientLists === this.listId) {
+          if (events.includes('databases.*.collections.*.documents.*.create')) {
+            this.handleIngredientCreated(payload);
+          } else if (events.includes('databases.*.collections.*.documents.*.update')) {
+            this.handleIngredientUpdated(payload);
+          } else if (events.includes('databases.*.collections.*.documents.*.delete')) {
+            this.handleIngredientDeleted(payload);
+          }
         }
 
-        if (events.includes('databases.*.collections.*.documents.*.create')) {
-          this.handleIngredientCreated(payload);
-        } else if (events.includes('databases.*.collections.*.documents.*.update')) {
-          this.handleIngredientUpdated(payload);
-        } else if (events.includes('databases.*.collections.*.documents.*.delete')) {
-          this.handleIngredientDeleted(payload);
+        // Gérer les mises à jour d'achats
+        if (payload.list === this.listId) {
+          if (events.includes('databases.*.collections.*.documents.*.create')) {
+            this.handlePurchaseCreated(payload);
+          } else if (events.includes('databases.*.collections.*.documents.*.update')) {
+            this.handlePurchaseUpdated(payload);
+          } else if (events.includes('databases.*.collections.*.documents.*.delete')) {
+            this.handlePurchaseDeleted(payload);
+          }
         }
       },
 
       handleIngredientCreated(ingredient) {
-        const parsedIngredient = {
-          ...ingredient,
-          originalData: JSON.parse(ingredient.originalData),
-          trackingData: JSON.parse(ingredient.trackingData)
-        };
-        this.ingredients.push(parsedIngredient);
+        this.ingredients.documents.push(ingredient);
+        this.calculateIngredientsBalance();
       },
 
       handleIngredientUpdated(ingredient) {
-        const index = this.ingredients.findIndex(ing => ing.$id === ingredient.$id);
+        const index = this.ingredients.documents.findIndex(ing => ing.$id === ingredient.$id);
         if (index !== -1) {
-          const parsedIngredient = {
-            ...ingredient,
-            originalData: JSON.parse(ingredient.originalData),
-            trackingData: JSON.parse(ingredient.trackingData)
-          };
-          this.ingredients.splice(index, 1, parsedIngredient);
+          this.ingredients.documents.splice(index, 1, ingredient);
+          this.calculateIngredientsBalance();
         }
       },
 
       handleIngredientDeleted(ingredient) {
-        const index = this.ingredients.findIndex(ing => ing.$id === ingredient.$id);
+        const index = this.ingredients.documents.findIndex(ing => ing.$id === ingredient.$id);
         if (index !== -1) {
-          this.ingredients.splice(index, 1);
+          this.ingredients.documents.splice(index, 1);
+          this.calculateIngredientsBalance();
         }
+      },
+
+      handlePurchaseCreated(purchase) {
+        this.purchases.documents.push(purchase);
+        this.calculateIngredientsBalance();
+      },
+
+      handlePurchaseUpdated(purchase) {
+        const index = this.purchases.documents.findIndex(p => p.$id === purchase.$id);
+        if (index !== -1) {
+          this.purchases.documents.splice(index, 1, purchase);
+          this.calculateIngredientsBalance();
+        }
+      },
+
+      handlePurchaseDeleted(purchase) {
+        const index = this.purchases.documents.findIndex(p => p.$id === purchase.$id);
+        if (index !== -1) {
+          this.purchases.documents.splice(index, 1);
+          this.calculateIngredientsBalance();
+        }
+      },
+
+      // === MÉTHODES DE DONNÉES APPWRITE ===
+
+      // Récupérer les achats pour un ingrédient spécifique
+      getIngredientPurchases(ingredientId) {
+        return this.purchases.documents.filter(purchase =>
+          purchase.listIngredient === ingredientId
+        );
       },
 
       // === CALCULS ET FORMATAGE ===
 
-      getIngredientBalance(ingredient) {
-        const totalNeed = this.calculateTotalNeed(ingredient);
-        const totalStock = this.calculateTotalStock(ingredient);
-        const totalPurchased = this.calculateTotalPurchased(ingredient);
-        return totalStock + totalPurchased - totalNeed;
+      getIngredientBalance(ingredientWithBalance) {
+        return ingredientWithBalance.balance;
       },
 
+      // Calculer le besoin total depuis les données structurées
       calculateTotalNeed(ingredient) {
-        if (!ingredient.originalData?.recipeOccurrences) return 0;
+        if (!ingredient.totalNeededConsolidated) return 0;
 
-        // Utiliser UnitsManager pour consolider les quantités
-        const quantities = ingredient.originalData.recipeOccurrences.map(occurrence => ({
-          value: occurrence.quantity || 0,
-          unit: occurrence.unit || '',
-          ingredientName: ingredient.ingredientName
-        }));
+        try {
+          const consolidated = JSON.parse(ingredient.totalNeededConsolidated);
+          if (!Array.isArray(consolidated)) return 0;
 
-        const consolidated = this.unitsManager.consolidateQuantities(quantities);
+          // Prioriser les poids (gr) puis volumes (ml) puis autres
+          const weightItem = consolidated.find(item => item.category === 'weight');
+          const volumeItem = consolidated.find(item => item.category === 'volume');
+          const otherItem = consolidated.find(item => item.category === 'other');
 
-        // Retourner la première quantité consolidée (principale)
-        return consolidated.length > 0 ? consolidated[0].value : 0;
+          if (weightItem) return weightItem.value;
+          if (volumeItem) return volumeItem.value;
+          if (otherItem) return otherItem.value;
+
+        } catch (error) {
+          console.warn('[Collaborative App] Erreur parsing totalNeededConsolidated:', error);
+        }
+
+        return 0;
       },
 
+      // Calculer le stock total depuis les données stockReel
       calculateTotalStock(ingredient) {
-        if (!ingredient.trackingData?.stock?.effective?.length) return 0;
+        if (!ingredient.stockReel) return 0;
 
-        const quantities = ingredient.trackingData.stock.effective.map(stockItem => ({
-          value: stockItem.value || 0,
-          unit: stockItem.unit || '',
-          ingredientName: ingredient.ingredientName
-        }));
+        try {
+          const stockData = JSON.parse(ingredient.stockReel);
+          if (!Array.isArray(stockData)) return 0;
 
-        const consolidated = this.unitsManager.consolidateQuantities(quantities);
-        return consolidated.length > 0 ? consolidated[0].value : 0;
+          const quantities = stockData.map(stockItem => ({
+            value: stockItem.value || 0,
+            unit: stockItem.unit || '',
+            ingredientName: ingredient.ingredientName
+          }));
+
+          const consolidated = this.unitsManager.consolidateQuantities(quantities);
+          return consolidated.length > 0 ? consolidated[0].value : 0;
+
+        } catch (error) {
+          console.warn('[Collaborative App] Erreur parsing stock:', error);
+        }
+
+        return 0;
       },
 
-      calculateTotalPurchased(ingredient) {
-        if (!ingredient.trackingData?.purchases?.length) return 0;
+      // Calculer les achats totaux depuis la collection purchase
+      calculateTotalPurchases(purchases) {
+        if (!purchases.length) return 0;
 
-        const quantities = ingredient.trackingData.purchases.map(purchase => ({
-          value: purchase.value || 0,
+        const quantities = purchases.map(purchase => ({
+          value: parseFloat(purchase.quantity) || 0,
           unit: purchase.unit || '',
-          ingredientName: ingredient.ingredientName
+          ingredientName: purchase.ingredientName || 'Inconnu'
         }));
 
         const consolidated = this.unitsManager.consolidateQuantities(quantities);
         return consolidated.length > 0 ? consolidated[0].value : 0;
       },
 
+      // Formate le besoin total depuis les données structurées
       formatTotalNeed(ingredient) {
-        if (!ingredient.originalData?.recipeOccurrences?.length) return '0';
+        if (!ingredient.totalNeededRaw) return '0';
 
-        const quantities = ingredient.originalData.recipeOccurrences.map(occurrence => ({
-          value: occurrence.quantity || 0,
-          unit: occurrence.unit || '',
-          ingredientName: ingredient.ingredientName
-        }));
+        try {
+          const rawData = JSON.parse(ingredient.totalNeededRaw);
+          if (!Array.isArray(rawData)) return '0';
 
-        const consolidated = this.unitsManager.consolidateQuantities(quantities);
-        return this.formatConsolidatedQuantities(consolidated);
+          const quantities = rawData.map(item => ({
+            value: item.value || 0,
+            unit: item.unit || '',
+            ingredientName: ingredient.ingredientName
+          }));
+
+          const consolidated = this.unitsManager.consolidateQuantities(quantities);
+          return this.formatConsolidatedQuantities(consolidated);
+        } catch (error) {
+          console.warn('[Collaborative App] Erreur formatage totalNeed:', error);
+          return '0';
+        }
       },
 
+      // Formatage alternatif qui montre les quantités par catégorie
+      formatTotalNeedByCategory(ingredient) {
+        if (!ingredient.totalNeededRaw) return '0';
+
+        try {
+          const rawData = JSON.parse(ingredient.totalNeededRaw);
+          if (!Array.isArray(rawData)) return '0';
+
+          return rawData
+            .map(item => `${this.unitsManager.roundToAppropriateDecimals(item.value, item.unit)} ${item.unit}`)
+            .join(' + ');
+        } catch (error) {
+          console.warn('[Collaborative App] Erreur formatage totalNeedByCategory:', error);
+          return '0';
+        }
+      },
+
+      // Formate le stock depuis les données stockReel
       formatStock(ingredient) {
-        if (!ingredient.trackingData?.stock?.effective?.length) return '0';
+        if (!ingredient.stockReel) return '0';
 
-        const quantities = ingredient.trackingData.stock.effective.map(stockItem => ({
-          value: stockItem.value || 0,
-          unit: stockItem.unit || '',
-          ingredientName: ingredient.ingredientName
-        }));
+        try {
+          const stockData = JSON.parse(ingredient.stockReel);
+          if (!Array.isArray(stockData)) return '0';
 
-        const consolidated = this.unitsManager.consolidateQuantities(quantities);
-        return this.formatConsolidatedQuantities(consolidated);
+          const quantities = stockData.map(stockItem => ({
+            value: stockItem.value || 0,
+            unit: stockItem.unit || '',
+            ingredientName: ingredient.ingredientName
+          }));
+
+          const consolidated = this.unitsManager.consolidateQuantities(quantities);
+          return this.formatConsolidatedQuantities(consolidated);
+        } catch (error) {
+          console.warn('[Collaborative App] Erreur formatage stock:', error);
+          return '0';
+        }
       },
 
-      formatPurchases(ingredient) {
-        if (!ingredient.trackingData?.purchases?.length) return '0';
+      // Formate les achats depuis la collection purchase
+      formatPurchases(ingredientWithBalance) {
+        if (!ingredientWithBalance.purchases.length) return '0';
 
-        const quantities = ingredient.trackingData.purchases.map(purchase => ({
-          value: purchase.value || 0,
+        const quantities = ingredientWithBalance.purchases.map(purchase => ({
+          value: parseFloat(purchase.quantity) || 0,
           unit: purchase.unit || '',
-          ingredientName: ingredient.ingredientName
+          ingredientName: ingredientWithBalance.ingredientName
         }));
 
         const consolidated = this.unitsManager.consolidateQuantities(quantities);
         return this.formatConsolidatedQuantities(consolidated);
       },
 
-      formatBalance(ingredient) {
-        const balance = this.getIngredientBalance(ingredient);
-        const unit = this.getMainUnit(ingredient);
+      // Formate la balance en utilisant l'unité principale de l'ingrédient
+      formatBalance(ingredientWithBalance) {
+        const balance = this.getIngredientBalance(ingredientWithBalance);
+        const unit = this.getMainUnit(ingredientWithBalance);
         return `${this.unitsManager.roundToAppropriateDecimals(balance, unit)} ${unit}`;
       },
 
+      // Formate un tableau de quantités consolidées en chaîne lisible
       formatConsolidatedQuantities(consolidated) {
         if (!consolidated || consolidated.length === 0) return '0';
-
         return consolidated.map(item => item.formatted).join(' + ');
       },
 
+      // Récupère l'unité principale depuis les données structurées
       getMainUnit(ingredient) {
-        if (!ingredient.originalData?.recipeOccurrences?.length) return '';
-        return ingredient.originalData.recipeOccurrences[0].unit || '';
+        // D'abord essayer depuis les données structurées
+        if (ingredient.totalNeededConsolidated) {
+          try {
+            const consolidated = JSON.parse(ingredient.totalNeededConsolidated);
+            if (Array.isArray(consolidated)) {
+              const weightItem = consolidated.find(item => item.category === 'weight');
+              const volumeItem = consolidated.find(item => item.category === 'volume');
+              const otherItem = consolidated.find(item => item.category === 'other');
+
+              if (weightItem) return weightItem.unit;
+              if (volumeItem) return volumeItem.unit;
+              if (otherItem) return otherItem.unit;
+            }
+          } catch (error) {
+            console.warn('[Collaborative App] Erreur parsing unité principale:', error);
+          }
+        }
+
+        // Fallback sur les occurrences de recettes
+        if (ingredient.recipeOccurrences && ingredient.recipeOccurrences.length > 0) {
+          return ingredient.recipeOccurrences[0].unit || '';
+        }
+
+        return '';
       },
 
-      hasPurchases(ingredient) {
-        return ingredient.trackingData?.purchases?.length > 0;
+      // Vérifie si l'ingrédient a des achats enregistrés
+      hasPurchases(ingredientWithBalance) {
+        return ingredientWithBalance.hasPurchases;
       },
 
-      getStoresList(ingredient) {
-        if (!ingredient.trackingData?.purchases?.length) return '-';
+      // Récupère la liste des magasins depuis les achats
+      getStoresList(ingredientWithBalance) {
+        if (!ingredientWithBalance.purchases.length) return '-';
         const stores = [...new Set(
-          ingredient.trackingData.purchases
+          ingredientWithBalance.purchases
             .map(p => p.store)
             .filter(store => store)
         )];
         return stores.join(', ') || '-';
       },
 
-      getResponsibleList(ingredient) {
-        if (!ingredient.trackingData?.purchases?.length) return '-';
+      // Récupère la liste des responsables depuis les achats
+      getResponsibleList(ingredientWithBalance) {
+        if (!ingredientWithBalance.purchases.length) return '-';
         const people = [...new Set(
-          ingredient.trackingData.purchases
+          ingredientWithBalance.purchases
             .map(p => p.who)
             .filter(who => who)
         )];
         return people.join(', ') || '-';
       },
 
+      // Formate le type d'ingrédient pour l'affichage
       formatTypeShort(type) {
         const typeMap = {
           'frais': 'Produits Frais',
@@ -512,52 +667,7 @@ export function createCollaborativeApp(config = {}) {
         this.selectAllChecked = false;
       },
 
-      async toggleIngredientStatus(ingredient) {
-        const newStatus = !ingredient.trackingData?.status?.ok;
-
-        // Créer l'action pour l'historique
-        const action = this.actionFactory.createToggleStatusAction(ingredient, newStatus);
-
-        try {
-          // Exécuter la modification
-          await this.updateIngredientStatus(ingredient.$id, newStatus);
-          
-          // Ajouter à l'historique
-          this.historyManager.addAction(action);
-
-        } catch (error) {
-          console.error('[Collaborative App] Erreur lors de la mise à jour du statut:', error);
-          alert(`Impossible de mettre à jour le statut de ${ingredient.ingredientName}: ${error.message}`);
-        }
-      },
-
-      async updateIngredientStatus(ingredientId, newStatus) {
-        const ingredient = this.ingredients.find(ing => ing.$id === ingredientId);
-        if (!ingredient) {
-          throw new Error('Ingrédient non trouvé');
-        }
-
-        const updatedTrackingData = {
-          ...ingredient.trackingData,
-          status: { ok: newStatus }
-        };
-
-        await this.database.updateDocument(
-          this.appwriteConfig.databaseId,
-          'ingredients',
-          ingredient.$id,
-          {
-            trackingData: JSON.stringify(updatedTrackingData),
-            isModified: true
-          }
-        );
-
-        // Mise à jour locale
-        ingredient.trackingData.status = { ok: newStatus };
-        ingredient.isModified = true;
-
-        console.log(`[Collaborative App] Statut de ${ingredient.ingredientName} mis à jour: ${newStatus ? 'Complet' : 'Incomplet'}`);
-      },
+  
 
       editStock(ingredient) {
         this.editingIngredient = ingredient;
@@ -741,38 +851,86 @@ export function createCollaborativeApp(config = {}) {
 
         try {
           const ingredient = this.editingIngredient;
-          let updatedTrackingData = { ...ingredient.trackingData };
 
           if (type === 'purchase') {
-            if (!updatedTrackingData.purchases) updatedTrackingData.purchases = [];
-            updatedTrackingData.purchases.push(entry);
+            // Créer un nouveau document dans la collection purchase
+            const purchaseData = {
+              list: this.listId,
+              listIngredient: ingredient.$id,
+              quantity: entry.value.toString(),
+              unit: entry.unit,
+              who: entry.who || '',
+              store: entry.store || '',
+              notes: entry.notes || '',
+              price: entry.price || 0
+            };
+
+            await this.database.createDocument(
+              this.appwriteConfig.databaseId,
+              'purchase',
+              'unique()',
+              purchaseData
+            );
+
+            // Mettre à jour les données locales
+            this.purchases.documents.push({
+              $id: 'temp_' + Date.now(),
+              ...purchaseData
+            });
+
           } else if (type === 'stock') {
-            if (!updatedTrackingData.stock) updatedTrackingData.stock = { effective: [] };
-            // Remplacer le stock existant par le nouveau
-            updatedTrackingData.stock.effective = [entry];
+            // Mettre à jour le stock dans l'ingrédient
+            const stockData = JSON.stringify([entry]);
+
+            await this.database.updateDocument(
+              this.appwriteConfig.databaseId,
+              'ingredients',
+              ingredient.$id,
+              { stockReel: stockData }
+            );
+
+            // Mettre à jour les données locales
+            const localIngredient = this.ingredients.documents.find(ing => ing.$id === ingredient.$id);
+            if (localIngredient) {
+              localIngredient.stockReel = stockData;
+            }
+
           } else if (type === 'remove-purchase') {
-            updatedTrackingData.purchases.splice(index, 1);
+            // Supprimer un achat
+            if (index >= 0 && index < this.purchases.documents.length) {
+              const purchaseToRemove = this.purchases.documents[index];
+
+              await this.database.deleteDocument(
+                this.appwriteConfig.databaseId,
+                'purchase',
+                purchaseToRemove.$id
+              );
+
+              // Mettre à jour les données locales
+              this.purchases.documents.splice(index, 1);
+            }
+
           } else if (type === 'remove-stock') {
-            updatedTrackingData.stock.effective.splice(index, 1);
+            // Supprimer le stock
+            await this.database.updateDocument(
+              this.appwriteConfig.databaseId,
+              'ingredients',
+              ingredient.$id,
+              { stockReel: '[]' }
+            );
+
+            // Mettre à jour les données locales
+            const localIngredient = this.ingredients.documents.find(ing => ing.$id === ingredient.$id);
+            if (localIngredient) {
+              localIngredient.stockReel = '[]';
+            }
           }
 
-          // Sauvegarder en base
-          await this.database.updateDocument(
-            this.appwriteConfig.databaseId,
-            'ingredients',
-            ingredient.$id,
-            {
-              trackingData: JSON.stringify(updatedTrackingData),
-              isModified: true
-            }
-          );
-
-          // Mise à jour locale
-          ingredient.trackingData = updatedTrackingData;
-          ingredient.isModified = true;
+          // Recalculer les soldes
+          this.calculateIngredientsBalance();
 
           console.log(`[Collaborative App] Données ${type} mises à jour pour ${ingredient.ingredientName}`);
-          
+
           // Fermer le modal
           this.closePurchaseModal();
 
