@@ -3,10 +3,27 @@
 // Évite la duplication d'initialisation entre auth-status.js et authAppwrite.js
 
 // --- CONFIGURATION APPWRITE ---
+// #AI: TODO: migrer les js pour utiliser APPWRITE_CONFIG
 const APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1";
 const APPWRITE_PROJECT_ID = "689725820024e81781b7";
 const APPWRITE_FUNCTION_ID = "68976500002eb5c6ee4f"; // ID de la fonction cms-auth-function
 const ACCESS_REQUEST_FUNCTION_ID = "689cdea5001a4d74549d"; // ID de la fonction d'envoi d'email
+
+// --- CONFIGURATION CENTRALE APPWRITE ---
+export const APPWRITE_CONFIG = {
+    endpoint: "https://cloud.appwrite.io/v1",
+    projectId: "689725820024e81781b7",
+    databaseId: "689d15b10003a5a13636",
+    functions: {
+        cmsAuth: "68976500002eb5c6ee4f",
+        accessRequest: "689cdea5001a4d74549d"
+    },
+    collections: {
+        events: "ingredient_lists",
+        ingredients: "ingredients",
+        purchases: "purchase"
+    }
+};
 
 // Variables globales pour les clients Appwrite (initialisées une seule fois)
 let client = null;
@@ -351,6 +368,33 @@ function setAuthData(email, name, cmsAuth) {
     localStorage.setItem('appwrite-user-email', email);
     localStorage.setItem('appwrite-user-name', name);
     localStorage.setItem('sveltia-cms.user', JSON.stringify(cmsAuth));
+}
+
+
+/**
+ * S'abonne aux mises à jour temps réel pour une liste de collections.
+ * @param {string[]} collectionNames - Noms des collections (ex: ['ingredients', 'purchases']).
+ * @param {function} callback - La fonction à appeler lors d'une mise à jour.
+ * @returns {function} Une fonction pour se désabonner.
+ */
+export function subscribeToCollections(collectionNames, callback) {
+    if (!client) {
+        console.error("Impossible de s'abonner : le client Appwrite n'est pas encore initialisé.");
+        // Retourne une fonction de désabonnement qui ne fait rien
+        return () => {};
+    }
+
+    const channels = collectionNames.map(name => {
+        const collectionId = APPWRITE_CONFIG.collections[name];
+        if (!collectionId) {
+            console.warn(`[Appwrite Client] Nom de collection inconnu dans la configuration: ${name}`);
+            return null;
+        }
+        return `databases.${APPWRITE_CONFIG.databaseId}.collections.${collectionId}.documents`;
+    }).filter(Boolean);
+
+    console.log('[Appwrite Client] Abonnement aux canaux:', channels);
+    return client.subscribe(channels, callback);
 }
 
 // Export des fonctions publiques

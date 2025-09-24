@@ -13,25 +13,23 @@ import {
   isAuthenticatedCms,
   getUserEmail,
   getUserName,
+  getDatabases,
+  subscribeToCollections,
+  APPWRITE_CONFIG,
 } from "../appwrite-client.js";
 
-export function createCollaborativeApp(config = {}) {
-  const { listId = "", appwriteConfig = {} } = config;
-
+export function createCollaborativeApp() {
   const app = Vue.createApp({
     // L'application utilisera le contenu existant du div #collaborativeApp
-
     delimiters: ["[[", "]]"],
-
     components: {
-      // Les composants sont maintenant intégrés dans les partials Hugo
+      // Les composants sont maintenant intégrés dans les partials Hugo → `layouts/partials/aw_app_ingredients/
     },
 
     data() {
       return {
         // Configuration
-        listId,
-        appwriteConfig,
+        listId: null,
         unitsManager,
 
         // État de l'application
@@ -39,6 +37,7 @@ export function createCollaborativeApp(config = {}) {
         error: null,
         realtimeStatus: "connecting",
         showUpdatePrompt: false,
+        unsubscribeRealtime: () => {},
 
         // Données Appwrite brutes
         event: null, // Document depuis la collection 'evenements (ingredient_lists)'
@@ -84,6 +83,19 @@ export function createCollaborativeApp(config = {}) {
         isLoadingSnapshots: false,
         isRestoring: null,
         isDeleting: null,
+
+        // Données pour le mandatement
+        showVolunteerPopover: false,
+        currentVolunteerIngredient: null,
+        volunteerName: "",
+        deletedVolunteers: new Set(), // Volontaires marqués pour suppression
+
+        // Données pour l'édition des magasins
+        showStorePopover: false,
+        currentStoreIngredient: null,
+        storeInput: "",
+        availableStoresSuggestions: [],
+        deletedStores: new Set(), // Magasins marqués pour suppression
 
         // Actions et historique
         isCreatingSnapshot: false,
@@ -156,7 +168,7 @@ export function createCollaborativeApp(config = {}) {
           });
 
         // Log de débogage pour voir le filtrage
-        console.log('[Collaborative App] Filtrage:', {
+        console.log("[Collaborative App] Filtrage:", {
           totalIngredients: this.transformedIngredients.length,
           filteredCount: filtered.length,
           activeFilters: {
@@ -164,8 +176,8 @@ export function createCollaborativeApp(config = {}) {
             type: this.selectedTypeFilter,
             status: this.selectedStatusFilter,
             store: this.selectedStoreFilter,
-            person: this.selectedPersonFilter
-          }
+            person: this.selectedPersonFilter,
+          },
         });
 
         return filtered;
@@ -262,31 +274,19 @@ export function createCollaborativeApp(config = {}) {
       async initializeApp() {
         try {
           console.log("[Collaborative App] Initialisation...");
-
-          // Initialiser Appwrite
-          if (!window.Appwrite) {
-            throw new Error(
-              "SDK Appwrite non disponible. Vérifiez que le script est bien chargé.",
-            );
+          // 1. Récupérer l'ID de la liste depuis l'URL
+          const urlParams = new URLSearchParams(window.location.search);
+          this.listId = urlParams.get("listId");
+          if (!this.listId) {
+            throw new Error("ID de liste manquant dans l'URL (?listId=...).");
           }
+          // 2. Obtenir l'instance de la base de données depuis notre client central
+          this.database = await getDatabases();
 
-          this.appwrite = new Appwrite.Client()
-            .setEndpoint(
-              appwriteConfig.endpoint || "https://cloud.appwrite.io/v1",
-            )
-            .setProject(
-              appwriteConfig.project ||
-                window.__HUGO_PARAMS__?.appwrite?.projectId ||
-                "689725820024e81781b7",
-            );
-
-          // Initialiser les services Appwrite
-          this.database = new Appwrite.Databases(this.appwrite);
-
-          // Charger les données initiales
+          // 3. Charger les données initiales
           await this.loadInitialData();
 
-          // Configurer la synchronisation temps réel
+          // 4. Configurer la synchronisation temps réel
           this.setupRealtime();
 
           this.isLoading = false;
@@ -305,52 +305,40 @@ export function createCollaborativeApp(config = {}) {
 
       async loadInitialData() {
         console.log("[Collaborative App] Chargement des données initiales...");
-
         try {
-          // Charger l'événement
-          const eventResponse = await this.database.getDocument(
-            appwriteConfig.databaseId ||
-              window.__HUGO_PARAMS__?.appwrite?.databaseId ||
-              "689d15b10003a5a13636",
-            appwriteConfig.eventsCollectionId || "ingredient_lists",
-            listId,
-          );
+          const db = this.database;
+          const dbId = APPWRITE_CONFIG.databaseId;
+          const collections = APPWRITE_CONFIG.collections;
+
+          // Utiliser Promise.all pour charger les données en parallèle (plus rapide)
+          const [eventResponse, ingredientsResponse, purchasesResponse] =
+            await Promise.all([
+              db.getDocument(dbId, collections.events, this.listId),
+              db.listDocuments(dbId, collections.ingredients, [
+                Appwrite.Query.equal("ingredientLists", this.listId),
+                Appwrite.Query.limit(800),
+              ]),
+              db.listDocuments(dbId, collections.purchases, [
+                Appwrite.Query.equal("list", this.listId),
+                Appwrite.Query.limit(2000), // Augmenter la limite pour les achats
+              ]),
+            ]);
+
           this.event = eventResponse;
-
-          // Charger les ingrédients
-          const ingredientsResponse = await this.database.listDocuments(
-            appwriteConfig.databaseId ||
-              window.__HUGO_PARAMS__?.appwrite?.databaseId ||
-              "689d15b10003a5a13636",
-            appwriteConfig.ingredientsCollectionId || "ingredients",
-            [Appwrite.Query.equal("ingredientLists", listId)],
-          );
           this.ingredients = ingredientsResponse.documents;
-
-          // Charger les achats
-          const purchasesResponse = await this.database.listDocuments(
-            appwriteConfig.databaseId ||
-              window.__HUGO_PARAMS__?.appwrite?.databaseId ||
-              "689d15b10003a5a13636",
-            appwriteConfig.purchasesCollectionId || "purchase",
-            [Appwrite.Query.equal("list", listId)],
-          );
-          this.purchases = purchasesResponse;
+          this.purchases = purchasesResponse.documents; // Structure plus simple
 
           // Transformer les données pour l'UI
-          await this.transformDataForUI();
-
-          console.log("[Collaborative App] Données chargées:", {
-            event: this.event?.name,
-            ingredients: this.ingredients.length,
-            purchases: this.purchases.length,
-            transformed: this.transformedIngredients.length,
-          });
+          this.transformDataForUI();
         } catch (error) {
           console.error(
             "[Collaborative App] Erreur lors du chargement des données:",
             error,
           );
+          if (error.code === 404) {
+            this.error =
+              "Cette liste collaborative n'existe pas ou vous n'y avez pas accès.";
+          }
           throw error;
         }
       },
@@ -362,21 +350,26 @@ export function createCollaborativeApp(config = {}) {
 
         try {
           // Utiliser IngredientCalculator pour calculer l'équilibre des ingrédients
-          const calculatedIngredients = IngredientCalculator.calculateAppwriteIngredientsBalance(
-            this.ingredients,
-            this.purchases.documents || []
-          );
+          const calculatedIngredients =
+            IngredientCalculator.calculateIngredientsBalance(
+              this.ingredients,
+              this.purchases || [],
+            );
 
           // Utiliser le service DataTransformer pour préparer les données pour l'UI
           this.transformedIngredients = DataTransformer.transformForUI(
             calculatedIngredients,
             {
+              // Keep only purchases ?
               unitsManager: this.unitsManager,
               includeRecipeDetails: true,
               includeCalculations: true,
-              purchases: this.purchases.documents || [],
+              purchases: this.purchases || [],
             },
           );
+
+          // Collecter les magasins existants pour les suggestions
+          this.collectAvailableStores();
 
           console.log(
             "[Collaborative App] Données transformées:",
@@ -395,25 +388,18 @@ export function createCollaborativeApp(config = {}) {
       // === MÉTHODES DE SYNCHRONISATION TEMPS RÉEL ===
 
       setupRealtime() {
-        console.log("[Collaborative App] Configuration du temps réel...");
-
         try {
-          this.appwrite.subscribe(
-            [
-              `databases.${appwriteConfig.databaseId || window.__HUGO_PARAMS__?.appwrite?.databaseId || "689d15b10003a5a13636"}.collections.${appwriteConfig.ingredientsCollectionId || "ingredients"}.documents`,
-              `databases.${appwriteConfig.databaseId || window.__HUGO_PARAMS__?.appwrite?.databaseId || "689d15b10003a5a13636"}.collections.${appwriteConfig.purchasesCollectionId || "purchase"}.documents`,
-            ],
+          this.unsubscribeRealtime = subscribeToCollections(
+            ["ingredients", "purchases"],
             (response) => {
               console.log(
                 "[Collaborative App] Mise à jour temps réel reçue:",
-                response.events,
+                response,
               );
               this.handleRealtimeUpdate(response);
             },
           );
-
           this.realtimeStatus = "connected";
-          console.log("[Collaborative App] Temps réel configuré avec succès");
         } catch (error) {
           console.error("[Collaborative App] Erreur realtime:", error);
           this.realtimeStatus = "disconnected";
@@ -427,134 +413,28 @@ export function createCollaborativeApp(config = {}) {
       },
 
       handleRealtimeUpdate(response) {
-        const { events, payload } = response;
+        const { payload } = response;
+        const collectionName = response.events[0].split(".")[3]; // ex: "ingredients" ou "purchase"
+        const eventType = response.events[0].split(".")[6]; // "create", "update", "delete". L'index "5" ne correspond pas à l'événement: preserver index 6.
 
-        // Gérer les mises à jour d'ingrédients
-        if (events.some((event) => event.includes("ingredients"))) {
-          if (events.includes("databases.*.collections.*.documents.*.create")) {
-            this.handleIngredientCreated(payload);
-          } else if (
-            events.includes("databases.*.collections.*.documents.*.update")
-          ) {
-            this.handleIngredientUpdated(payload);
-          } else if (
-            events.includes("databases.*.collections.*.documents.*.delete")
-          ) {
-            this.handleIngredientDeleted(payload);
-          }
-        }
-
-        // Gérer les mises à jour d'achats
-        if (events.some((event) => event.includes("purchase"))) {
-          if (events.includes("databases.*.collections.*.documents.*.create")) {
-            this.handlePurchaseCreated(payload);
-          } else if (
-            events.includes("databases.*.collections.*.documents.*.update")
-          ) {
-            this.handlePurchaseUpdated(payload);
-          } else if (
-            events.includes("databases.*.collections.*.documents.*.delete")
-          ) {
-            this.handlePurchaseDeleted(payload);
-          }
-        }
-      },
-
-      handleIngredientChange(response) {
-        const { payload, event } = response;
-
-        switch (event) {
-          case "create":
-            this.ingredients.push(payload);
-            break;
-          case "update":
-            const index = this.ingredients.findIndex(
-              (ing) => ing.$id === payload.$id,
-            );
-            if (index !== -1) {
-              this.ingredients.splice(index, 1, payload);
-            }
-            break;
-          case "delete":
-            this.ingredients = this.ingredients.filter(
-              (ing) => ing.$id !== payload.$id,
-            );
-            break;
-        }
-
-        // Retransformer les données
-        this.transformDataForUI();
-      },
-
-      handlePurchaseChange(response) {
-        const { payload, event } = response;
-
-        switch (event) {
-          case "create":
-            this.purchases.documents.push(payload);
-            break;
-          case "update":
-            const index = this.purchases.documents.findIndex(
-              (p) => p.$id === payload.$id,
-            );
-            if (index !== -1) {
-              this.purchases.documents.splice(index, 1, payload);
-            }
-            break;
-          case "delete":
-            this.purchases.documents = this.purchases.documents.filter(
-              (p) => p.$id !== payload.$id,
-            );
-            break;
-        }
-
-        // Retransformer les données
-        this.transformDataForUI();
-      },
-
-      // Méthodes pour le temps réel
-      handleIngredientCreated(ingredient) {
-        this.ingredients.push(ingredient);
-        this.transformDataForUI();
-      },
-
-      handleIngredientUpdated(ingredient) {
-        const index = this.ingredients.findIndex(
-          (ing) => ing.$id === ingredient.$id,
-        );
-        if (index !== -1) {
-          this.ingredients.splice(index, 1, ingredient);
+        if (collectionName === APPWRITE_CONFIG.collections.ingredients) {
+          this._updateLocalCollection(this.ingredients, payload, eventType);
+        } else if (collectionName === APPWRITE_CONFIG.collections.purchases) {
+          this._updateLocalCollection(this.purchases, payload, eventType);
         }
         this.transformDataForUI();
       },
 
-      handleIngredientDeleted(ingredient) {
-        this.ingredients = this.ingredients.filter(
-          (ing) => ing.$id !== ingredient.$id,
-        );
-        this.transformDataForUI();
-      },
+      _updateLocalCollection(collection, payload, eventType) {
+        const index = collection.findIndex((doc) => doc.$id === payload.$id);
 
-      handlePurchaseCreated(purchase) {
-        this.purchases.documents.push(purchase);
-        this.transformDataForUI();
-      },
-
-      handlePurchaseUpdated(purchase) {
-        const index = this.purchases.documents.findIndex(
-          (p) => p.$id === purchase.$id,
-        );
-        if (index !== -1) {
-          this.purchases.documents.splice(index, 1, purchase);
+        if (eventType === "create" && index === -1) {
+          collection.push(payload);
+        } else if (eventType === "update" && index !== -1) {
+          collection.splice(index, 1, payload);
+        } else if (eventType === "delete" && index !== -1) {
+          collection.splice(index, 1);
         }
-        this.transformDataForUI();
-      },
-
-      handlePurchaseDeleted(purchase) {
-        this.purchases.documents = this.purchases.documents.filter(
-          (p) => p.$id !== purchase.$id,
-        );
-        this.transformDataForUI();
       },
 
       // === MÉTHODES DE FILTRAGE ET TRI ===
@@ -657,26 +537,13 @@ export function createCollaborativeApp(config = {}) {
       async submitPurchaseForm() {
         if (!this.isPurchaseFormValid) return;
 
-        console.log("[Collaborative App] Soumission du formulaire:", {
-          type: this.modalType,
-          ingredient: this.editingIngredient?.ingredientName,
-          data: this.purchaseForm,
-        });
-
         try {
-          // Vérifier l'authentification avec appwrite-client.js
-          const isAuthenticated = isAuthenticatedCms();
-          if (!isAuthenticated) {
-            throw new Error("Utilisateur non connecté");
-          }
-
           // Obtenir les infos de l'utilisateur via appwrite-client.js
           const userEmail = getUserEmail();
           const userName = getUserName();
 
-          console.log("User auth:", { isAuthenticated, userEmail, userName });
-
           // Créer l'achat/stock avec le bon schéma
+          // FIXIT: gestion du puchase vs stock
           const purchaseData = {
             list: this.listId,
             listIngredient: this.editingIngredient.$id, // Utiliser l'ID Appwrite de l'ingrédient
@@ -684,6 +551,7 @@ export function createCollaborativeApp(config = {}) {
             unit: this.purchaseForm.unit,
             who: this.purchaseForm.who,
             notes: this.purchaseForm.notes || "",
+            createdBy: userEmail,
           };
 
           // Ajouter les champs spécifiques aux achats
@@ -694,24 +562,15 @@ export function createCollaborativeApp(config = {}) {
               : null;
           }
 
-          console.log("Creating purchase/stock with data:", purchaseData);
-
           const result = await this.database.createDocument(
-            appwriteConfig.databaseId ||
-              window.__HUGO_PARAMS__?.appwrite?.databaseId ||
-              "689d15b10003a5a13636",
-            appwriteConfig.purchasesCollectionId || "purchase", // Utiliser la collection 'purchase'
-            "unique()", // Utiliser la chaîne 'unique()' comme dans le backup
+            APPWRITE_CONFIG.databaseId,
+            APPWRITE_CONFIG.collections.purchases, // Utilise la config
+            "unique()",
             purchaseData,
           );
 
-          console.log("Purchase/stock created:", result);
-
           // Fermer le modal et réinitialiser le formulaire
           this.closePurchaseModal();
-
-          // Recharger les données pour mettre à jour l'affichage
-          await this.loadInitialData();
 
           return true;
         } catch (error) {
@@ -846,6 +705,255 @@ export function createCollaborativeApp(config = {}) {
         return "0";
       },
 
+      // === MÉTHODES DE MANDEMENT ===
+
+      handleVolunteer(ingredient) {
+        this.currentVolunteerIngredient = ingredient;
+        const storedUsername = this.getStoredUsername() || "";
+
+        // Auto-fill only if user is not already a volunteer
+        if (ingredient.who && ingredient.who.includes(storedUsername)) {
+          this.volunteerName = "";
+        } else {
+          this.volunteerName = storedUsername;
+        }
+
+        this.showVolunteerPopover = true;
+
+        // Focus sur l'input après l'ouverture du popover
+        this.$nextTick(() => {
+          const input = document.getElementById('volunteer-name');
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        });
+      },
+
+      closeVolunteerPopover() {
+        this.showVolunteerPopover = false;
+        this.currentVolunteerIngredient = null;
+        this.volunteerName = "";
+        this.deletedVolunteers.clear();
+      },
+
+      async submitVolunteer() {
+        if (!this.currentVolunteerIngredient) return;
+
+        // Permettre l'envoi s'il y a un nouveau volontaire OU des désinscriptions
+        if (!this.volunteerName.trim() && this.deletedVolunteers.size === 0) return;
+
+        try {
+          // Sauvegarder le pseudo dans le localStorage
+          if (this.volunteerName.trim()) {
+            localStorage.setItem('volunteer-username', this.volunteerName.trim());
+          }
+
+          // Mettre à jour le champ "who" de l'ingrédient dans Appwrite
+          const currentWho = this.currentVolunteerIngredient.who || [];
+
+          // Check if already exists in the current list (including deleted ones)
+          if (this.volunteerName.trim()) {
+            const volunteerExists = currentWho.includes(this.volunteerName.trim());
+            if (volunteerExists && !this.isVolunteerDeleted(this.currentVolunteerIngredient.$id, this.volunteerName.trim())) {
+              alert(`${this.volunteerName.trim()} est déjà inscrit pour cet ingrédient`);
+              return;
+            }
+          }
+
+          // Traiter le tableau avec les éléments supprimés et le nouveau volontaire
+          let newWho = this.processArrayWithDeletedItems(currentWho, this.deletedVolunteers, this.volunteerName);
+
+          const updateResult = await this.updateArrayField(this.currentVolunteerIngredient, 'who', newWho);
+
+          if (!updateResult.success) {
+            throw updateResult.error;
+          }
+
+          // Fermer le popover
+          this.closeVolunteerPopover();
+
+        } catch (error) {
+          const userMessage = await this.handleAppwriteError(error, 'du mandatement');
+          alert(userMessage);
+        }
+      },
+
+
+
+      getStoredUsername() {
+        // D'abord essayer de récupérer le pseudo du localStorage
+        const storedUsername = localStorage.getItem('volunteer-username');
+        if (storedUsername) return storedUsername;
+
+        // Sinon, utiliser le nom utilisateur Appwrite
+        return getUserName() || '';
+      },
+
+      async removeVolunteer(volunteerName) {
+        if (!this.currentVolunteerIngredient) return;
+
+        try {
+          // Supprimer le volontaire du tableau
+          const currentWho = this.currentVolunteerIngredient.who || [];
+          const newWho = currentWho.filter(name => name !== volunteerName);
+
+          const updateResult = await this.updateArrayField(this.currentVolunteerIngredient, 'who', newWho);
+
+          if (!updateResult.success) {
+            throw updateResult.error;
+          }
+
+        } catch (error) {
+          const userMessage = await this.handleAppwriteError(error, 'de la suppression du volontaire');
+          alert(userMessage);
+        }
+      },
+
+      async removeStore(storeName) {
+        if (!this.currentStoreIngredient) return;
+
+        try {
+          // Supprimer le magasin du tableau
+          const currentStore = this.currentStoreIngredient.store || [];
+          const newStore = currentStore.filter(store => store !== storeName);
+
+          const updateResult = await this.updateArrayField(this.currentStoreIngredient, 'store', newStore);
+
+          if (!updateResult.success) {
+            throw updateResult.error;
+          }
+
+        } catch (error) {
+          const userMessage = await this.handleAppwriteError(error, 'de la suppression du magasin');
+          alert(userMessage);
+        }
+      },
+
+      // === MÉTHODES D'ÉDITION DES MAGASINS ===
+
+      handleEditStore(ingredient) {
+        this.currentStoreIngredient = ingredient;
+        this.storeInput = "";
+        this.showStorePopover = true;
+
+        // Focus sur l'input après l'ouverture du popover
+        this.$nextTick(() => {
+          const input = document.getElementById('store-input');
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        });
+      },
+
+      closeStorePopover() {
+        this.showStorePopover = false;
+        this.currentStoreIngredient = null;
+        this.storeInput = "";
+        this.deletedStores.clear();
+      },
+
+      async submitStore() {
+        if (!this.currentStoreIngredient) return;
+
+        try {
+          let finalStores = this.processArrayWithDeletedItems(
+            this.currentStoreIngredient.store || [],
+            this.deletedStores,
+            this.storeInput
+          );
+
+          // Si aucune modification, fermer simplement le modal
+          if (JSON.stringify(finalStores) === JSON.stringify(this.currentStoreIngredient.store || [])) {
+            this.closeStorePopover();
+            return;
+          }
+
+          // Ajouter aux suggestions si nécessaire
+          if (this.storeInput.trim() && !this.availableStoresSuggestions.includes(this.storeInput.trim())) {
+            this.availableStoresSuggestions.push(this.storeInput.trim());
+            this.availableStoresSuggestions.sort();
+          }
+
+          const updateResult = await this.updateArrayField(this.currentStoreIngredient, 'store', finalStores);
+
+          if (!updateResult.success) {
+            throw updateResult.error;
+          }
+
+          // Fermer le popover
+          this.closeStorePopover();
+
+        } catch (error) {
+          const userMessage = await this.handleAppwriteError(error, 'de la mise à jour des magasins');
+          alert(userMessage);
+        }
+      },
+
+      isStoreDeleted(storeName) {
+        return this.deletedStores.has(storeName);
+      },
+
+      toggleStore(storeName) {
+        if (this.deletedStores.has(storeName)) {
+          this.deletedStores.delete(storeName);
+        } else {
+          this.deletedStores.add(storeName);
+        }
+      },
+
+      hasStoreChanges() {
+        return this.storeInput.trim() || this.deletedStores.size > 0;
+      },
+
+      // Volunteer helper methods
+      isVolunteerDeleted(volunteerName) {
+        return this.deletedVolunteers.has(`${volunteerName}`);
+      },
+
+      toggleVolunteer(volunteerName) {
+        const key = `${volunteerName}`;
+        if (this.deletedVolunteers.has(key)) {
+          this.deletedVolunteers.delete(key);
+        } else {
+          this.deletedVolunteers.add(key);
+        }
+      },
+
+      hasVolunteerChanges() {
+        return this.volunteerName.trim() || this.deletedVolunteers.size > 0;
+      },
+
+      collectAvailableStores() {
+        const stores = new Set();
+
+        // Collecter les magasins depuis tous les ingrédients
+        this.transformedIngredients.forEach(ingredient => {
+          if (ingredient.store && Array.isArray(ingredient.store)) {
+            ingredient.store.forEach(store => {
+              if (store && store.trim()) {
+                stores.add(store.trim());
+              }
+            });
+          }
+        });
+
+        // Ajouter les magasins depuis les achats existants
+        if (this.purchases) {
+          this.purchases.forEach(purchase => {
+            if (purchase.store && purchase.store.trim()) {
+              stores.add(purchase.store.trim());
+            }
+          });
+        }
+
+        // Convertir en tableau et trier
+        this.availableStoresSuggestions = Array.from(stores).sort();
+
+        console.log(`[Collaborative App] Collecté ${this.availableStoresSuggestions.length} magasins pour les suggestions`);
+      },
+
       // === MÉTHODES DE STATUT ===
 
       toggleIngredientStatus(ingredient) {
@@ -893,6 +1001,65 @@ export function createCollaborativeApp(config = {}) {
         return typeMap[type] || type;
       },
 
+      // Méthode utilitaire pour la gestion centralisée des erreurs Appwrite
+      async handleAppwriteError(error, context) {
+        console.error(`[Collaborative App] Erreur lors de ${context}:`, error);
+        console.error('[Collaborative App] Détails de l\'erreur:', {
+          code: error.code,
+          type: error.type,
+          message: error.message,
+          response: error.response
+        });
+
+        let userMessage = '';
+
+        if (error.code === 409) {
+          userMessage = 'Conflit de données: Veuillez rafraîchir la page et réessayer.';
+        } else if (error.code === 404) {
+          userMessage = 'Élément non trouvé. Veuillez rafraîchir la page.';
+        } else {
+          userMessage = `Erreur lors de ${context}: ${error.message || 'Erreur inconnue'}`;
+        }
+
+        return userMessage;
+      },
+
+      // Méthode utilitaire pour mettre à jour un tableau dans Appwrite
+      async updateArrayField(ingredient, fieldName, newArray) {
+        try {
+          const result = await this.database.updateDocument(
+            APPWRITE_CONFIG.databaseId,
+            APPWRITE_CONFIG.collections.ingredients,
+            ingredient.$id,
+            {
+              [fieldName]: newArray
+            }
+          );
+
+          // Mettre à jour les données locales
+          ingredient[fieldName] = newArray;
+
+          return { success: true, result };
+        } catch (error) {
+          return { success: false, error };
+        }
+      },
+
+      // Méthode utilitaire pour traiter les tableaux avec éléments supprimés
+      processArrayWithDeletedItems(currentArray, deletedItems, newItem = null) {
+        let processedArray = [...currentArray];
+
+        // Supprimer les éléments marqués pour suppression
+        processedArray = processedArray.filter(item => !deletedItems.has(item));
+
+        // Ajouter le nouvel élément s'il y en a un et n'existe pas déjà
+        if (newItem && newItem.trim() && !processedArray.includes(newItem.trim())) {
+          processedArray.push(newItem.trim());
+        }
+
+        return processedArray;
+      },
+
       // === MÉTHODES DE DEBUG ===
 
       logCurrentState() {
@@ -914,6 +1081,14 @@ export function createCollaborativeApp(config = {}) {
         });
       },
     },
+
+    beforeUnmount() {
+           // C'est une bonne pratique de se désabonner quand le composant est détruit
+           if (this.unsubscribeRealtime) {
+               console.log('[Collaborative App] Désabonnement des mises à jour temps réel.');
+               this.unsubscribeRealtime();
+           }
+       },
   });
 
   return app;

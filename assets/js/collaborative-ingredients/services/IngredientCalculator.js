@@ -6,12 +6,11 @@
 
 import UnitsManager from '../UnitsManager.js';
 
+
 export class IngredientCalculator {
-  // Cache pour les calculs déjà effectués
-  static _calculationCache = new Map();
 
   /**
-   * Calcule l'équilibre des ingrédients avec consolidations
+   * Calcule l'équilibre des ingrédients depuis les données Appwrite
    */
   static calculateIngredientsBalance(ingredients, purchases = []) {
     if (!ingredients || !Array.isArray(ingredients)) {
@@ -19,444 +18,172 @@ export class IngredientCalculator {
       return [];
     }
 
-    console.log('🧮 Calcul de l\'équilibre des ingrédients...');
-    console.log('📊 Ingrédients bruts:', ingredients.length);
-    console.log('🛒 Achats:', purchases.length);
+    // 1. Parser et préparer les ingrédients avec leurs données Appwrite
+    const parsedIngredients = this.parseIngredients(ingredients);
 
-    // 1. Normaliser les ingrédients avec leurs occurrences de recettes
-    const normalizedIngredients = this.normalizeIngredients(ingredients);
+    // 2. Associer les achats à chaque ingrédient et consolider les totaux achetés.
+    const ingredientsWithPurchases = this.addPurchasesData(parsedIngredients, purchases);
 
-    // 2. Calculer les besoins totaux par ingrédient
-    const ingredientsWithNeeds = this.calculateTotalNeeds(normalizedIngredients);
-
-    // 3. Ajouter les données d'achats existantes
-    const ingredientsWithPurchases = this.addPurchasesData(ingredientsWithNeeds, purchases);
-
-    // 4. Calculer l'équilibre final
+    // 3. Calculer la balance finale en comparant besoins et achats par catégorie d'unité.
     const balancedIngredients = this.calculateFinalBalance(ingredientsWithPurchases);
 
-    console.log('✅ Calcul terminé, ingrédients traités:', balancedIngredients.length);
     return balancedIngredients;
   }
 
   /**
-   * Calcule l'équilibre des ingrédients depuis les données Appwrite
-   * Version adaptée pour la structure de données actuelle
-   */
-  static calculateAppwriteIngredientsBalance(ingredients, purchases = []) {
-    if (!ingredients || !Array.isArray(ingredients)) {
-      console.warn('calculateAppwriteIngredientsBalance: ingredients invalide', ingredients);
-      return [];
-    }
-
-    // Générer une clé de cache basée sur les données
-    const cacheKey = this.generateCacheKey(ingredients, purchases);
-
-    // Vérifier le cache
-    if (this._calculationCache.has(cacheKey)) {
-      console.log('🎯 Utilisation des résultats depuis le cache');
-      return this._calculationCache.get(cacheKey);
-    }
-
-    // Nettoyer le cache périodiquement
-    if (this._calculationCache.size > 100) {
-      this._calculationCache.clear();
-    }
-
-    console.log('🧮 Calcul de l\'équilibre des ingrédients Appwrite...');
-    console.log('📊 Ingrédients bruts:', ingredients.length);
-    console.log('🛒 Achats:', purchases.length);
-
-    // 1. Normaliser les ingrédients depuis les données Appwrite
-    const normalizedIngredients = this.normalizeAppwriteIngredients(ingredients);
-
-    // 2. Calculer les besoins totaux par ingrédient (déjà calculés dans Appwrite)
-    const ingredientsWithNeeds = this.processAppwriteNeeds(normalizedIngredients);
-
-    // 3. Ajouter les données d'achats existantes
-    const ingredientsWithPurchases = this.addPurchasesData(ingredientsWithNeeds, purchases);
-
-    // 4. Calculer l'équilibre final
-    const balancedIngredients = this.calculateFinalBalance(ingredientsWithPurchases);
-
-    // Mettre en cache le résultat
-    this._calculationCache.set(cacheKey, balancedIngredients);
-
-    console.log('✅ Calcul terminé, ingrédients traités:', balancedIngredients.length);
-    return balancedIngredients;
-  }
-
-  /**
-   * Génère une clé de cache pour les calculs
-   */
-  static generateCacheKey(ingredients, purchases) {
-    const ingredientsHash = ingredients.map(ing => `${ing.$id}_${ing.$updatedAt}`).join('|');
-    const purchasesHash = purchases.map(p => `${p.$id}_${p.$updatedAt}`).join('|');
-    return `appwrite_calc_${btoa(ingredientsHash + purchasesHash).slice(0, 32)}`;
-  }
-
-  /**
-   * Vide le cache des calculs
-   */
-  static clearCache() {
-    this._calculationCache.clear();
-    console.log('🗑️ Cache des calculs vidé');
-  }
-
-  /**
-   * Normalise les ingrédients depuis les données Appwrite
-   */
-  static normalizeAppwriteIngredients(ingredients) {
+  * Parse les chaînes JSON des ingrédients Appwrite en objets JS.
+  */
+  static parseIngredients(ingredients) {
     return ingredients.map(ingredient => {
       if (!ingredient || !ingredient.$id) {
         console.warn('Ingrédient invalide ignoré:', ingredient);
         return null;
       }
 
-      // Extraire et normaliser les occurrences de recettes depuis recipeOccurrences
-      const recipeOccurrences = this.extractRecipeOccurrencesFromAppwrite(ingredient);
-
       return {
         ...ingredient,
-        originalData: {
-          recipeOccurrences,
-          rawIngredient: ingredient
-        }
+        totalNeededConsolidated: this.parseJsonString(ingredient.totalNeededConsolidated),
+        totalNeededRaw: this.parseJsonString(ingredient.totalNeededRaw),
+        recipeOccurrences: (ingredient.recipeOccurrences || []).map(this.parseJsonString).filter(Boolean)
       };
     }).filter(Boolean);
   }
 
   /**
-   * Extrait et normalise les occurrences de recettes depuis les données Appwrite
+   * Ajoute les données d'achats pour chaque ingrédient.
    */
-  static extractRecipeOccurrencesFromAppwrite(ingredient) {
-    if (!ingredient.recipeOccurrences) return [];
+   static addPurchasesData(ingredients, allPurchases) {
+     return ingredients.map(ingredient => ({
+       ...ingredient,
+       purchases: allPurchases.filter(p => p.listIngredient?.$id === ingredient.$id)
+     }));
+   }
 
-    // Les recipeOccurrences sont déjà stockées comme tableau de strings JSON
-    return ingredient.recipeOccurrences.map(occurrenceStr => {
-      try {
-        const occurrence = JSON.parse(occurrenceStr);
-        return {
-          recipeId: occurrence.recipeName || 'unknown',
-          recipeName: occurrence.recipeName || 'Recette inconnue',
-          quantity: parseFloat(occurrence.quantity) || 0,
-          unit: occurrence.unit || '',
-          normalizedUnit: occurrence.unit || ''
-        };
-      } catch (error) {
-        console.warn('Erreur parsing recipe occurrence:', error);
-        return null;
-      }
-    }).filter(Boolean);
-  }
 
-  /**
-   * Traite les besoins déjà calculés dans Appwrite
-   */
-  static processAppwriteNeeds(ingredients) {
-    return ingredients.map(ingredient => {
-      // Les besoins sont déjà calculés et stockés dans totalNeededConsolidated
-      // On les utilise directement
-      return {
-        ...ingredient,
-        totalNeeded: this.parseTotalNeeded(ingredient.totalNeededConsolidated),
-        totalNeededRaw: this.parseTotalNeededRaw(ingredient.totalNeededRaw),
-        totalNeededConsolidated: this.parseConsolidatedData(ingredient.totalNeededConsolidated)
-      };
-    });
-  }
-
-  /**
-   * Parse les données de besoin total
-   */
-  static parseTotalNeeded(totalNeededStr) {
-    if (!totalNeededStr) return 0;
-    try {
-      const data = JSON.parse(totalNeededStr);
-      return Array.isArray(data) ? data.reduce((sum, item) => sum + (item.value || 0), 0) : 0;
-    } catch {
-      return 0;
-    }
-  }
-
-  /**
-   * Parse les données brutes de besoin total
-   */
-  static parseTotalNeededRaw(totalNeededRawStr) {
-    if (!totalNeededRawStr) return 0;
-    try {
-      const data = JSON.parse(totalNeededRawStr);
-      return Array.isArray(data) ? data.reduce((sum, item) => sum + (item.value || 0), 0) : 0;
-    } catch {
-      return 0;
-    }
-  }
-
-  /**
-   * Parse les données consolidées
-   */
-  static parseConsolidatedData(consolidatedStr) {
-    if (!consolidatedStr) return [];
-    try {
-      const data = JSON.parse(consolidatedStr);
-      return Array.isArray(data) ? data : [];
-    } catch {
-      return [];
-    }
-  }
-
-  /**
-   * Normalise les ingrédients et leurs occurrences
-   */
-  static normalizeIngredients(ingredients) {
-    return ingredients.map(ingredient => {
-      if (!ingredient || !ingredient.$id) {
-        console.warn('Ingrédient invalide ignoré:', ingredient);
-        return null;
-      }
-
-      // Extraire et normaliser les occurrences de recettes
-      const recipeOccurrences = this.extractRecipeOccurrences(ingredient);
-
-      return {
-        ...ingredient,
-        originalData: {
-          recipeOccurrences,
-          rawIngredient: ingredient
-        }
-      };
-    }).filter(Boolean);
-  }
-
-  /**
-   * Extrait et normalise les occurrences de recettes
-   */
-  static extractRecipeOccurrences(ingredient) {
-    if (!ingredient.neededByRecipes) return [];
-
-    return Object.entries(ingredient.neededByRecipes).map(([recipeId, occurrence]) => {
-      return {
-        recipeId,
-        recipeName: occurrence.recipeName || 'Recette inconnue',
-        quantity: parseFloat(occurrence.quantity) || 0,
-        unit: occurrence.unit || '',
-        normalizedUnit: occurrence.normalizedUnit || occurrence.unit || ''
-      };
-    });
-  }
-
-  /**
-   * Calcule les besoins totaux par ingrédient avec consolidation
-   */
-  static calculateTotalNeeds(ingredients) {
-    return ingredients.map(ingredient => {
-      if (!ingredient.originalData.recipeOccurrences.length) {
-        return {
-          ...ingredient,
-          totalNeeded: 0,
-          totalNeededRaw: 0,
-          totalNeededConsolidated: []
-        };
-      }
-
-      // Consolidation des quantités avec UnitsManager
-      const consolidated = UnitsManager.consolidateQuantities(
-        ingredient.originalData.recipeOccurrences.map(occ => ({
-          value: occ.quantity,
-          unit: occ.unit,
-          normalizedUnit: occ.normalizedUnit
-        }))
-      );
-
-      const totalRaw = consolidated.total || 0;
-
-      return {
-        ...ingredient,
-        totalNeeded: totalRaw,
-        totalNeededRaw: totalRaw,
-        totalNeededConsolidated: consolidated.consolidated || []
-      };
-    });
-  }
-
-  /**
-   * Ajoute les données d'achats existantes
-   * Adapté pour les données Appwrite (utilisation de listIngredient)
-   */
-  static addPurchasesData(ingredients, purchases) {
-    if (!purchases || !Array.isArray(purchases)) {
-      return ingredients.map(ingredient => ({
-        ...ingredient,
-        totalPurchased: 0,
-        totalPurchasedRaw: 0,
-        totalPurchasedConsolidated: []
-      }));
-    }
-
-    return ingredients.map(ingredient => {
-      // Filtrer les achats pour cet ingrédient via listIngredient (relation Appwrite)
-      const ingredientPurchases = purchases.filter(purchase =>
-        purchase.listIngredient === ingredient.$id
-      );
-
-      if (!ingredientPurchases.length) {
-        return {
-          ...ingredient,
-          totalPurchased: 0,
-          totalPurchasedRaw: 0,
-          totalPurchasedConsolidated: [],
-          purchases: []
-        };
-      }
-
-      // Consolidation des achats
-      const purchaseQuantities = ingredientPurchases.map(purchase => ({
-        value: parseFloat(purchase.quantity) || 0,
-        unit: purchase.unit || '',
-        normalizedUnit: purchase.unit || ''
-      }));
-
-      const consolidated = UnitsManager.consolidateQuantities(purchaseQuantities);
-      const totalRaw = consolidated.total || 0;
-
-      return {
-        ...ingredient,
-        totalPurchased: totalRaw,
-        totalPurchasedRaw: totalRaw,
-        totalPurchasedConsolidated: consolidated.consolidated || [],
-        purchases: ingredientPurchases
-      };
-    });
-  }
-
-  /**
-   * Calcule l'équilibre final (besoins - stock - achats)
-   */
+    /**
+    * Calcule la balance finale, le statut, et les totaux pour chaque ingrédient.
+    */
   static calculateFinalBalance(ingredients) {
     return ingredients.map(ingredient => {
+      // TODO: ignoré pour le moment
       const stockReel = parseFloat(ingredient.stockReel) || 0;
-      const totalNeeded = ingredient.totalNeeded || 0;
-      const totalPurchased = ingredient.totalPurchased || 0;
 
-      const available = stockReel + totalPurchased;
-      const balance = available - totalNeeded;
+      // Calculer la balance par catégorie d'unité
+      const balancePerUnit = this.calculateBalancePerUnit(
+        ingredient.totalNeededConsolidated,
+        ingredient.purchases,
+        stockReel
+      );
+
+      // Déterminer le statut global
+      const overallStatus = this.determineOverallStatus(balancePerUnit);
 
       return {
         ...ingredient,
         stockReel,
-        available,
-        balance,
-        status: this.determineStatus(balance, totalNeeded)
+        balancePerUnit,
+        overallStatus,
+        status: overallStatus
       };
     });
   }
 
   /**
-   * Détermine le statut d'un ingrédient
+    * Le CŒUR de la logique de calcul.
+    * Standardise les unités, les groupe et calcule la balance pour chaque unité.
+    */
+   static calculateBalancePerUnit(needed = [], purchases = [], stock = 0) {
+     const quantitiesByUnit = {};
+
+     // 1. Agréger les besoins
+     needed.forEach(item => {
+       const { value, unit } = this._standardizeQuantity(item.value, item.unit);
+       if (!quantitiesByUnit[unit]) {
+         quantitiesByUnit[unit] = { needed: 0, purchased: 0 };
+       }
+       quantitiesByUnit[unit].needed += value;
+     });
+
+     // 2. Agréger les achats
+     purchases.forEach(purchase => {
+       const { value, unit } = this._standardizeQuantity(purchase.quantity, purchase.unit);
+       if (!quantitiesByUnit[unit]) {
+         quantitiesByUnit[unit] = { needed: 0, purchased: 0 };
+       }
+       quantitiesByUnit[unit].purchased += value;
+     });
+
+     // TODO: Gérer le stockReel. Il faudra lui associer une unité.
+     // Par exemple, si le stock est en 'kg', il sera standardisé et ajouté à 'gr.'.
+     // if (stock > 0) { ... }
+
+     // 3. Calculer la balance pour chaque unité
+     return Object.entries(quantitiesByUnit).map(([unit, data]) => {
+       const balance = data.purchased - data.needed;
+       return {
+         unit,
+         needed: data.needed,
+         purchased: data.purchased,
+         balance,
+         status: this.determineUnitStatus(balance, data.needed)
+       };
+     });
+   }
+
+  /**
+   * Détermine le statut global à partir des balances par unité
    */
-  static determineStatus(balance, totalNeeded) {
+   // TODO?: le status doit il etre calculé ou renseigné par l'user, ou un mix des 2 ? Il faut permettre a l'user de déclarer un statut "sufficient" manuellement, et gérer un statut "commandé". "collections.purchase à une columns "status" (string 25) qui doit permetre de précisé s'il s'agit d'un achat ou d'une commande. Il faudra implémenter la gestion de cela ...
+  static determineOverallStatus(balancePerUnit) {
+    if (balancePerUnit.length === 0) return 'unused';
+     if (balancePerUnit.some(cat => cat.status === 'missing')) return 'missing';
+     if (balancePerUnit.some(cat => cat.status === 'partial')) return 'partial';
+     return 'sufficient';
+  }
+
+
+  /**
+   * Détermine le statut pour une seule unité.
+   */
+   // #AI: TODO: créer un status en pourcentage d'avancement. Les differents status pourraient etre alors agregé pour donner un status global d'avancement.
+  static determineUnitStatus(balance, totalNeeded) {
+    if (totalNeeded === 0 && balance > 0) return 'sufficient'; // Achat sans besoin
     if (totalNeeded === 0) return 'unused';
     if (balance >= 0) return 'sufficient';
+    // TOCHECK: 10% arbitraire !
+    // Si le manque est inférieur à 10% du besoin, on considère "partiel"
     if (Math.abs(balance) < totalNeeded * 0.1) return 'partial';
     return 'missing';
   }
 
-  /**
-   * Calcule les totaux par catégorie
-   */
-  static calculateTotalsByCategory(ingredients) {
-    const totals = {
-      totalIngredients: ingredients.length,
-      totalNeeded: 0,
-      totalStock: 0,
-      totalPurchased: 0,
-      totalBalance: 0,
-      byType: {},
-      byStatus: {
-        sufficient: 0,
-        missing: 0,
-        partial: 0,
-        unused: 0
-      }
-    };
 
-    ingredients.forEach(ingredient => {
-      // Totaux globaux
-      totals.totalNeeded += ingredient.totalNeeded || 0;
-      totals.totalStock += ingredient.stockReel || 0;
-      totals.totalPurchased += ingredient.totalPurchased || 0;
-      totals.totalBalance += ingredient.balance || 0;
+   /**
+    * Utilitaire interne pour standardiser les unités de poids et de volume.
+    * @returns {{value: number, unit: string}}
+    */
+   static _standardizeQuantity(value, unit) {
+       const numValue = parseFloat(value) || 0;
+       if (unit.toLowerCase() === 'kg') {
+           return { value: numValue * 1000, unit: 'gr.' };
+       }
+       if (unit === 'l.') {
+           return { value: numValue * 1000, unit: 'ml' };
+       }
+       return { value: numValue, unit: unit || 'rec.' };
+   }
 
-      // Par type
-      const type = ingredient.ingType || 'autres';
-      if (!totals.byType[type]) {
-        totals.byType[type] = {
-          count: 0,
-          needed: 0,
-          stock: 0,
-          purchased: 0,
-          balance: 0
-        };
-      }
-      totals.byType[type].count++;
-      totals.byType[type].needed += ingredient.totalNeeded || 0;
-      totals.byType[type].stock += ingredient.stockReel || 0;
-      totals.byType[type].purchased += ingredient.totalPurchased || 0;
-      totals.byType[type].balance += ingredient.balance || 0;
 
-      // Par statut
-      const status = ingredient.status || 'unused';
-      totals.byStatus[status]++;
-    });
-
-    return totals;
-  }
 
   /**
-   * Calcule le stock total pour un ingrédient
+   * Utilitaire sécurisé pour parser des chaînes JSON.
    */
-  static calculateTotalStock(ingredient) {
-    return parseFloat(ingredient.stockReel) || 0;
+  static parseJsonString(jsonString) {
+    if (!jsonString || typeof jsonString !== 'string') return jsonString; // Déjà un objet
+    try {
+      return JSON.parse(jsonString);
+    } catch (e) {
+      return []; // Retourne un tableau vide en cas d'erreur
+    }
   }
 
-  /**
-   * Calcule les achats totaux pour un ingrédient
-   */
-  static calculateTotalPurchases(ingredient) {
-    if (!ingredient.purchases || !Array.isArray(ingredient.purchases)) {
-      return 0;
-    }
-
-    return ingredient.purchases.reduce((sum, purchase) => {
-      return sum + (parseFloat(purchase.quantity) || 0);
-    }, 0);
-  }
-
-  /**
-   * Valide les données d'un ingrédient
-   */
-  static validateIngredient(ingredient) {
-    const errors = [];
-
-    if (!ingredient.ingredientName) {
-      errors.push('Nom d\'ingrédient manquant');
-    }
-
-    if (!ingredient.ingredientUuid) {
-      errors.push('UUID d\'ingrédient manquant');
-    }
-
-    if (ingredient.totalNeeded < 0) {
-      errors.push('Quantité nécessaire négative');
-    }
-
-    if (ingredient.stockReel < 0) {
-      errors.push('Stock négatif');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  }
 }

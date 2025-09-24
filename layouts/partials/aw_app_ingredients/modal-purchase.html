@@ -1,137 +1,130 @@
-
 <!-- Modal d'édition des achats et stock - Version Vue.js seulement -->
-<div v-if="showPurchaseModal && editingIngredient" class="vue-modal-overlay" @click.self="closePurchaseModal">
-  <div class="vue-modal">
-    <div class="vue-modal-header">
-      <h5 class="vue-modal-title">
-        📝 [[ modalType === 'purchase' ? 'Ajouter un achat' : 'Modifier le stock' ]] - [[ editingIngredient?.ingredientName ]]
-      </h5>
-      <button type="button" class="vue-modal-close" @click="closePurchaseModal" aria-label="Close">
-        <span>&times;</span>
-      </button>
-    </div>
-    <div class="vue-modal-body">
-      <!-- Informations sur l'ingrédient -->
-      <div class="vue-alert-info">
-        <div class="row">
-          <div class="col-md-6">
-            <strong>[[ editingIngredient?.ingredientName ]]</strong>
-            <br><small>[[ formatTypeShort(editingIngredient?.ingType) ]]</small>
-          </div>
-          <div class="col-md-6 text-end">
-            <div class="small">
-              <div><strong>Besoin total:</strong> [[ editingIngredient?.totalNeedDisplay ]]</div>
-              <div><strong>Balance:</strong>
-                <span :class="editingIngredient?.balanceClass">[[ editingIngredient?.balanceDisplay ]]</span>
+<div class="modal" v-if="showPurchaseModal && editingIngredient" @click.self="closePurchaseModal" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          📝 [[ modalType === 'purchase' ? 'Ajouter un achat' : 'Modifier le stock' ]] - [[ editingIngredient?.ingredientName ]]
+        </h5>
+        <button type="button" class="btn-close" @click="closePurchaseModal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Informations sur l'ingrédient -->
+        <div class="alert alert-info">
+          <div class="row">
+            <div class="col-md-6">
+              <strong>[[ editingIngredient?.ingredientName ]]</strong>
+              <br><small>[[ formatTypeShort(editingIngredient?.ingType) ]]</small>
+            </div>
+            <div class="col-md-6 text-end">
+              <div class="small">
+                <div><strong>Besoin total:</strong> [[ editingIngredient?.totalNeedDisplay ]]</div>
+                <div><strong>Balance:</strong>
+                  <span :class="editingIngredient?.balanceClass">[[ editingIngredient?.balanceDisplay ]]</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Formulaire d'ajout -->
-      <form @submit.prevent="submitPurchaseForm">
-        <!-- Type d'action -->
-        <div class="row mb-3">
-          <div class="col-md-12">
-            <div class="btn-group w-100" role="group">
-              <input type="radio" class="btn-check" id="typePurchase" v-model="modalType" value="purchase">
-              <label class="btn btn-outline-success" for="typePurchase">🛒 Achat</label>
-
-              <input type="radio" class="btn-check" id="typeStock" v-model="modalType" value="stock">
-              <label class="btn btn-outline-primary" for="typeStock">📦 Stock</label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Quantité -->
-        <div class="row mb-3">
-          <div class="col-md-8">
-            <label for="quantity" class="form-label">Quantité *</label>
-            <input
-              type="number"
-              class="form-control"
-              id="quantity"
-              v-model.number="purchaseForm.quantity"
-              step="0.01"
-              min="0"
-              required
-              :placeholder="modalType === 'purchase' ? 'Quantité achetée' : 'Quantité en stock'"
-            >
-          </div>
-          <div class="col-md-4">
-            <label for="unit" class="form-label">Unité *</label>
-            <select class="form-select" id="unit" v-model="purchaseForm.unit" required>
-              <option value="">-- Choisir --</option>
-              <option v-for="unit in suggestedUnits" :key="unit" :value="unit">[[ unit ]]</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Champs spécifiques aux achats -->
-        <div v-if="modalType === 'purchase'">
+        <!-- Formulaire d'ajout -->
+        <form @submit.prevent="submitPurchaseForm" id="purchaseForm">
+          <!-- Type d'action -->
           <div class="row mb-3">
-            <div class="col-md-4">
-              <label for="store" class="form-label">Magasin</label>
-              <input
-                type="text"
-                class="form-control"
-                id="store"
-                v-model="purchaseForm.store"
-                placeholder="Nom du magasin"
-              >
+            <div class="col-md-12">
+              <div class="btn-group w-100" role="group">
+                <input type="radio" class="btn-check" id="typePurchase" v-model="modalType" value="purchase">
+                <label class="btn btn-outline-success" for="typePurchase">🛒 Achat</label>
+
+                <input type="radio" class="btn-check" id="typeStock" v-model="modalType" value="stock">
+                <label class="btn btn-outline-primary" for="typeStock">📦 Stock</label>
+              </div>
             </div>
-            <div class="col-md-4">
-              <label for="who" class="form-label">Qui</label>
-              <input
-                type="text"
-                class="form-control"
-                id="who"
-                v-model="purchaseForm.who"
-                placeholder="Nom de la personne"
-              >
-            </div>
-            <div class="col-md-4">
-              <label for="price" class="form-label">Prix (€)</label>
+          </div>
+
+          <!-- Quantité -->
+          <div class="row mb-3">
+            <div class="col-md-8">
+              <label for="quantity" class="form-label">Quantité *</label>
               <input
                 type="number"
                 class="form-control"
-                id="price"
-                v-model.number="purchaseForm.price"
+                id="quantity"
+                v-model.number="purchaseForm.quantity"
                 step="0.01"
                 min="0"
-                placeholder="0.00"
+                required
+                :placeholder="modalType === 'purchase' ? 'Quantité achetée' : 'Quantité en stock'"
               >
             </div>
+            <div class="col-md-4">
+              <label for="unit" class="form-label">Unité *</label>
+              <select class="form-select" id="unit" v-model="purchaseForm.unit" required>
+                <option value="">-- Choisir --</option>
+                <option v-for="unit in suggestedUnits" :key="unit" :value="unit">[[ unit ]]</option>
+              </select>
+            </div>
           </div>
-        </div>
 
-        <!-- Notes optionnelles -->
-        <div class="mb-3">
-          <label for="notes" class="form-label">Notes (optionnel)</label>
-          <textarea
-            class="form-control"
-            id="notes"
-            v-model="purchaseForm.notes"
-            rows="2"
-            :placeholder="modalType === 'purchase' ? 'Notes sur cet achat...' : 'Notes sur ce stock...'"
-          ></textarea>
-        </div>
+          <!-- Champs spécifiques aux achats -->
+          <div v-if="modalType === 'purchase'">
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label for="store" class="form-label">Magasin</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="store"
+                  v-model="purchaseForm.store"
+                  placeholder="Nom du magasin"
+                >
+              </div>
+              <div class="col-md-4">
+                <label for="who" class="form-label">Qui</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="who"
+                  v-model="purchaseForm.who"
+                  placeholder="Nom de la personne"
+                >
+              </div>
+              <div class="col-md-4">
+                <label for="price" class="form-label">Prix (€)</label>
+                <input
+                  type="number"
+                  class="form-control"
+                  id="price"
+                  v-model.number="purchaseForm.price"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                >
+              </div>
+            </div>
+          </div>
 
-        <!-- Boutons d'action -->
-        <div class="row">
-          <div class="col-md-6">
-            <button type="button" class="btn btn-secondary w-100" @click="closePurchaseModal">
-              Annuler
-            </button>
+          <!-- Notes optionnelles -->
+          <div class="mb-3">
+            <label for="notes" class="form-label">Notes (optionnel)</label>
+            <textarea
+              class="form-control"
+              id="notes"
+              v-model="purchaseForm.notes"
+              rows="2"
+              :placeholder="modalType === 'purchase' ? 'Notes sur cet achat...' : 'Notes sur ce stock...'"
+            ></textarea>
           </div>
-          <div class="col-md-6">
-            <button type="submit" class="btn btn-primary w-100" :disabled="!isPurchaseFormValid">
-              [[ modalType === 'purchase' ? '🛒 Ajouter l\'achat' : '📦 Mettre à jour le stock' ]]
-            </button>
-          </div>
-        </div>
-      </form>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" @click="closePurchaseModal">
+          Annuler
+        </button>
+        <button type="submit" form="purchaseForm" class="btn btn-primary" :disabled="!isPurchaseFormValid">
+          [[ modalType === 'purchase' ? '🛒 Ajouter l\'achat' : '📦 Mettre à jour le stock' ]]
+        </button>
+      </div>
     </div>
   </div>
 </div>

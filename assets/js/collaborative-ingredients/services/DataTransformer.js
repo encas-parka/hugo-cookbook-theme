@@ -9,93 +9,48 @@ import UnitsManager from '../UnitsManager.js';
 export class DataTransformer {
   // Cache pour les données JSON parsées
   static _jsonCache = new Map();
-  
-  /**
-   * Transforme les ingrédients calculés en données UI prêtes à l'emploi
-   */
+
   static transformForUI(ingredients, options = {}) {
-    const { 
-      includeCalculations = true,
-      purchases = [],
-      unitsManager = null 
-    } = options;
+     const { purchases = [] } = options;
 
-    // Nettoyer le cache périodiquement
-    if (this._jsonCache.size > 1000) {
-      this._jsonCache.clear();
-    }
+     return ingredients.map(ingredient => {
+       // Les achats sont déjà dans l'objet 'ingredient' grâce au Calculator
+       const transformed = {
+         // Données de base
+         $id: ingredient.$id,
+         ingredientUuid: ingredient.ingredientUuid,
+         ingredientName: ingredient.ingredientName,
+         ingType: ingredient.ingType,
 
-    return ingredients.map(ingredient => {
-      // Intégrer les achats dans l'ingrédient
-      const ingredientWithPurchases = {
-        ...ingredient,
-        purchases: purchases.filter(p => p.listIngredient === ingredient.$id)
-      };
+         // Propriétés d'affichage
+         typeDisplay: this.formatType(ingredient.ingType),
+         totalNeedDisplay: this.formatConsolidatedQuantities(ingredient.totalNeededConsolidated),
+         purchasesDisplay: this.formatPurchases(ingredient.purchases),
+         balanceDisplay: this.formatBalancePerUnit(ingredient.balancePerUnit),
+         balanceClass: this.getBalanceClass(ingredient.overallStatus),
+         storesDisplay: this.formatStores(ingredient.purchases),
+         responsibleDisplay: this.formatResponsible(ingredient.purchases),
 
-      const transformed = {
-        // Données de base
-        $id: ingredient.$id,
-        ingredientUuid: ingredient.ingredientUuid,
-        ingredientName: ingredient.ingredientName,
-        ingType: ingredient.ingType,
+         // Données brutes et statut
+         status: ingredient.overallStatus,
+         stockReel: ingredient.stockReel,
+         store: ingredient.store || [],
+         who: ingredient.who || [],
 
-        // Display properties
-        typeDisplay: this.formatType(ingredient.ingType),
-        totalNeedDisplay: this.formatTotalNeed(ingredientWithPurchases),
-        stockDisplay: this.formatStock(ingredientWithPurchases),
-        purchasesDisplay: this.formatPurchases(ingredientWithPurchases),
-        balanceDisplay: this.formatBalance(ingredientWithPurchases),
-        balanceClass: this.getBalanceClass(ingredientWithPurchases),
-        storesDisplay: this.formatStores(ingredientWithPurchases),
-        responsibleDisplay: this.formatResponsible(ingredientWithPurchases),
+         // Métadonnées
+         isModified: ingredient.isModified || false,
+       };
 
-        // Données brutes pour les calculs
-        totalNeeded: ingredient.totalNeeded,
-        totalNeededRaw: ingredient.totalNeededRaw,
-        stockReel: ingredient.stockReel,
-        totalPurchased: ingredient.totalPurchased,
-        balance: ingredient.balance,
-        status: ingredient.status,
+       // Ajouter les données de calcul détaillées pour les modales
+       transformed.calculations = {
+         recipeOccurrences: ingredient.recipeOccurrences || [],
+         purchases: ingredient.purchases,
+         balancePerUnit: ingredient.balancePerUnit || []
+       };
 
-        // Métadonnées
-        isModified: ingredient.isModified || false,
-        lastModified: ingredient.lastModified || null
-      };
-
-      // Ajouter les données de calcul si demandé
-      if (includeCalculations) {
-        transformed.calculations = {
-          totalNeededConsolidated: this.parseAndCacheJson(ingredient.totalNeededConsolidated, `tnc_${ingredient.$id}`),
-          totalPurchasedConsolidated: this.parseAndCacheJson(ingredient.totalPurchasedConsolidated, `tpc_${ingredient.$id}`),
-          originalData: {
-            ...ingredient.originalData,
-            recipeOccurrences: this.parseRecipeOccurrences(ingredient.recipeOccurrences)
-          },
-          purchases: ingredientWithPurchases.purchases
-        };
-      }
-
-      return transformed;
-    });
-  }
-
-  /**
-   * Parse les occurrences de recettes depuis les données Appwrite
-   */
-  static parseRecipeOccurrences(recipeOccurrences) {
-    if (!recipeOccurrences || !Array.isArray(recipeOccurrences)) {
-      return [];
-    }
-
-    return recipeOccurrences.map(occurrenceStr => {
-      try {
-        return JSON.parse(occurrenceStr);
-      } catch (error) {
-        console.warn('[DataTransformer] Erreur parsing recipe occurrence:', error);
-        return null;
-      }
-    }).filter(Boolean);
-  }
+       return transformed;
+     });
+   }
 
   /**
    * Formate le type d'ingrédient pour l'affichage
@@ -116,69 +71,98 @@ export class DataTransformer {
   }
 
   /**
-   * Parse et met en cache les données JSON pour éviter les parsing répétitifs
+   * Formate les quantités consolidées pour l'affichage
    */
-  static parseAndCacheJson(data, cacheKey) {
-    if (!data) return [];
-    
-    // Vérifier le cache
-    if (this._jsonCache.has(cacheKey)) {
-      return this._jsonCache.get(cacheKey);
-    }
-    
-    // Parser les données
-    let parsedData;
-    if (typeof data === 'string') {
-      try {
-        parsedData = JSON.parse(data);
-      } catch (error) {
-        console.warn(`[DataTransformer] Erreur parsing JSON pour ${cacheKey}:`, error);
-        return [];
-      }
-    } else {
-      parsedData = data;
-    }
-    
-    // S'assurer que c'est un tableau
-    if (!Array.isArray(parsedData)) {
-      parsedData = [parsedData];
-    }
-    
-    // Mettre en cache
-    this._jsonCache.set(cacheKey, parsedData);
-    
-    return parsedData;
-  }
-
-  /**
-   * Formate le besoin total pour l'affichage
-   */
-  static formatTotalNeed(ingredient) {
-    const consolidatedData = this.parseAndCacheJson(
-      ingredient.totalNeededConsolidated, 
-      `tnc_${ingredient.$id}`
-    );
-    
-    if (!consolidatedData.length) {
+  static formatConsolidatedQuantities(consolidated) {
+    if (!consolidated || !Array.isArray(consolidated) || consolidated.length === 0) {
       return '0';
     }
 
-    // Utiliser UnitsManager pour formater les quantités consolidées
-    // Les données d'Appwrite sont déjà au format [{value, unit, category}]
-    const formattedQuantities = consolidatedData.map(item => ({
-      value: item.value,
-      unit: item.unit,
-      formatted: `${item.value} ${item.unit}`,
-      category: item.category
-    }));
+    return consolidated
+          .map(item => this.formatValueWithUnit(item.value, item.unit))
+          .join(' + ');
+  }
 
-    // Joindre les quantités formatées
-    return formattedQuantities.map(q => q.formatted).join(' + ') || '0';
+  /**
+   * Formate la balance par unité
+   */
+  static formatBalancePerUnit(balancePerUnit) {
+    if (!balancePerUnit || balancePerUnit.length === 0) return '0';
+
+    return balancePerUnit
+        .map(item => {
+          // Préfixe le signe '+' pour les balances positives non nulles
+          const prefix = item.balance > 0 ? '+' : '';
+          return prefix + this.formatValueWithUnit(item.balance, item.unit);
+        })
+        .join(' & ');
+    }
+
+  /**
+     * Formate une valeur numérique avec son unité selon des règles métier précises.
+     * Gère la conversion (gr->kg, ml->l) et l'arrondi.
+     * @param {number} value - La valeur numérique.
+     * @param {string} unit - L'unité.
+     * @returns {string} - La chaîne de caractères formatée, ex: "1.25 kg".
+     */
+    static formatValueWithUnit(value, unit) {
+      let numValue = parseFloat(value) || 0;
+      let currentUnit = unit;
+
+      if (numValue === 0 && !unit) return '0';
+      if (numValue === 0) return `0 ${unit}`;
+
+      // 1. Conversion des unités si nécessaire
+      if (currentUnit === 'gr.' && numValue >= 1000) {
+        numValue /= 1000;
+        currentUnit = 'kg';
+      } else if (currentUnit === 'ml' && numValue >= 1000) {
+        numValue /= 1000;
+        currentUnit = 'l.';
+      }
+
+      // 2. Arrondi selon la nouvelle unité
+      let formattedValue;
+      switch (currentUnit) {
+        case 'kg':
+        case 'l.':
+        // arrondie 2 décimales
+        formattedValue = (Math.round(numValue * 100) / 100).toFixed(2);
+          break;
+        case 'gr.':
+        case 'ml':
+        // arrondie à l'unité
+          formattedValue = Math.round(numValue).toString();
+          break;
+        default: // Autres unités → une décimale
+        formattedValue = (Math.round(numValue * 10) / 10).toFixed(2);
+          break;
+      }
+    // Supprimer les zéros décimaux inutiles (ex: "1.50" -> "1.5", "2.0" -> "2")
+      if (formattedValue.includes('.')) {
+          formattedValue = formattedValue.replace(/\.?0+$/, '');
+      }
+
+      return `${formattedValue} ${currentUnit}`;
+    }
+
+  /**
+   * Détermine la classe CSS pour le bilan
+   */
+  static getBalanceClass(status) {
+    switch (status) {
+      case 'sufficient': return 'quantity-positive';
+      case 'missing': return 'quantity-negative';
+      case 'partial': return 'quantity-neutral';
+      case 'unused': return 'quantity-neutral';
+      default: return 'quantity-neutral';
+    }
   }
 
   /**
    * Formate le stock pour l'affichage
    */
+   // #AI: TOCHECK when stockReel will used/implemented
   static formatStock(ingredient) {
     const stockReel = parseFloat(ingredient.stockReel) || 0;
 
@@ -186,234 +170,50 @@ export class DataTransformer {
       return '0';
     }
 
-    // Trouver l'unité principale depuis les besoins
-    const mainUnit = this.getMainUnit(ingredient);
-
-    return `${stockReel} ${mainUnit}`;
-  }
-
-  /**
-   * Formate les achats pour l'affichage
-   */
-  static formatPurchases(ingredient) {
-    // Si l'ingrédient a des achats directement attachés, les utiliser
-    if (ingredient.purchases?.length) {
-      const totalPurchased = ingredient.purchases.reduce((sum, purchase) => {
-        return sum + (parseFloat(purchase.quantity) || 0);
-      }, 0);
-      
-      if (totalPurchased > 0) {
-        const mainUnit = this.getMainUnit(ingredient);
-        return `${totalPurchased} ${mainUnit}`;
-      }
-    }
-    
-    // Sinon, utiliser les données consolidées
-    const consolidatedData = this.parseAndCacheJson(
-      ingredient.totalPurchasedConsolidated, 
-      `tpc_${ingredient.$id}`
-    );
-    
-    if (!consolidatedData.length) {
-      return '0';
-    }
-
-    // Les données d'Appwrite sont déjà au format [{value, unit, category}]
-    const formattedQuantities = consolidatedData.map(item => ({
-      value: item.value,
-      unit: item.unit,
-      formatted: `${item.value} ${item.unit}`,
-      category: item.category
-    }));
-
-    // Joindre les quantités formatées
-    return formattedQuantities.map(q => q.formatted).join(' + ') || '0';
-  }
-
-  /**
-   * Formate le bilan pour l'affichage
-   */
-  static formatBalance(ingredient) {
-    const balance = ingredient.balance || 0;
-    const mainUnit = this.getMainUnit(ingredient);
-
-    return `${balance} ${mainUnit}`;
-  }
-
-  /**
-   * Détermine la classe CSS pour le bilan
-   */
-  static getBalanceClass(ingredient) {
-    const balance = ingredient.balance || 0;
-    const totalNeeded = ingredient.totalNeeded || 0;
-
-    if (totalNeeded === 0) return 'quantity-neutral';
-    if (balance >= 0) return 'quantity-positive';
-    if (Math.abs(balance) < totalNeeded * 0.1) return 'quantity-neutral';
-    return 'quantity-negative';
-  }
-
-  /**
-   * Formate la liste des magasins
-   */
-  static formatStores(ingredient) {
-    if (!ingredient.purchases?.length) return '-';
-
-    const stores = [...new Set(
-      ingredient.purchases
-        .map(p => p.store)
-        .filter(store => store && store.trim())
-    )];
-
-    return stores.join(', ') || '-';
-  }
-
-  /**
-   * Formate la liste des responsables
-   */
-  static formatResponsible(ingredient) {
-    if (!ingredient.purchases?.length) return '-';
-
-    const people = [...new Set(
-      ingredient.purchases
-        .map(p => p.who)
-        .filter(who => who && who.trim())
-    )];
-
-    return people.join(', ') || '-';
-  }
-
-  /**
-   * Trouve l'unité principale d'un ingrédient
-   */
-  static getMainUnit(ingredient) {
-    // Essayer depuis les besoins consolidés
+    // Trouver l'unité principale depuis les besoins consolidés
     if (ingredient.totalNeededConsolidated?.length) {
-      return ingredient.totalNeededConsolidated[0].unit || '';
+      const mainUnit = ingredient.totalNeededConsolidated[0].unit;
+      return `${this.formatValueWithUnit(stockReel)} ${mainUnit}`;
     }
 
-    // Essayer depuis les occurrences de recettes
-    if (ingredient.originalData?.recipeOccurrences?.length) {
-      return ingredient.originalData.recipeOccurrences[0].unit || '';
-    }
-
-    // Essayer depuis les achats consolidés
-    if (ingredient.totalPurchasedConsolidated?.length) {
-      return ingredient.totalPurchasedConsolidated[0].unit || '';
-    }
-
-    return '';
+    return `${this.formatValueWithUnit(stockReel)} unités`;
   }
 
   /**
-   * Prépare les données pour les graphiques et statistiques
+  * Formate les achats groupés par unité pour l'affichage.
    */
-  static prepareStatsData(ingredients) {
-    const stats = {
-      totalIngredients: ingredients.length,
-      totalNeeded: 0,
-      totalStock: 0,
-      totalPurchased: 0,
-      totalBalance: 0,
-      byType: {},
-      byStatus: {
-        sufficient: 0,
-        missing: 0,
-        partial: 0,
-        unused: 0
-      },
-      topMissing: [],
-      topSufficient: []
-    };
+  static formatPurchases(purchases) {
+    if (!purchases || purchases.length === 0) return '0';
 
-    ingredients.forEach(ingredient => {
-      // Totaux globaux
-      stats.totalNeeded += ingredient.totalNeeded || 0;
-      stats.totalStock += ingredient.stockReel || 0;
-      stats.totalPurchased += ingredient.totalPurchased || 0;
-      stats.totalBalance += ingredient.balance || 0;
-
-      // Par type
-      const type = ingredient.ingType || 'autres';
-      if (!stats.byType[type]) {
-        stats.byType[type] = {
-          count: 0,
-          needed: 0,
-          stock: 0,
-          purchased: 0,
-          balance: 0
-        };
-      }
-      stats.byType[type].count++;
-      stats.byType[type].needed += ingredient.totalNeeded || 0;
-      stats.byType[type].stock += ingredient.stockReel || 0;
-      stats.byType[type].purchased += ingredient.totalPurchased || 0;
-      stats.byType[type].balance += ingredient.balance || 0;
-
-      // Par statut
-      const status = ingredient.status || 'unused';
-      stats.byStatus[status]++;
-
-      // Top missing
-      if (ingredient.balance < 0) {
-        stats.topMissing.push({
-          name: ingredient.ingredientName,
-          balance: ingredient.balance,
-          needed: ingredient.totalNeeded
+        const purchasesByUnit = {};
+        purchases.forEach(p => {
+          const unit = p.unit || '?';
+          if (!purchasesByUnit[unit]) purchasesByUnit[unit] = 0;
+          purchasesByUnit[unit] += parseFloat(p.quantity) || 0;
         });
-      }
 
-      // Top sufficient
-      if (ingredient.balance >= 0 && ingredient.totalNeeded > 0) {
-        stats.topSufficient.push({
-          name: ingredient.ingredientName,
-          balance: ingredient.balance,
-          needed: ingredient.totalNeeded
-        });
-      }
-    });
+        return Object.entries(purchasesByUnit)
+          .map(([unit, total]) => this.formatValueWithUnit(total, unit))
+          .join(' + ');
+    }
 
-    // Trier les tops
-    stats.topMissing.sort((a, b) => a.balance - b.balance);
-    stats.topSufficient.sort((a, b) => b.balance - a.balance);
 
-    return stats;
-  }
+    /**
+     * Formate la liste des magasins.
+     */
+    static formatStores(purchases) {
+      if (!purchases || purchases.length === 0) return '-';
+      const stores = [...new Set(purchases.map(p => p.store).filter(Boolean))];
+      return stores.join(', ') || '-';
+    }
 
-  /**
-   * Prépare les données pour l'export
-   */
-  static prepareExportData(ingredients) {
-    return ingredients.map(ingredient => ({
-      ingredient: ingredient.ingredientName,
-      type: ingredient.ingType,
-      totalNeeded: ingredient.totalNeeded,
-      stockReel: ingredient.stockReel,
-      totalPurchased: ingredient.totalPurchased,
-      balance: ingredient.balance,
-      status: ingredient.status,
-      stores: this.formatStores(ingredient),
-      responsible: this.formatResponsible(ingredient)
-    }));
-  }
+    /**
+     * Formate la liste des responsables.
+     */
+    static formatResponsible(purchases) {
+      if (!purchases || purchases.length === 0) return '-';
+      const people = [...new Set(purchases.map(p => p.who).filter(Boolean))];
+      return people.join(', ') || '-';
+    }
 
-  /**
-   * Transforme les données pour le filtre
-   */
-  static transformForFilter(ingredients) {
-    return {
-      types: [...new Set(ingredients.map(i => i.ingType).filter(Boolean))],
-      statuses: [...new Set(ingredients.map(i => i.status).filter(Boolean))],
-      stores: [...new Set(
-        ingredients.flatMap(i =>
-          (i.purchases || []).map(p => p.store).filter(Boolean)
-        )
-      )],
-      responsible: [...new Set(
-        ingredients.flatMap(i =>
-          (i.purchases || []).map(p => p.who).filter(Boolean)
-        )
-      )]
-    };
-  }
 }

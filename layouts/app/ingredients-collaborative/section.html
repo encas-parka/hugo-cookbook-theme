@@ -54,11 +54,6 @@
  {{- $contentHash := $eventData | jsonify | md5 -}}
 
     window.__HUGO_PARAMS__ = {
-        appwrite: {
-            endpoint: {{ .Site.Params.appwrite.endpoint | default "https://cloud.appwrite.io/v1" | jsonify | safeJS }},
-            projectId: {{ .Site.Params.appwrite.projectId | default "689725820024e81781b7" | jsonify | safeJS }},
-            databaseId: {{ .Site.Params.appwrite.databaseId | default "689d15b10003a5a13636" | jsonify | safeJS }}
-        },
         listId: {{ .Params.listId | default "demo_list_123" | jsonify | safeJS }},
         listContentHash: {{ $contentHash | jsonify | safeJS }}
     };
