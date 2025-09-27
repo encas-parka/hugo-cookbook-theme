@@ -35,22 +35,6 @@ import { createEventApp } from "./app_ingredients_list.js";
   }
 })();
 
-// Utilitaire: lecture de données JSON depuis un <script type="application/json" id="event-json">
-// USELESS - NON FONCTIONNEL
-// function readInlineEventJSON() {
-//   try {
-//     if (typeof document === "undefined") return null;
-//     const el = document.getElementById("event-json");
-//     if (!el) return null;
-//     const txt = el.textContent || el.innerText || "";
-//     if (!txt) return null;
-//     return JSON.parse(txt);
-//   } catch (_err) {
-//     console.error("Failed to parse inline event JSON:", _err);
-//     return null;
-//   }
-// }
-
 // Utilitaire: fetch JSON depuis une URL
 async function fetchEventJSON(url) {
   try {

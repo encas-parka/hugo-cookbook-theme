@@ -186,4 +186,90 @@ export class IngredientCalculator {
     }
   }
 
+  /**
+   * Met à jour un seul ingrédient de manière optimisée
+   * @param {Object} ingredient - L'ingrédient à mettre à jour
+   * @param {Array} allIngredients - Tous les ingrédients (pour le contexte)
+   * @param {Array} allPurchases - Tous les achats
+   * @returns {Object} - L'ingrédient calculé
+   */
+  static updateSingleIngredient(ingredient, allIngredients, allPurchases) {
+    if (!ingredient || !ingredient.$id) {
+      console.warn('updateSingleIngredient: ingrédient invalide', ingredient);
+      return null;
+    }
+
+    // Parser l'ingrédient
+    const parsedIngredient = this.parseIngredients([ingredient])[0];
+    
+    // Ajouter les données d'achats
+    const ingredientWithPurchases = this.addPurchasesData([parsedIngredient], allPurchases)[0];
+    
+    // Calculer la balance finale
+    const balancedIngredient = this.calculateFinalBalance([ingredientWithPurchases])[0];
+    
+    return balancedIngredient;
+  }
+
+  /**
+   * Met à jour plusieurs ingrédients spécifiques
+   * @param {Array} ingredientIds - Les IDs des ingrédients à mettre à jour
+   * @param {Array} allIngredients - Tous les ingrédients
+   * @param {Array} allPurchases - Tous les achats
+   * @returns {Array} - Les ingrédients calculés
+   */
+  static updateMultipleIngredients(ingredientIds, allIngredients, allPurchases) {
+    if (!ingredientIds || !Array.isArray(ingredientIds)) {
+      return [];
+    }
+
+    const ingredientsToUpdate = allIngredients.filter(ing => 
+      ingredientIds.includes(ing.$id)
+    );
+
+    return ingredientsToUpdate.map(ingredient => 
+      this.updateSingleIngredient(ingredient, allIngredients, allPurchases)
+    ).filter(Boolean);
+  }
+
+  /**
+   * Trouve les ingrédients affectés par un achat
+   * @param {Object} purchase - L'achat à analyser
+   * @param {Array} allIngredients - Tous les ingrédients
+   * @returns {Array} - Les IDs des ingrédients affectés
+   */
+  static getIngredientsAffectedByPurchase(purchase, allIngredients) {
+    if (!purchase || !purchase.listIngredient?.$id) {
+      return [];
+    }
+
+    const ingredientId = purchase.listIngredient.$id;
+    const ingredient = allIngredients.find(ing => ing.$id === ingredientId);
+    
+    return ingredient ? [ingredientId] : [];
+  }
+
+  /**
+   * Met à jour les ingrédients affectés par des changements d'achats
+   * @param {Array} purchases - Les achats modifiés/ajoutés/supprimés
+   * @param {Array} allIngredients - Tous les ingrédients
+   * @param {Array} allPurchases - Tous les achats
+   * @returns {Array} - Les ingrédients calculés
+   */
+  static updateIngredientsFromPurchases(purchases, allIngredients, allPurchases) {
+    const affectedIngredientIds = new Set();
+    
+    // Collecter tous les ingrédients affectés
+    purchases.forEach(purchase => {
+      const affectedIds = this.getIngredientsAffectedByPurchase(purchase, allIngredients);
+      affectedIds.forEach(id => affectedIngredientIds.add(id));
+    });
+
+    return this.updateMultipleIngredients(
+      Array.from(affectedIngredientIds), 
+      allIngredients, 
+      allPurchases
+    );
+  }
+
 }

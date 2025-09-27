@@ -10,7 +10,7 @@ const APPWRITE_FUNCTION_ID = "68976500002eb5c6ee4f"; // ID de la fonction cms-au
 const ACCESS_REQUEST_FUNCTION_ID = "689cdea5001a4d74549d"; // ID de la fonction d'envoi d'email
 
 // --- CONFIGURATION CENTRALE APPWRITE ---
-export const APPWRITE_CONFIG = {
+const APPWRITE_CONFIG = {
     endpoint: "https://cloud.appwrite.io/v1",
     projectId: "689725820024e81781b7",
     databaseId: "689d15b10003a5a13636",
@@ -399,6 +399,7 @@ export function subscribeToCollections(collectionNames, callback) {
 
 // Export des fonctions publiques
 export {
+    APPWRITE_CONFIG, // Ajouté pour consolider les exports
     getAppwriteClients, getAccount, getFunctions, getTeams, getDatabases, getConfig,
     isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms, getUserEmail,
     getUserName, clearAuthData, setAuthData, logoutGlobal, isEmailVerified,

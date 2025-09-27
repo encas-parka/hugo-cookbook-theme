@@ -1209,6 +1209,7 @@
 {{ partialCached "components/print-button.html" . "print-btn " }}
 
 
+<!-- pour le hash permettant de vérifié si la liste d'ingredients a été modifié dans le cms. Permet la comparaison avec les donnée appwrite. Utile ici ou bien ? -->
 {{- $eventData := partialCached "functions/event-data-processor.html" . .File.UniqueID -}}
 {{- $contentHash := $eventData | jsonify | md5 -}}
 <script>

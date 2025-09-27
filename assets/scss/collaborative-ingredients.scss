@@ -750,3 +750,86 @@
     }
   }
 }
+
+// Styles pour l'indicateur de connexion temps réel
+.realtime-connection-indicator {
+  transition: all 0.3s ease-in-out;
+  
+  &:hover:not(.disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  &.btn-success {
+    background-color: rgba(25, 135, 84, 0.9) !important;
+    border-color: rgba(25, 135, 84, 1) !important;
+    
+    &:hover:not(.disabled) {
+      background-color: rgba(25, 135, 84, 1) !important;
+      border-color: rgba(25, 135, 84, 1) !important;
+    }
+  }
+  
+  &.btn-danger {
+    background-color: rgba(220, 53, 69, 0.9) !important;
+    border-color: rgba(220, 53, 69, 1) !important;
+    animation: pulse-danger 2s infinite;
+    
+    &:hover:not(.disabled) {
+      background-color: rgba(220, 53, 69, 1) !important;
+      border-color: rgba(220, 53, 69, 1) !important;
+    }
+  }
+}
+
+// Animation pour l'état déconnecté
+@keyframes pulse-danger {
+  0% { 
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important; 
+  }
+  50% { 
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.3) !important; 
+  }
+  100% { 
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important; 
+  }
+}
+
+// Amélioration du toast de notification
+.toast {
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  
+  &.show {
+    display: block !important;
+  }
+  
+  .toast-header {
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .toast-body {
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
+}
+
+// Responsive pour mobile
+@media (max-width: 576px) {
+  .realtime-connection-indicator {
+    font-size: 0.8125rem !important;
+    padding: 0.375rem 0.75rem !important;
+  }
+  
+  .toast-container {
+    padding: 0.5rem !important;
+    
+    .toast {
+      width: calc(100vw - 1rem);
+      max-width: none;
+    }
+  }
+}

@@ -1,0 +1,74 @@
+  <!-- Indicateur de connexion temps réel -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1040">
+    <div
+      class="btn d-flex align-items-center gap-2 shadow-sm"
+      :class="[
+                connectionStatus.isConnected ? 'btn-success' : 'btn-danger',
+                connectionStatus.showReconnecting ? 'disabled' : ''
+            ]"
+      @click="attemptReconnection()"
+      style="
+        border-radius: 2rem;
+        font-size: 0.875rem;
+        backdrop-filter: blur(10px);
+      "
+    >
+      <i
+        :class="[
+                    connectionStatus.showReconnecting ? 'fas fa-sync-alt fa-spin' :
+                    connectionStatus.isConnected ? 'fas fa-broadcast-tower' : 'fas fa-broadcast-tower'
+                ]"
+      ></i>
+      <span v-if="connectionStatus.showReconnecting">Reconnexion...</span>
+      <span v-else-if="connectionStatus.isConnected">Connecté</span>
+      <span v-else>Déconnecté</span>
+    </div>
+  </div>
+
+<!-- Toast de notification de connexion perdue -->
+<div
+  class="toast-container position-fixed bottom-0 end-0 p-3"
+  style="z-index: 1050"
+>
+  <div
+    class="toast"
+    :class="{ 'show': !connectionStatus.isConnected && connectionStatus.showDisconnectedToast }"
+    role="alert"
+    aria-live="assertive"
+    aria-atomic="true"
+  >
+    <div class="toast-header bg-danger text-white">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      <strong class="me-auto">Connexion perdue</strong>
+      <button
+        type="button"
+        class="btn-close btn-close-white"
+        @click="closeDisconnectedToast()"
+        aria-label="Fermer"
+      ></button>
+    </div>
+    <div class="toast-body">
+      <p class="mb-3">
+        La synchronisation temps réel a été perdue. Les changements ne seront
+        pas mis à jour en temps réel.
+      </p>
+      <div class="d-flex gap-2">
+        <button
+          class="btn btn-primary btn-sm"
+          @click="attemptReconnection()"
+          :disabled="connectionStatus.showReconnecting"
+        >
+          <i class="fas fa-sync-alt me-1"></i>
+          <span v-if="connectionStatus.showReconnecting">Reconnexion...</span>
+          <span v-else>Rétablir</span>
+        </button>
+        <button
+          class="btn btn-secondary btn-sm"
+          @click="closeDisconnectedToast()"
+        >
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
