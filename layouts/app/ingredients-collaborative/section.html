@@ -3,12 +3,24 @@
 {{/* SCRIPT VUE - Charger depuis les assets */}}
 {{ $vueJs := resources.Get "js/vue.global.js" }}
 {{ $vueProd := resources.Get "js/vue.global.prod.js" }}
+{{ $vueTableProd := resources.Get "js/vuetable.production.js" }}
+{{ $vueTableDev := resources.Get "js/vuetable.development.js" }}
+
+
 {{ if and $vueJs hugo.IsDevelopment }}
   <script src="{{ $vueJs.RelPermalink }}"></script>
   {{ else if and $vueProd hugo.IsProduction }}
   <script src="{{ $vueProd.RelPermalink }}"></script>
 {{ else }}
-  {{ warnf "Le script Vue.js n'a pas été trouvé dans assets/js/" }}
+  {{ warnf "Le script Vue.js n'a pas été trouvé dans js/" }}
+{{ end }}
+
+{{ if and $vueTableProd hugo.IsProduction }}
+  <script src="{{ $vueTableProd.RelPermalink }}"></script>
+{{ else if and $vueTableDev hugo.IsDevelopment }}
+  <script src="{{ $vueTableDev.RelPermalink }}"></script>
+{{ else }}
+  {{ warnf "Le script vuetable n'a pas été trouvé dans js/" }}
 {{ end }}
 
 <div id="collaborativeApp">

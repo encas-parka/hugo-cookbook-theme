@@ -124,6 +124,12 @@ module:
       target: assets/scss/bootstrap/vendor
     - source: layouts
       target: layouts
+    - source: node_modules/vue/dist
+      target: assets/js/vue
+    - source: node_modules/@tanstack/vue-table/build/umd/index.development.js
+      target: assets/js/vuetable.development.js
+    - source: node_modules/@tanstack/vue-table/build/umd/index.production.js
+      target: assets/js/vuetable.production.js
     - source: static
       target: static
     - source: data
