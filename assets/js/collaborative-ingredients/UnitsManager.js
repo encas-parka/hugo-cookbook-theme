@@ -343,14 +343,14 @@ export class UnitsManager {
    */
   getSuggestedUnits(ingredientType) {
     const suggestions = {
-      'legumesFrais': ['gr.', 'kg', 'unité', 'botte'],
-      'frais': ['gr.', 'kg', 'ml', 'l.'],
-      'sec': ['gr.', 'kg'],
-      'lof': ['ml', 'l.', 'gr.', 'kg'],
-      'sucres': ['gr.', 'kg', 'ml', 'c. à soupe'],
-      'epices': ['gr.', 'c. à café', 'c. à soupe', 'pincées'],
-      'animaux': ['gr.', 'kg', 'unité'],
-      'autres': ['gr.', 'ml', 'unité']
+      'legumesFrais': ['kg', 'gr.', 'unité'],
+      'frais': ['kg', 'gr.', 'l.', 'ml'],
+      'sec': ['kg', 'gr.', 'l.', 'ml', 'unité'],
+      'lof': ['kg', 'gr.', 'l.', 'ml'],
+      'sucres': ['kg', 'gr.', 'l.', 'ml', 'unité'],
+      'epices': ['kg', 'l.', 'ml', 'gr.', 'bottes', 'unité'],
+      'animaux': ['kg', 'gr.', 'unité'],
+      'autres': ['kg', 'gr.', 'l.', 'ml', 'unité']
     };
 
     return suggestions[ingredientType] || ['gr.', 'ml', 'unité'];

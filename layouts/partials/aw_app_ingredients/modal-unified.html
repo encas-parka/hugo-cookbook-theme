@@ -1,0 +1,754 @@
+<!-- Modal unifié pour la gestion des ingrédients -->
+<div
+  class="modal"
+  v-if="showUnifiedModal && editingIngredient"
+  @click.self="closeUnifiedModal"
+  style="display: block; background-color: rgba(0, 0, 0, 0.5)"
+  tabindex="-1"
+>
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <!-- Header compact avec informations essentielles -->
+      <div class="modal-header">
+        <div class="d-flex align-items-center justify-content-between w-100">
+          <div>
+            <div class="modal-title mb-1">
+              [[ editingIngredient?.ingredientName ]]
+            </div>
+            <div class="d-flex gap-3 align-items-center">
+              <span class="badge text-bg-secondary"
+                >[[ formatTypeShort(editingIngredient?.ingType) ]]</span
+              >
+
+              <span
+                v-if="editingIngredient?.status === 'sufficient'"
+                class="badge bg-success"
+              >
+                <i class="fa-regular fa-circle-check"></i> Complet
+              </span>
+              <span v-else class="badge bg-warning">
+                <i class="fas fa-hourglass-half"></i> En cours
+              </span>
+              <small class="opacity-75"
+                >Besoin:
+                <strong
+                  >[[ editingIngredient?.totalNeedDisplay ]]</strong
+                ></small
+              >
+              <small class="opacity-75"
+                >Balance:
+                <strong :class="editingIngredient?.balanceClass"
+                  >[[ editingIngredient?.balanceDisplay ]]</strong
+                ></small
+              >
+            </div>
+          </div>
+          <button
+            type="button"
+            class="btn-close"
+            @click="closeUnifiedModal"
+            aria-label="Close"
+          ></button>
+        </div>
+      </div>
+
+      <div class="modal-body p-0">
+        <!-- Navigation par onglets -->
+        <ul class="nav nav-tabs nav-fill" id="unifiedTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="recipes-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#recipes"
+              type="button"
+              role="tab"
+            >
+              <i class="fas fa-utensils"></i> Recettes
+              <span class="badge bg-secondary ms-1"
+                >[[ editingIngredient?.calculations?.recipeOccurrences?.length
+                || 0 ]]</span
+              >
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="purchases-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#purchases"
+              type="button"
+              role="tab"
+            >
+              <i class="fas fa-shopping-cart"></i> Achats
+              <span class="badge bg-secondary ms-1"
+                >[[ editingIngredient?.calculations?.purchases?.length || 0
+                ]]</span
+              >
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="stock-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#stock"
+              type="button"
+              role="tab"
+            >
+              <i class="fas fa-box"></i> Stock
+              <span class="badge bg-secondary ms-1"
+                >[[ editingStockEntries?.length || 0 ]]</span
+              >
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="volunteers-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#volunteers"
+              type="button"
+              role="tab"
+            >
+              <i class="fas fa-users"></i> Volontaires
+              <span class="badge bg-secondary ms-1"
+                >[[ editingIngredient?.who?.length || 0 ]]</span
+              >
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="stores-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#stores"
+              type="button"
+              role="tab"
+            >
+              <i class="fas fa-store"></i> Magasins
+              <span class="badge bg-secondary ms-1"
+                >[[ editingIngredient?.store?.length || 0 ]]</span
+              >
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content p-3" id="unifiedTabsContent">
+          <!-- Onglet Recettes -->
+          <div class="tab-pane fade show active" id="recipes" role="tabpanel">
+            <div class="table-responsive">
+              <table class="table table-striped table-sm">
+                <thead>
+                  <tr>
+                    <th>Recette</th>
+                    <th>Quantité</th>
+                    <th>Date service</th>
+                    <th>Horaire</th>
+                    <th>Type plat</th>
+                    <th>Assiettes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-if="!editingIngredient?.calculations?.recipeOccurrences?.length"
+                  >
+                    <td colspan="6" class="text-muted text-center">
+                      Aucune recette trouvée
+                    </td>
+                  </tr>
+                  <tr
+                    v-for="recipe in editingIngredient?.calculations?.recipeOccurrences"
+                    :key="recipe.recipeName + recipe.dateTimeService"
+                  >
+                    <td><strong>[[ recipe.recipeName ]]</strong></td>
+                    <td>[[ recipe.quantity ]] [[ recipe.unit ]]</td>
+                    <td>[[ formatDate(recipe.dateTimeService) ]]</td>
+                    <td>[[ recipe.horaire || '-' ]]</td>
+                    <td>[[ recipe.typePlat || '-' ]]</td>
+                    <td>[[ recipe.assiettes || '-' ]]</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Onglet Achats -->
+          <div class="tab-pane fade" id="purchases" role="tabpanel">
+            <!-- Formulaire d'ajout d'achat -->
+            <div class="card mb-3">
+              <div class="card-header">
+                <h6 class="card-title mb-0">
+                  <i class="fas fa-shopping-cart"></i> Ajouter un achat
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="row g-2">
+                  <div class="col-md-3">
+                    <input
+                      type="number"
+                      class="form-control form-control-sm"
+                      v-model.number="newPurchase.quantity"
+                      step="0.01"
+                      min="0"
+                      placeholder="Quantité"
+                    />
+                  </div>
+                  <div class="col-md-2">
+                    <select
+                      class="form-select form-select-sm"
+                      v-model="newPurchase.unit"
+                    >
+                      <option value="">Unité</option>
+                      <option
+                        v-for="unit in suggestedUnits"
+                        :key="unit"
+                        :value="unit"
+                      >
+                        [[ unit ]]
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-md-2">
+                    <input
+                      type="text"
+                      class="form-control form-control-sm"
+                      v-model="newPurchase.store"
+                      placeholder="Magasin"
+                    />
+                  </div>
+                  <div class="col-md-2">
+                    <input
+                      type="text"
+                      class="form-control form-control-sm"
+                      v-model="newPurchase.who"
+                      placeholder="Qui"
+                    />
+                  </div>
+                  <div class="col-md-1">
+                    <input
+                      type="number"
+                      class="form-control form-control-sm"
+                      v-model.number="newPurchase.price"
+                      step="0.01"
+                      min="0"
+                      placeholder="Prix €"
+                    />
+                  </div>
+                  <div class="col-md-2">
+                    <button
+                      class="btn btn-success btn-sm w-100"
+                      @click="addPurchase"
+                      :disabled="!isPurchaseFormValid"
+                    >
+                      <i class="fas fa-plus"></i> Ajouter
+                    </button>
+                  </div>
+                </div>
+                <div class="row mt-2">
+                  <div class="col-12">
+                    <input
+                      type="text"
+                      class="form-control form-control-sm"
+                      v-model="newPurchase.notes"
+                      placeholder="Notes (optionnel)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tableau des achats -->
+            <div class="table-responsive">
+              <table class="table table-striped table-sm">
+                <thead>
+                  <tr>
+                    <th>Quantité</th>
+                    <th>Magasin</th>
+                    <th>Qui</th>
+                    <th>Date</th>
+                    <th>Prix</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!editingPurchases.length">
+                    <td colspan="7" class="text-muted text-center">
+                      Aucun achat enregistré
+                    </td>
+                  </tr>
+                  <tr
+                    v-for="(purchase, index) in editingPurchases"
+                    :key="purchase.$id || 'new-' + index"
+                  >
+                    <td v-if="purchase.isEditing">
+                      <input
+                        type="number"
+                        class="form-control form-control-sm"
+                        v-model.number="purchase.quantity"
+                        step="0.01"
+                        min="0"
+                      />
+                    </td>
+                    <td v-else>
+                      <strong
+                        >[[ purchase.quantity ]] [[ purchase.unit ]]</strong
+                      >
+                    </td>
+
+                    <td v-if="purchase.isEditing">
+                      <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        v-model="purchase.store"
+                      />
+                    </td>
+                    <td v-else>[[ purchase.store || '-' ]]</td>
+
+                    <td v-if="purchase.isEditing">
+                      <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        v-model="purchase.who"
+                      />
+                    </td>
+                    <td v-else>[[ purchase.who || '-' ]]</td>
+
+                    <td>[[ formatDate(purchase.$createdAt) ]]</td>
+
+                    <td v-if="purchase.isEditing">
+                      <input
+                        type="number"
+                        class="form-control form-control-sm"
+                        v-model.number="purchase.price"
+                        step="0.01"
+                        min="0"
+                      />
+                    </td>
+                    <td v-else>
+                      [[ purchase.price ? purchase.price + ' €' : '-' ]]
+                    </td>
+
+                    <td v-if="purchase.isEditing">
+                      <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        v-model="purchase.notes"
+                      />
+                    </td>
+                    <td v-else>[[ purchase.notes || '-' ]]</td>
+
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        <button
+                          v-if="purchase.isEditing"
+                          class="btn btn-outline-success"
+                          @click="savePurchaseEdit(purchase)"
+                          title="Enregistrer"
+                        >
+                          <i class="fas fa-save"></i>
+                        </button>
+                        <button
+                          v-else
+                          class="btn btn-outline-primary"
+                          @click="editPurchase(purchase)"
+                          title="Modifier"
+                        >
+                          <i class="fas fa-edit"></i>
+                        </button>
+                        <button
+                          class="btn btn-outline-danger"
+                          @click="deletePurchase(purchase)"
+                          title="Supprimer"
+                        >
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Onglet Stock -->
+          <div class="tab-pane fade" id="stock" role="tabpanel">
+            <!-- Formulaire d'ajout de stock -->
+            <div class="card mb-3">
+              <div class="card-header">
+                <h6 class="card-title mb-0">
+                  <i class="fas fa-box"></i> Ajouter du stock
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="row g-2">
+                  <div class="col-md-3">
+                    <input
+                      type="number"
+                      class="form-control form-control-sm"
+                      v-model.number="newStock.quantity"
+                      step="0.01"
+                      min="0"
+                      placeholder="Quantité"
+                    />
+                  </div>
+                  <div class="col-md-2">
+                    <select
+                      class="form-select form-select-sm"
+                      v-model="newStock.unit"
+                    >
+                      <option value="">Unité</option>
+                      <option
+                        v-for="unit in suggestedUnits"
+                        :key="unit"
+                        :value="unit"
+                      >
+                        [[ unit ]]
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
+                    <input
+                      type="datetime-local"
+                      class="form-control form-control-sm"
+                      v-model="newStock.dateTime"
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <button
+                      class="btn btn-primary btn-sm w-100"
+                      @click="addStock"
+                      :disabled="!isStockFormValid"
+                    >
+                      <i class="fas fa-plus"></i> Ajouter
+                    </button>
+                  </div>
+                </div>
+                <div class="row mt-2">
+                  <div class="col-12">
+                    <input
+                      type="text"
+                      class="form-control form-control-sm"
+                      v-model="newStock.notes"
+                      placeholder="Notes (optionnel)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tableau du stock -->
+            <div class="table-responsive">
+              <table class="table table-striped table-sm">
+                <thead>
+                  <tr>
+                    <th>Quantité</th>
+                    <th>Date</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!editingStockEntries.length">
+                    <td colspan="4" class="text-muted text-center">
+                      Aucun stock enregistré
+                    </td>
+                  </tr>
+                  <tr
+                    v-for="(stock, index) in editingStockEntries"
+                    :key="stock.$id || 'new-' + index"
+                  >
+                    <td v-if="stock.isEditing">
+                      <div class="d-flex gap-1">
+                        <input
+                          type="number"
+                          class="form-control form-control-sm"
+                          v-model.number="stock.quantity"
+                          step="0.01"
+                          min="0"
+                        />
+                        <select
+                          class="form-select form-select-sm"
+                          v-model="stock.unit"
+                        >
+                          <option
+                            v-for="unit in suggestedUnits"
+                            :key="unit"
+                            :value="unit"
+                          >
+                            [[ unit ]]
+                          </option>
+                        </select>
+                      </div>
+                    </td>
+                    <td v-else>
+                      <strong>[[ stock.quantity ]] [[ stock.unit ]]</strong>
+                    </td>
+
+                    <td v-if="stock.isEditing">
+                      <input
+                        type="datetime-local"
+                        class="form-control form-control-sm"
+                        v-model="stock.dateTime"
+                      />
+                    </td>
+                    <td v-else>[[ formatDateTime(stock.dateTime) ]]</td>
+
+                    <td v-if="stock.isEditing">
+                      <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        v-model="stock.notes"
+                      />
+                    </td>
+                    <td v-else>[[ stock.notes || '-' ]]</td>
+
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        <button
+                          v-if="stock.isEditing"
+                          class="btn btn-outline-success"
+                          @click="saveStockEdit(stock)"
+                          title="Enregistrer"
+                        >
+                          <i class="fas fa-save"></i>
+                        </button>
+                        <button
+                          v-else
+                          class="btn btn-outline-primary"
+                          @click="editStock(stock)"
+                          title="Modifier"
+                        >
+                          <i class="fas fa-edit"></i>
+                        </button>
+                        <button
+                          class="btn btn-outline-danger"
+                          @click="deleteStock(stock)"
+                          title="Supprimer"
+                        >
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Onglet Volontaires -->
+          <div class="tab-pane fade" id="volunteers" role="tabpanel">
+            <div class="card">
+              <div class="card-header">
+                <h6 class="card-title mb-0">
+                  <i class="fas fa-users"></i> Gestion des volontaires
+                </h6>
+              </div>
+              <div class="card-body">
+                <!-- Liste des volontaires existants -->
+                <div
+                  v-if="editingIngredient?.who && editingIngredient.who.length > 0"
+                  class="mb-3"
+                >
+                  <label class="form-label">Volontaires actuels :</label>
+                  <div class="d-flex flex-wrap gap-2">
+                    <span
+                      v-for="(volunteer, index) in editingIngredient.who"
+                      :key="index"
+                      class="badge bg-primary d-flex align-items-center gap-1"
+                      :class="{ 'bg-light text-strike': isVolunteerDeleted(volunteer) }"
+                    >
+                      <span
+                        :class="{ 'text-decoration-line-through': isVolunteerDeleted(volunteer) }"
+                        >[[ volunteer ]]</span
+                      >
+                      <button
+                        type="button"
+                        class="btn-close btn-close-sm"
+                        :class="{ 'btn-close-restore': isVolunteerDeleted(volunteer) }"
+                        @click="toggleVolunteer(volunteer)"
+                        :title="isVolunteerDeleted(volunteer) ? 'Restaurer ce volontaire' : 'Supprimer ce volontaire'"
+                      ></button>
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Ajout d'un volontaire -->
+                <div class="mb-3">
+                  <label for="new-volunteer" class="form-label"
+                    >Ajouter un volontaire :</label
+                  >
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="new-volunteer"
+                      v-model="newVolunteer"
+                      placeholder="Entrez le nom du volontaire"
+                      @keyup.enter="addVolunteer"
+                    />
+                    <button
+                      class="btn btn-primary"
+                      @click="addVolunteer"
+                      :disabled="!newVolunteer.trim()"
+                    >
+                      <i class="fas fa-plus"></i> Ajouter
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Onglet Magasins -->
+          <div class="tab-pane fade" id="stores" role="tabpanel">
+            <div class="card">
+              <div class="card-header">
+                <h6 class="card-title mb-0">
+                  <i class="fas fa-store"></i> Gestion des magasins
+                </h6>
+              </div>
+              <div class="card-body">
+                <!-- Liste des magasins existants -->
+                <div
+                  v-if="editingIngredient?.store && editingIngredient.store.length > 0"
+                  class="mb-3"
+                >
+                  <label class="form-label">Magasins actuels :</label>
+                  <div class="d-flex flex-wrap gap-2">
+                    <span
+                      v-for="(store, index) in editingIngredient.store"
+                      :key="index"
+                      class="badge bg-primary d-flex align-items-center gap-1"
+                      :class="{ 'bg-light text-strike': isStoreDeleted(store) }"
+                    >
+                      <span
+                        :class="{ 'text-decoration-line-through': isStoreDeleted(store) }"
+                        >[[ store ]]</span
+                      >
+                      <button
+                        type="button"
+                        class="btn-close btn-close-sm"
+                        :class="{ 'btn-close-restore': isStoreDeleted(store) }"
+                        @click="toggleStore(store)"
+                        :title="isStoreDeleted(store) ? 'Restaurer ce magasin' : 'Supprimer ce magasin'"
+                      ></button>
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Ajout d'un magasin -->
+                <div class="mb-3">
+                  <label for="new-store" class="form-label"
+                    >Ajouter un magasin :</label
+                  >
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="new-store"
+                      v-model="newStore"
+                      placeholder="Entrez le nom du magasin"
+                      list="store-suggestions"
+                      @keyup.enter="addStore"
+                    />
+                    <datalist id="store-suggestions">
+                      <option
+                        v-for="store in availableStoresSuggestions"
+                        :key="store"
+                        :value="store"
+                      >
+                        [[ store ]]
+                      </option>
+                    </datalist>
+                    <button
+                      class="btn btn-primary"
+                      @click="addStore"
+                      :disabled="!newStore.trim()"
+                    >
+                      <i class="fas fa-plus"></i> Ajouter
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer avec bouton d'enregistrement global -->
+      <div class="modal-footer">
+        <div class="d-flex justify-content-between w-100">
+          <div class="text-muted small">
+            <span v-if="hasUnsavedChanges" class="text-warning">
+              <i class="fas fa-exclamation-triangle"></i> Des modifications non
+              enregistrées
+            </span>
+            <span v-else>
+              <i class="fas fa-check-circle"></i> Toutes les modifications sont
+              enregistrées
+            </span>
+          </div>
+          <div class="d-flex gap-2">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              @click="closeUnifiedModal"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              @click="saveAllChanges"
+              :disabled="!hasUnsavedChanges || isSaving"
+            >
+              <span
+                v-if="isSaving"
+                class="spinner-border spinner-border-sm me-2"
+              ></span>
+              <i class="fas fa-save"></i> Enregistrer toutes les modifications
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast de confirmation de suppression -->
+<div
+  class="toast-container position-fixed bottom-0 end-0 p-3"
+  style="z-index: 1060"
+>
+  <div
+    class="toast show"
+    :class="{ 'bg-danger text-white': deleteConfirmation.show }"
+    role="alert"
+    v-if="deleteConfirmation.show"
+  >
+    <div class="toast-header bg-danger text-white">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      <strong class="me-auto">Confirmation de suppression</strong>
+      <button
+        type="button"
+        class="btn-close btn-close-white"
+        @click="cancelDelete"
+      ></button>
+    </div>
+    <div class="toast-body">
+      <p>[[ deleteConfirmation.message ]]</p>
+      <div class="btn-group w-100">
+        <button class="btn btn-light" @click="cancelDelete">Annuler</button>
+        <button class="btn btn-danger" @click="confirmDelete">Supprimer</button>
+      </div>
+      <div class="progress mt-2" style="height: 4px">
+        <div
+          class="progress-bar bg-warning"
+          :style="{ width: deleteConfirmation.progress + '%' }"
+        ></div>
+      </div>
+    </div>
+  </div>
+</div>

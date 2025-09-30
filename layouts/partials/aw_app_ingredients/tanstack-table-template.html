@@ -5,16 +5,16 @@
       <!-- Options de regroupement -->
       <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="btn-group" role="group">
-          <button 
-            type="button" 
+          <button
+            type="button"
             class="btn btn-outline-primary"
-            :class="{ active: tableGrouping[0] === 'store' }"
-            @click="tableGrouping = ['store']"
+            :class="{ active: tableGrouping[0] === 'storesDisplay' }"
+            @click="tableGrouping = ['storesDisplay']"
           >
             <i class="fas fa-store"></i> Par magasin
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             class="btn btn-outline-primary"
             :class="{ active: tableGrouping[0] === 'ingType' }"
             @click="tableGrouping = ['ingType']"
@@ -27,24 +27,17 @@
       <!-- Template du tableau -->
       <div class="table-responsive-grouped">
         <table class="table table-grouped">
-          <thead class="sticky-top bg-light">
+          <thead class="bg-light">
             <tr v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-              <th 
-                v-for="header in headerGroup.headers" 
-                :key="header.id" 
-                :colSpan="header.colSpan" 
+              <th
+                v-for="header in headerGroup.headers"
+                :key="header.id"
+                :colSpan="header.colSpan"
                 :style="{ width: header.getSize() + 'px' }"
               >
-                <div 
-                  v-if="!header.isPlaceholder" 
-                  class="sortable-column" 
-                  @click="header.column.getToggleSortingHandler()?.()"
-                >
+                <div>
                   <!-- Utilisation de RenderVnode pour l'entête -->
                   <render-vnode :vnode="flexRender(header.column.columnDef.header, header.getContext())" />
-                  <span v-if="header.column.getIsSorted()">
-                    [[ header.column.getIsSorted() === 'asc' ? '↑' : '↓' ]]
-                  </span>
                 </div>
               </th>
             </tr>
@@ -52,47 +45,31 @@
           <tbody>
             <tr v-for="row in table.getRowModel().rows" :key="row.id">
               <!-- Ligne de groupe -->
-              <td v-if="row.getIsGrouped()" :colSpan="row.getVisibleCells().length" class="group-header-cell">
-                <div class="d-flex align-items-center justify-content-between">
+              <td v-if="row.getIsGrouped()" :colSpan="row.getVisibleCells().length" class="table-warning sticky-top">
+                <div class="d-flex align-items-center justify-content-between p-2">
                   <div class="d-flex align-items-center gap-3">
                     <input
                       type="checkbox"
-                      class="form-check-input group-checkbox"
+                      class="form-check-input"
                       :checked="row.getIsAllSubRowsSelected()"
                       @change="row.getToggleAllSubRowsSelectedHandler()?.()"
                     >
                     <div class="d-flex align-items-center gap-2">
                       <i :class="[
                         'fas',
-                        tableGrouping[0] === 'store' ? 'fa-store text-primary' : 'fa-tag text-secondary'
+                        tableGrouping[0] === 'storesDisplay' ? 'fa-store text-primary' : 'fa-tag text-secondary'
                       ]"></i>
-                      <strong class="group-name">[[ row.groupingValue || 'Non spécifié' ]]</strong>
-                      <span class="badge bg-primary group-count">[[ row.subRows.length ]]</span>
-                    </div>
-
-                    <!-- Statistiques du groupe -->
-                    <div class="group-stats d-flex gap-3">
-                      <span class="text-muted">
-                        <i class="fas fa-shopping-cart"></i>
-                        [[ formatValueWithUnit(getGroupStats(row.subRows).totalNeeded, 'unit') ]]
-                      </span>
-                      <span class="text-success">
-                        <i class="fas fa-check"></i>
-                        [[ formatValueWithUnit(getGroupStats(row.subRows).totalPurchased, 'unit') ]]
-                      </span>
-                      <span class="text-danger" v-if="getGroupStats(row.subRows).totalMissing > 0">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        [[ formatValueWithUnit(getGroupStats(row.subRows).totalMissing, 'unit') ]]
-                      </span>
+                      <strong class="fs-5">[[ row.groupingValue || 'Non spécifié' ]]</strong>
+                      <span class="badge bg-primary">[[ row.subRows.length ]]</span>
                     </div>
                   </div>
 
                   <!-- Actions de groupe -->
-                  <div class="group-actions">
+                  <div>
                     <button
-                      class="btn btn-sm btn-outline-primary"
+                      class="btn btn-sm btn-primary"
                       @click="handleGroupVolunteer(row.groupingValue, row.subRows.map(r => r.original))"
-                      :title="tableGrouping[0] === 'store' ? 'Se proposer pour tout ce magasin' : 'Se proposer pour ce type'"
+                      :title="tableGrouping[0] === 'storesDisplay' ? 'Se proposer pour tout ce magasin' : 'Se proposer pour ce type'"
                     >
                       <i class="fas fa-user-plus"></i>
                       Tout prendre

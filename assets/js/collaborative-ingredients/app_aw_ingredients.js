@@ -6,20 +6,19 @@
  */
 
 
-import { createApp, h } from 'vue';
-import { useVueTable, getCoreRowModel, getGroupedRowModel, getSortedRowModel, getFilteredRowModel, getExpandedRowModel } from '@tanstack/vue-table';
+import { useVueTable, getCoreRowModel, getGroupedRowModel, getSortedRowModel, getFilteredRowModel, getExpandedRowModel } from 'js/vuetable.development.js';
 import { unitsManager } from "./UnitsManager.js";
 import { IngredientCalculator } from "./services/IngredientCalculator.js";
 import { DataTransformer } from "./services/DataTransformer.js";
 import { SyncService } from "./services/SyncService.js";
+import { UnifiedModalManager } from "./unified-modal-manager.js";
 import {
-  getAccount,
-  isAuthenticatedCms,
   getUserEmail,
   getUserName,
   getDatabases,
   subscribeToCollections,
   APPWRITE_CONFIG,
+  isAuthenticatedAppwrite,
 } from "../appwrite-client.js";
 
 
@@ -48,21 +47,29 @@ export function createCollaborativeApp() {
         // État de l'application
         isLoading: true,
         error: null,
-        realtimeStatus: "connecting",
+        // realtimeStatus: "connecting",
         showUpdatePrompt: false,
-        unsubscribeRealtime: () => {},
+        unsubscribeRealtime: () => { },
 
         // Services
         syncService: null,
 
         // État de la connexion temps réel
-        connectionStatus: {
-          isConnected: true,
-          lastUpdate: Date.now(),
+        realtimeStatus: {
+          // État de connexion principal
+          isConnected: false,
+          isConnecting: false,
+
+          // Gestion des reconnexions
           retryCount: 0,
           maxRetries: 3,
+          retryDelay: 2000, // 2 secondes de base
+          reconnectionTimeout: null,
+
+          // Interface utilisateur
           showReconnecting: false,
-          showDisconnectedToast: true
+          showDisconnectedToast: false,
+          hasBeenConnected: false, // Pour distinguer première connexion vs reconnexion
         },
 
         // Données Appwrite brutes
@@ -81,46 +88,76 @@ export function createCollaborativeApp() {
         selectedPersonFilter: "",
 
         // Tri
-        sortField: "ingredientName",
-        sortDirection: "asc",
+
 
         // Sélection
         selectedIngredients: [],
         selectAllChecked: false,
 
         // Modals
-        showPurchaseModal: false,
-        showDetailsModal: false,
         showSnapshotsModal: false,
         editingIngredient: null,
-        modalType: "purchase", // 'purchase' ou 'stock'
 
-        // Données pour les modals
-        purchaseForm: {
-          quantity: null,
-          unit: "",
-          store: "",
-          who: "",
-          price: null,
-          date: new Date().toISOString().split("T")[0],
-          notes: "",
-        },
+
         snapshots: [],
         isLoadingSnapshots: false,
         isRestoring: null,
         isDeleting: null,
 
-        // Données pour le mandatement
-        showVolunteerPopover: false,
-        currentVolunteerIngredient: null,
-        volunteerName: "",
-        deletedVolunteers: new Set(), // Volontaires marqués pour suppression
 
-        // Données pour l'édition des magasins
-        showStorePopover: false,
-        currentStoreIngredient: null,
-        storeInput: "",
-        availableStoresSuggestions: [],
+
+        // Système de couleurs pastel pour volunteers et stores
+        colorPalettes: {
+          volunteers: [
+            { bg: '#d1ecf1', color: '#0c5460' }, // Bleu pastel
+            { bg: '#d4edda', color: '#155724' }, // Vert pastel
+            { bg: '#fff3cd', color: '#856404' }, // Jaune pastel
+            { bg: '#f8d7da', color: '#721c24' }, // Rouge pastel
+            { bg: '#e2e3e5', color: '#383d41' }, // Gris pastel
+            { bg: '#d1ecf1', color: '#0c5460' }, // Cyan pastel
+            { bg: '#ffe6cc', color: '#8b4513' }, // Pêche pastel
+            { bg: '#e7d8f8', color: '#4a148c' }, // Lavande pastel
+            { bg: '#ffcce6', color: '#d63384' }, // Rose pastel
+            { bg: '#d4e4f7', color: '#004085' }, // Bleu clair pastel
+            { bg: '#e8f5e8', color: '#2e5d2e' }, // Vert menthe pastel
+            { bg: '#fff0f5', color: '#721c24' }, // Rose pâle pastel
+            { bg: '#f0e68c', color: '#6b5d1a' }, // Beige pastel
+            { bg: '#e6f3ff', color: '#0066cc' }, // Bleu ciel pastel
+            { bg: '#ffe4e1', color: '#8b4513' }, // Corail pastel
+            { bg: '#f5f5dc', color: '#495057' }, // Lin pastel
+            { bg: '#e0f2f1', color: '#00695c' }, // Turquoise pastel
+            { bg: '#fce4ec', color: '#880e4f' }, // Rose bonbon pastel
+            { bg: '#e8eaf6', color: '#283593' }, // Indigo pastel
+            { bg: '#fff8e1', color: '#ff6f00' }  // Amber pastel
+          ],
+          stores: [
+            { bg: '#ffe6cc', color: '#8b4513' }, // Pêche pastel
+            { bg: '#d1ecf1', color: '#0c5460' }, // Bleu pastel
+            { bg: '#f8d7da', color: '#721c24' }, // Rouge pastel
+            { bg: '#d4edda', color: '#155724' }, // Vert pastel
+            { bg: '#fff3cd', color: '#856404' }, // Jaune pastel
+            { bg: '#e7d8f8', color: '#4a148c' }, // Lavande pastel
+            { bg: '#e2e3e5', color: '#383d41' }, // Gris pastel
+            { bg: '#ffcce6', color: '#d63384' }, // Rose pastel
+            { bg: '#d4e4f7', color: '#004085' }, // Bleu clair pastel
+            { bg: '#e8f5e8', color: '#2e5d2e' }, // Vert menthe pastel
+            { bg: '#fff0f5', color: '#721c24' }, // Rose pâle pastel
+            { bg: '#f0e68c', color: '#6b5d1a' }, // Beige pastel
+            { bg: '#e6f3ff', color: '#0066cc' }, // Bleu ciel pastel
+            { bg: '#ffe4e1', color: '#8b4513' }, // Corail pastel
+            { bg: '#f5f5dc', color: '#495057' }, // Lin pastel
+            { bg: '#e0f2f1', color: '#00695c' }, // Turquoise pastel
+            { bg: '#fce4ec', color: '#880e4f' }, // Rose bonbon pastel
+            { bg: '#e8eaf6', color: '#283593' }, // Indigo pastel
+            { bg: '#fff8e1', color: '#ff6f00' }, // Amber pastel
+            { bg: '#f4cccc', color: '#5d2a2a' }  // Rouge brique pastel
+          ]
+        },
+        volunteerColors: {}, // { volunteerName: colorIndex }
+        storeColors: {},     // { storeName: colorIndex }
+
+        // Données pour la gestion des suppressions dans le modal unifié
+        deletedVolunteers: new Set(), // Volontaires marqués pour suppression
         deletedStores: new Set(), // Magasins marqués pour suppression
 
         // Actions et historique
@@ -130,10 +167,63 @@ export function createCollaborativeApp() {
         currentView: 'table', // 'table', 'grouped', 'cards', 'compact'
         groupingBy: 'store', // 'store' ou 'ingType'
         tableGrouping: ['store'], // Pour TanStack Table
-      };
+
+        // Gestion de l'authentification
+        showAuthModal: false,
+        showAuthToast: false,
+        authCheckInProgress: false,
+        allowAnonymousView: true,
+        authModalShown: false,
+        isAuthenticated: false, // État synchrone pour les templates
+
+        // Propriétés pour le modal unifié
+        showUnifiedModal: false,
+        activeModalTab: 'recipes',
+        deleteConfirmation: {
+          show: false,
+          message: '',
+          itemType: '',
+          itemId: null,
+          progress: 0,
+          progressInterval: null
+        },
+        hasUnsavedChanges: false,
+        isSaving: false,
+        editingPurchases: [],
+        editingStockEntries: [],
+        editingVolunteers: [],
+        editingStores: [],
+        newPurchase: {
+          quantity: null,
+          unit: '',
+          store: '',
+          who: '',
+          price: null,
+          notes: ''
+        },
+        newStock: {
+          quantity: null,
+          unit: '',
+          dateTime: new Date().toISOString().slice(0, 16),
+          notes: ''
+        },
+        newVolunteer: '',
+        newStore: '',
+        deletedVolunteers: new Set(),
+        deletedStores: new Set(),
+
+        // Système de toasts génériques
+        toasts: []
+      }
     },
 
+
     computed: {
+      // Méthodes d'authentification accessibles dans les templates
+      isAuthenticatedAppwrite() {
+        return isAuthenticatedAppwrite;
+      },
+
       // Ingrédients filtrés et triés (utilisent les données pré-transformées)
       filteredIngredients() {
         const filtered = this.transformedIngredients
@@ -177,27 +267,6 @@ export function createCollaborativeApp() {
 
             return true;
           })
-          .sort((a, b) => {
-            let aVal, bVal;
-
-            switch (this.sortField) {
-              case "ingredientName":
-                aVal = a.ingredientName.toLowerCase();
-                bVal = b.ingredientName.toLowerCase();
-                break;
-              case "ingType":
-                aVal = a.ingType;
-                bVal = b.ingType;
-              default:
-                aVal = a[this.sortField];
-                bVal = b[this.sortField];
-            }
-
-            if (aVal < bVal) return this.sortDirection === "asc" ? -1 : 1;
-            if (aVal > bVal) return this.sortDirection === "asc" ? 1 : -1;
-            return 0;
-          });
-
         return filtered;
       },
 
@@ -268,6 +337,20 @@ export function createCollaborativeApp() {
         return Array.from(people).sort();
       },
 
+      // Propriétés calculées pour le modal unifié
+      suggestedUnits() {
+        if (!this.editingIngredient?.calculations?.balancePerUnit) return [];
+        return this.editingIngredient.calculations.balancePerUnit.map(item => item.unit);
+      },
+
+      isPurchaseFormValid() {
+        return this.newPurchase && this.newPurchase.quantity && this.newPurchase.unit;
+      },
+
+      isStockFormValid() {
+        return this.newStock && this.newStock.quantity && this.newStock.unit && this.newStock.dateTime;
+      },
+
       // Statistiques calculées à partir des données transformées
       totalIngredients() {
         return this.transformedIngredients.length;
@@ -292,41 +375,19 @@ export function createCollaborativeApp() {
 
       // Données calculées pour les modals
       suggestedUnits() {
-        if (!this.editingIngredient) return ["gr.", "kg", "ml", "l.", "unité"];
+        if (!this.editingIngredient) return ["kg", "gr.", "l.", "ml", "unité"];
         return this.unitsManager.getSuggestedUnits(
           this.editingIngredient.ingType,
         );
       },
 
-      commonStores() {
-        return [
-          "Monoprix",
-          "Carrefour",
-          "Leclerc",
-          "Biocoop",
-          "Marché local",
-          "Lidl",
-          "Aldi",
-        ];
-      },
 
-      commonPeople() {
-        return ["Alice", "Bob", "Charlie", "Diana", "Éric", "Sophie"];
-      },
 
-      isPurchaseFormValid() {
-        return this.purchaseForm.quantity > 0 && this.purchaseForm.unit;
-      },
 
       // --- LOGIQUE DE TANSTACK TABLE INTÉGRÉE ---
 
       tableColumns() {
         const h = Vue.h; // Accès à la fonction de rendu de Vue
-
-        // Vérifier si TanStack Table est disponible
-        if (!window.VueTable || !window.VueTable.createVueTable) {
-          return [];
-        }
 
         return [
           {
@@ -345,7 +406,7 @@ export function createCollaborativeApp() {
           },
           {
             accessorKey: 'status',
-            header: 'Statut',
+            header: '',
             cell: ({ row }) => {
               const status = row.original.status;
               const statusIcons = {
@@ -353,71 +414,62 @@ export function createCollaborativeApp() {
                 'missing': h('span', { class: 'text-danger' }, [h('i', { class: 'fas fa-times-circle' })]),
                 'partial': h('span', { class: 'text-warning' }, [h('i', { class: 'fas fa-exclamation-triangle' })])
               };
-              return statusIcons[status] || h('span', { class: 'text-muted' }, '➖');
+              return statusIcons[status] || h('span', {}, '');
             },
             size: 50
           },
           {
             accessorKey: 'ingredientName',
-            header: ({ column }) => h('button', {
-              class: 'btn btn-link p-0 text-start sortable-column',
-              onClick: column.getToggleSortingHandler()
-            }, [
-              'Ingrédient ',
-              column.getIsSorted() === 'asc' ? '↑' : column.getIsSorted() === 'desc' ? '↓' : ''
-            ]),
+            header: 'Ingrédient',
             cell: ({ row }) => h('strong', {}, row.original.ingredientName),
             enableGrouping: false
           },
           {
             accessorKey: 'ingType',
             header: 'Type',
-            cell: ({ row }) => h('span', { class: 'badge bg-secondary badge-ingredient-type' }, row.original.typeDisplay),
+            cell: ({ row }) => {
+              const ingredient = row.original;
+              const typeClass = `type-${ingredient.ingType}`;
+              return h('span', { class: `badge badge-ingredient-type ${typeClass}` }, ingredient.typeDisplay);
+            },
             enableSorting: true,
             enableGrouping: true
           },
           {
             accessorKey: 'totalNeedDisplay',
-            header: ({ column }) => h('button', {
-              class: 'btn btn-link p-0 text-start sortable-column',
-              onClick: column.getToggleSortingHandler()
-            }, [
-              'Besoin Total ',
-              column.getIsSorted() === 'asc' ? '↑' : column.getIsSorted() === 'desc' ? '↓' : ''
-            ]),
+            header: 'Besoin Total',
             cell: ({ row }) => row.original.totalNeedDisplay,
-            enableSorting: true,
             enableGrouping: false
           },
           {
             accessorKey: 'purchasesDisplay',
-            header: ({ column }) => h('button', {
-              class: 'btn btn-link p-0 text-start sortable-column',
-              onClick: column.getToggleSortingHandler()
-            }, [
-              'Acheté ',
-              column.getIsSorted() === 'asc' ? '↑' : column.getIsSorted() === 'desc' ? '↓' : ''
-            ]),
-            cell: ({ row }) => h('button', {
-              class: 'btn btn-sm btn-outline-success',
-              onClick: () => this.handleEditPurchases(row.original)
-            }, row.original.purchasesDisplay),
-            enableSorting: true,
+            header: 'Acheté',
+            cell: ({ row }) => {
+              const ingredient = row.original;
+              return h('div', {
+                class: 'editable-cell-simple d-flex align-items-center justify-content-between w-100',
+                onClick: () => this.handleOpenUnifiedModal(ingredient, 'purchases')
+              }, [
+                // Contenu principal
+                h('div', { class: 'flex-grow-1' }, [
+                  ingredient.purchasesDisplay && ingredient.purchasesDisplay.trim() !== ''
+                    ? h('span', { class: 'text-success fw-medium' }, ingredient.purchasesDisplay)
+                    : h('span', { class: 'text-muted' }, '—')
+                ]),
+                // Icône d'édition visible au survol
+                h('div', { class: 'edit-icon-simple' }, [
+                  h('i', { class: 'fas fa-pencil-alt text-secondary' })
+                ])
+              ]);
+            },
             enableGrouping: false
           },
           {
             accessorKey: 'balanceDisplay',
-            header: ({ column }) => h('button', {
-              class: 'btn btn-link p-0 text-start sortable-column',
-              onClick: column.getToggleSortingHandler()
-            }, [
-              'Manque ',
-              column.getIsSorted() === 'asc' ? '↑' : column.getIsSorted() === 'desc' ? '↓' : ''
-            ]),
+            header: 'Manque',
             cell: ({ row }) => h('span', {
               class: row.original.balanceClass
             }, row.original.balanceDisplay),
-            enableSorting: true,
             enableGrouping: false
           },
           {
@@ -425,18 +477,29 @@ export function createCollaborativeApp() {
             header: 'Magasin',
             cell: ({ row }) => {
               const ingredient = row.original;
-              return h('div', { class: 'd-flex align-items-center gap-2' }, [
-                ingredient.storesDisplay && ingredient.storesDisplay.length > 0
-                  ? h('div', {}, ingredient.storesDisplay)
-                  : h('div', { class: 'text-muted' }, '-'),
-                h('button', {
-                  class: 'btn btn-sm btn-outline-secondary btn-icon',
-                  onClick: () => this.handleEditStore(ingredient),
-                  title: 'Ajouter un magasin'
-                }, [h('i', { class: 'fas fa-store' })])
+              return h('div', {
+                class: 'editable-cell-simple d-flex align-items-center justify-content-between w-100 h-100',
+                onClick: () => this.handleOpenUnifiedModal(ingredient, 'stores')
+              }, [
+                // Contenu principal
+                h('div', { class: 'flex-grow-1' }, [
+                  ...(ingredient.storesDisplay && ingredient.storesDisplay.length > 0
+                    ? ingredient.storesDisplay.split(', ').map(store => {
+                        const color = this.getColorForStore(store);
+                        return h('div', {
+                          class: 'badge',
+                          style: `background-color: ${color.bg}; color: ${color.color};`
+                        }, store);
+                      })
+                    : [h('span', { class: 'text-muted' }, '—')]
+                  )
+                ]),
+                // Icône d'édition visible au survol
+                h('div', { class: 'edit-icon-simple' }, [
+                  h('i', { class: 'fas fa-pencil-alt text-secondary' })
+                ])
               ]);
             },
-            enableSorting: true,
             enableGrouping: true
           },
           {
@@ -444,15 +507,27 @@ export function createCollaborativeApp() {
             header: 'Qui',
             cell: ({ row }) => {
               const ingredient = row.original;
-              return h('div', { class: 'd-flex align-items-center gap-2' }, [
-                ingredient.responsibleDisplay && ingredient.responsibleDisplay.length > 0
-                  ? h('div', {}, ingredient.responsibleDisplay)
-                  : h('div', { class: 'text-muted' }, '-'),
-                h('button', {
-                  class: 'btn btn-sm btn-outline-primary btn-icon',
-                  onClick: () => this.handleVolunteer(ingredient),
-                  title: 'Se proposer pour cet ingrédient'
-                }, [h('i', { class: 'fas fa-user-plus' })])
+              return h('div', {
+                class: 'editable-cell-simple d-flex align-items-center justify-content-between w-100',
+                onClick: () => this.handleOpenUnifiedModal(ingredient, 'volunteers')
+              }, [
+                // Contenu principal
+                h('div', { class: 'flex-grow-1' }, [
+                  ...(ingredient.responsibleDisplay && ingredient.responsibleDisplay.length > 0
+                    ? ingredient.responsibleDisplay.split(', ').map(volunteer => {
+                        const color = this.getColorForVolunteer(volunteer);
+                        return h('div', {
+                          class: 'badge',
+                          style: `background-color: ${color.bg}; color: ${color.color};`
+                        }, volunteer);
+                      })
+                    : [h('span', { class: 'text-muted' }, '—')]
+                  )
+                ]),
+                // Icône d'édition visible au survol
+                h('div', { class: 'edit-icon-simple' }, [
+                  h('i', { class: 'fas fa-pencil-alt text-secondary' })
+                ])
               ]);
             },
             enableSorting: true,
@@ -460,20 +535,18 @@ export function createCollaborativeApp() {
           },
           {
             id: 'actions',
-            header: 'Actions',
-            cell: ({ row }) => h('div', { class: 'd-flex gap-1' }, [
-              h('button', {
-                class: 'btn btn-sm btn-outline-info btn-icon',
-                onClick: () => this.handleShowDetails(row.original),
-                title: 'Détails'
-              }, [h('i', { class: 'fas fa-eye' })]),
-              h('button', {
-                class: 'btn btn-sm btn-outline-secondary btn-icon',
-                onClick: () => this.handleEditStock(row.original),
-                title: 'Modifier le stock'
-              }, [h('i', { class: 'fas fa-boxes' })])
-            ]),
-            size: 100
+            header: '',
+            cell: ({ row }) => {
+              const ingredient = row.original;
+              return h('div', { class: 'd-flex gap-1 flex-wrap' }, [
+                h('button', {
+                  class: 'btn btn-sm btn-outline-primary btn-icon me-1',
+                  onClick: () => this.handleOpenUnifiedModal(ingredient, 'recipes'),
+                  title: 'Gérer l\'ingrédient'
+                }, [h('i', { class: 'fas fa-edit' })])
+              ]);
+            },
+            size: 50
           }
         ];
       },
@@ -482,7 +555,7 @@ export function createCollaborativeApp() {
              // Cette propriété sera maintenant calculée correctement.
              // Vue attendra que ses dépendances (tableData, tableColumns, tableGrouping) soient prêtes.
              if (!useVueTable || !getExpandedRowModel) {
-                 // Cette condition ne devrait plus poser problème, mais c'est une bonne sécurité.
+               console.error('VueTable and getExpandedRowModel are required');
                  return null;
              }
 
@@ -521,36 +594,93 @@ export function createCollaborativeApp() {
     },
 
     methods: {
+      // === MÉTHODES DE GESTION DE L'AUTHENTIFICATION ===
+
+      async checkAuthentication() {
+        this.authCheckInProgress = true;
+        try {
+          const isAuthenticated = await isAuthenticatedAppwrite();
+          console.log("[Collaborative App] Authentification appwrite:", isAuthenticated);
+          this.isAuthenticated = isAuthenticated; // Mettre à jour l'état synchrone
+
+          if (!isAuthenticated && !this.authModalShown) {
+            this.showAuthModal = true;
+            this.authModalShown = true;
+            this.realtimeStatus.isConnected = false;
+          }
+        } catch (error) {
+          console.error('[Collaborative App] Erreur lors de la vérification de l\'authentification:', error);
+          this.isAuthenticated = false; // Assurer l'état en cas d'erreur
+        } finally {
+          this.authCheckInProgress = false;
+        }
+      },
+
+      closeAuthModal() {
+        this.showAuthModal = false;
+      },
+
+      showAuthToastForFeature(featureName) {
+        if (!this.isAuthenticated) {
+          this.showAuthToast = true;
+
+          // Masquer automatiquement après 5 secondes
+          setTimeout(() => {
+            this.closeAuthToast();
+          }, 5000);
+        }
+      },
+
+      closeAuthToast() {
+        this.showAuthToast = false;
+      },
+
+      requireAuthForAction(actionCallback) {
+        if (this.isAuthenticated) {
+          actionCallback();
+        } else {
+          this.showAuthToastForFeature('cette action');
+        }
+      },
+
       // === MÉTHODES D'INITIALISATION ===
 
       async initializeApp() {
         try {
           console.log("[Collaborative App] Initialisation...");
 
-          // 1. Charger la préférence de vue
+          // 1. Vérifier l'authentification
+          await this.checkAuthentication();
+
+          // 2. Charger la préférence de vue
           this.loadPreferredView();
 
-          // 2. Récupérer l'ID de la liste depuis l'URL
+          // 3. Récupérer l'ID de la liste depuis l'URL
           const urlParams = new URLSearchParams(window.location.search);
           this.listId = urlParams.get("listId");
           if (!this.listId) {
             throw new Error("ID de liste manquant dans l'URL (?listId=...).");
           }
 
-          // 3. Obtenir l'instance de la base de données depuis notre client central
+          // 4. Obtenir l'instance de la base de données depuis notre client central
           this.database = await getDatabases();
 
-          // 4. Initialiser le service de synchronisation
+          // 5. Initialiser le service de synchronisation
           this.syncService = new SyncService(this.database, this.listId, APPWRITE_CONFIG);
 
-          // 5. Charger les données avec la stratégie de cache
+          // 6. Initialiser le gestionnaire de modal unifié
+          this.unifiedModalManager = new UnifiedModalManager(this, APPWRITE_CONFIG);
+
+          // 7. Charger les assignments de couleurs depuis localStorage
+          this.loadColorAssignments();
+          // 7. Charger les données avec la stratégie de cache
           await this.loadInitialDataWithCache();
 
-          // 6. Configurer la synchronisation temps réel
+          // 7. Configurer la synchronisation temps réel
           this.setupRealtime();
 
-          // 7. Démarrer le monitoring de la connexion temps réel
-          this.startConnectionMonitoring();
+          // 8. Démarrer le monitoring de la connexion temps réel
+          // this.startConnectionMonitoring();
 
           this.isLoading = false;
           console.log(
@@ -873,34 +1003,84 @@ export function createCollaborativeApp() {
       // === MÉTHODES DE SYNCHRONISATION TEMPS RÉEL ===
 
       setupRealtime() {
+        console.log("[Collaborative App] Configuration du temps réel...");
+
+        this.realtimeStatus.isConnecting = true;
+
         try {
           this.unsubscribeRealtime = subscribeToCollections(
             ["ingredients", "purchases"],
+            this.listId, // Ajout du listId
             (response) => {
               this.handleRealtimeUpdate(response);
             },
+            {
+              onConnect: () => this.onConnectionEstablished(),
+              onDisconnect: (event) => this.onConnectionLost(event),
+              onError: (error) => this.onConnectionError(error)
+            }
           );
-          this.realtimeStatus = "connected";
-        } catch (error) {
-          console.error("[Collaborative App] Erreur realtime:", error);
-          this.realtimeStatus = "disconnected";
 
-          // Retry connection after 5 seconds
-          console.log(
-            "[Collaborative App] Tentative de reconnexion dans 5 secondes...",
-          );
-          setTimeout(() => this.setupRealtime(), 5000);
+        } catch (error) {
+          console.error("[Collaborative App] Erreur lors de la configuration realtime:", error);
+          this.onConnectionError(error);
         }
+      },
+
+      onConnectionEstablished() {
+        this.realtimeStatus.isConnected = true;
+        this.realtimeStatus.isConnecting = false;
+        this.realtimeStatus.hasBeenConnected = true;
+        this.realtimeStatus.retryCount = 0;
+        this.realtimeStatus.showReconnecting = false;
+        this.realtimeStatus.showDisconnectedToast = false;
+      },
+
+      onConnectionLost() {
+        if (this.realtimeStatus.isConnected) {
+          this.realtimeStatus.isConnected = false;
+          this.realtimeStatus.showDisconnectedToast = true;
+          this.scheduleReconnection();
+        }
+      },
+
+      onConnectionError(error) {
+        this.realtimeStatus.isConnected = false;
+        this.realtimeStatus.isConnecting = false;
+
+        if (this.realtimeStatus.retryCount < this.realtimeStatus.maxRetries) {
+          this.scheduleReconnection();
+        }
+      },
+
+      scheduleReconnection() {
+        if (this.realtimeStatus.reconnectionTimeout) {
+          clearTimeout(this.realtimeStatus.reconnectionTimeout);
+        }
+
+        if (this.realtimeStatus.retryCount >= this.realtimeStatus.maxRetries) {
+          return;
+        }
+
+        const delay = this.realtimeStatus.retryDelay * (this.realtimeStatus.retryCount + 1);
+        this.realtimeStatus.showReconnecting = true;
+        this.realtimeStatus.retryCount++;
+
+        this.realtimeStatus.reconnectionTimeout = setTimeout(() => {
+          this.attemptReconnection();
+        }, delay);
+      },
+
+      async attemptReconnection() {
+        if (this.unsubscribeRealtime) {
+          this.unsubscribeRealtime();
+        }
+        this.setupRealtime();
       },
 
       handleRealtimeUpdate(response) {
         console.log("[Collaborative App] Mise à jour temps réel reçue:", response);
 
-        // Mettre à jour le statut de connexion
-        this.connectionStatus.isConnected = true;
-        this.connectionStatus.lastUpdate = Date.now();
-        this.connectionStatus.retryCount = 0;
-        this.connectionStatus.showReconnecting = false;
 
         // Appliquer le changement au cache local via le service de synchronisation
         if (this.syncService) {
@@ -969,23 +1149,7 @@ export function createCollaborativeApp() {
         return stats;
       },
 
-      sortBy(field) {
-        if (this.sortField === field) {
-          this.sortDirection = this.sortDirection === "asc" ? "desc" : "asc";
-        } else {
-          this.sortField = field;
-          this.sortDirection = "asc";
-        }
-      },
 
-      getSortClass(field) {
-        return this.sortField === field ? "active-sort" : "";
-      },
-
-      getSortIcon(field) {
-        if (this.sortField !== field) return "";
-        return this.sortDirection === "asc" ? "↑" : "↓";
-      },
 
       // === MÉTHODES POUR TANSTACK TABLE ===
 
@@ -1209,47 +1373,118 @@ export function createCollaborativeApp() {
 
       // === MÉTHODES D'ÉDITION ===
 
-      handleEditStock(ingredient) {
-        this.editingIngredient = ingredient;
-        this.modalType = "stock";
-        this.showPurchaseModal = true;
+
+
+      // Méthode pour ouvrir le modal unifié
+      handleOpenUnifiedModal(ingredient, activeTab = 'recipes') {
+        this.openUnifiedModal(ingredient, activeTab);
       },
 
-      handleEditPurchases(ingredient) {
+      // Méthode principale pour ouvrir le modal unifié
+      openUnifiedModal(ingredient, activeTab = 'recipes') {
         this.editingIngredient = ingredient;
-        this.modalType = "purchase";
-        this.showPurchaseModal = true;
+        this.showUnifiedModal = true;
+        this.activeModalTab = activeTab;
+        this.loadIngredientData();
+        this.resetForms();
+        this.hasUnsavedChanges = false;
+
+        // Forcer l'activation de l'onglet après un court délai pour laisser Vue s'initialiser
+        this.$nextTick(() => {
+          const tabElement = document.querySelector(`[data-bs-target="#${activeTab}"]`);
+          if (tabElement) {
+            // Simuler un clic sur l'onglet
+            tabElement.click();
+          }
+        });
       },
 
-      handleShowDetails(ingredient) {
-        this.editingIngredient = ingredient;
-        this.showDetailsModal = true;
-      },
-
-      // === MÉTHODES DES MODALS ===
-
-      closePurchaseModal() {
-        this.showPurchaseModal = false;
+      // === MÉTHODES DU MODAL UNIFIÉ ===
+      closeUnifiedModal() {
+        if (this.hasUnsavedChanges) {
+          if (!confirm('Des modifications n\'ont pas été enregistrées. Voulez-vous vraiment fermer ?')) {
+            return;
+          }
+        }
+        this.showUnifiedModal = false;
         this.editingIngredient = null;
-        this.resetPurchaseForm();
+        this.clearData();
       },
 
-      closeDetailsModal() {
-        this.showDetailsModal = false;
-        this.editingIngredient = null;
+      loadIngredientData() {
+        // Achats
+        this.editingPurchases = (this.editingIngredient.calculations?.purchases || []).map(p => ({
+          ...p,
+          isEditing: false,
+          isDirty: false
+        }));
+
+        // Stock (toujours au format JSON string)
+        this.editingStockEntries = [];
+        if (this.editingIngredient.stockReel) {
+          let parsedStockReel;
+
+          try {
+            parsedStockReel = JSON.parse(this.editingIngredient.stockReel);
+          } catch (e) {
+            console.error('Erreur parsing JSON stockReel:', e);
+            parsedStockReel = [];
+          }
+
+          if (Array.isArray(parsedStockReel)) {
+            this.editingStockEntries = parsedStockReel.map(s => ({
+              ...s,
+              isEditing: false,
+              isDirty: false
+            }));
+          }
+        }
+
+        // Volontaires
+        this.editingVolunteers = [...(this.editingIngredient.who || [])];
+
+        // Magasins
+        this.editingStores = [...(this.editingIngredient.store || [])];
       },
 
-      resetPurchaseForm() {
-        this.purchaseForm = {
+      resetForms() {
+        this.newPurchase = {
           quantity: null,
-          unit: "",
-          store: "",
-          who: "",
+          unit: '',
+          store: '',
+          who: '',
           price: null,
-          date: new Date().toISOString().split("T")[0],
-          notes: "",
+          notes: ''
         };
+
+        this.newStock = {
+          quantity: null,
+          unit: '',
+          dateTime: new Date().toISOString().slice(0, 16),
+          notes: ''
+        };
+
+        this.newVolunteer = '';
+        this.newStore = '';
       },
+
+      clearData() {
+        this.editingPurchases = [];
+        this.editingStockEntries = [];
+        this.editingVolunteers = [];
+        this.editingStores = [];
+        this.deletedVolunteers.clear();
+        this.deletedStores.clear();
+        this.resetForms();
+      },
+
+      markAsDirty() {
+        this.hasUnsavedChanges = true;
+      },
+
+
+
+
 
       async submitPurchaseForm() {
         if (!this.isPurchaseFormValid) return;
@@ -1297,17 +1532,7 @@ export function createCollaborativeApp() {
         }
       },
 
-      openPurchaseModalFromDetails() {
-        this.showDetailsModal = false;
-        this.modalType = "purchase";
-        this.showPurchaseModal = true;
-      },
 
-      openStockModalFromDetails() {
-        this.showDetailsModal = false;
-        this.modalType = "stock";
-        this.showPurchaseModal = true;
-      },
 
       exportIngredientData() {
         const data = {
@@ -1422,224 +1647,34 @@ export function createCollaborativeApp() {
         return "0";
       },
 
-      // === MÉTHODES DE MANDEMENT ===
+      // === MÉTHODES POUR LE MODAL UNIFIÉ ===
 
-      handleVolunteer(ingredient) {
-        this.currentVolunteerIngredient = ingredient;
-        const storedUsername = this.getStoredUsername() || "";
+      // Gestion des volontaires
+      isVolunteerDeleted(volunteer) {
+        return this.deletedVolunteers.has(volunteer);
+      },
 
-        // Auto-fill only if user is not already a volunteer
-        if (ingredient.who && ingredient.who.includes(storedUsername)) {
-          this.volunteerName = "";
+      toggleVolunteer(volunteer) {
+        if (this.deletedVolunteers.has(volunteer)) {
+          this.deletedVolunteers.delete(volunteer);
         } else {
-          this.volunteerName = storedUsername;
+          this.deletedVolunteers.add(volunteer);
         }
-
-        this.showVolunteerPopover = true;
-
-        // Focus sur l'input après l'ouverture du popover
-        this.$nextTick(() => {
-          const input = document.getElementById('volunteer-name');
-          if (input) {
-            input.focus();
-            input.select();
-          }
-        });
+        this.markAsDirty();
       },
 
-      closeVolunteerPopover() {
-        this.showVolunteerPopover = false;
-        this.currentVolunteerIngredient = null;
-        this.volunteerName = "";
-        this.deletedVolunteers.clear();
+      // Gestion des magasins
+      isStoreDeleted(store) {
+        return this.deletedStores.has(store);
       },
 
-      async submitVolunteer() {
-        if (!this.currentVolunteerIngredient) return;
-
-        // Permettre l'envoi s'il y a un nouveau volontaire OU des désinscriptions
-        if (!this.volunteerName.trim() && this.deletedVolunteers.size === 0) return;
-
-        try {
-          // Sauvegarder le pseudo dans le localStorage
-          if (this.volunteerName.trim()) {
-            localStorage.setItem('volunteer-username', this.volunteerName.trim());
-          }
-
-          // Mettre à jour le champ "who" de l'ingrédient dans Appwrite
-          const currentWho = this.currentVolunteerIngredient.who || [];
-
-          // Check if already exists in the current list (including deleted ones)
-          if (this.volunteerName.trim()) {
-            const volunteerExists = currentWho.includes(this.volunteerName.trim());
-            if (volunteerExists && !this.isVolunteerDeleted(this.currentVolunteerIngredient.$id, this.volunteerName.trim())) {
-              alert(`${this.volunteerName.trim()} est déjà inscrit pour cet ingrédient`);
-              return;
-            }
-          }
-
-          // Traiter le tableau avec les éléments supprimés et le nouveau volontaire
-          let newWho = this.processArrayWithDeletedItems(currentWho, this.deletedVolunteers, this.volunteerName);
-
-          const updateResult = await this.updateArrayField(this.currentVolunteerIngredient, 'who', newWho);
-
-          if (!updateResult.success) {
-            throw updateResult.error;
-          }
-
-          // Fermer le popover
-          this.closeVolunteerPopover();
-
-        } catch (error) {
-          const userMessage = await this.handleAppwriteError(error, 'du mandatement');
-          alert(userMessage);
-        }
-      },
-
-
-
-      getStoredUsername() {
-        // D'abord essayer de récupérer le pseudo du localStorage
-        const storedUsername = localStorage.getItem('volunteer-username');
-        if (storedUsername) return storedUsername;
-
-        // Sinon, utiliser le nom utilisateur Appwrite
-        return getUserName() || '';
-      },
-
-      async removeVolunteer(volunteerName) {
-        if (!this.currentVolunteerIngredient) return;
-
-        try {
-          // Supprimer le volontaire du tableau
-          const currentWho = this.currentVolunteerIngredient.who || [];
-          const newWho = currentWho.filter(name => name !== volunteerName);
-
-          const updateResult = await this.updateArrayField(this.currentVolunteerIngredient, 'who', newWho);
-
-          if (!updateResult.success) {
-            throw updateResult.error;
-          }
-
-        } catch (error) {
-          const userMessage = await this.handleAppwriteError(error, 'de la suppression du volontaire');
-          alert(userMessage);
-        }
-      },
-
-      async removeStore(storeName) {
-        if (!this.currentStoreIngredient) return;
-
-        try {
-          // Supprimer le magasin du tableau
-          const currentStore = this.currentStoreIngredient.store || [];
-          const newStore = currentStore.filter(store => store !== storeName);
-
-          const updateResult = await this.updateArrayField(this.currentStoreIngredient, 'store', newStore);
-
-          if (!updateResult.success) {
-            throw updateResult.error;
-          }
-
-        } catch (error) {
-          const userMessage = await this.handleAppwriteError(error, 'de la suppression du magasin');
-          alert(userMessage);
-        }
-      },
-
-      // === MÉTHODES D'ÉDITION DES MAGASINS ===
-
-      handleEditStore(ingredient) {
-        this.currentStoreIngredient = ingredient;
-        this.storeInput = "";
-        this.showStorePopover = true;
-
-        // Focus sur l'input après l'ouverture du popover
-        this.$nextTick(() => {
-          const input = document.getElementById('store-input');
-          if (input) {
-            input.focus();
-            input.select();
-          }
-        });
-      },
-
-      closeStorePopover() {
-        this.showStorePopover = false;
-        this.currentStoreIngredient = null;
-        this.storeInput = "";
-        this.deletedStores.clear();
-      },
-
-      async submitStore() {
-        if (!this.currentStoreIngredient) return;
-
-        try {
-          let finalStores = this.processArrayWithDeletedItems(
-            this.currentStoreIngredient.store || [],
-            this.deletedStores,
-            this.storeInput
-          );
-
-          // Si aucune modification, fermer simplement le modal
-          if (JSON.stringify(finalStores) === JSON.stringify(this.currentStoreIngredient.store || [])) {
-            this.closeStorePopover();
-            return;
-          }
-
-          // Ajouter aux suggestions si nécessaire
-          if (this.storeInput.trim() && !this.availableStoresSuggestions.includes(this.storeInput.trim())) {
-            this.availableStoresSuggestions.push(this.storeInput.trim());
-            this.availableStoresSuggestions.sort();
-          }
-
-          const updateResult = await this.updateArrayField(this.currentStoreIngredient, 'store', finalStores);
-
-          if (!updateResult.success) {
-            throw updateResult.error;
-          }
-
-          // Fermer le popover
-          this.closeStorePopover();
-
-        } catch (error) {
-          const userMessage = await this.handleAppwriteError(error, 'de la mise à jour des magasins');
-          alert(userMessage);
-        }
-      },
-
-      isStoreDeleted(storeName) {
-        return this.deletedStores.has(storeName);
-      },
-
-      toggleStore(storeName) {
-        if (this.deletedStores.has(storeName)) {
-          this.deletedStores.delete(storeName);
+      toggleStore(store) {
+        if (this.deletedStores.has(store)) {
+          this.deletedStores.delete(store);
         } else {
-          this.deletedStores.add(storeName);
+          this.deletedStores.add(store);
         }
-      },
-
-      hasStoreChanges() {
-        return this.storeInput.trim() || this.deletedStores.size > 0;
-      },
-
-      // Volunteer helper methods
-      isVolunteerDeleted(volunteerName) {
-        return this.deletedVolunteers.has(`${volunteerName}`);
-      },
-
-      toggleVolunteer(volunteerName) {
-        const key = `${volunteerName}`;
-        if (this.deletedVolunteers.has(key)) {
-          this.deletedVolunteers.delete(key);
-        } else {
-          this.deletedVolunteers.add(key);
-        }
-      },
-
-      hasVolunteerChanges() {
-        return this.volunteerName.trim() || this.deletedVolunteers.size > 0;
+        this.markAsDirty();
       },
 
       collectAvailableStores() {
@@ -1718,6 +1753,67 @@ export function createCollaborativeApp() {
         return typeMap[type] || type;
       },
 
+      // Méthodes pour la gestion des couleurs pastel
+      getColorForVolunteer(volunteerName) {
+        if (!volunteerName) return { bg: '#e2e3e5', color: '#383d41' }; // Gris pastel par défaut
+
+        // Si déjà attribué, retourner la couleur existante
+        if (this.volunteerColors[volunteerName] !== undefined) {
+          return this.colorPalettes.volunteers[this.volunteerColors[volunteerName]];
+        }
+
+        // Attribuer une nouvelle couleur
+        const nextIndex = Object.keys(this.volunteerColors).length % this.colorPalettes.volunteers.length;
+        this.volunteerColors[volunteerName] = nextIndex;
+
+        // Sauvegarder dans localStorage pour la persistance
+        this.saveColorAssignments();
+
+        return this.colorPalettes.volunteers[nextIndex];
+      },
+
+      getColorForStore(storeName) {
+        if (!storeName) return { bg: '#e2e3e5', color: '#383d41' }; // Gris pastel par défaut
+
+        // Si déjà attribué, retourner la couleur existante
+        if (this.storeColors[storeName] !== undefined) {
+          return this.colorPalettes.stores[this.storeColors[storeName]];
+        }
+
+        // Attribuer une nouvelle couleur
+        const nextIndex = Object.keys(this.storeColors).length % this.colorPalettes.stores.length;
+        this.storeColors[storeName] = nextIndex;
+
+        // Sauvegarder dans localStorage pour la persistance
+        this.saveColorAssignments();
+
+        return this.colorPalettes.stores[nextIndex];
+      },
+
+      saveColorAssignments() {
+        try {
+          localStorage.setItem(`collab_colors_${this.listId}`, JSON.stringify({
+            volunteerColors: this.volunteerColors,
+            storeColors: this.storeColors
+          }));
+        } catch (error) {
+          console.warn('Impossible de sauvegarder les couleurs:', error);
+        }
+      },
+
+      loadColorAssignments() {
+        try {
+          const saved = localStorage.getItem(`collab_colors_${this.listId}`);
+          if (saved) {
+            const { volunteerColors, storeColors } = JSON.parse(saved);
+            this.volunteerColors = volunteerColors || {};
+            this.storeColors = storeColors || {};
+          }
+        } catch (error) {
+          console.warn('Impossible de charger les couleurs:', error);
+        }
+      },
+
       // Méthode utilitaire pour la gestion centralisée des erreurs Appwrite
       async handleAppwriteError(error, context) {
         console.error(`[Collaborative App] Erreur lors de ${context}:`, error);
@@ -1791,12 +1887,98 @@ export function createCollaborativeApp() {
             type: this.selectedTypeFilter,
             status: this.selectedStatusFilter,
           },
-          sort: {
-            field: this.sortField,
-            direction: this.sortDirection,
-          },
         });
       },
+    },
+
+    // === MÉTHODES POUR LES TOASTS GÉNÉRIQUES ===
+
+    showToast(message, type = 'info', duration = 5000, title = null) {
+      const toastId = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+      const toast = {
+        id: toastId,
+        title: title || this.getDefaultTitle(type),
+        message: message,
+        type: type,
+        duration: duration,
+        show: true,
+        autoHide: duration > 0
+      };
+
+      this.toasts.push(toast);
+
+      // Auto-masquage si durée > 0
+      if (duration > 0) {
+        setTimeout(() => {
+          this.hideToast(toastId);
+        }, duration);
+      }
+
+      return toastId;
+    },
+
+    hideToast(toastId) {
+      const index = this.toasts.findIndex(t => t.id === toastId);
+      if (index > -1) {
+        // Marquer comme caché pour animation CSS
+        this.toasts[index].show = false;
+
+        // Supprimer complètement après l'animation
+        setTimeout(() => {
+          const removeIndex = this.toasts.findIndex(t => t.id === toastId);
+          if (removeIndex > -1) {
+            this.toasts.splice(removeIndex, 1);
+          }
+        }, 300);
+      }
+    },
+
+    hideAllToasts() {
+      this.toasts.forEach(toast => {
+        toast.show = false;
+      });
+
+      // Supprimer tous les toasts après l'animation
+      setTimeout(() => {
+        this.toasts = [];
+      }, 300);
+    },
+
+    showSuccessToast(message, duration = 5000) {
+      return this.showToast(message, 'success', duration, 'Succès');
+    },
+
+    showErrorToast(message, duration = 8000) {
+      return this.showToast(message, 'danger', duration, 'Erreur');
+    },
+
+    showWarningToast(message, duration = 6000) {
+      return this.showToast(message, 'warning', duration, 'Attention');
+    },
+
+    showInfoToast(message, duration = 5000) {
+      return this.showToast(message, 'info', duration, 'Information');
+    },
+
+    getDefaultTitle(type) {
+      const titles = {
+        'success': 'Succès',
+        'danger': 'Erreur',
+        'warning': 'Attention',
+        'info': 'Information'
+      };
+      return titles[type] || 'Notification';
+    },
+
+    getToastIcon(type) {
+      const icons = {
+        'success': 'fas fa-check-circle',
+        'danger': 'fas fa-exclamation-triangle',
+        'warning': 'fas fa-exclamation-triangle',
+        'info': 'fas fa-info-circle'
+      };
+      return icons[type] || 'fas fa-info-circle';
     },
 
     beforeUnmount() {
@@ -1807,62 +1989,6 @@ export function createCollaborativeApp() {
            }
        },
 
-    // === MÉTHODES DE GESTION DE LA CONNEXION TEMPS RÉEL ===
-
-    startConnectionMonitoring() {
-      // Démarrer la vérification périodique de la connexion
-      this.connectionCheckInterval = setInterval(() => {
-        this.checkConnectionHealth();
-      }, 30000); // Vérification toutes les 30 secondes
-    },
-
-    checkConnectionHealth() {
-      const now = Date.now();
-      const timeSinceLastUpdate = now - this.connectionStatus.lastUpdate;
-
-      // Si pas de mise à jour depuis plus de 60 secondes, considérer comme déconnecté
-      if (timeSinceLastUpdate > 60000 && this.connectionStatus.isConnected) {
-        this.connectionStatus.isConnected = false;
-        console.warn('[Collaborative App] Pas de mise à jour temps réel depuis 60 secondes');
-      }
-    },
-
-    async attemptReconnection() {
-      this.connectionStatus.showReconnecting = true;
-
-      try {
-        // Se désabonner et se réabonner
-        if (this.unsubscribeRealtime) {
-          this.unsubscribeRealtime();
-        }
-
-        this.connectionStatus.retryCount++;
-
-        // Attendre un peu avant de se réabonner
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        this.setupRealtime();
-
-        // Vérifier si la connexion est rétablie
-        setTimeout(() => {
-          if (this.connectionStatus.isConnected) {
-            console.log('[Collaborative App] Reconnexion réussie');
-            this.connectionStatus.showReconnecting = false;
-          } else if (this.connectionStatus.retryCount >= this.connectionStatus.maxRetries) {
-            console.warn('[Collaborative App] Échec de la reconnexion après plusieurs tentatives');
-            this.connectionStatus.showReconnecting = false;
-          }
-        }, 2000);
-
-      } catch (error) {
-        console.error('[Collaborative App] Erreur lors de la reconnexion:', error);
-        this.connectionStatus.showReconnecting = false;
-      }
-    },
-
-    closeDisconnectedToast() {
-      this.connectionStatus.showDisconnectedToast = false;
-    },
 
     // === MÉTHODES DE SYNCHRONISATION ET CACHE ===
 

@@ -3,8 +3,7 @@
 {{/* SCRIPT VUE - Charger depuis les assets */}}
 {{ $vueJs := resources.Get "js/vue.global.js" }}
 {{ $vueProd := resources.Get "js/vue.global.prod.js" }}
-{{ $vueTableProd := resources.Get "js/vuetable.production.js" }}
-{{ $vueTableDev := resources.Get "js/vuetable.development.js" }}
+
 
 
 {{ if and $vueJs hugo.IsDevelopment }}
@@ -15,13 +14,7 @@
   {{ warnf "Le script Vue.js n'a pas été trouvé dans js/" }}
 {{ end }}
 
-{{ if and $vueTableProd hugo.IsProduction }}
-  <script src="{{ $vueTableProd.RelPermalink }}"></script>
-{{ else if and $vueTableDev hugo.IsDevelopment }}
-  <script src="{{ $vueTableDev.RelPermalink }}"></script>
-{{ else }}
-  {{ warnf "Le script vuetable n'a pas été trouvé dans js/" }}
-{{ end }}
+
 
 <div id="collaborativeApp">
   <!-- Template principal de l'application Vue.js -->
@@ -34,7 +27,7 @@
 
     <!-- Tableau classique (vue actuelle) -->
     <div v-if="currentView === 'table'">
-      {{ partial "aw_app_ingredients/ingredients-table.html" . }}
+
     </div>
 
     <!-- Vue groupée par magasin -->
@@ -48,12 +41,17 @@
     <!-- Vue compacte (à implémenter) -->
     <div v-if="currentView === 'compact'"></div>
 
-    {{ partial "aw_app_ingredients/app-modals.html" . }}
+
+    <!-- Modal unifié pour la gestion des ingrédients -->
+    {{ partial "aw_app_ingredients/modal-unified.html" . }}
   </div>
 
 
+    <!-- toast connexion -->
+    {{ partialCached "aw_app_ingredients/toast-connexion.html" . }}
 
-  <!-- add partial toast connexion -->
+
+
 
   <!-- Indicateur de chargement initial (sera masqué par Vue.js) -->
   <div class="loading-spinner" v-show="isLoading">

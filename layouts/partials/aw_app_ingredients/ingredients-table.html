@@ -14,30 +14,14 @@
               >
             </th>
             <th width="50">Statut</th>
-            <th @click="sortBy('ingredientName')" class="sortable-column" :class="getSortClass('ingredientName')">
-              Ingrédient [[ getSortIcon('ingredientName') ]]
-            </th>
-            <th @click="sortBy('ingType')" class="sortable-column" :class="getSortClass('ingType')">
-              Type [[ getSortIcon('ingType') ]]
-            </th>
-            <th @click="sortBy('totalNeedDisplay')" class="sortable-column" :class="getSortClass('totalNeedDisplay')">
-              Besoin Total [[ getSortIcon('totalNeedDisplay') ]]
-            </th>
-            <th @click="sortBy('stockDisplay')" class="sortable-column" :class="getSortClass('stockDisplay')">
-              En Stock [[ getSortIcon('stockDisplay') ]]
-            </th>
-            <th @click="sortBy('purchasesDisplay')" class="sortable-column" :class="getSortClass('purchasesDisplay')">
-              Acheté [[ getSortIcon('purchasesDisplay') ]]
-            </th>
-            <th @click="sortBy('balanceDisplay')" class="sortable-column" :class="getSortClass('balanceDisplay')">
-              Manque [[ getSortIcon('balanceDisplay') ]]
-            </th>
-            <th @click="sortBy('storesDisplay')" class="sortable-column" :class="getSortClass('storesDisplay')">
-              Magasin [[ getSortIcon('storesDisplay') ]]
-            </th>
-            <th @click="sortBy('responsibleDisplay')" class="sortable-column" :class="getSortClass('responsibleDisplay')">
-              Qui [[ getSortIcon('responsibleDisplay') ]]
-            </th>
+            <th>Ingrédient</th>
+            <th>Type</th>
+            <th>Besoin Total</th>
+            <th>En Stock</th>
+            <th>Acheté</th>
+            <th>Manque</th>
+            <th>Magasin</th>
+            <th>Qui</th>
             <th width="100">Actions</th>
           </tr>
         </thead>
@@ -144,7 +128,14 @@
             <!-- Actions -->
             <td>
               <button
-                class="btn btn-sm btn-outline-info btn-icon me-1"
+                class="btn btn-sm btn-outline-primary btn-icon me-1"
+                @click="handleOpenUnifiedModal(ingredient)"
+                title="Gérer l'ingrédient"
+              >
+                <i class="fas fa-edit"></i>
+              </button>
+              <button
+                class="btn btn-sm btn-outline-info btn-icon"
                 @click="handleShowDetails(ingredient)"
                 title="Voir les détails"
               >

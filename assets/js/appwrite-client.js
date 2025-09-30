@@ -155,6 +155,24 @@ function isAuthenticatedCms() {
     return getLocalCmsUser() !== null;
 }
 
+
+/**
+ * Vérifie si une session Appwrite active existe.
+ * @returns {Promise<boolean>} Vrai si l'utilisateur est authentifié, sinon faux.
+ */
+async function isAuthenticatedAppwrite() {
+    try {
+        const acc = await getAccount();
+        await acc.get(); // Lève une exception si aucune session n'est active
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+
+
+
 async function isEmailVerified() {
     try {
         const acc = await getAccount();
@@ -373,14 +391,19 @@ function setAuthData(email, name, cmsAuth) {
 
 /**
  * S'abonne aux mises à jour temps réel pour une liste de collections.
+ * Utilise l'API Appwrite subscribe() qui gère automatiquement les connexions WebSocket.
  * @param {string[]} collectionNames - Noms des collections (ex: ['ingredients', 'purchases']).
- * @param {function} callback - La fonction à appeler lors d'une mise à jour.
+ * @param {string} listId - ID de la liste (pour filtrage si nécessaire).
+ * @param {function} onMessage - Callback pour les messages de données.
+ * @param {object} connectionCallbacks - Callbacks pour les événements de connexion.
  * @returns {function} Une fonction pour se désabonner.
  */
-export function subscribeToCollections(collectionNames, callback) {
+export function subscribeToCollections(collectionNames, listId, onMessage, connectionCallbacks = {}) {
+    const { onConnect, onDisconnect, onError } = connectionCallbacks;
+
     if (!client) {
         console.error("Impossible de s'abonner : le client Appwrite n'est pas encore initialisé.");
-        // Retourne une fonction de désabonnement qui ne fait rien
+        onError?.({ message: "Client Appwrite non initialisé" });
         return () => {};
     }
 
@@ -393,15 +416,38 @@ export function subscribeToCollections(collectionNames, callback) {
         return `databases.${APPWRITE_CONFIG.databaseId}.collections.${collectionId}.documents`;
     }).filter(Boolean);
 
-    console.log('[Appwrite Client] Abonnement aux canaux:', channels);
-    return client.subscribe(channels, callback);
+    console.log('[Appwrite Client] Abonnement aux canaux en cours...', channels);
+
+    try {
+        // La méthode client.subscribe() gère automatiquement la connexion WebSocket
+        // selon la documentation officielle Appwrite
+        const unsubscribe = client.subscribe(channels, (response) => {
+            console.log('[Appwrite Client] Réception temps réel:', response);
+            onMessage(response);
+        });
+
+        // Selon la documentation Appwrite, la subscription est automatiquement active
+        // On peut considérer la connexion comme établie immédiatement
+        if (onConnect) {
+            setTimeout(() => {
+                console.log('[Appwrite Client] Connexion temps réel établie');
+                onConnect();
+            }, 50);
+        }
+
+        return unsubscribe;
+    } catch (error) {
+        console.error('[Appwrite Client] Erreur lors de la souscription temps réel:', error);
+        onError?.(error);
+        return () => {}; // Retourner une fonction vide en cas d'erreur
+    }
 }
 
 // Export des fonctions publiques
 export {
     APPWRITE_CONFIG, // Ajouté pour consolider les exports
     getAppwriteClients, getAccount, getFunctions, getTeams, getDatabases, getConfig,
-    isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms, getUserEmail,
+    isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms, isAuthenticatedAppwrite, getUserEmail,
     getUserName, clearAuthData, setAuthData, logoutGlobal, isEmailVerified,
     sendVerificationEmail, verifyEmail, getLocalEmailVerificationStatus,
     createCollaborativeListFromEvent, checkExistingCollaborativeList
@@ -411,7 +457,7 @@ export {
 if (typeof window !== 'undefined') {
     window.AppwriteClient = {
         getAppwriteClients, getAccount, getFunctions, getDatabases, getConfig,
-        isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms,
+        isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms, isAuthenticatedAppwrite,
         getUserEmail, getUserName, clearAuthData, setAuthData, logoutGlobal,
         isEmailVerified, sendVerificationEmail, verifyEmail, getLocalEmailVerificationStatus,
         createCollaborativeListFromEvent, checkExistingCollaborativeList
