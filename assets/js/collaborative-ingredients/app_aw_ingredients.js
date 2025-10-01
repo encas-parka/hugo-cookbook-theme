@@ -8,6 +8,7 @@
 
 import { useVueTable, getCoreRowModel, getGroupedRowModel, getSortedRowModel, getFilteredRowModel, getExpandedRowModel } from 'js/vuetable.development.js';
 import { unitsManager } from "./UnitsManager.js";
+import { TableColumnsConfig } from "./TableColumnsConfig.js";
 import { IngredientCalculator } from "./services/IngredientCalculator.js";
 import { DataTransformer } from "./services/DataTransformer.js";
 import { SyncService } from "./services/SyncService.js";
@@ -369,168 +370,22 @@ export function createCollaborativeApp() {
       // --- LOGIQUE DE TANSTACK TABLE INTÉGRÉE ---
 
       tableColumns() {
-        const h = Vue.h; // Accès à la fonction de rendu de Vue
-
-        return [
-          {
-            id: 'selection',
-            header: ({ table }) => h('input', {
-              type: 'checkbox',
-              checked: table.getIsAllRowsSelected(),
-              onChange: table.getToggleAllRowsSelectedHandler()
-            }),
-            cell: ({ row }) => h('input', {
-              type: 'checkbox',
-              checked: row.getIsSelected(),
-              onChange: row.getToggleSelectedHandler()
-            }),
-            size: 50
+        // Configuration des colonnes via le service dédié
+        const config = new TableColumnsConfig({
+          h: Vue.h,
+          handlers: {
+            openUnifiedModal: this.openUnifiedModal,
+            handleTableGroupVolunteer: this.handleTableGroupVolunteer
           },
-          {
-            accessorKey: 'status',
-            header: '',
-            cell: ({ row }) => {
-              const status = row.original.status;
-              const statusIcons = {
-                'sufficient': h('span', { class: 'text-success' }, [h('i', { class: 'fas fa-check-circle' })]),
-                'missing': h('span', { class: 'text-danger' }, [h('i', { class: 'fas fa-times-circle' })]),
-                'partial': h('span', { class: 'text-warning' }, [h('i', { class: 'fas fa-exclamation-triangle' })])
-              };
-              return statusIcons[status] || h('span', {}, '');
-            },
-            size: 50
+          formatters: {
+            formatTypeShort: this.formatTypeShort
           },
-          {
-            accessorKey: 'ingredientName',
-            header: 'Ingrédient',
-            cell: ({ row }) => h('strong', {}, row.original.ingredientName),
-            enableGrouping: false
-          },
-          {
-            accessorKey: 'ingType',
-            header: 'Type',
-            cell: ({ row }) => {
-              const ingredient = row.original;
-              const typeClass = `type-${ingredient.ingType}`;
-              return h('span', { class: `badge badge-ingredient-type ${typeClass}` }, ingredient.typeDisplay);
-            },
-            enableSorting: true,
-            enableGrouping: true
-          },
-          {
-            accessorKey: 'totalNeedDisplay',
-            header: 'Besoin Total',
-            cell: ({ row }) => row.original.totalNeedDisplay,
-            enableGrouping: false
-          },
-          {
-            accessorKey: 'purchasesDisplay',
-            header: 'Acheté',
-            cell: ({ row }) => {
-              const ingredient = row.original;
-              return h('div', {
-                class: 'editable-cell-simple d-flex align-items-center justify-content-between w-100',
-                onClick: () => this.openUnifiedModal(ingredient, 'purchases')
-              }, [
-                // Contenu principal
-                h('div', { class: 'flex-grow-1' }, [
-                  ingredient.purchasesDisplay && ingredient.purchasesDisplay.trim() !== ''
-                    ? h('span', { class: 'text-success fw-medium' }, ingredient.purchasesDisplay)
-                    : h('span', { class: 'text-muted' }, '—')
-                ]),
-                // Icône d'édition visible au survol
-                h('div', { class: 'edit-icon-simple' }, [
-                  h('i', { class: 'fas fa-pencil-alt text-secondary' })
-                ])
-              ]);
-            },
-            enableGrouping: false
-          },
-          {
-            accessorKey: 'balanceDisplay',
-            header: 'Manque',
-            cell: ({ row }) => h('span', {
-              class: row.original.balanceClass
-            }, row.original.balanceDisplay),
-            enableGrouping: false
-          },
-          {
-            accessorKey: 'storesDisplay',
-            header: 'Magasin',
-            cell: ({ row }) => {
-              const ingredient = row.original;
-              return h('div', {
-                class: 'editable-cell-simple d-flex align-items-center justify-content-between w-100 h-100',
-                onClick: () => this.openUnifiedModal(ingredient, 'stores')
-              }, [
-                // Contenu principal
-                h('div', { class: 'flex-grow-1' }, [
-                  ...(ingredient.storesDisplay && ingredient.storesDisplay.length > 0
-                    ? ingredient.storesDisplay.split(', ').map(store => {
-                        const color = this.getColorForStore(store);
-                        return h('div', {
-                          class: 'badge',
-                          style: `background-color: ${color.bg}; color: ${color.color};`
-                        }, store);
-                      })
-                    : [h('span', { class: 'text-muted' }, '—')]
-                  )
-                ]),
-                // Icône d'édition visible au survol
-                h('div', { class: 'edit-icon-simple' }, [
-                  h('i', { class: 'fas fa-pencil-alt text-secondary' })
-                ])
-              ]);
-            },
-            enableGrouping: true
-          },
-          {
-            accessorKey: 'responsibleDisplay',
-            header: 'Qui',
-            cell: ({ row }) => {
-              const ingredient = row.original;
-              return h('div', {
-                class: 'editable-cell-simple d-flex align-items-center justify-content-between w-100',
-                onClick: () => this.openUnifiedModal(ingredient, 'volunteers')
-              }, [
-                // Contenu principal
-                h('div', { class: 'flex-grow-1' }, [
-                  ...(ingredient.responsibleDisplay && ingredient.responsibleDisplay.length > 0
-                    ? ingredient.responsibleDisplay.split(', ').map(volunteer => {
-                        const color = this.getColorForVolunteer(volunteer);
-                        return h('div', {
-                          class: 'badge',
-                          style: `background-color: ${color.bg}; color: ${color.color};`
-                        }, volunteer);
-                      })
-                    : [h('span', { class: 'text-muted' }, '—')]
-                  )
-                ]),
-                // Icône d'édition visible au survol
-                h('div', { class: 'edit-icon-simple' }, [
-                  h('i', { class: 'fas fa-pencil-alt text-secondary' })
-                ])
-              ]);
-            },
-            enableSorting: true,
-            enableGrouping: false
-          },
-          {
-            id: 'actions',
-            header: '',
-            cell: ({ row }) => {
-              const ingredient = row.original;
-              return h('div', { class: 'd-flex gap-1 flex-wrap' }, [
-                h('button', {
-                  class: 'btn btn-sm btn-outline-primary btn-icon me-1',
-                  onClick: () => this.openUnifiedModal(ingredient, 'recipes'),
-                  title: 'Gérer l\'ingrédient'
-                }, [h('i', { class: 'fas fa-edit' })])
-              ]);
-            },
-            size: 50
+          colorManager: {
+            getVolunteerColor: this.getColorForVolunteer,
+            getStoreColor: this.getColorForStore
           }
-        ];
+        });
+        return config.getColumns();
       },
 
       table() {
