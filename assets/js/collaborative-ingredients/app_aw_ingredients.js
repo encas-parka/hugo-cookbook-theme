@@ -8,6 +8,7 @@
 
 import { useVueTable, getCoreRowModel, getGroupedRowModel, getSortedRowModel, getFilteredRowModel, getExpandedRowModel } from 'js/vuetable.development.js';
 import { unitsManager } from "./UnitsManager.js";
+import { ColorManager } from "./ColorManager.js";
 import { TableColumnsConfig } from "./TableColumnsConfig.js";
 import { IngredientCalculator } from "./services/IngredientCalculator.js";
 import { DataTransformer } from "./services/DataTransformer.js";
@@ -57,6 +58,7 @@ export function createCollaborativeApp() {
 
         // Services
         syncService: null,
+        colorManager: null,
 
         // État de la connexion temps réel
         realtimeStatus: {
@@ -102,54 +104,7 @@ export function createCollaborativeApp() {
 
 
         // Système de couleurs pastel pour volunteers et stores
-        colorPalettes: {
-          volunteers: [
-            { bg: '#d1ecf1', color: '#0c5460' }, // Bleu pastel
-            { bg: '#d4edda', color: '#155724' }, // Vert pastel
-            { bg: '#fff3cd', color: '#856404' }, // Jaune pastel
-            { bg: '#f8d7da', color: '#721c24' }, // Rouge pastel
-            { bg: '#e2e3e5', color: '#383d41' }, // Gris pastel
-            { bg: '#d1ecf1', color: '#0c5460' }, // Cyan pastel
-            { bg: '#ffe6cc', color: '#8b4513' }, // Pêche pastel
-            { bg: '#e7d8f8', color: '#4a148c' }, // Lavande pastel
-            { bg: '#ffcce6', color: '#d63384' }, // Rose pastel
-            { bg: '#d4e4f7', color: '#004085' }, // Bleu clair pastel
-            { bg: '#e8f5e8', color: '#2e5d2e' }, // Vert menthe pastel
-            { bg: '#fff0f5', color: '#721c24' }, // Rose pâle pastel
-            { bg: '#f0e68c', color: '#6b5d1a' }, // Beige pastel
-            { bg: '#e6f3ff', color: '#0066cc' }, // Bleu ciel pastel
-            { bg: '#ffe4e1', color: '#8b4513' }, // Corail pastel
-            { bg: '#f5f5dc', color: '#495057' }, // Lin pastel
-            { bg: '#e0f2f1', color: '#00695c' }, // Turquoise pastel
-            { bg: '#fce4ec', color: '#880e4f' }, // Rose bonbon pastel
-            { bg: '#e8eaf6', color: '#283593' }, // Indigo pastel
-            { bg: '#fff8e1', color: '#ff6f00' }  // Amber pastel
-          ],
-          stores: [
-            { bg: '#ffe6cc', color: '#8b4513' }, // Pêche pastel
-            { bg: '#d1ecf1', color: '#0c5460' }, // Bleu pastel
-            { bg: '#f8d7da', color: '#721c24' }, // Rouge pastel
-            { bg: '#d4edda', color: '#155724' }, // Vert pastel
-            { bg: '#fff3cd', color: '#856404' }, // Jaune pastel
-            { bg: '#e7d8f8', color: '#4a148c' }, // Lavande pastel
-            { bg: '#e2e3e5', color: '#383d41' }, // Gris pastel
-            { bg: '#ffcce6', color: '#d63384' }, // Rose pastel
-            { bg: '#d4e4f7', color: '#004085' }, // Bleu clair pastel
-            { bg: '#e8f5e8', color: '#2e5d2e' }, // Vert menthe pastel
-            { bg: '#fff0f5', color: '#721c24' }, // Rose pâle pastel
-            { bg: '#f0e68c', color: '#6b5d1a' }, // Beige pastel
-            { bg: '#e6f3ff', color: '#0066cc' }, // Bleu ciel pastel
-            { bg: '#ffe4e1', color: '#8b4513' }, // Corail pastel
-            { bg: '#f5f5dc', color: '#495057' }, // Lin pastel
-            { bg: '#e0f2f1', color: '#00695c' }, // Turquoise pastel
-            { bg: '#fce4ec', color: '#880e4f' }, // Rose bonbon pastel
-            { bg: '#e8eaf6', color: '#283593' }, // Indigo pastel
-            { bg: '#fff8e1', color: '#ff6f00' }, // Amber pastel
-            { bg: '#f4cccc', color: '#5d2a2a' }  // Rouge brique pastel
-          ]
-        },
-        volunteerColors: {}, // { volunteerName: colorIndex }
-        storeColors: {},     // { storeName: colorIndex }
+  
 
         // Données pour la gestion des suppressions dans le modal unifié
         deletedVolunteers: new Set(), // Volontaires marqués pour suppression
@@ -508,9 +463,10 @@ export function createCollaborativeApp() {
           // 6. Initialiser le service modal pour la logique métier
           this.initModalService(APPWRITE_CONFIG);
 
-          // 7. Charger les assignments de couleurs depuis localStorage
-          this.loadColorAssignments();
-          // 7. Charger les données avec la stratégie de cache
+          // 7. Initialiser le ColorManager
+          this.colorManager = new ColorManager(this.listId);
+          
+          // 8. Charger les données avec la stratégie de cache
           await this.loadInitialDataWithCache();
 
           // 7. Configurer la synchronisation temps réel
@@ -1360,63 +1316,11 @@ export function createCollaborativeApp() {
 
       // Méthodes pour la gestion des couleurs pastel
       getColorForVolunteer(volunteerName) {
-        if (!volunteerName) return { bg: '#e2e3e5', color: '#383d41' }; // Gris pastel par défaut
-
-        // Si déjà attribué, retourner la couleur existante
-        if (this.volunteerColors[volunteerName] !== undefined) {
-          return this.colorPalettes.volunteers[this.volunteerColors[volunteerName]];
-        }
-
-        // Attribuer une nouvelle couleur
-        const nextIndex = Object.keys(this.volunteerColors).length % this.colorPalettes.volunteers.length;
-        this.volunteerColors[volunteerName] = nextIndex;
-
-        // Sauvegarder dans localStorage pour la persistance
-        this.saveColorAssignments();
-
-        return this.colorPalettes.volunteers[nextIndex];
+        return this.colorManager.getColorForVolunteer(volunteerName);
       },
 
       getColorForStore(storeName) {
-        if (!storeName) return { bg: '#e2e3e5', color: '#383d41' }; // Gris pastel par défaut
-
-        // Si déjà attribué, retourner la couleur existante
-        if (this.storeColors[storeName] !== undefined) {
-          return this.colorPalettes.stores[this.storeColors[storeName]];
-        }
-
-        // Attribuer une nouvelle couleur
-        const nextIndex = Object.keys(this.storeColors).length % this.colorPalettes.stores.length;
-        this.storeColors[storeName] = nextIndex;
-
-        // Sauvegarder dans localStorage pour la persistance
-        this.saveColorAssignments();
-
-        return this.colorPalettes.stores[nextIndex];
-      },
-
-      saveColorAssignments() {
-        try {
-          localStorage.setItem(`collab_colors_${this.listId}`, JSON.stringify({
-            volunteerColors: this.volunteerColors,
-            storeColors: this.storeColors
-          }));
-        } catch (error) {
-          console.warn('Impossible de sauvegarder les couleurs:', error);
-        }
-      },
-
-      loadColorAssignments() {
-        try {
-          const saved = localStorage.getItem(`collab_colors_${this.listId}`);
-          if (saved) {
-            const { volunteerColors, storeColors } = JSON.parse(saved);
-            this.volunteerColors = volunteerColors || {};
-            this.storeColors = storeColors || {};
-          }
-        } catch (error) {
-          console.warn('Impossible de charger les couleurs:', error);
-        }
+        return this.colorManager.getColorForStore(storeName);
       },
 
       // Méthode utilitaire pour la gestion centralisée des erreurs Appwrite
