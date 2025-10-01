@@ -1,0 +1,215 @@
+<!-- Modal d'attribution groupée flexible -->
+<div v-if="groupAssignmentModal.isOpen" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-users me-2"></i>
+          <span v-if="groupAssignmentModal.type === 'volunteer'">Attribution des bénévoles</span>
+          <span v-else-if="groupAssignmentModal.type === 'store'">Attribution des magasins</span>
+          <span v-else>Attribution groupée</span>
+        </h5>
+        <button type="button" class="btn-close" @click="closeGroupAssignmentModal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Informations sur le groupe -->
+        <div class="alert alert-info mb-3">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-info-circle me-2"></i>
+            <div>
+              <strong>Groupe : </strong>[[ groupAssignmentModal.groupName ]]
+              <span class="badge bg-primary ms-2">[[ selectedIngredients.length ]] ingrédients</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Formulaire d'attribution -->
+        <form @submit.prevent="handleGroupAssignmentSubmit">
+          <!-- Champ de saisie avec auto-complétion -->
+          <div class="mb-4">
+            <label class="form-label">
+              <i class="fas fa-user me-1"></i>
+              <span v-if="groupAssignmentModal.type === 'volunteer'">Nom du bénévole</span>
+              <span v-else-if="groupAssignmentModal.type === 'store'">Nom du magasin</span>
+              <span v-else>Valeur à attribuer</span>
+            </label>
+            <div class="input-group">
+              <input
+                type="text"
+                class="form-control"
+                v-model="groupAssignmentModal.value"
+                :placeholder="groupAssignmentModal.type === 'volunteer' ? 'Entrez votre nom...' : 'Entrez une valeur...'"
+                @input="filterSuggestions"
+                @focus="showSuggestions = true"
+                @blur="hideSuggestions"
+                autocomplete="off"
+                required
+              >
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                @click="clearAssignmentValue"
+                title="Effacer"
+              >
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+
+            <!-- Suggestions d'auto-complétion -->
+            <div v-if="showSuggestions && filteredSuggestions.length > 0" class="position-relative">
+              <div class="position-absolute w-100 bg-white border border-top-0 rounded-bottom shadow-sm" style="z-index: 1050;">
+                <div
+                  v-for="suggestion in filteredSuggestions"
+                  :key="suggestion"
+                  class="suggestion-item px-3 py-2 cursor-pointer hover-bg-light"
+                  @mousedown="selectSuggestion(suggestion)"
+                >
+                  <i class="fas fa-user text-muted me-2" v-if="groupAssignmentModal.type === 'volunteer'"></i>
+                  <i class="fas fa-store text-muted me-2" v-else-if="groupAssignmentModal.type === 'store'"></i>
+                  [[ suggestion ]]
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Liste des ingrédients concernés -->
+          <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="mb-0">
+                <i class="fas fa-list me-1"></i>
+                Ingrédients concernés
+              </h6>
+              <div class="btn-group btn-group-sm">
+                <button
+                  type="button"
+                  class="btn btn-outline-primary"
+                  @click="selectAllIngredients"
+                >
+                  Tout sélectionner
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  @click="deselectAllIngredients"
+                >
+                  Tout désélectionner
+                </button>
+              </div>
+            </div>
+
+            <div class="ingredient-list border rounded" style="max-height: 300px; overflow-y: auto;">
+              <div
+                v-for="(ingredient, index) in selectedIngredients"
+                :key="ingredient.$id"
+                class="ingredient-item p-3 border-bottom d-flex align-items-center"
+                :class="{ 'bg-light': index % 2 === 0 }"
+              >
+                <div class="form-check me-3">
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    :id="'ingredient-' + ingredient.$id"
+                    v-model="ingredient.selected"
+                  >
+                </div>
+                <div class="flex-grow-1">
+                  <div class="fw-bold">[[ ingredient.ingredientName ]]</div>
+                  <small class="text-muted">
+                    Type : [[ ingredient.typeDisplay ]] |
+                    Besoin : [[ ingredient.totalNeedDisplay ]] |
+                    Manque : [[ ingredient.balanceDisplay ]]
+                  </small>
+                </div>
+                <div class="ms-2">
+                  <span
+                    class="badge"
+                    :class="ingredient.balanceClass"
+                  >
+                    [[ ingredient.balanceDisplay ]]
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Statistiques de sélection -->
+            <div class="mt-2 text-muted small">
+              <span v-if="selectedCount === 0">
+                <i class="fas fa-exclamation-triangle text-warning"></i>
+                Aucun ingrédient sélectionné
+              </span>
+              <span v-else>
+                <i class="fas fa-check-circle text-success"></i>
+                [[ selectedCount ]] ingrédient(s) sélectionné(s) sur [[ selectedIngredients.length ]]
+              </span>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" @click="closeGroupAssignmentModal">
+          <i class="fas fa-times me-1"></i>
+          Annuler
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          @click="handleGroupAssignmentSubmit"
+          :disabled="groupAssignmentModal.isProcessing || selectedCount === 0"
+        >
+          <span v-if="groupAssignmentModal.isProcessing">
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Traitement en cours...
+          </span>
+          <span v-else>
+            <i class="fas fa-save me-1"></i>
+            <span v-if="groupAssignmentModal.type === 'volunteer'">Attribuer les bénévoles</span>
+            <span v-else-if="groupAssignmentModal.type === 'store'">Attribuer les magasins</span>
+            <span v-else>Appliquer les modifications</span>
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.hover-bg-light:hover {
+  background-color: #f8f9fa;
+}
+
+.suggestion-item {
+  transition: background-color 0.2s ease;
+}
+
+.suggestion-item:hover {
+  background-color: #e9ecef;
+}
+
+.ingredient-list {
+  scrollbar-width: thin;
+  scrollbar-color: #dee2e6 #f8f9fa;
+}
+
+.ingredient-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ingredient-list::-webkit-scrollbar-track {
+  background: #f8f9fa;
+}
+
+.ingredient-list::-webkit-scrollbar-thumb {
+  background: #dee2e6;
+  border-radius: 3px;
+}
+
+.ingredient-list::-webkit-scrollbar-thumb:hover {
+  background: #adb5bd;
+}
+</style>

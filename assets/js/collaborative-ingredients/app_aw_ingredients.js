@@ -131,17 +131,9 @@ export function createCollaborativeApp() {
         // Modals
         editingIngredient: null,
 
-
-
-
-        // Système de couleurs pastel pour volunteers et stores
-
-
         // Données pour la gestion des suppressions dans le modal unifié
         deletedVolunteers: new Set(), // Volontaires marqués pour suppression
         deletedStores: new Set(), // Magasins marqués pour suppression
-
-
 
         // Gestion des vues
         currentView: 'grouped', // 'table', 'grouped', 'cards', 'compact'
@@ -149,14 +141,13 @@ export function createCollaborativeApp() {
 
         // Service d'authentification
         authManager: null, // Sera initialisé dans initializeApp()
-        
+
         // État UI pour l'authentification (reste dans Vue)
         showAuthModal: false,
         showAuthToast: false,
         allowAnonymousView: true,
         authModalShown: false,
         isAuthenticated: false, // État synchrone pour les templates
-
 
         deleteConfirmation: {
           show: false,
@@ -182,6 +173,21 @@ export function createCollaborativeApp() {
         },
         newVolunteer: '',
         newStore: '',
+
+        // Suggestions pour les utilisateurs
+        availableUsersSuggestions: [],
+
+        // Modal d'attribution groupée
+        groupAssignmentModal: {
+          isOpen: false,
+          type: '', // 'volunteer', 'store', etc.
+          value: '',
+          groupName: '',
+          isProcessing: false
+        },
+        selectedIngredients: [],
+        filteredSuggestions: [],
+        showSuggestions: false,
 
         // Système de toasts génériques
         toasts: []
@@ -352,6 +358,20 @@ export function createCollaborativeApp() {
         );
       },
 
+      // Données calculées pour le modal d'attribution groupée
+      selectedCount() {
+        return this.selectedIngredients.filter(ing => ing.selected).length;
+      },
+
+      assignmentSuggestions() {
+        if (this.groupAssignmentModal.type === 'volunteer') {
+          return this.availableUsersSuggestions;
+        } else if (this.groupAssignmentModal.type === 'store') {
+          return this.availableStoresSuggestions;
+        }
+        return [];
+      },
+
 
 
 
@@ -469,7 +489,7 @@ export function createCollaborativeApp() {
           // Action exécutée avec succès
           return;
         }
-        
+
         // Non authentifié - afficher le toast
         this.showAuthToastForFeature('cette action');
       },
@@ -684,6 +704,7 @@ export function createCollaborativeApp() {
 
           // Collecter les magasins existants pour les suggestions
           this.collectAvailableStores();
+          this.collectAvailableUsers();
 
           console.log(
             "[Collaborative App] Données transformées:",
@@ -1171,27 +1192,210 @@ export function createCollaborativeApp() {
         };
       },
 
-      // Méthode pour se proposer pour tout un magasin
-      async handleGroupVolunteer(storeName) {
-        const group = this.groupedIngredients[storeName] || [];
-        const username = this.getStoredUsername() || prompt('Votre nom pour la sélection groupée:');
+      // Méthode pour se proposer pour tout un groupe (magasin/type)
+      async handleGroupVolunteer(groupName, ingredients) {
+        // Ouvrir le modal d'attribution groupée
+        this.openGroupAssignmentModal('volunteer', groupName, ingredients);
+      },
 
-        if (!username) return;
+      // === MÉTHODES POUR LE MODAL D'ATTRIBUTION GROUPÉE ===
 
-        try {
-          for (const ingredient of group) {
-            if (!ingredient.who || !ingredient.who.includes(username)) {
-              await this.updateArrayField(ingredient.$id, 'who', username, 'add');
-            }
+      /**
+       * Ouvre le modal d'attribution groupée
+       * @param {string} type - Type d'attribution ('volunteer', 'store', etc.)
+       * @param {string} groupName - Nom du groupe (magasin, type, etc.)
+       * @param {Array} ingredients - Liste des ingrédients concernés
+       */
+      openGroupAssignmentModal(type, groupName, ingredients) {
+        this.groupAssignmentModal = {
+          isOpen: true,
+          type: type,
+          value: '', // Réinitialiser la valeur
+          groupName: groupName,
+          isProcessing: false
+        };
+        
+        // Pré-remplir avec l'utilisateur actuel si c'est une attribution de bénévole
+        if (type === 'volunteer') {
+          const currentUser = localStorage.getItem('appwrite-user-name');
+          if (currentUser) {
+            this.groupAssignmentModal.value = currentUser;
           }
-
-          // Afficher un message de succès
-          console.log(`Vous avez été assigné à tous les ingrédients de ${storeName}`);
-
-        } catch (error) {
-          console.error('Erreur lors de l\'assignation groupée:', error);
-          this.handleAppwriteError(error);
         }
+        
+        // Préparer les ingrédients avec état de sélection
+        this.selectedIngredients = ingredients.map(ing => ({
+          ...ing,
+          selected: true // Tous cochés par défaut
+        }));
+        
+        // Initialiser les suggestions
+        this.filterSuggestions();
+      },
+
+      /**
+       * Ferme le modal d'attribution groupée
+       */
+      closeGroupAssignmentModal() {
+        this.groupAssignmentModal.isOpen = false;
+        setTimeout(() => {
+          this.resetGroupAssignmentData();
+        }, 300); // Attendre la fin de l'animation
+      },
+
+      /**
+       * Réinitialise les données du modal
+       */
+      resetGroupAssignmentData() {
+        this.groupAssignmentModal = {
+          isOpen: false,
+          type: '',
+          value: '',
+          groupName: '',
+          isProcessing: false
+        };
+        this.selectedIngredients = [];
+        this.filteredSuggestions = [];
+        this.showSuggestions = false;
+      },
+
+      /**
+       * Filtre les suggestions basées sur la saisie
+       */
+      filterSuggestions() {
+        const query = this.groupAssignmentModal.value.toLowerCase().trim();
+        const suggestions = this.assignmentSuggestions;
+        
+        if (!query) {
+          this.filteredSuggestions = suggestions.slice(0, 10); // Limiter à 10 suggestions
+        } else {
+          this.filteredSuggestions = suggestions
+            .filter(suggestion => suggestion.toLowerCase().includes(query))
+            .slice(0, 10);
+        }
+      },
+
+      /**
+       * Masque les suggestions (avec délai pour permettre le clic)
+       */
+      hideSuggestions() {
+        setTimeout(() => {
+          this.showSuggestions = false;
+        }, 200);
+      },
+
+      /**
+       * Sélectionne une suggestion
+       */
+      selectSuggestion(suggestion) {
+        this.groupAssignmentModal.value = suggestion;
+        this.showSuggestions = false;
+        this.filterSuggestions();
+      },
+
+      /**
+       * Efface la valeur d'attribution
+       */
+      clearAssignmentValue() {
+        this.groupAssignmentModal.value = '';
+        this.filterSuggestions();
+      },
+
+      /**
+       * Sélectionne tous les ingrédients
+       */
+      selectAllIngredients() {
+        this.selectedIngredients.forEach(ing => {
+          ing.selected = true;
+        });
+      },
+
+      /**
+       * Désélectionne tous les ingrédients
+       */
+      deselectAllIngredients() {
+        this.selectedIngredients.forEach(ing => {
+          ing.selected = false;
+        });
+      },
+
+      /**
+       * Gère la soumission du formulaire d'attribution groupée
+       */
+      async handleGroupAssignmentSubmit() {
+        if (!this.groupAssignmentModal.value.trim()) {
+          this.showErrorToast('Veuillez entrer une valeur à attribuer');
+          return;
+        }
+        
+        const selectedIngredients = this.selectedIngredients.filter(ing => ing.selected);
+        if (selectedIngredients.length === 0) {
+          this.showErrorToast('Veuillez sélectionner au moins un ingrédient');
+          return;
+        }
+        
+        this.groupAssignmentModal.isProcessing = true;
+        
+        try {
+          await this.processGroupAssignment(selectedIngredients);
+          this.showSuccessToast(
+            `Attribution réussie pour ${selectedIngredients.length} ingrédient(s)`
+          );
+          this.closeGroupAssignmentModal();
+        } catch (error) {
+          console.error('[Collaborative App] Erreur lors de l\'attribution groupée:', error);
+          this.showErrorToast(`Erreur lors de l'attribution: ${error.message}`);
+        } finally {
+          this.groupAssignmentModal.isProcessing = false;
+        }
+      },
+
+      /**
+       * Traite l'attribution groupée avec Promise.all
+       */
+      async processGroupAssignment(ingredients) {
+        const promises = ingredients.map(async (ingredient) => {
+          try {
+            if (this.groupAssignmentModal.type === 'volunteer') {
+              await this.updateArrayField(
+                ingredient.$id, 
+                'who', 
+                this.groupAssignmentModal.value.trim(), 
+                'add'
+              );
+            } else if (this.groupAssignmentModal.type === 'store') {
+              await this.updateArrayField(
+                ingredient.$id, 
+                'store', 
+                this.groupAssignmentModal.value.trim(), 
+                'add'
+              );
+            }
+            
+            console.log(`[Collaborative App] Attribution réussie pour ${ingredient.ingredientName}`);
+            return { success: true, ingredient: ingredient.ingredientName };
+          } catch (error) {
+            console.error(`[Collaborative App] Erreur pour ${ingredient.ingredientName}:`, error);
+            return { 
+              success: false, 
+              ingredient: ingredient.ingredientName, 
+              error: error.message 
+            };
+          }
+        });
+        
+        const results = await Promise.all(promises);
+        
+        // Analyser les résultats pour les erreurs individuelles
+        const failures = results.filter(result => !result.success);
+        if (failures.length > 0) {
+          const errorMessages = failures.map(f => `${f.ingredient}: ${f.error}`).join('\n');
+          throw new Error(
+            `${failures.length} attribution(s) ont échoué:\n${errorMessages}`
+          );
+        }
+        
+        return results;
       },
 
       // Méthode utilitaire pour formater les valeurs avec unités
@@ -1327,6 +1531,53 @@ export function createCollaborativeApp() {
         console.log(`[Collaborative App] Collecté ${this.availableStoresSuggestions.length} magasins pour les suggestions`);
       },
 
+      /**
+       * Collecte la liste des utilisateurs disponibles pour les suggestions
+       * depuis le localStorage, les ingrédients et les achats existants
+       */
+      collectAvailableUsers() {
+        const users = new Set();
+
+        // Ajouter l'utilisateur actuel depuis localStorage
+        const currentUser = localStorage.getItem('appwrite-user-name');
+        if (currentUser && currentUser.trim()) {
+          users.add(currentUser.trim());
+        }
+
+        // Collecter les utilisateurs depuis tous les ingrédients (champ who)
+        this.transformedIngredients.forEach(ingredient => {
+          if (ingredient.who && Array.isArray(ingredient.who)) {
+            ingredient.who.forEach(user => {
+              if (user && user.trim()) {
+                users.add(user.trim());
+              }
+            });
+          }
+        });
+
+        // Ajouter les utilisateurs depuis les achats existants
+        if (this.purchases) {
+          this.purchases.forEach(purchase => {
+            if (purchase.who && purchase.who.trim()) {
+              users.add(purchase.who.trim());
+            }
+          });
+        }
+
+        // Convertir en tableau et trier (utilisateur actuel en premier si disponible)
+        const usersArray = Array.from(users).sort();
+        if (currentUser && currentUser.trim()) {
+          const currentUserIndex = usersArray.indexOf(currentUser.trim());
+          if (currentUserIndex > 0) {
+            usersArray.splice(currentUserIndex, 1);
+            usersArray.unshift(currentUser.trim());
+          }
+        }
+
+        this.availableUsersSuggestions = usersArray;
+        console.log(`[Collaborative App] Collecté ${this.availableUsersSuggestions.length} utilisateurs pour les suggestions`);
+      },
+
       // === MÉTHODES DE STATUT ===
 
       toggleIngredientStatus(ingredient) {
@@ -1438,7 +1689,7 @@ export function createCollaborativeApp() {
 
       logCurrentState() {
         const authState = this.getAuthState();
-        
+
         console.log("[Collaborative App] État actuel:", {
           isLoading: this.isLoading,
           error: this.error,
