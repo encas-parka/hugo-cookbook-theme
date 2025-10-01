@@ -86,7 +86,7 @@ export const ModalMixin = {
    },
 
   methods: {
-    
+
 
     /**
      * Ouvre le modal unifié pour un ingrédient
