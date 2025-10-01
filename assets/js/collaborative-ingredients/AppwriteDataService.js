@@ -34,7 +34,7 @@ export class AppwriteDataService {
         price: purchase.price ? parseFloat(purchase.price.toString()) : null,
         notes: purchase.notes || ''
       };
-      
+
       try {
         const result = await database.createDocument(
           this.config.databaseId,
@@ -49,7 +49,7 @@ export class AppwriteDataService {
         throw new Error(`Erreur lors de la création de l'achat: ${error.message}`);
       }
     }
-    
+
     // Mettre à jour les achats existants
     for (const purchase of updatedPurchases) {
       const updateData = {
@@ -60,7 +60,7 @@ export class AppwriteDataService {
         price: purchase.price ? parseFloat(purchase.price.toString()) : null,
         notes: purchase.notes || ''
       };
-      
+
       try {
         const result = await database.updateDocument(
           this.config.databaseId,
@@ -94,7 +94,7 @@ export class AppwriteDataService {
       dateTime: s.dateTime,
       notes: s.notes
     }));
-    
+
     try {
       const result = await database.updateDocument(
         this.config.databaseId,
@@ -104,7 +104,7 @@ export class AppwriteDataService {
           stockReel: JSON.stringify(stockData)
         }
       );
-      
+
       console.log('[AppwriteDataService] Stock mis à jour:', result.$id);
       return result.$id;
     } catch (error) {
@@ -123,7 +123,7 @@ export class AppwriteDataService {
    */
   async saveVolunteers(volunteers, deletedVolunteers, ingredientId, database) {
     const activeVolunteers = volunteers.filter(v => !deletedVolunteers.has(v));
-    
+
     try {
       const result = await database.updateDocument(
         this.config.databaseId,
@@ -133,7 +133,7 @@ export class AppwriteDataService {
           who: activeVolunteers
         }
       );
-      
+
       console.log('[AppwriteDataService] Volontaires mis à jour:', result.$id);
       return result.$id;
     } catch (error) {
@@ -152,7 +152,7 @@ export class AppwriteDataService {
    */
   async saveStores(stores, deletedStores, ingredientId, database) {
     const activeStores = stores.filter(s => !deletedStores.has(s));
-    
+
     try {
       const result = await database.updateDocument(
         this.config.databaseId,
@@ -162,7 +162,7 @@ export class AppwriteDataService {
           store: activeStores
         }
       );
-      
+
       console.log('[AppwriteDataService] Magasins mis à jour:', result.$id);
       return result.$id;
     } catch (error) {
@@ -250,8 +250,8 @@ export class AppwriteDataService {
    * @returns {boolean} True si valide
    */
   validatePurchase(purchase) {
-    return purchase.quantity && 
-           purchase.unit && 
+    return purchase.quantity &&
+           purchase.unit &&
            purchase.quantity > 0;
   }
 
@@ -261,9 +261,9 @@ export class AppwriteDataService {
    * @returns {boolean} True si valide
    */
   validateStock(stock) {
-    return stock.quantity && 
-           stock.unit && 
-           stock.dateTime && 
+    return stock.quantity &&
+           stock.unit &&
+           stock.dateTime &&
            stock.quantity > 0;
   }
 
