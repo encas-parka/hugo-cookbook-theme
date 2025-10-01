@@ -11,7 +11,7 @@ import { unitsManager } from "./UnitsManager.js";
 import { IngredientCalculator } from "./services/IngredientCalculator.js";
 import { DataTransformer } from "./services/DataTransformer.js";
 import { SyncService } from "./services/SyncService.js";
-import { UnifiedModalManager } from "./unified-modal-manager.js";
+import { ModalMixin } from "./ModalMixin.js";
 import {
   getUserEmail,
   getUserName,
@@ -27,6 +27,9 @@ export function createCollaborativeApp() {
   const app = Vue.createApp({
     // L'application utilisera le contenu existant du div #collaborativeApp
     delimiters: ["[[", "]]"],
+
+    // Intégration du ModalMixin pour la gestion du modal unifié
+    mixins: [ModalMixin],
 
     // --- NOUVEAU composant pour rendre les VNodes ---
     components: {
@@ -87,22 +90,13 @@ export function createCollaborativeApp() {
         selectedStoreFilter: "",
         selectedPersonFilter: "",
 
-        // Tri
-
-
         // Sélection
         selectedIngredients: [],
         selectAllChecked: false,
 
         // Modals
-        showSnapshotsModal: false,
         editingIngredient: null,
 
-
-        snapshots: [],
-        isLoadingSnapshots: false,
-        isRestoring: null,
-        isDeleting: null,
 
 
 
@@ -160,13 +154,11 @@ export function createCollaborativeApp() {
         deletedVolunteers: new Set(), // Volontaires marqués pour suppression
         deletedStores: new Set(), // Magasins marqués pour suppression
 
-        // Actions et historique
-        isCreatingSnapshot: false,
+
 
         // Gestion des vues
-        currentView: 'table', // 'table', 'grouped', 'cards', 'compact'
-        groupingBy: 'store', // 'store' ou 'ingType'
-        tableGrouping: ['store'], // Pour TanStack Table
+        currentView: 'grouped', // 'table', 'grouped', 'cards', 'compact'
+        tableGrouping: ['storesDisplay'], // Pour TanStack Table
 
         // Gestion de l'authentification
         showAuthModal: false,
@@ -176,9 +168,7 @@ export function createCollaborativeApp() {
         authModalShown: false,
         isAuthenticated: false, // État synchrone pour les templates
 
-        // Propriétés pour le modal unifié
-        showUnifiedModal: false,
-        activeModalTab: 'recipes',
+
         deleteConfirmation: {
           show: false,
           message: '',
@@ -187,12 +177,6 @@ export function createCollaborativeApp() {
           progress: 0,
           progressInterval: null
         },
-        hasUnsavedChanges: false,
-        isSaving: false,
-        editingPurchases: [],
-        editingStockEntries: [],
-        editingVolunteers: [],
-        editingStores: [],
         newPurchase: {
           quantity: null,
           unit: '',
@@ -209,8 +193,6 @@ export function createCollaborativeApp() {
         },
         newVolunteer: '',
         newStore: '',
-        deletedVolunteers: new Set(),
-        deletedStores: new Set(),
 
         // Système de toasts génériques
         toasts: []
@@ -448,7 +430,7 @@ export function createCollaborativeApp() {
               const ingredient = row.original;
               return h('div', {
                 class: 'editable-cell-simple d-flex align-items-center justify-content-between w-100',
-                onClick: () => this.handleOpenUnifiedModal(ingredient, 'purchases')
+                onClick: () => this.openUnifiedModal(ingredient, 'purchases')
               }, [
                 // Contenu principal
                 h('div', { class: 'flex-grow-1' }, [
@@ -479,7 +461,7 @@ export function createCollaborativeApp() {
               const ingredient = row.original;
               return h('div', {
                 class: 'editable-cell-simple d-flex align-items-center justify-content-between w-100 h-100',
-                onClick: () => this.handleOpenUnifiedModal(ingredient, 'stores')
+                onClick: () => this.openUnifiedModal(ingredient, 'stores')
               }, [
                 // Contenu principal
                 h('div', { class: 'flex-grow-1' }, [
@@ -509,7 +491,7 @@ export function createCollaborativeApp() {
               const ingredient = row.original;
               return h('div', {
                 class: 'editable-cell-simple d-flex align-items-center justify-content-between w-100',
-                onClick: () => this.handleOpenUnifiedModal(ingredient, 'volunteers')
+                onClick: () => this.openUnifiedModal(ingredient, 'volunteers')
               }, [
                 // Contenu principal
                 h('div', { class: 'flex-grow-1' }, [
@@ -541,7 +523,7 @@ export function createCollaborativeApp() {
               return h('div', { class: 'd-flex gap-1 flex-wrap' }, [
                 h('button', {
                   class: 'btn btn-sm btn-outline-primary btn-icon me-1',
-                  onClick: () => this.handleOpenUnifiedModal(ingredient, 'recipes'),
+                  onClick: () => this.openUnifiedModal(ingredient, 'recipes'),
                   title: 'Gérer l\'ingrédient'
                 }, [h('i', { class: 'fas fa-edit' })])
               ]);
@@ -600,7 +582,7 @@ export function createCollaborativeApp() {
         this.authCheckInProgress = true;
         try {
           const isAuthenticated = await isAuthenticatedAppwrite();
-          console.log("[Collaborative App] Authentification appwrite:", isAuthenticated);
+          // console.log("[Collaborative App] Authentification appwrite:", isAuthenticated);
           this.isAuthenticated = isAuthenticated; // Mettre à jour l'état synchrone
 
           if (!isAuthenticated && !this.authModalShown) {
@@ -647,7 +629,7 @@ export function createCollaborativeApp() {
 
       async initializeApp() {
         try {
-          console.log("[Collaborative App] Initialisation...");
+          // console.log("[Collaborative App] Initialisation...");
 
           // 1. Vérifier l'authentification
           await this.checkAuthentication();
@@ -668,8 +650,8 @@ export function createCollaborativeApp() {
           // 5. Initialiser le service de synchronisation
           this.syncService = new SyncService(this.database, this.listId, APPWRITE_CONFIG);
 
-          // 6. Initialiser le gestionnaire de modal unifié
-          this.unifiedModalManager = new UnifiedModalManager(this, APPWRITE_CONFIG);
+          // 6. Initialiser le service modal pour la logique métier
+          this.initModalService(APPWRITE_CONFIG);
 
           // 7. Charger les assignments de couleurs depuis localStorage
           this.loadColorAssignments();
@@ -713,7 +695,7 @@ export function createCollaborativeApp() {
             // Transformer les données pour l'UI
             this.transformDataForUI();
 
-            console.log("[Collaborative App] Données affichées depuis le cache");
+            // console.log("[Collaborative App] Données affichées depuis le cache");
 
             // Lancer la synchronisation en arrière-plan sans bloquer l'UI
             this.syncChangesInBackground().catch(error => {
@@ -1079,7 +1061,7 @@ export function createCollaborativeApp() {
       },
 
       handleRealtimeUpdate(response) {
-        console.log("[Collaborative App] Mise à jour temps réel reçue:", response);
+        // console.log("[Collaborative App] Mise à jour temps réel reçue:", response);
 
 
         // Appliquer le changement au cache local via le service de synchronisation
@@ -1374,118 +1356,6 @@ export function createCollaborativeApp() {
       // === MÉTHODES D'ÉDITION ===
 
 
-
-      // Méthode pour ouvrir le modal unifié
-      handleOpenUnifiedModal(ingredient, activeTab = 'recipes') {
-        this.openUnifiedModal(ingredient, activeTab);
-      },
-
-      // Méthode principale pour ouvrir le modal unifié
-      openUnifiedModal(ingredient, activeTab = 'recipes') {
-        this.editingIngredient = ingredient;
-        this.showUnifiedModal = true;
-        this.activeModalTab = activeTab;
-        this.loadIngredientData();
-        this.resetForms();
-        this.hasUnsavedChanges = false;
-
-        // Forcer l'activation de l'onglet après un court délai pour laisser Vue s'initialiser
-        this.$nextTick(() => {
-          const tabElement = document.querySelector(`[data-bs-target="#${activeTab}"]`);
-          if (tabElement) {
-            // Simuler un clic sur l'onglet
-            tabElement.click();
-          }
-        });
-      },
-
-      // === MÉTHODES DU MODAL UNIFIÉ ===
-      closeUnifiedModal() {
-        if (this.hasUnsavedChanges) {
-          if (!confirm('Des modifications n\'ont pas été enregistrées. Voulez-vous vraiment fermer ?')) {
-            return;
-          }
-        }
-        this.showUnifiedModal = false;
-        this.editingIngredient = null;
-        this.clearData();
-      },
-
-      loadIngredientData() {
-        // Achats
-        this.editingPurchases = (this.editingIngredient.calculations?.purchases || []).map(p => ({
-          ...p,
-          isEditing: false,
-          isDirty: false
-        }));
-
-        // Stock (toujours au format JSON string)
-        this.editingStockEntries = [];
-        if (this.editingIngredient.stockReel) {
-          let parsedStockReel;
-
-          try {
-            parsedStockReel = JSON.parse(this.editingIngredient.stockReel);
-          } catch (e) {
-            console.error('Erreur parsing JSON stockReel:', e);
-            parsedStockReel = [];
-          }
-
-          if (Array.isArray(parsedStockReel)) {
-            this.editingStockEntries = parsedStockReel.map(s => ({
-              ...s,
-              isEditing: false,
-              isDirty: false
-            }));
-          }
-        }
-
-        // Volontaires
-        this.editingVolunteers = [...(this.editingIngredient.who || [])];
-
-        // Magasins
-        this.editingStores = [...(this.editingIngredient.store || [])];
-      },
-
-      resetForms() {
-        this.newPurchase = {
-          quantity: null,
-          unit: '',
-          store: '',
-          who: '',
-          price: null,
-          notes: ''
-        };
-
-        this.newStock = {
-          quantity: null,
-          unit: '',
-          dateTime: new Date().toISOString().slice(0, 16),
-          notes: ''
-        };
-
-        this.newVolunteer = '';
-        this.newStore = '';
-      },
-
-      clearData() {
-        this.editingPurchases = [];
-        this.editingStockEntries = [];
-        this.editingVolunteers = [];
-        this.editingStores = [];
-        this.deletedVolunteers.clear();
-        this.deletedStores.clear();
-        this.resetForms();
-      },
-
-      markAsDirty() {
-        this.hasUnsavedChanges = true;
-      },
-
-
-
-
-
       async submitPurchaseForm() {
         if (!this.isPurchaseFormValid) return;
 
@@ -1572,110 +1442,8 @@ export function createCollaborativeApp() {
         });
       },
 
-      // Méthodes pour les snapshots
-      async refreshSnapshots() {
-        this.isLoadingSnapshots = true;
-        try {
-          // TODO: Implémenter le chargement des snapshots depuis Appwrite
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          this.snapshots = [];
-        } catch (error) {
-          console.error(
-            "[Collaborative App] Erreur lors du chargement des snapshots:",
-            error,
-          );
-        } finally {
-          this.isLoadingSnapshots = false;
-        }
-      },
-
-      previewSnapshot(snapshot) {
-        console.log("[Collaborative App] Prévisualiser snapshot:", snapshot);
-      },
-
-      async restoreSnapshot(snapshot) {
-        if (
-          !confirm(
-            `Êtes-vous sûr de vouloir restaurer la sauvegarde du ${this.formatDate(snapshot.$createdAt)} ?`,
-          )
-        ) {
-          return;
-        }
-
-        this.isRestoring = snapshot.$id;
-        try {
-          // TODO: Implémenter la restauration
-          console.log("[Collaborative App] Restaurer snapshot:", snapshot);
-        } catch (error) {
-          console.error(
-            "[Collaborative App] Erreur lors de la restauration:",
-            error,
-          );
-          alert("Erreur lors de la restauration. Veuillez réessayer.");
-        } finally {
-          this.isRestoring = null;
-        }
-      },
-
-      async deleteSnapshot(snapshot) {
-        if (
-          !confirm(
-            `Êtes-vous sûr de vouloir supprimer définitivement la sauvegarde du ${this.formatDate(snapshot.$createdAt)} ?`,
-          )
-        ) {
-          return;
-        }
-
-        this.isDeleting = snapshot.$id;
-        try {
-          // TODO: Implémenter la suppression
-          console.log("[Collaborative App] Supprimer snapshot:", snapshot);
-          await this.refreshSnapshots();
-        } catch (error) {
-          console.error(
-            "[Collaborative App] Erreur lors de la suppression:",
-            error,
-          );
-          alert("Erreur lors de la suppression. Veuillez réessayer.");
-        } finally {
-          this.isDeleting = null;
-        }
-      },
-
-      getSnapshotIngredientCount(snapshot) {
-        // TODO: Calculer le nombre d'ingrédients dans le snapshot
-        return "0";
-      },
 
       // === MÉTHODES POUR LE MODAL UNIFIÉ ===
-
-      // Gestion des volontaires
-      isVolunteerDeleted(volunteer) {
-        return this.deletedVolunteers.has(volunteer);
-      },
-
-      toggleVolunteer(volunteer) {
-        if (this.deletedVolunteers.has(volunteer)) {
-          this.deletedVolunteers.delete(volunteer);
-        } else {
-          this.deletedVolunteers.add(volunteer);
-        }
-        this.markAsDirty();
-      },
-
-      // Gestion des magasins
-      isStoreDeleted(store) {
-        return this.deletedStores.has(store);
-      },
-
-      toggleStore(store) {
-        if (this.deletedStores.has(store)) {
-          this.deletedStores.delete(store);
-        } else {
-          this.deletedStores.add(store);
-        }
-        this.markAsDirty();
-      },
 
       collectAvailableStores() {
         const stores = new Set();
@@ -1716,25 +1484,7 @@ export function createCollaborativeApp() {
         // TODO: Implémenter le changement de statut
       },
 
-      // === MÉTHODES DE SAUVEGARDE ===
 
-      async createSnapshot() {
-        console.log("[Collaborative App] Création d'un snapshot...");
-        this.isCreatingSnapshot = true;
-
-        try {
-          // TODO: Implémenter la création de snapshot
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          console.log("[Collaborative App] Snapshot créé");
-        } catch (error) {
-          console.error(
-            "[Collaborative App] Erreur lors de la création du snapshot:",
-            error,
-          );
-        } finally {
-          this.isCreatingSnapshot = false;
-        }
-      },
 
       // === MÉTHODES UTILITAIRES ===
 
