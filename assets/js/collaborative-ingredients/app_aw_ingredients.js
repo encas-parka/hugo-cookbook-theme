@@ -44,6 +44,7 @@ import { IngredientCalculator } from "./services/IngredientCalculator.js";
 import { DataTransformer } from "./services/DataTransformer.js";
 import { SyncService } from "./services/SyncService.js";
 import { ModalMixin } from "./ModalMixin.js";
+import { AuthManager } from "./services/AuthManager.js";
 import {
   getUserEmail,
   getUserName,
@@ -146,10 +147,12 @@ export function createCollaborativeApp() {
         currentView: 'grouped', // 'table', 'grouped', 'cards', 'compact'
         tableGrouping: ['storesDisplay'], // Pour TanStack Table
 
-        // Gestion de l'authentification
+        // Service d'authentification
+        authManager: null, // Sera initialisé dans initializeApp()
+        
+        // État UI pour l'authentification (reste dans Vue)
         showAuthModal: false,
         showAuthToast: false,
-        authCheckInProgress: false,
         allowAnonymousView: true,
         authModalShown: false,
         isAuthenticated: false, // État synchrone pour les templates
@@ -416,11 +419,14 @@ export function createCollaborativeApp() {
       // === MÉTHODES DE GESTION DE L'AUTHENTIFICATION ===
 
       async checkAuthentication() {
-        this.authCheckInProgress = true;
+        if (!this.authManager) {
+          console.error('[Collaborative App] AuthManager non initialisé');
+          return;
+        }
+
         try {
-          const isAuthenticated = await isAuthenticatedAppwrite();
-          // console.log("[Collaborative App] Authentification appwrite:", isAuthenticated);
-          this.isAuthenticated = isAuthenticated; // Mettre à jour l'état synchrone
+          const isAuthenticated = await this.authManager.check();
+          this.isAuthenticated = isAuthenticated; // Mettre à jour l'état synchrone pour les templates
 
           if (!isAuthenticated && !this.authModalShown) {
             this.showAuthModal = true;
@@ -430,8 +436,6 @@ export function createCollaborativeApp() {
         } catch (error) {
           console.error('[Collaborative App] Erreur lors de la vérification de l\'authentification:', error);
           this.isAuthenticated = false; // Assurer l'état en cas d'erreur
-        } finally {
-          this.authCheckInProgress = false;
         }
       },
 
@@ -455,11 +459,19 @@ export function createCollaborativeApp() {
       },
 
       requireAuthForAction(actionCallback) {
-        if (this.isAuthenticated) {
-          actionCallback();
-        } else {
+        if (!this.authManager) {
+          console.error('[Collaborative App] AuthManager non initialisé');
           this.showAuthToastForFeature('cette action');
+          return;
         }
+
+        if (this.authManager.requireAuth(actionCallback)) {
+          // Action exécutée avec succès
+          return;
+        }
+        
+        // Non authentifié - afficher le toast
+        this.showAuthToastForFeature('cette action');
       },
 
       // === MÉTHODES D'INITIALISATION ===
@@ -468,38 +480,41 @@ export function createCollaborativeApp() {
         try {
           // console.log("[Collaborative App] Initialisation...");
 
-          // 1. Vérifier l'authentification
+          // 1. Initialiser le service d'authentification
+          this.authManager = new AuthManager(isAuthenticatedAppwrite);
+
+          // 2. Vérifier l'authentification
           await this.checkAuthentication();
 
-          // 2. Charger la préférence de vue
+          // 3. Charger la préférence de vue
           this.loadPreferredView();
 
-          // 3. Récupérer l'ID de la liste depuis l'URL
+          // 4. Récupérer l'ID de la liste depuis l'URL
           const urlParams = new URLSearchParams(window.location.search);
           this.listId = urlParams.get("listId");
           if (!this.listId) {
             throw new Error("ID de liste manquant dans l'URL (?listId=...).");
           }
 
-          // 4. Obtenir l'instance de la base de données depuis notre client central
+          // 5. Obtenir l'instance de la base de données depuis notre client central
           this.database = await getDatabases();
 
-          // 5. Initialiser le service de synchronisation
+          // 6. Initialiser le service de synchronisation
           this.syncService = new SyncService(this.database, this.listId, APPWRITE_CONFIG);
 
-          // 6. Initialiser le service modal pour la logique métier
+          // 7. Initialiser le service modal pour la logique métier
           this.initModalService(APPWRITE_CONFIG);
 
-          // 7. Initialiser le ColorManager
+          // 8. Initialiser le ColorManager
           this.colorManager = new ColorManager(this.listId);
 
-          // 8. Charger les données avec la stratégie de cache
+          // 9. Charger les données avec la stratégie de cache
           await this.loadInitialDataWithCache();
 
-          // 7. Configurer la synchronisation temps réel
+          // 10. Configurer la synchronisation temps réel
           this.setupRealtime();
 
-          // 8. Démarrer le monitoring de la connexion temps réel
+          // 11. Démarrer le monitoring de la connexion temps réel
           // this.startConnectionMonitoring();
 
           this.isLoading = false;
@@ -1409,15 +1424,32 @@ export function createCollaborativeApp() {
         return processedArray;
       },
 
+      // === MÉTHODES UTILITAIRES AUTH ===
+
+      getAuthState() {
+        return this.authManager ? this.authManager.getState() : null;
+      },
+
+      getAuthDebugInfo() {
+        return this.authManager ? this.authManager.getDebugInfo() : null;
+      },
+
       // === MÉTHODES DE DEBUG ===
 
       logCurrentState() {
+        const authState = this.getAuthState();
+        
         console.log("[Collaborative App] État actuel:", {
           isLoading: this.isLoading,
           error: this.error,
           ingredients: this.ingredients.length,
           purchases: this.purchases.documents?.length || 0,
           transformed: this.transformedIngredients.length,
+          authentication: {
+            isAuthenticated: this.isAuthenticated,
+            authManagerInitialized: !!this.authManager,
+            authState: authState
+          },
           filters: {
             search: this.searchQuery,
             type: this.selectedTypeFilter,

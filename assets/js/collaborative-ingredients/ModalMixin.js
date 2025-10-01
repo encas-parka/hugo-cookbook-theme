@@ -83,11 +83,6 @@ export const ModalMixin = {
       return this.modalState.editingIngredient.calculations.balancePerUnit.map(item => item.unit);
     },
 
-    availableStoresSuggestions() {
-      // Accès direct car le mixin fusionne avec l'app
-      return this.availableStoresSuggestions || [];
-    },
-
    },
 
   methods: {
@@ -485,6 +480,10 @@ export const ModalMixin = {
       }
     },
 
+    availableStoresSuggestions() {
+      // Accès direct car le mixin fusionne avec l'app
+      return this.availableStoresSuggestions || [];
+    },
   },
 
   beforeUnmount() {

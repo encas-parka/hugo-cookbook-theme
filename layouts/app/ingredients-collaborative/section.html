@@ -70,6 +70,12 @@ css.Sass | resources.Minify | fingerprint }}
 />
 
 
+{{/*
+{{ if hugo.IsDevelopment }}
+{{ $testAuthManager := resources.Get "js/collaborative-ingredients/test-authmanager.js" | js.Build (dict "targetPath" "assets-bundled/test-authmanager.js" "minify" true) | fingerprint }}
+<script src="{{ $testAuthManager.RelPermalink }}" defer></script>
+{{ end }}
+*/}}
 <!-- Scripts Appwrite (nécessaires pour l'application collaborative) -->
 <script src="https://cdn.jsdelivr.net/npm/appwrite@18.2.0"></script>
 
