@@ -1,8 +1,38 @@
 /**
- * app.js
+ * app_aw_ingredients.js
  * Application Vue.js collaborative pour la gestion des listes d'ingrédients
- * Utilise Appwrite pour la persistance et la synchronisation temps réel
- * Architecture refactorisée avec services centralisés et composants stupides
+ *
+ * @description
+ * Application principale pour la gestion collaborative d'ingrédients d'événements.
+ * Architecture basée sur des services spécialisés et une synchronisation temps réel
+ * via Appwrite avec stratégie de cache local pour performances optimales.
+ *
+ * @flow
+ * 1. Initialisation → Authentification Appwrite → Chargement données (cache + Appwrite)
+ * 2. Transformation → IngredientCalculator → DataTransformer → UI
+ * 3. Synchronisation → SyncService → Realtime updates → Cache local
+ * 4. Interactions → ModalMixin → ColorManager → Toasts
+ *
+ * @services
+ * - IngredientCalculator: Calculs d'équilibre besoins vs achats
+ * - DataTransformer: Formatage des données pour l'UI
+ * - SyncService: Synchronisation différentielle cache ↔ Appwrite
+ * - UnitsManager: Gestion des conversions d'unités
+ * - ColorManager: Attribution de couleurs pastel (volontaires/magasins)
+ * - TableColumnsConfig: Configuration des colonnes TanStack Table
+ * - ModalMixin: Gestion unifiée des modaux
+ *
+ * @data-flow
+ * Appwrite Raw Data → IngredientCalculator → DataTransformer → Vue Components (UI)
+ *                 ↑                                              ↓
+ *          Realtime Updates ←←←←←←←←←←←← User Interactions →→ Appwrite
+ *
+ * @dependencies
+ * - Vue.js 3 (Options API)
+ * - TanStack Table (affichage tabulaire)
+ * - Appwrite Client SDK (authentification + base de données)
+ * - appwrite-client.js (client centralisé Appwrite)
+ *
  */
 
 
@@ -104,7 +134,7 @@ export function createCollaborativeApp() {
 
 
         // Système de couleurs pastel pour volunteers et stores
-  
+
 
         // Données pour la gestion des suppressions dans le modal unifié
         deletedVolunteers: new Set(), // Volontaires marqués pour suppression
@@ -370,9 +400,6 @@ export function createCollaborativeApp() {
 
     // Watcher pour synchroniser le regroupement
     watch: {
-      groupingBy(newGroupingBy) {
-        this.tableGrouping = [newGroupingBy];
-      },
 
       tableGrouping(newTableGrouping) {
         if (newTableGrouping[0] !== this.groupingBy) {
@@ -465,7 +492,7 @@ export function createCollaborativeApp() {
 
           // 7. Initialiser le ColorManager
           this.colorManager = new ColorManager(this.listId);
-          
+
           // 8. Charger les données avec la stratégie de cache
           await this.loadInitialDataWithCache();
 

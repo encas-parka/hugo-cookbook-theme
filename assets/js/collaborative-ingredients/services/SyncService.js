@@ -11,15 +11,15 @@ export class SyncService {
     this.database = database;
     this.listId = listId;
     this.appwriteConfig = appwriteConfig;
-    
+
     if (!this.appwriteConfig) {
       console.error('[SyncService] APPWRITE_CONFIG non fourni');
       throw new Error('Configuration Appwrite manquante');
     }
-    
+
     this.dbId = this.appwriteConfig.databaseId;
     this.collections = this.appwriteConfig.collections;
-    
+
     if (!this.collections) {
       console.error('[SyncService] Collections non définies dans la configuration');
       throw new Error('Configuration des collections manquante');
@@ -30,25 +30,19 @@ export class SyncService {
    * Étape 1: Chargement instantané depuis le cache local
    */
   async loadFromCache() {
-    console.log('[SyncService] Chargement depuis le cache local...');
-    
+
     const cachedData = localStorageService.loadAllData(this.listId);
-    
+
     if (cachedData.lastSyncTimestamp) {
-      console.log('[SyncService] Données trouvées en cache', {
-        hasEvent: !!cachedData.event,
-        ingredientsCount: cachedData.ingredients.length,
-        purchasesCount: cachedData.purchases.length,
-        lastSync: cachedData.lastSyncTimestamp
-      });
-      
+    console.log('[SyncService] Chargement depuis le cache local...');
+
       return {
         success: true,
         data: cachedData,
         fromCache: true
       };
     }
-    
+
     console.log('[SyncService] Aucune donnée en cache - première visite');
     return {
       success: false,
@@ -62,25 +56,25 @@ export class SyncService {
    */
   async syncChanges() {
     console.log('[SyncService] Synchronisation des changements...');
-    
+
     try {
       const lastSyncTimestamp = localStorageService.getLastSyncTimestamp(this.listId);
       const isFirstVisit = !lastSyncTimestamp;
-      
+
       const syncPromises = [
         this._syncCollection('events', this.listId, lastSyncTimestamp, isFirstVisit),
         this._syncCollection('ingredients', 'ingredientLists', lastSyncTimestamp, isFirstVisit),
         this._syncCollection('purchases', 'list', lastSyncTimestamp, isFirstVisit)
       ];
-      
+
       const [eventSync, ingredientsSync, purchasesSync] = await Promise.all(syncPromises);
-      
+
       // Récupérer les données complètes après synchronisation
       const completeData = await this._loadCompleteData();
-      
+
       // Mettre à jour le cache
       localStorageService.saveAllData(this.listId, completeData);
-      
+
       return {
         success: true,
         data: completeData,
@@ -91,7 +85,7 @@ export class SyncService {
         },
         isFirstVisit
       };
-      
+
     } catch (error) {
       console.error('[SyncService] Erreur lors de la synchronisation:', error);
       throw error;
@@ -105,40 +99,40 @@ export class SyncService {
     try {
       const collectionId = this.collections[collectionName];
       const queries = [];
-      
+
       // Ajouter la requête de relation
       if (collectionName === 'events') {
         queries.push(Appwrite.Query.equal('$id', this.listId));
       } else {
         queries.push(Appwrite.Query.equal(relationField, this.listId));
       }
-      
+
       // Ajouter le filtre temporel si ce n'est pas la première visite
       if (!isFirstVisit && lastSyncTimestamp) {
         queries.push(Appwrite.Query.greaterThan('$updatedAt', lastSyncTimestamp.toISOString()));
       }
-      
+
       // Augmenter la limite pour les collections avec beaucoup de documents
       if (collectionName === 'purchases') {
         queries.push(Appwrite.Query.limit(2000));
       } else if (collectionName === 'ingredients') {
         queries.push(Appwrite.Query.limit(800));
       }
-      
+
       const response = await this.database.listDocuments(this.dbId, collectionId, queries);
-      
-      console.log(`[SyncService] Synchronisation ${collectionName}:`, {
-        documentsCount: response.documents.length,
-        isFirstVisit,
-        hasTimeFilter: !isFirstVisit && !!lastSyncTimestamp
-      });
-      
+
+      // console.log(`[SyncService] Synchronisation ${collectionName}:`, {
+      //   documentsCount: response.documents.length,
+      //   isFirstVisit,
+      //   hasTimeFilter: !isFirstVisit && !!lastSyncTimestamp
+      // });
+
       return {
         success: true,
         changes: response.documents,
         collection: collectionName
       };
-      
+
     } catch (error) {
       console.error(`[SyncService] Erreur de synchronisation pour ${collectionName}:`, error);
       return {
@@ -157,7 +151,7 @@ export class SyncService {
     const db = this.database;
     const dbId = this.dbId;
     const collections = this.collections;
-    
+
     const [eventResponse, ingredientsResponse, purchasesResponse] = await Promise.all([
       db.getDocument(dbId, collections.events, this.listId),
       db.listDocuments(dbId, collections.ingredients, [
@@ -169,7 +163,7 @@ export class SyncService {
         Appwrite.Query.limit(2000),
       ]),
     ]);
-    
+
     return {
       event: eventResponse,
       ingredients: ingredientsResponse.documents,
@@ -182,14 +176,14 @@ export class SyncService {
    */
   applyRealtimeChange(payload) {
     console.log('[SyncService] Application du changement temps réel:', payload);
-    
+
     const { collection, operation, document } = this._parseRealtimePayload(payload);
-    
+
     if (!collection || !operation) {
       console.warn('[SyncService] Payload temps réel invalide:', payload);
       return false;
     }
-    
+
     try {
       switch (operation) {
         case 'create':
@@ -203,9 +197,9 @@ export class SyncService {
           console.warn(`[SyncService] Opération non gérée: ${operation}`);
           return false;
       }
-      
+
       return true;
-      
+
     } catch (error) {
       console.error('[SyncService] Erreur lors de l\'application du changement temps réel:', error);
       return false;
@@ -217,20 +211,20 @@ export class SyncService {
    */
   _handleDocumentUpdate(collectionName, document) {
     const dataType = this._getDataTypeForCollection(collectionName);
-    
+
     if (!dataType) return false;
-    
+
     // Vérifier si le document appartient bien à notre liste
     if (!this._documentBelongsToList(collectionName, document)) {
       return false;
     }
-    
+
     const success = localStorageService.updateDocument(this.listId, dataType, document.$id, document);
-    
+
     if (success) {
       console.log(`[SyncService] Document ${dataType} mis à jour dans le cache:`, document.$id);
     }
-    
+
     return success;
   }
 
@@ -239,15 +233,15 @@ export class SyncService {
    */
   _handleDocumentDelete(collectionName, document) {
     const dataType = this._getDataTypeForCollection(collectionName);
-    
+
     if (!dataType) return false;
-    
+
     const success = localStorageService.removeDocument(this.listId, dataType, document.$id);
-    
+
     if (success) {
       console.log(`[SyncService] Document ${dataType} supprimé du cache:`, document.$id);
     }
-    
+
     return success;
   }
 
@@ -276,7 +270,7 @@ export class SyncService {
       'ingredients': 'ingredients',
       'purchases': 'purchases'
     };
-    
+
     return mapping[collectionName];
   }
 
@@ -286,27 +280,27 @@ export class SyncService {
   _parseRealtimePayload(payload) {
     // Extraire les informations du payload Appwrite
     const events = payload.events || [];
-    
+
     // Trouver un événement de base de données
     const dataEvent = events.find(event => {
       return event && typeof event === 'string' && event.startsWith('databases.');
     });
-    
+
     if (!dataEvent) {
       return { collection: null, operation: null, document: null };
     }
-    
+
     // Parser le channel pour obtenir la collection et l'opération
     const channelParts = dataEvent.split('.');
     const collectionId = channelParts[3]; // databases.{dbId}.collections.{collectionId}.documents
     const operation = channelParts[6]; // L'opération est à l'index 6
-    
+
     // Trouver le nom de la collection
     const collectionName = this._getCollectionNameById(collectionId);
-    
+
     // Extraire le document
     const document = payload.payload || null;
-    
+
     return {
       collection: collectionName,
       operation: operation,
@@ -331,11 +325,11 @@ export class SyncService {
    */
   async forceFullSync() {
     console.log('[SyncService] Forçage d\'une synchronisation complète...');
-    
+
     // Effacer le timestamp pour forcer un chargement complet
     const key = localStorageService._getStorageKey(this.listId, 'lastSyncTimestamp');
     localStorage.removeItem(key);
-    
+
     // Relancer la synchronisation
     return await this.syncChanges();
   }
@@ -346,7 +340,7 @@ export class SyncService {
   getSyncStats() {
     const cachedData = localStorageService.loadAllData(this.listId);
     const storageUsage = localStorageService.getStorageUsage();
-    
+
     return {
       hasCachedData: localStorageService.hasData(this.listId),
       lastSyncTimestamp: cachedData.lastSyncTimestamp,

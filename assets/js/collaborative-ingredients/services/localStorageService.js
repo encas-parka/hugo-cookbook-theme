@@ -24,10 +24,10 @@ export class LocalStorageService {
       const key = this._getStorageKey(listId, 'all');
       const serializedData = JSON.stringify(data);
       localStorage.setItem(key, serializedData);
-      
+
       // Mettre à jour le timestamp de synchronisation
       this.updateLastSyncTimestamp(listId);
-      
+
       console.log(`[LocalStorage] Données sauvegardées: ${key}`, {
         event: !!data.event,
         ingredientsCount: data.ingredients?.length || 0,
@@ -49,7 +49,7 @@ export class LocalStorageService {
     try {
       const key = this._getStorageKey(listId, 'all');
       const serializedData = localStorage.getItem(key);
-      
+
       if (!serializedData) {
         return {
           event: null,
@@ -61,13 +61,13 @@ export class LocalStorageService {
 
       const data = JSON.parse(serializedData);
       const lastSyncTimestamp = this.getLastSyncTimestamp(listId);
-      
+
       console.log(`[LocalStorage] Données chargées: ${key}`, {
         event: !!data.event,
         ingredientsCount: data.ingredients?.length || 0,
         purchasesCount: data.purchases?.length || 0
       });
-      
+
       return {
         ...data,
         lastSyncTimestamp
@@ -90,7 +90,7 @@ export class LocalStorageService {
     const timestamp = new Date().toISOString();
     const key = this._getStorageKey(listId, 'lastSyncTimestamp');
     localStorage.setItem(key, timestamp);
-    console.log(`[LocalStorage] Timestamp mis à jour: ${key}`, timestamp);
+    // console.log(`[LocalStorage] Timestamp mis à jour: ${key}`, timestamp);
   }
 
   /**
@@ -158,7 +158,7 @@ export class LocalStorageService {
     if (!data || !Array.isArray(data)) return false;
 
     const filteredData = data.filter(doc => doc.$id !== documentId);
-    
+
     if (filteredData.length !== data.length) {
       allData[dataType] = filteredData;
       this.saveAllData(listId, allData);
@@ -173,11 +173,11 @@ export class LocalStorageService {
    */
   _handleStorageQuotaExceeded(listId) {
     console.warn('[LocalStorage] Quota dépassé, nettoyage des anciennes données...');
-    
+
     // Effacer les données les plus anciennes
     const allKeys = Object.keys(localStorage);
     const listKeys = allKeys.filter(key => key.startsWith(this.storagePrefix));
-    
+
     // Trier par date de modification (approximative)
     listKeys.sort((a, b) => {
       const aData = localStorage.getItem(a);
@@ -189,7 +189,7 @@ export class LocalStorageService {
     // Supprimer les 25% les plus anciennes
     const keysToDelete = listKeys.slice(Math.floor(listKeys.length * 0.75));
     keysToDelete.forEach(key => localStorage.removeItem(key));
-    
+
     console.log(`[LocalStorage] ${keysToDelete.length} anciennes entrées supprimées`);
   }
 
@@ -199,7 +199,7 @@ export class LocalStorageService {
   getStorageUsage() {
     const allKeys = Object.keys(localStorage);
     const collabKeys = allKeys.filter(key => key.startsWith(this.storagePrefix));
-    
+
     let totalSize = 0;
     collabKeys.forEach(key => {
       totalSize += localStorage.getItem(key).length;
@@ -218,9 +218,9 @@ export class LocalStorageService {
   clearAllCollaborativeData() {
     const allKeys = Object.keys(localStorage);
     const collabKeys = allKeys.filter(key => key.startsWith(this.storagePrefix));
-    
+
     collabKeys.forEach(key => localStorage.removeItem(key));
-    
+
     console.log(`[LocalStorage] Toutes les données collaboratives ont été effacées (${collabKeys.length} entrées)`);
   }
 }
