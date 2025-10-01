@@ -43,6 +43,7 @@ import { TableColumnsConfig } from "./TableColumnsConfig.js";
 import { IngredientCalculator } from "./services/IngredientCalculator.js";
 import { DataTransformer } from "./services/DataTransformer.js";
 import { SyncService } from "./services/SyncService.js";
+import { AppwriteDataService } from "./AppwriteDataService.js";
 import { ModalMixin } from "./ModalMixin.js";
 import { AuthManager } from "./services/AuthManager.js";
 import {
@@ -522,8 +523,8 @@ export function createCollaborativeApp() {
           // 6. Initialiser le service de synchronisation
           this.syncService = new SyncService(this.database, this.listId, APPWRITE_CONFIG);
 
-          // 7. Initialiser le service modal pour la logique métier
-          this.initModalService(APPWRITE_CONFIG);
+          // 7. Initialiser le service de données Appwrite
+          this.appwriteDataService = new AppwriteDataService(APPWRITE_CONFIG);
 
           // 8. Initialiser le ColorManager
           this.colorManager = new ColorManager(this.listId);
@@ -1354,7 +1355,7 @@ export function createCollaborativeApp() {
               const currentVolunteers = Array.isArray(ingredient.who) ? ingredient.who : [];
               const newVolunteer = this.groupAssignmentModal.value.trim();
               if (!currentVolunteers.includes(newVolunteer)) {
-                await this.modalService.saveVolunteers(
+                await this.appwriteDataService.saveVolunteers(
                   [...currentVolunteers, newVolunteer],
                   new Set(), // Pas de volontaires supprimés
                   ingredient.$id,
@@ -1366,7 +1367,7 @@ export function createCollaborativeApp() {
               const currentStores = Array.isArray(ingredient.store) ? ingredient.store : [];
               const newStore = this.groupAssignmentModal.value.trim();
               if (!currentStores.includes(newStore)) {
-                await this.modalService.saveStores(
+                await this.appwriteDataService.saveStores(
                   [...currentStores, newStore],
                   new Set(), // Pas de magasins supprimés
                   ingredient.$id,

@@ -4,7 +4,7 @@
  * Compatible avec l'architecture Options API existante
  */
 
-import { AppwriteDataService } from './AppwriteDataService.js';
+
 
 export const ModalMixin = {
   data() {
@@ -86,13 +86,7 @@ export const ModalMixin = {
    },
 
   methods: {
-    /**
-     * Initialise le service modal
-     * @param {Object} appwriteConfig - Configuration Appwrite
-     */
-    initModalService(appwriteConfig) {
-      this.modalService = new AppwriteDataService(appwriteConfig);
-    },
+    
 
     /**
      * Ouvre le modal unifié pour un ingrédient
@@ -230,12 +224,12 @@ export const ModalMixin = {
      * Ajoute un nouvel achat
      */
     addPurchase() {
-      if (!this.modalService.validatePurchase(this.newPurchase)) {
+      if (!this.appwriteDataService.validatePurchase(this.newPurchase)) {
         this.showErrorToast('Veuillez remplir tous les champs obligatoires');
         return;
       }
 
-      const purchase = this.modalService.createPurchaseObject(this.newPurchase);
+      const purchase = this.appwriteDataService.createPurchaseObject(this.newPurchase);
       this.editingPurchases.push(purchase);
       this.resetForms();
       this.markAsDirty();
@@ -274,12 +268,12 @@ export const ModalMixin = {
      * Ajoute une nouvelle entrée de stock
      */
     addStock() {
-      if (!this.modalService.validateStock(this.newStock)) {
+      if (!this.appwriteDataService.validateStock(this.newStock)) {
         this.showErrorToast('Veuillez remplir tous les champs obligatoires');
         return;
       }
 
-      const stock = this.modalService.createStockObject(this.newStock);
+      const stock = this.appwriteDataService.createStockObject(this.newStock);
       this.editingStockEntries.push(stock);
       this.resetForms();
       this.markAsDirty();
@@ -461,7 +455,7 @@ export const ModalMixin = {
           database: this.database
         };
 
-        const results = await this.modalService.saveAllChanges(data, context);
+        const results = await this.appwriteDataService.saveAllChanges(data, context);
 
         this.modalState.hasUnsavedChanges = false;
 
