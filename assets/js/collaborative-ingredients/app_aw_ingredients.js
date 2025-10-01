@@ -184,7 +184,16 @@ export function createCollaborativeApp() {
           type: '', // 'volunteer', 'store', etc.
           value: '',
           groupName: '',
-          isProcessing: false
+          isProcessing: false,
+          // Propriété simplifiée pour la gestion des suppressions
+          replaceExisting: false, // Switch pour supprimer les attributions existantes
+          assignmentsToRemove: new Map(), // ingredientId -> Set(valeurs à supprimer)
+          summary: {
+            ingredientsCount: 0,
+            additionsCount: 0,
+            removalsCount: 0,
+            replacementsCount: 0
+          }
         },
         selectedIngredients: [],
         filteredSuggestions: [],
@@ -429,6 +438,28 @@ export function createCollaborativeApp() {
         if (newTableGrouping[0] !== this.groupingBy) {
           this.groupingBy = newTableGrouping[0];
         }
+      },
+      
+      // Watcher pour réagir aux changements du switch de remplacement
+      'groupAssignmentModal.replaceExisting': {
+        handler() {
+          this.updateSummary();
+        }
+      },
+      
+      // Watcher pour réagir aux changements de valeur
+      'groupAssignmentModal.value': {
+        handler() {
+          this.updateSummary();
+        }
+      },
+      
+      // Watcher pour réagir aux changements de sélection d'ingrédients
+      selectedIngredients: {
+        handler() {
+          this.updateSummary();
+        },
+        deep: true
       }
     },
 
@@ -1197,7 +1228,15 @@ export function createCollaborativeApp() {
           type: type,
           value: '', // Réinitialiser la valeur
           groupName: groupName,
-          isProcessing: false
+          isProcessing: false,
+          replaceExisting: false,
+          assignmentsToRemove: new Map(),
+          summary: {
+            ingredientsCount: 0,
+            additionsCount: 0,
+            removalsCount: 0,
+            replacementsCount: 0
+          }
         };
 
         // Pré-remplir avec l'utilisateur actuel si c'est une attribution de bénévole
@@ -1216,6 +1255,7 @@ export function createCollaborativeApp() {
 
         // Initialiser les suggestions
         this.filterSuggestions();
+        this.updateSummary();
       },
 
       /**
@@ -1237,7 +1277,15 @@ export function createCollaborativeApp() {
           type: '',
           value: '',
           groupName: '',
-          isProcessing: false
+          isProcessing: false,
+          replaceExisting: false,
+          assignmentsToRemove: new Map(),
+          summary: {
+            ingredientsCount: 0,
+            additionsCount: 0,
+            removalsCount: 0,
+            replacementsCount: 0
+          }
         };
         this.selectedIngredients = [];
         this.filteredSuggestions = [];
@@ -1284,6 +1332,159 @@ export function createCollaborativeApp() {
       clearAssignmentValue() {
         this.groupAssignmentModal.value = '';
         this.filterSuggestions();
+        this.updateSummary();
+      },
+
+      /**
+       * Vérifie si une attribution est marquée pour suppression
+       * @param {string} ingredientId - ID de l'ingrédient
+       * @param {string} value - Valeur de l'attribution
+       * @returns {boolean}
+       */
+      isAssignmentToRemove(ingredientId, value) {
+        return this.groupAssignmentModal.assignmentsToRemove.get(ingredientId)?.has(value) || false;
+      },
+
+      /**
+       * Bascule l'état de suppression d'une attribution
+       * @param {string} ingredientId - ID de l'ingrédient
+       * @param {string} value - Valeur de l'attribution
+       */
+      toggleAssignmentRemoval(ingredientId, value) {
+        if (!this.groupAssignmentModal.assignmentsToRemove.has(ingredientId)) {
+          this.groupAssignmentModal.assignmentsToRemove.set(ingredientId, new Set());
+        }
+        
+        const removals = this.groupAssignmentModal.assignmentsToRemove.get(ingredientId);
+        if (removals.has(value)) {
+          removals.delete(value);
+          if (removals.size === 0) {
+            this.groupAssignmentModal.assignmentsToRemove.delete(ingredientId);
+          }
+        } else {
+          removals.add(value);
+        }
+        
+        this.updateSummary();
+      },
+
+      /**
+       * Gère le changement du mode de remplacement
+       */
+      onReplaceModeChange() {
+        if (this.groupAssignmentModal.replaceExisting) {
+          // Mode "remplacer" : marquer toutes les attributions existantes pour suppression
+          this.markAllAssignmentsForRemoval();
+        } else {
+          // Mode "ajouter" : conserver toutes les attributions existantes
+          this.resetAllAssignments();
+        }
+        this.updateSummary();
+      },
+
+      /**
+       * Détermine le type d'action pour le bouton de validation
+       * @returns {string} 'add', 'replace', 'selective'
+       */
+      getActionType() {
+        if (!this.groupAssignmentModal.value.trim()) {
+          return 'selective'; // Only removals
+        }
+        
+        if (this.groupAssignmentModal.replaceExisting) {
+          return 'replace';
+        }
+        
+        // Check if there are any manual removals
+        const hasManualRemovals = Array.from(this.groupAssignmentModal.assignmentsToRemove.values())
+          .some(removals => removals.size > 0);
+          
+        if (hasManualRemovals) {
+          return 'selective';
+        }
+        
+        return 'add';
+      },
+
+      /**
+       * Remet à zéro toutes les suppressions d'attributions
+       */
+      resetAllAssignments() {
+        this.groupAssignmentModal.assignmentsToRemove.clear();
+        this.updateSummary();
+      },
+
+      /**
+       * Marque toutes les attributions existantes pour suppression (mode "Remplacer tout")
+       */
+      markAllAssignmentsForRemoval() {
+        this.groupAssignmentModal.assignmentsToRemove.clear();
+        
+        this.selectedIngredients.forEach(ingredient => {
+          if (!ingredient.selected) return;
+          
+          const existingAssignments = this.groupAssignmentModal.type === 'volunteer' 
+            ? (ingredient.who || [])
+            : (ingredient.store || []);
+          
+          if (existingAssignments.length > 0) {
+            this.groupAssignmentModal.assignmentsToRemove.set(ingredient.$id, new Set(existingAssignments));
+          }
+        });
+        
+        this.showToast('Toutes les attributions existantes seront remplacées', 'warning', 3000, 'Mode remplacement');
+      },
+
+      /**
+       * Met à jour le résumé des modifications
+       */
+      updateSummary() {
+        let ingredientsCount = 0;
+        let removalsCount = 0;
+        let additionsCount = 0;
+
+        const selectedIngredients = this.selectedIngredients.filter(ing => ing.selected);
+
+        for (const ingredient of selectedIngredients) {
+          const hasRemovals = this.groupAssignmentModal.assignmentsToRemove.has(ingredient.$id);
+          const hasNewValue = this.groupAssignmentModal.value.trim();
+
+          if (hasRemovals || hasNewValue) {
+            ingredientsCount++;
+          }
+
+          if (hasRemovals) {
+            removalsCount += this.groupAssignmentModal.assignmentsToRemove.get(ingredient.$id).size;
+          }
+
+          if (hasNewValue) {
+            const existingAssignments = this.groupAssignmentModal.type === 'volunteer' 
+              ? (ingredient.who || [])
+              : (ingredient.store || []);
+            
+            if (!existingAssignments.includes(hasNewValue.trim())) {
+              additionsCount++;
+            }
+          }
+        }
+
+        this.groupAssignmentModal.summary = {
+          ingredientsCount,
+          removalsCount,
+          additionsCount,
+          replacementsCount: 0 // Plus utilisé dans la nouvelle logique
+        };
+      },
+
+      /**
+       * Vérifie s'il y a des modifications à appliquer
+       * @returns {boolean}
+       */
+      hasModifications() {
+        const hasValue = this.groupAssignmentModal.value.trim();
+        const hasRemovals = this.groupAssignmentModal.assignmentsToRemove.size > 0;
+        
+        return hasValue || hasRemovals;
       },
 
       /**
@@ -1308,9 +1509,9 @@ export function createCollaborativeApp() {
        * Gère la soumission du formulaire d'attribution groupée
        */
       async handleGroupAssignmentSubmit() {
-
-        if (!this.groupAssignmentModal.value.trim()) {
-          this.showToast('Veuillez entrer une valeur à attribuer', 'danger', 8000, 'Erreur');
+        // Validation de base
+        if (!this.hasModifications()) {
+          this.showToast('Aucune modification à appliquer', 'warning', 5000, 'Information');
           return;
         }
 
@@ -1320,16 +1521,37 @@ export function createCollaborativeApp() {
           return;
         }
 
+        // Confirmation pour les actions importantes (suppressions multiples)
+        if (this.groupAssignmentModal.summary.removalsCount > 3) {
+          const confirmMessage = `Vous êtes sur le point de supprimer ${this.groupAssignmentModal.summary.removalsCount} attribution(s). Voulez-vous continuer ?`;
+          if (!confirm(confirmMessage)) {
+            return;
+          }
+        }
+
         this.groupAssignmentModal.isProcessing = true;
 
         try {
           await this.processGroupAssignment(selectedIngredients);
-          this.showToast(
-            `Attribution réussie pour ${selectedIngredients.length} ingrédient(s)`,
-            'success',
-            5000,
-            'Succès'
-          );
+          
+          // Message de succès personnalisé selon l'action
+          const actionType = this.getActionType();
+          let successMessage = `Opération réussie pour ${selectedIngredients.length} ingrédient(s)`;
+          
+          if (actionType === 'add') {
+            successMessage = `Attribution ajoutée à ${selectedIngredients.length} ingrédient(s)`;
+          } else if (actionType === 'replace') {
+            successMessage = `Attributions remplacées pour ${selectedIngredients.length} ingrédient(s)`;
+          } else {
+            if (this.groupAssignmentModal.summary.removalsCount > 0) {
+              successMessage += ` (${this.groupAssignmentModal.summary.removalsCount} suppression(s))`;
+            }
+            if (this.groupAssignmentModal.summary.additionsCount > 0) {
+              successMessage += ` (${this.groupAssignmentModal.summary.additionsCount} ajout(s))`;
+            }
+          }
+          
+          this.showToast(successMessage, 'success', 5000, 'Succès');
           this.closeGroupAssignmentModal();
         } catch (error) {
           console.error('[Collaborative App] Erreur lors de l\'attribution groupée:', error);
@@ -1351,29 +1573,54 @@ export function createCollaborativeApp() {
         const promises = ingredients.map(async (ingredient) => {
           try {
             if (this.groupAssignmentModal.type === 'volunteer') {
-              // Ajouter le volontaire via AppwriteDataService
+              // Récupérer les bénévoles actuels
               const currentVolunteers = Array.isArray(ingredient.who) ? ingredient.who : [];
               const newVolunteer = this.groupAssignmentModal.value.trim();
-              if (!currentVolunteers.includes(newVolunteer)) {
-                await this.appwriteDataService.saveVolunteers(
-                  [...currentVolunteers, newVolunteer],
-                  new Set(), // Pas de volontaires supprimés
-                  ingredient.$id,
-                  this.database
-                );
+              
+              // Calculer les bénévoles à conserver (ceux qui ne sont pas marqués pour suppression)
+              const volunteersToRemove = this.groupAssignmentModal.assignmentsToRemove.get(ingredient.$id) || new Set();
+              const keptVolunteers = currentVolunteers.filter(v => !volunteersToRemove.has(v));
+              
+              // Construire la liste finale des bénévoles
+              let finalVolunteers = [...keptVolunteers];
+              
+              // Ajouter le nouveau bénévole si spécifié et pas déjà présent
+              if (newVolunteer && !finalVolunteers.includes(newVolunteer)) {
+                finalVolunteers.push(newVolunteer);
               }
+              
+              // Sauvegarder avec les suppressions et ajouts
+              await this.appwriteDataService.saveVolunteers(
+                finalVolunteers,
+                volunteersToRemove,
+                ingredient.$id,
+                this.database
+              );
+              
             } else if (this.groupAssignmentModal.type === 'store') {
-              // Ajouter le magasin via AppwriteDataService
+              // Récupérer les magasins actuels
               const currentStores = Array.isArray(ingredient.store) ? ingredient.store : [];
               const newStore = this.groupAssignmentModal.value.trim();
-              if (!currentStores.includes(newStore)) {
-                await this.appwriteDataService.saveStores(
-                  [...currentStores, newStore],
-                  new Set(), // Pas de magasins supprimés
-                  ingredient.$id,
-                  this.database
-                );
+              
+              // Calculer les magasins à conserver
+              const storesToRemove = this.groupAssignmentModal.assignmentsToRemove.get(ingredient.$id) || new Set();
+              const keptStores = currentStores.filter(s => !storesToRemove.has(s));
+              
+              // Construire la liste finale des magasins
+              let finalStores = [...keptStores];
+              
+              // Ajouter le nouveau magasin si spécifié et pas déjà présent
+              if (newStore && !finalStores.includes(newStore)) {
+                finalStores.push(newStore);
               }
+              
+              // Sauvegarder avec les suppressions et ajouts
+              await this.appwriteDataService.saveStores(
+                finalStores,
+                storesToRemove,
+                ingredient.$id,
+                this.database
+              );
             }
 
             console.log(`[Collaborative App] Attribution réussie pour ${ingredient.ingredientName}`);
