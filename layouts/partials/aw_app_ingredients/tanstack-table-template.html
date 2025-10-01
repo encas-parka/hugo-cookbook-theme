@@ -65,14 +65,23 @@
                   </div>
 
                   <!-- Actions de groupe -->
-                  <div>
+                  <div class="btn-group" role="group">
                     <button
                       class="btn btn-sm btn-primary"
-                      @click="handleGroupVolunteer(row.groupingValue, row.subRows.map(r => r.original))"
+                      @click="handleGroup(row.groupingValue, row.subRows.map(r => r.original), 'volunteer')"
                       :title="tableGrouping[0] === 'storesDisplay' ? 'Se proposer pour tout ce magasin' : 'Se proposer pour ce type'"
                     >
                       <i class="fas fa-user-plus"></i>
                       Tout prendre
+                    </button>
+                    <button
+                      v-if="tableGrouping[0] === 'storesDisplay'"
+                      class="btn btn-sm btn-success"
+                      @click="handleGroup(row.groupingValue, row.subRows.map(r => r.original), 'store')"
+                      title="Ajouter un magasin pour ce groupe"
+                    >
+                      <i class="fas fa-store-plus"></i>
+                      + Magasin
                     </button>
                   </div>
                 </div>

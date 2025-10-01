@@ -4,7 +4,7 @@
  * Compatible avec l'architecture Options API existante
  */
 
-import { ModalService } from './ModalService.js';
+import { AppwriteDataService } from './AppwriteDataService.js';
 
 export const ModalMixin = {
   data() {
@@ -91,7 +91,7 @@ export const ModalMixin = {
      * @param {Object} appwriteConfig - Configuration Appwrite
      */
     initModalService(appwriteConfig) {
-      this.modalService = new ModalService(appwriteConfig);
+      this.modalService = new AppwriteDataService(appwriteConfig);
     },
 
     /**

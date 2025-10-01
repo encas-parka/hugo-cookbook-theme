@@ -1,7 +1,7 @@
 /**
  * TableColumnsConfig.js
  * Configuration des colonnes pour TanStack Table - Gestion des ingrédients
- * 
+ *
  * Ce service encapsule toute la logique de définition des colonnes pour TanStack Table,
  * en séparant la configuration de la logique métier de l'application principale.
  */
@@ -13,7 +13,7 @@ export class TableColumnsConfig {
    * @param {Function} context.h - Fonction Vue.h pour le rendu des VNodes
    * @param {Object} context.handlers - Callbacks vers l'application parente
    * @param {Function} context.handlers.openUnifiedModal - Ouvre le modal d'édition
-   * @param {Function} context.handlers.handleTableGroupVolunteer - Action groupée sur les bénévoles
+
    * @param {Object} context.formatters - Fonctions de formatage
    * @param {Function} context.formatters.formatTypeShort - Formate le type d'ingrédient
    * @param {Object} context.colorManager - Gestionnaire de couleurs
@@ -25,7 +25,7 @@ export class TableColumnsConfig {
     this.handlers = context.handlers || {};
     this.formatters = context.formatters || {};
     this.colorManager = context.colorManager || {};
-    
+
     // Validation des dépendances critiques
     if (!this.h) {
       throw new Error('Vue.h function is required in context');

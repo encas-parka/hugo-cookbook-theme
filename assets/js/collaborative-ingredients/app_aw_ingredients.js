@@ -383,7 +383,7 @@ export function createCollaborativeApp() {
           h: Vue.h,
           handlers: {
             openUnifiedModal: this.openUnifiedModal,
-            handleTableGroupVolunteer: this.handleTableGroupVolunteer
+            handleGroup: this.handleGroup
           },
           formatters: {
             formatTypeShort: this.formatTypeShort
@@ -1037,22 +1037,6 @@ export function createCollaborativeApp() {
         this.selectAllChecked = this.selectedIngredients.length === this.filteredIngredients.length;
       },
 
-      handleTableGroupVolunteer(groupName, ingredients) {
-        const username = this.getStoredUsername() || prompt('Votre nom pour la sélection groupée:');
-
-        if (!username) return;
-
-        // S'assurer que ingredients est bien un tableau
-        const ingredientArray = Array.isArray(ingredients) ? ingredients : [ingredients];
-
-        ingredientArray.forEach(ingredient => {
-          if (!ingredient.who || !ingredient.who.includes(username)) {
-            this.updateArrayField(ingredient.$id, 'who', username, 'add');
-          }
-        });
-
-        console.log(`Vous avez été assigné à ${ingredientArray.length} ingrédients du groupe ${groupName}`);
-      },
 
       // === MÉTHODES DE GESTION DES VUES ===
 
@@ -1193,9 +1177,9 @@ export function createCollaborativeApp() {
       },
 
       // Méthode pour se proposer pour tout un groupe (magasin/type)
-      async handleGroupVolunteer(groupName, ingredients) {
+      async handleGroup(groupName, ingredients, type = 'volunteer') {
         // Ouvrir le modal d'attribution groupée
-        this.openGroupAssignmentModal('volunteer', groupName, ingredients);
+        this.openGroupAssignmentModal(type, groupName, ingredients);
       },
 
       // === MÉTHODES POUR LE MODAL D'ATTRIBUTION GROUPÉE ===
@@ -1214,7 +1198,7 @@ export function createCollaborativeApp() {
           groupName: groupName,
           isProcessing: false
         };
-        
+
         // Pré-remplir avec l'utilisateur actuel si c'est une attribution de bénévole
         if (type === 'volunteer') {
           const currentUser = localStorage.getItem('appwrite-user-name');
@@ -1222,13 +1206,13 @@ export function createCollaborativeApp() {
             this.groupAssignmentModal.value = currentUser;
           }
         }
-        
+
         // Préparer les ingrédients avec état de sélection
         this.selectedIngredients = ingredients.map(ing => ({
           ...ing,
           selected: true // Tous cochés par défaut
         }));
-        
+
         // Initialiser les suggestions
         this.filterSuggestions();
       },
@@ -1265,7 +1249,7 @@ export function createCollaborativeApp() {
       filterSuggestions() {
         const query = this.groupAssignmentModal.value.toLowerCase().trim();
         const suggestions = this.assignmentSuggestions;
-        
+
         if (!query) {
           this.filteredSuggestions = suggestions.slice(0, 10); // Limiter à 10 suggestions
         } else {
@@ -1323,28 +1307,37 @@ export function createCollaborativeApp() {
        * Gère la soumission du formulaire d'attribution groupée
        */
       async handleGroupAssignmentSubmit() {
+
         if (!this.groupAssignmentModal.value.trim()) {
-          this.showErrorToast('Veuillez entrer une valeur à attribuer');
+          this.showToast('Veuillez entrer une valeur à attribuer', 'danger', 8000, 'Erreur');
           return;
         }
-        
+
         const selectedIngredients = this.selectedIngredients.filter(ing => ing.selected);
         if (selectedIngredients.length === 0) {
-          this.showErrorToast('Veuillez sélectionner au moins un ingrédient');
+          this.showToast('Veuillez sélectionner au moins un ingrédient', 'danger', 8000, 'Erreur');
           return;
         }
-        
+
         this.groupAssignmentModal.isProcessing = true;
-        
+
         try {
           await this.processGroupAssignment(selectedIngredients);
-          this.showSuccessToast(
-            `Attribution réussie pour ${selectedIngredients.length} ingrédient(s)`
+          this.showToast(
+            `Attribution réussie pour ${selectedIngredients.length} ingrédient(s)`,
+            'success',
+            5000,
+            'Succès'
           );
           this.closeGroupAssignmentModal();
         } catch (error) {
           console.error('[Collaborative App] Erreur lors de l\'attribution groupée:', error);
-          this.showErrorToast(`Erreur lors de l'attribution: ${error.message}`);
+          this.showToast(
+            `Erreur lors de l'attribution: ${error.message}`,
+            'danger',
+            8000,
+            'Erreur'
+          );
         } finally {
           this.groupAssignmentModal.isProcessing = false;
         }
@@ -1357,35 +1350,45 @@ export function createCollaborativeApp() {
         const promises = ingredients.map(async (ingredient) => {
           try {
             if (this.groupAssignmentModal.type === 'volunteer') {
-              await this.updateArrayField(
-                ingredient.$id, 
-                'who', 
-                this.groupAssignmentModal.value.trim(), 
-                'add'
-              );
+              // Ajouter le volontaire via AppwriteDataService
+              const currentVolunteers = Array.isArray(ingredient.who) ? ingredient.who : [];
+              const newVolunteer = this.groupAssignmentModal.value.trim();
+              if (!currentVolunteers.includes(newVolunteer)) {
+                await this.modalService.saveVolunteers(
+                  [...currentVolunteers, newVolunteer],
+                  new Set(), // Pas de volontaires supprimés
+                  ingredient.$id,
+                  this.database
+                );
+              }
             } else if (this.groupAssignmentModal.type === 'store') {
-              await this.updateArrayField(
-                ingredient.$id, 
-                'store', 
-                this.groupAssignmentModal.value.trim(), 
-                'add'
-              );
+              // Ajouter le magasin via AppwriteDataService
+              const currentStores = Array.isArray(ingredient.store) ? ingredient.store : [];
+              const newStore = this.groupAssignmentModal.value.trim();
+              if (!currentStores.includes(newStore)) {
+                await this.modalService.saveStores(
+                  [...currentStores, newStore],
+                  new Set(), // Pas de magasins supprimés
+                  ingredient.$id,
+                  this.database
+                );
+              }
             }
-            
+
             console.log(`[Collaborative App] Attribution réussie pour ${ingredient.ingredientName}`);
             return { success: true, ingredient: ingredient.ingredientName };
           } catch (error) {
             console.error(`[Collaborative App] Erreur pour ${ingredient.ingredientName}:`, error);
-            return { 
-              success: false, 
-              ingredient: ingredient.ingredientName, 
-              error: error.message 
+            return {
+              success: false,
+              ingredient: ingredient.ingredientName,
+              error: error.message
             };
           }
         });
-        
+
         const results = await Promise.all(promises);
-        
+
         // Analyser les résultats pour les erreurs individuelles
         const failures = results.filter(result => !result.success);
         if (failures.length > 0) {
@@ -1394,7 +1397,7 @@ export function createCollaborativeApp() {
             `${failures.length} attribution(s) ont échoué:\n${errorMessages}`
           );
         }
-        
+
         return results;
       },
 
@@ -1639,43 +1642,9 @@ export function createCollaborativeApp() {
         return userMessage;
       },
 
-      // Méthode utilitaire pour mettre à jour un tableau dans Appwrite
-      async updateArrayField(ingredient, fieldName, newArray) {
-        try {
-          const result = await this.database.updateDocument(
-            APPWRITE_CONFIG.databaseId,
-            APPWRITE_CONFIG.collections.ingredients,
-            ingredient.$id,
-            {
-              [fieldName]: newArray
-            }
-          );
 
-          // Mettre à jour les données locales
-          ingredient[fieldName] = newArray;
 
-          return { success: true, result };
-        } catch (error) {
-          return { success: false, error };
-        }
-      },
-
-      // Méthode utilitaire pour traiter les tableaux avec éléments supprimés
-      processArrayWithDeletedItems(currentArray, deletedItems, newItem = null) {
-        let processedArray = [...currentArray];
-
-        // Supprimer les éléments marqués pour suppression
-        processedArray = processedArray.filter(item => !deletedItems.has(item));
-
-        // Ajouter le nouvel élément s'il y en a un et n'existe pas déjà
-        if (newItem && newItem.trim() && !processedArray.includes(newItem.trim())) {
-          processedArray.push(newItem.trim());
-        }
-
-        return processedArray;
-      },
-
-      // === MÉTHODES UTILITAIRES AUTH ===
+      // === MÉTHODES UTILITAIRES AUTH (wrapper) ===
 
       getAuthState() {
         return this.authManager ? this.authManager.getState() : null;
@@ -1708,97 +1677,99 @@ export function createCollaborativeApp() {
           },
         });
       },
-    },
 
-    // === MÉTHODES POUR LES TOASTS GÉNÉRIQUES ===
+      // === MÉTHODES POUR LES TOASTS GÉNÉRIQUES ===
 
-    showToast(message, type = 'info', duration = 5000, title = null) {
-      const toastId = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      showToast(message, type = 'info', duration = 5000, title = null) {
+        const toastId = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
-      const toast = {
-        id: toastId,
-        title: title || this.getDefaultTitle(type),
-        message: message,
-        type: type,
-        duration: duration,
-        show: true,
-        autoHide: duration > 0
-      };
+        const toast = {
+          id: toastId,
+          title: title || this.getDefaultTitle(type),
+          message: message,
+          type: type,
+          duration: duration,
+          show: true,
+          autoHide: duration > 0
+        };
 
-      this.toasts.push(toast);
+        this.toasts.push(toast);
 
-      // Auto-masquage si durée > 0
-      if (duration > 0) {
+        // Auto-masquage si durée > 0
+        if (duration > 0) {
+          setTimeout(() => {
+            this.hideToast(toastId);
+          }, duration);
+        }
+
+        return toastId;
+      },
+
+      hideToast(toastId) {
+        const index = this.toasts.findIndex(t => t.id === toastId);
+        if (index > -1) {
+          // Marquer comme caché pour animation CSS
+          this.toasts[index].show = false;
+
+          // Supprimer complètement après l'animation
+          setTimeout(() => {
+            const removeIndex = this.toasts.findIndex(t => t.id === toastId);
+            if (removeIndex > -1) {
+              this.toasts.splice(removeIndex, 1);
+            }
+          }, 300);
+        }
+      },
+
+      hideAllToasts() {
+        this.toasts.forEach(toast => {
+          toast.show = false;
+        });
+
+        // Supprimer tous les toasts après l'animation
         setTimeout(() => {
-          this.hideToast(toastId);
-        }, duration);
-      }
-
-      return toastId;
-    },
-
-    hideToast(toastId) {
-      const index = this.toasts.findIndex(t => t.id === toastId);
-      if (index > -1) {
-        // Marquer comme caché pour animation CSS
-        this.toasts[index].show = false;
-
-        // Supprimer complètement après l'animation
-        setTimeout(() => {
-          const removeIndex = this.toasts.findIndex(t => t.id === toastId);
-          if (removeIndex > -1) {
-            this.toasts.splice(removeIndex, 1);
-          }
+          this.toasts = [];
         }, 300);
-      }
+      },
+
+      showSuccessToast(message, duration = 5000) {
+        return this.showToast(message, 'success', duration, 'Succès');
+      },
+
+      showErrorToast(message, duration = 8000) {
+        return this.showToast(message, 'danger', duration, 'Erreur');
+      },
+
+      showWarningToast(message, duration = 6000) {
+        return this.showToast(message, 'warning', duration, 'Attention');
+      },
+
+      showInfoToast(message, duration = 5000) {
+        return this.showToast(message, 'info', duration, 'Information');
+      },
+
+      getDefaultTitle(type) {
+        const titles = {
+          'success': 'Succès',
+          'danger': 'Erreur',
+          'warning': 'Attention',
+          'info': 'Information'
+        };
+        return titles[type] || 'Notification';
+      },
+
+      getToastIcon(type) {
+        const icons = {
+          'success': 'fas fa-check-circle',
+          'danger': 'fas fa-exclamation-triangle',
+          'warning': 'fas fa-exclamation-triangle',
+          'info': 'fas fa-info-circle'
+        };
+        return icons[type] || 'fas fa-info-circle';
+      },
     },
 
-    hideAllToasts() {
-      this.toasts.forEach(toast => {
-        toast.show = false;
-      });
 
-      // Supprimer tous les toasts après l'animation
-      setTimeout(() => {
-        this.toasts = [];
-      }, 300);
-    },
-
-    showSuccessToast(message, duration = 5000) {
-      return this.showToast(message, 'success', duration, 'Succès');
-    },
-
-    showErrorToast(message, duration = 8000) {
-      return this.showToast(message, 'danger', duration, 'Erreur');
-    },
-
-    showWarningToast(message, duration = 6000) {
-      return this.showToast(message, 'warning', duration, 'Attention');
-    },
-
-    showInfoToast(message, duration = 5000) {
-      return this.showToast(message, 'info', duration, 'Information');
-    },
-
-    getDefaultTitle(type) {
-      const titles = {
-        'success': 'Succès',
-        'danger': 'Erreur',
-        'warning': 'Attention',
-        'info': 'Information'
-      };
-      return titles[type] || 'Notification';
-    },
-
-    getToastIcon(type) {
-      const icons = {
-        'success': 'fas fa-check-circle',
-        'danger': 'fas fa-exclamation-triangle',
-        'warning': 'fas fa-exclamation-triangle',
-        'info': 'fas fa-info-circle'
-      };
-      return icons[type] || 'fas fa-info-circle';
-    },
 
     beforeUnmount() {
            // C'est une bonne pratique de se désabonner quand le composant est détruit

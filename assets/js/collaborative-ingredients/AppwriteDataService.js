@@ -1,10 +1,10 @@
 /**
- * Modal Service
- * Service pur de logique métier pour la gestion des données du modal
+ * Appwrite Data Service
+ * Service pur de logique métier pour la gestion des données sur Appwrite
  * Aucune dépendance à Vue - peut être testé unitairement
  */
 
-export class ModalService {
+export class AppwriteDataService {
   constructor(appwriteConfig) {
     this.config = appwriteConfig;
   }
@@ -43,9 +43,9 @@ export class ModalService {
           purchaseData
         );
         results.push(result.$id);
-        console.log('[ModalService] Nouvel achat créé:', result.$id);
+        console.log('[AppwriteDataService] Nouvel achat créé:', result.$id);
       } catch (error) {
-        console.error('[ModalService] Erreur création achat:', error);
+        console.error('[AppwriteDataService] Erreur création achat:', error);
         throw new Error(`Erreur lors de la création de l'achat: ${error.message}`);
       }
     }
@@ -69,9 +69,9 @@ export class ModalService {
           updateData
         );
         results.push(result.$id);
-        console.log('[ModalService] Achat mis à jour:', result.$id);
+        console.log('[AppwriteDataService] Achat mis à jour:', result.$id);
       } catch (error) {
-        console.error('[ModalService] Erreur mise à jour achat:', error);
+        console.error('[AppwriteDataService] Erreur mise à jour achat:', error);
         throw new Error(`Erreur lors de la mise à jour de l'achat: ${error.message}`);
       }
     }
@@ -105,10 +105,10 @@ export class ModalService {
         }
       );
       
-      console.log('[ModalService] Stock mis à jour:', result.$id);
+      console.log('[AppwriteDataService] Stock mis à jour:', result.$id);
       return result.$id;
     } catch (error) {
-      console.error('[ModalService] Erreur mise à jour stock:', error);
+      console.error('[AppwriteDataService] Erreur mise à jour stock:', error);
       throw new Error(`Erreur lors de la mise à jour du stock: ${error.message}`);
     }
   }
@@ -134,10 +134,10 @@ export class ModalService {
         }
       );
       
-      console.log('[ModalService] Volontaires mis à jour:', result.$id);
+      console.log('[AppwriteDataService] Volontaires mis à jour:', result.$id);
       return result.$id;
     } catch (error) {
-      console.error('[ModalService] Erreur mise à jour volontaires:', error);
+      console.error('[AppwriteDataService] Erreur mise à jour volontaires:', error);
       throw new Error(`Erreur lors de la mise à jour des volontaires: ${error.message}`);
     }
   }
@@ -163,10 +163,10 @@ export class ModalService {
         }
       );
       
-      console.log('[ModalService] Magasins mis à jour:', result.$id);
+      console.log('[AppwriteDataService] Magasins mis à jour:', result.$id);
       return result.$id;
     } catch (error) {
-      console.error('[ModalService] Erreur mise à jour magasins:', error);
+      console.error('[AppwriteDataService] Erreur mise à jour magasins:', error);
       throw new Error(`Erreur lors de la mise à jour des magasins: ${error.message}`);
     }
   }
@@ -239,7 +239,7 @@ export class ModalService {
 
       return results;
     } catch (error) {
-      console.error('[ModalService] Erreur lors de la sauvegarde globale:', error);
+      console.error('[AppwriteDataService] Erreur lors de la sauvegarde globale:', error);
       throw error;
     }
   }
