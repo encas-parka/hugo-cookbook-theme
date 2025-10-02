@@ -15,6 +15,21 @@ import {
 // Récupération de la configuration
 const { APPWRITE_FUNCTION_ID, ACCESS_REQUEST_FUNCTION_ID } = getConfig();
 
+// Extraire le paramètre de redirection de l'URL
+function getRedirectUrl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const redirectParam = urlParams.get('redirect');
+  
+  if (redirectParam) {
+    // Valider que l'URL est relative pour éviter les redirections malveillantes
+    if (redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
+      return redirectParam;
+    }
+  }
+  
+  return null;
+}
+
 // Récupère les éléments du DOM
 const loadingState = document.getElementById("loading-state");
 const loggedInState = document.getElementById("user-logged-in");
@@ -281,6 +296,13 @@ async function handleLoginPageLoad() {
       if (userEmailDisplay)
         userEmailDisplay.textContent = ` (${appwriteUser.email})`;
       showUIState("loggedIn");
+      
+      // Rediriger si nécessaire
+      const redirectUrl = getRedirectUrl();
+      if (redirectUrl) {
+        console.log("[AuthAppwrite] Utilisateur déjà authentifié, redirection vers:", redirectUrl);
+        window.location.href = redirectUrl;
+      }
       return;
     }
 
@@ -305,6 +327,13 @@ async function handleLoginPageLoad() {
           if (userEmailDisplay)
             userEmailDisplay.textContent = ` (${appwriteUser.email})`;
           showUIState("loggedIn");
+          
+          // Rediriger si nécessaire
+          const redirectUrl = getRedirectUrl();
+          if (redirectUrl) {
+            console.log("[AuthAppwrite] Token CMS récupéré, redirection vers:", redirectUrl);
+            window.location.href = redirectUrl;
+          }
           return;
         } else {
           console.error(
@@ -393,7 +422,7 @@ async function handleLoginSubmit(event) {
     if (cmsUser) {
       // console.log("✅ [handleLoginSubmit] Authentification CMS réussie après login.");
       setAuthData(email, session.providerUid, cmsUser); // Utiliser providerUid comme nom temporaire si le nom n'est pas disponible
-      window.location.reload(); // Recharger la page pour afficher l'état connecté
+      handleRedirect(); // Rediriger ou recharger la page
     } else {
       console.error(
         "❌ [handleLoginSubmit] Impossible de récupérer le token CMS après la connexion.",
@@ -418,6 +447,19 @@ async function handleLoginSubmit(event) {
   } finally {
     if (loginButton) loginButton.disabled = false;
     if (loginSpinner) loginSpinner.style.display = "none";
+  }
+}
+
+/**
+ * Redirige l'utilisateur vers l'URL spécifiée dans le paramètre redirect, ou rechargera la page.
+ */
+function handleRedirect() {
+  const redirectUrl = getRedirectUrl();
+  if (redirectUrl) {
+    console.log("[AuthAppwrite] Redirection vers:", redirectUrl);
+    window.location.href = redirectUrl;
+  } else {
+    window.location.reload();
   }
 }
 

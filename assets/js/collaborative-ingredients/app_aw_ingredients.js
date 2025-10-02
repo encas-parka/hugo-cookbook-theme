@@ -234,6 +234,16 @@ export function createCollaborativeApp() {
         return isAuthenticatedAppwrite;
       },
 
+      // URL de redirection pour l'authentification (gère le SSR)
+      loginRedirectUrl() {
+        // Vérifie si on est côté client (dans un navigateur)
+        if (typeof window !== 'undefined' && window.location) {
+          return encodeURIComponent(window.location.pathname + window.location.search);
+        }
+        // Fallback côté serveur : URL actuelle de Hugo
+        return encodeURIComponent('{{ .RelPermalink }}');
+      },
+
       // Ingrédients filtrés et triés (utilisent les données pré-transformées)
       filteredIngredients() {
         const filtered = this.transformedIngredients
