@@ -106,6 +106,7 @@ export function createCollaborativeApp() {
 
         // État de l'application
         isLoading: true,
+        servicesInitialized: false,
         error: null,
         // realtimeStatus: "connecting",
         showUpdatePrompt: false,
@@ -115,6 +116,7 @@ export function createCollaborativeApp() {
         syncService: null,
         colorManager: null,
         suggestionsCacheManager: null,
+        localStorageService: null,
 
         // État de la connexion temps réel
         realtimeStatus: {
@@ -272,16 +274,16 @@ export function createCollaborativeApp() {
               }
             }
 
-            // Filtre par magasin
+            // Filtre par magasin (depuis les ingredients, pas les purchases)
             if (this.selectedStoreFilter) {
-              if (ingredient.storesDisplay !== this.selectedStoreFilter) {
+              if (!ingredient.store || !ingredient.store.includes(this.selectedStoreFilter)) {
                 return false;
               }
             }
 
-            // Filtre par personne
+            // Filtre par personne (depuis les ingredients, pas les purchases)
             if (this.selectedPersonFilter) {
-              if (ingredient.responsibleDisplay !== this.selectedPersonFilter) {
+              if (!ingredient.who || !ingredient.who.includes(this.selectedPersonFilter)) {
                 return false;
               }
             }
@@ -338,24 +340,16 @@ export function createCollaborativeApp() {
 
       // Magasins disponibles pour les filtres (uniquement depuis ingredients)
       availableStores() {
-        const stores = this.localStorageService ? this.localStorageService.getIngredientStores() : [];
-        console.log('[Collaborative App] availableStores() appelé ->', {
-          cacheManagerExists: !!this.localStorageService,
-          storesCount: stores.length,
-          stores: stores
-        });
-        return stores;
+        if (this.servicesInitialized && this.localStorageService) {
+          return this.localStorageService.getIngredientStores();
+        }
       },
 
       // Personnes disponibles pour les filtres (uniquement depuis ingredients)
       availablePeople() {
-        const people = this.localStorageService ? this.localStorageService.getIngredientUsers() : [];
-        console.log('[Collaborative App] availablePeople() appelé ->', {
-          cacheManagerExists: !!this.localStorageService,
-          peopleCount: people.length,
-          people: people
-        });
-        return people;
+        if (this.servicesInitialized && this.localStorageService) {
+          return this.localStorageService.getIngredientUsers();
+        }
       },
 
 
@@ -623,7 +617,11 @@ export function createCollaborativeApp() {
 
           // 10. Charger les données avec la stratégie de cache
           await this.loadInitialDataWithCache();
-          // 10. Configurer la synchronisation temps réel (seulement si authentifié)
+
+          // 11. Marquer les services comme initialisés
+          this.servicesInitialized = true;
+
+          // 12. Configurer la synchronisation temps réel (seulement si authentifié)
           if (this.isAuthenticated) {
             this.setupRealtime();
           } else {
