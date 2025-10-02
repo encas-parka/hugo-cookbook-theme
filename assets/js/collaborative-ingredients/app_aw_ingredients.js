@@ -597,8 +597,8 @@ export function createCollaborativeApp() {
             this.ingredients = cachedData.ingredients;
             this.purchases = cachedData.purchases;
 
-            // Transformer les données pour l'UI
-            this.transformDataForUI();
+            // Transformer les données pour l'UI avec optimisation
+            this.transformDataForUI(true);
 
             // console.log("[Collaborative App] Données affichées depuis le cache");
 
@@ -647,8 +647,17 @@ export function createCollaborativeApp() {
             this.ingredients = data.ingredients;
             this.purchases = data.purchases;
 
-            // Retransformer les données pour l'UI seulement si nécessaire
-            this.transformDataForUI();
+            // Utiliser les optimisations de mise à jour multiple si pertinent
+            if (isFirstVisit) {
+              // Première visite : utiliser l'optimisation
+              this.transformDataForUI(true);
+            } else if (changes.ingredients.length > 5 || changes.purchases.length > 3) {
+              // Beaucoup de changements : utiliser la mise à jour optimisée
+              this.updateMultipleFromSyncChanges(changes.ingredients, changes.purchases);
+            } else {
+              // Peu de changements : transformation standard
+              this.transformDataForUI(false);
+            }
 
             console.log("[Collaborative App] Données mises à jour après synchronisation");
           } else {
@@ -682,8 +691,8 @@ export function createCollaborativeApp() {
           this.ingredients = ingredientsResponse.documents;
           this.purchases = purchasesResponse.documents; // Structure plus simple
 
-          // Transformer les données pour l'UI
-          this.transformDataForUI();
+          // Transformer les données pour l'UI avec optimisation
+          this.transformDataForUI(true);
 
           // Sauvegarder dans le cache local pour les prochaines visites
           if (this.syncService) {
@@ -709,12 +718,25 @@ export function createCollaborativeApp() {
         }
       },
 
-      async transformDataForUI() {
-        console.log(
-          "[Collaborative App] Transformation des données pour l'UI...",
-        );
+      /**
+       * Transforme les données pour l'UI
+       * @param {boolean} useOptimizedUpdate - Utiliser la mise à jour optimisée si true
+       */
+      async transformDataForUI(useOptimizedUpdate = false) {
+        console.log("[Collaborative App] Transformation des données pour l'UI...", {
+          ingredientCount: this.ingredients.length,
+          useOptimizedUpdate
+        });
 
         try {
+          // Si optimisation demandée, utiliser updateMultipleIngredientsInUI
+          if (useOptimizedUpdate) {
+            console.log("[Collaborative App] Utilisation de la mise à jour optimisée pour", this.ingredients.length, "ingrédients");
+            const ingredientIds = this.ingredients.map(ing => ing.$id);
+            this.updateMultipleIngredientsInUI(ingredientIds);
+            return;
+          }
+
           // Utiliser IngredientCalculator pour calculer l'équilibre des ingrédients
           const calculatedIngredients =
             IngredientCalculator.calculateIngredientsBalance(
@@ -803,6 +825,48 @@ export function createCollaborativeApp() {
       },
 
       /**
+       * Met à jour plusieurs ingrédients depuis syncChanges de manière optimisée
+       * @param {Array} ingredientChanges - Les changements d'ingrédients depuis Appwrite
+       * @param {Array} purchaseChanges - Les changements d'achats depuis Appwrite
+       */
+      updateMultipleFromSyncChanges(ingredientChanges, purchaseChanges) {
+        console.log('[Collaborative App] Mise à jour multiple depuis syncChanges:', {
+          ingredients: ingredientChanges?.length || 0,
+          purchases: purchaseChanges?.length || 0
+        });
+
+        try {
+          // 1. Mettre à jour les ingrédients modifiés si beaucoup de changements
+          if (ingredientChanges && ingredientChanges.length > 5) {
+            const ingredientIds = ingredientChanges.map(ing => ing.$id);
+            this.updateMultipleIngredientsInUI(ingredientIds);
+          } else if (ingredientChanges && ingredientChanges.length > 0) {
+            // Peu de changements : utiliser la méthode standard
+            ingredientChanges.forEach(change => {
+              this.updateIngredientComplete(change, 'update');
+            });
+          }
+
+          // 2. Mettre à jour les achats modifiés si beaucoup de changements
+          if (purchaseChanges && purchaseChanges.length > 3) {
+            const purchaseIds = purchaseChanges.map(p => p.$id);
+            this.updateMultiplePurchasesInUI(purchaseIds);
+          } else if (purchaseChanges && purchaseChanges.length > 0) {
+            // Peu de changements : utiliser la méthode standard
+            purchaseChanges.forEach(change => {
+              this.updatePurchaseComplete(change, 'update');
+            });
+          }
+
+          console.log('[Collaborative App] Mise à jour syncChanges terminée');
+        } catch (error) {
+          console.error('[Collaborative App] Erreur lors de la mise à jour multiple syncChanges:', error);
+          // Fallback : tout retransformer
+          this.transformDataForUI();
+        }
+      },
+
+      /**
        * Met à jour un seul ingrédient de manière optimisée dans l'UI
        * @param {string} ingredientId - L'ID de l'ingrédient à mettre à jour
        */
@@ -851,6 +915,39 @@ export function createCollaborativeApp() {
       },
 
       /**
+       * Met à jour plusieurs achats de manière optimisée dans l'UI
+       * @param {Array} purchaseIds - Les IDs des achats à mettre à jour
+       */
+      updateMultiplePurchasesInUI(purchaseIds) {
+        if (!purchaseIds || purchaseIds.length === 0) return;
+
+        try {
+          // Filtrer les achats concernés
+          const purchasesToUpdate = this.purchases.filter(purchase => 
+            purchaseIds.includes(purchase.$id)
+          );
+
+          if (purchasesToUpdate.length === 0) {
+            console.warn('[Collaborative App] Aucun achat trouvé pour mise à jour:', purchaseIds);
+            return;
+          }
+
+          // Trouver les ingrédients affectés par ces achats
+          const affectedIngredientIds = purchasesToUpdate.map(purchase => purchase.listIngredient);
+          const uniqueAffectedIds = [...new Set(affectedIngredientIds)];
+
+          // Utiliser la logique existante pour mettre à jour les ingrédients affectés
+          this.updateIngredientsFromPurchasesInUI(purchasesToUpdate);
+
+          console.log('[Collaborative App] Achats mis à jour de manière optimisée:', purchasesToUpdate.length, '→', uniqueAffectedIds.length, 'ingrédients affectés');
+        } catch (error) {
+          console.error('[Collaborative App] Erreur lors de la mise à jour optimisée multiple achats:', error);
+          // Fallback : retransformer toutes les données
+          this.transformDataForUI();
+        }
+      },
+
+      /**
        * Met à jour plusieurs ingrédients de manière optimisée dans l'UI
        * @param {Array} ingredientIds - Les IDs des ingrédients à mettre à jour
        */
@@ -876,15 +973,18 @@ export function createCollaborativeApp() {
             }
           );
 
-          // Mettre à jour dans le tableau transformedIngredients
-          transformedIngredients.forEach(transformedIng => {
-            const index = this.transformedIngredients.findIndex(ing => ing.$id === transformedIng.$id);
-            if (index !== -1) {
-              this.transformedIngredients.splice(index, 1, transformedIng);
-            } else {
-              this.transformedIngredients.push(transformedIng);
-            }
-          });
+          // Mettre à jour dans le tableau transformedIngredients (approche fonctionnelle)
+          // Créer une map des ingrédients existants pour une recherche rapide
+          const existingIngredientsMap = new Map(
+            this.transformedIngredients.map(ing => [ing.$id, ing])
+          );
+
+          // Combiner les ingrédients existants non modifiés avec les nouveaux
+          const updatedIds = new Set(transformedIngredients.map(ing => ing.$id));
+          const unchangedIngredients = this.transformedIngredients.filter(ing => !updatedIds.has(ing.$id));
+          
+          // Fusionner les ingrédients inchangés avec les ingrédients mis à jour
+          this.transformedIngredients = [...unchangedIngredients, ...transformedIngredients];
 
           console.log('[Collaborative App] Ingrédients mis à jour de manière optimisée:', ingredientIds.length);
         } catch (error) {
@@ -920,15 +1020,12 @@ export function createCollaborativeApp() {
             }
           );
 
-          // Mettre à jour dans le tableau transformedIngredients
-          transformedIngredients.forEach(transformedIng => {
-            const index = this.transformedIngredients.findIndex(ing => ing.$id === transformedIng.$id);
-            if (index !== -1) {
-              this.transformedIngredients.splice(index, 1, transformedIng);
-            } else {
-              this.transformedIngredients.push(transformedIng);
-            }
-          });
+          // Mettre à jour dans le tableau transformedIngredients (approche fonctionnelle)
+          const updatedIds = new Set(transformedIngredients.map(ing => ing.$id));
+          const unchangedIngredients = this.transformedIngredients.filter(ing => !updatedIds.has(ing.$id));
+          
+          // Fusionner les ingrédients inchangés avec les ingrédients mis à jour
+          this.transformedIngredients = [...unchangedIngredients, ...transformedIngredients];
 
           console.log('[Collaborative App] Ingrédients mis à jour depuis achats:', transformedIngredients.length);
         } catch (error) {
