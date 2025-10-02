@@ -69,6 +69,7 @@ import { SyncService } from "./services/SyncService.js";
 import { AppwriteDataService } from "./AppwriteDataService.js";
 import { ModalMixin } from "./ModalMixin.js";
 import { AuthManager } from "./services/AuthManager.js";
+import { SuggestionsCacheManager } from "./services/SuggestionsCacheManager.js";
 import {
   getUserEmail,
   getUserName,
@@ -114,6 +115,7 @@ export function createCollaborativeApp() {
         // Services
         syncService: null,
         colorManager: null,
+        suggestionsCacheManager: null,
 
         // État de la connexion temps réel
         realtimeStatus: {
@@ -196,8 +198,7 @@ export function createCollaborativeApp() {
         newVolunteer: '',
         newStore: '',
 
-        // Suggestions pour les utilisateurs
-        availableUsersSuggestions: [],
+
 
         // Modal d'attribution groupée
         groupAssignmentModal: {
@@ -336,33 +337,28 @@ export function createCollaborativeApp() {
         return types.sort();
       },
 
-      // Magasins disponibles pour les filtres
+      // Magasins disponibles pour les filtres (uniquement depuis ingredients)
       availableStores() {
-        const stores = new Set();
-        this.transformedIngredients.forEach((ing) => {
-          if (ing.storesDisplay && ing.storesDisplay !== "-") {
-            stores.add(ing.storesDisplay);
-          }
+        const stores = this.suggestionsCacheManager ? this.suggestionsCacheManager.getIngredientStores() : [];
+        console.log('[Collaborative App] availableStores() appelé ->', {
+          cacheManagerExists: !!this.suggestionsCacheManager,
+          storesCount: stores.length,
+          stores: stores
         });
-        return Array.from(stores).sort();
+        return stores;
       },
 
-      // Personnes disponibles pour les filtres
+      // Personnes disponibles pour les filtres (uniquement depuis ingredients)
       availablePeople() {
-        const people = new Set();
-        this.transformedIngredients.forEach((ing) => {
-          if (ing.responsibleDisplay && ing.responsibleDisplay !== "-") {
-            people.add(ing.responsibleDisplay);
-          }
+        const people = this.suggestionsCacheManager ? this.suggestionsCacheManager.getIngredientUsers() : [];
+        console.log('[Collaborative App] availablePeople() appelé ->', {
+          cacheManagerExists: !!this.suggestionsCacheManager,
+          peopleCount: people.length,
+          people: people
         });
-        return Array.from(people).sort();
+        return people;
       },
 
-      // Propriétés calculées pour le modal unifié
-      suggestedUnits() {
-        if (!this.editingIngredient?.calculations?.balancePerUnit) return [];
-        return this.editingIngredient.calculations.balancePerUnit.map(item => item.unit);
-      },
 
       isPurchaseFormValid() {
         return this.newPurchase && this.newPurchase.quantity && this.newPurchase.unit;
@@ -408,10 +404,12 @@ export function createCollaborativeApp() {
       },
 
       assignmentSuggestions() {
+        if (!this.suggestionsCacheManager) return [];
+
         if (this.groupAssignmentModal.type === 'volunteer') {
-          return this.availableUsersSuggestions;
+          return this.suggestionsCacheManager.getSuggestions('volunteer');
         } else if (this.groupAssignmentModal.type === 'store') {
-          return this.availableStoresSuggestions;
+          return this.suggestionsCacheManager.getSuggestions('store');
         }
         return [];
       },
@@ -473,21 +471,21 @@ export function createCollaborativeApp() {
           this.groupingBy = newTableGrouping[0];
         }
       },
-      
+
       // Watcher pour réagir aux changements du switch de remplacement
       'groupAssignmentModal.replaceExisting': {
         handler() {
           this.updateSummary();
         }
       },
-      
+
       // Watcher pour réagir aux changements de valeur
       'groupAssignmentModal.value': {
         handler() {
           this.updateSummary();
         }
       },
-      
+
       // Watcher pour réagir aux changements de sélection d'ingrédients
       selectedIngredients: {
         handler() {
@@ -602,7 +600,8 @@ export function createCollaborativeApp() {
 
           // 9. Initialiser le cache de suggestions avec localStorageService
           const { localStorageService } = await import('./services/localStorageService.js');
-          this.suggestionsCacheManager = new SuggestionsCacheManager(localStorageService);
+          this.localStorageService = localStorageService; // Garder la référence
+          this.suggestionsCacheManager = localStorageService.initSuggestionsCacheManager();
 
           // 10. Charger les données avec la stratégie de cache
           await this.loadInitialDataWithCache();
@@ -803,15 +802,6 @@ export function createCollaborativeApp() {
             },
           );
 
-          // Collecter les magasins existants pour les suggestions
-          this.collectAvailableStores();
-          this.collectAvailableUsers();
-
-          console.log(
-            "[Collaborative App] Données transformées:",
-            this.transformedIngredients.length,
-            "ingrédients",
-          );
         } catch (error) {
           console.error(
             "[Collaborative App] Erreur lors de la transformation des données:",
@@ -833,7 +823,7 @@ export function createCollaborativeApp() {
 
         // 1. Mettre à jour les données brutes
         this._updateLocalCollection(this.ingredients, ingredientPayload, eventType);
-        
+
         // 2. Mettre à jour les données transformées (uniquement pour create/update)
         if (eventType !== 'delete') {
           this.updateSingleIngredientInUI(ingredientPayload.$id);
@@ -856,13 +846,13 @@ export function createCollaborativeApp() {
 
         // 1. Mettre à jour les données brutes
         this._updateLocalCollection(this.purchases, purchasePayload, eventType);
-        
+
         // 2. Mettre à jour les ingrédients affectés (uniquement pour create/update)
         if (eventType !== 'delete') {
           this.updateIngredientsFromPurchasesInUI([purchasePayload]);
         } else {
           // Pour les suppressions, recalculer les ingrédients qui dépendaient de cet achat
-          const affectedIngredients = this.ingredients.filter(ing => 
+          const affectedIngredients = this.ingredients.filter(ing =>
             ing.listIngredient === purchasePayload.listIngredient
           );
           if (affectedIngredients.length > 0) {
@@ -970,7 +960,7 @@ export function createCollaborativeApp() {
 
         try {
           // Filtrer les achats concernés
-          const purchasesToUpdate = this.purchases.filter(purchase => 
+          const purchasesToUpdate = this.purchases.filter(purchase =>
             purchaseIds.includes(purchase.$id)
           );
 
@@ -1029,7 +1019,7 @@ export function createCollaborativeApp() {
           // Combiner les ingrédients existants non modifiés avec les nouveaux
           const updatedIds = new Set(transformedIngredients.map(ing => ing.$id));
           const unchangedIngredients = this.transformedIngredients.filter(ing => !updatedIds.has(ing.$id));
-          
+
           // Fusionner les ingrédients inchangés avec les ingrédients mis à jour
           this.transformedIngredients = [...unchangedIngredients, ...transformedIngredients];
 
@@ -1070,7 +1060,7 @@ export function createCollaborativeApp() {
           // Mettre à jour dans le tableau transformedIngredients (approche fonctionnelle)
           const updatedIds = new Set(transformedIngredients.map(ing => ing.$id));
           const unchangedIngredients = this.transformedIngredients.filter(ing => !updatedIds.has(ing.$id));
-          
+
           // Fusionner les ingrédients inchangés avec les ingrédients mis à jour
           this.transformedIngredients = [...unchangedIngredients, ...transformedIngredients];
 
@@ -1178,9 +1168,25 @@ export function createCollaborativeApp() {
         if (collectionName === APPWRITE_CONFIG.collections.ingredients) {
           // Mise à jour unifiée : données brutes + UI
           this.updateIngredientComplete(payload, eventType);
+
+          // Mettre à jour le cache de suggestions pour les ingredients
+          if (this.suggestionsCacheManager && eventType !== 'delete') {
+            // Trouver l'ingrédient transformé correspondant
+            const transformedIngredient = this.transformedIngredients.find(ing => ing.$id === payload.$id);
+            if (transformedIngredient) {
+              this.suggestionsCacheManager.updateFromIngredient(transformedIngredient);
+              this.suggestionsCacheManager.saveToStorage(this.listId);
+            }
+          }
         } else if (collectionName === APPWRITE_CONFIG.collections.purchases) {
           // Mise à jour unifiée : données brutes + UI
           this.updatePurchaseComplete(payload, eventType);
+
+          // Mettre à jour le cache de suggestions pour les purchases
+          if (this.suggestionsCacheManager && eventType !== 'delete') {
+            this.suggestionsCacheManager.updateFromPurchase(payload);
+            this.suggestionsCacheManager.saveToStorage(this.listId);
+          }
         }
       },
 
@@ -1545,7 +1551,7 @@ export function createCollaborativeApp() {
         if (!this.groupAssignmentModal.assignmentsToRemove.has(ingredientId)) {
           this.groupAssignmentModal.assignmentsToRemove.set(ingredientId, new Set());
         }
-        
+
         const removals = this.groupAssignmentModal.assignmentsToRemove.get(ingredientId);
         if (removals.has(value)) {
           removals.delete(value);
@@ -1555,7 +1561,7 @@ export function createCollaborativeApp() {
         } else {
           removals.add(value);
         }
-        
+
         this.updateSummary();
       },
 
@@ -1581,19 +1587,19 @@ export function createCollaborativeApp() {
         if (!this.groupAssignmentModal.value.trim()) {
           return 'selective'; // Only removals
         }
-        
+
         if (this.groupAssignmentModal.replaceExisting) {
           return 'replace';
         }
-        
+
         // Check if there are any manual removals
         const hasManualRemovals = Array.from(this.groupAssignmentModal.assignmentsToRemove.values())
           .some(removals => removals.size > 0);
-          
+
         if (hasManualRemovals) {
           return 'selective';
         }
-        
+
         return 'add';
       },
 
@@ -1610,19 +1616,19 @@ export function createCollaborativeApp() {
        */
       markAllAssignmentsForRemoval() {
         this.groupAssignmentModal.assignmentsToRemove.clear();
-        
+
         this.selectedIngredients.forEach(ingredient => {
           if (!ingredient.selected) return;
-          
-          const existingAssignments = this.groupAssignmentModal.type === 'volunteer' 
+
+          const existingAssignments = this.groupAssignmentModal.type === 'volunteer'
             ? (ingredient.who || [])
             : (ingredient.store || []);
-          
+
           if (existingAssignments.length > 0) {
             this.groupAssignmentModal.assignmentsToRemove.set(ingredient.$id, new Set(existingAssignments));
           }
         });
-        
+
         this.showToast('Toutes les attributions existantes seront remplacées', 'warning', 3000, 'Mode remplacement');
       },
 
@@ -1649,10 +1655,10 @@ export function createCollaborativeApp() {
           }
 
           if (hasNewValue) {
-            const existingAssignments = this.groupAssignmentModal.type === 'volunteer' 
+            const existingAssignments = this.groupAssignmentModal.type === 'volunteer'
               ? (ingredient.who || [])
               : (ingredient.store || []);
-            
+
             if (!existingAssignments.includes(hasNewValue.trim())) {
               additionsCount++;
             }
@@ -1674,7 +1680,7 @@ export function createCollaborativeApp() {
       hasModifications() {
         const hasValue = this.groupAssignmentModal.value.trim();
         const hasRemovals = this.groupAssignmentModal.assignmentsToRemove.size > 0;
-        
+
         return hasValue || hasRemovals;
       },
 
@@ -1724,11 +1730,19 @@ export function createCollaborativeApp() {
 
         try {
           await this.processGroupAssignment(selectedIngredients);
-          
+
+          // Mettre à jour le cache de suggestions avec les ingrédients modifiés
+          if (this.suggestionsCacheManager) {
+            selectedIngredients.forEach(ingredient => {
+              this.suggestionsCacheManager.updateFromIngredient(ingredient);
+            });
+            this.suggestionsCacheManager.saveToStorage(this.listId);
+          }
+
           // Message de succès personnalisé selon l'action
           const actionType = this.getActionType();
           let successMessage = `Opération réussie pour ${selectedIngredients.length} ingrédient(s)`;
-          
+
           if (actionType === 'add') {
             successMessage = `Attribution ajoutée à ${selectedIngredients.length} ingrédient(s)`;
           } else if (actionType === 'replace') {
@@ -1741,7 +1755,7 @@ export function createCollaborativeApp() {
               successMessage += ` (${this.groupAssignmentModal.summary.additionsCount} ajout(s))`;
             }
           }
-          
+
           this.showToast(successMessage, 'success', 5000, 'Succès');
           this.closeGroupAssignmentModal();
         } catch (error) {
@@ -1767,19 +1781,19 @@ export function createCollaborativeApp() {
               // Récupérer les bénévoles actuels
               const currentVolunteers = Array.isArray(ingredient.who) ? ingredient.who : [];
               const newVolunteer = this.groupAssignmentModal.value.trim();
-              
+
               // Calculer les bénévoles à conserver (ceux qui ne sont pas marqués pour suppression)
               const volunteersToRemove = this.groupAssignmentModal.assignmentsToRemove.get(ingredient.$id) || new Set();
               const keptVolunteers = currentVolunteers.filter(v => !volunteersToRemove.has(v));
-              
+
               // Construire la liste finale des bénévoles
               let finalVolunteers = [...keptVolunteers];
-              
+
               // Ajouter le nouveau bénévole si spécifié et pas déjà présent
               if (newVolunteer && !finalVolunteers.includes(newVolunteer)) {
                 finalVolunteers.push(newVolunteer);
               }
-              
+
               // Sauvegarder avec les suppressions et ajouts
               await this.appwriteDataService.saveVolunteers(
                 finalVolunteers,
@@ -1787,24 +1801,24 @@ export function createCollaborativeApp() {
                 ingredient.$id,
                 this.database
               );
-              
+
             } else if (this.groupAssignmentModal.type === 'store') {
               // Récupérer les magasins actuels
               const currentStores = Array.isArray(ingredient.store) ? ingredient.store : [];
               const newStore = this.groupAssignmentModal.value.trim();
-              
+
               // Calculer les magasins à conserver
               const storesToRemove = this.groupAssignmentModal.assignmentsToRemove.get(ingredient.$id) || new Set();
               const keptStores = currentStores.filter(s => !storesToRemove.has(s));
-              
+
               // Construire la liste finale des magasins
               let finalStores = [...keptStores];
-              
+
               // Ajouter le nouveau magasin si spécifié et pas déjà présent
               if (newStore && !finalStores.includes(newStore)) {
                 finalStores.push(newStore);
               }
-              
+
               // Sauvegarder avec les suppressions et ajouts
               await this.appwriteDataService.saveStores(
                 finalStores,
@@ -1890,6 +1904,12 @@ export function createCollaborativeApp() {
             purchaseData,
           );
 
+          // Mettre à jour le cache de suggestions avec le nouveau purchase
+          if (this.suggestionsCacheManager) {
+            this.suggestionsCacheManager.updateFromPurchase(purchaseData);
+            this.suggestionsCacheManager.saveToStorage(this.listId);
+          }
+
           // Fermer le modal et réinitialiser le formulaire
           this.closePurchaseModal();
 
@@ -1944,81 +1964,7 @@ export function createCollaborativeApp() {
 
       // === MÉTHODES POUR LE MODAL UNIFIÉ ===
 
-      collectAvailableStores() {
-        const stores = new Set();
 
-        // Collecter les magasins depuis tous les ingrédients
-        this.transformedIngredients.forEach(ingredient => {
-          if (ingredient.store && Array.isArray(ingredient.store)) {
-            ingredient.store.forEach(store => {
-              if (store && store.trim()) {
-                stores.add(store.trim());
-              }
-            });
-          }
-        });
-
-        // Ajouter les magasins depuis les achats existants
-        if (this.purchases) {
-          this.purchases.forEach(purchase => {
-            if (purchase.store && purchase.store.trim()) {
-              stores.add(purchase.store.trim());
-            }
-          });
-        }
-
-        // Convertir en tableau et trier
-        this.availableStoresSuggestions = Array.from(stores).sort();
-
-        console.log(`[Collaborative App] Collecté ${this.availableStoresSuggestions.length} magasins pour les suggestions`);
-      },
-
-      /**
-       * Collecte la liste des utilisateurs disponibles pour les suggestions
-       * depuis le localStorage, les ingrédients et les achats existants
-       */
-      collectAvailableUsers() {
-        const users = new Set();
-
-        // Ajouter l'utilisateur actuel depuis localStorage
-        const currentUser = localStorage.getItem('appwrite-user-name');
-        if (currentUser && currentUser.trim()) {
-          users.add(currentUser.trim());
-        }
-
-        // Collecter les utilisateurs depuis tous les ingrédients (champ who)
-        this.transformedIngredients.forEach(ingredient => {
-          if (ingredient.who && Array.isArray(ingredient.who)) {
-            ingredient.who.forEach(user => {
-              if (user && user.trim()) {
-                users.add(user.trim());
-              }
-            });
-          }
-        });
-
-        // Ajouter les utilisateurs depuis les achats existants
-        if (this.purchases) {
-          this.purchases.forEach(purchase => {
-            if (purchase.who && purchase.who.trim()) {
-              users.add(purchase.who.trim());
-            }
-          });
-        }
-
-        // Convertir en tableau et trier (utilisateur actuel en premier si disponible)
-        const usersArray = Array.from(users).sort();
-        if (currentUser && currentUser.trim()) {
-          const currentUserIndex = usersArray.indexOf(currentUser.trim());
-          if (currentUserIndex > 0) {
-            usersArray.splice(currentUserIndex, 1);
-            usersArray.unshift(currentUser.trim());
-          }
-        }
-
-        this.availableUsersSuggestions = usersArray;
-        console.log(`[Collaborative App] Collecté ${this.availableUsersSuggestions.length} utilisateurs pour les suggestions`);
-      },
 
       // === MÉTHODES DE STATUT ===
 

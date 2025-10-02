@@ -5,12 +5,14 @@
  */
 
 import { localStorageService } from './localStorageService.js';
+import { SuggestionsCacheManager } from './SuggestionsCacheManager.js';
 
 export class SyncService {
   constructor(database, listId, appwriteConfig) {
     this.database = database;
     this.listId = listId;
     this.appwriteConfig = appwriteConfig;
+    this.suggestionsCacheManager = new SuggestionsCacheManager(localStorageService);
 
     if (!this.appwriteConfig) {
       console.error('[SyncService] APPWRITE_CONFIG non fourni');
@@ -265,7 +267,53 @@ export class SyncService {
       }
     });
 
+    // Mettre à jour les caches de suggestions avec les nouvelles données
+    this._updateSuggestionsCaches(mergedData.ingredients, mergedData.purchases);
+
     return mergedData;
+  }
+
+  /**
+   * Met à jour les caches de suggestions avec les nouvelles données
+   */
+  _updateSuggestionsCaches(ingredients, purchases) {
+    console.log('[SyncService] Mise à jour des caches de suggestions...', {
+      ingredientsCount: ingredients?.length || 0,
+      purchasesCount: purchases?.length || 0
+    });
+
+    try {
+      // Transformer les ingredients pour le cache
+      const transformedIngredients = this._transformIngredientsForCache(ingredients);
+      
+      // Charger les caches existants
+      this.suggestionsCacheManager.loadFromStorage(this.listId);
+      
+      // Mettre à jour avec les nouvelles données
+      this.suggestionsCacheManager.updateFromIngredients(transformedIngredients);
+      this.suggestionsCacheManager.updateFromPurchases(purchases);
+      
+      // Sauvegarder les caches mis à jour
+      this.suggestionsCacheManager.saveToStorage(this.listId);
+      
+      console.log('[SyncService] Caches de suggestions mis à jour:', this.suggestionsCacheManager.getStats());
+    } catch (error) {
+      console.error('[SyncService] Erreur lors de la mise à jour des caches de suggestions:', error);
+    }
+  }
+
+  /**
+   * Transforme les ingredients pour avoir les bons champs pour le cache
+   */
+  _transformIngredientsForCache(ingredients) {
+    if (!ingredients || !Array.isArray(ingredients)) return [];
+    
+    return ingredients.map(ingredient => ({
+      ...ingredient,
+      // S'assurer que les champs store et who sont des arrays
+      store: ingredient.store || [],
+      who: ingredient.who || []
+    }));
   }
 
   /**

@@ -4,9 +4,22 @@
  * Stratégie : Le navigateur est la source de vérité primaire, Appwrite pour la synchronisation
  */
 
+import { SuggestionsCacheManager } from './SuggestionsCacheManager.js';
+
 export class LocalStorageService {
   constructor() {
     this.storagePrefix = 'collab_ingredients_';
+    this.suggestionsCacheManager = null; // Sera initialisé plus tard
+  }
+
+  /**
+   * Initialise le SuggestionsCacheManager
+   */
+  initSuggestionsCacheManager() {
+    if (!this.suggestionsCacheManager) {
+      this.suggestionsCacheManager = new SuggestionsCacheManager(this);
+    }
+    return this.suggestionsCacheManager;
   }
 
   /**
@@ -68,6 +81,9 @@ export class LocalStorageService {
         purchasesCount: data.purchases?.length || 0
       });
 
+      // Vérifier et initialiser les caches de suggestions si nécessaire
+      this._ensureSuggestionsCaches(listId, data.ingredients, data.purchases);
+
       return {
         ...data,
         lastSyncTimestamp
@@ -81,6 +97,65 @@ export class LocalStorageService {
         lastSyncTimestamp: null
       };
     }
+  }
+
+  /**
+   * Vérifie l'existence des caches de suggestions et les crée si nécessaire
+   */
+  _ensureSuggestionsCaches(listId, ingredients, purchases) {
+    console.log('[LocalStorage] Vérification des caches de suggestions...', {
+      listId,
+      hasIngredients: !!(ingredients && ingredients.length > 0),
+      hasPurchases: !!(purchases && purchases.length > 0)
+    });
+
+    // Initialiser le SuggestionsCacheManager si nécessaire
+    if (!this.suggestionsCacheManager) {
+      this.initSuggestionsCacheManager();
+    }
+
+    // Vérifier si les caches existent
+    const ingredientsKey = `${this.storagePrefix}${listId}_ingredients_cache`;
+    const purchasesKey = `${this.storagePrefix}${listId}_purchases_cache`;
+    
+    const ingredientsCacheExists = localStorage.getItem(ingredientsKey) !== null;
+    const purchasesCacheExists = localStorage.getItem(purchasesKey) !== null;
+
+    console.log('[LocalStorage] Existence des caches de suggestions:', {
+      ingredientsKey,
+      purchasesKey,
+      ingredientsCacheExists,
+      purchasesCacheExists
+    });
+
+    if (!ingredientsCacheExists || !purchasesCacheExists) {
+      console.log('[LocalStorage] Création des caches de suggestions manquants...');
+      
+      // Transformer les ingredients pour avoir les bons champs
+      const transformedIngredients = this._transformIngredientsForCache(ingredients);
+      
+      // Initialiser les caches
+      this.suggestionsCacheManager.checkAndInitializeCaches(listId, transformedIngredients, purchases);
+      
+      console.log('[LocalStorage] Caches de suggestions créés avec succès');
+    } else {
+      console.log('[LocalStorage] Chargement des caches de suggestions existants...');
+      this.suggestionsCacheManager.loadFromStorage(listId);
+    }
+  }
+
+  /**
+   * Transforme les ingredients bruts pour avoir les champs attendus par le cache
+   */
+  _transformIngredientsForCache(ingredients) {
+    if (!ingredients || !Array.isArray(ingredients)) return [];
+    
+    return ingredients.map(ingredient => ({
+      ...ingredient,
+      // S'assurer que les champs store et who sont des arrays
+      store: ingredient.store || [],
+      who: ingredient.who || []
+    }));
   }
 
   /**
