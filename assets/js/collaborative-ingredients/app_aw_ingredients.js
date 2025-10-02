@@ -752,6 +752,56 @@ export function createCollaborativeApp() {
         }
       },
 
+      // === MÉTHODES DE MISE À JOUR UNIFIÉES ===
+
+      /**
+       * Met à jour un ingrédient de manière complète (données brutes + UI)
+       * @param {Object} ingredientPayload - Données de l'ingrédient depuis Appwrite
+       * @param {string} eventType - Type d'événement (create/update/delete)
+       */
+      updateIngredientComplete(ingredientPayload, eventType) {
+        console.log('[Collaborative App] Mise à jour complète ingrédient:', ingredientPayload.$id, eventType);
+
+        // 1. Mettre à jour les données brutes
+        this._updateLocalCollection(this.ingredients, ingredientPayload, eventType);
+        
+        // 2. Mettre à jour les données transformées (uniquement pour create/update)
+        if (eventType !== 'delete') {
+          this.updateSingleIngredientInUI(ingredientPayload.$id);
+        } else {
+          // Pour les suppressions, retirer des données transformées
+          const index = this.transformedIngredients.findIndex(ing => ing.$id === ingredientPayload.$id);
+          if (index !== -1) {
+            this.transformedIngredients.splice(index, 1);
+          }
+        }
+      },
+
+      /**
+       * Met à jour un achat de manière complète (données brutes + UI)
+       * @param {Object} purchasePayload - Données de l'achat depuis Appwrite
+       * @param {string} eventType - Type d'événement (create/update/delete)
+       */
+      updatePurchaseComplete(purchasePayload, eventType) {
+        console.log('[Collaborative App] Mise à jour complète achat:', purchasePayload.$id, eventType);
+
+        // 1. Mettre à jour les données brutes
+        this._updateLocalCollection(this.purchases, purchasePayload, eventType);
+        
+        // 2. Mettre à jour les ingrédients affectés (uniquement pour create/update)
+        if (eventType !== 'delete') {
+          this.updateIngredientsFromPurchasesInUI([purchasePayload]);
+        } else {
+          // Pour les suppressions, recalculer les ingrédients qui dépendaient de cet achat
+          const affectedIngredients = this.ingredients.filter(ing => 
+            ing.listIngredient === purchasePayload.listIngredient
+          );
+          if (affectedIngredients.length > 0) {
+            this.updateIngredientsFromPurchasesInUI([purchasePayload]);
+          }
+        }
+      },
+
       /**
        * Met à jour un seul ingrédient de manière optimisée dans l'UI
        * @param {string} ingredientId - L'ID de l'ingrédient à mettre à jour
@@ -969,7 +1019,6 @@ export function createCollaborativeApp() {
       handleRealtimeUpdate(response) {
         // console.log("[Collaborative App] Mise à jour temps réel reçue:", response);
 
-
         // Appliquer le changement au cache local via le service de synchronisation
         if (this.syncService) {
           const syncResult = this.syncService.applyRealtimeChange(response);
@@ -983,13 +1032,11 @@ export function createCollaborativeApp() {
         const eventType = response.events[0].split(".")[6]; // "create", "update", "delete". L'index "5" ne correspond pas à l'événement: preserver index 6.
 
         if (collectionName === APPWRITE_CONFIG.collections.ingredients) {
-          this._updateLocalCollection(this.ingredients, payload, eventType);
-          // Mise à jour optimisée : seulement l'ingrédient modifié
-          this.updateSingleIngredientInUI(payload.$id);
+          // Mise à jour unifiée : données brutes + UI
+          this.updateIngredientComplete(payload, eventType);
         } else if (collectionName === APPWRITE_CONFIG.collections.purchases) {
-          this._updateLocalCollection(this.purchases, payload, eventType);
-          // Mise à jour optimisée : seulement les ingrédients affectés par l'achat
-          this.updateIngredientsFromPurchasesInUI([payload]);
+          // Mise à jour unifiée : données brutes + UI
+          this.updatePurchaseComplete(payload, eventType);
         }
       },
 

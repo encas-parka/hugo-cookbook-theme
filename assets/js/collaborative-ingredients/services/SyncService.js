@@ -61,29 +61,54 @@ export class SyncService {
       const lastSyncTimestamp = localStorageService.getLastSyncTimestamp(this.listId);
       const isFirstVisit = !lastSyncTimestamp;
 
+      // Si première visite, charger complètement depuis Appwrite
+      if (isFirstVisit) {
+        const completeData = await this._loadCompleteData();
+        localStorageService.saveAllData(this.listId, completeData);
+        
+        return {
+          success: true,
+          data: completeData,
+          changes: {
+            event: [completeData.event],
+            ingredients: completeData.ingredients,
+            purchases: completeData.purchases
+          },
+          isFirstVisit: true
+        };
+      }
+
+      // Récupérer les changements différentiels
       const syncPromises = [
-        this._syncCollection('events', this.listId, lastSyncTimestamp, isFirstVisit),
-        this._syncCollection('ingredients', 'ingredientLists', lastSyncTimestamp, isFirstVisit),
-        this._syncCollection('purchases', 'list', lastSyncTimestamp, isFirstVisit)
+        this._syncCollection('events', this.listId, lastSyncTimestamp, false),
+        this._syncCollection('ingredients', 'ingredientLists', lastSyncTimestamp, false),
+        this._syncCollection('purchases', 'list', lastSyncTimestamp, false)
       ];
 
       const [eventSync, ingredientsSync, purchasesSync] = await Promise.all(syncPromises);
 
-      // Récupérer les données complètes après synchronisation
-      const completeData = await this._loadCompleteData();
+      // Charger les données existantes depuis le cache local
+      const cachedData = localStorageService.loadAllData(this.listId);
 
-      // Mettre à jour le cache
-      localStorageService.saveAllData(this.listId, completeData);
+      // Fusionner les changements avec le cache local
+      const mergedData = this._mergeChangesWithCache(cachedData, {
+        event: eventSync.changes,
+        ingredients: ingredientsSync.changes,
+        purchases: purchasesSync.changes
+      });
+
+      // Mettre à jour le cache avec les données fusionnées
+      localStorageService.saveAllData(this.listId, mergedData);
 
       return {
         success: true,
-        data: completeData,
+        data: mergedData,
         changes: {
           event: eventSync.changes,
           ingredients: ingredientsSync.changes,
           purchases: purchasesSync.changes
         },
-        isFirstVisit
+        isFirstVisit: false
       };
 
     } catch (error) {
@@ -169,6 +194,78 @@ export class SyncService {
       ingredients: ingredientsResponse.documents,
       purchases: purchasesResponse.documents
     };
+  }
+
+  /**
+   * Fusionne les changements différentiels avec les données du cache local
+   */
+  _mergeChangesWithCache(cachedData, changes) {
+    console.log('[SyncService] Fusion des changements avec le cache local...', {
+      changesCount: {
+        event: changes.event?.length || 0,
+        ingredients: changes.ingredients?.length || 0,
+        purchases: changes.purchases?.length || 0
+      }
+    });
+
+    const mergedData = {
+      event: cachedData.event || null,
+      ingredients: [...(cachedData.ingredients || [])],
+      purchases: [...(cachedData.purchases || [])]
+    };
+
+    // Fusionner les changements d'événement (un seul document)
+    if (changes.event && changes.event.length > 0) {
+      const eventChange = changes.event[0];
+      if (eventChange && eventChange.$id === this.listId) {
+        mergedData.event = eventChange;
+        console.log('[SyncService] Événement mis à jour:', eventChange.$id);
+      }
+    }
+
+    // Fusionner les changements d'ingrédients
+    if (changes.ingredients && changes.ingredients.length > 0) {
+      changes.ingredients.forEach(change => {
+        const existingIndex = mergedData.ingredients.findIndex(item => item.$id === change.$id);
+        
+        if (existingIndex !== -1) {
+          // Mettre à jour l'élément existant
+          mergedData.ingredients[existingIndex] = change;
+          console.log('[SyncService] Ingrédient mis à jour:', change.$id);
+        } else {
+          // Ajouter le nouvel élément
+          mergedData.ingredients.push(change);
+          console.log('[SyncService] Nouvel ingrédient ajouté:', change.$id);
+        }
+      });
+    }
+
+    // Fusionner les changements d'achats
+    if (changes.purchases && changes.purchases.length > 0) {
+      changes.purchases.forEach(change => {
+        const existingIndex = mergedData.purchases.findIndex(item => item.$id === change.$id);
+        
+        if (existingIndex !== -1) {
+          // Mettre à jour l'élément existant
+          mergedData.purchases[existingIndex] = change;
+          console.log('[SyncService] Achat mis à jour:', change.$id);
+        } else {
+          // Ajouter le nouvel élément
+          mergedData.purchases.push(change);
+          console.log('[SyncService] Nouvel achat ajouté:', change.$id);
+        }
+      });
+    }
+
+    console.log('[SyncService] Fusion terminée:', {
+      mergedCounts: {
+        event: !!mergedData.event,
+        ingredients: mergedData.ingredients.length,
+        purchases: mergedData.purchases.length
+      }
+    });
+
+    return mergedData;
   }
 
   /**
