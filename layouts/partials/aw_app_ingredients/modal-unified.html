@@ -311,7 +311,17 @@
                         type="text"
                         class="form-control form-control-sm"
                         v-model="purchase.store"
+                        list="purchase-store-suggestions"
                       />
+                      <datalist id="purchase-store-suggestions">
+                        <option
+                          v-for="store in availableStoresSuggestions"
+                          :key="store"
+                          :value="store"
+                        >
+                          [[ store ]]
+                        </option>
+                      </datalist>
                     </td>
                     <td v-else>[[ purchase.store || '-' ]]</td>
 
@@ -320,7 +330,17 @@
                         type="text"
                         class="form-control form-control-sm"
                         v-model="purchase.who"
+                        list="purchase-volunteer-suggestions"
                       />
+                      <datalist id="purchase-volunteer-suggestions">
+                        <option
+                          v-for="volunteer in availableVolunteersSuggestions"
+                          :key="volunteer"
+                          :value="volunteer"
+                        >
+                          [[ volunteer ]]
+                        </option>
+                      </datalist>
                     </td>
                     <td v-else>[[ purchase.who || '-' ]]</td>
 
@@ -599,8 +619,18 @@
                       id="new-volunteer"
                       v-model="newVolunteer"
                       placeholder="Entrez le nom du volontaire"
+                      list="volunteer-suggestions"
                       @keyup.enter="addVolunteer"
                     />
+                    <datalist id="volunteer-suggestions">
+                      <option
+                        v-for="volunteer in availableVolunteersSuggestions"
+                        :key="volunteer"
+                        :value="volunteer"
+                      >
+                        [[ volunteer ]]
+                      </option>
+                    </datalist>
                     <button
                       class="btn btn-primary"
                       @click="addVolunteer"

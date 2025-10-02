@@ -69,7 +69,6 @@ import { SyncService } from "./services/SyncService.js";
 import { AppwriteDataService } from "./AppwriteDataService.js";
 import { ModalMixin } from "./ModalMixin.js";
 import { AuthManager } from "./services/AuthManager.js";
-import { SuggestionsCacheManager } from "./services/SuggestionsCacheManager.js";
 import {
   getUserEmail,
   getUserName,
@@ -339,9 +338,9 @@ export function createCollaborativeApp() {
 
       // Magasins disponibles pour les filtres (uniquement depuis ingredients)
       availableStores() {
-        const stores = this.suggestionsCacheManager ? this.suggestionsCacheManager.getIngredientStores() : [];
+        const stores = this.localStorageService ? this.localStorageService.getIngredientStores() : [];
         console.log('[Collaborative App] availableStores() appelé ->', {
-          cacheManagerExists: !!this.suggestionsCacheManager,
+          cacheManagerExists: !!this.localStorageService,
           storesCount: stores.length,
           stores: stores
         });
@@ -350,9 +349,9 @@ export function createCollaborativeApp() {
 
       // Personnes disponibles pour les filtres (uniquement depuis ingredients)
       availablePeople() {
-        const people = this.suggestionsCacheManager ? this.suggestionsCacheManager.getIngredientUsers() : [];
+        const people = this.localStorageService ? this.localStorageService.getIngredientUsers() : [];
         console.log('[Collaborative App] availablePeople() appelé ->', {
-          cacheManagerExists: !!this.suggestionsCacheManager,
+          cacheManagerExists: !!this.localStorageService,
           peopleCount: people.length,
           people: people
         });
@@ -404,12 +403,12 @@ export function createCollaborativeApp() {
       },
 
       assignmentSuggestions() {
-        if (!this.suggestionsCacheManager) return [];
+        if (!this.localStorageService) return [];
 
         if (this.groupAssignmentModal.type === 'volunteer') {
-          return this.suggestionsCacheManager.getSuggestions('volunteer');
+          return this.localStorageService.getSuggestions('volunteer');
         } else if (this.groupAssignmentModal.type === 'store') {
-          return this.suggestionsCacheManager.getSuggestions('store');
+          return this.localStorageService.getSuggestions('store');
         }
         return [];
       },
@@ -601,7 +600,6 @@ export function createCollaborativeApp() {
           // 9. Initialiser le cache de suggestions avec localStorageService
           const { localStorageService } = await import('./services/localStorageService.js');
           this.localStorageService = localStorageService; // Garder la référence
-          this.suggestionsCacheManager = localStorageService.initSuggestionsCacheManager();
 
           // 10. Charger les données avec la stratégie de cache
           await this.loadInitialDataWithCache();
@@ -1170,12 +1168,12 @@ export function createCollaborativeApp() {
           this.updateIngredientComplete(payload, eventType);
 
           // Mettre à jour le cache de suggestions pour les ingredients
-          if (this.suggestionsCacheManager && eventType !== 'delete') {
+          if (this.localStorageService) {
             // Trouver l'ingrédient transformé correspondant
             const transformedIngredient = this.transformedIngredients.find(ing => ing.$id === payload.$id);
             if (transformedIngredient) {
-              this.suggestionsCacheManager.updateFromIngredient(transformedIngredient);
-              this.suggestionsCacheManager.saveToStorage(this.listId);
+              this.localStorageService.updateFromIngredient(transformedIngredient);
+              this.localStorageService.saveToStorage(this.listId);
             }
           }
         } else if (collectionName === APPWRITE_CONFIG.collections.purchases) {
@@ -1183,9 +1181,9 @@ export function createCollaborativeApp() {
           this.updatePurchaseComplete(payload, eventType);
 
           // Mettre à jour le cache de suggestions pour les purchases
-          if (this.suggestionsCacheManager && eventType !== 'delete') {
-            this.suggestionsCacheManager.updateFromPurchase(payload);
-            this.suggestionsCacheManager.saveToStorage(this.listId);
+          if (this.localStorageService) {
+            this.localStorageService.updateFromPurchase(payload);
+            this.localStorageService.saveToStorage(this.listId);
           }
         }
       },
@@ -1732,11 +1730,11 @@ export function createCollaborativeApp() {
           await this.processGroupAssignment(selectedIngredients);
 
           // Mettre à jour le cache de suggestions avec les ingrédients modifiés
-          if (this.suggestionsCacheManager) {
+          if (this.localStorageService) {
             selectedIngredients.forEach(ingredient => {
-              this.suggestionsCacheManager.updateFromIngredient(ingredient);
+              this.localStorageService.updateFromIngredient(ingredient);
             });
-            this.suggestionsCacheManager.saveToStorage(this.listId);
+            this.localStorageService.saveToStorage(this.listId);
           }
 
           // Message de succès personnalisé selon l'action
@@ -1905,9 +1903,9 @@ export function createCollaborativeApp() {
           );
 
           // Mettre à jour le cache de suggestions avec le nouveau purchase
-          if (this.suggestionsCacheManager) {
-            this.suggestionsCacheManager.updateFromPurchase(purchaseData);
-            this.suggestionsCacheManager.saveToStorage(this.listId);
+          if (this.localStorageService) {
+            this.localStorageService.updateFromPurchase(purchaseData);
+            this.localStorageService.saveToStorage(this.listId);
           }
 
           // Fermer le modal et réinitialiser le formulaire

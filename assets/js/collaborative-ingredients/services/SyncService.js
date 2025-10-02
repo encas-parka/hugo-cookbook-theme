@@ -5,14 +5,12 @@
  */
 
 import { localStorageService } from './localStorageService.js';
-import { SuggestionsCacheManager } from './SuggestionsCacheManager.js';
 
 export class SyncService {
   constructor(database, listId, appwriteConfig) {
     this.database = database;
     this.listId = listId;
     this.appwriteConfig = appwriteConfig;
-    this.suggestionsCacheManager = new SuggestionsCacheManager(localStorageService);
 
     if (!this.appwriteConfig) {
       console.error('[SyncService] APPWRITE_CONFIG non fourni');
@@ -287,16 +285,16 @@ export class SyncService {
       const transformedIngredients = this._transformIngredientsForCache(ingredients);
       
       // Charger les caches existants
-      this.suggestionsCacheManager.loadFromStorage(this.listId);
+      localStorageService.loadFromStorage(this.listId);
       
       // Mettre à jour avec les nouvelles données
-      this.suggestionsCacheManager.updateFromIngredients(transformedIngredients);
-      this.suggestionsCacheManager.updateFromPurchases(purchases);
+      localStorageService.updateFromIngredients(transformedIngredients);
+      localStorageService.updateFromPurchases(purchases);
       
       // Sauvegarder les caches mis à jour
-      this.suggestionsCacheManager.saveToStorage(this.listId);
+      localStorageService.saveToStorage(this.listId);
       
-      console.log('[SyncService] Caches de suggestions mis à jour:', this.suggestionsCacheManager.getStats());
+      console.log('[SyncService] Caches de suggestions mis à jour:', localStorageService.getStats());
     } catch (error) {
       console.error('[SyncService] Erreur lors de la mise à jour des caches de suggestions:', error);
     }
@@ -356,7 +354,6 @@ export class SyncService {
    */
   _handleDocumentUpdate(collectionName, document) {
     const dataType = this._getDataTypeForCollection(collectionName);
-
     if (!dataType) return false;
 
     // Vérifier si le document appartient bien à notre liste
@@ -368,6 +365,9 @@ export class SyncService {
 
     if (success) {
       console.log(`[SyncService] Document ${dataType} mis à jour dans le cache:`, document.$id);
+      
+      // Mettre à jour les caches de suggestions
+      this._updateSuggestionsCachesFromDocument(collectionName, document);
     }
 
     return success;
@@ -378,17 +378,45 @@ export class SyncService {
    */
   _handleDocumentDelete(collectionName, document) {
     const dataType = this._getDataTypeForCollection(collectionName);
-
     if (!dataType) return false;
 
     const success = localStorageService.removeDocument(this.listId, dataType, document.$id);
 
     if (success) {
       console.log(`[SyncService] Document ${dataType} supprimé du cache:`, document.$id);
+      // Pas de mise à jour des caches pour les suppressions : 
+      // les magasins/utilisateurs restent pertinents pour les suggestions futures
     }
 
     return success;
   }
+
+  /**
+   * Met à jour les caches de suggestions depuis un document modifié
+   */
+  _updateSuggestionsCachesFromDocument(collectionName, document) {
+    try {
+      if (collectionName === 'ingredients') {
+        // Transformer l'ingredient pour le cache
+        const transformedIngredient = {
+          ...document,
+          store: document.store || [],
+          who: document.who || []
+        };
+        localStorageService.updateFromIngredient(transformedIngredient);
+        localStorageService.saveToStorage(this.listId);
+        console.log('[SyncService] Cache suggestions mis à jour depuis ingredient:', document.$id);
+      } else if (collectionName === 'purchases') {
+        localStorageService.updateFromPurchase(document);
+        localStorageService.saveToStorage(this.listId);
+        console.log('[SyncService] Cache suggestions mis à jour depuis purchase:', document.$id);
+      }
+    } catch (error) {
+      console.error('[SyncService] Erreur lors de la mise à jour des caches de suggestions:', error);
+    }
+  }
+
+  
 
   /**
    * Vérifie si un document appartient à notre liste
