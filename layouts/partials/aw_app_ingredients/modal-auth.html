@@ -1,78 +1,54 @@
 <!-- /hugo-cookbook-theme/layouts/partials/aw_app_ingredients/modal-auth.html -->
 <!-- Modal affiché lorsque l'utilisateur n'est pas authentifié sur Appwrite -->
-<div class="modal fade"
+<div v-if="showAuthModal"
+     class="modal"
+     :class="{ 'show d-block': showAuthModal, 'fade': !showAuthModal }"
      id="authRequiredModal"
      tabindex="-1"
      aria-labelledby="authRequiredModalLabel"
      aria-hidden="true"
-     data-bs-backdrop="static"
-     data-bs-keyboard="false"
-     :class="{ 'show': showAuthModal }"
-     :style="{ display: showAuthModal ? 'block' : 'none' }"
-     style="z-index: 1055;">
+     style="background-color: rgba(0, 0, 0, 0.5)">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content shadow-lg">
       <div class="modal-header bg-primary text-white">
         <h5 class="modal-title" id="authRequiredModalLabel">
           <i class="fas fa-lock me-2"></i> Authentification requise
         </h5>
-        <button
-          type="button"
-          class="btn-close btn-close-white"
-          @click="closeAuthModal()"
-          aria-label="Fermer"
-          v-if="!isAuthenticated"></button>
       </div>
       <div class="modal-body">
+        <p class="lead">Pour accéder à cette liste collaborative et y participer, vous devez être connecté(e).</p>
+        <p>Cela permet de synchroniser les contributions de chacun en temps réel.</p>
 
-          <p class="lead">Pour accéder à cette liste collaborative et y participer, vous devez être connecté(e).</p>
-          <p>Cela permet de synchroniser les contributions de chacun en temps réel.</p>
-
-          <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>
-            <strong>Fonctionnalités disponibles après connexion :</strong>
-            <ul class="mb-0 mt-2">
-              <li>Synchronisation temps réel des modifications</li>
-              <li>Enregistrement des achats et contributions</li>
-              <li>Mandatement sur les ingrédients</li>
-              <li>Collaboration avec d'autres utilisateurs</li>
-            </ul>
-          </div>
-        </div>
-
-        <div v-else class="text-center py-4">
-          <div class="text-success mb-3">
-            <i class="fas fa-check-circle fa-3x"></i>
-          </div>
-          <h6 class="text-success">Authentification réussie !</h6>
-          <p class="text-muted">Redirection vers la liste collaborative...</p>
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>Fonctionnalités disponibles après connexion :</strong>
+          <ul class="mb-0 mt-2">
+            <li>Synchronisation temps réel des modifications</li>
+            <li>Enregistrement des achats et contributions</li>
+            <li>Mandatement sur les ingrédients</li>
+            <li>Collaboration avec d'autres utilisateurs</li>
+          </ul>
         </div>
       </div>
       <div class="modal-footer border-0">
         <div class="d-flex gap-2 w-100">
-          <!--<button
+          <button
             type="button"
             class="btn btn-secondary flex-fill"
-            @click="closeAuthModal()"
-            v-if="allowAnonymousView">
-            <i class="fas fa-eye me-2"></i> Consulter en lecture seule
-          </button>-->
+            @click="closeAuthModal()">
+            <i class="fas fa-times me-2"></i> Fermer
+          </button>
           <a
             :href="`/login?redirect=${loginRedirectUrl}`"
-            class="btn btn-primary flex-fill"
-            :class="{ 'w-100': !allowAnonymousView }">
+            class="btn btn-primary flex-fill">
             <i class="fas fa-sign-in-alt me-2"></i> Se connecter
           </a>
         </div>
       </div>
     </div>
   </div>
-</div>
 <!-- Overlay pour le modal -->
-<div class="modal-backdrop fade"
-     :class="{ 'show': showAuthModal }"
-     :style="{ display: showAuthModal ? 'block' : 'none' }"
-     v-if="showAuthModal"></div>
+
 
 <!-- Toast d'invitation à se connecter pour les fonctionnalités avancées -->
 <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1060;">

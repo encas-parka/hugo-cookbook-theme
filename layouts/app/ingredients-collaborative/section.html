@@ -16,7 +16,7 @@
 
 
 
-<div id="collaborativeApp">
+<div id="collaborativeApp" v-cloak>
   <!-- Template principal de l'application Vue.js -->
   <div class="container-fluid">
     {{ partial "aw_app_ingredients/app-header.html" . }} {{ partial
@@ -46,7 +46,6 @@
   </div>
 
 
-    {{ partial "aw_app_ingredients/modal-auth.html" . }}
     <!-- toast connexion -->
     {{ partialCached "aw_app_ingredients/toast-connexion.html" . }}
 

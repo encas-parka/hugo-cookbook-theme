@@ -75,7 +75,7 @@ import {
   getDatabases,
   subscribeToCollections,
   APPWRITE_CONFIG,
-  isAuthenticatedAppwrite,
+  isConnectedAppwrite,
 } from "../appwrite-client.js";
 
 
@@ -167,10 +167,8 @@ export function createCollaborativeApp() {
         authManager: null, // Sera initialisé dans initializeApp()
 
         // État UI pour l'authentification (reste dans Vue)
-        showAuthModal: false,
         showAuthToast: false,
         allowAnonymousView: true,
-        authModalShown: false,
         isAuthenticated: false, // État synchrone pour les templates
 
         deleteConfirmation: {
@@ -229,9 +227,12 @@ export function createCollaborativeApp() {
 
 
     computed: {
-      // Méthodes d'authentification accessibles dans les templates
-      isAuthenticatedAppwrite() {
-        return isAuthenticatedAppwrite;
+
+      // Affichage du modal d'authentification
+      showAuthModal() {
+        // Afficher le modal si non authentifié ET que l'authManager a été initialisé ET que le chargement initial est terminé
+
+        return !this.isAuthenticated && this.authManager !== null && !this.isLoading;
       },
 
       // URL de redirection pour l'authentification (gère le SSR)
@@ -503,6 +504,10 @@ export function createCollaborativeApp() {
     methods: {
       // === MÉTHODES DE GESTION DE L'AUTHENTIFICATION ===
 
+      getAuthValidator() {
+        return isConnectedAppwrite;
+      },
+
       async checkAuthentication() {
         if (!this.authManager) {
           console.error('[Collaborative App] AuthManager non initialisé');
@@ -511,11 +516,12 @@ export function createCollaborativeApp() {
 
         try {
           const isAuthenticated = await this.authManager.check();
-          this.isAuthenticated = isAuthenticated; // Mettre à jour l'état synchrone pour les templates
 
-          if (!isAuthenticated && !this.authModalShown) {
-            this.showAuthModal = true;
-            this.authModalShown = true;
+          // Mettre à jour l'état synchrone pour les templates
+          this.isAuthenticated = isAuthenticated;
+
+          if (!isAuthenticated) {
+            // Le modal est maintenant géré automatiquement par v-if !isAuthenticated
             this.realtimeStatus.isConnected = false;
           }
         } catch (error) {
@@ -525,7 +531,8 @@ export function createCollaborativeApp() {
       },
 
       closeAuthModal() {
-        this.showAuthModal = false;
+        // Rediriger vers la page d'accueil si l'utilisateur ne veut pas se connecter
+        window.location.href = '/';
       },
 
       showAuthToastForFeature(featureName) {
@@ -566,7 +573,7 @@ export function createCollaborativeApp() {
           // console.log("[Collaborative App] Initialisation...");
 
           // 1. Initialiser le service d'authentification
-          this.authManager = new AuthManager(isAuthenticatedAppwrite);
+          this.authManager = new AuthManager(this.getAuthValidator());
 
           // 2. Vérifier l'authentification
           await this.checkAuthentication();
@@ -593,11 +600,18 @@ export function createCollaborativeApp() {
           // 8. Initialiser le ColorManager
           this.colorManager = new ColorManager(this.listId);
 
-          // 9. Charger les données avec la stratégie de cache
-          await this.loadInitialDataWithCache();
+          // 9. Initialiser le cache de suggestions avec localStorageService
+          const { localStorageService } = await import('./services/localStorageService.js');
+          this.suggestionsCacheManager = new SuggestionsCacheManager(localStorageService);
 
-          // 10. Configurer la synchronisation temps réel
-          this.setupRealtime();
+          // 10. Charger les données avec la stratégie de cache
+          await this.loadInitialDataWithCache();
+          // 10. Configurer la synchronisation temps réel (seulement si authentifié)
+          if (this.isAuthenticated) {
+            this.setupRealtime();
+          } else {
+            console.log('[Collaborative App] Synchronisation temps réel désactivée (utilisateur non authentifié)');
+          }
 
           // 11. Démarrer le monitoring de la connexion temps réel
           // this.startConnectionMonitoring();

@@ -2,13 +2,11 @@
  * AuthManager.js
  * Service de gestion d'authentification minimaliste et testable
  * Logique métier pure - aucune dépendance UI
- * 
+ *
  * @description
  * Gère l'état d'authentification et les patterns de garde
  * Séparé de la logique UI qui reste dans les composants Vue
- * 
- * @author ENKA Cookbook Team
- * @version 1.0.0
+ *
  */
 
 export class AuthManager {
@@ -19,7 +17,7 @@ export class AuthManager {
     if (typeof isAuthenticatedFn !== 'function') {
       throw new Error('AuthManager nécessite une fonction de vérification d\'authentification');
     }
-    
+
     this.isAuthenticatedFn = isAuthenticatedFn;
     this.state = {
       isAuthenticated: false,
@@ -37,10 +35,10 @@ export class AuthManager {
   async check() {
     this.state.isChecking = true;
     this.state.error = null;
-    
+
     try {
       const result = await this.isAuthenticatedFn();
-      
+
       // Gérer différents types de retours (boolean ou objet)
       if (typeof result === 'boolean') {
         this.state.isAuthenticated = result;
@@ -52,12 +50,12 @@ export class AuthManager {
         this.state.isAuthenticated = Boolean(result);
         this.state.user = null;
       }
-      
+
       this.state.lastCheck = Date.now();
       console.log(`[AuthManager] Authentification vérifiée: ${this.state.isAuthenticated}`);
-      
+
       return this.state.isAuthenticated;
-      
+
     } catch (error) {
       console.error('[AuthManager] Erreur lors de la vérification:', error);
       this.state.error = error;

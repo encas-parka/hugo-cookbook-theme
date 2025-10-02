@@ -170,6 +170,43 @@ async function isAuthenticatedAppwrite() {
     }
 }
 
+/**
+ * Vérifie si l'utilisateur est connecté avec une session Appwrite valide.
+ * Cette fonction vérifie à la fois le compte utilisateur ET la validité de la session.
+ * @returns {Promise<boolean>} Vrai si authentifié avec session active, sinon faux
+ */
+async function isConnectedAppwrite() {
+    try {
+        const acc = await getAccount();
+        
+        // Vérifier le compte utilisateur
+        const accountData = await acc.get();
+        if (!accountData || !accountData.$id) {
+            return false;
+        }
+
+        // Vérifier explicitement la session courante
+        const session = await acc.getSession('current');
+        if (!session || !session.$id) {
+            return false;
+        }
+
+        // Vérifier que la session n'est pas expirée
+        const now = new Date();
+        const expireDate = new Date(session.expire);
+        if (now >= expireDate) {
+            return false;
+        }
+
+        // Session valide - retourner true simplement
+        return true;
+        
+    } catch (error) {
+        console.error('Error checking connection:', error);
+        return false;
+    }
+}
+
 
 
 
@@ -447,7 +484,7 @@ export function subscribeToCollections(collectionNames, listId, onMessage, conne
 export {
     APPWRITE_CONFIG, // Ajouté pour consolider les exports
     getAppwriteClients, getAccount, getFunctions, getTeams, getDatabases, getConfig,
-    isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms, isAuthenticatedAppwrite, getUserEmail,
+    isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms, isAuthenticatedAppwrite, isConnectedAppwrite, getUserEmail,
     getUserName, clearAuthData, setAuthData, logoutGlobal, isEmailVerified,
     sendVerificationEmail, verifyEmail, getLocalEmailVerificationStatus,
     createCollaborativeListFromEvent, checkExistingCollaborativeList
@@ -457,7 +494,7 @@ export {
 if (typeof window !== 'undefined') {
     window.AppwriteClient = {
         getAppwriteClients, getAccount, getFunctions, getDatabases, getConfig,
-        isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms, isAuthenticatedAppwrite,
+        isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms, isAuthenticatedAppwrite, isConnectedAppwrite,
         getUserEmail, getUserName, clearAuthData, setAuthData, logoutGlobal,
         isEmailVerified, sendVerificationEmail, verifyEmail, getLocalEmailVerificationStatus,
         createCollaborativeListFromEvent, checkExistingCollaborativeList
