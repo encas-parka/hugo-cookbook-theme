@@ -184,6 +184,29 @@
           <div class="tab-pane fade"
                :class="{ 'show active': modalState.currentTab === 'purchases' }"
                id="purchases" role="tabpanel">
+
+    
+
+            <!-- Datalists pour les suggestions d'achats -->
+            <datalist id="purchase-store-suggestions">
+              <option
+                v-for="store in availableStoresSuggestions"
+                :key="store"
+                :value="store"
+              >
+                [[ store ]]
+              </option>
+            </datalist>
+            <datalist id="purchase-volunteer-suggestions">
+              <option
+                v-for="volunteer in availableVolunteersSuggestions"
+                :key="volunteer"
+                :value="volunteer"
+              >
+                [[ volunteer ]]
+              </option>
+            </datalist>
+
             <!-- Formulaire d'ajout d'achat -->
             <div class="card mb-3">
               <div class="card-header">
@@ -313,15 +336,6 @@
                         v-model="purchase.store"
                         list="purchase-store-suggestions"
                       />
-                      <datalist id="purchase-store-suggestions">
-                        <option
-                          v-for="store in availableStoresSuggestions"
-                          :key="store"
-                          :value="store"
-                        >
-                          [[ store ]]
-                        </option>
-                      </datalist>
                     </td>
                     <td v-else>[[ purchase.store || '-' ]]</td>
 
@@ -332,15 +346,6 @@
                         v-model="purchase.who"
                         list="purchase-volunteer-suggestions"
                       />
-                      <datalist id="purchase-volunteer-suggestions">
-                        <option
-                          v-for="volunteer in availableVolunteersSuggestions"
-                          :key="volunteer"
-                          :value="volunteer"
-                        >
-                          [[ volunteer ]]
-                        </option>
-                      </datalist>
                     </td>
                     <td v-else>[[ purchase.who || '-' ]]</td>
 

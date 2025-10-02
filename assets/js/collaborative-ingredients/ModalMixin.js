@@ -474,24 +474,7 @@ export const ModalMixin = {
       }
     },
 
-    availableStoresSuggestions() {
-      // Utiliser le localStorageService pour obtenir les suggestions de magasins
-      if (this.localStorageService) {
-        return this.localStorageService.getSuggestions('store');
-      }
-      return [];
-    },
-
-    /**
-     * Retourne les suggestions de volontaires basées sur les données existantes
-     */
-    availableVolunteersSuggestions() {
-      // Utiliser le localStorageService pour obtenir les suggestions de volontaires
-      if (this.localStorageService) {
-        return this.localStorageService.getSuggestions('volunteer');
-      }
-      return [];
-    },
+    
   },
 
   beforeUnmount() {

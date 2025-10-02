@@ -413,6 +413,26 @@ export function createCollaborativeApp() {
         return [];
       },
 
+      /**
+       * Retourne les suggestions de magasins pour les datalists
+       */
+      availableStoresSuggestions() {
+        if (this.localStorageService) {
+          return this.localStorageService.getSuggestions('store');
+        }
+        return [];
+      },
+
+      /**
+       * Retourne les suggestions de volontaires pour les datalists
+       */
+      availableVolunteersSuggestions() {
+        if (this.localStorageService) {
+          return this.localStorageService.getSuggestions('volunteer');
+        }
+        return [];
+      },
+
 
 
 
