@@ -13,19 +13,42 @@
  * 3. Synchronisation → SyncService → Realtime updates → Cache local
  * 4. Interactions → ModalMixin → ColorManager → Toasts
  *
+ * @save-flow (Flux de sauvegarde)
+ * 1. User Action → Modal Form → Validation → AppwriteDataService
+ * 2. AppwriteDataService → database.updateDocument/createDocument() → Appwrite API
+ * 3. Appwrite API → Realtime notification → All connected clients
+ * 4. handleRealtimeUpdate() → updateIngredientComplete()/updatePurchaseComplete()
+ * 5. Update methods → _updateLocalCollection() + UI update functions
+ * 6. SyncService.applyRealtimeChange() → localStorage cache update
+ *
+ * 7. Sync background (periodic) → syncChanges() → _mergeChangesWithCache()
+ *    - First visit: loadCompleteData() → transformDataForUI(true)
+ *    - Subsequent: _syncCollection() with $updatedAt filter → differential update
+ *
+ * @sync-optimisations
+ * - Cache localStorage: données persistantes entre sessions
+ * - Differential sync: uniquement les changements depuis lastSyncTimestamp
+ * - Real-time updates: propagation instantanée à tous les clients
+ * - Batch updates: updateMultipleIngredientsInUI() pour gros volumes
+ * - Functional updates: map/filter au lieu de forEach pour performance
+ *
  * @services
  * - IngredientCalculator: Calculs d'équilibre besoins vs achats
  * - DataTransformer: Formatage des données pour l'UI
  * - SyncService: Synchronisation différentielle cache ↔ Appwrite
+ * - localStorageService: Gestion du cache local (données + timestamp)
+ * - AppwriteDataService: CRUD Appwrite (create/update/delete)
  * - UnitsManager: Gestion des conversions d'unités
  * - ColorManager: Attribution de couleurs pastel (volontaires/magasins)
  * - TableColumnsConfig: Configuration des colonnes TanStack Table
  * - ModalMixin: Gestion unifiée des modaux
+ * - AuthManager: Gestion authentification Appwrite
  *
  * @data-flow
  * Appwrite Raw Data → IngredientCalculator → DataTransformer → Vue Components (UI)
  *                 ↑                                              ↓
  *          Realtime Updates ←←←←←←←←←←←← User Interactions →→ Appwrite
+ *                                ↘ localStorageService (cache local)
  *
  * @dependencies
  * - Vue.js 3 (Options API)
