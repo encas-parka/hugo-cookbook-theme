@@ -197,7 +197,7 @@ export class TableColumnsConfig {
    */
   _getStoresColumn() {
     return {
-      accessorKey: 'storesDisplay',
+      accessorKey: '_currentStore', // Utiliser la propriété de groupement
       header: 'Magasin',
       cell: ({ row }) => {
         const ingredient = row.original;
@@ -205,13 +205,13 @@ export class TableColumnsConfig {
           class: 'editable-cell-simple d-flex align-items-center justify-content-between w-100 h-100',
           onClick: () => this._safeHandlerCall('openUnifiedModal', ingredient, 'stores')
         }, [
-          // Contenu principal
+          // Contenu principal - afficher TOUS les magasins via _allStores
           this.h('div', { class: 'flex-grow-1' }, [
-            ...(ingredient.storesDisplay && ingredient.storesDisplay.length > 0
-              ? ingredient.storesDisplay.split(', ').map(store => {
+            ...(ingredient._allStores && ingredient._allStores.length > 0 && ingredient._allStores !== '-'
+              ? ingredient._allStores.split(', ').map(store => {
                   const color = this._safeColorCall('getStoreColor', store);
                   return this.h('div', {
-                    class: 'badge',
+                    class: 'badge me-1',
                     style: `background-color: ${color.bg}; color: ${color.color};`
                   }, store);
                 })
@@ -224,7 +224,13 @@ export class TableColumnsConfig {
           ])
         ]);
       },
-      enableGrouping: true
+      enableGrouping: true,
+      // Pour le tri, utiliser le nom complet des magasins
+      sortingFn: (a, b) => {
+        const storeA = a.original._allStores || '';
+        const storeB = b.original._allStores || '';
+        return storeA.localeCompare(storeB);
+      }
     };
   }
 

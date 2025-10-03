@@ -164,7 +164,7 @@ export function createCollaborativeApp() {
 
         // Gestion des vues
         currentView: 'grouped', // 'table', 'grouped', 'cards', 'compact'
-        tableGrouping: ['storesDisplay'], // Pour TanStack Table
+        tableGrouping: ['_currentStore'], // Pour TanStack Table - groupement par magasin individuel
 
         // Service d'authentification
         authManager: null, // Sera initialisé dans initializeApp()
@@ -646,7 +646,7 @@ export function createCollaborativeApp() {
       },
 
       async loadInitialDataWithCache() {
-        console.log("[Collaborative App] Chargement des données avec stratégie de cache...");
+        // console.log("[Collaborative App] Chargement des données avec stratégie de cache...");
 
         try {
           // Étape 1: Charger depuis le cache local pour un affichage instantané
@@ -682,7 +682,7 @@ export function createCollaborativeApp() {
       },
 
       async syncChangesInBackground() {
-        console.log("[Collaborative App] Synchronisation des changements en arrière-plan...");
+        // console.log("[Collaborative App] Synchronisation des changements en arrière-plan...");
 
         const syncResult = await this.syncService.syncChanges();
 
@@ -793,7 +793,7 @@ export function createCollaborativeApp() {
         try {
           // Si optimisation demandée, utiliser updateMultipleIngredientsInUI
           if (useOptimizedUpdate) {
-            console.log("[Collaborative App] Utilisation de la mise à jour optimisée pour", this.ingredients.length, "ingrédients");
+            // console.log("[Collaborative App] Utilisation de la mise à jour optimisée pour", this.ingredients.length, "ingrédients");
             const ingredientIds = this.ingredients.map(ing => ing.$id);
             this.updateMultipleIngredientsInUI(ingredientIds);
             return;
@@ -806,7 +806,7 @@ export function createCollaborativeApp() {
               this.purchases || [],
             );
 
-          // Utiliser le service DataTransformer pour préparer les données pour l'UI
+          // Utiliser le service DataTransformer pour préparer les données pour l'UI avec activation du groupement multi-magasin
           this.transformedIngredients = DataTransformer.transformForUI(
             calculatedIngredients,
             {
@@ -815,6 +815,7 @@ export function createCollaborativeApp() {
               includeRecipeDetails: true,
               includeCalculations: true,
               purchases: this.purchases || [],
+              enableMultiStoreGrouping: true, // Activer le mode multi-magasin
             },
           );
 
@@ -883,10 +884,10 @@ export function createCollaborativeApp() {
        * @param {Array} purchaseChanges - Les changements d'achats depuis Appwrite
        */
       updateMultipleFromSyncChanges(ingredientChanges, purchaseChanges) {
-        console.log('[Collaborative App] Mise à jour multiple depuis syncChanges:', {
-          ingredients: ingredientChanges?.length || 0,
-          purchases: purchaseChanges?.length || 0
-        });
+        // console.log('[Collaborative App] Mise à jour multiple depuis syncChanges:', {
+        //   ingredients: ingredientChanges?.length || 0,
+        //   purchases: purchaseChanges?.length || 0
+        // });
 
         try {
           // 1. Mettre à jour les ingrédients modifiés si beaucoup de changements
@@ -940,30 +941,61 @@ export function createCollaborativeApp() {
 
           if (!calculatedIngredient) return;
 
-          // Transformer pour l'UI
-          const transformedIngredient = DataTransformer.transformForUI(
+          // Transformer pour l'UI (avec mode multi-magasin activé)
+          const transformedIngredients = DataTransformer.transformForUI(
             [calculatedIngredient],
             {
               unitsManager: this.unitsManager,
               includeRecipeDetails: true,
               includeCalculations: true,
               purchases: this.purchases || [],
+              enableMultiStoreGrouping: true, // Activer le mode multi-magasin pour les mises à jour
             }
-          )[0];
+          );
 
-          // Mettre à jour dans le tableau transformedIngredients
-          const index = this.transformedIngredients.findIndex(ing => ing.$id === ingredientId);
-          if (index !== -1) {
-            this.transformedIngredients.splice(index, 1, transformedIngredient);
-          } else {
-            this.transformedIngredients.push(transformedIngredient);
-          }
+          // Mettre à jour toutes les occurrences de cet ingrédient dans transformedIngredients
+          this._updateAllIngredientOccurrences(ingredientId, transformedIngredients);
 
-          console.log('[Collaborative App] Ingrédient mis à jour de manière optimisée:', ingredientId);
         } catch (error) {
           console.error('[Collaborative App] Erreur lors de la mise à jour optimisée:', error);
           // Fallback : retransformer toutes les données
           this.transformDataForUI();
+        }
+      },
+
+      /**
+       * Met à jour toutes les occurrences d'un ingrédient dans le tableau transformé
+       * @param {string} ingredientId - ID de l'ingrédient à mettre à jour
+       * @param {Array} newTransformedIngredients - Nouvelles entrées transformées
+       */
+      _updateAllIngredientOccurrences(ingredientId, newTransformedIngredients) {
+        // Trouver tous les indices des occurrences existantes
+        const indicesToUpdate = [];
+        this.transformedIngredients.forEach((ing, index) => {
+          if (ing.$id === ingredientId) {
+            indicesToUpdate.push(index);
+          }
+        });
+
+        if (indicesToUpdate.length === 0) {
+          // Aucune occurrence existante, ajouter les nouvelles
+          this.transformedIngredients.push(...newTransformedIngredients);
+          return;
+        }
+
+        // Remplacer les occurrences existantes
+        if (indicesToUpdate.length === newTransformedIngredients.length) {
+          // Même nombre d'occurrences : remplacement direct
+          indicesToUpdate.forEach((index, i) => {
+            this.transformedIngredients.splice(index, 1, newTransformedIngredients[i]);
+          });
+        } else {
+          // Nombre différent : remplacer toutes les occurrences
+          // (cas où les magasins ont changé)
+          indicesToUpdate.sort((a, b) => b - a).forEach(index => {
+            this.transformedIngredients.splice(index, 1);
+          });
+          this.transformedIngredients.push(...newTransformedIngredients);
         }
       },
 

@@ -19,14 +19,14 @@ const { APPWRITE_FUNCTION_ID, ACCESS_REQUEST_FUNCTION_ID } = getConfig();
 function getRedirectUrl() {
   const urlParams = new URLSearchParams(window.location.search);
   const redirectParam = urlParams.get('redirect');
-  
+
   if (redirectParam) {
     // Valider que l'URL est relative pour éviter les redirections malveillantes
     if (redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
       return redirectParam;
     }
   }
-  
+
   return null;
 }
 
@@ -296,7 +296,7 @@ async function handleLoginPageLoad() {
       if (userEmailDisplay)
         userEmailDisplay.textContent = ` (${appwriteUser.email})`;
       showUIState("loggedIn");
-      
+
       // Rediriger si nécessaire
       const redirectUrl = getRedirectUrl();
       if (redirectUrl) {
@@ -327,7 +327,7 @@ async function handleLoginPageLoad() {
           if (userEmailDisplay)
             userEmailDisplay.textContent = ` (${appwriteUser.email})`;
           showUIState("loggedIn");
-          
+
           // Rediriger si nécessaire
           const redirectUrl = getRedirectUrl();
           if (redirectUrl) {
@@ -456,7 +456,6 @@ async function handleLoginSubmit(event) {
 function handleRedirect() {
   const redirectUrl = getRedirectUrl();
   if (redirectUrl) {
-    console.log("[AuthAppwrite] Redirection vers:", redirectUrl);
     window.location.href = redirectUrl;
   } else {
     window.location.reload();

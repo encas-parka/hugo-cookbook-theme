@@ -65,7 +65,7 @@ export class SyncService {
       if (isFirstVisit) {
         const completeData = await this._loadCompleteData();
         localStorageService.saveAllData(this.listId, completeData);
-        
+
         return {
           success: true,
           data: completeData,
@@ -227,7 +227,7 @@ export class SyncService {
     if (changes.ingredients && changes.ingredients.length > 0) {
       changes.ingredients.forEach(change => {
         const existingIndex = mergedData.ingredients.findIndex(item => item.$id === change.$id);
-        
+
         if (existingIndex !== -1) {
           // Mettre à jour l'élément existant
           mergedData.ingredients[existingIndex] = change;
@@ -244,7 +244,7 @@ export class SyncService {
     if (changes.purchases && changes.purchases.length > 0) {
       changes.purchases.forEach(change => {
         const existingIndex = mergedData.purchases.findIndex(item => item.$id === change.$id);
-        
+
         if (existingIndex !== -1) {
           // Mettre à jour l'élément existant
           mergedData.purchases[existingIndex] = change;
@@ -257,13 +257,13 @@ export class SyncService {
       });
     }
 
-    console.log('[SyncService] Fusion terminée:', {
-      mergedCounts: {
-        event: !!mergedData.event,
-        ingredients: mergedData.ingredients.length,
-        purchases: mergedData.purchases.length
-      }
-    });
+    // console.log('[SyncService] Fusion terminée:', {
+    //   mergedCounts: {
+    //     event: !!mergedData.event,
+    //     ingredients: mergedData.ingredients.length,
+    //     purchases: mergedData.purchases.length
+    //   }
+    // });
 
     // Mettre à jour les caches de suggestions avec les nouvelles données
     this._updateSuggestionsCaches(mergedData.ingredients, mergedData.purchases);
@@ -283,17 +283,17 @@ export class SyncService {
     try {
       // Transformer les ingredients pour le cache
       const transformedIngredients = this._transformIngredientsForCache(ingredients);
-      
+
       // Charger les caches existants
       localStorageService.loadFromStorage(this.listId);
-      
+
       // Mettre à jour avec les nouvelles données
       localStorageService.updateFromIngredients(transformedIngredients);
       localStorageService.updateFromPurchases(purchases);
-      
+
       // Sauvegarder les caches mis à jour
       localStorageService.saveToStorage(this.listId);
-      
+
       console.log('[SyncService] Caches de suggestions mis à jour:', localStorageService.getStats());
     } catch (error) {
       console.error('[SyncService] Erreur lors de la mise à jour des caches de suggestions:', error);
@@ -305,7 +305,7 @@ export class SyncService {
    */
   _transformIngredientsForCache(ingredients) {
     if (!ingredients || !Array.isArray(ingredients)) return [];
-    
+
     return ingredients.map(ingredient => ({
       ...ingredient,
       // S'assurer que les champs store et who sont des arrays
@@ -365,7 +365,7 @@ export class SyncService {
 
     if (success) {
       console.log(`[SyncService] Document ${dataType} mis à jour dans le cache:`, document.$id);
-      
+
       // Mettre à jour les caches de suggestions
       this._updateSuggestionsCachesFromDocument(collectionName, document);
     }
@@ -384,7 +384,7 @@ export class SyncService {
 
     if (success) {
       console.log(`[SyncService] Document ${dataType} supprimé du cache:`, document.$id);
-      // Pas de mise à jour des caches pour les suppressions : 
+      // Pas de mise à jour des caches pour les suppressions :
       // les magasins/utilisateurs restent pertinents pour les suggestions futures
     }
 
@@ -405,18 +405,18 @@ export class SyncService {
         };
         localStorageService.updateFromIngredient(transformedIngredient);
         localStorageService.saveToStorage(this.listId);
-        console.log('[SyncService] Cache suggestions mis à jour depuis ingredient:', document.$id);
+        // console.log('[SyncService] Cache suggestions mis à jour depuis ingredient:', document.$id);
       } else if (collectionName === 'purchases') {
         localStorageService.updateFromPurchase(document);
         localStorageService.saveToStorage(this.listId);
-        console.log('[SyncService] Cache suggestions mis à jour depuis purchase:', document.$id);
+        // console.log('[SyncService] Cache suggestions mis à jour depuis purchase:', document.$id);
       }
     } catch (error) {
       console.error('[SyncService] Erreur lors de la mise à jour des caches de suggestions:', error);
     }
   }
 
-  
+
 
   /**
    * Vérifie si un document appartient à notre liste

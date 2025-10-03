@@ -10,12 +10,12 @@ export class LocalStorageService {
     this.storagePrefix = 'collab_ingredients_';
     this.cache = {
       ingredients: {
-        stores: new Set(),    // depuis ing.storesDisplay (pour filtres)
-        users: new Set()      // depuis ing.responsibleDisplay (pour filtres)
+        stores: new Set(), // depuis ing.storesDisplay (pour filtres)
+        users: new Set() // depuis ing.responsibleDisplay (pour filtres)
       },
       purchases: {
-        stores: new Set(),    // depuis purchases.store (pour suggestions)
-        users: new Set()      // depuis purchases.who (pour suggestions)
+        stores: new Set(), // depuis purchases.store (pour suggestions)
+        users: new Set() // depuis purchases.who (pour suggestions)
       }
     };
   }
@@ -25,8 +25,6 @@ export class LocalStorageService {
    */
   loadFromStorage(listId) {
     try {
-      console.log(`[SuggestionsCache] Début du chargement depuis localStorage pour listId: ${listId}`);
-
       // S'assurer que les caches existent
       this.ensureCacheExists();
 
@@ -37,12 +35,12 @@ export class LocalStorageService {
         const parsed = JSON.parse(ingredientsData);
         this.cache.ingredients.stores = new Set(parsed.stores || []);
         this.cache.ingredients.users = new Set(parsed.users || []);
-        console.log(`[SuggestionsCache] Cache ingredients chargé:`, {
-          stores: parsed.stores?.length || 0,
-          users: parsed.users?.length || 0
-        });
+        // console.log(`[SuggestionsCache] Cache ingredients chargé:`, {
+        //   stores: parsed.stores?.length || 0,
+        //   users: parsed.users?.length || 0
+        // });
       } else {
-        console.log(`[SuggestionsCache] Aucun cache ingredients trouvé pour la clé: ${ingredientsKey}, initialisation à vide`);
+        // console.log(`[SuggestionsCache] Aucun cache ingredients trouvé pour la clé: ${ingredientsKey}, initialisation à vide`);
         // CRÉER les caches vides explicitement
         this.cache.ingredients.stores = new Set();
         this.cache.ingredients.users = new Set();
@@ -55,28 +53,17 @@ export class LocalStorageService {
         const parsed = JSON.parse(purchasesData);
         this.cache.purchases.stores = new Set(parsed.stores || []);
         this.cache.purchases.users = new Set(parsed.users || []);
-        console.log(`[SuggestionsCache] Cache purchases chargé:`, {
-          stores: parsed.stores?.length || 0,
-          users: parsed.users?.length || 0
-        });
+        // console.log(`[SuggestionsCache] Cache purchases chargé:`, {
+        //   stores: parsed.stores?.length || 0,
+        //   users: parsed.users?.length || 0
+        // });
       } else {
-        console.log(`[SuggestionsCache] Aucun cache purchases trouvé pour la clé: ${purchasesKey}, initialisation à vide`);
+        // console.log(`[SuggestionsCache] Aucun cache purchases trouvé pour la clé: ${purchasesKey}, initialisation à vide`);
         // CRÉER les caches vides explicitement
         this.cache.purchases.stores = new Set();
         this.cache.purchases.users = new Set();
       }
 
-      console.log(`[SuggestionsCache] État final du cache après chargement:`, {
-        listId,
-        ingredients: {
-          stores: this.cache.ingredients.stores.size,
-          users: this.cache.ingredients.users.size
-        },
-        purchases: {
-          stores: this.cache.purchases.stores.size,
-          users: this.cache.purchases.users.size
-        }
-      });
     } catch (error) {
       console.error('[SuggestionsCache] Erreur lors du chargement depuis localStorage:', error);
       this.ensureCacheExists(); // Créer des caches vides en cas d'erreur
@@ -109,7 +96,7 @@ export class LocalStorageService {
       }
     }
 
-    console.log('[SuggestionsCache] Structures de cache vérifiées/crées:', this.getStats());
+    // console.log('[SuggestionsCache] Structures de cache vérifiées/crées:', this.getStats());
   }
 
   /**
@@ -134,26 +121,17 @@ export class LocalStorageService {
       };
       localStorage.setItem(purchasesKey, JSON.stringify(purchasesData));
 
-      console.log('[SuggestionsCache] Cache sauvegardé dans localStorage:', {
-        listId,
-        ingredientsKey,
-        purchasesKey,
-        ingredientsData,
-        purchasesData,
-        finalStats: this.getStats()
-      });
-
-      console.log(`[SuggestionsCache] Sauvegardé dans localStorage:`, {
-        listId,
-        ingredients: {
-          stores: ingredientsData.stores.length,
-          users: ingredientsData.users.length
-        },
-        purchases: {
-          stores: purchasesData.stores.length,
-          users: purchasesData.users.length
-        }
-      });
+      // console.log(`[SuggestionsCache] Sauvegardé dans localStorage:`, {
+      //   listId,
+      //   ingredients: {
+      //     stores: ingredientsData.stores.length,
+      //     users: ingredientsData.users.length
+      //   },
+      //   purchases: {
+      //     stores: purchasesData.stores.length,
+      //     users: purchasesData.users.length
+      //   }
+      // });
     } catch (error) {
       console.error('[SuggestionsCache] Erreur lors de la sauvegarde dans localStorage:', error);
     }
@@ -163,19 +141,12 @@ export class LocalStorageService {
    * Met à jour le cache depuis un ingredient (pour les filtres)
    */
   updateFromIngredient(ingredient) {
-    console.log('[SuggestionsCache] Traitement ingredient pour le cache:', {
-      ingredientId: ingredient.$id,
-      ingredientName: ingredient.ingredientName,
-      store: ingredient.store,
-      who: ingredient.who
-    });
 
     // Les transformedIngredients ont store[] et who[] comme arrays
     if (ingredient.store && Array.isArray(ingredient.store)) {
       ingredient.store.forEach(store => {
         if (store && store.trim() && store.trim() !== '-') {
           this.cache.ingredients.stores.add(store.trim());
-          console.log('[SuggestionsCache] Store ajouté:', store.trim());
         }
       });
     }
@@ -184,7 +155,6 @@ export class LocalStorageService {
       ingredient.who.forEach(person => {
         if (person && person.trim() && person.trim() !== '-') {
           this.cache.ingredients.users.add(person.trim());
-          console.log('[SuggestionsCache] User ajouté:', person.trim());
         }
       });
     }
@@ -229,21 +199,11 @@ export class LocalStorageService {
    */
   getIngredientStores() {
     const stores = Array.from(this.cache.ingredients.stores).sort();
-    console.log('[SuggestionsCache] getIngredientStores() appelé ->', {
-      cacheExists: !!this.cache?.ingredients,
-      storesCount: stores.length,
-      stores: stores
-    });
     return stores;
   }
 
   getIngredientUsers() {
     const users = Array.from(this.cache.ingredients.users).sort();
-    console.log('[SuggestionsCache] getIngredientUsers() appelé ->', {
-      cacheExists: !!this.cache?.ingredients,
-      usersCount: users.length,
-      users: users
-    });
     return users;
   }
 
@@ -263,7 +223,7 @@ export class LocalStorageService {
    * Vérifie si les caches existent dans localStorage et les initialise si nécessaire
    */
   checkAndInitializeCaches(listId, transformedIngredients, purchases = []) {
-    console.log('[SuggestionsCache] Vérification de la présence des caches:', { listId });
+    // console.log('[SuggestionsCache] Vérification de la présence des caches:', { listId });
 
     const ingredientsKey = `${this.storagePrefix}${listId}_ingredients_cache`;
     const purchasesKey = `${this.storagePrefix}${listId}_purchases_cache`;
@@ -271,15 +231,8 @@ export class LocalStorageService {
     const ingredientsCacheExists = localStorage.getItem(ingredientsKey) !== null;
     const purchasesCacheExists = localStorage.getItem(purchasesKey) !== null;
 
-    console.log('[SuggestionsCache] Existence des caches:', {
-      ingredientsKey,
-      purchasesKey,
-      ingredientsCacheExists,
-      purchasesCacheExists
-    });
-
     if (!ingredientsCacheExists || !purchasesCacheExists) {
-      console.log('[SuggestionsCache] Création des caches manquants...');
+      // console.log('[SuggestionsCache] Création des caches manquants...');
 
       // Charger depuis localStorage d'abord (au cas où un des deux existe)
       this.loadFromStorage(listId);
@@ -290,9 +243,9 @@ export class LocalStorageService {
       // Sauvegarder
       this.saveToStorage(listId);
 
-      console.log('[SuggestionsCache] Création des caches terminée');
+      // console.log('[SuggestionsCache] Création des caches terminée');
     } else {
-      console.log('[SuggestionsCache] Les caches existent déjà, chargement...');
+      // console.log('[SuggestionsCache] Les caches existent déjà, chargement...');
       this.loadFromStorage(listId);
     }
   }
@@ -301,11 +254,11 @@ export class LocalStorageService {
    * Initialise le cache depuis les données existantes (sans effacer les données existantes)
    */
   initializeFromData(transformedIngredients, purchases = []) {
-    console.log('[SuggestionsCache] Initialisation depuis les données existantes:', {
-      ingredientsCount: transformedIngredients.length,
-      purchasesCount: purchases.length,
-      currentCacheState: this.getStats()
-    });
+    // console.log('[SuggestionsCache] Initialisation depuis les données existantes:', {
+    //   ingredientsCount: transformedIngredients.length,
+    //   purchasesCount: purchases.length,
+    //   currentCacheState: this.getStats()
+    // });
 
     // S'assurer que les caches existent
     this.ensureCacheExists();
@@ -332,49 +285,30 @@ export class LocalStorageService {
     const oldIngredientStores = this.cache.ingredients.stores.size;
     const oldIngredientUsers = this.cache.ingredients.users.size;
 
-    console.log('[SuggestionsCache] Début traitement ingredients pour le cache:', {
-      ingredientsCount: transformedIngredients.length,
-      sampleIngredient: transformedIngredients[0] ? {
-        id: transformedIngredients[0].$id,
-        name: transformedIngredients[0].ingredientName,
-        store: transformedIngredients[0].store,
-        who: transformedIngredients[0].who
-      } : null
-    });
-
     this.updateFromIngredients(transformedIngredients);
 
     // Charger depuis les purchases (pour suggestions) - AJOUT seulement
     const oldPurchaseStores = this.cache.purchases.stores.size;
     const oldPurchaseUsers = this.cache.purchases.users.size;
 
-    console.log('[SuggestionsCache] Début traitement purchases pour le cache:', {
-      purchasesCount: purchases.length,
-      samplePurchase: purchases[0] ? {
-        id: purchases[0].$id,
-        store: purchases[0].store,
-        who: purchases[0].who
-      } : null
-    });
-
     this.updateFromPurchases(purchases);
 
-    console.log('[SuggestionsCache] Cache enrichi depuis les données:', {
-      ingredients: {
-        count: transformedIngredients.length,
-        newStores: this.cache.ingredients.stores.size - oldIngredientStores,
-        newUsers: this.cache.ingredients.users.size - oldIngredientUsers,
-        totalStores: this.cache.ingredients.stores.size,
-        totalUsers: this.cache.ingredients.users.size
-      },
-      purchases: {
-        count: purchases.length,
-        newStores: this.cache.purchases.stores.size - oldPurchaseStores,
-        newUsers: this.cache.purchases.users.size - oldPurchaseUsers,
-        totalStores: this.cache.purchases.stores.size,
-        totalUsers: this.cache.purchases.users.size
-      }
-    });
+    // console.log('[SuggestionsCache] Cache enrichi depuis les données:', {
+    //   ingredients: {
+    //     count: transformedIngredients.length,
+    //     newStores: this.cache.ingredients.stores.size - oldIngredientStores,
+    //     newUsers: this.cache.ingredients.users.size - oldIngredientUsers,
+    //     totalStores: this.cache.ingredients.stores.size,
+    //     totalUsers: this.cache.ingredients.users.size
+    //   },
+    //   purchases: {
+    //     count: purchases.length,
+    //     newStores: this.cache.purchases.stores.size - oldPurchaseStores,
+    //     newUsers: this.cache.purchases.users.size - oldPurchaseUsers,
+    //     totalStores: this.cache.purchases.stores.size,
+    //     totalUsers: this.cache.purchases.users.size
+    //   }
+    // });
   }
 
   /**
@@ -422,11 +356,11 @@ export class LocalStorageService {
       // Mettre à jour le timestamp de synchronisation
       this.updateLastSyncTimestamp(listId);
 
-      console.log(`[LocalStorage] Données sauvegardées: ${key}`, {
-        event: !!data.event,
-        ingredientsCount: data.ingredients?.length || 0,
-        purchasesCount: data.purchases?.length || 0
-      });
+      // console.log(`[LocalStorage] Données sauvegardées: ${key}`, {
+      //   event: !!data.event,
+      //   ingredientsCount: data.ingredients?.length || 0,
+      //   purchasesCount: data.purchases?.length || 0
+      // });
 
       // Vérifier et initialiser les caches de suggestions si nécessaire
       this._ensureSuggestionsCaches(listId, data.ingredients, data.purchases);
@@ -459,11 +393,11 @@ export class LocalStorageService {
       const data = JSON.parse(serializedData);
       const lastSyncTimestamp = this.getLastSyncTimestamp(listId);
 
-      console.log(`[LocalStorage] Données chargées: ${key}`, {
-        event: !!data.event,
-        ingredientsCount: data.ingredients?.length || 0,
-        purchasesCount: data.purchases?.length || 0
-      });
+      // console.log(`[LocalStorage] Données chargées: ${key}`, {
+      //   event: !!data.event,
+      //   ingredientsCount: data.ingredients?.length || 0,
+      //   purchasesCount: data.purchases?.length || 0
+      // });
 
       // Vérifier et initialiser les caches de suggestions si nécessaire
       this._ensureSuggestionsCaches(listId, data.ingredients, data.purchases);
@@ -487,11 +421,11 @@ export class LocalStorageService {
    * Vérifie l'existence des caches de suggestions et les crée si nécessaire
    */
   _ensureSuggestionsCaches(listId, ingredients, purchases) {
-    console.log('[LocalStorage] Vérification des caches de suggestions...', {
-      listId,
-      hasIngredients: !!(ingredients && ingredients.length > 0),
-      hasPurchases: !!(purchases && purchases.length > 0)
-    });
+    // console.log('[LocalStorage] Vérification des caches de suggestions...', {
+    //   listId,
+    //   hasIngredients: !!(ingredients && ingredients.length > 0),
+    //   hasPurchases: !!(purchases && purchases.length > 0)
+    // });
 
     // Vérifier si les caches existent
     const ingredientsKey = `${this.storagePrefix}${listId}_ingredients_cache`;
@@ -500,15 +434,8 @@ export class LocalStorageService {
     const ingredientsCacheExists = localStorage.getItem(ingredientsKey) !== null;
     const purchasesCacheExists = localStorage.getItem(purchasesKey) !== null;
 
-    console.log('[LocalStorage] Existence des caches de suggestions:', {
-      ingredientsKey,
-      purchasesKey,
-      ingredientsCacheExists,
-      purchasesCacheExists
-    });
-
     if (!ingredientsCacheExists || !purchasesCacheExists) {
-      console.log('[LocalStorage] Création des caches de suggestions manquants...');
+      // console.log('[LocalStorage] Création des caches de suggestions manquants...');
 
       // Transformer les ingredients pour avoir les bons champs
       const transformedIngredients = this._transformIngredientsForCache(ingredients);
@@ -516,9 +443,9 @@ export class LocalStorageService {
       // Initialiser les caches
       this.checkAndInitializeCaches(listId, transformedIngredients, purchases);
 
-      console.log('[LocalStorage] Caches de suggestions créés avec succès');
+      // console.log('[LocalStorage] Caches de suggestions créés avec succès');
     } else {
-      console.log('[LocalStorage] Chargement des caches de suggestions existants...');
+      // console.log('[LocalStorage] Chargement des caches de suggestions existants...');
       this.loadFromStorage(listId);
     }
   }
@@ -531,7 +458,7 @@ export class LocalStorageService {
 
     return ingredients.map(ingredient => ({
       ...ingredient,
-      // S'assurer que les champs store et who sont des arrays
+      // S'assurer que les champs store et qui sont des arrays
       store: ingredient.store || [],
       who: ingredient.who || []
     }));
@@ -544,7 +471,6 @@ export class LocalStorageService {
     const timestamp = new Date().toISOString();
     const key = this._getStorageKey(listId, 'lastSyncTimestamp');
     localStorage.setItem(key, timestamp);
-    // console.log(`[LocalStorage] Timestamp mis à jour: ${key}`, timestamp);
   }
 
   /**
