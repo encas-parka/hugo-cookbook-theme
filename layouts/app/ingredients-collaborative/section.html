@@ -43,7 +43,10 @@
 
     <!-- Modal d'attribution groupée -->
     {{ partial "aw_app_ingredients/modal-group-assignment.html" . }}
+
+    <!-- Barre bottom de sélection groupée -->
   </div>
+    {{ partial "aw_app_ingredients/bottom-selection-bar.html" . }}
 
 
     <!-- toast connexion -->
@@ -80,8 +83,8 @@ css.Sass | resources.Minify | fingerprint }}
 <script src="{{ $testAuthManager.RelPermalink }}" defer></script>
 {{ end }}
 */}}
-<!-- Scripts Appwrite (nécessaires pour l'application collaborative) -->
-<script src="https://cdn.jsdelivr.net/npm/appwrite@18.2.0"></script>
+<!-- Scripts Appwrite (nécessaires pour l'application collaborative) / Déjà chargé dans le header-->
+<!--<script src="https://cdn.jsdelivr.net/npm/appwrite@18.2.0"></script>-->
 
 <!-- Construction des modules JS nécessaires -->
 {{ $appwriteClient := resources.Get "js/appwrite-client.js" | js.Build (dict "targetPath" "assets-bundled/appwrite-client.js" "minify" true) | fingerprint }}
