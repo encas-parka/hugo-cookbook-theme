@@ -152,7 +152,8 @@ export function createCollaborativeApp() {
         selectedPersonFilter: "",
 
         // Sélection
-        selectedIngredients: [],
+        selectedIngredients: [], // IDs des ingrédients sélectionnés dans le tableau TanStack
+        modalSelectedIngredients: [], // Ingrédients avec état de sélection pour le modal
         selectAllChecked: false,
 
         // Modals
@@ -164,7 +165,7 @@ export function createCollaborativeApp() {
 
         // Gestion des vues
         currentView: 'grouped', // 'table', 'grouped', 'cards', 'compact'
-        tableGrouping: ['_currentStore'], // Pour TanStack Table - groupement par magasin individuel
+        tableGrouping: ['storeDisplay'], // Pour TanStack Table - groupement par magasin (mode simple)
 
         // Service d'authentification
         authManager: null, // Sera initialisé dans initializeApp()
@@ -197,7 +198,7 @@ export function createCollaborativeApp() {
           notes: ''
         },
         newVolunteer: '',
-        newStore: '',
+        editingStore: '',
 
 
 
@@ -218,7 +219,7 @@ export function createCollaborativeApp() {
             replacementsCount: 0
           }
         },
-        selectedIngredients: [],
+        modalSelectedIngredients: [],
         filteredSuggestions: [],
         showSuggestions: false,
 
@@ -298,7 +299,7 @@ export function createCollaborativeApp() {
         const groups = {};
 
         this.filteredIngredients.forEach(ingredient => {
-          const storeName = ingredient.storesDisplay || 'Magasin non spécifié';
+          const storeName = ingredient.storeDisplay || 'Magasin non spécifié';
 
           if (!groups[storeName]) {
             groups[storeName] = [];
@@ -325,7 +326,7 @@ export function createCollaborativeApp() {
           totalPurchased: ing.totalPurchased || 0,
           totalMissing: ing.totalMissing || 0,
           typeDisplay: this.formatTypeShort(ing.ingType),
-          storesDisplay: ing.store && ing.store.length > 0 ? ing.store.join(', ') : '',
+          storeDisplay: ing.store && ing.store.trim() ? ing.store : '',
           responsibleDisplay: ing.who && ing.who.length > 0 ? ing.who.join(', ') : ''
         }));
       },
@@ -393,7 +394,80 @@ export function createCollaborativeApp() {
 
       // Données calculées pour le modal d'attribution groupée
       selectedCount() {
-        return this.selectedIngredients.filter(ing => ing.selected).length;
+        return this.modalSelectedIngredients.filter(ing => ing.selected).length;
+      },
+
+      /**
+       * Compte le nombre d'ingrédients sélectionnés dans le tableau TanStack
+       */
+      tableSelectedCount() {
+        // Utiliser directement la méthode TanStack pour le temps réel
+        if (!this.table || typeof this.table.getSelectedRowModel !== 'function') {
+          console.log('[Collaborative App] table non disponible, fallback vers selectedIngredients:', this.selectedIngredients?.length || 0);
+          return this.selectedIngredients ? this.selectedIngredients.length : 0;
+        }
+
+        try {
+          const count = this.table.getSelectedRowModel().rows.length;
+          console.log('[Collaborative App] tableSelectedCount direct:', count, 'selectedIngredients:', this.selectedIngredients?.length || 0);
+          return count;
+        } catch (error) {
+          console.warn('[Collaborative App] Erreur lors du comptage des éléments sélectionnés:', error);
+          return this.selectedIngredients ? this.selectedIngredients.length : 0;
+        }
+      },
+
+      /**
+       * Retourne les IDs des ingrédients sélectionnés dans le tableau TanStack
+       */
+      tableSelectedIds() {
+        if (!this.table || typeof this.table.getSelectedRowModel !== 'function') {
+          console.log('[Collaborative App] tableSelectedIds: table non disponible');
+          return [];
+        }
+        try {
+          const ids = this.table.getSelectedRowModel().rows.map(row => row.original.$id);
+          console.log('[Collaborative App] tableSelectedIds:', ids.length, 'IDs:', ids);
+          return ids;
+        } catch (error) {
+          console.warn('[Collaborative App] Erreur lors de la récupération des IDs sélectionnés:', error);
+          return [];
+        }
+      },
+
+      /**
+       * Méthode de diagnostic pour vérifier l'état de la sélection
+       */
+      debugSelectionState() {
+        console.log('=== DIAGNOSTIC SÉLECTION ===');
+        console.log('Table disponible:', !!this.table);
+        console.log('selectedIngredients (array):', this.selectedIngredients?.length || 0, this.selectedIngredients);
+        console.log('tableSelectedCount (computed):', this.tableSelectedCount);
+        console.log('mainSelectedCount (computed):', this.mainSelectedCount);
+        console.log('tableSelectedIds():', this.tableSelectedIds());
+
+        if (this.table) {
+          try {
+            const selectedModel = this.table.getSelectedRowModel();
+            console.log('getSelectedRowModel rows:', selectedModel?.rows?.length || 0);
+            console.log('getIsAllRowsSelected():', this.table.getIsAllRowsSelected());
+          } catch (error) {
+            console.error('Erreur accès table:', error);
+          }
+        }
+        console.log('==========================');
+      },
+
+      /**
+       * Compte le nombre d'ingrédients sélectionnés au niveau principal (par checkbox)
+       */
+      mainSelectedCount() {
+        try {
+          return this.tableSelectedIds().length;
+        } catch (error) {
+          console.warn('[Collaborative App] Erreur lors du comptage de la sélection principale:', error);
+          return 0;
+        }
       },
 
       assignmentSuggestions() {
@@ -452,29 +526,29 @@ export function createCollaborativeApp() {
       },
 
       table() {
-             // Cette propriété sera maintenant calculée correctement.
-             // Vue attendra que ses dépendances (tableData, tableColumns, tableGrouping) soient prêtes.
-             if (!useVueTable || !getExpandedRowModel) {
-               console.error('VueTable and getExpandedRowModel are required');
-                 return null;
-             }
+        // Cette propriété sera maintenant calculée correctement.
+        // Vue attendra que ses dépendances (tableData, tableColumns, tableGrouping) soient prêtes.
+        if (!useVueTable || !getExpandedRowModel) {
+          console.error('VueTable and getExpandedRowModel are required');
+          return null;
+        }
 
-             return useVueTable({
-               data: this.tableData,
-               columns: this.tableColumns,
-               state: {
-                 grouping: this.tableGrouping,
-                 expanded: true,
-               },
-               getCoreRowModel: getCoreRowModel(),
-               getGroupedRowModel: getGroupedRowModel(),
-               getSortedRowModel: getSortedRowModel(),
-               getFilteredRowModel: getFilteredRowModel(),
-               getExpandedRowModel: getExpandedRowModel(),
-               enableGrouping: true,
-             });
-           }
-         },
+        return useVueTable({
+          data: this.tableData,
+          columns: this.tableColumns,
+          state: {
+            grouping: this.tableGrouping,
+            expanded: true,
+          },
+          getCoreRowModel: getCoreRowModel(),
+          getGroupedRowModel: getGroupedRowModel(),
+          getSortedRowModel: getSortedRowModel(),
+          getFilteredRowModel: getFilteredRowModel(),
+          getExpandedRowModel: getExpandedRowModel(),
+          enableGrouping: true,
+        });
+      }
+    },
 
     // Watcher pour synchroniser le regroupement
     watch: {
@@ -500,1748 +574,1924 @@ export function createCollaborativeApp() {
       },
 
       // Watcher pour réagir aux changements de sélection d'ingrédients
-      selectedIngredients: {
+      modalSelectedIngredients: {
         handler() {
           this.updateSummary();
         },
         deep: true
-      }
-    },
-
-    mounted() {
-      this.initializeApp();
-    },
-
-    methods: {
-      // === MÉTHODES DE GESTION DE L'AUTHENTIFICATION ===
-
-      getAuthValidator() {
-        return isConnectedAppwrite;
       },
 
-      async checkAuthentication() {
-        if (!this.authManager) {
-          console.error('[Collaborative App] AuthManager non initialisé');
-          return;
-        }
+      // Watcher pour synchroniser l'état de sélection du tableau TanStack
+      table: {
+        handler(newTable, oldTable) {
+          console.log('[Collaborative App] Watcher table déclenché');
 
-        try {
-          const isAuthenticated = await this.authManager.check();
-
-          // Mettre à jour l'état synchrone pour les templates
-          this.isAuthenticated = isAuthenticated;
-
-          if (!isAuthenticated) {
-            // Le modal est maintenant géré automatiquement par v-if !isAuthenticated
-            this.realtimeStatus.isConnected = false;
-          }
-        } catch (error) {
-          console.error('[Collaborative App] Erreur lors de la vérification de l\'authentification:', error);
-          this.isAuthenticated = false; // Assurer l'état en cas d'erreur
-        }
-      },
-
-      closeAuthModal() {
-        // Rediriger vers la page d'accueil si l'utilisateur ne veut pas se connecter
-        window.location.href = '/';
-      },
-
-      showAuthToastForFeature(featureName) {
-        if (!this.isAuthenticated) {
-          this.showAuthToast = true;
-
-          // Masquer automatiquement après 5 secondes
-          setTimeout(() => {
-            this.closeAuthToast();
-          }, 5000);
-        }
-      },
-
-      closeAuthToast() {
-        this.showAuthToast = false;
-      },
-
-      requireAuthForAction(actionCallback) {
-        if (!this.authManager) {
-          console.error('[Collaborative App] AuthManager non initialisé');
-          this.showAuthToastForFeature('cette action');
-          return;
-        }
-
-        if (this.authManager.requireAuth(actionCallback)) {
-          // Action exécutée avec succès
-          return;
-        }
-
-        // Non authentifié - afficher le toast
-        this.showAuthToastForFeature('cette action');
-      },
-
-      // === MÉTHODES D'INITIALISATION ===
-
-      async initializeApp() {
-        try {
-          // console.log("[Collaborative App] Initialisation...");
-
-          // 1. Initialiser le service d'authentification
-          this.authManager = new AuthManager(this.getAuthValidator());
-
-          // 2. Vérifier l'authentification
-          await this.checkAuthentication();
-
-          // 3. Charger la préférence de vue
-          this.loadPreferredView();
-
-          // 4. Récupérer l'ID de la liste depuis l'URL
-          const urlParams = new URLSearchParams(window.location.search);
-          this.listId = urlParams.get("listId");
-          if (!this.listId) {
-            throw new Error("ID de liste manquant dans l'URL (?listId=...).");
+          // Éviter les mises à jour superflues lors de l'initialisation
+          if (!newTable || oldTable === undefined) {
+            console.log('[Collaborative App] Initialisation - pas de synchronisation');
+            return;
           }
 
-          // 5. Obtenir l'instance de la base de données depuis notre client central
-          this.database = await getDatabases();
+          // Mettre à jour selectedIngredients quand la sélection du tableau change
+          if (newTable && typeof newTable.getSelectedRowModel === 'function') {
+            try {
+              const selectedIds = newTable.getSelectedRowModel().rows.map(row => row.original.$id);
+              const oldSelectedIds = this.selectedIngredients || [];
 
-          // 6. Initialiser le service de synchronisation
-          this.syncService = new SyncService(this.database, this.listId, APPWRITE_CONFIG);
+              console.log('[Collaborative App] IDs sélectionnés:', selectedIds);
+              console.log('[Collaborative App] Anciens IDs:', oldSelectedIds);
 
-          // 7. Initialiser le service de données Appwrite
-          this.appwriteDataService = new AppwriteDataService(APPWRITE_CONFIG);
-
-          // 8. Initialiser le ColorManager
-          this.colorManager = new ColorManager(this.listId);
-
-          // 9. Initialiser le cache de suggestions avec localStorageService
-          const { localStorageService } = await import('./services/localStorageService.js');
-          this.localStorageService = localStorageService; // Garder la référence
-
-          // 10. Charger les données avec la stratégie de cache
-          await this.loadInitialDataWithCache();
-
-          // 11. Marquer les services comme initialisés
-          this.servicesInitialized = true;
-
-          // 12. Configurer la synchronisation temps réel (seulement si authentifié)
-          if (this.isAuthenticated) {
-            this.setupRealtime();
+              // Ne mettre à jour que si la sélection a réellement changé
+              if (JSON.stringify(selectedIds.sort()) !== JSON.stringify(oldSelectedIds.sort())) {
+                this.selectedIngredients = [...selectedIds];
+                console.log('[Collaborative App] Sélection synchronisée:', selectedIds.length, 'ingrédients');
+              } else {
+                console.log('[Collaborative App] Sélection inchangée');
+              }
+            } catch (error) {
+              console.error('[Collaborative App] Erreur dans le watcher table:', error);
+            }
           } else {
-            console.log('[Collaborative App] Synchronisation temps réel désactivée (utilisateur non authentifié)');
+            console.log('[Collaborative App] Table non prêt pour la synchronisation');
           }
+        },
+        deep: true
+      },
+    },
 
-          // 11. Démarrer le monitoring de la connexion temps réel
-          // this.startConnectionMonitoring();
-
-          this.isLoading = false;
-          console.log(
-            "[Collaborative App] Application initialisée avec succès",
-          );
-        } catch (error) {
-          console.error(
-            "[Collaborative App] Erreur lors de l'initialisation:",
-            error,
-          );
-          this.error = "Erreur lors de l'initialisation: " + error.message;
-          this.isLoading = false;
-        }
+      mounted() {
+        this.initializeApp();
       },
 
-      async loadInitialDataWithCache() {
-        // console.log("[Collaborative App] Chargement des données avec stratégie de cache...");
+      methods: {
+        // === MÉTHODES DE GESTION DE L'AUTHENTIFICATION ===
 
-        try {
-          // Étape 1: Charger depuis le cache local pour un affichage instantané
-          const cacheResult = await this.syncService.loadFromCache();
+        getAuthValidator() {
+          return isConnectedAppwrite;
+        },
 
-          if (cacheResult.success && cacheResult.fromCache) {
-            // Afficher les données du cache immédiatement
-            const cachedData = cacheResult.data;
-            this.event = cachedData.event;
-            this.ingredients = cachedData.ingredients;
-            this.purchases = cachedData.purchases;
+        async checkAuthentication() {
+          if (!this.authManager) {
+            console.error('[Collaborative App] AuthManager non initialisé');
+            return;
+          }
+
+          try {
+            const isAuthenticated = await this.authManager.check();
+
+            // Mettre à jour l'état synchrone pour les templates
+            this.isAuthenticated = isAuthenticated;
+
+            if (!isAuthenticated) {
+              // Le modal est maintenant géré automatiquement par v-if !isAuthenticated
+              this.realtimeStatus.isConnected = false;
+            }
+          } catch (error) {
+            console.error('[Collaborative App] Erreur lors de la vérification de l\'authentification:', error);
+            this.isAuthenticated = false; // Assurer l'état en cas d'erreur
+          }
+        },
+
+        closeAuthModal() {
+          // Rediriger vers la page d'accueil si l'utilisateur ne veut pas se connecter
+          window.location.href = '/';
+        },
+
+        showAuthToastForFeature(featureName) {
+          if (!this.isAuthenticated) {
+            this.showAuthToast = true;
+
+            // Masquer automatiquement après 5 secondes
+            setTimeout(() => {
+              this.closeAuthToast();
+            }, 5000);
+          }
+        },
+
+        closeAuthToast() {
+          this.showAuthToast = false;
+        },
+
+        requireAuthForAction(actionCallback) {
+          if (!this.authManager) {
+            console.error('[Collaborative App] AuthManager non initialisé');
+            this.showAuthToastForFeature('cette action');
+            return;
+          }
+
+          if (this.authManager.requireAuth(actionCallback)) {
+            // Action exécutée avec succès
+            return;
+          }
+
+          // Non authentifié - afficher le toast
+          this.showAuthToastForFeature('cette action');
+        },
+
+        // === MÉTHODES D'INITIALISATION ===
+
+        async initializeApp() {
+          try {
+            // console.log("[Collaborative App] Initialisation...");
+
+            // 1. Initialiser le service d'authentification
+            this.authManager = new AuthManager(this.getAuthValidator());
+
+            // 2. Vérifier l'authentification
+            await this.checkAuthentication();
+
+            // 3. Charger la préférence de vue
+            this.loadPreferredView();
+
+            // 4. Récupérer l'ID de la liste depuis l'URL
+            const urlParams = new URLSearchParams(window.location.search);
+            this.listId = urlParams.get("listId");
+            if (!this.listId) {
+              throw new Error("ID de liste manquant dans l'URL (?listId=...).");
+            }
+
+            // 5. Obtenir l'instance de la base de données depuis notre client central
+            this.database = await getDatabases();
+
+            // 6. Initialiser le service de synchronisation
+            this.syncService = new SyncService(this.database, this.listId, APPWRITE_CONFIG);
+
+            // 7. Initialiser le service de données Appwrite
+            this.appwriteDataService = new AppwriteDataService(APPWRITE_CONFIG);
+
+            // 8. Initialiser le ColorManager
+            this.colorManager = new ColorManager(this.listId);
+
+            // 9. Initialiser le cache de suggestions avec localStorageService
+            const { localStorageService } = await import('./services/localStorageService.js');
+            this.localStorageService = localStorageService; // Garder la référence
+
+            // 10. Charger les données avec la stratégie de cache
+            await this.loadInitialDataWithCache();
+
+            // 11. Marquer les services comme initialisés
+            this.servicesInitialized = true;
+
+            // 12. Configurer la synchronisation temps réel (seulement si authentifié)
+            if (this.isAuthenticated) {
+              this.setupRealtime();
+            } else {
+              console.log('[Collaborative App] Synchronisation temps réel désactivée (utilisateur non authentifié)');
+            }
+
+            // 11. Démarrer le monitoring de la connexion temps réel
+            // this.startConnectionMonitoring();
+
+            this.isLoading = false;
+            console.log(
+              "[Collaborative App] Application initialisée avec succès",
+            );
+          } catch (error) {
+            console.error(
+              "[Collaborative App] Erreur lors de l'initialisation:",
+              error,
+            );
+            this.error = "Erreur lors de l'initialisation: " + error.message;
+            this.isLoading = false;
+          }
+        },
+
+        async loadInitialDataWithCache() {
+          // console.log("[Collaborative App] Chargement des données avec stratégie de cache...");
+
+          try {
+            // Étape 1: Charger depuis le cache local pour un affichage instantané
+            const cacheResult = await this.syncService.loadFromCache();
+
+            if (cacheResult.success && cacheResult.fromCache) {
+              // Afficher les données du cache immédiatement
+              const cachedData = cacheResult.data;
+              this.event = cachedData.event;
+              this.ingredients = cachedData.ingredients;
+              this.purchases = cachedData.purchases;
+
+              // Transformer les données pour l'UI avec optimisation
+              this.transformDataForUI(true);
+
+              // console.log("[Collaborative App] Données affichées depuis le cache");
+
+              // Lancer la synchronisation en arrière-plan sans bloquer l'UI
+              this.syncChangesInBackground().catch(error => {
+                console.error("[Collaborative App] Erreur de synchronisation en arrière-plan:", error);
+              });
+            } else {
+              // Première visite - charger depuis Appwrite
+              console.log("[Collaborative App] Première visite, chargement depuis Appwrite...");
+              await this.loadInitialData();
+            }
+
+          } catch (error) {
+            console.error("[Collaborative App] Erreur lors du chargement avec cache:", error);
+            // Fallback vers le chargement traditionnel
+            await this.loadInitialData();
+          }
+        },
+
+        async syncChangesInBackground() {
+          // console.log("[Collaborative App] Synchronisation des changements en arrière-plan...");
+
+          const syncResult = await this.syncService.syncChanges();
+
+          if (syncResult.success) {
+            const { data, changes, isFirstVisit } = syncResult;
+
+            console.log("[Collaborative App] Synchronisation terminée:", {
+              isFirstVisit,
+              changes: {
+                event: changes.event.length,
+                ingredients: changes.ingredients.length,
+                purchases: changes.purchases.length
+              }
+            });
+
+            // Vérifier s'il y a eu des changements réels
+            const hasRealChanges = changes.event.length > 0 ||
+              changes.ingredients.length > 0 ||
+              changes.purchases.length > 0;
+
+            if (hasRealChanges) {
+              // Mettre à jour les données avec les informations synchronisées
+              this.event = data.event;
+              this.ingredients = data.ingredients;
+              this.purchases = data.purchases;
+
+              // Utiliser les optimisations de mise à jour multiple si pertinent
+              if (isFirstVisit) {
+                // Première visite : utiliser l'optimisation
+                this.transformDataForUI(true);
+              } else if (changes.ingredients.length > 5 || changes.purchases.length > 3) {
+                // Beaucoup de changements : utiliser la mise à jour optimisée
+                this.updateMultipleFromSyncChanges(changes.ingredients, changes.purchases);
+              } else {
+                // Peu de changements : transformation standard
+                this.transformDataForUI(false);
+              }
+
+              console.log("[Collaborative App] Données mises à jour après synchronisation");
+            } else {
+              console.log("[Collaborative App] Aucun changement à synchroniser, pas de retraitement");
+            }
+          }
+        },
+
+        async loadInitialData() {
+          console.log("[Collaborative App] Chargement des données initiales depuis Appwrite...");
+          try {
+            const db = this.database;
+            const dbId = APPWRITE_CONFIG.databaseId;
+            const collections = APPWRITE_CONFIG.collections;
+
+            // Utiliser Promise.all pour charger les données en parallèle (plus rapide)
+            const [eventResponse, ingredientsResponse, purchasesResponse] =
+              await Promise.all([
+                db.getDocument(dbId, collections.events, this.listId),
+                db.listDocuments(dbId, collections.ingredients, [
+                  Appwrite.Query.equal("ingredientLists", this.listId),
+                  Appwrite.Query.limit(800),
+                ]),
+                db.listDocuments(dbId, collections.purchases, [
+                  Appwrite.Query.equal("list", this.listId),
+                  Appwrite.Query.limit(2000), // Augmenter la limite pour les achats
+                ]),
+              ]);
+
+            this.event = eventResponse;
+            this.ingredients = ingredientsResponse.documents;
+            this.purchases = purchasesResponse.documents; // Structure plus simple
 
             // Transformer les données pour l'UI avec optimisation
             this.transformDataForUI(true);
 
-            // console.log("[Collaborative App] Données affichées depuis le cache");
-
-            // Lancer la synchronisation en arrière-plan sans bloquer l'UI
-            this.syncChangesInBackground().catch(error => {
-              console.error("[Collaborative App] Erreur de synchronisation en arrière-plan:", error);
-            });
-          } else {
-            // Première visite - charger depuis Appwrite
-            console.log("[Collaborative App] Première visite, chargement depuis Appwrite...");
-            await this.loadInitialData();
-          }
-
-        } catch (error) {
-          console.error("[Collaborative App] Erreur lors du chargement avec cache:", error);
-          // Fallback vers le chargement traditionnel
-          await this.loadInitialData();
-        }
-      },
-
-      async syncChangesInBackground() {
-        // console.log("[Collaborative App] Synchronisation des changements en arrière-plan...");
-
-        const syncResult = await this.syncService.syncChanges();
-
-        if (syncResult.success) {
-          const { data, changes, isFirstVisit } = syncResult;
-
-          console.log("[Collaborative App] Synchronisation terminée:", {
-            isFirstVisit,
-            changes: {
-              event: changes.event.length,
-              ingredients: changes.ingredients.length,
-              purchases: changes.purchases.length
+            // Sauvegarder dans le cache local pour les prochaines visites
+            if (this.syncService) {
+              const dataToSave = {
+                event: this.event,
+                ingredients: this.ingredients,
+                purchases: this.purchases
+              };
+              const { localStorageService } = await import('./services/localStorageService.js');
+              localStorageService.saveAllData(this.listId, dataToSave);
             }
+
+          } catch (error) {
+            console.error(
+              "[Collaborative App] Erreur lors du chargement des données:",
+              error,
+            );
+            if (error.code === 404) {
+              this.error =
+                "Cette liste collaborative n'existe pas ou vous n'y avez pas accès.";
+            }
+            throw error;
+          }
+        },
+
+        /**
+         * Transforme les données pour l'UI
+         * @param {boolean} useOptimizedUpdate - Utiliser la mise à jour optimisée si true
+         */
+        async transformDataForUI(useOptimizedUpdate = false) {
+          console.log("[Collaborative App] Transformation des données pour l'UI...", {
+            ingredientCount: this.ingredients.length,
+            useOptimizedUpdate
           });
 
-          // Vérifier s'il y a eu des changements réels
-          const hasRealChanges = changes.event.length > 0 ||
-                                changes.ingredients.length > 0 ||
-                                changes.purchases.length > 0;
-
-          if (hasRealChanges) {
-            // Mettre à jour les données avec les informations synchronisées
-            this.event = data.event;
-            this.ingredients = data.ingredients;
-            this.purchases = data.purchases;
-
-            // Utiliser les optimisations de mise à jour multiple si pertinent
-            if (isFirstVisit) {
-              // Première visite : utiliser l'optimisation
-              this.transformDataForUI(true);
-            } else if (changes.ingredients.length > 5 || changes.purchases.length > 3) {
-              // Beaucoup de changements : utiliser la mise à jour optimisée
-              this.updateMultipleFromSyncChanges(changes.ingredients, changes.purchases);
-            } else {
-              // Peu de changements : transformation standard
-              this.transformDataForUI(false);
+          try {
+            // Si optimisation demandée, utiliser updateMultipleIngredientsInUI
+            if (useOptimizedUpdate) {
+              // console.log("[Collaborative App] Utilisation de la mise à jour optimisée pour", this.ingredients.length, "ingrédients");
+              const ingredientIds = this.ingredients.map(ing => ing.$id);
+              this.updateMultipleIngredientsInUI(ingredientIds);
+              return;
             }
 
-            console.log("[Collaborative App] Données mises à jour après synchronisation");
-          } else {
-            console.log("[Collaborative App] Aucun changement à synchroniser, pas de retraitement");
-          }
-      }
-      },
+            // Utiliser IngredientCalculator pour calculer l'équilibre des ingrédients
+            const calculatedIngredients =
+              IngredientCalculator.calculateIngredientsBalance(
+                this.ingredients,
+                this.purchases || [],
+              );
 
-      async loadInitialData() {
-        console.log("[Collaborative App] Chargement des données initiales depuis Appwrite...");
-        try {
-          const db = this.database;
-          const dbId = APPWRITE_CONFIG.databaseId;
-          const collections = APPWRITE_CONFIG.collections;
-
-          // Utiliser Promise.all pour charger les données en parallèle (plus rapide)
-          const [eventResponse, ingredientsResponse, purchasesResponse] =
-            await Promise.all([
-              db.getDocument(dbId, collections.events, this.listId),
-              db.listDocuments(dbId, collections.ingredients, [
-                Appwrite.Query.equal("ingredientLists", this.listId),
-                Appwrite.Query.limit(800),
-              ]),
-              db.listDocuments(dbId, collections.purchases, [
-                Appwrite.Query.equal("list", this.listId),
-                Appwrite.Query.limit(2000), // Augmenter la limite pour les achats
-              ]),
-            ]);
-
-          this.event = eventResponse;
-          this.ingredients = ingredientsResponse.documents;
-          this.purchases = purchasesResponse.documents; // Structure plus simple
-
-          // Transformer les données pour l'UI avec optimisation
-          this.transformDataForUI(true);
-
-          // Sauvegarder dans le cache local pour les prochaines visites
-          if (this.syncService) {
-            const dataToSave = {
-              event: this.event,
-              ingredients: this.ingredients,
-              purchases: this.purchases
-            };
-            const { localStorageService } = await import('./services/localStorageService.js');
-            localStorageService.saveAllData(this.listId, dataToSave);
-          }
-
-        } catch (error) {
-          console.error(
-            "[Collaborative App] Erreur lors du chargement des données:",
-            error,
-          );
-          if (error.code === 404) {
-            this.error =
-              "Cette liste collaborative n'existe pas ou vous n'y avez pas accès.";
-          }
-          throw error;
-        }
-      },
-
-      /**
-       * Transforme les données pour l'UI
-       * @param {boolean} useOptimizedUpdate - Utiliser la mise à jour optimisée si true
-       */
-      async transformDataForUI(useOptimizedUpdate = false) {
-        console.log("[Collaborative App] Transformation des données pour l'UI...", {
-          ingredientCount: this.ingredients.length,
-          useOptimizedUpdate
-        });
-
-        try {
-          // Si optimisation demandée, utiliser updateMultipleIngredientsInUI
-          if (useOptimizedUpdate) {
-            // console.log("[Collaborative App] Utilisation de la mise à jour optimisée pour", this.ingredients.length, "ingrédients");
-            const ingredientIds = this.ingredients.map(ing => ing.$id);
-            this.updateMultipleIngredientsInUI(ingredientIds);
-            return;
-          }
-
-          // Utiliser IngredientCalculator pour calculer l'équilibre des ingrédients
-          const calculatedIngredients =
-            IngredientCalculator.calculateIngredientsBalance(
-              this.ingredients,
-              this.purchases || [],
+            // Utiliser le service DataTransformer pour préparer les données pour l'UI avec activation du groupement multi-magasin
+            this.transformedIngredients = DataTransformer.transformForUI(
+              calculatedIngredients,
+              {
+                // Keep only purchases ?
+                unitsManager: this.unitsManager,
+                includeRecipeDetails: true,
+                includeCalculations: true,
+                purchases: this.purchases || [],
+                enableMultiStoreGrouping: false, // Mode simple : un seul magasin par ingrédient
+              },
             );
 
-          // Utiliser le service DataTransformer pour préparer les données pour l'UI avec activation du groupement multi-magasin
-          this.transformedIngredients = DataTransformer.transformForUI(
-            calculatedIngredients,
-            {
-              // Keep only purchases ?
-              unitsManager: this.unitsManager,
-              includeRecipeDetails: true,
-              includeCalculations: true,
-              purchases: this.purchases || [],
-              enableMultiStoreGrouping: true, // Activer le mode multi-magasin
-            },
-          );
-
-        } catch (error) {
-          console.error(
-            "[Collaborative App] Erreur lors de la transformation des données:",
-            error,
-          );
-          throw error;
-        }
-      },
-
-      // === MÉTHODES DE MISE À JOUR UNIFIÉES ===
-
-      /**
-       * Met à jour un ingrédient de manière complète (données brutes + UI)
-       * @param {Object} ingredientPayload - Données de l'ingrédient depuis Appwrite
-       * @param {string} eventType - Type d'événement (create/update/delete)
-       */
-      updateIngredientComplete(ingredientPayload, eventType) {
-        console.log('[Collaborative App] Mise à jour complète ingrédient:', ingredientPayload.$id, eventType);
-
-        // 1. Mettre à jour les données brutes
-        this._updateLocalCollection(this.ingredients, ingredientPayload, eventType);
-
-        // 2. Mettre à jour les données transformées (uniquement pour create/update)
-        if (eventType !== 'delete') {
-          this.updateSingleIngredientInUI(ingredientPayload.$id);
-        } else {
-          // Pour les suppressions, retirer des données transformées
-          const index = this.transformedIngredients.findIndex(ing => ing.$id === ingredientPayload.$id);
-          if (index !== -1) {
-            this.transformedIngredients.splice(index, 1);
+          } catch (error) {
+            console.error(
+              "[Collaborative App] Erreur lors de la transformation des données:",
+              error,
+            );
+            throw error;
           }
-        }
-      },
+        },
 
-      /**
-       * Met à jour un achat de manière complète (données brutes + UI)
-       * @param {Object} purchasePayload - Données de l'achat depuis Appwrite
-       * @param {string} eventType - Type d'événement (create/update/delete)
-       */
-      updatePurchaseComplete(purchasePayload, eventType) {
-        console.log('[Collaborative App] Mise à jour complète achat:', purchasePayload.$id, eventType);
+        // === MÉTHODES DE MISE À JOUR UNIFIÉES ===
 
-        // 1. Mettre à jour les données brutes
-        this._updateLocalCollection(this.purchases, purchasePayload, eventType);
+        /**
+         * Met à jour un ingrédient de manière complète (données brutes + UI)
+         * @param {Object} ingredientPayload - Données de l'ingrédient depuis Appwrite
+         * @param {string} eventType - Type d'événement (create/update/delete)
+         */
+        updateIngredientComplete(ingredientPayload, eventType) {
+          console.log('[Collaborative App] Mise à jour complète ingrédient:', ingredientPayload.$id, eventType);
 
-        // 2. Mettre à jour les ingrédients affectés (uniquement pour create/update)
-        if (eventType !== 'delete') {
-          this.updateIngredientsFromPurchasesInUI([purchasePayload]);
-        } else {
-          // Pour les suppressions, recalculer les ingrédients qui dépendaient de cet achat
-          const affectedIngredients = this.ingredients.filter(ing =>
-            ing.listIngredient === purchasePayload.listIngredient
-          );
-          if (affectedIngredients.length > 0) {
-            this.updateIngredientsFromPurchasesInUI([purchasePayload]);
-          }
-        }
-      },
+          // 1. Mettre à jour les données brutes
+          this._updateLocalCollection(this.ingredients, ingredientPayload, eventType);
 
-      /**
-       * Met à jour plusieurs ingrédients depuis syncChanges de manière optimisée
-       * @param {Array} ingredientChanges - Les changements d'ingrédients depuis Appwrite
-       * @param {Array} purchaseChanges - Les changements d'achats depuis Appwrite
-       */
-      updateMultipleFromSyncChanges(ingredientChanges, purchaseChanges) {
-        // console.log('[Collaborative App] Mise à jour multiple depuis syncChanges:', {
-        //   ingredients: ingredientChanges?.length || 0,
-        //   purchases: purchaseChanges?.length || 0
-        // });
-
-        try {
-          // 1. Mettre à jour les ingrédients modifiés si beaucoup de changements
-          if (ingredientChanges && ingredientChanges.length > 5) {
-            const ingredientIds = ingredientChanges.map(ing => ing.$id);
-            this.updateMultipleIngredientsInUI(ingredientIds);
-          } else if (ingredientChanges && ingredientChanges.length > 0) {
-            // Peu de changements : utiliser la méthode standard
-            ingredientChanges.forEach(change => {
-              this.updateIngredientComplete(change, 'update');
-            });
-          }
-
-          // 2. Mettre à jour les achats modifiés si beaucoup de changements
-          if (purchaseChanges && purchaseChanges.length > 3) {
-            const purchaseIds = purchaseChanges.map(p => p.$id);
-            this.updateMultiplePurchasesInUI(purchaseIds);
-          } else if (purchaseChanges && purchaseChanges.length > 0) {
-            // Peu de changements : utiliser la méthode standard
-            purchaseChanges.forEach(change => {
-              this.updatePurchaseComplete(change, 'update');
-            });
-          }
-
-          console.log('[Collaborative App] Mise à jour syncChanges terminée');
-        } catch (error) {
-          console.error('[Collaborative App] Erreur lors de la mise à jour multiple syncChanges:', error);
-          // Fallback : tout retransformer
-          this.transformDataForUI();
-        }
-      },
-
-      /**
-       * Met à jour un seul ingrédient de manière optimisée dans l'UI
-       * @param {string} ingredientId - L'ID de l'ingrédient à mettre à jour
-       */
-      updateSingleIngredientInUI(ingredientId) {
-        const ingredient = this.ingredients.find(ing => ing.$id === ingredientId);
-        if (!ingredient) {
-          console.warn('[Collaborative App] Ingrédient non trouvé pour mise à jour:', ingredientId);
-          return;
-        }
-
-        try {
-          // Calculer seulement cet ingrédient
-          const calculatedIngredient = IngredientCalculator.updateSingleIngredient(
-            ingredient,
-            this.ingredients,
-            this.purchases || []
-          );
-
-          if (!calculatedIngredient) return;
-
-          // Transformer pour l'UI (avec mode multi-magasin activé)
-          const transformedIngredients = DataTransformer.transformForUI(
-            [calculatedIngredient],
-            {
-              unitsManager: this.unitsManager,
-              includeRecipeDetails: true,
-              includeCalculations: true,
-              purchases: this.purchases || [],
-              enableMultiStoreGrouping: true, // Activer le mode multi-magasin pour les mises à jour
+          // 2. Mettre à jour les données transformées (uniquement pour create/update)
+          if (eventType !== 'delete') {
+            this.updateSingleIngredientInUI(ingredientPayload.$id);
+          } else {
+            // Pour les suppressions, retirer des données transformées
+            const index = this.transformedIngredients.findIndex(ing => ing.$id === ingredientPayload.$id);
+            if (index !== -1) {
+              this.transformedIngredients.splice(index, 1);
             }
-          );
-
-          // Mettre à jour toutes les occurrences de cet ingrédient dans transformedIngredients
-          this._updateAllIngredientOccurrences(ingredientId, transformedIngredients);
-
-        } catch (error) {
-          console.error('[Collaborative App] Erreur lors de la mise à jour optimisée:', error);
-          // Fallback : retransformer toutes les données
-          this.transformDataForUI();
-        }
-      },
-
-      /**
-       * Met à jour toutes les occurrences d'un ingrédient dans le tableau transformé
-       * @param {string} ingredientId - ID de l'ingrédient à mettre à jour
-       * @param {Array} newTransformedIngredients - Nouvelles entrées transformées
-       */
-      _updateAllIngredientOccurrences(ingredientId, newTransformedIngredients) {
-        // Trouver tous les indices des occurrences existantes
-        const indicesToUpdate = [];
-        this.transformedIngredients.forEach((ing, index) => {
-          if (ing.$id === ingredientId) {
-            indicesToUpdate.push(index);
           }
-        });
+        },
 
-        if (indicesToUpdate.length === 0) {
-          // Aucune occurrence existante, ajouter les nouvelles
-          this.transformedIngredients.push(...newTransformedIngredients);
-          return;
-        }
+        /**
+         * Met à jour un achat de manière complète (données brutes + UI)
+         * @param {Object} purchasePayload - Données de l'achat depuis Appwrite
+         * @param {string} eventType - Type d'événement (create/update/delete)
+         */
+        updatePurchaseComplete(purchasePayload, eventType) {
+          console.log('[Collaborative App] Mise à jour complète achat:', purchasePayload.$id, eventType);
 
-        // Remplacer les occurrences existantes
-        if (indicesToUpdate.length === newTransformedIngredients.length) {
-          // Même nombre d'occurrences : remplacement direct
-          indicesToUpdate.forEach((index, i) => {
-            this.transformedIngredients.splice(index, 1, newTransformedIngredients[i]);
-          });
-        } else {
-          // Nombre différent : remplacer toutes les occurrences
-          // (cas où les magasins ont changé)
-          indicesToUpdate.sort((a, b) => b - a).forEach(index => {
-            this.transformedIngredients.splice(index, 1);
-          });
-          this.transformedIngredients.push(...newTransformedIngredients);
-        }
-      },
+          // 1. Mettre à jour les données brutes
+          this._updateLocalCollection(this.purchases, purchasePayload, eventType);
 
-      /**
-       * Met à jour plusieurs achats de manière optimisée dans l'UI
-       * @param {Array} purchaseIds - Les IDs des achats à mettre à jour
-       */
-      updateMultiplePurchasesInUI(purchaseIds) {
-        if (!purchaseIds || purchaseIds.length === 0) return;
+          // 2. Mettre à jour les ingrédients affectés (uniquement pour create/update)
+          if (eventType !== 'delete') {
+            this.updateIngredientsFromPurchasesInUI([purchasePayload]);
+          } else {
+            // Pour les suppressions, recalculer les ingrédients qui dépendaient de cet achat
+            const affectedIngredients = this.ingredients.filter(ing =>
+              ing.listIngredient === purchasePayload.listIngredient
+            );
+            if (affectedIngredients.length > 0) {
+              this.updateIngredientsFromPurchasesInUI([purchasePayload]);
+            }
+          }
+        },
 
-        try {
-          // Filtrer les achats concernés
-          const purchasesToUpdate = this.purchases.filter(purchase =>
-            purchaseIds.includes(purchase.$id)
-          );
+        /**
+         * Met à jour plusieurs ingrédients depuis syncChanges de manière optimisée
+         * @param {Array} ingredientChanges - Les changements d'ingrédients depuis Appwrite
+         * @param {Array} purchaseChanges - Les changements d'achats depuis Appwrite
+         */
+        updateMultipleFromSyncChanges(ingredientChanges, purchaseChanges) {
+          // console.log('[Collaborative App] Mise à jour multiple depuis syncChanges:', {
+          //   ingredients: ingredientChanges?.length || 0,
+          //   purchases: purchaseChanges?.length || 0
+          // });
 
-          if (purchasesToUpdate.length === 0) {
-            console.warn('[Collaborative App] Aucun achat trouvé pour mise à jour:', purchaseIds);
+          try {
+            // 1. Mettre à jour les ingrédients modifiés si beaucoup de changements
+            if (ingredientChanges && ingredientChanges.length > 5) {
+              const ingredientIds = ingredientChanges.map(ing => ing.$id);
+              this.updateMultipleIngredientsInUI(ingredientIds);
+            } else if (ingredientChanges && ingredientChanges.length > 0) {
+              // Peu de changements : utiliser la méthode standard
+              ingredientChanges.forEach(change => {
+                this.updateIngredientComplete(change, 'update');
+              });
+            }
+
+            // 2. Mettre à jour les achats modifiés si beaucoup de changements
+            if (purchaseChanges && purchaseChanges.length > 3) {
+              const purchaseIds = purchaseChanges.map(p => p.$id);
+              this.updateMultiplePurchasesInUI(purchaseIds);
+            } else if (purchaseChanges && purchaseChanges.length > 0) {
+              // Peu de changements : utiliser la méthode standard
+              purchaseChanges.forEach(change => {
+                this.updatePurchaseComplete(change, 'update');
+              });
+            }
+
+            console.log('[Collaborative App] Mise à jour syncChanges terminée');
+          } catch (error) {
+            console.error('[Collaborative App] Erreur lors de la mise à jour multiple syncChanges:', error);
+            // Fallback : tout retransformer
+            this.transformDataForUI();
+          }
+        },
+
+        /**
+         * Met à jour un seul ingrédient de manière optimisée dans l'UI
+         * @param {string} ingredientId - L'ID de l'ingrédient à mettre à jour
+         */
+        updateSingleIngredientInUI(ingredientId) {
+          const ingredient = this.ingredients.find(ing => ing.$id === ingredientId);
+          if (!ingredient) {
+            console.warn('[Collaborative App] Ingrédient non trouvé pour mise à jour:', ingredientId);
             return;
           }
 
-          // Trouver les ingrédients affectés par ces achats
-          const affectedIngredientIds = purchasesToUpdate.map(purchase => purchase.listIngredient);
-          const uniqueAffectedIds = [...new Set(affectedIngredientIds)];
+          try {
+            // Calculer seulement cet ingrédient
+            const calculatedIngredient = IngredientCalculator.updateSingleIngredient(
+              ingredient,
+              this.ingredients,
+              this.purchases || []
+            );
 
-          // Utiliser la logique existante pour mettre à jour les ingrédients affectés
-          this.updateIngredientsFromPurchasesInUI(purchasesToUpdate);
+            if (!calculatedIngredient) return;
 
-          console.log('[Collaborative App] Achats mis à jour de manière optimisée:', purchasesToUpdate.length, '→', uniqueAffectedIds.length, 'ingrédients affectés');
-        } catch (error) {
-          console.error('[Collaborative App] Erreur lors de la mise à jour optimisée multiple achats:', error);
-          // Fallback : retransformer toutes les données
-          this.transformDataForUI();
-        }
-      },
+            // Transformer pour l'UI (avec mode multi-magasin activé)
+            const transformedIngredients = DataTransformer.transformForUI(
+              [calculatedIngredient],
+              {
+                unitsManager: this.unitsManager,
+                includeRecipeDetails: true,
+                includeCalculations: true,
+                purchases: this.purchases || [],
+                enableMultiStoreGrouping: false, // Mode simple : un seul magasin par ingrédient
+              }
+            );
 
-      /**
-       * Met à jour plusieurs ingrédients de manière optimisée dans l'UI
-       * @param {Array} ingredientIds - Les IDs des ingrédients à mettre à jour
-       */
-      updateMultipleIngredientsInUI(ingredientIds) {
-        if (!ingredientIds || ingredientIds.length === 0) return;
+            // Mettre à jour toutes les occurrences de cet ingrédient dans transformedIngredients
+            this._updateAllIngredientOccurrences(ingredientId, transformedIngredients);
 
-        try {
-          // Calculer seulement ces ingrédients
-          const calculatedIngredients = IngredientCalculator.updateMultipleIngredients(
-            ingredientIds,
-            this.ingredients,
-            this.purchases || []
-          );
-
-          // Transformer pour l'UI
-          const transformedIngredients = DataTransformer.transformForUI(
-            calculatedIngredients,
-            {
-              unitsManager: this.unitsManager,
-              includeRecipeDetails: true,
-              includeCalculations: true,
-              purchases: this.purchases || [],
-            }
-          );
-
-          // Mettre à jour dans le tableau transformedIngredients (approche fonctionnelle)
-          // Créer une map des ingrédients existants pour une recherche rapide
-          const existingIngredientsMap = new Map(
-            this.transformedIngredients.map(ing => [ing.$id, ing])
-          );
-
-          // Combiner les ingrédients existants non modifiés avec les nouveaux
-          const updatedIds = new Set(transformedIngredients.map(ing => ing.$id));
-          const unchangedIngredients = this.transformedIngredients.filter(ing => !updatedIds.has(ing.$id));
-
-          // Fusionner les ingrédients inchangés avec les ingrédients mis à jour
-          this.transformedIngredients = [...unchangedIngredients, ...transformedIngredients];
-
-          console.log('[Collaborative App] Ingrédients mis à jour de manière optimisée:', ingredientIds.length);
-        } catch (error) {
-          console.error('[Collaborative App] Erreur lors de la mise à jour optimisée multiple:', error);
-          // Fallback : retransformer toutes les données
-          this.transformDataForUI();
-        }
-      },
-
-      /**
-       * Met à jour les ingrédients affectés par des changements d'achats
-       * @param {Array} purchases - Les achats modifiés
-       */
-      updateIngredientsFromPurchasesInUI(purchases) {
-        if (!purchases || purchases.length === 0) return;
-
-        try {
-          // Trouver les ingrédients affectés et les mettre à jour
-          const calculatedIngredients = IngredientCalculator.updateIngredientsFromPurchases(
-            purchases,
-            this.ingredients,
-            this.purchases || []
-          );
-
-          // Transformer pour l'UI
-          const transformedIngredients = DataTransformer.transformForUI(
-            calculatedIngredients,
-            {
-              unitsManager: this.unitsManager,
-              includeRecipeDetails: true,
-              includeCalculations: true,
-              purchases: this.purchases || [],
-            }
-          );
-
-          // Mettre à jour dans le tableau transformedIngredients (approche fonctionnelle)
-          const updatedIds = new Set(transformedIngredients.map(ing => ing.$id));
-          const unchangedIngredients = this.transformedIngredients.filter(ing => !updatedIds.has(ing.$id));
-
-          // Fusionner les ingrédients inchangés avec les ingrédients mis à jour
-          this.transformedIngredients = [...unchangedIngredients, ...transformedIngredients];
-
-          console.log('[Collaborative App] Ingrédients mis à jour depuis achats:', transformedIngredients.length);
-        } catch (error) {
-          console.error('[Collaborative App] Erreur lors de la mise à jour depuis achats:', error);
-          // Fallback : retransformer toutes les données
-          this.transformDataForUI();
-        }
-      },
-
-      // === MÉTHODES DE SYNCHRONISATION TEMPS RÉEL ===
-
-      setupRealtime() {
-        console.log("[Collaborative App] Configuration du temps réel...");
-
-        this.realtimeStatus.isConnecting = true;
-
-        try {
-          this.unsubscribeRealtime = subscribeToCollections(
-            ["ingredients", "purchases"],
-            this.listId, // Ajout du listId
-            (response) => {
-              this.handleRealtimeUpdate(response);
-            },
-            {
-              onConnect: () => this.onConnectionEstablished(),
-              onDisconnect: (event) => this.onConnectionLost(event),
-              onError: (error) => this.onConnectionError(error)
-            }
-          );
-
-        } catch (error) {
-          console.error("[Collaborative App] Erreur lors de la configuration realtime:", error);
-          this.onConnectionError(error);
-        }
-      },
-
-      onConnectionEstablished() {
-        this.realtimeStatus.isConnected = true;
-        this.realtimeStatus.isConnecting = false;
-        this.realtimeStatus.hasBeenConnected = true;
-        this.realtimeStatus.retryCount = 0;
-        this.realtimeStatus.showReconnecting = false;
-        this.realtimeStatus.showDisconnectedToast = false;
-      },
-
-      onConnectionLost() {
-        if (this.realtimeStatus.isConnected) {
-          this.realtimeStatus.isConnected = false;
-          this.realtimeStatus.showDisconnectedToast = true;
-          this.scheduleReconnection();
-        }
-      },
-
-      onConnectionError(error) {
-        this.realtimeStatus.isConnected = false;
-        this.realtimeStatus.isConnecting = false;
-
-        if (this.realtimeStatus.retryCount < this.realtimeStatus.maxRetries) {
-          this.scheduleReconnection();
-        }
-      },
-
-      scheduleReconnection() {
-        if (this.realtimeStatus.reconnectionTimeout) {
-          clearTimeout(this.realtimeStatus.reconnectionTimeout);
-        }
-
-        if (this.realtimeStatus.retryCount >= this.realtimeStatus.maxRetries) {
-          return;
-        }
-
-        const delay = this.realtimeStatus.retryDelay * (this.realtimeStatus.retryCount + 1);
-        this.realtimeStatus.showReconnecting = true;
-        this.realtimeStatus.retryCount++;
-
-        this.realtimeStatus.reconnectionTimeout = setTimeout(() => {
-          this.attemptReconnection();
-        }, delay);
-      },
-
-      async attemptReconnection() {
-        if (this.unsubscribeRealtime) {
-          this.unsubscribeRealtime();
-        }
-        this.setupRealtime();
-      },
-
-      handleRealtimeUpdate(response) {
-        // console.log("[Collaborative App] Mise à jour temps réel reçue:", response);
-
-        // Appliquer le changement au cache local via le service de synchronisation
-        if (this.syncService) {
-          const syncResult = this.syncService.applyRealtimeChange(response);
-          if (!syncResult) {
-            console.warn("[Collaborative App] Le changement n'a pas pu être appliqué au cache");
+          } catch (error) {
+            console.error('[Collaborative App] Erreur lors de la mise à jour optimisée:', error);
+            // Fallback : retransformer toutes les données
+            this.transformDataForUI();
           }
-        }
+        },
 
-        const { payload } = response;
-        const collectionName = response.events[0].split(".")[3]; // ex: "ingredients" ou "purchase"
-        const eventType = response.events[0].split(".")[6]; // "create", "update", "delete". L'index "5" ne correspond pas à l'événement: preserver index 6.
+        /**
+         * Met à jour toutes les occurrences d'un ingrédient dans le tableau transformé
+         * @param {string} ingredientId - ID de l'ingrédient à mettre à jour
+         * @param {Array} newTransformedIngredients - Nouvelles entrées transformées
+         */
+        _updateAllIngredientOccurrences(ingredientId, newTransformedIngredients) {
+          // Trouver tous les indices des occurrences existantes
+          const indicesToUpdate = [];
+          this.transformedIngredients.forEach((ing, index) => {
+            if (ing.$id === ingredientId) {
+              indicesToUpdate.push(index);
+            }
+          });
 
-        if (collectionName === APPWRITE_CONFIG.collections.ingredients) {
-          // Mise à jour unifiée : données brutes + UI
-          this.updateIngredientComplete(payload, eventType);
+          if (indicesToUpdate.length === 0) {
+            // Aucune occurrence existante, ajouter les nouvelles
+            this.transformedIngredients.push(...newTransformedIngredients);
+            return;
+          }
 
-          // Mettre à jour le cache de suggestions pour les ingredients
-          if (this.localStorageService) {
-            // Trouver l'ingrédient transformé correspondant
-            const transformedIngredient = this.transformedIngredients.find(ing => ing.$id === payload.$id);
-            if (transformedIngredient) {
-              this.localStorageService.updateFromIngredient(transformedIngredient);
+          // Remplacer les occurrences existantes
+          if (indicesToUpdate.length === newTransformedIngredients.length) {
+            // Même nombre d'occurrences : remplacement direct
+            indicesToUpdate.forEach((index, i) => {
+              this.transformedIngredients.splice(index, 1, newTransformedIngredients[i]);
+            });
+          } else {
+            // Nombre différent : remplacer toutes les occurrences
+            // (cas où les magasins ont changé)
+            indicesToUpdate.sort((a, b) => b - a).forEach(index => {
+              this.transformedIngredients.splice(index, 1);
+            });
+            this.transformedIngredients.push(...newTransformedIngredients);
+          }
+        },
+
+        /**
+         * Met à jour plusieurs achats de manière optimisée dans l'UI
+         * @param {Array} purchaseIds - Les IDs des achats à mettre à jour
+         */
+        updateMultiplePurchasesInUI(purchaseIds) {
+          if (!purchaseIds || purchaseIds.length === 0) return;
+
+          try {
+            // Filtrer les achats concernés
+            const purchasesToUpdate = this.purchases.filter(purchase =>
+              purchaseIds.includes(purchase.$id)
+            );
+
+            if (purchasesToUpdate.length === 0) {
+              console.warn('[Collaborative App] Aucun achat trouvé pour mise à jour:', purchaseIds);
+              return;
+            }
+
+            // Trouver les ingrédients affectés par ces achats
+            const affectedIngredientIds = purchasesToUpdate.map(purchase => purchase.listIngredient);
+            const uniqueAffectedIds = [...new Set(affectedIngredientIds)];
+
+            // Utiliser la logique existante pour mettre à jour les ingrédients affectés
+            this.updateIngredientsFromPurchasesInUI(purchasesToUpdate);
+
+            console.log('[Collaborative App] Achats mis à jour de manière optimisée:', purchasesToUpdate.length, '→', uniqueAffectedIds.length, 'ingrédients affectés');
+          } catch (error) {
+            console.error('[Collaborative App] Erreur lors de la mise à jour optimisée multiple achats:', error);
+            // Fallback : retransformer toutes les données
+            this.transformDataForUI();
+          }
+        },
+
+        /**
+         * Met à jour plusieurs ingrédients de manière optimisée dans l'UI
+         * @param {Array} ingredientIds - Les IDs des ingrédients à mettre à jour
+         */
+        updateMultipleIngredientsInUI(ingredientIds) {
+          if (!ingredientIds || ingredientIds.length === 0) return;
+
+          try {
+            // Calculer seulement ces ingrédients
+            const calculatedIngredients = IngredientCalculator.updateMultipleIngredients(
+              ingredientIds,
+              this.ingredients,
+              this.purchases || []
+            );
+
+            // Transformer pour l'UI
+            const transformedIngredients = DataTransformer.transformForUI(
+              calculatedIngredients,
+              {
+                unitsManager: this.unitsManager,
+                includeRecipeDetails: true,
+                includeCalculations: true,
+                purchases: this.purchases || [],
+              }
+            );
+
+            // Mettre à jour dans le tableau transformedIngredients (approche fonctionnelle)
+            // Créer une map des ingrédients existants pour une recherche rapide
+            const existingIngredientsMap = new Map(
+              this.transformedIngredients.map(ing => [ing.$id, ing])
+            );
+
+            // Combiner les ingrédients existants non modifiés avec les nouveaux
+            const updatedIds = new Set(transformedIngredients.map(ing => ing.$id));
+            const unchangedIngredients = this.transformedIngredients.filter(ing => !updatedIds.has(ing.$id));
+
+            // Fusionner les ingrédients inchangés avec les ingrédients mis à jour
+            this.transformedIngredients = [...unchangedIngredients, ...transformedIngredients];
+
+            console.log('[Collaborative App] Ingrédients mis à jour de manière optimisée:', ingredientIds.length);
+          } catch (error) {
+            console.error('[Collaborative App] Erreur lors de la mise à jour optimisée multiple:', error);
+            // Fallback : retransformer toutes les données
+            this.transformDataForUI();
+          }
+        },
+
+        /**
+         * Met à jour les ingrédients affectés par des changements d'achats
+         * @param {Array} purchases - Les achats modifiés
+         */
+        updateIngredientsFromPurchasesInUI(purchases) {
+          if (!purchases || purchases.length === 0) return;
+
+          try {
+            // Trouver les ingrédients affectés et les mettre à jour
+            const calculatedIngredients = IngredientCalculator.updateIngredientsFromPurchases(
+              purchases,
+              this.ingredients,
+              this.purchases || []
+            );
+
+            // Transformer pour l'UI
+            const transformedIngredients = DataTransformer.transformForUI(
+              calculatedIngredients,
+              {
+                unitsManager: this.unitsManager,
+                includeRecipeDetails: true,
+                includeCalculations: true,
+                purchases: this.purchases || [],
+              }
+            );
+
+            // Mettre à jour dans le tableau transformedIngredients (approche fonctionnelle)
+            const updatedIds = new Set(transformedIngredients.map(ing => ing.$id));
+            const unchangedIngredients = this.transformedIngredients.filter(ing => !updatedIds.has(ing.$id));
+
+            // Fusionner les ingrédients inchangés avec les ingrédients mis à jour
+            this.transformedIngredients = [...unchangedIngredients, ...transformedIngredients];
+
+            console.log('[Collaborative App] Ingrédients mis à jour depuis achats:', transformedIngredients.length);
+          } catch (error) {
+            console.error('[Collaborative App] Erreur lors de la mise à jour depuis achats:', error);
+            // Fallback : retransformer toutes les données
+            this.transformDataForUI();
+          }
+        },
+
+        // === MÉTHODES DE SYNCHRONISATION TEMPS RÉEL ===
+
+        setupRealtime() {
+          console.log("[Collaborative App] Configuration du temps réel...");
+
+          this.realtimeStatus.isConnecting = true;
+
+          try {
+            this.unsubscribeRealtime = subscribeToCollections(
+              ["ingredients", "purchases"],
+              this.listId, // Ajout du listId
+              (response) => {
+                this.handleRealtimeUpdate(response);
+              },
+              {
+                onConnect: () => this.onConnectionEstablished(),
+                onDisconnect: (event) => this.onConnectionLost(event),
+                onError: (error) => this.onConnectionError(error)
+              }
+            );
+
+          } catch (error) {
+            console.error("[Collaborative App] Erreur lors de la configuration realtime:", error);
+            this.onConnectionError(error);
+          }
+        },
+
+        onConnectionEstablished() {
+          this.realtimeStatus.isConnected = true;
+          this.realtimeStatus.isConnecting = false;
+          this.realtimeStatus.hasBeenConnected = true;
+          this.realtimeStatus.retryCount = 0;
+          this.realtimeStatus.showReconnecting = false;
+          this.realtimeStatus.showDisconnectedToast = false;
+        },
+
+        onConnectionLost() {
+          if (this.realtimeStatus.isConnected) {
+            this.realtimeStatus.isConnected = false;
+            this.realtimeStatus.showDisconnectedToast = true;
+            this.scheduleReconnection();
+          }
+        },
+
+        onConnectionError(error) {
+          this.realtimeStatus.isConnected = false;
+          this.realtimeStatus.isConnecting = false;
+
+          if (this.realtimeStatus.retryCount < this.realtimeStatus.maxRetries) {
+            this.scheduleReconnection();
+          }
+        },
+
+        scheduleReconnection() {
+          if (this.realtimeStatus.reconnectionTimeout) {
+            clearTimeout(this.realtimeStatus.reconnectionTimeout);
+          }
+
+          if (this.realtimeStatus.retryCount >= this.realtimeStatus.maxRetries) {
+            return;
+          }
+
+          const delay = this.realtimeStatus.retryDelay * (this.realtimeStatus.retryCount + 1);
+          this.realtimeStatus.showReconnecting = true;
+          this.realtimeStatus.retryCount++;
+
+          this.realtimeStatus.reconnectionTimeout = setTimeout(() => {
+            this.attemptReconnection();
+          }, delay);
+        },
+
+        async attemptReconnection() {
+          if (this.unsubscribeRealtime) {
+            this.unsubscribeRealtime();
+          }
+          this.setupRealtime();
+        },
+
+        handleRealtimeUpdate(response) {
+          // console.log("[Collaborative App] Mise à jour temps réel reçue:", response);
+
+          // Appliquer le changement au cache local via le service de synchronisation
+          if (this.syncService) {
+            const syncResult = this.syncService.applyRealtimeChange(response);
+            if (!syncResult) {
+              console.warn("[Collaborative App] Le changement n'a pas pu être appliqué au cache");
+            }
+          }
+
+          const { payload } = response;
+          const collectionName = response.events[0].split(".")[3]; // ex: "ingredients" ou "purchase"
+          const eventType = response.events[0].split(".")[6]; // "create", "update", "delete". L'index "5" ne correspond pas à l'événement: preserver index 6.
+
+          if (collectionName === APPWRITE_CONFIG.collections.ingredients) {
+            // Mise à jour unifiée : données brutes + UI
+            this.updateIngredientComplete(payload, eventType);
+
+            // Mettre à jour le cache de suggestions pour les ingredients
+            if (this.localStorageService) {
+              // Trouver l'ingrédient transformé correspondant
+              const transformedIngredient = this.transformedIngredients.find(ing => ing.$id === payload.$id);
+              if (transformedIngredient) {
+                this.localStorageService.updateFromIngredient(transformedIngredient);
+                this.localStorageService.saveToStorage(this.listId);
+              }
+            }
+          } else if (collectionName === APPWRITE_CONFIG.collections.purchases) {
+            // Mise à jour unifiée : données brutes + UI
+            this.updatePurchaseComplete(payload, eventType);
+
+            // Mettre à jour le cache de suggestions pour les purchases
+            if (this.localStorageService) {
+              this.localStorageService.updateFromPurchase(payload);
               this.localStorageService.saveToStorage(this.listId);
             }
           }
-        } else if (collectionName === APPWRITE_CONFIG.collections.purchases) {
-          // Mise à jour unifiée : données brutes + UI
-          this.updatePurchaseComplete(payload, eventType);
+        },
 
-          // Mettre à jour le cache de suggestions pour les purchases
-          if (this.localStorageService) {
-            this.localStorageService.updateFromPurchase(payload);
-            this.localStorageService.saveToStorage(this.listId);
+        _updateLocalCollection(collection, payload, eventType) {
+          const index = collection.findIndex((doc) => doc.$id === payload.$id);
+
+          if (eventType === "create" && index === -1) {
+            collection.push(payload);
+          } else if (eventType === "update" && index !== -1) {
+            collection.splice(index, 1, payload);
+          } else if (eventType === "delete" && index !== -1) {
+            collection.splice(index, 1);
           }
-        }
-      },
+        },
 
-      _updateLocalCollection(collection, payload, eventType) {
-        const index = collection.findIndex((doc) => doc.$id === payload.$id);
+        // === MÉTHODES DE FILTRAGE ET TRI ===
 
-        if (eventType === "create" && index === -1) {
-          collection.push(payload);
-        } else if (eventType === "update" && index !== -1) {
-          collection.splice(index, 1, payload);
-        } else if (eventType === "delete" && index !== -1) {
-          collection.splice(index, 1);
-        }
-      },
+        clearFilters() {
+          this.searchQuery = "";
+          this.selectedTypeFilter = "";
+          this.selectedStatusFilter = "";
+          this.selectedStoreFilter = "";
+          this.selectedPersonFilter = "";
+        },
 
-      // === MÉTHODES DE FILTRAGE ET TRI ===
+        // --- MÉTHODES UTILITAIRES POUR LE TEMPLATE DU TABLEAU ---
+        flexRender(component, props) {
+          if (!component) return null;
+          if (typeof component === 'function') {
+            return component(props);
+          }
+          return component;
+        },
 
-      clearFilters() {
-        this.searchQuery = "";
-        this.selectedTypeFilter = "";
-        this.selectedStatusFilter = "";
-        this.selectedStoreFilter = "";
-        this.selectedPersonFilter = "";
-      },
-
-      // --- MÉTHODES UTILITAIRES POUR LE TEMPLATE DU TABLEAU ---
-      flexRender(component, props) {
-        if (!component) return null;
-        if (typeof component === 'function') {
-          return component(props);
-        }
-        return component;
-      },
-
-      // Méthode getGroupStats mise à jour pour TanStack Table
-      getGroupStats(rows) {
-        const stats = { totalNeeded: 0, totalPurchased: 0, totalMissing: 0 };
-        rows.forEach(row => {
-          const ing = row.original;
-          // Assurez-vous que ces valeurs existent et sont des nombres
-          stats.totalNeeded += Number(ing.totalNeeded) || 0;
-          stats.totalPurchased += Number(ing.totalPurchased) || 0;
-          stats.totalMissing += Number(ing.totalMissing) || 0;
-        });
-        return stats;
-      },
-
-
-
-      // === MÉTHODES POUR TANSTACK TABLE ===
-
-      handleTableIngredientSelect(ingredientId) {
-        this.handleIngredientSelect(ingredientId);
-      },
-
-      handleTableGroupSelect(groupName, subRows) {
-        const ingredientIds = subRows.map(row => row.original.$id);
-        const isGroupSelected = ingredientIds.every(id => this.selectedIngredients.includes(id));
-
-        if (isGroupSelected) {
-          // Désélectionner tout le groupe
-          ingredientIds.forEach(id => {
-            const index = this.selectedIngredients.indexOf(id);
-            if (index > -1) {
-              this.selectedIngredients.splice(index, 1);
-            }
+        // Méthode getGroupStats mise à jour pour TanStack Table
+        getGroupStats(rows) {
+          const stats = { totalNeeded: 0, totalPurchased: 0, totalMissing: 0 };
+          rows.forEach(row => {
+            const ing = row.original;
+            // Assurez-vous que ces valeurs existent et sont des nombres
+            stats.totalNeeded += Number(ing.totalNeeded) || 0;
+            stats.totalPurchased += Number(ing.totalPurchased) || 0;
+            stats.totalMissing += Number(ing.totalMissing) || 0;
           });
-        } else {
-          // Sélectionner tout le groupe
-          ingredientIds.forEach(id => {
-            if (!this.selectedIngredients.includes(id)) {
-              this.selectedIngredients.push(id);
-            }
-          });
-        }
-
-        this.selectAllChecked = this.selectedIngredients.length === this.filteredIngredients.length;
-      },
+          return stats;
+        },
 
 
-      // === MÉTHODES DE GESTION DES VUES ===
 
-      getCurrentViewInfo() {
-        switch (this.currentView) {
-          case 'table':
-            return 'Tableau classique - tous les ingrédients dans un tableau traditionnel';
-          case 'grouped':
-            return 'Vue groupée par magasin avec sélection groupée et statistiques';
-          case 'cards':
-            return 'Vue cartes - idéal pour mobile et tablette';
-          case 'compact':
-            return 'Vue compacte - affichage minimal pour petits écrans';
-          default:
-            return 'Vue inconnue';
-        }
-      },
+        // === MÉTHODES POUR TANSTACK TABLE ===
 
-      // Méthode pour détecter la meilleure vue pour l'appareil actuel
-      getOptimalViewForDevice() {
-        if (window.innerWidth < 576) {
-          return 'compact';
-        } else if (window.innerWidth < 768) {
-          return 'cards';
-        } else {
-          return 'grouped';
-        }
-      },
+        handleTableIngredientSelect(ingredientId) {
+          this.handleIngredientSelect(ingredientId);
+        },
 
-      // Méthode pour changer de vue avec détection automatique
-      setView(viewName) {
-        this.currentView = viewName;
+        handleTableGroupSelect(groupName, subRows) {
+          const ingredientIds = subRows.map(row => row.original.$id);
+          const isGroupSelected = ingredientIds.every(id => this.selectedIngredients.includes(id));
 
-        // Sauvegarder la préférence dans localStorage
-        try {
-          localStorage.setItem('preferredView', viewName);
-        } catch (error) {
-          console.warn('Impossible de sauvegarder la préférence de vue:', error);
-        }
-      },
-
-      // Méthode pour charger la préférence de vue
-      loadPreferredView() {
-        try {
-          const savedView = localStorage.getItem('preferredView');
-          if (savedView && ['table', 'grouped', 'cards', 'compact'].includes(savedView)) {
-            this.currentView = savedView;
+          if (isGroupSelected) {
+            // Désélectionner tout le groupe
+            ingredientIds.forEach(id => {
+              const index = this.selectedIngredients.indexOf(id);
+              if (index > -1) {
+                this.selectedIngredients.splice(index, 1);
+              }
+            });
           } else {
-            // Utiliser la vue optimale pour l'appareil
-            this.currentView = this.getOptimalViewForDevice();
+            // Sélectionner tout le groupe
+            ingredientIds.forEach(id => {
+              if (!this.selectedIngredients.includes(id)) {
+                this.selectedIngredients.push(id);
+              }
+            });
           }
-        } catch (error) {
-          console.warn('Impossible de charger la préférence de vue:', error);
-          this.currentView = 'table';
-        }
-      },
 
-      // === MÉTHODES DE SÉLECTION ===
+          this.selectAllChecked = this.selectedIngredients.length === this.filteredIngredients.length;
+        },
 
-      handleSelectAll(event) {
-        const isChecked = event.target.checked;
-        if (isChecked) {
-          this.selectedIngredients = this.filteredIngredients.map(
-            (ing) => ing.$id,
+
+        // === MÉTHODES DE GESTION DES VUES ===
+
+        getCurrentViewInfo() {
+          switch (this.currentView) {
+            case 'table':
+              return 'Tableau classique - tous les ingrédients dans un tableau traditionnel';
+            case 'grouped':
+              return 'Vue groupée par magasin avec sélection groupée et statistiques';
+            case 'cards':
+              return 'Vue cartes - idéal pour mobile et tablette';
+            case 'compact':
+              return 'Vue compacte - affichage minimal pour petits écrans';
+            default:
+              return 'Vue inconnue';
+          }
+        },
+
+        // Méthode pour détecter la meilleure vue pour l'appareil actuel
+        getOptimalViewForDevice() {
+          if (window.innerWidth < 576) {
+            return 'compact';
+          } else if (window.innerWidth < 768) {
+            return 'cards';
+          } else {
+            return 'grouped';
+          }
+        },
+
+        // Méthode pour changer de vue avec détection automatique
+        setView(viewName) {
+          this.currentView = viewName;
+
+          // Sauvegarder la préférence dans localStorage
+          try {
+            localStorage.setItem('preferredView', viewName);
+          } catch (error) {
+            console.warn('Impossible de sauvegarder la préférence de vue:', error);
+          }
+        },
+
+        // Méthode pour charger la préférence de vue
+        loadPreferredView() {
+          try {
+            const savedView = localStorage.getItem('preferredView');
+            if (savedView && ['table', 'grouped', 'cards', 'compact'].includes(savedView)) {
+              this.currentView = savedView;
+            } else {
+              // Utiliser la vue optimale pour l'appareil
+              this.currentView = this.getOptimalViewForDevice();
+            }
+          } catch (error) {
+            console.warn('Impossible de charger la préférence de vue:', error);
+            this.currentView = 'table';
+          }
+        },
+
+        // === MÉTHODES DE SÉLECTION ===
+
+        handleSelectAll(event) {
+          const isChecked = event.target.checked;
+          if (isChecked) {
+            this.selectedIngredients = this.filteredIngredients.map(
+              (ing) => ing.$id,
+            );
+          } else {
+            this.selectedIngredients = [];
+          }
+          this.selectAllChecked = isChecked;
+        },
+
+        handleIngredientSelect(ingredientId) {
+          const index = this.selectedIngredients.indexOf(ingredientId);
+          if (index > -1) {
+            this.selectedIngredients.splice(index, 1);
+          } else {
+            this.selectedIngredients.push(ingredientId);
+          }
+          this.selectAllChecked =
+            this.selectedIngredients.length === this.filteredIngredients.length;
+        },
+
+        // === MÉTHODES DE SÉLECTION GROUPÉE ===
+
+        isGroupSelected(storeName) {
+          const group = this.groupedIngredients[storeName] || [];
+          return group.length > 0 && group.every(ing =>
+            this.selectedIngredients.includes(ing.$id)
           );
-        } else {
-          this.selectedIngredients = [];
-        }
-        this.selectAllChecked = isChecked;
-      },
+        },
 
-      handleIngredientSelect(ingredientId) {
-        const index = this.selectedIngredients.indexOf(ingredientId);
-        if (index > -1) {
-          this.selectedIngredients.splice(index, 1);
-        } else {
-          this.selectedIngredients.push(ingredientId);
-        }
-        this.selectAllChecked =
-          this.selectedIngredients.length === this.filteredIngredients.length;
-      },
+        handleGroupSelect(storeName) {
+          const group = this.groupedIngredients[storeName] || [];
+          const isGroupSelected = this.isGroupSelected(storeName);
 
-      // === MÉTHODES DE SÉLECTION GROUPÉE ===
+          if (isGroupSelected) {
+            // Désélectionner tout le groupe
+            group.forEach(ing => {
+              const index = this.selectedIngredients.indexOf(ing.$id);
+              if (index > -1) {
+                this.selectedIngredients.splice(index, 1);
+              }
+            });
+          } else {
+            // Sélectionner tout le groupe
+            group.forEach(ing => {
+              if (!this.selectedIngredients.includes(ing.$id)) {
+                this.selectedIngredients.push(ing.$id);
+              }
+            });
+          }
 
-      isGroupSelected(storeName) {
-        const group = this.groupedIngredients[storeName] || [];
-        return group.length > 0 && group.every(ing =>
-          this.selectedIngredients.includes(ing.$id)
-        );
-      },
+          // Mettre à jour l'état "sélectionner tout"
+          this.selectAllChecked =
+            this.selectedIngredients.length === this.filteredIngredients.length;
+        },
 
-      handleGroupSelect(storeName) {
-        const group = this.groupedIngredients[storeName] || [];
-        const isGroupSelected = this.isGroupSelected(storeName);
+        // Méthodes pour les statistiques de groupe
+        getGroupStats(storeName) {
+          const group = this.groupedIngredients[storeName] || [];
 
-        if (isGroupSelected) {
-          // Désélectionner tout le groupe
+          let totalNeeded = 0;
+          let totalPurchased = 0;
+          let totalMissing = 0;
+
           group.forEach(ing => {
-            const index = this.selectedIngredients.indexOf(ing.$id);
-            if (index > -1) {
-              this.selectedIngredients.splice(index, 1);
-            }
+            // Calcul simplifié - à adapter selon votre logique de calcul
+            totalNeeded += ing.totalNeeded || 0;
+            totalPurchased += ing.totalPurchased || 0;
+            totalMissing += ing.totalMissing || 0;
           });
-        } else {
-          // Sélectionner tout le groupe
-          group.forEach(ing => {
-            if (!this.selectedIngredients.includes(ing.$id)) {
-              this.selectedIngredients.push(ing.$id);
+
+          return {
+            totalNeeded: this.formatValueWithUnit(totalNeeded, 'unit'),
+            totalPurchased: this.formatValueWithUnit(totalPurchased, 'unit'),
+            totalMissing: this.formatValueWithUnit(totalMissing, 'unit')
+          };
+        },
+
+        // Méthode pour se proposer pour tout un groupe (magasin/type)
+        async handleGroup(groupName, ingredients, type = 'volunteer') {
+          // Contexte : modification depuis les headers grouped
+          const context = 'grouped-header';
+
+          // Ouvrir le modal d'attribution groupée avec le contexte explicite
+          this.openGroupAssignmentModal(context, type, groupName, ingredients);
+        },
+
+        // === MÉTHODES POUR LE MODAL D'ATTRIBUTION GROUPÉE ===
+
+        /**
+         * Ouvre le modal d'attribution groupée
+         * @param {string} context - Contexte d'utilisation ('grouped-header' | 'table-selection')
+         * @param {string} type - Type d'attribution ('volunteer', 'store', etc.)
+         * @param {string} groupName - Nom du groupe (magasin, type, etc.)
+         * @param {Array} ingredients - Liste des ingrédients concernés
+         */
+        openGroupAssignmentModal(context, type, groupName, ingredients) {
+          this.groupAssignmentModal = {
+            isOpen: true,
+            context: context, // Ajouter le contexte explicite
+            type: type,
+            value: '', // Réinitialiser la valeur
+            groupName: groupName,
+            isProcessing: false,
+            replaceExisting: false,
+            assignmentsToRemove: new Map(),
+            summary: {
+              ingredientsCount: 0,
+              additionsCount: 0,
+              removalsCount: 0,
+              replacementsCount: 0
             }
-          });
-        }
+          };
 
-        // Mettre à jour l'état "sélectionner tout"
-        this.selectAllChecked =
-          this.selectedIngredients.length === this.filteredIngredients.length;
-      },
-
-      // Méthodes pour les statistiques de groupe
-      getGroupStats(storeName) {
-        const group = this.groupedIngredients[storeName] || [];
-
-        let totalNeeded = 0;
-        let totalPurchased = 0;
-        let totalMissing = 0;
-
-        group.forEach(ing => {
-          // Calcul simplifié - à adapter selon votre logique de calcul
-          totalNeeded += ing.totalNeeded || 0;
-          totalPurchased += ing.totalPurchased || 0;
-          totalMissing += ing.totalMissing || 0;
-        });
-
-        return {
-          totalNeeded: this.formatValueWithUnit(totalNeeded, 'unit'),
-          totalPurchased: this.formatValueWithUnit(totalPurchased, 'unit'),
-          totalMissing: this.formatValueWithUnit(totalMissing, 'unit')
-        };
-      },
-
-      // Méthode pour se proposer pour tout un groupe (magasin/type)
-      async handleGroup(groupName, ingredients, type = 'volunteer') {
-        // Ouvrir le modal d'attribution groupée
-        this.openGroupAssignmentModal(type, groupName, ingredients);
-      },
-
-      // === MÉTHODES POUR LE MODAL D'ATTRIBUTION GROUPÉE ===
-
-      /**
-       * Ouvre le modal d'attribution groupée
-       * @param {string} type - Type d'attribution ('volunteer', 'store', etc.)
-       * @param {string} groupName - Nom du groupe (magasin, type, etc.)
-       * @param {Array} ingredients - Liste des ingrédients concernés
-       */
-      openGroupAssignmentModal(type, groupName, ingredients) {
-        this.groupAssignmentModal = {
-          isOpen: true,
-          type: type,
-          value: '', // Réinitialiser la valeur
-          groupName: groupName,
-          isProcessing: false,
-          replaceExisting: false,
-          assignmentsToRemove: new Map(),
-          summary: {
-            ingredientsCount: 0,
-            additionsCount: 0,
-            removalsCount: 0,
-            replacementsCount: 0
+          // Pré-remplir avec l'utilisateur actuel si c'est une attribution de bénévole
+          if (type === 'volunteer') {
+            const currentUser = localStorage.getItem('appwrite-user-name');
+            if (currentUser) {
+              this.groupAssignmentModal.value = currentUser;
+            }
           }
-        };
 
-        // Pré-remplir avec l'utilisateur actuel si c'est une attribution de bénévole
-        if (type === 'volunteer') {
-          const currentUser = localStorage.getItem('appwrite-user-name');
-          if (currentUser) {
-            this.groupAssignmentModal.value = currentUser;
+          // Préparer les ingrédients avec état de sélection
+          this.modalSelectedIngredients = ingredients.map(ing => ({
+            ...ing,
+            selected: true // Tous cochés par défaut
+          }));
+
+          // Initialiser les suggestions
+          this.filterSuggestions();
+          this.updateSummary();
+        },
+
+        /**
+         * Ouvre le modal d'attribution groupée pour les ingrédients sélectionnés par checkbox
+         * @param {string} type - Type d'attribution ('volunteer' ou 'store')
+         */
+        openGroupAssignmentModalForSelection(type) {
+          try {
+            // Récupérer les ingrédients sélectionnés dans le tableau TanStack
+            const selectedIds = this.tableSelectedIds();
+
+            if (!selectedIds || selectedIds.length === 0) {
+              this.showWarningToast('Aucun ingrédient sélectionné dans le tableau');
+              return;
+            }
+
+            // Filtrer les ingrédients correspondants depuis les données brutes
+            const selectedIngredients = this.ingredients.filter(ing =>
+              selectedIds.includes(ing.$id)
+            );
+
+            if (selectedIngredients.length === 0) {
+              this.showWarningToast('Aucun ingrédient correspondant trouvé');
+              return;
+            }
+
+            // Créer un nom de groupe pour la sélection
+            const groupName = `Sélection (${selectedIngredients.length} ingrédients)`;
+
+            // Contexte : modification depuis la bottom-selection-bar
+            const context = 'table-selection';
+
+            // Ouvrir le modal avec les ingrédients sélectionnés et le contexte explicite
+            this.openGroupAssignmentModal(context, type, groupName, selectedIngredients);
+          } catch (error) {
+            console.error('[Collaborative App] Erreur lors de l\'ouverture du modal de sélection:', error);
+            this.showErrorToast('Erreur lors de l\'ouverture du modal');
           }
-        }
+        },
 
-        // Préparer les ingrédients avec état de sélection
-        this.selectedIngredients = ingredients.map(ing => ({
-          ...ing,
-          selected: true // Tous cochés par défaut
-        }));
+        /**
+         * Ferme le modal d'attribution groupée
+         */
+        closeGroupAssignmentModal() {
+          this.groupAssignmentModal.isOpen = false;
+          setTimeout(() => {
+            this.resetGroupAssignmentData();
+          }, 300); // Attendre la fin de l'animation
+        },
 
-        // Initialiser les suggestions
-        this.filterSuggestions();
-        this.updateSummary();
-      },
-
-      /**
-       * Ferme le modal d'attribution groupée
-       */
-      closeGroupAssignmentModal() {
-        this.groupAssignmentModal.isOpen = false;
-        setTimeout(() => {
-          this.resetGroupAssignmentData();
-        }, 300); // Attendre la fin de l'animation
-      },
-
-      /**
-       * Réinitialise les données du modal
-       */
-      resetGroupAssignmentData() {
-        this.groupAssignmentModal = {
-          isOpen: false,
-          type: '',
-          value: '',
-          groupName: '',
-          isProcessing: false,
-          replaceExisting: false,
-          assignmentsToRemove: new Map(),
-          summary: {
-            ingredientsCount: 0,
-            additionsCount: 0,
-            removalsCount: 0,
-            replacementsCount: 0
-          }
-        };
-        this.selectedIngredients = [];
-        this.filteredSuggestions = [];
-        this.showSuggestions = false;
-      },
-
-      /**
-       * Filtre les suggestions basées sur la saisie
-       */
-      filterSuggestions() {
-        const query = this.groupAssignmentModal.value.toLowerCase().trim();
-        const suggestions = this.assignmentSuggestions;
-
-        if (!query) {
-          this.filteredSuggestions = suggestions.slice(0, 10); // Limiter à 10 suggestions
-        } else {
-          this.filteredSuggestions = suggestions
-            .filter(suggestion => suggestion.toLowerCase().includes(query))
-            .slice(0, 10);
-        }
-      },
-
-      /**
-       * Masque les suggestions (avec délai pour permettre le clic)
-       */
-      hideSuggestions() {
-        setTimeout(() => {
+        /**
+         * Réinitialise les données du modal
+         */
+        resetGroupAssignmentData() {
+          this.groupAssignmentModal = {
+            isOpen: false,
+            context: '', // Ajouter le contexte à la réinitialisation
+            type: '',
+            value: '',
+            groupName: '',
+            isProcessing: false,
+            replaceExisting: false,
+            assignmentsToRemove: new Map(),
+            summary: {
+              ingredientsCount: 0,
+              additionsCount: 0,
+              removalsCount: 0,
+              replacementsCount: 0
+            }
+          };
+          this.modalSelectedIngredients = [];
+          this.filteredSuggestions = [];
           this.showSuggestions = false;
-        }, 200);
-      },
+        },
 
-      /**
-       * Sélectionne une suggestion
-       */
-      selectSuggestion(suggestion) {
-        this.groupAssignmentModal.value = suggestion;
-        this.showSuggestions = false;
-        this.filterSuggestions();
-      },
+        /**
+         * Filtre les suggestions basées sur la saisie
+         */
+        filterSuggestions() {
+          const query = this.groupAssignmentModal.value.toLowerCase().trim();
+          const suggestions = this.assignmentSuggestions;
 
-      /**
-       * Efface la valeur d'attribution
-       */
-      clearAssignmentValue() {
-        this.groupAssignmentModal.value = '';
-        this.filterSuggestions();
-        this.updateSummary();
-      },
-
-      /**
-       * Vérifie si une attribution est marquée pour suppression
-       * @param {string} ingredientId - ID de l'ingrédient
-       * @param {string} value - Valeur de l'attribution
-       * @returns {boolean}
-       */
-      isAssignmentToRemove(ingredientId, value) {
-        return this.groupAssignmentModal.assignmentsToRemove.get(ingredientId)?.has(value) || false;
-      },
-
-      /**
-       * Bascule l'état de suppression d'une attribution
-       * @param {string} ingredientId - ID de l'ingrédient
-       * @param {string} value - Valeur de l'attribution
-       */
-      toggleAssignmentRemoval(ingredientId, value) {
-        if (!this.groupAssignmentModal.assignmentsToRemove.has(ingredientId)) {
-          this.groupAssignmentModal.assignmentsToRemove.set(ingredientId, new Set());
-        }
-
-        const removals = this.groupAssignmentModal.assignmentsToRemove.get(ingredientId);
-        if (removals.has(value)) {
-          removals.delete(value);
-          if (removals.size === 0) {
-            this.groupAssignmentModal.assignmentsToRemove.delete(ingredientId);
+          if (!query) {
+            this.filteredSuggestions = suggestions.slice(0, 10); // Limiter à 10 suggestions
+          } else {
+            this.filteredSuggestions = suggestions
+              .filter(suggestion => suggestion.toLowerCase().includes(query))
+              .slice(0, 10);
           }
-        } else {
-          removals.add(value);
-        }
+        },
 
-        this.updateSummary();
-      },
+        /**
+         * Masque les suggestions (avec délai pour permettre le clic)
+         */
+        hideSuggestions() {
+          setTimeout(() => {
+            this.showSuggestions = false;
+          }, 200);
+        },
 
-      /**
-       * Gère le changement du mode de remplacement
-       */
-      onReplaceModeChange() {
-        if (this.groupAssignmentModal.replaceExisting) {
-          // Mode "remplacer" : marquer toutes les attributions existantes pour suppression
-          this.markAllAssignmentsForRemoval();
-        } else {
-          // Mode "ajouter" : conserver toutes les attributions existantes
-          this.resetAllAssignments();
-        }
-        this.updateSummary();
-      },
+        /**
+         * Sélectionne une suggestion
+         */
+        selectSuggestion(suggestion) {
+          this.groupAssignmentModal.value = suggestion;
+          this.showSuggestions = false;
+          this.filterSuggestions();
+        },
 
-      /**
-       * Détermine le type d'action pour le bouton de validation
-       * @returns {string} 'add', 'replace', 'selective'
-       */
-      getActionType() {
-        if (!this.groupAssignmentModal.value.trim()) {
-          return 'selective'; // Only removals
-        }
+        /**
+         * Efface la valeur d'attribution
+         */
+        clearAssignmentValue() {
+          this.groupAssignmentModal.value = '';
+          this.filterSuggestions();
+          this.updateSummary();
+        },
 
-        if (this.groupAssignmentModal.replaceExisting) {
-          return 'replace';
-        }
+        /**
+         * Vérifie si une attribution est marquée pour suppression
+         * @param {string} ingredientId - ID de l'ingrédient
+         * @param {string} value - Valeur de l'attribution
+         * @returns {boolean}
+         */
+        isAssignmentToRemove(ingredientId, value) {
+          return this.groupAssignmentModal.assignmentsToRemove.get(ingredientId)?.has(value) || false;
+        },
 
-        // Check if there are any manual removals
-        const hasManualRemovals = Array.from(this.groupAssignmentModal.assignmentsToRemove.values())
-          .some(removals => removals.size > 0);
-
-        if (hasManualRemovals) {
-          return 'selective';
-        }
-
-        return 'add';
-      },
-
-      /**
-       * Remet à zéro toutes les suppressions d'attributions
-       */
-      resetAllAssignments() {
-        this.groupAssignmentModal.assignmentsToRemove.clear();
-        this.updateSummary();
-      },
-
-      /**
-       * Marque toutes les attributions existantes pour suppression (mode "Remplacer tout")
-       */
-      markAllAssignmentsForRemoval() {
-        this.groupAssignmentModal.assignmentsToRemove.clear();
-
-        this.selectedIngredients.forEach(ingredient => {
-          if (!ingredient.selected) return;
-
-          const existingAssignments = this.groupAssignmentModal.type === 'volunteer'
-            ? (ingredient.who || [])
-            : (ingredient.store || []);
-
-          if (existingAssignments.length > 0) {
-            this.groupAssignmentModal.assignmentsToRemove.set(ingredient.$id, new Set(existingAssignments));
-          }
-        });
-
-        this.showToast('Toutes les attributions existantes seront remplacées', 'warning', 3000, 'Mode remplacement');
-      },
-
-      /**
-       * Met à jour le résumé des modifications
-       */
-      updateSummary() {
-        let ingredientsCount = 0;
-        let removalsCount = 0;
-        let additionsCount = 0;
-
-        const selectedIngredients = this.selectedIngredients.filter(ing => ing.selected);
-
-        for (const ingredient of selectedIngredients) {
-          const hasRemovals = this.groupAssignmentModal.assignmentsToRemove.has(ingredient.$id);
-          const hasNewValue = this.groupAssignmentModal.value.trim();
-
-          if (hasRemovals || hasNewValue) {
-            ingredientsCount++;
+        /**
+         * Bascule l'état de suppression d'une attribution
+         * @param {string} ingredientId - ID de l'ingrédient
+         * @param {string} value - Valeur de l'attribution
+         */
+        toggleAssignmentRemoval(ingredientId, value) {
+          if (!this.groupAssignmentModal.assignmentsToRemove.has(ingredientId)) {
+            this.groupAssignmentModal.assignmentsToRemove.set(ingredientId, new Set());
           }
 
-          if (hasRemovals) {
-            removalsCount += this.groupAssignmentModal.assignmentsToRemove.get(ingredient.$id).size;
+          const removals = this.groupAssignmentModal.assignmentsToRemove.get(ingredientId);
+          if (removals.has(value)) {
+            removals.delete(value);
+            if (removals.size === 0) {
+              this.groupAssignmentModal.assignmentsToRemove.delete(ingredientId);
+            }
+          } else {
+            removals.add(value);
           }
 
-          if (hasNewValue) {
+          this.updateSummary();
+        },
+
+        /**
+         * Gère le changement du mode de remplacement
+         */
+        onReplaceModeChange() {
+          if (this.groupAssignmentModal.replaceExisting) {
+            // Mode "remplacer" : marquer toutes les attributions existantes pour suppression
+            this.markAllAssignmentsForRemoval();
+          } else {
+            // Mode "ajouter" : conserver toutes les attributions existantes
+            this.resetAllAssignments();
+          }
+          this.updateSummary();
+        },
+
+        /**
+         * Détermine le type d'action pour le bouton de validation
+         * @returns {string} 'add', 'replace', 'selective'
+         */
+        getActionType() {
+          if (!this.groupAssignmentModal.value.trim()) {
+            return 'selective'; // Only removals
+          }
+
+          if (this.groupAssignmentModal.replaceExisting) {
+            return 'replace';
+          }
+
+          // Check if there are any manual removals
+          const hasManualRemovals = Array.from(this.groupAssignmentModal.assignmentsToRemove.values())
+            .some(removals => removals.size > 0);
+
+          if (hasManualRemovals) {
+            return 'selective';
+          }
+
+          return 'add';
+        },
+
+        /**
+         * Remet à zéro toutes les suppressions d'attributions
+         */
+        resetAllAssignments() {
+          this.groupAssignmentModal.assignmentsToRemove.clear();
+          this.updateSummary();
+        },
+
+        /**
+         * Marque toutes les attributions existantes pour suppression (mode "Remplacer tout")
+         */
+        markAllAssignmentsForRemoval() {
+          this.groupAssignmentModal.assignmentsToRemove.clear();
+
+          this.modalSelectedIngredients.forEach(ingredient => {
+            if (!ingredient.selected) return;
+
             const existingAssignments = this.groupAssignmentModal.type === 'volunteer'
               ? (ingredient.who || [])
               : (ingredient.store || []);
 
-            if (!existingAssignments.includes(hasNewValue.trim())) {
-              additionsCount++;
+            if (existingAssignments.length > 0) {
+              this.groupAssignmentModal.assignmentsToRemove.set(ingredient.$id, new Set(existingAssignments));
+            }
+          });
+
+          this.showToast('Toutes les attributions existantes seront remplacées', 'warning', 3000, 'Mode remplacement');
+        },
+
+        /**
+         * Met à jour le résumé des modifications
+         */
+        updateSummary() {
+          let ingredientsCount = 0;
+          let removalsCount = 0;
+          let additionsCount = 0;
+
+          const selectedIngredients = this.modalSelectedIngredients.filter(ing => ing.selected);
+
+          for (const ingredient of selectedIngredients) {
+            const hasRemovals = this.groupAssignmentModal.assignmentsToRemove.has(ingredient.$id);
+            const hasNewValue = this.groupAssignmentModal.value.trim();
+
+            if (hasRemovals || hasNewValue) {
+              ingredientsCount++;
+            }
+
+            if (hasRemovals) {
+              removalsCount += this.groupAssignmentModal.assignmentsToRemove.get(ingredient.$id).size;
+            }
+
+            if (hasNewValue) {
+              const existingAssignments = this.groupAssignmentModal.type === 'volunteer'
+                ? (ingredient.who || [])
+                : (ingredient.store || []);
+
+              if (!existingAssignments.includes(hasNewValue.trim())) {
+                additionsCount++;
+              }
             }
           }
-        }
 
-        this.groupAssignmentModal.summary = {
-          ingredientsCount,
-          removalsCount,
-          additionsCount,
-          replacementsCount: 0 // Plus utilisé dans la nouvelle logique
-        };
-      },
+          this.groupAssignmentModal.summary = {
+            ingredientsCount,
+            removalsCount,
+            additionsCount,
+            replacementsCount: 0 // Plus utilisé dans la nouvelle logique
+          };
+        },
 
-      /**
-       * Vérifie s'il y a des modifications à appliquer
-       * @returns {boolean}
-       */
-      hasModifications() {
-        const hasValue = this.groupAssignmentModal.value.trim();
-        const hasRemovals = this.groupAssignmentModal.assignmentsToRemove.size > 0;
+        /**
+         * Vérifie s'il y a des modifications à appliquer
+         * @returns {boolean}
+         */
+        hasModifications() {
+          const hasValue = this.groupAssignmentModal.value.trim();
+          const hasRemovals = this.groupAssignmentModal.assignmentsToRemove.size > 0;
 
-        return hasValue || hasRemovals;
-      },
+          return hasValue || hasRemovals;
+        },
 
-      /**
-       * Sélectionne tous les ingrédients
-       */
-      selectAllIngredients() {
-        this.selectedIngredients.forEach(ing => {
-          ing.selected = true;
-        });
-      },
+        /**
+         * Sélectionne tous les ingrédients (modal-group-assignment)
+         */
+        selectAllIngredients() {
+          this.modalSelectedIngredients.forEach(ing => {
+            ing.selected = true;
+          });
+        },
 
-      /**
-       * Désélectionne tous les ingrédients
-       */
-      deselectAllIngredients() {
-        this.selectedIngredients.forEach(ing => {
-          ing.selected = false;
-        });
-      },
+        /**
+         * Désélectionne tous les ingrédients (modal-group-assignment)
+         */
+        deselectAllIngredients() {
+          this.modalSelectedIngredients.forEach(ing => {
+            ing.selected = false;
+          });
+        },
 
-      /**
-       * Gère la soumission du formulaire d'attribution groupée
-       */
-      async handleGroupAssignmentSubmit() {
-        // Validation de base
-        if (!this.hasModifications()) {
-          this.showToast('Aucune modification à appliquer', 'warning', 5000, 'Information');
-          return;
-        }
+        /**
+         * Fonctions utilitaires pour la barre de sélection
+         */
 
-        const selectedIngredients = this.selectedIngredients.filter(ing => ing.selected);
-        if (selectedIngredients.length === 0) {
-          this.showToast('Veuillez sélectionner au moins un ingrédient', 'danger', 8000, 'Erreur');
-          return;
-        }
+        /**
+         * Exporte les ingrédients sélectionnés
+         */
+        exportSelectedIngredients() {
+          try {
+            const selectedIds = this.tableSelectedIds();
 
-        // Confirmation pour les actions importantes (suppressions multiples)
-        if (this.groupAssignmentModal.summary.removalsCount > 3) {
-          const confirmMessage = `Vous êtes sur le point de supprimer ${this.groupAssignmentModal.summary.removalsCount} attribution(s). Voulez-vous continuer ?`;
-          if (!confirm(confirmMessage)) {
+            if (!selectedIds || selectedIds.length === 0) {
+              this.showWarningToast('Aucun ingrédient à exporter');
+              return;
+            }
+
+            const selectedIngredients = this.ingredients.filter(ing =>
+              selectedIds.includes(ing.$id)
+            );
+
+            if (selectedIngredients.length === 0) {
+              this.showWarningToast('Aucun ingrédient correspondant trouvé');
+              return;
+            }
+
+            // Créer le contenu CSV
+            const headers = ['Nom', 'Type', 'Quantité nécessaire', 'Quantité disponible', 'Manque', 'Bénévoles', 'Magasins'];
+            const rows = selectedIngredients.map(ing => [
+              ing.ingredientName || '',
+              ing.typeDisplay || '',
+              ing.totalNeedDisplay || '',
+              ing.totalAvailableDisplay || '',
+              ing.balanceDisplay || '',
+              (ing.who || []).join('; '),
+              ing.store || ''
+            ]);
+
+            const csvContent = [headers, ...rows]
+              .map(row => row.map(cell => `"${cell}"`).join(','))
+              .join('\n');
+
+            // Créer et télécharger le fichier
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `ingredients_selection_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            this.showSuccessToast(`${selectedIngredients.length} ingrédients exportés`);
+          } catch (error) {
+            console.error('[Collaborative App] Erreur lors de l\'export des ingrédients:', error);
+            this.showErrorToast('Erreur lors de l\'export');
+          }
+        },
+
+        /**
+         * Sélectionne tous les ingrédients au niveau principal
+         */
+        selectAllMainIngredients() {
+          if (!this.table || typeof this.table.getToggleAllRowsSelectedHandler !== 'function') {
+            console.warn('[Collaborative App] Table non disponible pour la sélection');
             return;
           }
-        }
 
-        this.groupAssignmentModal.isProcessing = true;
-
-        try {
-          await this.processGroupAssignment(selectedIngredients);
-
-          // Mettre à jour le cache de suggestions avec les ingrédients modifiés
-          if (this.localStorageService) {
-            selectedIngredients.forEach(ingredient => {
-              this.localStorageService.updateFromIngredient(ingredient);
-            });
-            this.localStorageService.saveToStorage(this.listId);
-          }
-
-          // Message de succès personnalisé selon l'action
-          const actionType = this.getActionType();
-          let successMessage = `Opération réussie pour ${selectedIngredients.length} ingrédient(s)`;
-
-          if (actionType === 'add') {
-            successMessage = `Attribution ajoutée à ${selectedIngredients.length} ingrédient(s)`;
-          } else if (actionType === 'replace') {
-            successMessage = `Attributions remplacées pour ${selectedIngredients.length} ingrédient(s)`;
-          } else {
-            if (this.groupAssignmentModal.summary.removalsCount > 0) {
-              successMessage += ` (${this.groupAssignmentModal.summary.removalsCount} suppression(s))`;
-            }
-            if (this.groupAssignmentModal.summary.additionsCount > 0) {
-              successMessage += ` (${this.groupAssignmentModal.summary.additionsCount} ajout(s))`;
-            }
-          }
-
-          this.showToast(successMessage, 'success', 5000, 'Succès');
-          this.closeGroupAssignmentModal();
-        } catch (error) {
-          console.error('[Collaborative App] Erreur lors de l\'attribution groupée:', error);
-          this.showToast(
-            `Erreur lors de l'attribution: ${error.message}`,
-            'danger',
-            8000,
-            'Erreur'
-          );
-        } finally {
-          this.groupAssignmentModal.isProcessing = false;
-        }
-      },
-
-      /**
-       * Traite l'attribution groupée avec Promise.all
-       */
-      async processGroupAssignment(ingredients) {
-        const promises = ingredients.map(async (ingredient) => {
           try {
-            if (this.groupAssignmentModal.type === 'volunteer') {
-              // Récupérer les bénévoles actuels
-              const currentVolunteers = Array.isArray(ingredient.who) ? ingredient.who : [];
-              const newVolunteer = this.groupAssignmentModal.value.trim();
+            // Utiliser la méthode TanStack Table pour sélectionner toutes les lignes
+            this.table.getToggleAllRowsSelectedHandler()(true);
 
-              // Calculer les bénévoles à conserver (ceux qui ne sont pas marqués pour suppression)
-              const volunteersToRemove = this.groupAssignmentModal.assignmentsToRemove.get(ingredient.$id) || new Set();
-              const keptVolunteers = currentVolunteers.filter(v => !volunteersToRemove.has(v));
+            // Mettre à jour l'état local pour la cohérence
+            this.selectedIngredients = this.tableSelectedIds();
+            this.selectAllChecked = true;
+          } catch (error) {
+            console.error('[Collaborative App] Erreur lors de la sélection de tous les éléments:', error);
+          }
+        },
 
-              // Construire la liste finale des bénévoles
-              let finalVolunteers = [...keptVolunteers];
+        /**
+         * Désélectionne tous les ingrédients au niveau principal
+         */
+        deselectAllMainIngredients() {
+          if (!this.table || typeof this.table.getToggleAllRowsSelectedHandler !== 'function') {
+            console.warn('[Collaborative App] Table non disponible pour la désélection');
+            return;
+          }
 
-              // Ajouter le nouveau bénévole si spécifié et pas déjà présent
-              if (newVolunteer && !finalVolunteers.includes(newVolunteer)) {
-                finalVolunteers.push(newVolunteer);
-              }
+          try {
+            // Utiliser la méthode TanStack Table pour désélectionner toutes les lignes
+            this.table.getToggleAllRowsSelectedHandler()(false);
 
-              // Sauvegarder avec les suppressions et ajouts
-              await this.appwriteDataService.saveVolunteers(
-                finalVolunteers,
-                volunteersToRemove,
-                ingredient.$id,
-                this.database
-              );
+            // Mettre à jour l'état local pour la cohérence
+            this.selectedIngredients = [];
+            this.selectAllChecked = false;
+          } catch (error) {
+            console.error('[Collaborative App] Erreur lors de la désélection de tous les éléments:', error);
+          }
+        },
 
-            } else if (this.groupAssignmentModal.type === 'store') {
-              // Récupérer les magasins actuels
-              const currentStores = Array.isArray(ingredient.store) ? ingredient.store : [];
-              const newStore = this.groupAssignmentModal.value.trim();
+        /**
+         * Confirme et vide la sélection
+         */
+        confirmClearSelection() {
+          if (confirm('Êtes-vous sûr de vouloir vider toute la sélection ?')) {
+            this.deselectAllMainIngredients();
+            this.showInfoToast('Sélection vidée');
+          }
+        },
 
-              // Calculer les magasins à conserver
-              const storesToRemove = this.groupAssignmentModal.assignmentsToRemove.get(ingredient.$id) || new Set();
-              const keptStores = currentStores.filter(s => !storesToRemove.has(s));
+        /**
+         * Gère la soumission du formulaire d'attribution groupée
+         */
+        async handleGroupAssignmentSubmit() {
+          console.log('[Collaborative App] Début de la soumission groupée - Contexte:', this.groupAssignmentModal.context);
+          console.log('[Collaborative App] Ingrédients concernés:', this.modalSelectedIngredients.length);
 
-              // Construire la liste finale des magasins
-              let finalStores = [...keptStores];
+          // Filtrer les ingrédients sélectionnés pour le traitement
+          const selectedIngredients = this.modalSelectedIngredients.filter(ing => ing.selected);
+          console.log('[Collaborative App] Ingrédients à traiter:', selectedIngredients.length);
 
-              // Ajouter le nouveau magasin si spécifié et pas déjà présent
-              if (newStore && !finalStores.includes(newStore)) {
-                finalStores.push(newStore);
-              }
+          // Confirmation pour les actions importantes (suppressions multiples)
+          if (this.groupAssignmentModal.summary.removalsCount > 3) {
+            const confirmMessage = `Vous êtes sur le point de supprimer ${this.groupAssignmentModal.summary.removalsCount} attribution(s). Voulez-vous continuer ?`;
+            if (!confirm(confirmMessage)) {
+              return;
+            }
+          }
 
-              // Sauvegarder avec les suppressions et ajouts
-              await this.appwriteDataService.saveStores(
-                finalStores,
-                storesToRemove,
-                ingredient.$id,
-                this.database
-              );
+          this.groupAssignmentModal.isProcessing = true;
+
+          try {
+            await this.processGroupAssignment(selectedIngredients);
+
+            // Mettre à jour le cache de suggestions avec les ingrédients modifiés
+            if (this.localStorageService) {
+              selectedIngredients.forEach(ingredient => {
+                this.localStorageService.updateFromIngredient(ingredient);
+              });
+              this.localStorageService.saveToStorage(this.listId);
             }
 
-            console.log(`[Collaborative App] Attribution réussie pour ${ingredient.ingredientName}`);
-            return { success: true, ingredient: ingredient.ingredientName };
+            // Message de succès personnalisé selon l'action
+            const actionType = this.getActionType();
+            let successMessage = `Opération réussie pour ${selectedIngredients.length} ingrédient(s)`;
+
+            if (actionType === 'add') {
+              successMessage = `Attribution ajoutée à ${selectedIngredients.length} ingrédient(s)`;
+            } else if (actionType === 'replace') {
+              successMessage = `Attributions remplacées pour ${selectedIngredients.length} ingrédient(s)`;
+            } else {
+              if (this.groupAssignmentModal.summary.removalsCount > 0) {
+                successMessage += ` (${this.groupAssignmentModal.summary.removalsCount} suppression(s))`;
+              }
+              if (this.groupAssignmentModal.summary.additionsCount > 0) {
+                successMessage += ` (${this.groupAssignmentModal.summary.additionsCount} ajout(s))`;
+              }
+            }
+
+            this.showToast(successMessage, 'success', 5000, 'Succès');
+            this.closeGroupAssignmentModal();
           } catch (error) {
-            console.error(`[Collaborative App] Erreur pour ${ingredient.ingredientName}:`, error);
-            return {
-              success: false,
-              ingredient: ingredient.ingredientName,
-              error: error.message
-            };
+            console.error('[Collaborative App] Erreur lors de l\'attribution groupée:', error);
+            this.showToast(
+              `Erreur lors de l'attribution: ${error.message}`,
+              'danger',
+              8000,
+              'Erreur'
+            );
+          } finally {
+            this.groupAssignmentModal.isProcessing = false;
           }
-        });
+        },
 
-        const results = await Promise.all(promises);
+        /**
+         * Traite l'attribution groupée avec Promise.all
+         */
+        async processGroupAssignment(ingredients) {
+          console.log('[Collaborative App] Traitement groupée pour', ingredients.length, 'ingrédients');
 
-        // Analyser les résultats pour les erreurs individuelles
-        const failures = results.filter(result => !result.success);
-        if (failures.length > 0) {
-          const errorMessages = failures.map(f => `${f.ingredient}: ${f.error}`).join('\n');
-          throw new Error(
-            `${failures.length} attribution(s) ont échoué:\n${errorMessages}`
-          );
-        }
+          const promises = ingredients.map(async (ingredient) => {
+            try {
+              if (this.groupAssignmentModal.type === 'volunteer') {
+                // Récupérer les bénévoles actuels
+                const currentVolunteers = Array.isArray(ingredient.who) ? ingredient.who : [];
+                const newVolunteer = this.groupAssignmentModal.value.trim();
 
-        return results;
-      },
+                // Calculer les bénévoles à conserver (ceux qui ne sont pas marqués pour suppression)
+                const volunteersToRemove = this.groupAssignmentModal.assignmentsToRemove.get(ingredient.$id) || new Set();
+                const keptVolunteers = currentVolunteers.filter(v => !volunteersToRemove.has(v));
 
-      // Méthode utilitaire pour formater les valeurs avec unités
-      formatValueWithUnit(value, unit) {
-        if (typeof value !== 'number') return value;
+                // Construire la liste finale des bénévoles
+                let finalVolunteers = [...keptVolunteers];
 
-        // Logique de formatage simplifiée - à adapter selon votre besoin
-        if (value >= 1000 && unit === 'gr.') {
-          return `${(value / 1000).toFixed(1)} kg`;
-        }
+                // Ajouter le nouveau bénévole si spécifié et pas déjà présent
+                if (newVolunteer && !finalVolunteers.includes(newVolunteer)) {
+                  finalVolunteers.push(newVolunteer);
+                }
 
-        return `${Math.round(value)} ${unit}`;
-      },
+                // Sauvegarder avec les suppressions et ajouts
+                await this.appwriteDataService.saveVolunteers(
+                  finalVolunteers,
+                  volunteersToRemove,
+                  ingredient.$id,
+                  this.database
+                );
 
-      // === MÉTHODES D'ÉDITION ===
+              } else if (this.groupAssignmentModal.type === 'store') {
+                // Logique simple : un seul magasin par ingrédient
+                const editingStore = this.groupAssignmentModal.value.trim();
+
+                // Remplacer directement le magasin (passer une string simple)
+                await this.appwriteDataService.saveStore(
+                  editingStore,
+                  ingredient.$id,
+                  this.database
+                );
+              }
+
+              console.log(`[Collaborative App] Attribution réussie pour ${ingredient.ingredientName}`);
+              return { success: true, ingredient: ingredient.ingredientName };
+            } catch (error) {
+              console.error(`[Collaborative App] Erreur pour ${ingredient.ingredientName}:`, error);
+              return {
+                success: false,
+                ingredient: ingredient.ingredientName,
+                error: error.message
+              };
+            }
+          });
+
+          const results = await Promise.all(promises);
+
+          // Analyser les résultats pour les erreurs individuelles
+          const failures = results.filter(result => !result.success);
+          if (failures.length > 0) {
+            const errorMessages = failures.map(f => `${f.ingredient}: ${f.error}`).join('\n');
+            throw new Error(
+              `${failures.length} attribution(s) ont échoué:\n${errorMessages}`
+            );
+          }
+
+          return results;
+        },
+
+        // Méthode utilitaire pour formater les valeurs avec unités
+        formatValueWithUnit(value, unit) {
+          if (typeof value !== 'number') return value;
+
+          // Logique de formatage simplifiée - à adapter selon votre besoin
+          if (value >= 1000 && unit === 'gr.') {
+            return `${(value / 1000).toFixed(1)} kg`;
+          }
+
+          return `${Math.round(value)} ${unit}`;
+        },
+
+        // === MÉTHODES D'ÉDITION ===
 
 
-      async submitPurchaseForm() {
-        if (!this.isPurchaseFormValid) return;
+        async submitPurchaseForm() {
+          if (!this.isPurchaseFormValid) return;
 
-        try {
-          // Obtenir les infos de l'utilisateur via appwrite-client.js
-          const userEmail = getUserEmail();
-          const userName = getUserName();
+          try {
+            // Obtenir les infos de l'utilisateur via appwrite-client.js
+            const userEmail = getUserEmail();
+            const userName = getUserName();
 
-          // Créer l'achat/stock avec le bon schéma
-          // FIXIT: gestion du puchase vs stock
-          const purchaseData = {
-            list: this.listId,
-            listIngredient: this.editingIngredient.$id, // Utiliser l'ID Appwrite de l'ingrédient
-            quantity: parseFloat(this.purchaseForm.quantity.toString()),
-            unit: this.purchaseForm.unit,
-            who: this.purchaseForm.who,
-            notes: this.purchaseForm.notes || "",
-            createdBy: userEmail,
+            // Créer l'achat/stock avec le bon schéma
+            // FIXIT: gestion du puchase vs stock
+            const purchaseData = {
+              list: this.listId,
+              listIngredient: this.editingIngredient.$id, // Utiliser l'ID Appwrite de l'ingrédient
+              quantity: parseFloat(this.purchaseForm.quantity.toString()),
+              unit: this.purchaseForm.unit,
+              who: this.purchaseForm.who,
+              notes: this.purchaseForm.notes || "",
+              createdBy: userEmail,
+            };
+
+            // Ajouter les champs spécifiques aux achats
+            if (this.modalType === "purchase") {
+              purchaseData.store = this.purchaseForm.store || "";
+              purchaseData.price = this.purchaseForm.price
+                ? parseFloat(this.purchaseForm.price.toString())
+                : null;
+            }
+
+            const result = await this.database.createDocument(
+              APPWRITE_CONFIG.databaseId,
+              APPWRITE_CONFIG.collections.purchases, // Utilise la config
+              "unique()",
+              purchaseData,
+            );
+
+            // Mettre à jour le cache de suggestions avec le nouveau purchase
+            if (this.localStorageService) {
+              this.localStorageService.updateFromPurchase(purchaseData);
+              this.localStorageService.saveToStorage(this.listId);
+            }
+
+            // Fermer le modal et réinitialiser le formulaire
+            this.closePurchaseModal();
+
+            return true;
+          } catch (error) {
+            console.error("Erreur lors de la création de l'achat/stock:", error);
+            alert("Erreur lors de l'enregistrement: " + error.message);
+            return false;
+          }
+        },
+
+
+
+        exportIngredientData() {
+          const data = {
+            ingredient: this.editingIngredient,
+            exportedAt: new Date().toISOString(),
+            calculations: {
+              totalNeed: this.editingIngredient?.totalNeedDisplay,
+              stock: this.editingIngredient?.stockDisplay,
+              purchases: this.editingIngredient?.purchasesDisplay,
+              balance: this.editingIngredient?.balanceDisplay,
+            },
           };
 
-          // Ajouter les champs spécifiques aux achats
-          if (this.modalType === "purchase") {
-            purchaseData.store = this.purchaseForm.store || "";
-            purchaseData.price = this.purchaseForm.price
-              ? parseFloat(this.purchaseForm.price.toString())
-              : null;
-          }
+          const blob = new Blob([JSON.stringify(data, null, 2)], {
+            type: "application/json",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `ingredient-${this.editingIngredient?.ingredientName}-${new Date().toISOString().split("T")[0]}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        },
 
-          const result = await this.database.createDocument(
-            APPWRITE_CONFIG.databaseId,
-            APPWRITE_CONFIG.collections.purchases, // Utilise la config
-            "unique()",
-            purchaseData,
+        formatDate(dateStr) {
+          if (!dateStr) return "-";
+          return new Date(dateStr).toLocaleDateString("fr-FR");
+        },
+
+        formatTime(dateStr) {
+          if (!dateStr) return "-";
+          return new Date(dateStr).toLocaleTimeString("fr-FR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        },
+
+
+        // === MÉTHODES POUR LE MODAL UNIFIÉ ===
+
+
+
+        // === MÉTHODES DE STATUT ===
+
+        toggleIngredientStatus(ingredient) {
+          console.log(
+            "[Collaborative App] Toggle statut pour:",
+            ingredient.ingredientName,
           );
+          // TODO: Implémenter le changement de statut
+        },
 
-          // Mettre à jour le cache de suggestions avec le nouveau purchase
-          if (this.localStorageService) {
-            this.localStorageService.updateFromPurchase(purchaseData);
-            this.localStorageService.saveToStorage(this.listId);
+
+
+        // === MÉTHODES UTILITAIRES ===
+
+        formatTypeShort(type) {
+          const typeMap = {
+            frais: "Produits Frais",
+            legumesFrais: "Fruits et Légumes",
+            legumesNonFrais: "Conserves",
+            lof: "LOF",
+            sucres: "Sucrés",
+            epices: "Épices",
+            sec: "Produits Secs",
+            animaux: "Viandes",
+            autres: "Autres",
+          };
+          return typeMap[type] || type;
+        },
+
+        // Méthodes pour la gestion des couleurs pastel
+        getColorForVolunteer(volunteerName) {
+          return this.colorManager.getColorForVolunteer(volunteerName);
+        },
+
+        getColorForStore(storeName) {
+          return this.colorManager.getColorForStore(storeName);
+        },
+
+        // Méthode utilitaire pour la gestion centralisée des erreurs Appwrite
+        async handleAppwriteError(error, context) {
+          console.error(`[Collaborative App] Erreur lors de ${context}:`, error);
+          console.error('[Collaborative App] Détails de l\'erreur:', {
+            code: error.code,
+            type: error.type,
+            message: error.message,
+            response: error.response
+          });
+
+          let userMessage = '';
+
+          if (error.code === 409) {
+            userMessage = 'Conflit de données: Veuillez rafraîchir la page et réessayer.';
+          } else if (error.code === 404) {
+            userMessage = 'Élément non trouvé. Veuillez rafraîchir la page.';
+          } else {
+            userMessage = `Erreur lors de ${context}: ${error.message || 'Erreur inconnue'}`;
           }
 
-          // Fermer le modal et réinitialiser le formulaire
-          this.closePurchaseModal();
-
-          return true;
-        } catch (error) {
-          console.error("Erreur lors de la création de l'achat/stock:", error);
-          alert("Erreur lors de l'enregistrement: " + error.message);
-          return false;
-        }
-      },
+          return userMessage;
+        },
 
 
 
-      exportIngredientData() {
-        const data = {
-          ingredient: this.editingIngredient,
-          exportedAt: new Date().toISOString(),
-          calculations: {
-            totalNeed: this.editingIngredient?.totalNeedDisplay,
-            stock: this.editingIngredient?.stockDisplay,
-            purchases: this.editingIngredient?.purchasesDisplay,
-            balance: this.editingIngredient?.balanceDisplay,
-          },
-        };
+        // === MÉTHODES UTILITAIRES AUTH (wrapper) ===
 
-        const blob = new Blob([JSON.stringify(data, null, 2)], {
-          type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `ingredient-${this.editingIngredient?.ingredientName}-${new Date().toISOString().split("T")[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      },
+        getAuthState() {
+          return this.authManager ? this.authManager.getState() : null;
+        },
 
-      formatDate(dateStr) {
-        if (!dateStr) return "-";
-        return new Date(dateStr).toLocaleDateString("fr-FR");
-      },
+        getAuthDebugInfo() {
+          return this.authManager ? this.authManager.getDebugInfo() : null;
+        },
 
-      formatTime(dateStr) {
-        if (!dateStr) return "-";
-        return new Date(dateStr).toLocaleTimeString("fr-FR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-      },
+        // === MÉTHODES DE DEBUG ===
 
+        logCurrentState() {
+          const authState = this.getAuthState();
 
-      // === MÉTHODES POUR LE MODAL UNIFIÉ ===
+          console.log("[Collaborative App] État actuel:", {
+            isLoading: this.isLoading,
+            error: this.error,
+            ingredients: this.ingredients.length,
+            purchases: this.purchases.documents?.length || 0,
+            transformed: this.transformedIngredients.length,
+            authentication: {
+              isAuthenticated: this.isAuthenticated,
+              authManagerInitialized: !!this.authManager,
+              authState: authState
+            },
+            filters: {
+              search: this.searchQuery,
+              type: this.selectedTypeFilter,
+              status: this.selectedStatusFilter,
+            },
+          });
+        },
 
+        // === MÉTHODES POUR LES TOASTS GÉNÉRIQUES ===
 
+        showToast(message, type = 'info', duration = 5000, title = null) {
+          const toastId = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
-      // === MÉTHODES DE STATUT ===
+          const toast = {
+            id: toastId,
+            title: title || this.getDefaultTitle(type),
+            message: message,
+            type: type,
+            duration: duration,
+            show: true,
+            autoHide: duration > 0
+          };
 
-      toggleIngredientStatus(ingredient) {
-        console.log(
-          "[Collaborative App] Toggle statut pour:",
-          ingredient.ingredientName,
-        );
-        // TODO: Implémenter le changement de statut
-      },
+          this.toasts.push(toast);
 
+          // Auto-masquage si durée > 0
+          if (duration > 0) {
+            setTimeout(() => {
+              this.hideToast(toastId);
+            }, duration);
+          }
 
+          return toastId;
+        },
 
-      // === MÉTHODES UTILITAIRES ===
+        hideToast(toastId) {
+          const index = this.toasts.findIndex(t => t.id === toastId);
+          if (index > -1) {
+            // Marquer comme caché pour animation CSS
+            this.toasts[index].show = false;
 
-      formatTypeShort(type) {
-        const typeMap = {
-          frais: "Produits Frais",
-          legumesFrais: "Fruits et Légumes",
-          legumesNonFrais: "Conserves",
-          lof: "LOF",
-          sucres: "Sucrés",
-          epices: "Épices",
-          sec: "Produits Secs",
-          animaux: "Viandes",
-          autres: "Autres",
-        };
-        return typeMap[type] || type;
-      },
+            // Supprimer complètement après l'animation
+            setTimeout(() => {
+              const removeIndex = this.toasts.findIndex(t => t.id === toastId);
+              if (removeIndex > -1) {
+                this.toasts.splice(removeIndex, 1);
+              }
+            }, 300);
+          }
+        },
 
-      // Méthodes pour la gestion des couleurs pastel
-      getColorForVolunteer(volunteerName) {
-        return this.colorManager.getColorForVolunteer(volunteerName);
-      },
+        hideAllToasts() {
+          this.toasts.forEach(toast => {
+            toast.show = false;
+          });
 
-      getColorForStore(storeName) {
-        return this.colorManager.getColorForStore(storeName);
-      },
-
-      // Méthode utilitaire pour la gestion centralisée des erreurs Appwrite
-      async handleAppwriteError(error, context) {
-        console.error(`[Collaborative App] Erreur lors de ${context}:`, error);
-        console.error('[Collaborative App] Détails de l\'erreur:', {
-          code: error.code,
-          type: error.type,
-          message: error.message,
-          response: error.response
-        });
-
-        let userMessage = '';
-
-        if (error.code === 409) {
-          userMessage = 'Conflit de données: Veuillez rafraîchir la page et réessayer.';
-        } else if (error.code === 404) {
-          userMessage = 'Élément non trouvé. Veuillez rafraîchir la page.';
-        } else {
-          userMessage = `Erreur lors de ${context}: ${error.message || 'Erreur inconnue'}`;
-        }
-
-        return userMessage;
-      },
-
-
-
-      // === MÉTHODES UTILITAIRES AUTH (wrapper) ===
-
-      getAuthState() {
-        return this.authManager ? this.authManager.getState() : null;
-      },
-
-      getAuthDebugInfo() {
-        return this.authManager ? this.authManager.getDebugInfo() : null;
-      },
-
-      // === MÉTHODES DE DEBUG ===
-
-      logCurrentState() {
-        const authState = this.getAuthState();
-
-        console.log("[Collaborative App] État actuel:", {
-          isLoading: this.isLoading,
-          error: this.error,
-          ingredients: this.ingredients.length,
-          purchases: this.purchases.documents?.length || 0,
-          transformed: this.transformedIngredients.length,
-          authentication: {
-            isAuthenticated: this.isAuthenticated,
-            authManagerInitialized: !!this.authManager,
-            authState: authState
-          },
-          filters: {
-            search: this.searchQuery,
-            type: this.selectedTypeFilter,
-            status: this.selectedStatusFilter,
-          },
-        });
-      },
-
-      // === MÉTHODES POUR LES TOASTS GÉNÉRIQUES ===
-
-      showToast(message, type = 'info', duration = 5000, title = null) {
-        const toastId = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-
-        const toast = {
-          id: toastId,
-          title: title || this.getDefaultTitle(type),
-          message: message,
-          type: type,
-          duration: duration,
-          show: true,
-          autoHide: duration > 0
-        };
-
-        this.toasts.push(toast);
-
-        // Auto-masquage si durée > 0
-        if (duration > 0) {
+          // Supprimer tous les toasts après l'animation
           setTimeout(() => {
-            this.hideToast(toastId);
-          }, duration);
-        }
-
-        return toastId;
-      },
-
-      hideToast(toastId) {
-        const index = this.toasts.findIndex(t => t.id === toastId);
-        if (index > -1) {
-          // Marquer comme caché pour animation CSS
-          this.toasts[index].show = false;
-
-          // Supprimer complètement après l'animation
-          setTimeout(() => {
-            const removeIndex = this.toasts.findIndex(t => t.id === toastId);
-            if (removeIndex > -1) {
-              this.toasts.splice(removeIndex, 1);
-            }
+            this.toasts = [];
           }, 300);
+        },
+
+        showSuccessToast(message, duration = 5000) {
+          return this.showToast(message, 'success', duration, 'Succès');
+        },
+
+        showErrorToast(message, duration = 8000) {
+          return this.showToast(message, 'danger', duration, 'Erreur');
+        },
+
+        showWarningToast(message, duration = 6000) {
+          return this.showToast(message, 'warning', duration, 'Attention');
+        },
+
+        showInfoToast(message, duration = 5000) {
+          return this.showToast(message, 'info', duration, 'Information');
+        },
+
+        getDefaultTitle(type) {
+          const titles = {
+            'success': 'Succès',
+            'danger': 'Erreur',
+            'warning': 'Attention',
+            'info': 'Information'
+          };
+          return titles[type] || 'Notification';
+        },
+
+        getToastIcon(type) {
+          const icons = {
+            'success': 'fas fa-check-circle',
+            'danger': 'fas fa-exclamation-triangle',
+            'warning': 'fas fa-exclamation-triangle',
+            'info': 'fas fa-info-circle'
+          };
+          return icons[type] || 'fas fa-info-circle';
+        },
+      },
+
+
+
+      beforeUnmount() {
+        // C'est une bonne pratique de se désabonner quand le composant est détruit
+        if (this.unsubscribeRealtime) {
+          console.log('[Collaborative App] Désabonnement des mises à jour temps réel.');
+          this.unsubscribeRealtime();
         }
       },
 
-      hideAllToasts() {
-        this.toasts.forEach(toast => {
-          toast.show = false;
-        });
 
-        // Supprimer tous les toasts après l'animation
-        setTimeout(() => {
-          this.toasts = [];
-        }, 300);
-      },
+      // === MÉTHODES DE SYNCHRONISATION ET CACHE ===
 
-      showSuccessToast(message, duration = 5000) {
-        return this.showToast(message, 'success', duration, 'Succès');
-      },
-
-      showErrorToast(message, duration = 8000) {
-        return this.showToast(message, 'danger', duration, 'Erreur');
-      },
-
-      showWarningToast(message, duration = 6000) {
-        return this.showToast(message, 'warning', duration, 'Attention');
-      },
-
-      showInfoToast(message, duration = 5000) {
-        return this.showToast(message, 'info', duration, 'Information');
-      },
-
-      getDefaultTitle(type) {
-        const titles = {
-          'success': 'Succès',
-          'danger': 'Erreur',
-          'warning': 'Attention',
-          'info': 'Information'
+      getSyncStats() {
+        if (this.syncService) {
+          return this.syncService.getSyncStats();
+        }
+        return {
+          hasCachedData: false,
+          lastSyncTimestamp: null,
+          cachedItemsCount: { ingredients: 0, purchases: 0 },
+          storageUsage: { totalEntries: 0, totalSizeBytes: 0, totalSizeKB: 0 }
         };
-        return titles[type] || 'Notification';
       },
 
-      getToastIcon(type) {
-        const icons = {
-          'success': 'fas fa-check-circle',
-          'danger': 'fas fa-exclamation-triangle',
-          'warning': 'fas fa-exclamation-triangle',
-          'info': 'fas fa-info-circle'
-        };
-        return icons[type] || 'fas fa-info-circle';
-      },
-    },
-
-
-
-    beforeUnmount() {
-           // C'est une bonne pratique de se désabonner quand le composant est détruit
-           if (this.unsubscribeRealtime) {
-               console.log('[Collaborative App] Désabonnement des mises à jour temps réel.');
-               this.unsubscribeRealtime();
-           }
-       },
-
-
-    // === MÉTHODES DE SYNCHRONISATION ET CACHE ===
-
-    getSyncStats() {
-      if (this.syncService) {
-        return this.syncService.getSyncStats();
-      }
-      return {
-        hasCachedData: false,
-        lastSyncTimestamp: null,
-        cachedItemsCount: { ingredients: 0, purchases: 0 },
-        storageUsage: { totalEntries: 0, totalSizeBytes: 0, totalSizeKB: 0 }
-      };
-    },
-
-    async forceFullSync() {
-      if (this.syncService) {
-        this.isLoading = true;
-        try {
-          await this.syncService.forceFullSync();
-          await this.loadInitialData();
-          console.log("[Collaborative App] Synchronisation complète forcée terminée");
-        } catch (error) {
-          console.error("[Collaborative App] Erreur lors de la synchronisation forcée:", error);
-        } finally {
-          this.isLoading = false;
+      async forceFullSync() {
+        if (this.syncService) {
+          this.isLoading = true;
+          try {
+            await this.syncService.forceFullSync();
+            await this.loadInitialData();
+            console.log("[Collaborative App] Synchronisation complète forcée terminée");
+          } catch (error) {
+            console.error("[Collaborative App] Erreur lors de la synchronisation forcée:", error);
+          } finally {
+            this.isLoading = false;
+          }
         }
       }
-    },
-  });
+
+    });
 
   return app;
 }

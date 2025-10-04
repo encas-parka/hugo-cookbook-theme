@@ -10,7 +10,7 @@ export class LocalStorageService {
     this.storagePrefix = 'collab_ingredients_';
     this.cache = {
       ingredients: {
-        stores: new Set(), // depuis ing.storesDisplay (pour filtres)
+        stores: new Set(), // depuis ing.storeDisplay (pour filtres)
         users: new Set() // depuis ing.responsibleDisplay (pour filtres)
       },
       purchases: {
@@ -142,13 +142,12 @@ export class LocalStorageService {
    */
   updateFromIngredient(ingredient) {
 
-    // Les transformedIngredients ont store[] et who[] comme arrays
-    if (ingredient.store && Array.isArray(ingredient.store)) {
-      ingredient.store.forEach(store => {
-        if (store && store.trim() && store.trim() !== '-') {
-          this.cache.ingredients.stores.add(store.trim());
-        }
-      });
+    // Maintenant ingredient.store est une string simple
+    if (ingredient.store && typeof ingredient.store === 'string') {
+      const store = ingredient.store.trim();
+      if (store && store !== '-') {
+        this.cache.ingredients.stores.add(store);
+      }
     }
 
     if (ingredient.who && Array.isArray(ingredient.who)) {

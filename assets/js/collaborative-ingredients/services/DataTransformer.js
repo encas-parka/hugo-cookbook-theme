@@ -10,90 +10,25 @@ export class DataTransformer {
   // Cache pour les données JSON parsées
   static _jsonCache = new Map();
 
-  /**
-   * Restructure les données pour le groupement multi-magasins
-   * Chaque ingrédient avec plusieurs magasins apparaît dans chaque groupement de magasin
-   */
-  static restructureDataByStore(ingredients) {
-    const restructured = [];
-
-    ingredients.forEach(ingredient => {
-      // Extraire les magasins individuels depuis storesDisplay
-      const stores = this.extractStoresFromDisplay(ingredient.storesDisplay);
-
-      if (stores.length === 0 || (stores.length === 1 && stores[0] === '-')) {
-        // Ingrédient sans magasin spécifique
-        restructured.push({
-          ...ingredient,
-          _currentStore: '-', // Pour le groupement
-          _allStores: ingredient.storesDisplay // Pour l'affichage
-        });
-      } else {
-        // Créer une entrée par magasin pour le groupement
-        stores.forEach(store => {
-          restructured.push({
-            ...ingredient,
-            _currentStore: store, // Pour le groupement
-            _allStores: ingredient.storesDisplay // Pour l'affichage complet
-          });
-        });
-      }
-    });
-
-    return restructured;
-  }
-
-  /**
-   * Extrait la liste des magasins depuis un tableau ingredient.store
-   */
-  static extractStoresFromArray(storeArray) {
-    if (!storeArray || !Array.isArray(storeArray) || storeArray.length === 0) {
-      return [];
-    }
-    return storeArray.filter(s => s && s.trim().length > 0).map(s => s.trim());
-  }
-
-  /**
-   * Extrait la liste des magasins depuis storesDisplay
-   */
-  static extractStoresFromDisplay(storesDisplay) {
-    if (!storesDisplay || storesDisplay === '-' || storesDisplay.trim() === '') {
-      return [];
-    }
-    return storesDisplay.split(',').map(s => s.trim()).filter(s => s.length > 0);
-  }
-
   // Constantes pour la lisibilité
   static EMPTY_STORE = '-';
   static DEFAULT_OPTIONS = {
-    enableMultiStoreGrouping: true,
     purchases: []
   };
 
   static transformForUI(ingredients, options = {}) {
-     const { purchases = [], enableMultiStoreGrouping = true } = { ...this.DEFAULT_OPTIONS, ...options };
+     const { purchases = [] } = { ...this.DEFAULT_OPTIONS, ...options };
      const result = [];
 
      ingredients.forEach(ingredient => {
-       // Extraire les magasins depuis ingredient.store (tableau)
-       const stores = this.extractStoresFromArray(ingredient.store);
-       const storesDisplay = stores.length > 0 ? stores.join(', ') : this.EMPTY_STORE;
+       // Extraire le magasin depuis ingredient.store (toujours une string maintenant)
+       const storeValue = ingredient.store || '';
+       const storeDisplay = storeValue.trim() || this.EMPTY_STORE;
 
-       if (enableMultiStoreGrouping && stores.length > 0) {
-         // Mode multi-magasin : créer une entrée par magasin
-         stores.forEach(store => {
-           const transformed = this._createTransformedIngredient(ingredient, storesDisplay, store, storesDisplay);
-           result.push(transformed);
-         });
-       } else {
-         // Mode normal ou ingrédient sans magasin : une seule entrée
-         const currentStore = enableMultiStoreGrouping ? this.EMPTY_STORE : storesDisplay;
-         const transformed = this._createTransformedIngredient(ingredient, storesDisplay, currentStore, storesDisplay);
-         result.push(transformed);
-       }
+       // Créer l'ingrédient transformé
+       const transformed = this._createTransformedIngredient(ingredient, storeDisplay);
+       result.push(transformed);
      });
-
-     
 
      return result;
    }
@@ -101,7 +36,7 @@ export class DataTransformer {
    /**
     * Crée un objet ingrédient transformé pour l'UI
     */
-   static _createTransformedIngredient(ingredient, storesDisplay, currentStore, allStores) {
+   static _createTransformedIngredient(ingredient, storeDisplay) {
      const transformed = {
        // Données de base
        $id: ingredient.$id,
@@ -115,17 +50,13 @@ export class DataTransformer {
        purchasesDisplay: this.formatPurchases(ingredient.purchases),
        balanceDisplay: this.formatBalancePerUnit(ingredient.balancePerUnit),
        balanceClass: this.getBalanceClass(ingredient.overallStatus),
-       storesDisplay: storesDisplay,
+       storeDisplay: storeDisplay,
        responsibleDisplay: this.formatResponsible(ingredient.purchases),
-
-       // Propriétés pour le groupement multi-magasin
-       _currentStore: currentStore,
-       _allStores: allStores,
 
        // Données brutes et statut
        status: ingredient.overallStatus,
        stockReel: ingredient.stockReel,
-       store: ingredient.store || [],
+       store: storeDisplay === this.EMPTY_STORE ? '' : storeDisplay, // Toujours une string
        who: ingredient.who || [],
 
        // Métadonnées
@@ -298,30 +229,13 @@ export class DataTransformer {
     }
 
     /**
-     * Formate la liste des magasins depuis ingredient.store.
+     * Formate le magasin depuis ingredient.store (string).
      */
     static formatIngredientStores(store) {
-      if (!store || store.length === 0) return '-';
+      if (!store || typeof store !== 'string') return '-';
 
-      // Si store est déjà une chaîne de caractères
-      if (typeof store === 'string') {
-        return store.trim() || '-';
-      }
-
-      // Si store est un tableau
-      if (Array.isArray(store)) {
-        const stores = [...new Set(store.filter(Boolean))];
-        return stores.join(', ') || '-';
-      }
-
-      // Si store est un objet avec une propriété spécifique
-      if (typeof store === 'object' && store !== null) {
-        // Adapter selon la structure réelle de ingredient.store
-        const stores = Object.values(store).filter(Boolean);
-        return stores.join(', ') || '-';
-      }
-
-      return '-';
+      const trimmedStore = store.trim();
+      return trimmedStore || '-';
     }
 
     /**

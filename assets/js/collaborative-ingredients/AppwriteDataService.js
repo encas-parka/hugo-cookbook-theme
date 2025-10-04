@@ -150,26 +150,31 @@ export class AppwriteDataService {
    * @param {Object} database - Instance de base de données Appwrite
    * @returns {Promise<string>} ID de l'ingrédient mis à jour
    */
-  async saveStores(stores, deletedStores, ingredientId, database) {
-    const activeStores = stores.filter(s => !deletedStores.has(s));
-
+  /**
+   * Sauvegarde un seul magasin pour un ingrédient
+   * @param {string} store - Le magasin à assigner
+   * @param {string} ingredientId - ID de l'ingrédient
+   * @param {Object} database - Instance de base de données Appwrite
+   * @returns {Promise<string>} ID de l'ingrédient mis à jour
+   */
+  async saveStore(store, ingredientId, database) {
     try {
       const result = await database.updateDocument(
         this.config.databaseId,
         this.config.collections.ingredients,
         ingredientId,
         {
-          store: activeStores
+          store: store.trim() || ''
         }
       );
-
-      console.log('[AppwriteDataService] Magasins mis à jour:', result.$id);
+      console.log('[AppwriteDataService] Store mis à jour:', result.$id);
       return result.$id;
     } catch (error) {
-      console.error('[AppwriteDataService] Erreur mise à jour magasins:', error);
-      throw new Error(`Erreur lors de la mise à jour des magasins: ${error.message}`);
+      console.error('[AppwriteDataService] Erreur mise à jour stock:', error);
+      throw new Error(`Erreur lors de la mise à jour du store: ${error.message}`);
     }
   }
+
 
   /**
    * Sauvegarde toutes les modifications en une seule transaction logique
@@ -183,8 +188,7 @@ export class AppwriteDataService {
       editingStockEntries,
       editingVolunteers,
       deletedVolunteers,
-      editingStores,
-      deletedStores,
+      editingStore,
       editingIngredient
     } = data;
 
@@ -227,11 +231,10 @@ export class AppwriteDataService {
         );
       }
 
-      // Sauvegarder les magasins
-      if (editingStores && deletedStores) {
-        results.stores = await this.saveStores(
-          editingStores,
-          deletedStores,
+      // Sauvegarder le magasin
+      if (editingStore) {
+        results.stores = await this.saveStore(
+          editingStore,
           editingIngredient.$id,
           database
         );

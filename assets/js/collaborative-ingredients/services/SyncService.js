@@ -309,7 +309,7 @@ export class SyncService {
     return ingredients.map(ingredient => ({
       ...ingredient,
       // S'assurer que les champs store et who sont des arrays
-      store: ingredient.store || [],
+      store: ingredient.store || '',
       who: ingredient.who || []
     }));
   }
@@ -400,7 +400,7 @@ export class SyncService {
         // Transformer l'ingredient pour le cache
         const transformedIngredient = {
           ...document,
-          store: document.store || [],
+          store: document.store || '',
           who: document.who || []
         };
         localStorageService.updateFromIngredient(transformedIngredient);

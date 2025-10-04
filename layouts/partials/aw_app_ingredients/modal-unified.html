@@ -185,7 +185,7 @@
                :class="{ 'show active': modalState.currentTab === 'purchases' }"
                id="purchases" role="tabpanel">
 
-    
+
 
             <!-- Datalists pour les suggestions d'achats -->
             <datalist id="purchase-store-suggestions">
@@ -656,52 +656,51 @@
             <div class="card">
               <div class="card-header">
                 <div class="card-title mb-0">
-                  <i class="fas fa-store"></i> Gestion des magasins
+                  <i class="fas fa-store"></i> Gestion du magasin
                 </div>
               </div>
               <div class="card-body">
-                <!-- Liste des magasins existants -->
-                <div
-                  v-if="modalState.editingIngredient?.store && modalState.editingIngredient.store.length > 0"
-                  class="mb-3"
-                >
-                  <label class="form-label">Magasins actuels :</label>
-                  <div class="d-flex flex-wrap gap-2">
+                <!-- Magasin actuel -->
+                <div class="mb-3">
+                  <label class="form-label">Magasin actuel :</label>
+                  <div class="d-flex align-items-center gap-2">
                     <span
-                      v-for="(store, index) in modalState.editingIngredient.store"
-                      :key="index"
-                      class="badge bg-primary d-flex align-items-center gap-1"
-                      :class="{ 'bg-light text-strike': isStoreDeleted(store) }"
+                      v-if="modalState.editingIngredient?.store && modalState.editingIngredient.store.trim()"
+                      class="badge bg-primary"
                     >
-                      <span
-                        :class="{ 'text-decoration-line-through': isStoreDeleted(store) }"
-                        >[[ store ]]</span
-                      >
-                      <button
-                        type="button"
-                        class="btn-close btn-close-sm"
-                        :class="{ 'btn-close-restore': isStoreDeleted(store) }"
-                        @click="toggleStore(store)"
-                        :title="isStoreDeleted(store) ? 'Restaurer ce magasin' : 'Supprimer ce magasin'"
-                      ></button>
+                      [[ modalState.editingIngredient.store ]]
+                    </span>
+                    <span
+                      v-else
+                      class="text-muted"
+                    >
+                      <i class="fas fa-info-circle me-1"></i>
+                      Aucun magasin assigné
                     </span>
                   </div>
                 </div>
 
-                <!-- Ajout d'un magasin -->
+                <!-- Remplacement du magasin -->
                 <div class="mb-3">
-                  <label for="new-store" class="form-label"
-                    >Ajouter un magasin :</label
-                  >
+                  <label for="store-replacement" class="form-label">
+                    <span v-if="modalState.editingIngredient?.store && modalState.editingIngredient.store.trim()">
+                      <i class="fas fa-exchange-alt me-1"></i>
+                      Remplacer le magasin :
+                    </span>
+                    <span v-else>
+                      <i class="fas fa-plus me-1"></i>
+                      Assigner un magasin :
+                    </span>
+                  </label>
                   <div class="input-group">
                     <input
                       type="text"
                       class="form-control"
-                      id="new-store"
-                      v-model="newStore"
-                      placeholder="Entrez le nom du magasin"
+                      id="store-replacement"
+                      v-model="editingStore"
+                      :placeholder="modalState.editingIngredient?.store && modalState.editingIngredient.store.trim() ? 'Entrez le nouveau nom du magasin...' : 'Entrez le nom du magasin...'"
                       list="store-suggestions"
-                      @keyup.enter="addStore"
+                      @keyup.enter="replaceStore"
                     />
                     <datalist id="store-suggestions">
                       <option
@@ -713,13 +712,44 @@
                       </option>
                     </datalist>
                     <button
-                      class="btn btn-primary"
-                      @click="addStore"
-                      :disabled="!newStore.trim()"
+                      class="btn"
+                      :class="modalState.editingIngredient?.store && modalState.editingIngredient.store.trim() ? 'btn-warning' : 'btn-primary'"
+                      @click="replaceStore"
+                      :disabled="!editingStore.trim()"
                     >
-                      <i class="fas fa-plus"></i> Ajouter
+                      <span v-if="modalState.editingIngredient?.store && modalState.editingIngredient.store.trim()">
+                        <i class="fas fa-exchange-alt me-1"></i>
+                        Remplacer
+                      </span>
+                      <span v-else>
+                        <i class="fas fa-plus me-1"></i>
+                        Assigner
+                      </span>
                     </button>
                   </div>
+                  <div class="form-text text-muted">
+                    <small>
+                      <span v-if="modalState.editingIngredient?.store && modalState.editingIngredient.store.trim()">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Le magasin actuel sera remplacé par le nouveau
+                      </span>
+                      <span v-else>
+                        <i class="fas fa-info-circle me-1"></i>
+                        Assignez un magasin à cet ingrédient
+                      </span>
+                    </small>
+                  </div>
+                </div>
+
+                <!-- Bouton pour supprimer le magasin -->
+                <div v-if="modalState.editingIngredient?.store && modalState.editingIngredient.store.trim()">
+                  <button
+                    class="btn btn-outline-danger btn-sm"
+                    @click="removeStore"
+                  >
+                    <i class="fas fa-trash me-1"></i>
+                    Supprimer le magasin
+                  </button>
                 </div>
               </div>
             </div>

@@ -44,9 +44,7 @@ export const ModalMixin = {
       newVolunteer: '',
 
       // Données d'édition pour l'onglet magasins
-      editingStores: [],
-      deletedStores: new Set(),
-      newStore: '',
+      editingStore: '',
 
       // Confirmation de suppression
       deleteConfirmation: {
@@ -166,10 +164,6 @@ export const ModalMixin = {
       // Charger les volontaires
       this.editingVolunteers = [...(ingredient.who || [])];
       this.deletedVolunteers.clear();
-
-      // Charger les magasins
-      this.editingStores = [...(ingredient.store || [])];
-      this.deletedStores.clear();
     },
 
     /**
@@ -180,9 +174,7 @@ export const ModalMixin = {
       this.editingPurchases = [];
       this.editingStockEntries = [];
       this.editingVolunteers = [];
-      this.editingStores = [];
       this.deletedVolunteers.clear();
-      this.deletedStores.clear();
       this.resetForms();
       this.cancelDelete();
     },
@@ -208,7 +200,7 @@ export const ModalMixin = {
       };
 
       this.newVolunteer = '';
-      this.newStore = '';
+      this.editingStore = '';
     },
 
     /**
@@ -344,36 +336,35 @@ export const ModalMixin = {
     // === GESTION DES MAGASINS ===
 
     /**
-     * Ajoute un magasin
+     * Remplace le magasin actuel par un nouveau
      */
-    addStore() {
-      if (!this.newStore.trim()) return;
+    replaceStore() {
+      if (!this.editingStore.trim()) return;
 
-      const store = this.newStore.trim();
-      if (!this.editingStores.includes(store)) {
-        this.editingStores.push(store);
-        this.newStore = '';
+      const storeValue = this.editingStore.trim();
+      const currentIngredient = this.modalState.editingIngredient;
+
+      if (currentIngredient) {
+        // Mettre à jour le magasin de l'ingrédient en cours d'édition
+        currentIngredient.store = storeValue;
+        this.editingStore = '';
+        this.markAsDirty();
+
+        // Le magasin est maintenant dans l'ingrédient et sera sauvegardé via saveAllChanges()
+        console.log('[ModalMixin] Magasin mis à jour:', storeValue, 'pour ingrédient:', currentIngredient.ingredientName);
+      }
+    },
+
+    /**
+     * Supprime le magasin de l'ingrédient
+     */
+    removeStore() {
+      const currentIngredient = this.modalState.editingIngredient;
+
+      if (currentIngredient && currentIngredient.store) {
+        currentIngredient.store = '';
         this.markAsDirty();
       }
-    },
-
-    /**
-     * Bascule l'état de suppression d'un magasin
-     */
-    toggleStore(store) {
-      if (this.deletedStores.has(store)) {
-        this.deletedStores.delete(store);
-      } else {
-        this.deletedStores.add(store);
-      }
-      this.markAsDirty();
-    },
-
-    /**
-     * Vérifie si un magasin est marqué comme supprimé
-     */
-    isStoreDeleted(store) {
-      return this.deletedStores.has(store);
     },
 
     // === GESTION DE LA SUPPRESSION ===
@@ -445,8 +436,7 @@ export const ModalMixin = {
           editingStockEntries: this.editingStockEntries,
           editingVolunteers: this.editingVolunteers,
           deletedVolunteers: this.deletedVolunteers,
-          editingStores: this.editingStores,
-          deletedStores: this.deletedStores,
+          editingStore: this.modalState.editingIngredient?.store || '',
           editingIngredient: this.modalState.editingIngredient
         };
 
@@ -474,7 +464,7 @@ export const ModalMixin = {
       }
     },
 
-    
+
   },
 
   beforeUnmount() {

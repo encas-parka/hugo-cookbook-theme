@@ -192,31 +192,34 @@ export class TableColumnsConfig {
   }
 
   /**
-   * Colonne des magasins avec badges colorés et édition
+   * Colonne des magasins avec badge coloré et édition
    * @private
    */
   _getStoresColumn() {
     return {
-      accessorKey: '_currentStore', // Utiliser la propriété de groupement
+      accessorKey: 'storeDisplay', // Utiliser la propriété d'affichage directe
       header: 'Magasin',
       cell: ({ row }) => {
         const ingredient = row.original;
+        const storeName = ingredient.storeDisplay && ingredient.storeDisplay !== '-'
+          ? ingredient.storeDisplay
+          : null;
+
         return this.h('div', {
           class: 'editable-cell-simple d-flex align-items-center justify-content-between w-100 h-100',
           onClick: () => this._safeHandlerCall('openUnifiedModal', ingredient, 'stores')
         }, [
-          // Contenu principal - afficher TOUS les magasins via _allStores
+          // Contenu principal - afficher un seul magasin
           this.h('div', { class: 'flex-grow-1' }, [
-            ...(ingredient._allStores && ingredient._allStores.length > 0 && ingredient._allStores !== '-'
-              ? ingredient._allStores.split(', ').map(store => {
-                  const color = this._safeColorCall('getStoreColor', store);
+            storeName
+              ? (() => {
+                  const color = this._safeColorCall('getStoreColor', storeName);
                   return this.h('div', {
-                    class: 'badge me-1',
+                    class: 'badge',
                     style: `background-color: ${color.bg}; color: ${color.color};`
-                  }, store);
-                })
-              : [this.h('span', { class: 'text-muted' }, '—')]
-            )
+                  }, storeName);
+                })()
+              : this.h('span', { class: 'text-muted' }, '—')
           ]),
           // Icône d'édition visible au survol
           this.h('div', { class: 'edit-icon-simple' }, [
@@ -225,10 +228,10 @@ export class TableColumnsConfig {
         ]);
       },
       enableGrouping: true,
-      // Pour le tri, utiliser le nom complet des magasins
+      // Pour le tri, utiliser le nom du magasin
       sortingFn: (a, b) => {
-        const storeA = a.original._allStores || '';
-        const storeB = b.original._allStores || '';
+        const storeA = a.original.storeDisplay || '';
+        const storeB = b.original.storeDisplay || '';
         return storeA.localeCompare(storeB);
       }
     };

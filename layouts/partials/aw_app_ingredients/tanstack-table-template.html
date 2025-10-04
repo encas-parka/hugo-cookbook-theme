@@ -8,8 +8,8 @@
           <button
             type="button"
             class="btn btn-outline-primary"
-            :class="{ active: tableGrouping[0] === '_currentStore' }"
-            @click="tableGrouping = ['_currentStore']"
+            :class="{ active: tableGrouping[0] === 'storeDisplay' }"
+            @click="tableGrouping = ['storeDisplay']"
           >
             <i class="fas fa-store"></i> Par magasin
           </button>
@@ -57,7 +57,7 @@
                     <div class="d-flex align-items-center gap-2">
                       <i :class="[
                         'fas',
-                        tableGrouping[0] === 'storesDisplay' ? 'fa-store text-primary' : 'fa-tag text-secondary'
+                        tableGrouping[0] === 'storeDisplay' ? 'fa-store text-primary' : 'fa-tag text-secondary'
                       ]"></i>
                       <strong class="fs-5">[[ row.groupingValue || 'Non spécifié' ]]</strong>
                       <span class="badge bg-primary">[[ row.subRows.length ]]</span>
@@ -69,19 +69,25 @@
                     <button
                       class="btn btn-sm btn-primary"
                       @click="handleGroup(row.groupingValue, row.subRows.map(r => r.original), 'volunteer')"
-                      :title="tableGrouping[0] === 'storesDisplay' ? 'Se proposer pour tout ce magasin' : 'Se proposer pour ce type'"
+                      :title="tableGrouping[0] === 'storeDisplay' ? 'Se proposer pour tout ce magasin' : 'Se proposer pour ce type'"
                     >
                       <i class="fas fa-user-plus"></i>
                       Se mandater
                     </button>
                     <button
-
                       class="btn btn-sm btn-success"
                       @click="handleGroup(row.groupingValue, row.subRows.map(r => r.original), 'store')"
-                      title="Ajouter un magasin pour ce groupe"
+                      :title="tableGrouping[0] === 'storeDisplay' ? 'Remplacer le magasin pour ce groupe' : 'Assigner un magasin à ce groupe'"
                     >
                       <i class="fas fa-store"></i>
-                      + Magasin
+                      <span v-if="tableGrouping[0] === 'storeDisplay'">
+                        <i class="fas fa-exchange-alt ms-1"></i>
+                        Remplacer
+                      </span>
+                      <span v-else>
+                        <i class="fas fa-plus ms-1"></i>
+                        Assigner
+                      </span>
                     </button>
                   </div>
                 </div>

@@ -67,6 +67,7 @@
   </div>
 </div>
 
+
 <!-- CSS pour l'application collaborative -->
 {{ $collaborativeCSS := resources.Get "scss/collaborative-ingredients.scss" |
 css.Sass | resources.Minify | fingerprint }}

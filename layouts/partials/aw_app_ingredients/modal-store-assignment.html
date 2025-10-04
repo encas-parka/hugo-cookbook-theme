@@ -1,13 +1,13 @@
-<!-- Modal d'attribution groupée des bénévoles -->
-<div v-if="groupAssignmentModal.isOpen" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
+<!-- Modal d'assignation de magasin (remplacement unique) -->
+<div v-if="storeAssignmentModal.isOpen" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">
-          <i class="fas fa-users me-2"></i>
-          Attribution des bénévoles
+          <i class="fas fa-store me-2"></i>
+          Assignation des magasins
         </h5>
-        <button type="button" class="btn-close" @click="closeGroupAssignmentModal" aria-label="Fermer"></button>
+        <button type="button" class="btn-close" @click="closeStoreAssignmentModal" aria-label="Fermer"></button>
       </div>
 
       <div class="modal-body">
@@ -17,15 +17,15 @@
             <i class="fas fa-info-circle me-2"></i>
             <div>
               <!-- Message contextuel selon le type d'action -->
-              <div v-if="groupAssignmentModal.context === 'grouped-header'">
-                <strong>Modification du groupe : </strong>[[ groupAssignmentModal.groupName ]]
+              <div v-if="storeAssignmentModal.context === 'grouped-header'">
+                <strong>Modification du groupe : </strong>[[ storeAssignmentModal.groupName ]]
                 <span class="badge bg-primary ms-2">[[ modalSelectedIngredients.length ]] ingrédients</span>
                 <div class="small text-muted mt-1">
                   <i class="fas fa-info-circle me-1"></i>
                   Vous modifiez tous les ingrédients de ce groupe
                 </div>
               </div>
-              <div v-else-if="groupAssignmentModal.context === 'table-selection'">
+              <div v-else-if="storeAssignmentModal.context === 'table-selection'">
                 <strong>Sélection personnalisée</strong>
                 <span class="badge bg-success ms-2">[[ modalSelectedIngredients.length ]] ingrédients</span>
                 <div class="small text-muted mt-1">
@@ -34,36 +34,36 @@
                 </div>
               </div>
               <div v-else>
-                <strong>Groupe : </strong>[[ groupAssignmentModal.groupName ]]
+                <strong>Groupe : </strong>[[ storeAssignmentModal.groupName ]]
                 <span class="badge bg-secondary ms-2">[[ modalSelectedIngredients.length ]] ingrédients</span>
               </div>
             </div>
           </div>
         </div>
 
-        <form @submit.prevent="handleGroupAssignmentSubmit">
+        <form @submit.prevent="handleStoreAssignmentSubmit">
           <!-- Champ de saisie avec auto-complétion -->
           <div class="mb-3">
             <label class="form-label fw-bold">
-              <i class="fas fa-user me-1"></i>
-              Bénévole à attribuer
+              <i class="fas fa-store me-1"></i>
+              Magasin à assigner
             </label>
             <div class="input-group">
               <input
                 type="text"
                 class="form-control"
-                v-model="groupAssignmentModal.value"
-                placeholder="Entrez le nom du bénévole..."
-                @input="filterSuggestions"
-                @focus="showSuggestions = true"
-                @blur="hideSuggestions"
+                v-model="storeAssignmentModal.value"
+                placeholder="Entrez le nom du magasin..."
+                @input="filterStoreSuggestions"
+                @focus="showStoreSuggestions = true"
+                @blur="hideStoreSuggestions"
                 autocomplete="off"
                 required
               >
               <button
                 type="button"
                 class="btn btn-outline-secondary"
-                @click="clearAssignmentValue"
+                @click="clearStoreAssignmentValue"
                 title="Effacer"
               >
                 <i class="fas fa-times"></i>
@@ -71,54 +71,48 @@
             </div>
 
             <!-- Suggestions d'auto-complétion -->
-            <div v-if="showSuggestions && filteredSuggestions.length > 0" class="position-relative">
+            <div v-if="showStoreSuggestions && filteredStoreSuggestions.length > 0" class="position-relative">
               <div class="position-absolute w-100 bg-white border border-top-0 rounded-bottom shadow-sm" style="z-index: 1050;">
                 <div
-                  v-for="suggestion in filteredSuggestions"
+                  v-for="suggestion in filteredStoreSuggestions"
                   :key="suggestion"
                   class="px-3 py-2 text-decoration-none cursor-pointer"
-                  @mousedown="selectSuggestion(suggestion)"
+                  @mousedown="selectStoreSuggestion(suggestion)"
                 >
-                  <i class="fas fa-user text-muted me-2"></i>
+                  <i class="fas fa-store text-muted me-2"></i>
                   [[ suggestion ]]
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Switch pour supprimer les attributions existantes -->
+          <!-- Option de remplacement (toujours activé pour les magasins) -->
           <div class="mb-4">
             <div class="form-check form-switch">
               <input
                 class="form-check-input"
                 type="checkbox"
                 role="switch"
-                id="replaceSwitch"
-                v-model="groupAssignmentModal.replaceExisting"
-                @change="onReplaceModeChange"
+                id="storeReplaceSwitch"
+                v-model="storeAssignmentModal.replaceExisting"
+                checked
               >
-              <label class="form-check-label" for="replaceSwitch">
+              <label class="form-check-label" for="storeReplaceSwitch">
                 <span class="fw-bold">
                   <i class="fas fa-exchange-alt me-1"></i>
-                  Supprimer les autres mandats d'achat
+                  Remplacer le magasin existant
                 </span>
               </label>
             </div>
             <div class="form-text">
               <small class="text-muted">
-                <span v-if="!groupAssignmentModal.replaceExisting">
-                  <i class="fas fa-plus-circle me-1"></i>
-                  Les mandats existants seront conservés, le nouveau sera ajouté
-                </span>
-                <span v-else>
-                  <i class="fas fa-exclamation-triangle me-1 text-warning"></i>
-                  Les mandats existants seront remplacés par le nouveau
-                </span>
+                <i class="fas fa-info-circle me-1"></i>
+                Chaque ingrédient ne peut avoir qu'un seul magasin. Le magasin actuel sera remplacé.
               </small>
             </div>
           </div>
 
-          <!-- Liste des ingrédients concernés avec leurs attributions -->
+          <!-- Liste des ingrédients concernés avec leurs magasins actuels -->
           <div class="mb-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h6 class="mb-0">
@@ -144,7 +138,7 @@
             </div>
             <small class="text-muted">
               <i class="fas fa-info-circle me-1"></i>
-              Cliquez sur les badges pour choisir les attributions à supprimer/conserver.
+              Les ingrédients avec un magasin existant le verront remplacé par le nouveau magasin.
             </small>
             <div class="ingredient-list border rounded overflow-auto" style="max-height: 400px;">
               <div
@@ -159,7 +153,7 @@
                     <input
                       type="checkbox"
                       class="form-check-input"
-                      :id="'ingredient-' + ingredient.$id"
+                      :id="'store-ingredient-' + ingredient.$id"
                       v-model="ingredient.selected"
                     >
                   </div>
@@ -180,23 +174,25 @@
                   </div>
                 </div>
 
-                <!-- Mandats existants -->
-                <div v-if="ingredient.who && ingredient.who.length > 0" class="mb-2 d-flex flex-wrap gap-2">
-                  <div class="small text-muted mb-1">Mandats existants :</div>
+                <!-- Magasin actuel -->
+                <div class="mb-2">
+                  <div class="small text-muted mb-1">Magasin actuel :</div>
+                  <div>
                     <span
-                      v-for="volunteer in ingredient.who"
-                      :key="volunteer"
-                      class="badge d-flex align-items-center text-decoration-none cursor-pointer"
-                      :class="isAssignmentToRemove(ingredient.$id, volunteer) ? 'bg-danger' : 'bg-success'"
-                      @click="toggleAssignmentRemoval(ingredient.$id, volunteer)"
-                      :title="isAssignmentToRemove(ingredient.$id, volunteer) ? 'Cliquez pour conserver cette attribution' : 'Cliquez pour supprimer cette attribution'"
+                      v-if="ingredient.store && ingredient.store.trim()"
+                      class="badge bg-info"
                     >
-                      <i class="fas fa-user me-1"></i>
-                      [[ volunteer ]]
-                      <span class="ms-1">
-                        <i class="fas" :class="isAssignmentToRemove(ingredient.$id, volunteer) ? 'fa-times' : 'fa-check'"></i>
-                      </span>
+                      <i class="fas fa-store me-1"></i>
+                      [[ ingredient.store ]]
                     </span>
+                    <span
+                      v-else
+                      class="text-muted"
+                    >
+                      <i class="fas fa-minus me-1"></i>
+                      Aucun magasin
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -215,20 +211,20 @@
           </div>
 
           <!-- Résumé des modifications -->
-          <div v-if="hasModifications()" class="alert alert-warning mb-3">
+          <div v-if="hasStoreModifications()" class="alert alert-warning mb-3">
             <div class="alert-heading fs-6 fw-bold">
               <i class="fas fa-chart-line me-2"></i>
               Résumé des modifications
             </div>
             <div class="small">
-              <div v-if="groupAssignmentModal.summary.ingredientsCount > 0">
-                • [[ groupAssignmentModal.summary.ingredientsCount ]] ingrédient(s) modifié(s)
+              <div v-if="storeAssignmentModal.summary.ingredientsCount > 0">
+                • [[ storeAssignmentModal.summary.ingredientsCount ]] ingrédient(s) modifié(s)
               </div>
-              <div v-if="groupAssignmentModal.summary.removalsCount > 0">
-                • <span class="text-danger">[[ groupAssignmentModal.summary.removalsCount ]] attribution(s) supprimée(s)</span>
+              <div v-if="storeAssignmentModal.summary.replacementsCount > 0">
+                • <span class="text-warning">[[ storeAssignmentModal.summary.replacementsCount ]] magasin(s) remplacé(s)</span>
               </div>
-              <div v-if="groupAssignmentModal.summary.additionsCount > 0">
-                • <span class="text-success">[[ groupAssignmentModal.value ]] sera ajouté</span>
+              <div v-if="storeAssignmentModal.summary.assignmentsCount > 0">
+                • <span class="text-success">[[ storeAssignmentModal.summary.assignmentsCount ]] nouveau(x) magasin assigné</span>
               </div>
             </div>
           </div>
@@ -239,7 +235,7 @@
         <button
           type="button"
           class="btn btn-secondary"
-          @click="closeGroupAssignmentModal"
+          @click="closeStoreAssignmentModal"
         >
           <i class="fas fa-times me-1"></i>
           Annuler
@@ -247,24 +243,16 @@
         <button
           type="button"
           class="btn btn-primary"
-          @click="handleGroupAssignmentSubmit"
-          :disabled="groupAssignmentModal.isProcessing || selectedCount === 0 || !hasModifications()"
+          @click="handleStoreAssignmentSubmit"
+          :disabled="storeAssignmentModal.isProcessing || selectedCount === 0 || !hasStoreModifications()"
         >
- <span v-if="groupAssignmentModal.isProcessing">
+          <span v-if="storeAssignmentModal.isProcessing">
             <span class="spinner-border spinner-border-sm me-2"></span>
             Traitement en cours...
           </span>
           <span v-else>
             <i class="fas fa-save me-1"></i>
-            <span v-if="getActionType() === 'add'">
-              Ajouter l'attribution
-            </span>
-            <span v-else-if="getActionType() === 'replace'">
-              Remplacer tout
-            </span>
-            <span v-else>
-              Appliquer les modifications
-            </span>
+            Assigner le magasin
           </span>
         </button>
       </div>
