@@ -1317,26 +1317,9 @@ export function createCollaborativeApp() {
           return component;
         },
 
-        // Méthode getGroupStats mise à jour pour TanStack Table
-        getGroupStats(rows) {
-          const stats = { totalNeeded: 0, totalPurchased: 0, totalMissing: 0 };
-          rows.forEach(row => {
-            const ing = row.original;
-            // Assurez-vous que ces valeurs existent et sont des nombres
-            stats.totalNeeded += Number(ing.totalNeeded) || 0;
-            stats.totalPurchased += Number(ing.totalPurchased) || 0;
-            stats.totalMissing += Number(ing.totalMissing) || 0;
-          });
-          return stats;
-        },
-
 
 
         // === MÉTHODES POUR TANSTACK TABLE ===
-
-        handleTableIngredientSelect(ingredientId) {
-          this.handleIngredientSelect(ingredientId);
-        },
 
         handleTableGroupSelect(groupName, subRows) {
           const ingredientIds = subRows.map(row => row.original.$id);
@@ -1419,30 +1402,7 @@ export function createCollaborativeApp() {
           }
         },
 
-        // === MÉTHODES DE SÉLECTION ===
 
-        handleSelectAll(event) {
-          const isChecked = event.target.checked;
-          if (isChecked) {
-            this.selectedIngredients = this.filteredIngredients.map(
-              (ing) => ing.$id,
-            );
-          } else {
-            this.selectedIngredients = [];
-          }
-          this.selectAllChecked = isChecked;
-        },
-
-        handleIngredientSelect(ingredientId) {
-          const index = this.selectedIngredients.indexOf(ingredientId);
-          if (index > -1) {
-            this.selectedIngredients.splice(index, 1);
-          } else {
-            this.selectedIngredients.push(ingredientId);
-          }
-          this.selectAllChecked =
-            this.selectedIngredients.length === this.filteredIngredients.length;
-        },
 
         // === MÉTHODES DE SÉLECTION GROUPÉE ===
 
@@ -1479,27 +1439,6 @@ export function createCollaborativeApp() {
             this.selectedIngredients.length === this.filteredIngredients.length;
         },
 
-        // Méthodes pour les statistiques de groupe
-        getGroupStats(storeName) {
-          const group = this.groupedIngredients[storeName] || [];
-
-          let totalNeeded = 0;
-          let totalPurchased = 0;
-          let totalMissing = 0;
-
-          group.forEach(ing => {
-            // Calcul simplifié - à adapter selon votre logique de calcul
-            totalNeeded += ing.totalNeeded || 0;
-            totalPurchased += ing.totalPurchased || 0;
-            totalMissing += ing.totalMissing || 0;
-          });
-
-          return {
-            totalNeeded: this.formatValueWithUnit(totalNeeded, 'unit'),
-            totalPurchased: this.formatValueWithUnit(totalPurchased, 'unit'),
-            totalMissing: this.formatValueWithUnit(totalMissing, 'unit')
-          };
-        },
 
 
 
@@ -1575,25 +1514,20 @@ export function createCollaborativeApp() {
         openGroupAssignmentModalForSelection(type) {
           try {
 
-            // Filtrer les ingrédients correspondants depuis les données brutes
-            const selectedIngredients = this.ingredients.filter(ing =>
-              selectedIds.includes(ing.$id)
-            );
-
-            if (selectedIngredients.length === 0) {
-              this.showWarningToast('Aucun ingrédient correspondant trouvé');
-              return;
-            }
-
             // props
-            const groupName = `Sélection (${selectedIngredients.length} ingrédients)`;
+            const groupName = `Sélection (${this.selectedIngredients.length} ingrédients)`;
             const context = 'table-selection';
+
+            // Transformer les IDs en objets ingrédients complets (avec propriétés calculées)
+            const selectedIngredientObjects = this.selectedIngredients.map(id => 
+              this.transformedIngredients.find(ing => ing.$id === id)
+            ).filter(ing => ing !== undefined);
 
             // Ouvrir le modal avec les ingrédients sélectionnés et le contexte explicite
             if (type === 'volunteer') {
-              this.openGroupWhoModal(context, groupName, selectedIngredients);
+              this.openGroupWhoModal(context, groupName, selectedIngredientObjects);
             } else if (type === 'store') {
-              this.openGroupStoreModal(context, groupName, selectedIngredients);
+              this.openGroupStoreModal(context, groupName, selectedIngredientObjects);
             }
           } catch (error) {
             console.error('[Collaborative App] Erreur lors de l\'ouverture du modal de sélection:', error);
