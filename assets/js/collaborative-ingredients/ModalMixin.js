@@ -12,11 +12,15 @@ export const ModalMixin = {
       // État du modal
       modalState: {
         isOpen: false,
-        currentTab: 'recettes', // 'recettes', 'achats', 'stock', 'volontaires', 'magasins'
+        currentTab: 'recettes', // 'recettes', 'purchases', 'stock', 'volunteers', 'stores'
         editingIngredient: null,
         isSaving: false,
         hasUnsavedChanges: false
       },
+
+      // Suivi granulaire des modifications
+      dirtyFields: new Set(),
+      originalData: {},
 
       // Données d'édition pour l'onglet achats
       editingPurchases: [],
@@ -84,6 +88,115 @@ export const ModalMixin = {
    },
 
   methods: {
+    /**
+     * Fonctions de sécurité et sanitisation
+     */
+
+    /**
+     * Nettoie une chaîne de caractères pour prévenir les attaques XSS
+     * @param {string} text - Texte à nettoyer
+     * @returns {string} Texte sécurisé
+     */
+    sanitizeText(text) {
+      if (typeof text !== 'string') return text;
+      
+      return text
+        .replace(/[<>]/g, '') // Supprime les balises HTML
+        .replace(/javascript:/gi, '') // Supprime les protocoles javascript
+        .replace(/on\w+=/gi, '') // Supprime les gestionnaires d'événements
+        .trim();
+    },
+
+    /**
+     * Nettoie un champ de texte pour le magasin
+     * @param {string} store - Nom du magasin
+     * @returns {string} Nom de magasin sécurisé
+     */
+    sanitizeStore(store) {
+      return this.sanitizeText(store).substring(0, 100);
+    },
+
+    /**
+     * Nettoie un champ de texte pour les notes
+     * @param {string} notes - Notes à nettoyer
+     * @returns {string} Notes sécurisées
+     */
+    sanitizeNotes(notes) {
+      return this.sanitizeText(notes).substring(0, 500);
+    },
+
+    /**
+     * Nettoie un nom de volontaire
+     * @param {string} volunteer - Nom du volontaire
+     * @returns {string} Nom sécurisé
+     */
+    sanitizeVolunteer(volunteer) {
+      return this.sanitizeText(volunteer).substring(0, 50);
+    },
+
+    /**
+     * Valide et nettoie une valeur numérique
+     * @param {any} value - Valeur à valider
+     * @param {number} min - Valeur minimale
+     * @param {number} max - Valeur maximale
+     * @returns {number|null} Valeur validée ou null
+     */
+    sanitizeNumber(value, min = 0, max = 999999) {
+      const num = parseFloat(value);
+      if (isNaN(num)) return null;
+      if (num < min) return min;
+      if (num > max) return max;
+      return num;
+    },
+
+    /**
+     * Valide une date
+     * @param {string} dateString - Date à valider
+     * @returns {string|null} Date validée ou null
+     */
+    sanitizeDate(dateString) {
+      if (!dateString) return null;
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return null;
+      
+      // Pas de dates dans le futur pour le stock
+      const now = new Date();
+      if (date > now) return null;
+      
+      return date.toISOString().slice(0, 16);
+    },
+
+    /**
+     * Configure le focus et la navigation au clavier pour le modal
+     */
+    setupModalFocus() {
+      // Mettre le focus sur le premier élément focusable dans le modal
+      const modal = document.querySelector('.modal[role="dialog"]');
+      if (!modal) return;
+
+      // Trouver le premier élément focusable
+      const focusableElements = modal.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      
+      if (focusableElements.length > 0) {
+        focusableElements[0].focus();
+      }
+
+      // Ajouter un gestionnaire pour la touche Échap
+      const handleEscape = (event) => {
+        if (event.key === 'Escape') {
+          this.closeUnifiedModal();
+        }
+      };
+
+      document.addEventListener('keydown', handleEscape);
+
+      // Nettoyer l'écouteur d'événement lors de la fermeture
+      this.modalCleanup = () => {
+        document.removeEventListener('keydown', handleEscape);
+      };
+    },
 
 
     /**
@@ -105,7 +218,10 @@ export const ModalMixin = {
         // Charger les données APRÈS que l'ingrédient soit défini
         this.loadIngredientData();
 
-
+        // Gérer le focus pour l'accessibilité
+        this.$nextTick(() => {
+          this.setupModalFocus();
+        });
       });
     },
 
@@ -132,6 +248,31 @@ export const ModalMixin = {
         return;
       }
 
+      // Sauvegarder les données originales pour comparaison
+      let stockEntries = [];
+      if (ingredient.stockReel) {
+        try {
+          if (typeof ingredient.stockReel === 'string') {
+            stockEntries = JSON.parse(ingredient.stockReel);
+          } else {
+            stockEntries = ingredient.stockReel;
+          }
+        } catch (error) {
+          console.error('Erreur parsing stockReel:', error);
+          stockEntries = [];
+        }
+      }
+
+      this.originalData = {
+        purchases: [...(ingredient.purchases || [])],
+        stock: [...stockEntries],
+        volunteers: [...(ingredient.who || [])],
+        store: ingredient.store || ''
+      };
+
+      // Réinitialiser les champs modifiés
+      this.dirtyFields.clear();
+
       // Charger les achats existants
       this.editingPurchases = (ingredient.purchases || []).map(p => ({
         ...p,
@@ -141,18 +282,6 @@ export const ModalMixin = {
       }));
 
       // Charger les stocks existants
-      let stockEntries = [];
-      if (ingredient.stockReel) {
-        try {
-          if (typeof ingredient.stockReel === 'string') {
-          } else {
-            stockEntries = ingredient.stockReel;
-          }
-        } catch (error) {
-          console.error('Erreur parsing stockReel:', error);
-          stockEntries = [];
-        }
-      }
       this.editingStockEntries = stockEntries.map(s => ({
         ...s,
         isEditing: false,
@@ -175,6 +304,8 @@ export const ModalMixin = {
       this.editingStockEntries = [];
       this.editingVolunteers = [];
       this.deletedVolunteers.clear();
+      this.dirtyFields.clear();
+      this.originalData = {};
       this.resetForms();
       this.cancelDelete();
     },
@@ -210,21 +341,97 @@ export const ModalMixin = {
       this.modalState.hasUnsavedChanges = true;
     },
 
+    /**
+     * Marque un champ spécifique comme modifié
+     * @param {string} field - Le champ modifié ('purchases', 'stock', 'volunteers', 'store')
+     */
+    markDirty(field) {
+      this.dirtyFields.add(field);
+      this.markAsDirty();
+    },
+
+    /**
+     * Vérifie si un champ spécifique a été modifié
+     * @param {string} field - Le champ à vérifier
+     * @returns {boolean}
+     */
+    isFieldDirty(field) {
+      return this.dirtyFields.has(field);
+    },
+
+    /**
+     * Vérifie les données ont changé par rapport à l'original
+     * @param {string} field - Le champ à vérifier
+     * @returns {boolean}
+     */
+    hasDataChanged(field) {
+      if (!this.originalData || !this.modalState.editingIngredient) {
+        return false;
+      }
+
+      switch(field) {
+        case 'purchases':
+          return this.hasPurchasesChanged(this.originalData.purchases, this.editingPurchases);
+        case 'stock':
+          return JSON.stringify(this.originalData.stock) !== JSON.stringify(this.editingStockEntries);
+        case 'volunteers':
+          return !this.arraysEqual(this.originalData.volunteers, this.editingVolunteers);
+        case 'store':
+          return this.originalData.store !== (this.modalState.editingIngredient?.store || '');
+        default:
+          return false;
+      }
+    },
+
+    /**
+     * Vérifie si les achats ont changé
+     */
+    hasPurchasesChanged(originalPurchases, currentPurchases) {
+      if (originalPurchases.length !== currentPurchases.length) {
+        return true;
+      }
+      
+      // Vérifier les achats modifiés, nouveaux ou supprimés
+      const hasNewOrModified = currentPurchases.some(p => p.isNew || p.isDirty);
+      const hasDeleted = originalPurchases.length > currentPurchases.filter(p => !p.isNew).length;
+      
+      return hasNewOrModified || hasDeleted;
+    },
+
+    /**
+     * Compare deux tableaux pour l'égalité
+     */
+    arraysEqual(arr1, arr2) {
+      if (arr1.length !== arr2.length) return false;
+      return arr1.every((val, index) => val === arr2[index]);
+    },
+
     // === GESTION DES ACHATS ===
 
     /**
      * Ajoute un nouvel achat
      */
     addPurchase() {
-      if (!this.appwriteDataService.validatePurchase(this.newPurchase)) {
-        this.showErrorToast('Veuillez remplir tous les champs obligatoires');
+      // Sanitisation des données avant validation
+      const sanitizedPurchase = {
+        quantity: this.sanitizeNumber(this.newPurchase.quantity, 0.01),
+        unit: this.sanitizeText(this.newPurchase.unit),
+        store: this.sanitizeStore(this.newPurchase.store),
+        who: this.sanitizeVolunteer(this.newPurchase.who),
+        price: this.sanitizeNumber(this.newPurchase.price, 0),
+        notes: this.sanitizeNotes(this.newPurchase.notes)
+      };
+
+      const validation = this.appwriteDataService.validatePurchase(sanitizedPurchase);
+      if (!validation.isValid) {
+        this.showErrorToast(validation.errors.join(', ') || 'Veuillez remplir tous les champs obligatoires avec des valeurs valides');
         return;
       }
 
-      const purchase = this.appwriteDataService.createPurchaseObject(this.newPurchase);
+      const purchase = this.appwriteDataService.createPurchaseObject(sanitizedPurchase);
       this.editingPurchases.push(purchase);
       this.resetForms();
-      this.markAsDirty();
+      this.markDirty('purchases');
     },
 
     /**
@@ -240,7 +447,7 @@ export const ModalMixin = {
     savePurchaseEdit(purchase) {
       purchase.isEditing = false;
       purchase.isDirty = true;
-      this.markAsDirty();
+      this.markDirty('purchases');
     },
 
     /**
@@ -260,15 +467,24 @@ export const ModalMixin = {
      * Ajoute une nouvelle entrée de stock
      */
     addStock() {
-      if (!this.appwriteDataService.validateStock(this.newStock)) {
-        this.showErrorToast('Veuillez remplir tous les champs obligatoires');
+      // Sanitisation des données avant validation
+      const sanitizedStock = {
+        quantity: this.sanitizeNumber(this.newStock.quantity, 0.01),
+        unit: this.sanitizeText(this.newStock.unit),
+        dateTime: this.sanitizeDate(this.newStock.dateTime),
+        notes: this.sanitizeNotes(this.newStock.notes)
+      };
+
+      const validation = this.appwriteDataService.validateStock(sanitizedStock);
+      if (!validation.isValid) {
+        this.showErrorToast(validation.errors.join(', ') || 'Veuillez remplir tous les champs obligatoires avec des valeurs valides');
         return;
       }
 
-      const stock = this.appwriteDataService.createStockObject(this.newStock);
+      const stock = this.appwriteDataService.createStockObject(sanitizedStock);
       this.editingStockEntries.push(stock);
       this.resetForms();
-      this.markAsDirty();
+      this.markDirty('stock');
     },
 
     /**
@@ -284,7 +500,7 @@ export const ModalMixin = {
     saveStockEdit(stock) {
       stock.isEditing = false;
       stock.isDirty = true;
-      this.markAsDirty();
+      this.markDirty('stock');
     },
 
     /**
@@ -306,11 +522,16 @@ export const ModalMixin = {
     addVolunteer() {
       if (!this.newVolunteer.trim()) return;
 
-      const volunteer = this.newVolunteer.trim();
+      const volunteer = this.sanitizeVolunteer(this.newVolunteer);
+      if (!volunteer) {
+        this.showErrorToast('Le nom du volontaire n\'est pas valide');
+        return;
+      }
+
       if (!this.editingVolunteers.includes(volunteer)) {
         this.editingVolunteers.push(volunteer);
         this.newVolunteer = '';
-        this.markAsDirty();
+        this.markDirty('volunteers');
       }
     },
 
@@ -323,7 +544,7 @@ export const ModalMixin = {
       } else {
         this.deletedVolunteers.add(volunteer);
       }
-      this.markAsDirty();
+      this.markDirty('volunteers');
     },
 
     /**
@@ -341,14 +562,19 @@ export const ModalMixin = {
     replaceStore() {
       if (!this.editingStore.trim()) return;
 
-      const storeValue = this.editingStore.trim();
+      const storeValue = this.sanitizeStore(this.editingStore);
+      if (!storeValue) {
+        this.showErrorToast('Le nom du magasin n\'est pas valide');
+        return;
+      }
+
       const currentIngredient = this.modalState.editingIngredient;
 
       if (currentIngredient) {
         // Mettre à jour le magasin de l'ingrédient en cours d'édition
         currentIngredient.store = storeValue;
         this.editingStore = '';
-        this.markAsDirty();
+        this.markDirty('store');
 
         // Le magasin est maintenant dans l'ingrédient et sera sauvegardé via saveAllChanges()
         console.log('[ModalMixin] Magasin mis à jour:', storeValue, 'pour ingrédient:', currentIngredient.ingredientName);
@@ -363,7 +589,7 @@ export const ModalMixin = {
 
       if (currentIngredient && currentIngredient.store) {
         currentIngredient.store = '';
-        this.markAsDirty();
+        this.markDirty('store');
       }
     },
 
@@ -409,18 +635,51 @@ export const ModalMixin = {
         const index = this.editingPurchases.findIndex(p => p === this.deleteConfirmation.itemId);
         if (index > -1) {
           this.editingPurchases.splice(index, 1);
-          this.markAsDirty();
+          this.markDirty('purchases');
         }
       } else if (this.deleteConfirmation.itemType === 'stock') {
         const index = this.editingStockEntries.findIndex(s => s === this.deleteConfirmation.itemId);
         if (index > -1) {
           this.editingStockEntries.splice(index, 1);
-          this.markAsDirty();
+          this.markDirty('stock');
         }
       }
     },
 
     // === SAUVEGARDE GLOBALE ===
+
+    /**
+     * Affiche un message d'erreur détaillé
+     * @param {string} message - Message d'erreur
+     * @param {Object} error - Objet d'erreur détaillé
+     */
+    showErrorToast(message, error = null) {
+      let fullMessage = message;
+      
+      if (error) {
+        if (error.code === 400) {
+          fullMessage += ' Les données fournies sont invalides.';
+        } else if (error.code === 401) {
+          fullMessage += ' Vous n\'êtes pas autorisé à effectuer cette action.';
+        } else if (error.code === 404) {
+          fullMessage += ' La ressource demandée n\'existe pas.';
+        } else if (error.code === 429) {
+          fullMessage += ' Trop de requêtes. Veuillez réessayer plus tard.';
+        } else if (error.message) {
+          fullMessage += ` ${error.message}`;
+        }
+      }
+      
+      // Utiliser un toast ou une alerte existant
+      if (window.showToast) {
+        window.showToast(fullMessage, 'error');
+      } else if (this.$refs?.toast) {
+        this.$refs.toast.show(fullMessage, 'danger');
+      } else {
+        console.error('Toast Error:', fullMessage);
+        alert(fullMessage);
+      }
+    },
 
     /**
      * Sauvegarde toutes les modifications
@@ -432,6 +691,7 @@ export const ModalMixin = {
 
       try {
         const data = {
+          dirtyFields: this.dirtyFields,
           editingPurchases: this.editingPurchases,
           editingStockEntries: this.editingStockEntries,
           editingVolunteers: this.editingVolunteers,
@@ -449,6 +709,10 @@ export const ModalMixin = {
 
         this.modalState.hasUnsavedChanges = false;
 
+        // Afficher un message de succès
+        if (window.showToast) {
+          window.showToast('Modifications sauvegardées avec succès', 'success');
+        }
 
         // Fermer le modal
         this.closeUnifiedModal();
@@ -457,7 +721,21 @@ export const ModalMixin = {
 
       } catch (error) {
         console.error('Erreur lors de la sauvegarde:', error);
-        this.showErrorToast('Une erreur est survenue lors de la sauvegarde.');
+        
+        // Messages d'erreur spécifiques selon le type d'erreur
+        let errorMessage = 'Une erreur est survenue lors de la sauvegarde.';
+        
+        if (error.message?.includes('purchase')) {
+          errorMessage = 'Erreur lors de la sauvegarde des achats.';
+        } else if (error.message?.includes('stock')) {
+          errorMessage = 'Erreur lors de la sauvegarde du stock.';
+        } else if (error.message?.includes('volunteer')) {
+          errorMessage = 'Erreur lors de la sauvegarde des volontaires.';
+        } else if (error.message?.includes('store')) {
+          errorMessage = 'Erreur lors de la sauvegarde du magasin.';
+        }
+        
+        this.showErrorToast(errorMessage, error);
         throw error;
       } finally {
         this.modalState.isSaving = false;
@@ -471,6 +749,11 @@ export const ModalMixin = {
     // Nettoyer les intervalles en cours
     if (this.deleteConfirmation.progressInterval) {
       clearInterval(this.deleteConfirmation.progressInterval);
+    }
+    
+    // Nettoyer les écouteurs d'événements du modal
+    if (this.modalCleanup) {
+      this.modalCleanup();
     }
   }
 };

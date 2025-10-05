@@ -10,6 +10,62 @@ export class AppwriteDataService {
   }
 
   /**
+   * Crée une erreur structurée avec contexte
+   * @param {string} message - Message d'erreur
+   * @param {string} type - Type d'erreur (validation, network, database)
+   * @param {Object} details - Détails supplémentaires
+   * @returns {Error} Erreur structurée
+   */
+  createError(message, type = 'database', details = {}) {
+    const error = new Error(message);
+    error.type = type;
+    error.details = details;
+    error.timestamp = new Date().toISOString();
+    return error;
+  }
+
+  /**
+   * Gère les erreurs Appwrite de manière structurée
+   * @param {Error} error - Erreur Appwrite
+   * @param {string} context - Contexte de l'erreur
+   * @returns {Error} Erreur traitée
+   */
+  handleAppwriteError(error, context = '') {
+    console.error(`[AppwriteDataService] Erreur ${context}:`, error);
+    
+    // Extraire le code d'erreur si disponible
+    let errorCode = error.code || 500;
+    let errorMessage = error.message || 'Erreur inconnue';
+    
+    // Erreurs spécifiques à Appwrite
+    if (errorMessage.includes('document_not_found')) {
+      errorCode = 404;
+      errorMessage = 'Document non trouvé';
+    } else if (errorMessage.includes('permission_denied')) {
+      errorCode = 401;
+      errorMessage = 'Permission refusée';
+    } else if (errorMessage.includes('rate_limit_exceeded')) {
+      errorCode = 429;
+      errorMessage = 'Limite de requêtes dépassée';
+    } else if (errorMessage.includes('invalid_structure')) {
+      errorCode = 400;
+      errorMessage = 'Structure des données invalide';
+    } else if (errorMessage.includes('duplicate')) {
+      errorCode = 409;
+      errorMessage = 'Entrée en double';
+    }
+    
+    const structuredError = this.createError(
+      `Erreur ${context}: ${errorMessage}`,
+      'appwrite',
+      { originalError: error, code: errorCode }
+    );
+    
+    structuredError.code = errorCode;
+    return structuredError;
+  }
+
+  /**
    * Sauvegarde les achats dans Appwrite
    * @param {Array} purchases - Liste des achats à sauvegarder
    * @param {string} listId - ID de la liste
@@ -45,8 +101,7 @@ export class AppwriteDataService {
         results.push(result.$id);
         console.log('[AppwriteDataService] Nouvel achat créé:', result.$id);
       } catch (error) {
-        console.error('[AppwriteDataService] Erreur création achat:', error);
-        throw new Error(`Erreur lors de la création de l'achat: ${error.message}`);
+        throw this.handleAppwriteError(error, 'création achat');
       }
     }
 
@@ -71,8 +126,7 @@ export class AppwriteDataService {
         results.push(result.$id);
         console.log('[AppwriteDataService] Achat mis à jour:', result.$id);
       } catch (error) {
-        console.error('[AppwriteDataService] Erreur mise à jour achat:', error);
-        throw new Error(`Erreur lors de la mise à jour de l'achat: ${error.message}`);
+        throw this.handleAppwriteError(error, 'mise à jour achat');
       }
     }
 
@@ -108,8 +162,7 @@ export class AppwriteDataService {
       console.log('[AppwriteDataService] Stock mis à jour:', result.$id);
       return result.$id;
     } catch (error) {
-      console.error('[AppwriteDataService] Erreur mise à jour stock:', error);
-      throw new Error(`Erreur lors de la mise à jour du stock: ${error.message}`);
+      throw this.handleAppwriteError(error, 'mise à jour stock');
     }
   }
 
@@ -137,8 +190,7 @@ export class AppwriteDataService {
       console.log('[AppwriteDataService] Volontaires mis à jour:', result.$id);
       return result.$id;
     } catch (error) {
-      console.error('[AppwriteDataService] Erreur mise à jour volontaires:', error);
-      throw new Error(`Erreur lors de la mise à jour des volontaires: ${error.message}`);
+      throw this.handleAppwriteError(error, 'mise à jour volontaires');
     }
   }
 
@@ -170,20 +222,46 @@ export class AppwriteDataService {
       console.log('[AppwriteDataService] Store mis à jour:', result.$id);
       return result.$id;
     } catch (error) {
-      console.error('[AppwriteDataService] Erreur mise à jour stock:', error);
-      throw new Error(`Erreur lors de la mise à jour du store: ${error.message}`);
+      throw this.handleAppwriteError(error, 'mise à jour magasin');
     }
   }
 
 
   /**
-   * Sauvegarde toutes les modifications en une seule transaction logique
-   * @param {Object} data - Données à sauvegarder
+   * Construit l'objet de patch pour la mise à jour d'un ingrédient
+   * @param {Set} dirtyFields - Champs modifiés
+   * @param {Object} changes - Données modifiées
+   * @returns {Object} Objet de patch pour updateDocument
+   */
+  buildIngredientPatch(dirtyFields, changes) {
+    const patchData = {};
+    
+    if (dirtyFields.has('stock')) {
+      patchData.stockReel = JSON.stringify(changes.editingStockEntries);
+    }
+    
+    if (dirtyFields.has('volunteers')) {
+      // Filtrer les volontaires supprimés
+      const activeVolunteers = changes.editingVolunteers.filter(v => !changes.deletedVolunteers.has(v));
+      patchData.who = activeVolunteers;
+    }
+    
+    if (dirtyFields.has('store')) {
+      patchData.store = changes.editingStore?.trim() || '';
+    }
+    
+    return patchData;
+  }
+
+  /**
+   * Sauvegarde toutes les modifications en utilisant uniquement les champs modifiés
+   * @param {Object} data - Données à sauvegarder avec dirtyFields
    * @param {Object} context - Contexte de l'application (listId, database, etc.)
-   * @returns {Promise<Object>} Résultats de la sauvegarde
+   * @returns {Promise<Object>} Résultats de la sauvegarde optimisée
    */
   async saveAllChanges(data, context) {
     const {
+      dirtyFields,
       editingPurchases,
       editingStockEntries,
       editingVolunteers,
@@ -194,80 +272,147 @@ export class AppwriteDataService {
 
     const { listId, database } = context;
 
-    const results = {
-      purchases: [],
-      stock: null,
-      volunteers: null,
-      stores: null
-    };
+    const results = {};
 
     try {
-      // Sauvegarder les achats
-      if (editingPurchases && editingPurchases.length > 0) {
+      // 1. Sauvegarder les achats si modifiés (collection différente)
+      if (dirtyFields.has('purchases') && editingPurchases?.length > 0) {
         results.purchases = await this.savePurchases(
           editingPurchases,
           listId,
           editingIngredient.$id,
           database
         );
+        console.log('[AppwriteDataService] Achats sauvegardés:', results.purchases.length, 'éléments');
       }
 
-      // Sauvegarder le stock
-      if (editingStockEntries && editingStockEntries.length >= 0) {
-        results.stock = await this.saveStock(
-          editingStockEntries,
-          editingIngredient.$id,
-          database
-        );
-      }
+      // 2. Construire le patch unifié pour l'ingrédient (stock, volontaires, magasin)
+      const ingredientPatch = this.buildIngredientPatch(dirtyFields, {
+        editingStockEntries,
+        editingVolunteers,
+        deletedVolunteers,
+        editingStore
+      });
 
-      // Sauvegarder les volontaires
-      if (editingVolunteers && deletedVolunteers) {
-        results.volunteers = await this.saveVolunteers(
-          editingVolunteers,
-          deletedVolunteers,
+      // 3. Appliquer le patch si des champs d'ingrédient sont modifiés
+      if (Object.keys(ingredientPatch).length > 0) {
+        const result = await database.updateDocument(
+          this.config.databaseId,
+          this.config.collections.ingredients,
           editingIngredient.$id,
-          database
+          ingredientPatch
         );
-      }
-
-      // Sauvegarder le magasin
-      if (editingStore) {
-        results.stores = await this.saveStore(
-          editingStore,
-          editingIngredient.$id,
-          database
-        );
+        results.ingredients = result.$id;
+        console.log('[AppwriteDataService] Ingrédient mis à jour avec patch:', Object.keys(ingredientPatch));
       }
 
       return results;
     } catch (error) {
-      console.error('[AppwriteDataService] Erreur lors de la sauvegarde globale:', error);
-      throw error;
+      throw this.handleAppwriteError(error, 'sauvegarde globale');
     }
   }
 
   /**
    * Valide les données d'un achat
    * @param {Object} purchase - Données de l'achat à valider
-   * @returns {boolean} True si valide
+   * @returns {Object} Validation result { isValid: boolean, errors: string[] }
    */
   validatePurchase(purchase) {
-    return purchase.quantity &&
-           purchase.unit &&
-           purchase.quantity > 0;
+    const errors = [];
+
+    // Validation de la quantité
+    if (!purchase.quantity || purchase.quantity <= 0) {
+      errors.push('La quantité doit être supérieure à 0');
+    }
+    if (purchase.quantity > 999999) {
+      errors.push('La quantité est trop élevée');
+    }
+
+    // Validation de l'unité
+    if (!purchase.unit || typeof purchase.unit !== 'string' || purchase.unit.trim().length === 0) {
+      errors.push('L\'unité est requise');
+    }
+    if (purchase.unit.length > 20) {
+      errors.push('L\'unité est trop longue');
+    }
+
+    // Validation du magasin (optionnel mais limité)
+    if (purchase.store && purchase.store.length > 100) {
+      errors.push('Le nom du magasin est trop long');
+    }
+
+    // Validation du volontaire (optionnel mais limité)
+    if (purchase.who && purchase.who.length > 50) {
+      errors.push('Le nom du volontaire est trop long');
+    }
+
+    // Validation du prix
+    if (purchase.price !== null && purchase.price !== undefined) {
+      if (typeof purchase.price !== 'number' || purchase.price < 0) {
+        errors.push('Le prix doit être un nombre positif');
+      }
+      if (purchase.price > 999999) {
+        errors.push('Le prix est trop élevé');
+      }
+    }
+
+    // Validation des notes
+    if (purchase.notes && purchase.notes.length > 500) {
+      errors.push('Les notes sont trop longues');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   }
 
   /**
    * Valide les données de stock
    * @param {Object} stock - Données du stock à valider
-   * @returns {boolean} True si valide
+   * @returns {Object} Validation result { isValid: boolean, errors: string[] }
    */
   validateStock(stock) {
-    return stock.quantity &&
-           stock.unit &&
-           stock.dateTime &&
-           stock.quantity > 0;
+    const errors = [];
+
+    // Validation de la quantité
+    if (!stock.quantity || stock.quantity <= 0) {
+      errors.push('La quantité doit être supérieure à 0');
+    }
+    if (stock.quantity > 999999) {
+      errors.push('La quantité est trop élevée');
+    }
+
+    // Validation de l'unité
+    if (!stock.unit || typeof stock.unit !== 'string' || stock.unit.trim().length === 0) {
+      errors.push('L\'unité est requise');
+    }
+    if (stock.unit.length > 20) {
+      errors.push('L\'unité est trop longue');
+    }
+
+    // Validation de la date
+    if (!stock.dateTime) {
+      errors.push('La date et l\'heure sont requises');
+    } else {
+      const date = new Date(stock.dateTime);
+      if (isNaN(date.getTime())) {
+        errors.push('La date n\'est pas valide');
+      }
+      if (date > new Date()) {
+        errors.push('La date ne peut pas être dans le futur');
+      }
+    }
+
+    // Validation des notes
+    if (stock.notes && stock.notes.length > 500) {
+      errors.push('Les notes sont trop longues');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   }
 
   /**

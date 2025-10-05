@@ -183,33 +183,19 @@ export function createCollaborativeApp() {
           progress: 0,
           progressInterval: null
         },
-        newPurchase: {
-          quantity: null,
-          unit: '',
-          store: '',
-          who: '',
-          price: null,
-          notes: ''
-        },
-        newStock: {
-          quantity: null,
-          unit: '',
-          dateTime: new Date().toISOString().slice(0, 16),
-          notes: ''
-        },
-        newVolunteer: '',
-        editingStore: '',
+        // Ces propriétés sont maintenant gérées par ModalMixin pour éviter les conflits
+        // newPurchase, newStock, newVolunteer, editingStore sont définis dans ModalMixin
 
 
 
-        // Modal d'attribution groupée
-        groupAssignmentModal: {
-          isOpen: false,
+
+        // Données communes pour l'attribution groupée
+        groupAssignment: {
+          context: '', // 'grouped-header' | 'table-selection'
           type: '', // 'volunteer', 'store', etc.
           value: '',
           groupName: '',
           isProcessing: false,
-          // Propriété simplifiée pour la gestion des suppressions
           replaceExisting: false, // Switch pour supprimer les attributions existantes
           assignmentsToRemove: new Map(), // ingredientId -> Set(valeurs à supprimer)
           summary: {
@@ -219,9 +205,21 @@ export function createCollaborativeApp() {
             replacementsCount: 0
           }
         },
+
+        // États d'ouverture des modals
+        groupWhoModal: {
+          isOpen: false
+        },
+        groupStoreModal: {
+          isOpen: false
+        },
+
         modalSelectedIngredients: [],
+        // Propriétés pour les suggestions
         filteredSuggestions: [],
         showSuggestions: false,
+        filteredStoreSuggestions: [],
+        showStoreSuggestions: false,
 
         // Système de toasts génériques
         toasts: []
@@ -473,9 +471,9 @@ export function createCollaborativeApp() {
       assignmentSuggestions() {
         if (!this.localStorageService) return [];
 
-        if (this.groupAssignmentModal.type === 'volunteer') {
+        if (this.groupAssignment.type === 'volunteer') {
           return this.localStorageService.getSuggestions('volunteer');
-        } else if (this.groupAssignmentModal.type === 'store') {
+        } else if (this.groupAssignment.type === 'store') {
           return this.localStorageService.getSuggestions('store');
         }
         return [];
@@ -560,14 +558,14 @@ export function createCollaborativeApp() {
       },
 
       // Watcher pour réagir aux changements du switch de remplacement
-      'groupAssignmentModal.replaceExisting': {
+      'groupAssignment.replaceExisting': {
         handler() {
           this.updateSummary();
         }
       },
 
       // Watcher pour réagir aux changements de valeur
-      'groupAssignmentModal.value': {
+      'groupAssignment.value': {
         handler() {
           this.updateSummary();
         }
@@ -1564,33 +1562,25 @@ export function createCollaborativeApp() {
           };
         },
 
-        // Méthode pour se proposer pour tout un groupe (magasin/type)
-        async handleGroup(groupName, ingredients, type = 'volunteer') {
-          // Contexte : modification depuis les headers grouped
-          const context = 'grouped-header';
 
-          // Ouvrir le modal d'attribution groupée avec le contexte explicite
-          this.openGroupAssignmentModal(context, type, groupName, ingredients);
-        },
 
         // === MÉTHODES POUR LE MODAL D'ATTRIBUTION GROUPÉE ===
 
         /**
-         * Ouvre le modal d'attribution groupée
+         * Initialise les données communes pour l'attribution groupée
          * @param {string} context - Contexte d'utilisation ('grouped-header' | 'table-selection')
          * @param {string} type - Type d'attribution ('volunteer', 'store', etc.)
          * @param {string} groupName - Nom du groupe (magasin, type, etc.)
          * @param {Array} ingredients - Liste des ingrédients concernés
          */
-        openGroupAssignmentModal(context, type, groupName, ingredients) {
-          this.groupAssignmentModal = {
-            isOpen: true,
-            context: context, // Ajouter le contexte explicite
+        initGroupAssignment(context, type, groupName, ingredients) {
+          this.groupAssignment = {
+            context: context,
             type: type,
             value: '', // Réinitialiser la valeur
             groupName: groupName,
             isProcessing: false,
-            replaceExisting: false,
+            replaceExisting: type === 'store', // Toujours remplacer pour les magasins
             assignmentsToRemove: new Map(),
             summary: {
               ingredientsCount: 0,
@@ -1604,7 +1594,7 @@ export function createCollaborativeApp() {
           if (type === 'volunteer') {
             const currentUser = localStorage.getItem('appwrite-user-name');
             if (currentUser) {
-              this.groupAssignmentModal.value = currentUser;
+              this.groupAssignment.value = currentUser;
             }
           }
 
@@ -1614,9 +1604,29 @@ export function createCollaborativeApp() {
             selected: true // Tous cochés par défaut
           }));
 
-          // Initialiser les suggestions
-          this.filterSuggestions();
+          // Initialiser les suggestions selon le type
+          if (type === 'store') {
+            this.filterStoreSuggestions();
+          } else {
+            this.filterSuggestions();
+          }
           this.updateSummary();
+        },
+
+        /**
+         * Ouvre le modal d'attribution de bénévoles
+         */
+        openGroupWhoModal(context, groupName, ingredients) {
+          this.initGroupAssignment(context, 'volunteer', groupName, ingredients);
+          this.groupWhoModal.isOpen = true;
+        },
+
+        /**
+         * Ouvre le modal d'attribution de magasins
+         */
+        openGroupStoreModal(context, groupName, ingredients) {
+          this.initGroupAssignment(context, 'store', groupName, ingredients);
+          this.groupStoreModal.isOpen = true;
         },
 
         /**
@@ -1658,22 +1668,31 @@ export function createCollaborativeApp() {
         },
 
         /**
-         * Ferme le modal d'attribution groupée
+         * Ferme le modal d'attribution de bénévoles
          */
-        closeGroupAssignmentModal() {
-          this.groupAssignmentModal.isOpen = false;
+        closeGroupWhoModal() {
+          this.groupWhoModal.isOpen = false;
           setTimeout(() => {
             this.resetGroupAssignmentData();
           }, 300); // Attendre la fin de l'animation
         },
 
         /**
-         * Réinitialise les données du modal
+         * Ferme le modal d'attribution de magasins
+         */
+        closeGroupStoreModal() {
+          this.groupStoreModal.isOpen = false;
+          setTimeout(() => {
+            this.resetGroupAssignmentData();
+          }, 300); // Attendre la fin de l'animation
+        },
+
+        /**
+         * Réinitialise les données communes d'attribution
          */
         resetGroupAssignmentData() {
-          this.groupAssignmentModal = {
-            isOpen: false,
-            context: '', // Ajouter le contexte à la réinitialisation
+          this.groupAssignment = {
+            context: '',
             type: '',
             value: '',
             groupName: '',
@@ -1684,19 +1703,22 @@ export function createCollaborativeApp() {
               ingredientsCount: 0,
               additionsCount: 0,
               removalsCount: 0,
-              replacementsCount: 0
+              replacementsCount: 0,
+              assignmentsCount: 0
             }
           };
           this.modalSelectedIngredients = [];
           this.filteredSuggestions = [];
           this.showSuggestions = false;
+          this.filteredStoreSuggestions = [];
+          this.showStoreSuggestions = false;
         },
 
         /**
          * Filtre les suggestions basées sur la saisie
          */
         filterSuggestions() {
-          const query = this.groupAssignmentModal.value.toLowerCase().trim();
+          const query = this.groupAssignment.value.toLowerCase().trim();
           const suggestions = this.assignmentSuggestions;
 
           if (!query) {
@@ -1721,7 +1743,7 @@ export function createCollaborativeApp() {
          * Sélectionne une suggestion
          */
         selectSuggestion(suggestion) {
-          this.groupAssignmentModal.value = suggestion;
+          this.groupAssignment.value = suggestion;
           this.showSuggestions = false;
           this.filterSuggestions();
         },
@@ -1730,9 +1752,53 @@ export function createCollaborativeApp() {
          * Efface la valeur d'attribution
          */
         clearAssignmentValue() {
-          this.groupAssignmentModal.value = '';
+          this.groupAssignment.value = '';
           this.filterSuggestions();
           this.updateSummary();
+        },
+
+        /**
+         * Efface la valeur d'attribution de magasin
+         */
+        clearStoreAssignmentValue() {
+          this.groupAssignment.value = '';
+          this.filterStoreSuggestions();
+          this.updateSummary();
+        },
+
+        /**
+         * Filtre les suggestions de magasins basées sur la saisie
+         */
+        filterStoreSuggestions() {
+          const query = this.groupAssignment.value.toLowerCase().trim();
+          const suggestions = this.assignmentSuggestions.filter(suggestion =>
+            suggestion.toLowerCase().includes(query)
+          );
+
+          if (!query) {
+            this.filteredStoreSuggestions = suggestions.slice(0, 10); // Limiter à 10 suggestions
+          } else {
+            this.filteredStoreSuggestions = suggestions.slice(0, 10); // Limiter à 10 suggestions
+          }
+        },
+
+        /**
+         * Sélectionne une suggestion de magasin
+         */
+        selectStoreSuggestion(suggestion) {
+          this.groupAssignment.value = suggestion;
+          this.showStoreSuggestions = false;
+          this.filterStoreSuggestions();
+          this.updateSummary();
+        },
+
+        /**
+         * Cache les suggestions de magasins avec un délai
+         */
+        hideStoreSuggestions() {
+          setTimeout(() => {
+            this.showStoreSuggestions = false;
+          }, 200);
         },
 
         /**
@@ -1742,7 +1808,7 @@ export function createCollaborativeApp() {
          * @returns {boolean}
          */
         isAssignmentToRemove(ingredientId, value) {
-          return this.groupAssignmentModal.assignmentsToRemove.get(ingredientId)?.has(value) || false;
+          return this.groupAssignment.assignmentsToRemove.get(ingredientId)?.has(value) || false;
         },
 
         /**
@@ -1751,15 +1817,15 @@ export function createCollaborativeApp() {
          * @param {string} value - Valeur de l'attribution
          */
         toggleAssignmentRemoval(ingredientId, value) {
-          if (!this.groupAssignmentModal.assignmentsToRemove.has(ingredientId)) {
-            this.groupAssignmentModal.assignmentsToRemove.set(ingredientId, new Set());
+          if (!this.groupAssignment.assignmentsToRemove.has(ingredientId)) {
+            this.groupAssignment.assignmentsToRemove.set(ingredientId, new Set());
           }
 
-          const removals = this.groupAssignmentModal.assignmentsToRemove.get(ingredientId);
+          const removals = this.groupAssignment.assignmentsToRemove.get(ingredientId);
           if (removals.has(value)) {
             removals.delete(value);
             if (removals.size === 0) {
-              this.groupAssignmentModal.assignmentsToRemove.delete(ingredientId);
+              this.groupAssignment.assignmentsToRemove.delete(ingredientId);
             }
           } else {
             removals.add(value);
@@ -1772,7 +1838,7 @@ export function createCollaborativeApp() {
          * Gère le changement du mode de remplacement
          */
         onReplaceModeChange() {
-          if (this.groupAssignmentModal.replaceExisting) {
+          if (this.groupAssignment.replaceExisting) {
             // Mode "remplacer" : marquer toutes les attributions existantes pour suppression
             this.markAllAssignmentsForRemoval();
           } else {
@@ -1787,16 +1853,16 @@ export function createCollaborativeApp() {
          * @returns {string} 'add', 'replace', 'selective'
          */
         getActionType() {
-          if (!this.groupAssignmentModal.value.trim()) {
+          if (!this.groupAssignment.value.trim()) {
             return 'selective'; // Only removals
           }
 
-          if (this.groupAssignmentModal.replaceExisting) {
+          if (this.groupAssignment.replaceExisting) {
             return 'replace';
           }
 
           // Check if there are any manual removals
-          const hasManualRemovals = Array.from(this.groupAssignmentModal.assignmentsToRemove.values())
+          const hasManualRemovals = Array.from(this.groupAssignment.assignmentsToRemove.values())
             .some(removals => removals.size > 0);
 
           if (hasManualRemovals) {
@@ -1810,7 +1876,7 @@ export function createCollaborativeApp() {
          * Remet à zéro toutes les suppressions d'attributions
          */
         resetAllAssignments() {
-          this.groupAssignmentModal.assignmentsToRemove.clear();
+          this.groupAssignment.assignmentsToRemove.clear();
           this.updateSummary();
         },
 
@@ -1818,17 +1884,17 @@ export function createCollaborativeApp() {
          * Marque toutes les attributions existantes pour suppression (mode "Remplacer tout")
          */
         markAllAssignmentsForRemoval() {
-          this.groupAssignmentModal.assignmentsToRemove.clear();
+          this.groupAssignment.assignmentsToRemove.clear();
 
           this.modalSelectedIngredients.forEach(ingredient => {
             if (!ingredient.selected) return;
 
-            const existingAssignments = this.groupAssignmentModal.type === 'volunteer'
+            const existingAssignments = this.groupAssignment.type === 'volunteer'
               ? (ingredient.who || [])
               : (ingredient.store || []);
 
             if (existingAssignments.length > 0) {
-              this.groupAssignmentModal.assignmentsToRemove.set(ingredient.$id, new Set(existingAssignments));
+              this.groupAssignment.assignmentsToRemove.set(ingredient.$id, new Set(existingAssignments));
             }
           });
 
@@ -1840,40 +1906,73 @@ export function createCollaborativeApp() {
          */
         updateSummary() {
           let ingredientsCount = 0;
+
+          // Pour les bénévoles
           let removalsCount = 0;
           let additionsCount = 0;
+
+          // Pour les magasins
+          let replacementsCount = 0;
+          let assignmentsCount = 0;
 
           const selectedIngredients = this.modalSelectedIngredients.filter(ing => ing.selected);
 
           for (const ingredient of selectedIngredients) {
-            const hasRemovals = this.groupAssignmentModal.assignmentsToRemove.has(ingredient.$id);
-            const hasNewValue = this.groupAssignmentModal.value.trim();
+            const hasRemovals = this.groupAssignment.assignmentsToRemove.has(ingredient.$id);
+            const hasNewValue = this.groupAssignment.value.trim();
+            const isNewValueDifferent = hasNewValue && hasNewValue.trim() !== '';
 
-            if (hasRemovals || hasNewValue) {
+            if (hasRemovals || isNewValueDifferent) {
               ingredientsCount++;
             }
 
-            if (hasRemovals) {
-              removalsCount += this.groupAssignmentModal.assignmentsToRemove.get(ingredient.$id).size;
-            }
+            if (this.groupAssignment.type === 'store') {
+              // Logique spécifique pour les magasins
+              if (isNewValueDifferent) {
+                const currentStore = ingredient.store || '';
+                const newStore = hasNewValue.trim();
 
-            if (hasNewValue) {
-              const existingAssignments = this.groupAssignmentModal.type === 'volunteer'
-                ? (ingredient.who || [])
-                : (ingredient.store || []);
+                if (currentStore && currentStore !== newStore) {
+                  // Remplacement d'un magasin existant
+                  replacementsCount++;
+                } else if (!currentStore) {
+                  // Nouvelle assignation de magasin
+                  assignmentsCount++;
+                }
+              }
+            } else {
+              // Logique pour les bénévoles (existante)
+              if (hasRemovals) {
+                removalsCount += this.groupAssignment.assignmentsToRemove.get(ingredient.$id).size;
+              }
 
-              if (!existingAssignments.includes(hasNewValue.trim())) {
-                additionsCount++;
+              if (isNewValueDifferent) {
+                const existingAssignments = ingredient.who || [];
+                if (!existingAssignments.includes(hasNewValue.trim())) {
+                  additionsCount++;
+                }
               }
             }
           }
 
-          this.groupAssignmentModal.summary = {
-            ingredientsCount,
-            removalsCount,
-            additionsCount,
-            replacementsCount: 0 // Plus utilisé dans la nouvelle logique
-          };
+          // Mise à jour du summary avec les propriétés appropriées selon le type
+          if (this.groupAssignment.type === 'store') {
+            this.groupAssignment.summary = {
+              ingredientsCount,
+              replacementsCount,
+              assignmentsCount,
+              removalsCount: 0, // Non utilisé pour les magasins
+              additionsCount: 0  // Non utilisé pour les magasins
+            };
+          } else {
+            this.groupAssignment.summary = {
+              ingredientsCount,
+              removalsCount,
+              additionsCount,
+              replacementsCount: 0, // Non utilisé pour les bénévoles
+              assignmentsCount: 0   // Non utilisé pour les bénévoles
+            };
+          }
         },
 
         /**
@@ -1881,8 +1980,8 @@ export function createCollaborativeApp() {
          * @returns {boolean}
          */
         hasModifications() {
-          const hasValue = this.groupAssignmentModal.value.trim();
-          const hasRemovals = this.groupAssignmentModal.assignmentsToRemove.size > 0;
+          const hasValue = this.groupAssignment.value.trim();
+          const hasRemovals = this.groupAssignment.assignmentsToRemove.size > 0;
 
           return hasValue || hasRemovals;
         },
@@ -2020,7 +2119,7 @@ export function createCollaborativeApp() {
          * Gère la soumission du formulaire d'attribution groupée
          */
         async handleGroupAssignmentSubmit() {
-          console.log('[Collaborative App] Début de la soumission groupée - Contexte:', this.groupAssignmentModal.context);
+          console.log('[Collaborative App] Début de la soumission groupée - Contexte:', this.groupAssignment.context);
           console.log('[Collaborative App] Ingrédients concernés:', this.modalSelectedIngredients.length);
 
           // Filtrer les ingrédients sélectionnés pour le traitement
@@ -2028,14 +2127,14 @@ export function createCollaborativeApp() {
           console.log('[Collaborative App] Ingrédients à traiter:', selectedIngredients.length);
 
           // Confirmation pour les actions importantes (suppressions multiples)
-          if (this.groupAssignmentModal.summary.removalsCount > 3) {
-            const confirmMessage = `Vous êtes sur le point de supprimer ${this.groupAssignmentModal.summary.removalsCount} attribution(s). Voulez-vous continuer ?`;
+          if (this.groupAssignment.summary.removalsCount > 3) {
+            const confirmMessage = `Vous êtes sur le point de supprimer ${this.groupAssignment.summary.removalsCount} attribution(s). Voulez-vous continuer ?`;
             if (!confirm(confirmMessage)) {
               return;
             }
           }
 
-          this.groupAssignmentModal.isProcessing = true;
+          this.groupAssignment.isProcessing = true;
 
           try {
             await this.processGroupAssignment(selectedIngredients);
@@ -2057,16 +2156,16 @@ export function createCollaborativeApp() {
             } else if (actionType === 'replace') {
               successMessage = `Attributions remplacées pour ${selectedIngredients.length} ingrédient(s)`;
             } else {
-              if (this.groupAssignmentModal.summary.removalsCount > 0) {
-                successMessage += ` (${this.groupAssignmentModal.summary.removalsCount} suppression(s))`;
+              if (this.groupAssignment.summary.removalsCount > 0) {
+                successMessage += ` (${this.groupAssignment.summary.removalsCount} suppression(s))`;
               }
-              if (this.groupAssignmentModal.summary.additionsCount > 0) {
-                successMessage += ` (${this.groupAssignmentModal.summary.additionsCount} ajout(s))`;
+              if (this.groupAssignment.summary.additionsCount > 0) {
+                successMessage += ` (${this.groupAssignment.summary.additionsCount} ajout(s))`;
               }
             }
 
             this.showToast(successMessage, 'success', 5000, 'Succès');
-            this.closeGroupAssignmentModal();
+            this.closeGroupWhoModal();
           } catch (error) {
             console.error('[Collaborative App] Erreur lors de l\'attribution groupée:', error);
             this.showToast(
@@ -2076,7 +2175,7 @@ export function createCollaborativeApp() {
               'Erreur'
             );
           } finally {
-            this.groupAssignmentModal.isProcessing = false;
+            this.groupAssignment.isProcessing = false;
           }
         },
 
@@ -2088,13 +2187,13 @@ export function createCollaborativeApp() {
 
           const promises = ingredients.map(async (ingredient) => {
             try {
-              if (this.groupAssignmentModal.type === 'volunteer') {
+              if (this.groupAssignment.type === 'volunteer') {
                 // Récupérer les bénévoles actuels
                 const currentVolunteers = Array.isArray(ingredient.who) ? ingredient.who : [];
-                const newVolunteer = this.groupAssignmentModal.value.trim();
+                const newVolunteer = this.groupAssignment.value.trim();
 
                 // Calculer les bénévoles à conserver (ceux qui ne sont pas marqués pour suppression)
-                const volunteersToRemove = this.groupAssignmentModal.assignmentsToRemove.get(ingredient.$id) || new Set();
+                const volunteersToRemove = this.groupAssignment.assignmentsToRemove.get(ingredient.$id) || new Set();
                 const keptVolunteers = currentVolunteers.filter(v => !volunteersToRemove.has(v));
 
                 // Construire la liste finale des bénévoles
@@ -2113,9 +2212,9 @@ export function createCollaborativeApp() {
                   this.database
                 );
 
-              } else if (this.groupAssignmentModal.type === 'store') {
+              } else if (this.groupAssignment.type === 'store') {
                 // Logique simple : un seul magasin par ingrédient
-                const editingStore = this.groupAssignmentModal.value.trim();
+                const editingStore = this.groupAssignment.value.trim();
 
                 // Remplacer directement le magasin (passer une string simple)
                 await this.appwriteDataService.saveStore(
@@ -2149,6 +2248,109 @@ export function createCollaborativeApp() {
           }
 
           return results;
+        },
+
+        /**
+         * Gère la soumission du formulaire d'assignation de magasins
+         */
+        async handleStoreAssignmentSubmit() {
+          console.log('[Collaborative App] Début de la soumission des magasins - Contexte:', this.groupAssignment.context);
+          console.log('[Collaborative App] Ingrédients concernés:', this.modalSelectedIngredients.length);
+
+          // Filtrer les ingrédients sélectionnés pour le traitement
+          const selectedIngredients = this.modalSelectedIngredients.filter(ing => ing.selected);
+
+          if (selectedIngredients.length === 0) {
+            this.addToast('Aucun ingrédient sélectionné', 'warning');
+            return;
+          }
+
+          if (!this.groupAssignment.value.trim()) {
+            this.addToast('Veuillez entrer un nom de magasin', 'warning');
+            return;
+          }
+
+          // confirmation si plus de 5 ingrédients
+          if (selectedIngredients.length > 5) {
+            const confirmMessage = `Vous êtes sur le point d'assigner le magasin "${this.groupAssignment.value.trim()}" à ${selectedIngredients.length} ingrédient(s). Voulez-vous continuer ?`;
+            if (!confirm(confirmMessage)) {
+              return;
+            }
+          }
+
+          this.groupAssignment.isProcessing = true;
+
+          try {
+            const promises = selectedIngredients.map(async (ingredient) => {
+              try {
+                const editingStore = this.groupAssignment.value.trim();
+
+                // Remplacer directement le magasin
+                await this.appwriteDataService.saveStore(
+                  editingStore,
+                  ingredient.$id,
+                  this.database
+                );
+
+                console.log(`[Collaborative App] Assignation du magasin réussie pour ${ingredient.ingredientName}`);
+                return { success: true, ingredient: ingredient.ingredientName };
+              } catch (error) {
+                console.error(`[Collaborative App] Erreur pour ${ingredient.ingredientName}:`, error);
+                return {
+                  success: false,
+                  ingredient: ingredient.ingredientName,
+                  error: error.message
+                };
+              }
+            });
+
+            const results = await Promise.all(promises);
+
+            // Analyser les résultats pour les erreurs individuelles
+            const failures = results.filter(result => !result.success);
+            const successes = results.filter(result => result.success);
+
+            if (failures.length > 0) {
+              const errorMessages = failures.map(f => `${f.ingredient}: ${f.error}`).join('\n');
+              this.addToast(
+                `${failures.length} assignation(s) ont échoué:\n${errorMessages}`,
+                'danger',
+                5000
+              );
+            }
+
+            if (successes.length > 0) {
+              let successMessage = `Magasin "${this.groupAssignment.value.trim()}" assigné à ${successes.length} ingrédient(s)`;
+              this.addToast(successMessage, 'success', 3000);
+            }
+
+            // Fermer le modal uniquement s'il y a eu des succès
+            if (successes.length > 0) {
+              this.closeGroupStoreModal();
+            }
+
+          } catch (error) {
+            console.error('[Collaborative App] Erreur lors de la soumission groupée des magasins:', error);
+            this.addToast(`Erreur lors de l'assignation des magasins: ${error.message}`, 'danger', 5000);
+          } finally {
+            this.groupAssignment.isProcessing = false;
+          }
+        },
+
+        /**
+         * Vérifie s'il y a des modifications pour les magasins
+         * @returns {boolean}
+         */
+        hasStoreModifications() {
+          const hasValue = this.groupAssignment.value.trim();
+          const hasSelectedIngredients = this.modalSelectedIngredients.some(ing => ing.selected);
+
+          if (!hasSelectedIngredients) {
+            return false;
+          }
+
+          // Pour les magasins, toute valeur avec des ingrédients sélectionnés constitue une modification
+          return hasValue && hasSelectedIngredients;
         },
 
         // Méthode utilitaire pour formater les valeurs avec unités

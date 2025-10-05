@@ -1,5 +1,5 @@
 <!-- Modal d'attribution groupée des bénévoles -->
-<div v-if="groupAssignmentModal.isOpen" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
+<div v-if="groupWhoModal.isOpen" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
@@ -7,12 +7,12 @@
           <i class="fas fa-users me-2"></i>
           Mandat d'achat
 
-        <span v-if="groupAssignmentModal.context === 'grouped-header'">
-         : [[ groupAssignmentModal.groupName ]]
+        <span v-if="groupAssignment.context === 'grouped-header'">
+         : [[ groupAssignment.groupName ]]
           <span class="badge bg-primary ms-2">[[ modalSelectedIngredients.length ]]</span>
 
         </v></div>
-        <button type="button" class="btn-close" @click="closeGroupAssignmentModal" aria-label="Fermer"></button>
+        <button type="button" class="btn-close" @click="closeGroupWhoModal" aria-label="Fermer"></button>
       </div>
 
       <div class="modal-body">
@@ -29,7 +29,7 @@
               <input
                 type="text"
                 class="form-control"
-                v-model="groupAssignmentModal.value"
+                v-model="groupAssignment.value"
                 placeholder="Entrez le nom du bénévole..."
                 @input="filterSuggestions"
                 @focus="showSuggestions = true"
@@ -71,7 +71,7 @@
                 type="checkbox"
                 role="switch"
                 id="replaceSwitch"
-                v-model="groupAssignmentModal.replaceExisting"
+                v-model="groupAssignment.replaceExisting"
                 @change="onReplaceModeChange"
               >
               <label class="form-check-label" for="replaceSwitch">
@@ -83,7 +83,7 @@
             </div>
             <div class="form-text">
               <small class="text-muted">
-                <span v-if="!groupAssignmentModal.replaceExisting">
+                <span v-if="!groupAssignment.replaceExisting">
                   <i class="fas fa-plus-circle me-1"></i>
                   Les mandats existants seront conservés, le nouveau sera ajouté
                 </span>
@@ -189,14 +189,14 @@
               Résumé des modifications
             </div>
             <div class="small">
-              <div v-if="groupAssignmentModal.summary.ingredientsCount > 0">
-                • [[ groupAssignmentModal.summary.ingredientsCount ]] ingrédient(s) modifié(s)
+              <div v-if="groupAssignment.summary.ingredientsCount > 0">
+                • [[ groupAssignment.summary.ingredientsCount ]] ingrédient(s) modifié(s)
               </div>
-              <div v-if="groupAssignmentModal.summary.removalsCount > 0">
-                • <span class="text-danger">[[ groupAssignmentModal.summary.removalsCount ]] attribution(s) supprimée(s)</span>
+              <div v-if="groupAssignment.summary.removalsCount > 0">
+                • <span class="text-danger">[[ groupAssignment.summary.removalsCount ]] attribution(s) supprimée(s)</span>
               </div>
-              <div v-if="groupAssignmentModal.summary.additionsCount > 0">
-                • <span class="text-success">[[ groupAssignmentModal.value ]] sera ajouté</span>
+              <div v-if="groupAssignment.summary.additionsCount > 0">
+                • <span class="text-success">[[ groupAssignment.value ]] sera ajouté</span>
               </div>
             </div>
           </div>
@@ -207,7 +207,7 @@
         <button
           type="button"
           class="btn btn-secondary"
-          @click="closeGroupAssignmentModal"
+          @click="closeGroupWhoModal"
         >
           <i class="fas fa-times me-1"></i>
           Annuler
@@ -216,9 +216,9 @@
           type="button"
           class="btn btn-primary"
           @click="handleGroupAssignmentSubmit"
-          :disabled="groupAssignmentModal.isProcessing || selectedCount === 0 || !hasModifications()"
+          :disabled="groupAssignment.isProcessing || selectedCount === 0 || !hasModifications()"
         >
- <span v-if="groupAssignmentModal.isProcessing">
+ <span v-if="groupAssignment.isProcessing">
             <span class="spinner-border spinner-border-sm me-2"></span>
             Traitement en cours...
           </span>

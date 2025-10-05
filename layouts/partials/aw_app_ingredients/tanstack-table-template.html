@@ -65,10 +65,10 @@
                   </div>
 
                   <!-- Actions de groupe -->
-                  <div class="btn-group" role="group">
+                  <div class="d-flex gap-4" >
                     <button
                       class="btn btn-sm btn-primary"
-                      @click="handleGroup(row.groupingValue, row.subRows.map(r => r.original), 'volunteer')"
+                      @click="openGroupWhoModal('grouped-header', row.groupingValue, row.subRows.map(r => r.original))"
                       :title="tableGrouping[0] === 'storeDisplay' ? 'Se proposer pour tout ce magasin' : 'Se proposer pour ce type'"
                     >
                       <i class="fas fa-user-plus"></i>
@@ -76,18 +76,11 @@
                     </button>
                     <button
                       class="btn btn-sm btn-success"
-                      @click="handleGroup(row.groupingValue, row.subRows.map(r => r.original), 'store')"
-                      :title="tableGrouping[0] === 'storeDisplay' ? 'Remplacer le magasin pour ce groupe' : 'Assigner un magasin à ce groupe'"
+                      @click="openGroupStoreModal('grouped-header',row.groupingValue, row.subRows.map(r => r.original))"
+                      title='Définir un magasin à ce groupe'
                     >
                       <i class="fas fa-store"></i>
-                      <span v-if="tableGrouping[0] === 'storeDisplay'">
-                        <i class="fas fa-exchange-alt ms-1"></i>
-                        Remplacer
-                      </span>
-                      <span v-else>
-                        <i class="fas fa-plus ms-1"></i>
-                        Assigner
-                      </span>
+                        Magasins
                     </button>
                   </div>
                 </div>
