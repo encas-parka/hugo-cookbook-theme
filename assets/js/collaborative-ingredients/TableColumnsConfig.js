@@ -68,12 +68,19 @@ export class TableColumnsConfig {
     return {
       id: 'selection',
 
-      cell: ({ row }) => this.h('input', {
-        type: 'checkbox',
-        class: 'form-check-input',
-        checked: row.getIsSelected(),
-        onChange: row.getToggleSelectedHandler()
-      }),
+      cell: ({ row }) => {
+
+
+        return this.h('input', {
+          type: 'checkbox',
+          class: 'form-check-input',
+          checked: row.getIsSelected(),
+          onChange: (e) => {
+
+            row.getToggleSelectedHandler()(e);
+          }
+        });
+      },
       size: 50
     };
   }

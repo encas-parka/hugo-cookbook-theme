@@ -318,7 +318,7 @@ export function createCollaborativeApp() {
 
       // Données pour TanStack Table
       tableData() {
-        return this.filteredIngredients.map(ing => ({
+        const data = this.filteredIngredients.map(ing => ({
           ...ing,
           // Ajouter des propriétés pour TanStack Table
           totalNeeded: ing.totalNeeded || 0,
@@ -328,6 +328,9 @@ export function createCollaborativeApp() {
           storeDisplay: ing.store && ing.store.trim() ? ing.store : '',
           responsibleDisplay: ing.who && ing.who.length > 0 ? ing.who.join(', ') : ''
         }));
+
+        console.log('[DEBUG] tableData sample:', data.slice(0, 3));
+        return data;
       },
 
       // Types disponibles pour les filtres
@@ -401,65 +404,13 @@ export function createCollaborativeApp() {
        */
       tableSelectedCount() {
         // Utiliser directement selectedIngredients qui est maintenant synchronisé en temps réel
-        const count = this.selectedIngredients ? this.selectedIngredients.length : 0;
-        console.log('[Collaborative App] tableSelectedCount via selectedIngredients:', count);
-        return count;
+        return this.selectedIngredients ? this.selectedIngredients.length : 0;
       },
 
       /**
        * Retourne les IDs des ingrédients sélectionnés dans le tableau TanStack
        */
-      tableSelectedIds() {
-        if (!this.table || !this.table.getState) {
-          console.log('[Collaborative App] tableSelectedIds: table non disponible');
-          return [];
-        }
-        try {
-          // Utiliser le state rowSelection qui est plus direct
-          const rowSelection = this.table.getState().rowSelection || {};
-          const ids = Object.keys(rowSelection).filter(key => rowSelection[key]);
-          console.log('[Collaborative App] tableSelectedIds:', ids.length, 'IDs:', ids);
-          return ids;
-        } catch (error) {
-          console.warn('[Collaborative App] Erreur lors de la récupération des IDs sélectionnés:', error);
-          return [];
-        }
-      },
 
-      /**
-       * Méthode de diagnostic pour vérifier l'état de la sélection
-       */
-      debugSelectionState() {
-        console.log('=== DIAGNOSTIC SÉLECTION ===');
-        console.log('Table disponible:', !!this.table);
-        console.log('selectedIngredients (array):', this.selectedIngredients?.length || 0, this.selectedIngredients);
-        console.log('tableSelectedCount (computed):', this.tableSelectedCount);
-        console.log('mainSelectedCount (computed):', this.mainSelectedCount);
-        console.log('tableSelectedIds():', this.tableSelectedIds());
-
-        if (this.table) {
-          try {
-            const selectedModel = this.table.getSelectedRowModel();
-            console.log('getSelectedRowModel rows:', selectedModel?.rows?.length || 0);
-            console.log('getIsAllRowsSelected():', this.table.getIsAllRowsSelected());
-          } catch (error) {
-            console.error('Erreur accès table:', error);
-          }
-        }
-        console.log('==========================');
-      },
-
-      /**
-       * Compte le nombre d'ingrédients sélectionnés au niveau principal (par checkbox)
-       */
-      mainSelectedCount() {
-        try {
-          return this.tableSelectedIds().length;
-        } catch (error) {
-          console.warn('[Collaborative App] Erreur lors du comptage de la sélection principale:', error);
-          return 0;
-        }
-      },
 
       assignmentSuggestions() {
         if (!this.localStorageService) return [];
@@ -539,20 +490,26 @@ export function createCollaborativeApp() {
           getExpandedRowModel: getExpandedRowModel(),
           enableGrouping: true,
           enableRowSelection: true,
+          getRowId: (originalRow) => {
+
+            // Utiliser directement les données originales comme dans la documentation
+            if (originalRow && originalRow.$id) {
+              return originalRow.$id;
+            }
+
+            // Fallback si pas de $id
+            return `row-${Math.random().toString(36).substr(2, 9)}`;
+          },
           onRowSelectionChange: (updater) => {
             const newSelection = typeof updater === 'function' ? updater(this.table?.getState().rowSelection) : updater;
-            console.log('[Collaborative App] onRowSelectionChange déclenché:', newSelection);
-            
             // Maintenir l'état rowSelection synchronisé
             this.rowSelection = newSelection;
-            
-            // Extraire les IDs des lignes sélectionnées
+
+            // Extraire les IDs des ingrédients sélectionnés (ce sont maintenant les $id directement)
             const selectedIds = Object.keys(newSelection).filter(key => newSelection[key]);
-            console.log('[Collaborative App] IDs sélectionnés:', selectedIds);
-            
-            // Mettre à jour selectedIngredients
+            console.log('[Collaborative App] Selected ingredient IDs:', selectedIds);
+
             this.selectedIngredients = selectedIds;
-            console.log('[Collaborative App] selectedIngredients mis à jour:', this.selectedIngredients);
           },
         });
       }
@@ -1485,7 +1442,6 @@ export function createCollaborativeApp() {
           }
           this.selectAllChecked =
             this.selectedIngredients.length === this.filteredIngredients.length;
-          console.log('ingredients selected →', this.selectedIngredients);
         },
 
         // === MÉTHODES DE SÉLECTION GROUPÉE ===
@@ -1618,13 +1574,6 @@ export function createCollaborativeApp() {
          */
         openGroupAssignmentModalForSelection(type) {
           try {
-            // Récupérer les ingrédients sélectionnés dans le tableau TanStack
-            const selectedIds = this.tableSelectedIds();
-
-            if (!selectedIds || selectedIds.length === 0) {
-              this.showWarningToast('Aucun ingrédient sélectionné dans le tableau');
-              return;
-            }
 
             // Filtrer les ingrédients correspondants depuis les données brutes
             const selectedIngredients = this.ingredients.filter(ing =>
@@ -1636,14 +1585,16 @@ export function createCollaborativeApp() {
               return;
             }
 
-            // Créer un nom de groupe pour la sélection
+            // props
             const groupName = `Sélection (${selectedIngredients.length} ingrédients)`;
-
-            // Contexte : modification depuis la bottom-selection-bar
             const context = 'table-selection';
 
             // Ouvrir le modal avec les ingrédients sélectionnés et le contexte explicite
-            this.openGroupAssignmentModal(context, type, groupName, selectedIngredients);
+            if (type === 'volunteer') {
+              this.openGroupWhoModal(context, groupName, selectedIngredients);
+            } else if (type === 'store') {
+              this.openGroupStoreModal(context, groupName, selectedIngredients);
+            }
           } catch (error) {
             console.error('[Collaborative App] Erreur lors de l\'ouverture du modal de sélection:', error);
             this.showErrorToast('Erreur lors de l\'ouverture du modal');
@@ -1996,7 +1947,7 @@ export function createCollaborativeApp() {
          */
         exportSelectedIngredients() {
           try {
-            const selectedIds = this.tableSelectedIds();
+            const selectedIds = this.selectedIngredients || [];
 
             if (!selectedIds || selectedIds.length === 0) {
               this.showWarningToast('Aucun ingrédient à exporter');
@@ -2046,26 +1997,7 @@ export function createCollaborativeApp() {
           }
         },
 
-        /**
-         * Sélectionne tous les ingrédients au niveau principal
-         */
-        selectAllMainIngredients() {
-          if (!this.table || typeof this.table.getToggleAllRowsSelectedHandler !== 'function') {
-            console.warn('[Collaborative App] Table non disponible pour la sélection');
-            return;
-          }
 
-          try {
-            // Utiliser la méthode TanStack Table pour sélectionner toutes les lignes
-            this.table.getToggleAllRowsSelectedHandler()(true);
-
-            // Mettre à jour l'état local pour la cohérence
-            this.selectedIngredients = this.tableSelectedIds();
-            this.selectAllChecked = true;
-          } catch (error) {
-            console.error('[Collaborative App] Erreur lors de la sélection de tous les éléments:', error);
-          }
-        },
 
         /**
          * Désélectionne tous les ingrédients au niveau principal
