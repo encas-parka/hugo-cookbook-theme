@@ -70,8 +70,6 @@ import { AppwriteDataService } from "./AppwriteDataService.js";
 import { ModalMixin } from "./ModalMixin.js";
 import { AuthManager } from "./services/AuthManager.js";
 import {
-  getUserEmail,
-  getUserName,
   getDatabases,
   subscribeToCollections,
   APPWRITE_CONFIG,
@@ -548,7 +546,7 @@ export function createCollaborativeApp() {
 
       // Watcher pour la table - simplifié car la sélection est gérée par onRowSelectionChange
       table: {
-        handler(newTable) {
+        handler() {
           console.log('[Collaborative App] Table initialisée ou mise à jour');
           // La sélection est maintenant gérée directement par onRowSelectionChange
         },
@@ -594,7 +592,7 @@ export function createCollaborativeApp() {
           window.location.href = '/';
         },
 
-        showAuthToastForFeature(featureName) {
+        showAuthToastForFeature(_featureName) {
           if (!this.isAuthenticated) {
             this.showAuthToast = true;
 
@@ -1108,9 +1106,6 @@ export function createCollaborativeApp() {
 
             // Mettre à jour dans le tableau transformedIngredients (approche fonctionnelle)
             // Créer une map des ingrédients existants pour une recherche rapide
-            const existingIngredientsMap = new Map(
-              this.transformedIngredients.map(ing => [ing.$id, ing])
-            );
 
             // Combiner les ingrédients existants non modifiés avec les nouveaux
             const updatedIds = new Set(transformedIngredients.map(ing => ing.$id));
@@ -1212,7 +1207,7 @@ export function createCollaborativeApp() {
           }
         },
 
-        onConnectionError(error) {
+        onConnectionError(_error) {
           this.realtimeStatus.isConnected = false;
           this.realtimeStatus.isConnecting = false;
 
@@ -1319,32 +1314,6 @@ export function createCollaborativeApp() {
 
 
 
-        // === MÉTHODES POUR TANSTACK TABLE ===
-
-        handleTableGroupSelect(groupName, subRows) {
-          const ingredientIds = subRows.map(row => row.original.$id);
-          const isGroupSelected = ingredientIds.every(id => this.selectedIngredients.includes(id));
-
-          if (isGroupSelected) {
-            // Désélectionner tout le groupe
-            ingredientIds.forEach(id => {
-              const index = this.selectedIngredients.indexOf(id);
-              if (index > -1) {
-                this.selectedIngredients.splice(index, 1);
-              }
-            });
-          } else {
-            // Sélectionner tout le groupe
-            ingredientIds.forEach(id => {
-              if (!this.selectedIngredients.includes(id)) {
-                this.selectedIngredients.push(id);
-              }
-            });
-          }
-
-          this.selectAllChecked = this.selectedIngredients.length === this.filteredIngredients.length;
-        },
-
 
         // === MÉTHODES DE GESTION DES VUES ===
 
@@ -1400,43 +1369,6 @@ export function createCollaborativeApp() {
             console.warn('Impossible de charger la préférence de vue:', error);
             this.currentView = 'table';
           }
-        },
-
-
-
-        // === MÉTHODES DE SÉLECTION GROUPÉE ===
-
-        isGroupSelected(storeName) {
-          const group = this.groupedIngredients[storeName] || [];
-          return group.length > 0 && group.every(ing =>
-            this.selectedIngredients.includes(ing.$id)
-          );
-        },
-
-        handleGroupSelect(storeName) {
-          const group = this.groupedIngredients[storeName] || [];
-          const isGroupSelected = this.isGroupSelected(storeName);
-
-          if (isGroupSelected) {
-            // Désélectionner tout le groupe
-            group.forEach(ing => {
-              const index = this.selectedIngredients.indexOf(ing.$id);
-              if (index > -1) {
-                this.selectedIngredients.splice(index, 1);
-              }
-            });
-          } else {
-            // Sélectionner tout le groupe
-            group.forEach(ing => {
-              if (!this.selectedIngredients.includes(ing.$id)) {
-                this.selectedIngredients.push(ing.$id);
-              }
-            });
-          }
-
-          // Mettre à jour l'état "sélectionner tout"
-          this.selectAllChecked =
-            this.selectedIngredients.length === this.filteredIngredients.length;
         },
 
 
@@ -1519,7 +1451,7 @@ export function createCollaborativeApp() {
             const context = 'table-selection';
 
             // Transformer les IDs en objets ingrédients complets (avec propriétés calculées)
-            const selectedIngredientObjects = this.selectedIngredients.map(id => 
+            const selectedIngredientObjects = this.selectedIngredients.map(id =>
               this.transformedIngredients.find(ing => ing.$id === id)
             ).filter(ing => ing !== undefined);
 
@@ -1944,7 +1876,9 @@ export function createCollaborativeApp() {
 
           try {
             // Utiliser la méthode TanStack Table pour désélectionner toutes les lignes
-            this.table.getToggleAllRowsSelectedHandler()(false);
+            // Créer un événement simulé avec checked = false
+            const mockEvent = { target: { checked: false } };
+            this.table.getToggleAllRowsSelectedHandler()(mockEvent);
 
             // Mettre à jour l'état local pour la cohérence
             this.selectedIngredients = [];
@@ -2182,71 +2116,20 @@ export function createCollaborativeApp() {
         },
 
         // Méthode utilitaire pour formater les valeurs avec unités
-        formatValueWithUnit(value, unit) {
-          if (typeof value !== 'number') return value;
+        // formatValueWithUnit(value, unit) {
+        //   if (typeof value !== 'number') return value;
 
-          // Logique de formatage simplifiée - à adapter selon votre besoin
-          if (value >= 1000 && unit === 'gr.') {
-            return `${(value / 1000).toFixed(1)} kg`;
-          }
+        //   // Logique de formatage simplifiée - à adapter selon votre besoin
+        //   if (value >= 1000 && unit === 'gr.') {
+        //     return `${(value / 1000).toFixed(1)} kg`;
+        //   }
 
-          return `${Math.round(value)} ${unit}`;
-        },
+        //   return `${Math.round(value)} ${unit}`;
+        // },
 
         // === MÉTHODES D'ÉDITION ===
 
 
-        async submitPurchaseForm() {
-          if (!this.isPurchaseFormValid) return;
-
-          try {
-            // Obtenir les infos de l'utilisateur via appwrite-client.js
-            const userEmail = getUserEmail();
-            const userName = getUserName();
-
-            // Créer l'achat/stock avec le bon schéma
-            // FIXIT: gestion du puchase vs stock
-            const purchaseData = {
-              list: this.listId,
-              listIngredient: this.editingIngredient.$id, // Utiliser l'ID Appwrite de l'ingrédient
-              quantity: parseFloat(this.purchaseForm.quantity.toString()),
-              unit: this.purchaseForm.unit,
-              who: this.purchaseForm.who,
-              notes: this.purchaseForm.notes || "",
-              createdBy: userEmail,
-            };
-
-            // Ajouter les champs spécifiques aux achats
-            if (this.modalType === "purchase") {
-              purchaseData.store = this.purchaseForm.store || "";
-              purchaseData.price = this.purchaseForm.price
-                ? parseFloat(this.purchaseForm.price.toString())
-                : null;
-            }
-
-            const result = await this.database.createDocument(
-              APPWRITE_CONFIG.databaseId,
-              APPWRITE_CONFIG.collections.purchases, // Utilise la config
-              "unique()",
-              purchaseData,
-            );
-
-            // Mettre à jour le cache de suggestions avec le nouveau purchase
-            if (this.localStorageService) {
-              this.localStorageService.updateFromPurchase(purchaseData);
-              this.localStorageService.saveToStorage(this.listId);
-            }
-
-            // Fermer le modal et réinitialiser le formulaire
-            this.closePurchaseModal();
-
-            return true;
-          } catch (error) {
-            console.error("Erreur lors de la création de l'achat/stock:", error);
-            alert("Erreur lors de l'enregistrement: " + error.message);
-            return false;
-          }
-        },
 
 
 
@@ -2280,21 +2163,9 @@ export function createCollaborativeApp() {
           return new Date(dateStr).toLocaleDateString("fr-FR");
         },
 
-        formatTime(dateStr) {
-          if (!dateStr) return "-";
-          return new Date(dateStr).toLocaleTimeString("fr-FR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-        },
-
-
-        // === MÉTHODES POUR LE MODAL UNIFIÉ ===
-
-
 
         // === MÉTHODES DE STATUT ===
-
+        // UNUSED : TODO
         toggleIngredientStatus(ingredient) {
           console.log(
             "[Collaborative App] Toggle statut pour:",
@@ -2433,16 +2304,7 @@ export function createCollaborativeApp() {
           }
         },
 
-        hideAllToasts() {
-          this.toasts.forEach(toast => {
-            toast.show = false;
-          });
 
-          // Supprimer tous les toasts après l'animation
-          setTimeout(() => {
-            this.toasts = [];
-          }, 300);
-        },
 
         showSuccessToast(message, duration = 5000) {
           return this.showToast(message, 'success', duration, 'Succès');
