@@ -84,6 +84,15 @@ export const ModalMixin = {
       if (!this.modalState.editingIngredient?.calculations?.balancePerUnit) return [];
       return this.modalState.editingIngredient.calculations.balancePerUnit.map(item => item.unit);
     },
+    /**
+     * Retourne la liste combinée des volontaires (existants + nouveaux)
+     */
+    allVolunteers() {
+      const existingVolunteers = this.modalState.editingIngredient?.who || [];
+      const newVolunteers = this.editingVolunteers.filter(v => !existingVolunteers.includes(v));
+      return [...existingVolunteers, ...newVolunteers];
+    },
+
 
    },
 
@@ -99,7 +108,7 @@ export const ModalMixin = {
      */
     sanitizeText(text) {
       if (typeof text !== 'string') return text;
-      
+
       return text
         .replace(/[<>]/g, '') // Supprime les balises HTML
         .replace(/javascript:/gi, '') // Supprime les protocoles javascript
@@ -158,11 +167,11 @@ export const ModalMixin = {
       if (!dateString) return null;
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return null;
-      
+
       // Pas de dates dans le futur pour le stock
       const now = new Date();
       if (date > now) return null;
-      
+
       return date.toISOString().slice(0, 16);
     },
 
@@ -178,7 +187,7 @@ export const ModalMixin = {
       const focusableElements = modal.querySelectorAll(
         'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
       );
-      
+
       if (focusableElements.length > 0) {
         focusableElements[0].focus();
       }
@@ -390,11 +399,11 @@ export const ModalMixin = {
       if (originalPurchases.length !== currentPurchases.length) {
         return true;
       }
-      
+
       // Vérifier les achats modifiés, nouveaux ou supprimés
       const hasNewOrModified = currentPurchases.some(p => p.isNew || p.isDirty);
       const hasDeleted = originalPurchases.length > currentPurchases.filter(p => !p.isNew).length;
-      
+
       return hasNewOrModified || hasDeleted;
     },
 
@@ -554,6 +563,14 @@ export const ModalMixin = {
       return this.deletedVolunteers.has(volunteer);
     },
 
+    /**
+     * Vérifie si un volontaire est nouveau (ajouté durant l'édition)
+     */
+    isNewVolunteer(volunteer) {
+      const existingVolunteers = this.modalState.editingIngredient?.who || [];
+      return !existingVolunteers.includes(volunteer);
+    },
+
     // === GESTION DES MAGASINS ===
 
     /**
@@ -655,7 +672,7 @@ export const ModalMixin = {
      */
     showErrorToast(message, error = null) {
       let fullMessage = message;
-      
+
       if (error) {
         if (error.code === 400) {
           fullMessage += ' Les données fournies sont invalides.';
@@ -669,7 +686,7 @@ export const ModalMixin = {
           fullMessage += ` ${error.message}`;
         }
       }
-      
+
       // Utiliser un toast ou une alerte existant
       if (window.showToast) {
         window.showToast(fullMessage, 'error');
@@ -721,10 +738,10 @@ export const ModalMixin = {
 
       } catch (error) {
         console.error('Erreur lors de la sauvegarde:', error);
-        
+
         // Messages d'erreur spécifiques selon le type d'erreur
         let errorMessage = 'Une erreur est survenue lors de la sauvegarde.';
-        
+
         if (error.message?.includes('purchase')) {
           errorMessage = 'Erreur lors de la sauvegarde des achats.';
         } else if (error.message?.includes('stock')) {
@@ -734,7 +751,7 @@ export const ModalMixin = {
         } else if (error.message?.includes('store')) {
           errorMessage = 'Erreur lors de la sauvegarde du magasin.';
         }
-        
+
         this.showErrorToast(errorMessage, error);
         throw error;
       } finally {
@@ -750,7 +767,7 @@ export const ModalMixin = {
     if (this.deleteConfirmation.progressInterval) {
       clearInterval(this.deleteConfirmation.progressInterval);
     }
-    
+
     // Nettoyer les écouteurs d'événements du modal
     if (this.modalCleanup) {
       this.modalCleanup();

@@ -1,5 +1,5 @@
 <!-- Modal d'attribution groupée des bénévoles -->
-<div v-if="groupWhoModal.isOpen" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
+<div v-if="groupWhoModal.isOpen" class="modal fade show d-block modal-fullscreen-sm-down" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
@@ -7,16 +7,34 @@
           <i class="fas fa-users me-2"></i>
           Mandat d'achat
 
-        <span v-if="groupAssignment.context === 'grouped-header'">
-         : [[ groupAssignment.groupName ]]
-          <span class="badge bg-primary ms-2">[[ modalSelectedIngredients.length ]]</span>
-
-        </v></div>
+        </div>
         <button type="button" class="btn-close" @click="closeGroupWhoModal" aria-label="Fermer"></button>
       </div>
 
       <div class="modal-body">
+        <!-- Informations sur le groupe -->
+        <div class="alert alert-info mb-3">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-info-circle me-2"></i>
+            <div>
+              <!-- Message contextuel selon le type d'action -->
+              <div v-if="groupAssignment.context === 'grouped-header'">
+                <strong>Modification du groupe : </strong>[[ groupAssignment.groupName ]]
+                <span class="badge bg-primary ms-2">[[ modalSelectedIngredients.length ]] ingrédients</span>
 
+              </div>
+              <div v-else-if="groupAssignment.context === 'table-selection'">
+                <strong>Sélection personnalisée</strong>
+                <span class="badge bg-success ms-2">[[ modalSelectedIngredients.length ]] ingrédients</span>
+
+              </div>
+              <div v-else>
+                <strong>Groupe : </strong>[[ groupAssignment.groupName ]]
+                <span class="badge bg-secondary ms-2">[[ modalSelectedIngredients.length ]] ingrédients</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <form @submit.prevent="handleGroupAssignmentSubmit">
           <!-- Champ de saisie avec auto-complétion -->
@@ -119,16 +137,16 @@
                 </button>
               </div>
             </div>
-            <small class="text-muted">
+            <small class="text-muted lh-sm">
               <i class="fas fa-info-circle me-1"></i>
-              Cliquez sur les badges pour choisir les attributions à supprimer/conserver.
+              Cliquez sur les badges pour choisir les attributions à supprimer/conserver. Les modifications seront appliquées à tous les produits sélectionnés.
             </small>
-            <div class="border rounded overflow-auto" style="max-height: 400px;">
+            <div class="border rounded overflow-auto bg-body-secondary" style="max-height: 400px;">
               <div
                 v-for="(ingredient, index) in modalSelectedIngredients"
                 :key="ingredient.$id"
                 class="py-2 px-3 border-bottom"
-                :class="{ 'bg-light': index % 2 === 0 }"
+
               >
                 <!-- En-tête de l'ingrédient -->
                   <div class="d-flex flex-wrap align-items-center justify-content-between">

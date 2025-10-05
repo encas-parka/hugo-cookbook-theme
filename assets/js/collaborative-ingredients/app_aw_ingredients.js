@@ -155,6 +155,7 @@ export function createCollaborativeApp() {
         selectedIngredients: [], // IDs des ingrédients sélectionnés dans le tableau TanStack
         modalSelectedIngredients: [], // Ingrédients avec état de sélection pour le modal
         selectAllChecked: false,
+        rowSelection: {}, // État de sélection pour TanStack Table (réactif)
 
         // Modals
         editingIngredient: null,
@@ -399,32 +400,24 @@ export function createCollaborativeApp() {
        * Compte le nombre d'ingrédients sélectionnés dans le tableau TanStack
        */
       tableSelectedCount() {
-        // Utiliser directement la méthode TanStack pour le temps réel
-        if (!this.table || typeof this.table.getSelectedRowModel !== 'function') {
-          console.log('[Collaborative App] table non disponible, fallback vers selectedIngredients:', this.selectedIngredients?.length || 0);
-          return this.selectedIngredients ? this.selectedIngredients.length : 0;
-        }
-
-        try {
-          const count = this.table.getSelectedRowModel().rows.length;
-          console.log('[Collaborative App] tableSelectedCount direct:', count, 'selectedIngredients:', this.selectedIngredients?.length || 0);
-          return count;
-        } catch (error) {
-          console.warn('[Collaborative App] Erreur lors du comptage des éléments sélectionnés:', error);
-          return this.selectedIngredients ? this.selectedIngredients.length : 0;
-        }
+        // Utiliser directement selectedIngredients qui est maintenant synchronisé en temps réel
+        const count = this.selectedIngredients ? this.selectedIngredients.length : 0;
+        console.log('[Collaborative App] tableSelectedCount via selectedIngredients:', count);
+        return count;
       },
 
       /**
        * Retourne les IDs des ingrédients sélectionnés dans le tableau TanStack
        */
       tableSelectedIds() {
-        if (!this.table || typeof this.table.getSelectedRowModel !== 'function') {
+        if (!this.table || !this.table.getState) {
           console.log('[Collaborative App] tableSelectedIds: table non disponible');
           return [];
         }
         try {
-          const ids = this.table.getSelectedRowModel().rows.map(row => row.original.$id);
+          // Utiliser le state rowSelection qui est plus direct
+          const rowSelection = this.table.getState().rowSelection || {};
+          const ids = Object.keys(rowSelection).filter(key => rowSelection[key]);
           console.log('[Collaborative App] tableSelectedIds:', ids.length, 'IDs:', ids);
           return ids;
         } catch (error) {
@@ -537,6 +530,7 @@ export function createCollaborativeApp() {
           state: {
             grouping: this.tableGrouping,
             expanded: true,
+            rowSelection: this.rowSelection || {},
           },
           getCoreRowModel: getCoreRowModel(),
           getGroupedRowModel: getGroupedRowModel(),
@@ -544,6 +538,22 @@ export function createCollaborativeApp() {
           getFilteredRowModel: getFilteredRowModel(),
           getExpandedRowModel: getExpandedRowModel(),
           enableGrouping: true,
+          enableRowSelection: true,
+          onRowSelectionChange: (updater) => {
+            const newSelection = typeof updater === 'function' ? updater(this.table?.getState().rowSelection) : updater;
+            console.log('[Collaborative App] onRowSelectionChange déclenché:', newSelection);
+            
+            // Maintenir l'état rowSelection synchronisé
+            this.rowSelection = newSelection;
+            
+            // Extraire les IDs des lignes sélectionnées
+            const selectedIds = Object.keys(newSelection).filter(key => newSelection[key]);
+            console.log('[Collaborative App] IDs sélectionnés:', selectedIds);
+            
+            // Mettre à jour selectedIngredients
+            this.selectedIngredients = selectedIds;
+            console.log('[Collaborative App] selectedIngredients mis à jour:', this.selectedIngredients);
+          },
         });
       }
     },
@@ -579,41 +589,13 @@ export function createCollaborativeApp() {
         deep: true
       },
 
-      // Watcher pour synchroniser l'état de sélection du tableau TanStack
+      // Watcher pour la table - simplifié car la sélection est gérée par onRowSelectionChange
       table: {
-        handler(newTable, oldTable) {
-          console.log('[Collaborative App] Watcher table déclenché');
-
-          // Éviter les mises à jour superflues lors de l'initialisation
-          if (!newTable || oldTable === undefined) {
-            console.log('[Collaborative App] Initialisation - pas de synchronisation');
-            return;
-          }
-
-          // Mettre à jour selectedIngredients quand la sélection du tableau change
-          if (newTable && typeof newTable.getSelectedRowModel === 'function') {
-            try {
-              const selectedIds = newTable.getSelectedRowModel().rows.map(row => row.original.$id);
-              const oldSelectedIds = this.selectedIngredients || [];
-
-              console.log('[Collaborative App] IDs sélectionnés:', selectedIds);
-              console.log('[Collaborative App] Anciens IDs:', oldSelectedIds);
-
-              // Ne mettre à jour que si la sélection a réellement changé
-              if (JSON.stringify(selectedIds.sort()) !== JSON.stringify(oldSelectedIds.sort())) {
-                this.selectedIngredients = [...selectedIds];
-                console.log('[Collaborative App] Sélection synchronisée:', selectedIds.length, 'ingrédients');
-              } else {
-                console.log('[Collaborative App] Sélection inchangée');
-              }
-            } catch (error) {
-              console.error('[Collaborative App] Erreur dans le watcher table:', error);
-            }
-          } else {
-            console.log('[Collaborative App] Table non prêt pour la synchronisation');
-          }
+        handler(newTable) {
+          console.log('[Collaborative App] Table initialisée ou mise à jour');
+          // La sélection est maintenant gérée directement par onRowSelectionChange
         },
-        deep: true
+        deep: false
       },
     },
 
@@ -1503,6 +1485,7 @@ export function createCollaborativeApp() {
           }
           this.selectAllChecked =
             this.selectedIngredients.length === this.filteredIngredients.length;
+          console.log('ingredients selected →', this.selectedIngredients);
         },
 
         // === MÉTHODES DE SÉLECTION GROUPÉE ===
@@ -2254,30 +2237,9 @@ export function createCollaborativeApp() {
          * Gère la soumission du formulaire d'assignation de magasins
          */
         async handleStoreAssignmentSubmit() {
-          console.log('[Collaborative App] Début de la soumission des magasins - Contexte:', this.groupAssignment.context);
-          console.log('[Collaborative App] Ingrédients concernés:', this.modalSelectedIngredients.length);
 
           // Filtrer les ingrédients sélectionnés pour le traitement
           const selectedIngredients = this.modalSelectedIngredients.filter(ing => ing.selected);
-
-          if (selectedIngredients.length === 0) {
-            this.addToast('Aucun ingrédient sélectionné', 'warning');
-            return;
-          }
-
-          if (!this.groupAssignment.value.trim()) {
-            this.addToast('Veuillez entrer un nom de magasin', 'warning');
-            return;
-          }
-
-          // confirmation si plus de 5 ingrédients
-          if (selectedIngredients.length > 5) {
-            const confirmMessage = `Vous êtes sur le point d'assigner le magasin "${this.groupAssignment.value.trim()}" à ${selectedIngredients.length} ingrédient(s). Voulez-vous continuer ?`;
-            if (!confirm(confirmMessage)) {
-              return;
-            }
-          }
-
           this.groupAssignment.isProcessing = true;
 
           try {
@@ -2312,7 +2274,7 @@ export function createCollaborativeApp() {
 
             if (failures.length > 0) {
               const errorMessages = failures.map(f => `${f.ingredient}: ${f.error}`).join('\n');
-              this.addToast(
+              this.showToast(
                 `${failures.length} assignation(s) ont échoué:\n${errorMessages}`,
                 'danger',
                 5000
@@ -2321,7 +2283,7 @@ export function createCollaborativeApp() {
 
             if (successes.length > 0) {
               let successMessage = `Magasin "${this.groupAssignment.value.trim()}" assigné à ${successes.length} ingrédient(s)`;
-              this.addToast(successMessage, 'success', 3000);
+              this.showToast(successMessage, 'success', 3000);
             }
 
             // Fermer le modal uniquement s'il y a eu des succès
@@ -2331,7 +2293,7 @@ export function createCollaborativeApp() {
 
           } catch (error) {
             console.error('[Collaborative App] Erreur lors de la soumission groupée des magasins:', error);
-            this.addToast(`Erreur lors de l'assignation des magasins: ${error.message}`, 'danger', 5000);
+            this.showToast(`Erreur lors de l'assignation des magasins: ${error.message}`, 'danger', 5000);
           } finally {
             this.groupAssignment.isProcessing = false;
           }

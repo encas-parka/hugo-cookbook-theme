@@ -1,12 +1,13 @@
 <!-- Modal d'assignation de magasin (remplacement unique) -->
-<div v-if="groupStoreModal.isOpen" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
+<div v-if="groupStoreModal.isOpen" class="modal fade show d-block modal-fullscreen-sm-down" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">
+      <div class="modal-title my-0 h5">
           <i class="fas fa-store me-2"></i>
-          Assignation des magasins
-        </h5>
+          Définir un magasin
+
+    </div>
         <button type="button" class="btn-close" @click="closeGroupStoreModal" aria-label="Fermer"></button>
       </div>
 
@@ -20,18 +21,12 @@
               <div v-if="groupAssignment.context === 'grouped-header'">
                 <strong>Modification du groupe : </strong>[[ groupAssignment.groupName ]]
                 <span class="badge bg-primary ms-2">[[ modalSelectedIngredients.length ]] ingrédients</span>
-                <div class="small text-muted mt-1">
-                  <i class="fas fa-info-circle me-1"></i>
-                  Vous modifiez tous les ingrédients de ce groupe
-                </div>
+
               </div>
               <div v-else-if="groupAssignment.context === 'table-selection'">
                 <strong>Sélection personnalisée</strong>
                 <span class="badge bg-success ms-2">[[ modalSelectedIngredients.length ]] ingrédients</span>
-                <div class="small text-muted mt-1">
-                  <i class="fas fa-check-square me-1"></i>
-                  Vous modifiez uniquement les ingrédients sélectionnés dans le tableau
-                </div>
+
               </div>
               <div v-else>
                 <strong>Groupe : </strong>[[ groupAssignment.groupName ]]
@@ -86,40 +81,16 @@
             </div>
           </div>
 
-          <!-- Option de remplacement (toujours activé pour les magasins) -->
-          <div class="mb-4">
-            <div class="form-check form-switch">
-              <input
-                class="form-check-input"
-                type="checkbox"
-                role="switch"
-                id="storeReplaceSwitch"
-                v-model="groupAssignment.replaceExisting"
-                checked
-              >
-              <label class="form-check-label" for="storeReplaceSwitch">
-                <span class="fw-bold">
-                  <i class="fas fa-exchange-alt me-1"></i>
-                  Remplacer le magasin existant
-                </span>
-              </label>
-            </div>
-            <div class="form-text">
-              <small class="text-muted">
-                <i class="fas fa-info-circle me-1"></i>
-                Chaque ingrédient ne peut avoir qu'un seul magasin. Le magasin actuel sera remplacé.
-              </small>
-            </div>
-          </div>
+
 
           <!-- Liste des ingrédients concernés avec leurs magasins actuels -->
-          <div class="mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <h6 class="mb-0">
+          <div class="my-4">
+            <div class="d-flex justify-content-between align-items-top mb-3">
+              <div class="fw-bolder fs-6">
                 <i class="fas fa-list me-1"></i>
                 Ingrédients concernés
-              </h6>
-              <div class="btn-group btn-group-sm">
+              </div>
+              <div class="btn-group btn-group-sm" >
                 <button
                   type="button"
                   class="btn btn-outline-primary"
@@ -138,61 +109,54 @@
             </div>
             <small class="text-muted">
               <i class="fas fa-info-circle me-1"></i>
-              Les ingrédients avec un magasin existant le verront remplacé par le nouveau magasin.
+              Les produits sélectionnés avec un magasin existant le verront remplacé par le nouveau magasin.
             </small>
-            <div class="ingredient-list border rounded overflow-auto" style="max-height: 400px;">
+            <div class="border rounded overflow-auto bg-body-secondary" style="max-height: 400px;">
               <div
                 v-for="(ingredient, index) in modalSelectedIngredients"
                 :key="ingredient.$id"
-                class="ingredient-item py-1 px-3 border-bottom"
-                :class="{ 'bg-light': index % 2 === 0 }"
+                class="py-2 px-3 border-bottom"
+
               >
                 <!-- En-tête de l'ingrédient -->
-                <div class="d-flex align-items-center mb-2">
-                  <div class="form-check me-3">
+                  <div class="d-flex flex-wrap align-items-center justify-content-between">
+                  <div class="form-check me-3 d-flex flex-grow-1 gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      class="form-check-input"
+                      class="form-check-input cursor-pointer"
                       :id="'store-ingredient-' + ingredient.$id"
                       v-model="ingredient.selected"
                     >
+                    <label class="form-check-label fw-bold cursor-pointer flex-grow-1" :for="'store-ingredient-' + ingredient.$id">[[ ingredient.ingredientName ]]</label>
                   </div>
-                  <div class="flex-grow-1">
-                    <div class="fw-bold">[[ ingredient.ingredientName ]]</div>
                     <small class="text-muted">
                       Besoin : [[ ingredient.totalNeedDisplay ]] |
                       Manque : [[ ingredient.balanceDisplay ]]
                     </small>
                   </div>
-                  <div class="ms-2">
-                    <span
-                      class="badge"
-                      :class="ingredient.balanceClass"
-                    >
-                      [[ ingredient.balanceDisplay ]]
-                    </span>
-                  </div>
-                </div>
 
                 <!-- Magasin actuel -->
-                <div class="mb-2">
+                <div v-if="ingredient.store && ingredient.store.trim()" class="d-flex flex-wrap gap-2 align-items-baseline">
                   <div class="small text-muted mb-1">Magasin actuel :</div>
-                  <div>
                     <span
-                      v-if="ingredient.store && ingredient.store.trim()"
-                      class="badge bg-info"
+                      class="badge d-flex align-items-center text-decoration-none"
+                      :class="ingredient.store ? 'bg-info' : 'bg-secondary'"
                     >
                       <i class="fas fa-store me-1"></i>
-                      [[ ingredient.store ]]
+                      <span v-if="ingredient.store && ingredient.store.trim()">
+                        [[ ingredient.store ]]
+                        <span class="ms-1">
+                          <i class="fas fa-exchange-alt"></i>
+                        </span>
+                      </span>
+                      <span v-else>
+                        Aucun magasin
+                      </span>
                     </span>
-                    <span
-                      v-else
-                      class="text-muted"
-                    >
-                      <i class="fas fa-minus me-1"></i>
-                      Aucun magasin
-                    </span>
-                  </div>
+                </div>
+                <div v-else class="small text-muted">
+                  <i class="fas fa-minus me-1"></i>
+                  Aucun magasin définit
                 </div>
               </div>
             </div>
@@ -220,11 +184,11 @@
               <div v-if="groupAssignment.summary.ingredientsCount > 0">
                 • [[ groupAssignment.summary.ingredientsCount ]] ingrédient(s) modifié(s)
               </div>
-              <div v-if="storeAssignmentModal.summary.replacementsCount > 0">
+              <div v-if="groupAssignment.summary.replacementsCount > 0">
                 • <span class="text-warning">[[ groupAssignment.summary.replacementsCount ]] magasin(s) remplacé(s)</span>
               </div>
-              <div v-if="storeAssignmentModal.summary.assignmentsCount > 0">
-                • <span class="text-success">[[ groupAssignment.summary.assignmentsCount ]] nouveau(x) magasin assigné</span>
+              <div v-if="groupAssignment.value && groupAssignment.value.trim()">
+                • <span class="text-success">[[ groupAssignment.value ]] sera assigné</span>
               </div>
             </div>
           </div>
@@ -235,7 +199,7 @@
         <button
           type="button"
           class="btn btn-secondary"
-          @click="closeStoreAssignmentModal"
+          @click="closeGroupStoreModal"
         >
           <i class="fas fa-times me-1"></i>
           Annuler
@@ -252,7 +216,7 @@
           </span>
           <span v-else>
             <i class="fas fa-save me-1"></i>
-            Assigner le magasin
+            Définir le magasin
           </span>
         </button>
       </div>

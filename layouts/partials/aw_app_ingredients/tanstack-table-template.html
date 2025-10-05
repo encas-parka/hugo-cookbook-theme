@@ -48,12 +48,7 @@
               <td v-if="row.getIsGrouped()" :colSpan="row.getVisibleCells().length" class="table-warning sticky-top">
                 <div class="d-flex align-items-center justify-content-between p-2">
                   <div class="d-flex align-items-center gap-3">
-                    <input
-                      type="checkbox"
-                      class="form-check-input"
-                      :checked="row.getIsAllSubRowsSelected()"
-                      @change="row.getToggleAllSubRowsSelectedHandler()?.()"
-                    >
+
                     <div class="d-flex align-items-center gap-2">
                       <i :class="[
                         'fas',
@@ -84,6 +79,7 @@
                     </button>
                   </div>
                 </div>
+
               </td>
               <!-- Ligne d'ingrédient -->
               <td v-else v-for="cell in row.getVisibleCells()" :key="cell.id">

@@ -67,13 +67,10 @@ export class TableColumnsConfig {
   _getSelectionColumn() {
     return {
       id: 'selection',
-      header: ({ table }) => this.h('input', {
-        type: 'checkbox',
-        checked: table.getIsAllRowsSelected(),
-        onChange: table.getToggleAllRowsSelectedHandler()
-      }),
+
       cell: ({ row }) => this.h('input', {
         type: 'checkbox',
+        class: 'form-check-input',
         checked: row.getIsSelected(),
         onChange: row.getToggleSelectedHandler()
       }),
