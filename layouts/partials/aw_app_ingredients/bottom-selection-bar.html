@@ -46,6 +46,18 @@
             Magasin
           </button>
 
+          <!-- Bouton "Fusionner" -->
+          <button
+            type="button"
+            class="btn btn-warning"
+            @click="openMergeModal"
+            :disabled="tableSelectedCount < 2"
+            v-if="tableSelectedCount > 1"
+          >
+            <i class="fas fa-object-group me-2"></i>
+            Fusionner
+          </button>
+
           <!-- Bouton d'actions supplémentaires (dropdown) -->
           <!--<div class="dropdown">
             <button

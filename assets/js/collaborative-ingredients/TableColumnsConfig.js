@@ -280,7 +280,7 @@ export class TableColumnsConfig {
   }
 
   /**
-   * Colonne d'actions avec bouton d'édition
+   * Colonne d'actions avec boutons d'édition et renommage
    * @private
    */
   _getActionsColumn() {
@@ -294,10 +294,15 @@ export class TableColumnsConfig {
             class: 'btn btn-sm btn-outline-primary btn-icon me-1',
             onClick: () => this._safeHandlerCall('openUnifiedModal', ingredient, 'recipes'),
             title: 'Gérer l\'ingrédient'
-          }, [this.h('i', { class: 'fas fa-edit' })])
+          }, [this.h('i', { class: 'fas fa-edit' })]),
+          this.h('button', {
+            class: 'btn btn-sm btn-outline-secondary btn-icon me-1',
+            onClick: () => this._safeHandlerCall('handleRenameIngredient', ingredient),
+            title: 'Renommer l\'ingrédient'
+          }, [this.h('i', { class: 'fas fa-tag' })])
         ]);
       },
-      size: 50
+      size: 80 // Augmenté pour accommoder les deux boutons
     };
   }
 

@@ -68,6 +68,7 @@ import { DataTransformer } from "./services/DataTransformer.js";
 import { SyncService } from "./services/SyncService.js";
 import { AppwriteDataService } from "./AppwriteDataService.js";
 import { ModalMixin } from "./ModalMixin.js";
+import { IngredientManagementMixin } from "./IngredientManagementMixin.js";
 import { AuthManager } from "./services/AuthManager.js";
 import {
   getDatabases,
@@ -83,8 +84,8 @@ export function createCollaborativeApp() {
     // L'application utilisera le contenu existant du div #collaborativeApp
     delimiters: ["[[", "]]"],
 
-    // Intégration du ModalMixin pour la gestion du modal unifié
-    mixins: [ModalMixin],
+    // Intégration des mixins pour la gestion des modaux et des ingrédients
+    mixins: [ModalMixin, IngredientManagementMixin],
 
     // --- NOUVEAU composant pour rendre les VNodes ---
     components: {
@@ -249,10 +250,18 @@ export function createCollaborativeApp() {
       filteredIngredients() {
         const filtered = this.transformedIngredients
           .filter((ingredient) => {
-            // Filtre par recherche
+            // Filtre par recherche (inclut les noms précédents)
             if (this.searchQuery.trim()) {
               const query = this.searchQuery.toLowerCase().trim();
-              if (!ingredient.ingredientName.toLowerCase().includes(query)) {
+              const nameMatches = ingredient.ingredientName.toLowerCase().includes(query);
+              
+              // Vérifier les noms précédents
+              const previousNamesMatch = ingredient.previousNames && 
+                ingredient.previousNames.some(prevName => 
+                  prevName.toLowerCase().includes(query)
+                );
+              
+              if (!nameMatches && !previousNamesMatch) {
                 return false;
               }
             }
