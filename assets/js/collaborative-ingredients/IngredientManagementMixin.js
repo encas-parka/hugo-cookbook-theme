@@ -5,6 +5,8 @@
  */
 
 import { unitsManager } from './UnitsManager.js';
+import { IngredientCalculator } from './services/IngredientCalculator.js';
+import { DataTransformer } from './services/DataTransformer.js';
 
 export const IngredientManagementMixin = {
   data() {
@@ -19,7 +21,7 @@ export const IngredientManagementMixin = {
 
       // État du modal de fusion
       mergeModal: {
-        isOpen: false,
+        // isOpen: false,
         selectedIngredients: [],
         mergedIngredient: {
           name: '',
@@ -57,39 +59,50 @@ export const IngredientManagementMixin = {
 
     /**
      * Calcule les quantités consolidées pour la fusion
+     * Délégué à IngredientCalculator pour centraliser la logique
      */
     consolidatedQuantities() {
       if (!this.mergeModal.selectedIngredients.length) return [];
 
-      const allQuantities = [];
+      try {
+        // Utiliser le service centralisé pour les calculs
+        return IngredientCalculator.calculateMergedQuantities(
+          this.mergeModal.selectedIngredients,
+          this.purchases
+        );
+      } catch (error) {
+        console.error('Erreur lors du calcul des quantités consolidées:', error);
+        return [];
+      }
+    },
 
-      // Récupérer les quantités des achats de tous les ingrédients
-      this.mergeModal.selectedIngredients.forEach(ingredient => {
-        if (ingredient.purchases && ingredient.purchases.length) {
-          ingredient.purchases.forEach(purchase => {
-            allQuantities.push({
-              value: purchase.quantity,
-              unit: purchase.unit,
-              ingredientName: ingredient.ingredientName
-            });
-          });
-        }
 
-        // Ajouter aussi les quantités manquantes (besoin)
-        if (ingredient.calculations?.balancePerUnit) {
-          ingredient.calculations.balancePerUnit.forEach(balance => {
-            if (balance.value > 0) {
-              allQuantities.push({
-                value: balance.value,
-                unit: balance.unit,
-                ingredientName: ingredient.ingredientName
-              });
-            }
-          });
-        }
-      });
 
-      return unitsManager.consolidateQuantities(allQuantities);
+    /**
+     * Formate les quantités consolidées pour l'affichage
+     */
+    formattedConsolidatedQuantities() {
+      const quantities = this.consolidatedQuantities();
+      if (!quantities.length) return '';
+
+      // Grouper par type
+      const purchases = quantities.filter(q => q.type === 'purchase');
+      const needs = quantities.filter(q => q.type === 'need');
+
+      const formatGroup = (group) => {
+        return group.map(q => DataTransformer.formatValueWithUnit(q.value, q.unit)).join(' + ');
+      };
+
+      let result = '';
+      if (purchases.length > 0) {
+        result += `Achats: ${formatGroup(purchases)}`;
+      }
+      if (needs.length > 0) {
+        if (result) result += ' | ';
+        result += `Besoins: ${formatGroup(needs)}`;
+      }
+
+      return result || 'Aucune quantité';
     }
   },
 
@@ -143,8 +156,8 @@ export const IngredientManagementMixin = {
         };
 
         // Mettre à jour via Appwrite
-        await this.appwriteDatabase.updateDocument(
-          APPWRITE_CONFIG.databaseId,
+        await this.database.updateDocument(
+          this.appwriteDataService.config.databaseId,
           'ingredients',
           ingredient.$id,
           updateData
@@ -156,7 +169,7 @@ export const IngredientManagementMixin = {
         ingredient.nameHistory = updateData.nameHistory;
 
         // Mettre à jour la collection locale
-        this._updateLocalCollection('ingredients', ingredient.$id, ingredient);
+        this._updateLocalCollection(this.ingredients, ingredient, 'update');
 
         // Afficher le message de succès
         this.showSuccessToast(`Ingrédient "${oldName}" renommé en "${newName}"`);
@@ -176,12 +189,16 @@ export const IngredientManagementMixin = {
      * Ouvre le modal de fusion pour les ingrédients sélectionnés
      */
     openMergeModal() {
-      const selectedIngredients = this.tableData.filter(item => item.selected);
+      // Récupérer les objets ingrédients complets avec données transformées (UI)
+      const selectedIngredients = this.selectedIngredients
+        .map(id => this.transformedIngredients.find(ing => ing.$id === id))
+        .filter(Boolean); // Filtrer les undefined au cas où
 
       if (selectedIngredients.length < 2) {
         this.showErrorToast('Veuillez sélectionner au moins 2 ingrédients à fusionner');
         return;
       }
+
 
       this.mergeModal.selectedIngredients = selectedIngredients;
       this.mergeModal.isOpen = true;
@@ -246,7 +263,6 @@ export const IngredientManagementMixin = {
      * Met à jour le nom de l'ingrédient fusionné et vérifie les conflits
      */
     updateMergedIngredientName() {
-      this.mergeModal.mergedIngredient.name = this.mergeModal.mergedIngredient.name.trim();
       this.checkNameConflicts();
     },
 
@@ -292,17 +308,22 @@ export const IngredientManagementMixin = {
         const mergedData = this.mergeModal.mergedIngredient;
         const sourceIngredients = this.mergeModal.selectedIngredients;
 
+        // Valider les données avant la sauvegarde
+        const validationResult = this.validateMergeData(mergedData, sourceIngredients);
+        if (!validationResult.isValid) {
+          throw new Error(`Validation échouée: ${validationResult.errors.join(', ')}`);
+        }
+
         // 1. Créer le nouvel ingrédient fusionné
         const newIngredient = await this.createMergedIngredient(mergedData, sourceIngredients);
 
         // 2. Marquer les ingrédients source comme fusionnés
-        await this.markIngredientsAsMerged(sourceIngredients, newIngredient);
+        // await this.markIngredientsAsMerged(sourceIngredients, newIngredient);
 
-        // 3. Migrer les purchases vers le nouvel ingrédient
-        await this.migratePurchases(sourceIngredients, newIngredient);
-
-        // 4. Mettre à jour l'UI localement
-        this.updateUIAfterMerge(sourceIngredients, newIngredient);
+        // [AI] Forcer la retransformation complète des données pour bénéficier des purchases enrichis
+        setTimeout(() => {
+          this.transformDataForUI(true);
+        }, 1000); // Attendre un peu que le realtime ait propagé les changements
 
         // Afficher le message de succès
         this.showSuccessToast(
@@ -322,29 +343,112 @@ export const IngredientManagementMixin = {
     },
 
     /**
+     * Valide les données de fusion
+     */
+    validateMergeData(mergedData, sourceIngredients) {
+      const errors = [];
+
+      // Validation du nom
+      if (!mergedData.name || mergedData.name.trim().length === 0) {
+        errors.push('Le nom de l\'ingrédient fusionné est requis');
+      }
+      if (mergedData.name.length > 25) {
+        errors.push('Le nom de l\'ingrédient est trop long (max 25 caractères)');
+      }
+
+      // Validation du type
+      if (!mergedData.ingType) {
+        errors.push('Le type d\'ingrédient est requis');
+      }
+
+      // Validation des ingrédients source
+      if (!sourceIngredients || sourceIngredients.length < 2) {
+        errors.push('Il faut au moins 2 ingrédients à fusionner');
+      }
+
+      // Validation du magasin
+      if (mergedData.store && mergedData.store.length > 25) {
+        errors.push('Le nom du magasin est trop long (max 25 caractères)');
+      }
+
+      // Validation des volontaires
+      if (mergedData.who && Array.isArray(mergedData.who)) {
+        mergedData.who.forEach(volunteer => {
+          if (volunteer && volunteer.length > 15) {
+            errors.push(`Le nom du volontaire "${volunteer}" est trop long (max 15 caractères)`);
+          }
+        });
+      }
+
+      return {
+        isValid: errors.length === 0,
+        errors
+      };
+    },
+
+    /**
      * Crée le nouvel ingrédient fusionné
      */
     async createMergedIngredient(mergedData, sourceIngredients) {
       const now = new Date().toISOString();
 
       // Consolidé les recipeOccurrences
+      // [AI] FIXIT : recipeOccurrences est un tableau de chaînes JSON dans Appwrite
       const allRecipeOccurrences = [];
       sourceIngredients.forEach(ingredient => {
-        if (ingredient.recipeOccurrences) {
-          allRecipeOccurrences.push(...ingredient.recipeOccurrences);
+        if (ingredient.recipeOccurrences && Array.isArray(ingredient.recipeOccurrences)) {
+          ingredient.recipeOccurrences.forEach(occurrenceString => {
+            if (typeof occurrenceString === 'string') {
+              try {
+                const parsedOccurrence = JSON.parse(occurrenceString);
+                allRecipeOccurrences.push(parsedOccurrence);
+              } catch (e) {
+                console.warn('Erreur parsing occurrence string:', e);
+              }
+            } else if (occurrenceString && typeof occurrenceString === 'object') {
+              // Cas où l'occurrence est déjà un objet (déjà parsé)
+              allRecipeOccurrences.push(occurrenceString);
+            }
+          });
+        }
+        console.log('[DEBUG] recipeOccurrences merging:', allRecipeOccurrences);
+      });
+
+      // Récupérer et consolider les besoins depuis tous les ingrédients sources
+      const allNeededQuantities = [];
+      sourceIngredients.forEach(ingredient => {
+        let needs = [];
+
+        // Parser totalNeededConsolidated
+        if (ingredient.totalNeededConsolidated) {
+          if (typeof ingredient.totalNeededConsolidated === 'string') {
+            try {
+              needs = JSON.parse(ingredient.totalNeededConsolidated);
+            } catch (e) {
+              console.warn('Erreur parsing totalNeededConsolidated:', e);
+              needs = [];
+            }
+          } else if (Array.isArray(ingredient.totalNeededConsolidated)) {
+            needs = ingredient.totalNeededConsolidated;
+          }
+        }
+
+        // Ajouter les besoins consolidés
+        if (Array.isArray(needs)) {
+          allNeededQuantities.push(...needs);
         }
       });
 
-      // Calculer les quantités totales consolidées
-      const totalQuantities = this.calculateTotalQuantities(sourceIngredients);
+      // Consolider les quantités par unité pour éviter les doublons
+      const consolidatedNeeds = this.consolidateQuantitiesByUnit(allNeededQuantities);
 
       const newIngredientData = {
-        ingredientUuid: `ing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        ingredientUuid: `merged_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         ingredientName: mergedData.name,
         ingType: mergedData.ingType,
-        totalNeededRaw: totalQuantities.raw,
-        totalNeededConsolidated: totalQuantities.consolidated,
-        recipeOccurrences: allRecipeOccurrences,
+        totalNeededRaw: JSON.stringify([]), // Plus de calcul de quantités brutes
+        totalNeededConsolidated: JSON.stringify(consolidatedNeeds.length ? consolidatedNeeds : []),
+        recipeOccurrences: allRecipeOccurrences.length ? allRecipeOccurrences : [],
         pFrais: sourceIngredients.some(i => i.pFrais),
         pSurgel: sourceIngredients.some(i => i.pSurgel),
         stockReel: '',
@@ -355,19 +459,22 @@ export const IngredientManagementMixin = {
         // Champs de suivi de fusion
         isMerged: false,
         mergedInto: null,
-        mergedFrom: sourceIngredients.map(i => i.ingredientUuid),
+        mergedFrom: sourceIngredients.map(i => i.$id),
         mergeDate: now,
         mergeReason: `Fusion de ${sourceIngredients.map(i => i.ingredientName).join(', ')}`
       };
 
-      const response = await this.database.createDocument(
-        APPWRITE_CONFIG.databaseId,
-        'ingredients',
-        "unique()",
-        newIngredientData
-      );
+      console.log('[DEBUG] fusionedTopose → ', newIngredientData)
 
-      return response;
+      // UNCOMMENT WHEN [DEBUG] FINISHED
+      // const response = await this.database.createDocument(
+      //   this.appwriteDataService.config.databaseId,
+      //   'ingredients',
+      //   "unique()",
+      //   newIngredientData
+      // );
+
+      // return response;
     },
 
     /**
@@ -383,7 +490,7 @@ export const IngredientManagementMixin = {
         };
 
         await this.database.updateDocument(
-          APPWRITE_CONFIG.databaseId,
+          this.appwriteDataService.config.databaseId,
           'ingredients',
           ingredient.$id,
           updateData
@@ -392,84 +499,30 @@ export const IngredientManagementMixin = {
         // Mettre à jour localement
         ingredient.isMerged = true;
         ingredient.mergedInto = newIngredient.$id;
-        this._updateLocalCollection('ingredients', ingredient.$id, ingredient);
+        this._updateLocalCollection(this.ingredients, ingredient, 'update');
       });
 
       await Promise.all(updatePromises);
     },
 
     /**
-     * Migre les purchases vers le nouvel ingrédient
+     * Consolide les quantités par unité pour éviter les doublons
      */
-    async migratePurchases(sourceIngredients, newIngredient) {
-      const allPurchases = [];
+    consolidateQuantitiesByUnit(quantities) {
+      const consolidated = {};
 
-      // Récupérer tous les purchases des ingrédients source
-      sourceIngredients.forEach(ingredient => {
-        if (ingredient.purchases && ingredient.purchases.length) {
-          allPurchases.push(...ingredient.purchases);
+      quantities.forEach(item => {
+        const key = item.unit;
+        if (!consolidated[key]) {
+          consolidated[key] = {
+            value: 0,
+            unit: item.unit
+          };
         }
+        consolidated[key].value += parseFloat(item.value) || 0;
       });
 
-      // Mettre à jour tous les purchases
-      const updatePromises = allPurchases.map(async (purchase) => {
-        await this.database.updateDocument(
-          APPWRITE_CONFIG.databaseId,
-          'purchase',
-          purchase.$id,
-          {
-            listIngredient: newIngredient.$id
-          }
-        );
-      });
-
-      await Promise.all(updatePromises);
-    },
-
-    /**
-     * Calcule les quantités totales pour les ingrédients source
-     */
-    calculateTotalQuantities(sourceIngredients) {
-      const allQuantities = [];
-
-      sourceIngredients.forEach(ingredient => {
-        // Ajouter les quantités des achats
-        if (ingredient.purchases && ingredient.purchases.length) {
-          ingredient.purchases.forEach(purchase => {
-            allQuantities.push({
-              value: purchase.quantity,
-              unit: purchase.unit,
-              ingredientName: ingredient.ingredientName
-            });
-          });
-        }
-      });
-
-      const consolidated = unitsManager.consolidateQuantities(allQuantities);
-
-      return {
-        raw: allQuantities.map(q => `${q.value} ${q.unit}`).join(', '),
-        consolidated: consolidated.map(q => `${q.value} ${q.unit}`).join(', ')
-      };
-    },
-
-    /**
-     * Met à jour l'UI après la fusion
-     */
-    updateUIAfterMerge(sourceIngredients, newIngredient) {
-      // Supprimer les ingrédients source de la vue
-      sourceIngredients.forEach(ingredient => {
-        const index = this.ingredients.findIndex(i => i.$id === ingredient.$id);
-        if (index > -1) {
-          this.ingredients.splice(index, 1);
-        }
-      });
-
-      // Ajouter le nouvel ingrédient
-      this.ingredients.push(newIngredient);
-
-      // Forcer la réactivité
-      this.$forceUpdate();
+      return Object.values(consolidated);
     },
 
     /**
@@ -477,6 +530,8 @@ export const IngredientManagementMixin = {
      */
     handleRenameIngredient(ingredient) {
       this.openRenameModal(ingredient);
-    }
+    },
+
+
   }
 };

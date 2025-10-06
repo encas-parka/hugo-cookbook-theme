@@ -186,9 +186,6 @@ export function createCollaborativeApp() {
         // Ces propriétés sont maintenant gérées par ModalMixin pour éviter les conflits
         // newPurchase, newStock, newVolunteer, editingStore sont définis dans ModalMixin
 
-
-
-
         // Données communes pour l'attribution groupée
         groupAssignment: {
           context: '', // 'grouped-header' | 'table-selection'
@@ -213,6 +210,10 @@ export function createCollaborativeApp() {
         groupStoreModal: {
           isOpen: false
         },
+        mergeModal: {
+          isOpen: false
+        },
+
 
         modalSelectedIngredients: [],
         // Propriétés pour les suggestions
@@ -231,8 +232,6 @@ export function createCollaborativeApp() {
 
       // Affichage du modal d'authentification
       showAuthModal() {
-        // Afficher le modal si non authentifié ET que l'authManager a été initialisé ET que le chargement initial est terminé
-
         return !this.isAuthenticated && this.authManager !== null && !this.isLoading;
       },
 
@@ -254,13 +253,13 @@ export function createCollaborativeApp() {
             if (this.searchQuery.trim()) {
               const query = this.searchQuery.toLowerCase().trim();
               const nameMatches = ingredient.ingredientName.toLowerCase().includes(query);
-              
+
               // Vérifier les noms précédents
-              const previousNamesMatch = ingredient.previousNames && 
-                ingredient.previousNames.some(prevName => 
+              const previousNamesMatch = ingredient.previousNames &&
+                ingredient.previousNames.some(prevName =>
                   prevName.toLowerCase().includes(query)
                 );
-              
+
               if (!nameMatches && !previousNamesMatch) {
                 return false;
               }
@@ -336,7 +335,7 @@ export function createCollaborativeApp() {
           responsibleDisplay: ing.who && ing.who.length > 0 ? ing.who.join(', ') : ''
         }));
 
-        console.log('[DEBUG] tableData sample:', data.slice(0, 3));
+        // console.log('[DEBUG] tableData sample:', data.slice(0, 3));
         return data;
       },
 
@@ -553,14 +552,14 @@ export function createCollaborativeApp() {
         deep: true
       },
 
-      // Watcher pour la table - simplifié car la sélection est gérée par onRowSelectionChange
-      table: {
-        handler() {
-          console.log('[Collaborative App] Table initialisée ou mise à jour');
-          // La sélection est maintenant gérée directement par onRowSelectionChange
-        },
-        deep: false
-      },
+      // // Watcher pour la table - simplifié car la sélection est gérée par onRowSelectionChange
+      // table: {
+      //   handler() {
+      //     console.log('[Collaborative App] Table initialisée ou mise à jour');
+      //     // La sélection est maintenant gérée directement par onRowSelectionChange
+      //   },
+      //   deep: false
+      // },
     },
 
       mounted() {
@@ -846,6 +845,9 @@ export function createCollaborativeApp() {
           });
 
           try {
+            // [AI] Récupérer les purchases enrichis pour les ingrédients fusionnés
+            const enrichedPurchases = await this.getEnrichedPurchasesForUI();
+
             // Si optimisation demandée, utiliser updateMultipleIngredientsInUI
             if (useOptimizedUpdate) {
               // console.log("[Collaborative App] Utilisation de la mise à jour optimisée pour", this.ingredients.length, "ingrédients");
@@ -854,11 +856,11 @@ export function createCollaborativeApp() {
               return;
             }
 
-            // Utiliser IngredientCalculator pour calculer l'équilibre des ingrédients
+            // Utiliser IngredientCalculator pour calculer l'équilibre des ingrédients avec les purchases enrichis
             const calculatedIngredients =
               IngredientCalculator.calculateIngredientsBalance(
                 this.ingredients,
-                this.purchases || [],
+                enrichedPurchases,
               );
 
             // Utiliser le service DataTransformer pour préparer les données pour l'UI avec activation du groupement multi-magasin
@@ -869,7 +871,7 @@ export function createCollaborativeApp() {
                 unitsManager: this.unitsManager,
                 includeRecipeDetails: true,
                 includeCalculations: true,
-                purchases: this.purchases || [],
+                purchases: enrichedPurchases,
                 enableMultiStoreGrouping: false, // Mode simple : un seul magasin par ingrédient
               },
             );
@@ -987,11 +989,15 @@ export function createCollaborativeApp() {
           }
 
           try {
-            // Calculer seulement cet ingrédient
+            // [AI] Pour la mise à jour d'un seul ingrédient, on utilise les purchases enrichis
+            // Pour éviter l'async, on utilise les purchases existants en attendant une mise à jour future
+            const enrichedPurchases = this.purchases || [];
+
+            // Calculer seulement cet ingrédient avec les purchases enrichis
             const calculatedIngredient = IngredientCalculator.updateSingleIngredient(
               ingredient,
               this.ingredients,
-              this.purchases || []
+              enrichedPurchases
             );
 
             if (!calculatedIngredient) return;
@@ -1109,7 +1115,7 @@ export function createCollaborativeApp() {
                 unitsManager: this.unitsManager,
                 includeRecipeDetails: true,
                 includeCalculations: true,
-                purchases: this.purchases || [],
+                purchases: this.purchases,
               }
             );
 
@@ -1139,11 +1145,15 @@ export function createCollaborativeApp() {
           if (!purchases || purchases.length === 0) return;
 
           try {
+            // [AI] Pour les mises à jour multiples, on utilise les purchases existants
+            // La mise à jour avec les purchases enrichis se fera via transformDataForUI() complet
+            const enrichedPurchases = this.purchases || [];
+
             // Trouver les ingrédients affectés et les mettre à jour
             const calculatedIngredients = IngredientCalculator.updateIngredientsFromPurchases(
               purchases,
               this.ingredients,
-              this.purchases || []
+              enrichedPurchases,
             );
 
             // Transformer pour l'UI
@@ -1170,6 +1180,79 @@ export function createCollaborativeApp() {
             // Fallback : retransformer toutes les données
             this.transformDataForUI();
           }
+        },
+
+        /**
+         * Récupère tous les purchases liés à un ingrédient fusionné
+         * Inclut les purchases des ingrédients sources (via mergedFrom) et les propres purchases
+         */
+        async getPurchasesForMergedIngredient(ingredient) {
+          const allPurchases = [];
+
+          try {
+            // Récupérer les purchases des ingrédients sources (mergedFrom)
+            if (ingredient.mergedFrom && ingredient.mergedFrom.length > 0) {
+              for (const sourceId of ingredient.mergedFrom) {
+                try {
+                  const sourcePurchases = await this.database.listDocuments(
+                    this.appwriteDataService.config.databaseId,
+                    'purchase',
+                    [Appwrite.Query.equal('listIngredient', sourceId)]
+                  );
+                  allPurchases.push(...sourcePurchases.documents);
+                } catch (error) {
+                  console.warn(`Erreur récupération purchases pour source ${sourceId}:`, error);
+                }
+              }
+            }
+
+            // Récupérer les propres purchases de l'ingrédient fusionné
+            const ownPurchases = await this.database.listDocuments(
+              this.appwriteDataService.config.databaseId,
+              'purchase',
+              [Appwrite.Query.equal('listIngredient', ingredient.$id)]
+            );
+            allPurchases.push(...ownPurchases.documents);
+
+            console.log(`[DEBUG] getPurchasesForMergedIngredient(${ingredient.ingredientName}): ${allPurchases.length} purchases trouvés`);
+
+          } catch (error) {
+            console.error('Erreur dans getPurchasesForMergedIngredient:', error);
+          }
+
+          return allPurchases;
+        },
+
+        /**
+         * Enrichit les purchases avec ceux des ingrédients fusionnés
+         */
+        async getEnrichedPurchasesForUI() {
+          const enrichedPurchases = [...(this.purchases || [])];
+          const mergedIngredients = this.ingredients.filter(ing => ing.mergedFrom && ing.mergedFrom.length > 0);
+
+          if (mergedIngredients.length === 0) {
+            return enrichedPurchases;
+          }
+
+          console.log(`[DEBUG] Enrichissement des purchases pour ${mergedIngredients.length} ingrédients fusionnés`);
+
+          // Pour chaque ingrédient fusionné, récupérer ses purchases sources
+          for (const mergedIngredient of mergedIngredients) {
+            try {
+              const sourcePurchases = await this.getPurchasesForMergedIngredient(mergedIngredient);
+
+              // Ajouter seulement les purchases qui ne sont pas déjà dans enrichedPurchases
+              const existingIds = new Set(enrichedPurchases.map(p => p.$id));
+              const newPurchases = sourcePurchases.filter(p => !existingIds.has(p.$id));
+
+              enrichedPurchases.push(...newPurchases);
+            } catch (error) {
+              console.warn(`Erreur enrichissement purchases pour ${mergedIngredient.ingredientName}:`, error);
+            }
+          }
+
+          console.log(`[DEBUG] Purchases enrichis: ${this.purchases?.length || 0} → ${enrichedPurchases.length}`);
+          return enrichedPurchases;
         },
 
         // === MÉTHODES DE SYNCHRONISATION TEMPS RÉEL ===

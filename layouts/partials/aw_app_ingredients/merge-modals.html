@@ -21,17 +21,24 @@
                   <strong>[[ ingredient.ingredientName ]]</strong>
                   <span class="badge bg-secondary">[[ ingredient.typeDisplay ]]</span>
                 </div>
-                <div class="small text-muted">
+                <div class="small text-muted d-flex flex-wrap my-1">
                   <div v-if="ingredient.store">
                     <i class="fas fa-store me-1"></i>[[ ingredient.store ]]
                   </div>
                   <div v-if="ingredient.who && ingredient.who.length">
                     <i class="fas fa-user me-1"></i>[[ ingredient.who.join(', ') ]]
                   </div>
-                  <div v-if="ingredient.purchases && ingredient.purchases.length">
-                    <i class="fas fa-shopping-cart me-1"></i>[[ ingredient.purchases.length ]] achat(s)
-                  </div>
                 </div>
+                  <div class="small text-muted d-flex flex-wrap my-1">
+                    <div v-if="ingredient.purchasesDisplay && ingredient.purchasesDisplay !== '0'">
+                      <i class="fas fa-shopping-cart me-1"></i>
+                      Achats: [[ ingredient.purchasesDisplay || '0' ]]
+                    </div>
+                    <div v-if="ingredient.totalNeedDisplay && ingredient.totalNeedDisplay !== '0'">
+                      <i class="fas fa-utensils me-1"></i>
+                      Besoins: [[ ingredient.totalNeedDisplay || '0' ]]
+                    </div>
+                  </div>
               </div>
             </div>
           </div>
@@ -44,12 +51,12 @@
             <label for="mergedIngredientName" class="form-label">
               <i class="fas fa-tag me-1"></i>Nom de l'ingrédient fusionné *
             </label>
-            <input 
-              type="text" 
-              class="form-control" 
+            <input
+              type="text"
+              class="form-control"
               id="mergedIngredientName"
               v-model="mergeModal.mergedIngredient.name"
-              @input="updateMergedIngredientName"
+              @input="checkNameConflicts"
               :class="{ 'is-invalid': mergeModal.nameConflicts.length }"
               placeholder="Entrez le nom pour l'ingrédient fusionné"
               required
@@ -61,16 +68,15 @@
                 Ce nom existe déjà :
               </div>
               <div v-for="conflict in mergeModal.nameConflicts" :key="conflict.$id" class="mb-2">
-                <button 
-                  type="button" 
-                  class="btn btn-sm btn-outline-warning me-2"
+                <button
+                  type="button"
+                  class="btn btn-sm btn-warning me-2"
                   @click="proposeMergeWithConflict(conflict)"
                   title="Fusionner également cet ingrédient"
                 >
-                  <i class="fas fa-plus me-1"></i>Fusionner aussi
+                  <i class="fas fa-plus me-1"></i>Ajouter  [[ conflict.ingredientName ]] aux ingrédients fusionnés
                 </button>
-                [[ conflict.ingredientName ]]
-                <span class="text-muted">([[ conflict.typeDisplay ]])</span>
+
               </div>
             </div>
           </div>
@@ -80,8 +86,8 @@
             <label for="mergedIngredientType" class="form-label">
               <i class="fas fa-list me-1"></i>Type d'ingrédient *
             </label>
-            <select 
-              class="form-select" 
+            <select
+              class="form-select"
               id="mergedIngredientType"
               v-model="mergeModal.mergedIngredient.ingType"
               required
@@ -104,8 +110,8 @@
                 Les ingrédients ont des magasins différents. Veuillez en choisir un :
               </small>
             </div>
-            <select 
-              class="form-select" 
+            <select
+              class="form-select"
               id="mergedIngredientStore"
               v-model="mergeModal.mergedIngredient.store"
             >
@@ -123,7 +129,7 @@
             </label>
             <div class="p-2 border rounded bg-light">
               <div v-if="mergeModal.mergedIngredient.who.length" class="d-flex flex-wrap gap-2">
-                <span v-for="volunteer in mergeModal.mergedIngredient.who" :key="volunteer" 
+                <span v-for="volunteer in mergeModal.mergedIngredient.who" :key="volunteer"
                       class="badge bg-primary">
                   [[ volunteer ]]
                 </span>
@@ -135,21 +141,49 @@
             </div>
           </div>
 
-          <!-- Quantités consolidées -->
+          <!-- Information sur les achats et besoins -->
           <div class="mb-3">
             <label class="form-label">
-              <i class="fas fa-calculator me-1"></i>Quantités totales consolidées
+              <i class="fas fa-info-circle me-1"></i>Information sur la fusion
             </label>
-            <div class="p-3 border rounded bg-light">
-              <div v-if="consolidatedQuantities.length" class="d-flex flex-wrap gap-3">
-                <div v-for="quantity in consolidatedQuantities" :key="quantity.unit" 
-                     class="badge bg-success fs-6">
-                  [[ quantity.formatted ]]
-                </div>
+
+            <div class="alert alert-info py-2">
+              <small class="mb-0">
+                <i class="fas fa-lightbulb me-1"></i>
+                <strong>Nouvelle stratégie simplifiée :</strong><br>
+                • Les achats existants des ingrédients sources seront automatiquement associés à l'ingrédient fusionné<br>
+                • Les besoins des recettes seront consolidés dans le nouvel ingrédient<br>
+                • Vous pourrez toujours ajouter de nouveaux achats après la fusion<br>
+                • La consultation des quantités se fera dans le tableau principal
+              </small>
+            </div>
+          </div>
+
+          <!-- Affichage des quantités consolidées -->
+          <div class="mb-3" v-if="consolidatedQuantities.length">
+            <label class="form-label">
+              <i class="fas fa-calculator me-1"></i>Quantités consolidées de la fusion
+            </label>
+            <div class="alert alert-success py-2">
+              <strong class="d-block mb-2">Total fusionné :</strong>
+              <div class="mb-2">
+                [[ formattedConsolidatedQuantities ]]
               </div>
-              <div v-else class="text-muted">
-                <i class="fas fa-info-circle me-1"></i>
-                Aucune quantité à consolider
+            </div>
+          </div>
+
+          <!-- Détail par ingrédient -->
+          <div class="mb-3" v-if="mergeModal.selectedIngredients.length">
+            <label class="form-label">
+              <i class="fas fa-list me-1"></i>Détail par ingrédient
+            </label>
+            <div class="row">
+              <div v-for="ingredient in mergeModal.selectedIngredients" :key="ingredient.$id"
+                   class="col-md-6 mb-2">
+                <div class="card card-body py-2">
+                  <h6 class="card-title mb-1">[[ ingredient.ingredientName ]]</h6>
+
+                </div>
               </div>
             </div>
           </div>
@@ -161,9 +195,9 @@
         <button type="button" class="btn btn-secondary" @click="closeMergeModal" :disabled="mergeModal.isSaving">
           <i class="fas fa-times me-1"></i>Annuler
         </button>
-        <button 
-          type="button" 
-          class="btn btn-primary" 
+        <button
+          type="button"
+          class="btn btn-primary"
           @click="saveMerge"
           :disabled="!isMergeFormValid || mergeModal.isSaving"
         >
@@ -202,7 +236,7 @@
           <div v-if="renameModal.ingredient?.previousNames?.length" class="mb-3">
             <label class="form-label">Noms précédents :</label>
             <div class="p-2 border rounded bg-light">
-              <div v-for="previousName in renameModal.ingredient.previousNames" :key="previousName" 
+              <div v-for="previousName in renameModal.ingredient.previousNames" :key="previousName"
                    class="badge bg-secondary me-1 mb-1">
                 [[ previousName ]]
               </div>
@@ -214,9 +248,9 @@
             <label for="newIngredientName" class="form-label">
               <i class="fas fa-tag me-1"></i>Nouveau nom *
             </label>
-            <input 
-              type="text" 
-              class="form-control" 
+            <input
+              type="text"
+              class="form-control"
               id="newIngredientName"
               v-model="renameModal.newName"
               placeholder="Entrez le nouveau nom"
@@ -233,9 +267,9 @@
         <button type="button" class="btn btn-secondary" @click="closeRenameModal" :disabled="renameModal.isSaving">
           <i class="fas fa-times me-1"></i>Annuler
         </button>
-        <button 
-          type="button" 
-          class="btn btn-primary" 
+        <button
+          type="button"
+          class="btn btn-primary"
           @click="saveRename"
           :disabled="!isRenameFormValid || renameModal.isSaving"
         >

@@ -95,6 +95,18 @@ export class IngredientCalculator {
    static calculateBalancePerUnit(needed = [], purchases = [], stock = 0) {
      const quantitiesByUnit = {};
 
+     // S'assurer que needed est bien un tableau
+     if (!Array.isArray(needed)) {
+       console.warn('calculateBalancePerUnit: needed n\'est pas un tableau:', needed);
+       needed = [];
+     }
+
+     // S'assurer que purchases est bien un tableau
+     if (!Array.isArray(purchases)) {
+       console.warn('calculateBalancePerUnit: purchases n\'est pas un tableau:', purchases);
+       purchases = [];
+     }
+
      // 1. Agréger les besoins
      needed.forEach(item => {
        const { value, unit } = this._standardizeQuantity(item.value, item.unit);
@@ -239,11 +251,11 @@ export class IngredientCalculator {
    * @returns {Array} - Les IDs des ingrédients affectés
    */
   static getIngredientsAffectedByPurchase(purchase, allIngredients) {
-    if (!purchase || !purchase.listIngredient?.$id) {
+    if (!purchase || !purchase.listIngredient) {
       return [];
     }
 
-    const ingredientId = purchase.listIngredient.$id;
+    const ingredientId = purchase.listIngredient;
     const ingredient = allIngredients.find(ing => ing.$id === ingredientId);
     
     return ingredient ? [ingredientId] : [];
@@ -271,5 +283,65 @@ export class IngredientCalculator {
       allPurchases
     );
   }
+
+  /**
+   * Calcule les quantités consolidées pour la fusion d'ingrédients
+   * @param {Array} ingredients - Ingrédients à fusionner
+   * @param {Array} allPurchases - Tous les achats disponibles
+   * @returns {Array} - Quantités consolidées [{ value, unit, type }, ...]
+   */
+  static calculateMergedQuantities(ingredients, allPurchases = []) {
+    if (!ingredients || !Array.isArray(ingredients)) {
+      return [];
+    }
+
+    const allQuantities = [];
+
+    ingredients.forEach(ingredient => {
+      // Ajouter les achats de cet ingrédient
+      const ingredientPurchases = allPurchases.filter(p => 
+        p.listIngredient === ingredient.$id || 
+        (ingredient.mergedFrom && ingredient.mergedFrom.includes(p.listIngredient))
+      );
+      
+      ingredientPurchases.forEach(purchase => {
+        allQuantities.push({
+          value: purchase.quantity,
+          unit: purchase.unit,
+          type: 'purchase'
+        });
+      });
+
+      // Ajouter les besoins consolidés
+      if (ingredient.totalNeededConsolidated && Array.isArray(ingredient.totalNeededConsolidated)) {
+        ingredient.totalNeededConsolidated.forEach(need => {
+          allQuantities.push({
+            value: need.value,
+            unit: need.unit,
+            type: 'need'
+          });
+        });
+      }
+    });
+
+    // Version simplifiée synchrone - consolider basique par unité et type
+    const consolidated = {};
+    
+    allQuantities.forEach(item => {
+      const key = `${item.unit}_${item.type}`;
+      if (!consolidated[key]) {
+        consolidated[key] = {
+          value: 0,
+          unit: item.unit,
+          type: item.type
+        };
+      }
+      consolidated[key].value += parseFloat(item.value) || 0;
+    });
+
+    return Object.values(consolidated);
+  }
+
+  
 
 }
