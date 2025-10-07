@@ -4,7 +4,7 @@
  * Prépare les données pour les composants "stupides"
  */
 
-import UnitsManager from '../UnitsManager.js';
+ import { unitsManager } from '../UnitsManager.js';
 
 export class DataTransformer {
   // Cache pour les transformations complètes (ingrédient + achats hash → résultat)
@@ -133,23 +133,24 @@ export class DataTransformer {
     if (!Array.isArray(needed)) needed = [];
     if (!Array.isArray(purchases)) purchases = [];
 
-    // 1. Agréger les besoins
+    // 1. Agréger les besoins en utilisant UnitsManager pour la normalisation
     needed.forEach(item => {
-      const { value, unit } = this._standardizeQuantity(item.value, item.unit);
-      if (!quantitiesByUnit[unit]) {
-        quantitiesByUnit[unit] = { needed: 0, purchased: 0 };
+      const normalized = unitsManager.normalizeQuantity(item.value, item.unit);
+      if (!quantitiesByUnit[normalized.baseUnit]) {
+        quantitiesByUnit[normalized.baseUnit] = { needed: 0, purchased: 0, category: normalized.category };
       }
-      quantitiesByUnit[unit].needed += value;
+      quantitiesByUnit[normalized.baseUnit].needed += normalized.normalizedQuantity;
     });
 
-    // 2. Agréger les achats
+    // 2. Agréger les achats en utilisant UnitsManager pour la normalisation
     purchases.forEach(purchase => {
-      const { value, unit } = this._standardizeQuantity(purchase.quantity, purchase.unit);
-      if (!quantitiesByUnit[unit]) {
-        quantitiesByUnit[unit] = { needed: 0, purchased: 0 };
+      const normalized = unitsManager.normalizeQuantity(purchase.quantity, purchase.unit);
+      if (!quantitiesByUnit[normalized.baseUnit]) {
+        quantitiesByUnit[normalized.baseUnit] = { needed: 0, purchased: 0, category: normalized.category };
       }
-      quantitiesByUnit[unit].purchased += value;
+      quantitiesByUnit[normalized.baseUnit].purchased += normalized.normalizedQuantity;
     });
+
 
     // 3. Calculer la balance pour chaque unité
     return Object.entries(quantitiesByUnit).map(([unit, data]) => {
@@ -185,19 +186,6 @@ export class DataTransformer {
     return 'missing';
   }
 
-  /**
-   * Standardise les unités de poids et volume
-   */
-  static _standardizeQuantity(value, unit) {
-    const numValue = parseFloat(value) || 0;
-    if (unit.toLowerCase() === 'kg') {
-      return { value: numValue * 1000, unit: 'gr.' };
-    }
-    if (unit === 'l.') {
-      return { value: numValue * 1000, unit: 'ml' };
-    }
-    return { value: numValue, unit: unit || 'rec.' };
-  }
 
   /**
    * Parse une chaîne JSON de manière sécurisée

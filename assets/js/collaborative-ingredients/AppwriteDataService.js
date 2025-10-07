@@ -32,11 +32,11 @@ export class AppwriteDataService {
    */
   handleAppwriteError(error, context = '') {
     console.error(`[AppwriteDataService] Erreur ${context}:`, error);
-    
+
     // Extraire le code d'erreur si disponible
     let errorCode = error.code || 500;
     let errorMessage = error.message || 'Erreur inconnue';
-    
+
     // Erreurs spécifiques à Appwrite
     if (errorMessage.includes('document_not_found')) {
       errorCode = 404;
@@ -54,13 +54,13 @@ export class AppwriteDataService {
       errorCode = 409;
       errorMessage = 'Entrée en double';
     }
-    
+
     const structuredError = this.createError(
       `Erreur ${context}: ${errorMessage}`,
       'appwrite',
       { originalError: error, code: errorCode }
     );
-    
+
     structuredError.code = errorCode;
     return structuredError;
   }
@@ -135,36 +135,37 @@ export class AppwriteDataService {
 
   /**
    * Sauvegarde les entrées de stock
+  * @deprecated Cette méthode est obsolète et non utilisée. La logique est gérée dans `buildIngredientPatch`.
    * @param {Array} stockEntries - Liste des entrées de stock
    * @param {string} ingredientId - ID de l'ingrédient
    * @param {Object} database - Instance de base de données Appwrite
    * @returns {Promise<string>} ID de l'ingrédient mis à jour
    */
-  async saveStock(stockEntries, ingredientId, database) {
-    // Convertir le stock en format approprié pour la sauvegarde
-    const stockData = stockEntries.map(s => ({
-      quantity: s.quantity,
-      unit: s.unit,
-      dateTime: s.dateTime,
-      notes: s.notes
-    }));
+  // async saveStock(stockEntries, ingredientId, database) {
+  //   // Convertir le stock en format approprié pour la sauvegarde
+  //   const stockData = stockEntries.map(s => ({
+  //     quantity: s.quantity,
+  //     unit: s.unit,
+  //     dateTime: s.dateTime,
+  //     notes: s.notes
+  //   }));
 
-    try {
-      const result = await database.updateDocument(
-        this.config.databaseId,
-        this.config.collections.ingredients,
-        ingredientId,
-        {
-          stockReel: JSON.stringify(stockData)
-        }
-      );
+  //   try {
+  //     const result = await database.updateDocument(
+  //       this.config.databaseId,
+  //       this.config.collections.ingredients,
+  //       ingredientId,
+  //       {
+  //         stockReel: JSON.stringify(stockData)
+  //       }
+  //     );
 
-      console.log('[AppwriteDataService] Stock mis à jour:', result.$id);
-      return result.$id;
-    } catch (error) {
-      throw this.handleAppwriteError(error, 'mise à jour stock');
-    }
-  }
+  //     console.log('[AppwriteDataService] Stock mis à jour:', result.$id);
+  //     return result.$id;
+  //   } catch (error) {
+  //     throw this.handleAppwriteError(error, 'mise à jour stock');
+  //   }
+  // }
 
   /**
    * Sauvegarde les volontaires
@@ -235,21 +236,21 @@ export class AppwriteDataService {
    */
   buildIngredientPatch(dirtyFields, changes) {
     const patchData = {};
-    
+
     if (dirtyFields.has('stock')) {
       patchData.stockReel = JSON.stringify(changes.editingStockEntries);
     }
-    
+
     if (dirtyFields.has('volunteers')) {
       // Filtrer les volontaires supprimés
       const activeVolunteers = changes.editingVolunteers.filter(v => !changes.deletedVolunteers.has(v));
       patchData.who = activeVolunteers;
     }
-    
+
     if (dirtyFields.has('store')) {
       patchData.store = changes.editingStore?.trim() || '';
     }
-    
+
     return patchData;
   }
 

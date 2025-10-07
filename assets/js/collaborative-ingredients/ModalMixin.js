@@ -47,8 +47,6 @@ export const ModalMixin = {
       deletedVolunteers: new Set(),
       newVolunteer: '',
 
-      // Données d'édition pour l'onglet magasins
-      editingStore: '',
 
       // Confirmation de suppression
       deleteConfirmation: {
@@ -574,6 +572,17 @@ export const ModalMixin = {
     // === GESTION DES MAGASINS ===
 
     /**
+     * Met à jour le magasin de l'ingrédient et marque le champ comme modifié.
+     * Déclenché par @input sur le champ du magasin.
+     */
+    updateStore() {
+      // La liaison (v-model) met déjà à jour la donnée.
+      // Il suffit de marquer le champ comme "dirty".
+      this.markDirty('store');
+    },
+
+
+    /**
      * Remplace le magasin actuel par un nouveau
      */
     replaceStore() {
@@ -590,7 +599,7 @@ export const ModalMixin = {
       if (currentIngredient) {
         // Mettre à jour le magasin de l'ingrédient en cours d'édition
         currentIngredient.store = storeValue;
-        this.editingStore = '';
+
         this.markDirty('store');
 
         // Le magasin est maintenant dans l'ingrédient et sera sauvegardé via saveAllChanges()

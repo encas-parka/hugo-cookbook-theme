@@ -759,9 +759,10 @@
                       type="text"
                       class="form-control"
                       id="store-replacement"
-                      v-model="editingStore"
-                      :placeholder="modalState.editingIngredient?.store && modalState.editingIngredient.store.trim() ? 'Entrez le nouveau nom du magasin...' : 'Entrez le nom du magasin...'"
+                      v-model="modalState.editingIngredient.store"
+                      placeholder="Entrez le nom du magasin..."
                       list="store-suggestions"
+                      @input="updateStore"
                       @keyup.enter="replaceStore"
                     />
                     <datalist id="store-suggestions">
@@ -774,32 +775,13 @@
                       </option>
                     </datalist>
                     <button
-                      class="btn"
-                      :class="modalState.editingIngredient?.store && modalState.editingIngredient.store.trim() ? 'btn-warning' : 'btn-primary'"
-                      @click="replaceStore"
-                      :disabled="!editingStore.trim()"
-                    >
-                      <span v-if="modalState.editingIngredient?.store && modalState.editingIngredient.store.trim()">
-                        <i class="fas fa-exchange-alt me-1"></i>
-                        Remplacer
-                      </span>
-                      <span v-else>
-                        <i class="fas fa-plus me-1"></i>
-                        Assigner
-                      </span>
-                    </button>
-                  </div>
-                  <div class="form-text text-muted">
-                    <small>
-                      <span v-if="modalState.editingIngredient?.store && modalState.editingIngredient.store.trim()">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Le magasin actuel sera remplacé par le nouveau
-                      </span>
-                      <span v-else>
-                        <i class="fas fa-info-circle me-1"></i>
-                        Assignez un magasin à cet ingrédient
-                      </span>
-                    </small>
+                       v-if="modalState.editingIngredient?.store"
+                       class="btn btn-outline-danger"
+                       @click="removeStore"
+                       title="Supprimer le magasin"
+                     >
+                       <i class="fas fa-trash"></i>
+                     </button>
                   </div>
                 </div>
 

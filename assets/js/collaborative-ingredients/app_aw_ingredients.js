@@ -229,7 +229,6 @@ export function createCollaborativeApp() {
 
         // Données pour la gestion des suppressions dans le modal unifié
         deletedVolunteers: new Set(), // Volontaires marqués pour suppression
-        deletedStores: new Set(), // Magasins marqués pour suppression
 
         // Gestion des vues
         currentView: 'grouped', // 'table', 'grouped', 'cards', 'compact'
@@ -907,7 +906,7 @@ export function createCollaborativeApp() {
          * @param {boolean} useOptimizedUpdate - Utiliser la mise à jour optimisée si true
          */
         async transformDataForUI(useOptimizedUpdate = false) {
-          console.log("[Collaborative App] Transformation des données pour l'UI...", {
+          console.log("[Collaborative App - transformDataForUI] Transformation des données pour l'UI...", {
             ingredientCount: this.ingredients.length,
             useOptimizedUpdate
           });
@@ -931,7 +930,7 @@ export function createCollaborativeApp() {
 
           } catch (error) {
             console.error(
-              "[Collaborative App] Erreur lors de la transformation des données:",
+              "[Collaborative App - transformDataForUI] Erreur lors de la transformation des données:",
               error,
             );
             throw error;
@@ -964,25 +963,44 @@ export function createCollaborativeApp() {
         },
 
         /**
-          * Met à jour un achat de manière complète (données brutes + UI)
-          * @param {Object} purchasePayload - Données de l'achat depuis Appwrite
-          * @param {string} eventType - Type d'événement (create/update/delete)
-          */
-        updatePurchaseComplete(purchasePayload, eventType) {
-          console.log('[Collaborative App] Mise à jour complète achat:', purchasePayload.$id, eventType);
+               * Met à jour un achat de manière complète (données brutes + UI)
+               * Gère les différents formats de payload temps réel (création vs. mise à jour).
+               * @param {Object} purchasePayload - Données de l'achat depuis Appwrite
+               * @param {string} eventType - Type d'événement (create/update/delete)
+               */
+              updatePurchaseComplete(purchasePayload, eventType) {
+                console.log('[Collaborative App] Mise à jour complète achat:', purchasePayload.$id, eventType);
 
-          // 1. Mettre à jour la collection de données brutes `this.purchases`
-          this._updateLocalCollection(this.purchases, purchasePayload, eventType);
+                // 1. Mettre à jour la collection de données brutes `this.purchases`
+                this._updateLocalCollection(this.purchases, purchasePayload, eventType);
 
-          // 2. Identifier l'ingrédient affecté et déclencher sa mise à jour dans l'UI
-          const affectedIngredientId = purchasePayload.listIngredient;
-          if (affectedIngredientId) {
-            // Cette méthode va recalculer la balance et mettre à jour l'affichage
-            this.updateSingleIngredientInUI(affectedIngredientId);
-          } else {
-            console.warn('[Collaborative App] Achat sans ingrédient lié, mise à jour UI ignorée:', purchasePayload.$id);
-          }
-        },
+                // 2. Trouver l'ID de l'ingrédient affecté de manière robuste
+                let affectedIngredientId = null;
+
+                if (purchasePayload.listIngredient) {
+                  // Cas 1 (Création) : Le payload contient listIngredient.
+                  // Il peut être un objet (relation étendue) ou une string (ID).
+                  if (typeof purchasePayload.listIngredient === 'object' && purchasePayload.listIngredient.$id) {
+                    affectedIngredientId = purchasePayload.listIngredient.$id;
+                  } else if (typeof purchasePayload.listIngredient === 'string') {
+                    affectedIngredientId = purchasePayload.listIngredient;
+                  }
+                } else if (eventType === 'update' || eventType === 'delete') {
+                  // Cas 2 (Mise à jour/Suppression) : Le payload ne contient que les champs modifiés.
+                  // Il faut retrouver l'achat dans notre état local pour trouver l'ingrédient lié.
+                  const existingPurchase = this.purchases.find(p => p.$id === purchasePayload.$id);
+                  if (existingPurchase) {
+                    affectedIngredientId = existingPurchase.listIngredient;
+                  }
+                }
+
+                // 3. Déclencher la mise à jour de l'UI pour l'ingrédient concerné
+                if (affectedIngredientId) {
+                  this.updateSingleIngredientInUI(affectedIngredientId);
+                } else {
+                  console.warn('[Collaborative App] Impossible de déterminer l\'ingrédient lié pour l\'achat, mise à jour UI ignorée:', purchasePayload.$id);
+                }
+              },
 
         /**
          * Met à jour plusieurs ingrédients depuis syncChanges de manière optimisée
@@ -1027,15 +1045,25 @@ export function createCollaborativeApp() {
         },
 
         /**
-         * Met à jour un seul ingrédient de manière optimisée dans l'UI
-         * @param {string} ingredientId - L'ID de l'ingrédient à mettre à jour
-         */
-        updateSingleIngredientInUI(ingredientId) {
-          const ingredient = this.ingredients.find(ing => ing.$id === ingredientId);
-          if (!ingredient) {
-            console.warn('[Collaborative App] Ingrédient non trouvé pour mise à jour:', ingredientId);
-            return;
-          }
+          * Met à jour un seul ingrédient de manière optimisée dans l'UI
+          * @param {string|Object} ingredientIdentifier - L'ID de l'ingrédient ou l'objet ingrédient
+          */
+          updateSingleIngredientInUI(ingredientIdentifier) {
+            // Sécurisation : extraire l'ID, que l'entrée soit une string ou un objet
+            const ingredientId = typeof ingredientIdentifier === 'object' && ingredientIdentifier !== null
+              ? ingredientIdentifier.$id
+              : ingredientIdentifier;
+
+            if (!ingredientId || typeof ingredientId !== 'string') {
+                console.error('[Collaborative App] ID d\'ingrédient invalide pour la mise à jour UI:', ingredientIdentifier);
+                return;
+            }
+
+            const ingredient = this.ingredients.find(ing => ing.$id === ingredientId);
+            if (!ingredient) {
+              console.warn('[Collaborative App] Ingrédient non trouvé pour mise à jour:', ingredientId);
+              return;
+            }
 
           try {
             // Utiliser la nouvelle méthode centralisée de DataTransformer
