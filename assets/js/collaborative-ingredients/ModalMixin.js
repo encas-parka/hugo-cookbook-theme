@@ -81,8 +81,8 @@ export const ModalMixin = {
      * Retourne les unités suggérées basées sur l'ingrédient en cours d'édition
      */
     suggestedUnits() {
-      if (!this.modalState.editingIngredient?.calculations?.balancePerUnit) return [];
-      return this.modalState.editingIngredient.calculations.balancePerUnit.map(item => item.unit);
+      if (!this.modalState.editingIngredient?.balancePerUnit) return [];
+      return this.modalState.editingIngredient.balancePerUnit.map(item => item.unit);
     },
     /**
      * Retourne la liste combinée des volontaires (existants + nouveaux)

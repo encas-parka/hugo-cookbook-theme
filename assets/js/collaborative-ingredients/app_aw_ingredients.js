@@ -48,7 +48,7 @@
  * Appwrite Raw Data → IngredientCalculator → DataTransformer → Vue Components (UI)
  *                 ↑                                              ↓
  *          Realtime Updates ←←←←←←←←←←←← User Interactions →→ Appwrite
- *                                ↘ localStorageService (cache local)
+ *                                 ↘ localStorageService (cache local)
  *
  * @dependencies
  * - Vue.js 3 (Options API)
@@ -82,7 +82,7 @@ import {
 export function createCollaborativeApp() {
   const app = Vue.createApp({
     // L'application utilisera le contenu existant du div #collaborativeApp
-    delimiters: ["[[", "]]"],
+    delimiters: ["[[ ", " ]]"],
 
     // Intégration des mixins pour la gestion des modaux et des ingrédients
     mixins: [ModalMixin, IngredientManagementMixin],
@@ -650,7 +650,7 @@ export function createCollaborativeApp() {
             const urlParams = new URLSearchParams(window.location.search);
             this.listId = urlParams.get("listId");
             if (!this.listId) {
-              throw new Error("ID de liste manquant dans l'URL (?listId=...).");
+              throw new Error("ID de liste manquant dans l'URL (?listId=...). ");
             }
 
             // 5. Obtenir l'instance de la base de données depuis notre client central
@@ -845,9 +845,6 @@ export function createCollaborativeApp() {
           });
 
           try {
-            // [AI] Récupérer les purchases enrichis pour les ingrédients fusionnés
-            const enrichedPurchases = await this.getEnrichedPurchasesForUI();
-
             // Si optimisation demandée, utiliser updateMultipleIngredientsInUI
             if (useOptimizedUpdate) {
               // console.log("[Collaborative App] Utilisation de la mise à jour optimisée pour", this.ingredients.length, "ingrédients");
@@ -856,11 +853,11 @@ export function createCollaborativeApp() {
               return;
             }
 
-            // Utiliser IngredientCalculator pour calculer l'équilibre des ingrédients avec les purchases enrichis
+            // Utiliser IngredientCalculator pour calculer l'équilibre des ingrédients avec les purchases
             const calculatedIngredients =
               IngredientCalculator.calculateIngredientsBalance(
                 this.ingredients,
-                enrichedPurchases,
+                this.purchases,
               );
 
             // Utiliser le service DataTransformer pour préparer les données pour l'UI avec activation du groupement multi-magasin
@@ -871,10 +868,19 @@ export function createCollaborativeApp() {
                 unitsManager: this.unitsManager,
                 includeRecipeDetails: true,
                 includeCalculations: true,
-                purchases: enrichedPurchases,
+                purchases: this.purchases,
                 enableMultiStoreGrouping: false, // Mode simple : un seul magasin par ingrédient
               },
             );
+
+            // Post-traitement pour corriger les achats des ingrédients fusionnés
+            this.transformedIngredients.forEach(ing => {
+              if (ing.isMerged) {
+                const aggregatedPurchases = this._getAggregatedPurchasesForIngredient(ing);
+                const updatedState = IngredientCalculator.recalculateStateFromPurchases(ing, aggregatedPurchases, this.unitsManager);
+                Object.assign(ing, updatedState);
+              }
+            });
 
           } catch (error) {
             console.error(
@@ -910,30 +916,17 @@ export function createCollaborativeApp() {
           }
         },
 
-        /**
-         * Met à jour un achat de manière complète (données brutes + UI)
-         * @param {Object} purchasePayload - Données de l'achat depuis Appwrite
-         * @param {string} eventType - Type d'événement (create/update/delete)
-         */
-        updatePurchaseComplete(purchasePayload, eventType) {
-          console.log('[Collaborative App] Mise à jour complète achat:', purchasePayload.$id, eventType);
-
-          // 1. Mettre à jour les données brutes
-          this._updateLocalCollection(this.purchases, purchasePayload, eventType);
-
-          // 2. Mettre à jour les ingrédients affectés (uniquement pour create/update)
-          if (eventType !== 'delete') {
-            this.updateIngredientsFromPurchasesInUI([purchasePayload]);
-          } else {
-            // Pour les suppressions, recalculer les ingrédients qui dépendaient de cet achat
-            const affectedIngredients = this.ingredients.filter(ing =>
-              ing.listIngredient === purchasePayload.listIngredient
-            );
-            if (affectedIngredients.length > 0) {
-              this.updateIngredientsFromPurchasesInUI([purchasePayload]);
-            }
-          }
-        },
+    /**
+     * Finalise la mise à jour d'un achat et rafraîchit l'UI.
+     * @param {string} ingredientId - L'ID de l'ingrédient concerné.
+     * @param {Array} savedPurchases - Les documents d'achat retournés par Appwrite.
+     */
+    updatePurchaseComplete(ingredientId, savedPurchases) {
+      this.showToast('success', 'Achat mis à jour avec succès');
+      // Déclenche la mise à jour de l'ingrédient concerné dans l'UI
+      // pour refléter les changements sur ses achats.
+      this.updateSingleIngredientInUI(ingredientId);
+    },
 
         /**
          * Met à jour plusieurs ingrédients depuis syncChanges de manière optimisée
@@ -989,20 +982,17 @@ export function createCollaborativeApp() {
           }
 
           try {
-            // [AI] Pour la mise à jour d'un seul ingrédient, on utilise les purchases enrichis
-            // Pour éviter l'async, on utilise les purchases existants en attendant une mise à jour future
-            const enrichedPurchases = this.purchases || [];
-
-            // Calculer seulement cet ingrédient avec les purchases enrichis
-            const calculatedIngredient = IngredientCalculator.updateSingleIngredient(
-              ingredient,
-              this.ingredients,
-              enrichedPurchases
-            );
+            // Calculer seulement cet ingrédient avec les purchases
+            const calculatedIngredient =
+              IngredientCalculator.updateSingleIngredient(
+                ingredient,
+                this.ingredients,
+                this.purchases || []
+              );
 
             if (!calculatedIngredient) return;
 
-            // Transformer pour l'UI (avec mode multi-magasin activé)
+            // Transformer pour l'UI
             const transformedIngredients = DataTransformer.transformForUI(
               [calculatedIngredient],
               {
@@ -1014,10 +1004,36 @@ export function createCollaborativeApp() {
               }
             );
 
-            // Mettre à jour toutes les occurrences de cet ingrédient dans transformedIngredients
-            this._updateAllIngredientOccurrences(ingredientId, transformedIngredients);
+            // Post-traitement pour corriger les achats des ingrédients fusionnés
+            transformedIngredients.forEach(ing => {
+              if (ing.isMerged) {
+                const aggregatedPurchases = this._getAggregatedPurchasesForIngredient(ing);
+                const updatedState = IngredientCalculator.recalculateStateFromPurchases(ing, aggregatedPurchases, this.unitsManager);
+                Object.assign(ing, updatedState);
+              }
+            });
 
-          } catch (error) {
+            // Mettre à jour toutes les occurrences de cet ingrédient dans transformedIngredients
+      this.ingredients[index] = updatedIngredient;
+
+      // Mettre à jour les caches pour les filtres (réactivité des filtres)
+      const store = updatedIngredient.store;
+      if (store && store !== '-' && !this.syncService.storesCache.includes(store)) {
+        this.syncService.storesCache.push(store);
+        this.syncService.storesCache.sort();
+      }
+
+      (updatedIngredient.who || []).forEach(person => {
+        if (person && !this.syncService.peopleCache.includes(person)) {
+          this.syncService.peopleCache.push(person);
+          this.syncService.peopleCache.sort();
+        }
+      });
+
+      // S'assurer que la liste principale reste triée par ordre alphabétique
+      this.ingredients.sort((a, b) => a.ingredientName.localeCompare(b.ingredientName));
+
+              } catch (error) {
             console.error('[Collaborative App] Erreur lors de la mise à jour optimisée:', error);
             // Fallback : retransformer toutes les données
             this.transformDataForUI();
@@ -1078,10 +1094,6 @@ export function createCollaborativeApp() {
               return;
             }
 
-            // Trouver les ingrédients affectés par ces achats
-            const affectedIngredientIds = purchasesToUpdate.map(purchase => purchase.listIngredient);
-            const uniqueAffectedIds = [...new Set(affectedIngredientIds)];
-
             // Utiliser la logique existante pour mettre à jour les ingrédients affectés
             this.updateIngredientsFromPurchasesInUI(purchasesToUpdate);
 
@@ -1119,6 +1131,15 @@ export function createCollaborativeApp() {
               }
             );
 
+            // Post-traitement pour corriger les achats des ingrédients fusionnés
+            transformedIngredients.forEach(ing => {
+              if (ing.isMerged) {
+                const aggregatedPurchases = this._getAggregatedPurchasesForIngredient(ing);
+                const updatedState = IngredientCalculator.recalculateStateFromPurchases(ing, aggregatedPurchases, this.unitsManager);
+                Object.assign(ing, updatedState);
+              }
+            });
+
             // Mettre à jour dans le tableau transformedIngredients (approche fonctionnelle)
             // Créer une map des ingrédients existants pour une recherche rapide
 
@@ -1138,121 +1159,78 @@ export function createCollaborativeApp() {
         },
 
         /**
-         * Met à jour les ingrédients affectés par des changements d'achats
-         * @param {Array} purchases - Les achats modifiés
+         * Met à jour les ingrédients affectés par des changements d'achats.
+         * Cette fonction est maintenant le point central pour recalculer l'état
+         * des ingrédients après une modification des achats.
+         * @param {Array} updatedPurchases - Les achats modifiés (créés, mis à jour, supprimés).
          */
-        updateIngredientsFromPurchasesInUI(purchases) {
-          if (!purchases || purchases.length === 0) return;
+        updateIngredientsFromPurchasesInUI(updatedPurchases) {
+          if (!updatedPurchases || updatedPurchases.length === 0) return;
 
           try {
-            // [AI] Pour les mises à jour multiples, on utilise les purchases existants
-            // La mise à jour avec les purchases enrichis se fera via transformDataForUI() complet
-            const enrichedPurchases = this.purchases || [];
+            // 1. Identifier les ingrédients affectés par ces changements d'achats
+            const affectedIngredientIds = new Set(updatedPurchases.map(p => p.listIngredient));
 
-            // Trouver les ingrédients affectés et les mettre à jour
-            const calculatedIngredients = IngredientCalculator.updateIngredientsFromPurchases(
-              purchases,
-              this.ingredients,
-              enrichedPurchases,
-            );
-
-            // Transformer pour l'UI
-            const transformedIngredients = DataTransformer.transformForUI(
-              calculatedIngredients,
-              {
-                unitsManager: this.unitsManager,
-                includeRecipeDetails: true,
-                includeCalculations: true,
-                purchases: this.purchases || [],
+            // 2. Pour chaque ingrédient affecté, trouver sa version transformée (qui peut être fusionnée)
+            const ingredientsToRecalculate = new Set();
+            this.transformedIngredients.forEach(ing => {
+              if (affectedIngredientIds.has(ing.$id)) {
+                ingredientsToRecalculate.add(ing);
               }
-            );
+              // Si l'ingrédient est fusionné, vérifier aussi ses enfants
+              if (ing.isMerged === true && ing.mergedFrom) {
+                const sourceIds = ing.mergedFrom.map(src => src.$id);
+                if (sourceIds.some(id => affectedIngredientIds.has(id))) {
+                  ingredientsToRecalculate.add(ing);
+                }
+              }
+            });
 
-            // Mettre à jour dans le tableau transformedIngredients (approche fonctionnelle)
-            const updatedIds = new Set(transformedIngredients.map(ing => ing.$id));
-            const unchangedIngredients = this.transformedIngredients.filter(ing => !updatedIds.has(ing.$id));
+            if (ingredientsToRecalculate.size === 0) return;
 
-            // Fusionner les ingrédients inchangés avec les ingrédients mis à jour
-            this.transformedIngredients = [...unchangedIngredients, ...transformedIngredients];
+            // 3. Recalculer l'état de chaque ingrédient affecté
+            ingredientsToRecalculate.forEach(ingredient => {
+              const aggregatedPurchases = this._getAggregatedPurchasesForIngredient(ingredient);
+              const updatedState = IngredientCalculator.recalculateStateFromPurchases(ingredient, aggregatedPurchases, this.unitsManager);
+              Object.assign(ingredient, updatedState);
+            });
 
-            console.log('[Collaborative App] Ingrédients mis à jour depuis achats:', transformedIngredients.length);
+            console.log(`[Collaborative App] ${ingredientsToRecalculate.size} ingrédient(s) mis à jour suite à un changement d'achat.`);
+
           } catch (error) {
             console.error('[Collaborative App] Erreur lors de la mise à jour depuis achats:', error);
-            // Fallback : retransformer toutes les données
+            // En cas d'erreur, un recalcul complet est plus sûr
             this.transformDataForUI();
           }
         },
 
         /**
-         * Récupère tous les purchases liés à un ingrédient fusionné
-         * Inclut les purchases des ingrédients sources (via mergedFrom) et les propres purchases
+         * Récupère tous les achats pertinents pour un ingrédient (fusionné ou non) depuis le cache local.
+         * @param {Object} ingredient - L'objet ingrédient.
+         * @returns {Array} - Un tableau des documents d'achat correspondants.
          */
-        async getPurchasesForMergedIngredient(ingredient) {
-          const allPurchases = [];
+        _getAggregatedPurchasesForIngredient(ingredient) {
+          if (!ingredient || !this.purchases) {
+            return [];
+          }
 
-          try {
-            // Récupérer les purchases des ingrédients sources (mergedFrom)
-            if (ingredient.mergedFrom && ingredient.mergedFrom.length > 0) {
-              for (const sourceId of ingredient.mergedFrom) {
-                try {
-                  const sourcePurchases = await this.database.listDocuments(
-                    this.appwriteDataService.config.databaseId,
-                    'purchase',
-                    [Appwrite.Query.equal('listIngredient', sourceId)]
-                  );
-                  allPurchases.push(...sourcePurchases.documents);
-                } catch (error) {
-                  console.warn(`Erreur récupération purchases pour source ${sourceId}:`, error);
-                }
+          const relatedIngredientIds = new Set();
+
+          // 1. Ajouter l'ID de l'ingrédient lui-même
+          relatedIngredientIds.add(ingredient.$id);
+
+          // 2. Si l'ingrédient est fusionné, ajouter les IDs de ses enfants
+          // On suppose que `mergedFrom` contient les objets ingrédients complets.
+          if (ingredient.isMerged === true && Array.isArray(ingredient.mergedFrom)) {
+            ingredient.mergedFrom.forEach(sourceIngredient => {
+              if (sourceIngredient && sourceIngredient.$id) {
+                relatedIngredientIds.add(sourceIngredient.$id);
               }
-            }
-
-            // Récupérer les propres purchases de l'ingrédient fusionné
-            const ownPurchases = await this.database.listDocuments(
-              this.appwriteDataService.config.databaseId,
-              'purchase',
-              [Appwrite.Query.equal('listIngredient', ingredient.$id)]
-            );
-            allPurchases.push(...ownPurchases.documents);
-
-            console.log(`[DEBUG] getPurchasesForMergedIngredient(${ingredient.ingredientName}): ${allPurchases.length} purchases trouvés`);
-
-          } catch (error) {
-            console.error('Erreur dans getPurchasesForMergedIngredient:', error);
+            });
           }
 
-          return allPurchases;
-        },
-
-        /**
-         * Enrichit les purchases avec ceux des ingrédients fusionnés
-         */
-        async getEnrichedPurchasesForUI() {
-          const enrichedPurchases = [...(this.purchases || [])];
-          const mergedIngredients = this.ingredients.filter(ing => ing.mergedFrom && ing.mergedFrom.length > 0);
-
-          if (mergedIngredients.length === 0) {
-            return enrichedPurchases;
-          }
-
-          console.log(`[DEBUG] Enrichissement des purchases pour ${mergedIngredients.length} ingrédients fusionnés`);
-
-          // Pour chaque ingrédient fusionné, récupérer ses purchases sources
-          for (const mergedIngredient of mergedIngredients) {
-            try {
-              const sourcePurchases = await this.getPurchasesForMergedIngredient(mergedIngredient);
-
-              // Ajouter seulement les purchases qui ne sont pas déjà dans enrichedPurchases
-              const existingIds = new Set(enrichedPurchases.map(p => p.$id));
-              const newPurchases = sourcePurchases.filter(p => !existingIds.has(p.$id));
-
-              enrichedPurchases.push(...newPurchases);
-            } catch (error) {
-              console.warn(`Erreur enrichissement purchases pour ${mergedIngredient.ingredientName}:`, error);
-            }
-          }
-
-          console.log(`[DEBUG] Purchases enrichis: ${this.purchases?.length || 0} → ${enrichedPurchases.length}`);
-          return enrichedPurchases;
+          // 3. Filtrer le cache global des achats
+          return this.purchases.filter(p => p.listIngredient && relatedIngredientIds.has(p.listIngredient));
         },
 
         // === MÉTHODES DE SYNCHRONISATION TEMPS RÉEL ===
@@ -1996,8 +1974,6 @@ export function createCollaborativeApp() {
         async handleGroupAssignmentSubmit() {
           console.log('[Collaborative App] Début de la soumission groupée - Contexte:', this.groupAssignment.context);
           console.log('[Collaborative App] Ingrédients concernés:', this.modalSelectedIngredients.length);
-
-          // Filtrer les ingrédients sélectionnés pour le traitement
           const selectedIngredients = this.modalSelectedIngredients.filter(ing => ing.selected);
           console.log('[Collaborative App] Ingrédients à traiter:', selectedIngredients.length);
 
@@ -2044,7 +2020,7 @@ export function createCollaborativeApp() {
           } catch (error) {
             console.error('[Collaborative App] Erreur lors de l\'attribution groupée:', error);
             this.showToast(
-              `Erreur lors de l'attribution: ${error.message}`,
+              `Erreur lors de l\'attribution: ${error.message}`,
               'danger',
               8000,
               'Erreur'

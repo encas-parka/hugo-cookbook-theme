@@ -59,15 +59,14 @@ export class DataTransformer {
        store: storeDisplay === this.EMPTY_STORE ? '' : storeDisplay, // Toujours une string
        who: ingredient.who || [],
 
+       // Données brutes pour les calculs et modales (structure aplatie)
+       totalNeededConsolidated: ingredient.totalNeededConsolidated || [],
+       recipeOccurrences: ingredient.recipeOccurrences || [],
+       purchases: ingredient.purchases || [],
+       balancePerUnit: ingredient.balancePerUnit || [],
+
        // Métadonnées
        isModified: ingredient.isModified || false,
-     };
-
-     // Ajouter les données de calcul détaillées pour les modales
-     transformed.calculations = {
-       recipeOccurrences: ingredient.recipeOccurrences || [],
-       purchases: ingredient.purchases,
-       balancePerUnit: ingredient.balancePerUnit || []
      };
 
      return transformed;

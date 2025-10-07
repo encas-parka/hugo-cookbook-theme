@@ -98,7 +98,7 @@ export class AppwriteDataService {
           "unique()",
           purchaseData
         );
-        results.push(result.$id);
+        results.push(result); // Retourner l'objet complet
         console.log('[AppwriteDataService] Nouvel achat créé:', result.$id);
       } catch (error) {
         throw this.handleAppwriteError(error, 'création achat');
@@ -123,7 +123,7 @@ export class AppwriteDataService {
           purchase.$id,
           updateData
         );
-        results.push(result.$id);
+        results.push(result); // Retourner l'objet complet
         console.log('[AppwriteDataService] Achat mis à jour:', result.$id);
       } catch (error) {
         throw this.handleAppwriteError(error, 'mise à jour achat');

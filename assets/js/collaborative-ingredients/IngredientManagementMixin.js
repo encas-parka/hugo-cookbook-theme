@@ -82,7 +82,7 @@ export const IngredientManagementMixin = {
      * Formate les quantités consolidées pour l'affichage
      */
     formattedConsolidatedQuantities() {
-      const quantities = this.consolidatedQuantities();
+      const quantities = this.consolidatedQuantities;
       if (!quantities.length) return '';
 
       // Grouper par type
@@ -443,12 +443,12 @@ export const IngredientManagementMixin = {
       const consolidatedNeeds = this.consolidateQuantitiesByUnit(allNeededQuantities);
 
       const newIngredientData = {
-        ingredientUuid: `merged_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        ingredientUuid: `merged_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         ingredientName: mergedData.name,
         ingType: mergedData.ingType,
-        totalNeededRaw: JSON.stringify([]), // Plus de calcul de quantités brutes
-        totalNeededConsolidated: JSON.stringify(consolidatedNeeds.length ? consolidatedNeeds : []),
-        recipeOccurrences: allRecipeOccurrences.length ? allRecipeOccurrences : [],
+        totalNeededRaw: '[]', // Ce champ semble moins utilisé, on le laisse vide pour l'instant
+        totalNeededConsolidated: JSON.stringify(consolidatedNeeds),
+        recipeOccurrences: allRecipeOccurrences,
         pFrais: sourceIngredients.some(i => i.pFrais),
         pSurgel: sourceIngredients.some(i => i.pSurgel),
         stockReel: '',

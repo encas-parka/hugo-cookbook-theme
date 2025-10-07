@@ -73,8 +73,8 @@
               <i class="fas me-1 fa-utensils" aria-hidden="true"></i>
               <span>Recettes</span>
               <span class="badge text-bg-secondary ms-1"
-                aria-label="[[ modalState.editingIngredient?.calculations?.recipeOccurrences?.length || 0 ]] recettes"
-                >[[ modalState.editingIngredient?.calculations?.recipeOccurrences?.length || 0 ]]</span
+                aria-label="[[ modalState.editingIngredient?.recipeOccurrences?.length || 0 ]] recettes"
+                >[[ modalState.editingIngredient?.recipeOccurrences?.length || 0 ]]</span
               >
             </button>
           </li>
@@ -92,8 +92,8 @@
               <i class="fas me-1 fa-shopping-cart" aria-hidden="true"></i>
               <span>Achats</span>
               <span class="badge text-bg-secondary ms-1"
-                aria-label="[[ modalState.editingIngredient?.calculations?.purchases?.length || 0 ]] achats"
-                >[[ modalState.editingIngredient?.calculations?.purchases?.length || 0 ]]</span
+                aria-label="[[ modalState.editingIngredient?.purchases?.length || 0 ]] achats"
+                >[[ modalState.editingIngredient?.purchases?.length || 0 ]]</span
               >
             </button>
           </li>
@@ -175,14 +175,14 @@
                 </thead>
                 <tbody>
                   <tr
-                    v-if="!modalState.editingIngredient?.calculations?.recipeOccurrences?.length"
+                    v-if="!modalState.editingIngredient?.recipeOccurrences?.length"
                   >
                     <td colspan="6" class="text-muted text-center">
                       Aucune recette trouvée
                     </td>
                   </tr>
                   <tr
-                    v-for="recipe in modalState.editingIngredient?.calculations?.recipeOccurrences"
+                    v-for="recipe in modalState.editingIngredient?.recipeOccurrences"
                     :key="recipe.recipeName + recipe.dateTimeService"
                   >
                     <td><strong>[[ recipe.recipeName ]]</strong></td>
