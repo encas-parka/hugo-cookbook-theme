@@ -1,5 +1,5 @@
 /**
- * ingredientCalculator.js
+ * ingredientCalculator.js for event
  * Pure functions for ingredient calculations extracted from the Vue component
  * Following SOLID principles: Single Responsibility for calculations
  */
@@ -99,7 +99,7 @@ export function processIngredients(ingredientItems, options = {}) {
 
   ingredientItems.forEach(item => {
     const ingredientName = item.ingredient;
-    
+
     if (!totals[ingredientName]) {
       totals[ingredientName] = {
         ingredient: ingredientName,
@@ -122,7 +122,7 @@ export function processIngredients(ingredientItems, options = {}) {
     // Stocker les quantités originales pour le total transparent
     const originalUnit = item.unit || '';
     const originalQuantity = parseFloat(item.quantite) || 0;
-    
+
     // Pour l'affichage transparent, on stocke TOUJOURS les quantités originales
     const currentOriginalTotal = currentIngredient._originalQuantities.get(originalUnit) || 0;
     currentIngredient._originalQuantities.set(originalUnit, currentOriginalTotal + originalQuantity);
@@ -336,6 +336,6 @@ export function formatTypeShort(type) {
     "animaux": "Viandes et Poissons",
     "autres": "Autres",
   };
-  
+
   return typeMap[type] || type;
 }

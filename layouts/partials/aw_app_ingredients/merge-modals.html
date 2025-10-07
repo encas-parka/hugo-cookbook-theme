@@ -42,6 +42,18 @@
               </div>
             </div>
           </div>
+          <!-- Affichage des quantités consolidées -->
+          <div class="mb-3" v-if="consolidatedQuantities.length">
+            <label class="form-label">
+              <i class="fas fa-calculator me-1"></i>Quantités consolidées de la fusion
+            </label>
+            <div class="alert alert-success py-2">
+              <strong class="d-block mb-2">Total fusionné :</strong>
+              <div class="mb-2">
+                [[ formattedConsolidatedQuantities ]]
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Formulaire de l'ingrédient fusionné -->
@@ -76,118 +88,62 @@
                 >
                   <i class="fas fa-plus me-1"></i>Ajouter  [[ conflict.ingredientName ]] aux ingrédients fusionnés
                 </button>
-
               </div>
             </div>
           </div>
 
-          <!-- Type d'ingrédient -->
-          <div class="mb-3">
-            <label for="mergedIngredientType" class="form-label">
-              <i class="fas fa-list me-1"></i>Type d'ingrédient *
-            </label>
-            <select
-              class="form-select"
-              id="mergedIngredientType"
-              v-model="mergeModal.mergedIngredient.ingType"
-              required
-            >
+          <!-- Type d'ingrédient (Conditionnel) -->
+          <div v-if="mergeModal.showTypeSelector" class="mb-3">
+            <label for="mergedIngredientType" class="form-label"><i class="fas fa-list me-1"></i>Type d'ingrédient *</label>
+            <div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-1"></i>Les types divergent. Veuillez choisir le type final.</div>
+            <select class="form-select" id="mergedIngredientType" v-model="mergeModal.mergedIngredient.ingType" required>
               <option value="">Sélectionner un type...</option>
-              <option v-for="type in availableTypes" :key="type" :value="type">
-                [[ formatTypeShort(type) ]]
-              </option>
+              <option v-for="type in availableTypes" :key="type" :value="type">[[ formatTypeShort(type) ]]</option>
             </select>
           </div>
 
-          <!-- Magasin -->
-          <div class="mb-3">
-            <label for="mergedIngredientStore" class="form-label">
-              <i class="fas fa-store me-1"></i>Magasin
-            </label>
-            <div v-if="mergeModal.availableStores.length > 1" class="alert alert-warning py-2">
-              <small class="mb-0">
-                <i class="fas fa-exclamation-triangle me-1"></i>
-                Les ingrédients ont des magasins différents. Veuillez en choisir un :
-              </small>
-            </div>
-            <select
-              class="form-select"
-              id="mergedIngredientStore"
-              v-model="mergeModal.mergedIngredient.store"
-            >
+          <!-- Magasin (Conditionnel) -->
+          <div v-if="mergeModal.showStoreSelector" class="mb-3">
+            <label for="mergedIngredientStore" class="form-label"><i class="fas fa-store me-1"></i>Magasin</label>
+            <div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-1"></i>Les magasins divergent. Veuillez en choisir un.</div>
+            <select class="form-select" id="mergedIngredientStore" v-model="mergeModal.mergedIngredient.store">
               <option value="">Choisir un magasin...</option>
-              <option v-for="store in mergeModal.availableStores" :key="store" :value="store">
-                [[ store ]]
-              </option>
+              <option v-for="store in mergeModal.availableStores" :key="store" :value="store">[[ store ]]</option>
             </select>
           </div>
 
-          <!-- Volontaires -->
-          <div class="mb-3">
-            <label class="form-label">
-              <i class="fas fa-users me-1"></i>Responsables
-            </label>
-            <div class="p-2 border rounded bg-light">
-              <div v-if="mergeModal.mergedIngredient.who.length" class="d-flex flex-wrap gap-2">
-                <span v-for="volunteer in mergeModal.mergedIngredient.who" :key="volunteer"
-                      class="badge bg-primary">
-                  [[ volunteer ]]
-                </span>
-              </div>
-              <div v-else class="text-muted">
-                <i class="fas fa-info-circle me-1"></i>
-                Aucun responsable assigné
-              </div>
+          <!-- Volontaires (Interactif & Conditionnel) -->
+          <div v-if="mergeModal.showWhoSelector" class="mb-3">
+            <label class="form-label"><i class="fas fa-users me-1"></i>Responsables</label>
+            <div class="alert alert-info py-2 small">Cliquez sur un nom pour l'inclure ou l'exclure de l'ingrédient final.</div>
+            <div class="p-2 border rounded bg-light d-flex flex-wrap gap-2">
+              <span v-for="volunteer in mergeModal.allVolunteers" :key="volunteer.name" class="badge d-flex align-items-center gap-1 cursor-pointer" :class="volunteer.selected ? 'bg-success' : 'bg-secondary'" @click="toggleMergedVolunteer(volunteer)">
+                <i class="fas fa-user me-1"></i>
+                <span>[[ volunteer.name ]]</span>
+                <span class="ms-1"><i class="fas" :class="volunteer.selected ? 'fa-check' : 'fa-times'"></i></span>
+              </span>
             </div>
           </div>
 
-          <!-- Information sur les achats et besoins -->
-          <div class="mb-3">
-            <label class="form-label">
-              <i class="fas fa-info-circle me-1"></i>Information sur la fusion
-            </label>
-
-            <div class="alert alert-info py-2">
-              <small class="mb-0">
-                <i class="fas fa-lightbulb me-1"></i>
-                <strong>Nouvelle stratégie simplifiée :</strong><br>
-                • Les achats existants des ingrédients sources seront automatiquement associés à l'ingrédient fusionné<br>
-                • Les besoins des recettes seront consolidés dans le nouvel ingrédient<br>
-                • Vous pourrez toujours ajouter de nouveaux achats après la fusion<br>
-                • La consultation des quantités se fera dans le tableau principal
-              </small>
-            </div>
-          </div>
-
-          <!-- Affichage des quantités consolidées -->
-          <div class="mb-3" v-if="consolidatedQuantities.length">
-            <label class="form-label">
-              <i class="fas fa-calculator me-1"></i>Quantités consolidées de la fusion
-            </label>
-            <div class="alert alert-success py-2">
-              <strong class="d-block mb-2">Total fusionné :</strong>
-              <div class="mb-2">
-                [[ formattedConsolidatedQuantities ]]
+          <!-- Nature du produit (pFrais/pSurgel) (Radio & Conditionnel) -->
+          <div v-if="mergeModal.showProductNatureSelector" class="mb-3">
+            <label class="form-label"><i class="fas fa-snowflake me-1"></i>Nature du produit</label>
+            <div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-1"></i>La nature des produits diverge (Frais/Surgelé). Veuillez choisir la nature finale.</div>
+            <div class="d-flex justify-content-around border rounded p-2">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="productNature" id="natureFrais" value="frais" v-model="mergeModal.mergedIngredient.productNature">
+                <label class="form-check-label" for="natureFrais">Produit Frais</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="productNature" id="natureSurgel" value="surgel" v-model="mergeModal.mergedIngredient.productNature">
+                <label class="form-check-label" for="natureSurgel">Produit Surgelé</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="productNature" id="natureNone" value="none" v-model="mergeModal.mergedIngredient.productNature">
+                <label class="form-check-label" for="natureNone">Aucun / Sec</label>
               </div>
             </div>
           </div>
-
-          <!-- Détail par ingrédient -->
-          <div class="mb-3" v-if="mergeModal.selectedIngredients.length">
-            <label class="form-label">
-              <i class="fas fa-list me-1"></i>Détail par ingrédient
-            </label>
-            <div class="row">
-              <div v-for="ingredient in mergeModal.selectedIngredients" :key="ingredient.$id"
-                   class="col-md-6 mb-2">
-                <div class="card card-body py-2">
-                  <h6 class="card-title mb-1">[[ ingredient.ingredientName ]]</h6>
-
-                </div>
-              </div>
-            </div>
-          </div>
-
         </form>
       </div>
 
