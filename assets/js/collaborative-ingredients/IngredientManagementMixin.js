@@ -8,25 +8,55 @@ import { unitsManager } from './UnitsManager.js';
 import { DataTransformer } from './services/DataTransformer.js';
 
 export const IngredientManagementMixin = {
+  data() {
+    return {
+      renameModal: {
+        isOpen: false,
+        ingredient: null,
+        newName: '',
+        isSaving: false
+      },
+      mergeModal: {
+        isOpen: false,
+        selectedIngredients: [],
+        mergedIngredient: {
+          name: '',
+          ingType: '',
+          store: '',
+          who: [],
+          pFrais: false,
+          pSurgel: false,
+        },
+        availableStores: [],
+        nameConflicts: [],
+        allVolunteers: [],
+        showTypeSelector: false,
+        showStoreSelector: false,
+        showWhoSelector: false,
+        showProductNatureSelector: false,
+        isSaving: false
+      }
+    };
+  },
 
   computed: {
     /**
      * Vérifie si le formulaire de renommage est valide
      */
     isRenameFormValid() {
-      return this.modals.rename.newName &&
-             this.modals.rename.newName.trim() !== '' &&
-             this.modals.rename.newName !== this.modals.rename.ingredient?.ingredientName;
+      return this.renameModal.newName &&
+        this.renameModal.newName.trim() !== '' &&
+        this.renameModal.newName !== this.renameModal.ingredient?.ingredientName;
     },
 
     /**
      * Vérifie si le formulaire de fusion est valide
      */
     isMergeFormValid() {
-      return this.modals.merge.mergedIngredient.name &&
-             this.modals.merge.mergedIngredient.name.trim() !== '' &&
-             this.modals.merge.mergedIngredient.ingType &&
-             !this.modals.merge.nameConflicts.length;
+      return this.mergeModal.mergedIngredient.name &&
+        this.mergeModal.mergedIngredient.name.trim() !== '' &&
+        this.mergeModal.mergedIngredient.ingType &&
+        !this.mergeModal.nameConflicts.length;
     },
 
     /**
@@ -34,12 +64,12 @@ export const IngredientManagementMixin = {
      * Délégué à DataTransformer pour centraliser la logique
      */
     consolidatedQuantities() {
-      if (!this.modals.merge.selectedIngredients.length) return [];
+      if (!this.mergeModal.selectedIngredients.length) return [];
 
       try {
         // Utiliser le service centralisé pour les calculs
         return DataTransformer.calculateMergedQuantities(
-          this.modals.merge.selectedIngredients,
+          this.mergeModal.selectedIngredients,
           this.purchases
         );
       } catch (error) {
@@ -47,8 +77,6 @@ export const IngredientManagementMixin = {
         return [];
       }
     },
-
-
 
     /**
      * Formate les quantités consolidées pour l'affichage
@@ -84,32 +112,35 @@ export const IngredientManagementMixin = {
      * @param {Object} ingredient - Ingrédient à renommer
      */
     openRenameModal(ingredient) {
-
-      this.modals.rename.ingredient = ingredient;
-      this.modals.rename.newName = ingredient.ingredientName;
-      this.modals.rename.isOpen = true;
-      this.modals.rename.isSaving = false;
+      this.renameModal.ingredient = ingredient;
+      this.renameModal.newName = ingredient.ingredientName;
+      this.renameModal.isOpen = true;
+      this.renameModal.isSaving = false;
     },
 
     /**
      * Ferme le modal de renommage
      */
     closeRenameModal() {
-      if (this.isSaving) return;
-      this.handleCloseRenameModal();
+      this.renameModal.isOpen = false;
+      this.renameModal.selectedIngredients = [];
+      this.renameModal.mergedIngredient = {};
+      this.renameModal.nameConflicts = [];
     },
+
+
 
     /**
      * Sauvegarde le renommage d'un ingrédient
      */
     async saveRename() {
-      if (!this.isRenameFormValid || this.modals.rename.isSaving) return;
+      if (!this.isRenameFormValid || this.renameModal.isSaving) return;
 
-      this.modals.rename.isSaving = true;
+      this.renameModal.isSaving = true;
 
       try {
-        const ingredient = this.modals.rename.ingredient;
-        const newName = this.modals.rename.newName.trim();
+        const ingredient = this.renameModal.ingredient;
+        const newName = this.renameModal.newName.trim();
         const oldName = ingredient.ingredientName;
 
         // Préparer les données de mise à jour
@@ -146,23 +177,21 @@ export const IngredientManagementMixin = {
         this.showSuccessToast(`Ingrédient "${oldName}" renommé en "${newName}"`);
 
         // Fermer le modal
-        this.handleCloseRenameModal();
+        this.closeRenameModal();
 
       } catch (error) {
         console.error('Erreur lors du renommage:', error);
         await this.handleAppwriteError(error);
       } finally {
-        this.isSaving = false;
+        this.renameModal.isSaving = false;
       }
     },
-
-
 
     /**
      * Initialise les données pour la fusion
      */
     initializeMergeData() {
-      const ingredients = this.modals.merge.selectedIngredients;
+      const ingredients = this.mergeModal.selectedIngredients;
 
       // --- Détection des divergences ---
       const uniqueTypes = [...new Set(ingredients.map(i => i.ingType))];
@@ -172,26 +201,26 @@ export const IngredientManagementMixin = {
       const uniquePSurgel = [...new Set(ingredients.map(i => i.pSurgel))];
 
       // --- Logique de visibilité des sélecteurs ---
-      this.modals.merge.showTypeSelector = uniqueTypes.length > 1;
-      this.modals.merge.showStoreSelector = uniqueStores.length > 1;
-      this.modals.merge.showWhoSelector = allVolunteers.length > 0;
+      this.mergeModal.showTypeSelector = uniqueTypes.length > 1;
+      this.mergeModal.showStoreSelector = uniqueStores.length > 1;
+      this.mergeModal.showWhoSelector = allVolunteers.length > 0;
 
       const hasFrais = uniquePFrais.includes(true);
       const hasSurgel = uniquePSurgel.includes(true);
-      this.modals.merge.showProductNatureSelector = hasFrais && hasSurgel || (hasFrais && uniquePFrais.length > 1) || (hasSurgel && uniquePSurgel.length > 1);
+      this.mergeModal.showProductNatureSelector = hasFrais && hasSurgel || (hasFrais && uniquePFrais.length > 1) || (hasSurgel && uniquePSurgel.length > 1);
 
       // --- Initialisation de l'ingrédient fusionné ---
       let defaultProductNature = 'none';
-      if (!this.modals.merge.showProductNatureSelector) {
+      if (!this.mergeModal.showProductNatureSelector) {
         if (hasFrais) defaultProductNature = 'frais';
         else if (hasSurgel) defaultProductNature = 'surgel';
       }
 
-      this.modals.merge.availableStores = uniqueStores;
-      this.modals.merge.allVolunteers = allVolunteers.map(name => ({ name, selected: true }));
+      this.mergeModal.availableStores = uniqueStores;
+      this.mergeModal.allVolunteers = allVolunteers.map(name => ({ name, selected: true }));
 
-      this.modals.merge.mergedIngredient = {
-        name:  '', // this.modals.merge.mergedIngredient.name ||
+      this.mergeModal.mergedIngredient = {
+        name: '',
         ingType: uniqueTypes.length === 1 ? uniqueTypes[0] : (uniqueTypes[0] || ''),
         store: uniqueStores.length === 1 ? uniqueStores[0] : '',
         who: [], // Sera calculé au moment de la sauvegarde
@@ -208,20 +237,20 @@ export const IngredientManagementMixin = {
      * Vérifie les conflits de noms pour la fusion
      */
     checkNameConflicts() {
-      const proposedName = this.modals.merge.mergedIngredient.name.trim();
+      const proposedName = this.mergeModal.mergedIngredient.name.trim();
       if (!proposedName) {
-        this.modals.merge.nameConflicts = [];
+        this.mergeModal.nameConflicts = [];
         return;
       }
 
       // Chercher si le nom existe déjà dans les ingrédients non sélectionnés
       const conflicts = this.ingredients.filter(ingredient =>
         ingredient.ingredientName.toLowerCase() === proposedName.toLowerCase() &&
-        !this.modals.merge.selectedIngredients.find(selected => selected.$id === ingredient.$id) &&
+        !this.mergeModal.selectedIngredients.find(selected => selected.$id === ingredient.$id) &&
         !ingredient.isMerged
       );
 
-      this.modals.merge.nameConflicts = conflicts;
+      this.mergeModal.nameConflicts = conflicts;
     },
 
     /**
@@ -241,10 +270,10 @@ export const IngredientManagementMixin = {
       }
 
       // Ajouter l'ingrédient en conflit à la sélection
-      this.modals.merge.selectedIngredients.push(conflictIngredient);
+      this.mergeModal.selectedIngredients.push(conflictIngredient);
 
       // Mettre à jour le nom avec celui de l'ingrédient en conflit
-      this.modals.merge.mergedIngredient.name = conflictIngredient.ingredientName;
+      this.mergeModal.mergedIngredient.name = conflictIngredient.ingredientName;
 
       // Réinitialiser les données
       this.initializeMergeData();
@@ -255,34 +284,47 @@ export const IngredientManagementMixin = {
      * @param {Object} volunteer - L'objet volontaire à basculer
      */
     toggleMergedVolunteer(volunteer) {
-      const v = this.modals.merge.allVolunteers.find(v => v.name === volunteer.name);
+      const v = this.mergeModal.allVolunteers.find(v => v.name === volunteer.name);
       if (v) {
         v.selected = !v.selected;
       }
     },
 
-    /**
-     * Ferme le modal de fusion
+      /**
+     * Gère la logique de fermeture et de réinitialisation du modal de fusion.
      */
     closeMergeModal() {
-      if (this.modals.merge.isSaving) return;
-      this.modals.merge.isOpen = false;
-      this.modals.merge.selectedIngredients = [];
-      this.modals.merge.mergedIngredient = {};
-      this.modals.merge.nameConflicts = [];
+      this.mergeModal.isOpen = false;
+      this.mergeModal.selectedIngredients = [];
+      this.mergeModal.mergedIngredient = {
+        name: '',
+        ingType: '',
+        store: '',
+        who: [],
+        pFrais: false,
+        pSurgel: false,
+      };
+      this.mergeModal.availableStores = [];
+      this.mergeModal.nameConflicts = [];
+      this.mergeModal.allVolunteers = [];
+      this.mergeModal.showTypeSelector = false;
+      this.mergeModal.showStoreSelector = false;
+      this.mergeModal.showWhoSelector = false;
+      this.mergeModal.showProductNatureSelector = false;
+      this.mergeModal.isSaving = false;
     },
 
     /**
      * Sauvegarde la fusion des ingrédients
      */
     async saveMerge() {
-      if (!this.isMergeFormValid || this.modals.merge.isSaving) return;
+      if (this.mergeModal.isSaving) return;
 
-      this.modals.merge.isSaving = true;
+      this.mergeModal.isSaving = true;
 
       try {
-        const mergedData = this.modals.merge.mergedIngredient;
-        const sourceIngredients = this.modals.merge.selectedIngredients;
+        const mergedData = this.mergeModal.mergedIngredient;
+        const sourceIngredients = this.mergeModal.selectedIngredients;
 
         // Valider les données avant la sauvegarde
         const validationResult = this.validateMergeData(mergedData, sourceIngredients);
@@ -294,9 +336,8 @@ export const IngredientManagementMixin = {
         const newIngredient = await this.createMergedIngredient(mergedData, sourceIngredients);
 
         // 2. Marquer les ingrédients source comme fusionnés
-        // await this.markIngredientsAsMerged(sourceIngredients, newIngredient);
+        await this.markIngredientsAsMerged(sourceIngredients, newIngredient);
 
-        // [AI] Forcer la retransformation complète des données pour bénéficier des purchases enrichis
         setTimeout(() => {
           this.transformDataForUI(true);
         }, 1000); // Attendre un peu que le realtime ait propagé les changements
@@ -314,7 +355,7 @@ export const IngredientManagementMixin = {
         console.error('Erreur lors de la fusion:', error);
         await this.handleAppwriteError(error);
       } finally {
-        this.modals.merge.isSaving = false;
+        this.mergeModal.isSaving = false;
       }
     },
 
@@ -324,30 +365,21 @@ export const IngredientManagementMixin = {
     validateMergeData(mergedData, sourceIngredients) {
       const errors = [];
 
-      // Validation du nom
       if (!mergedData.name || mergedData.name.trim().length === 0) {
         errors.push('Le nom de l\'ingrédient fusionné est requis');
       }
       if (mergedData.name.length > 25) {
         errors.push('Le nom de l\'ingrédient est trop long (max 25 caractères)');
       }
-
-      // Validation du type
       if (!mergedData.ingType) {
         errors.push('Le type d\'ingrédient est requis');
       }
-
-      // Validation des ingrédients source
       if (!sourceIngredients || sourceIngredients.length < 2) {
         errors.push('Il faut au moins 2 ingrédients à fusionner');
       }
-
-      // Validation du magasin
       if (mergedData.store && mergedData.store.length > 25) {
         errors.push('Le nom du magasin est trop long (max 25 caractères)');
       }
-
-      // Validation des volontaires
       if (mergedData.who && Array.isArray(mergedData.who)) {
         mergedData.who.forEach(volunteer => {
           if (volunteer && volunteer.length > 15) {
@@ -368,30 +400,59 @@ export const IngredientManagementMixin = {
     async createMergedIngredient(mergedData, sourceIngredients) {
       const now = new Date().toISOString();
 
-      // 1. Consolider les besoins et occurrences
-      const allNeededQuantities = sourceIngredients.flatMap(ingredient => {
-        let needs = [];
-        if (typeof ingredient.totalNeededConsolidated === 'string' && ingredient.totalNeededConsolidated) {
-          try { needs = JSON.parse(ingredient.totalNeededConsolidated); } catch (e) { needs = []; }
-        } else if (Array.isArray(ingredient.totalNeededConsolidated)) {
-          needs = ingredient.totalNeededConsolidated;
+      // Consolider les quantités nécessaires
+    const allNeededQuantities = sourceIngredients.flatMap(ingredient => {
+      let needs = [];
+      if (typeof ingredient.totalNeededConsolidated === 'string' && ingredient.totalNeededConsolidated) {
+        try { needs = JSON.parse(ingredient.totalNeededConsolidated); } catch (e) { needs = []; }
+      } else if (Array.isArray(ingredient.totalNeededConsolidated)) {
+        needs = ingredient.totalNeededConsolidated;
+      }
+      return Array.isArray(needs) ? needs : [];
+    });
+    const consolidatedNeeds = this.consolidateQuantitiesByUnit(allNeededQuantities);
+    
+    // Consolider les recipeOccurrences en évitant les doublons
+    const allRecipeOccurrences = [];
+    const seenRecipes = new Set();
+    
+    sourceIngredients.forEach(ingredient => {
+      let recipeOccurrences = [];
+      if (Array.isArray(ingredient.recipeOccurrences)) {
+        recipeOccurrences = ingredient.recipeOccurrences;
+      } else if (typeof ingredient.recipeOccurrences === 'string' && ingredient.recipeOccurrences) {
+        try { recipeOccurrences = JSON.parse(ingredient.recipeOccurrences); } catch (e) { recipeOccurrences = []; }
+      }
+      
+      recipeOccurrences.forEach(occurrence => {
+        let occurrenceStr = occurrence;
+        if (typeof occurrence === 'object') {
+          occurrenceStr = JSON.stringify(occurrence);
         }
-        return needs;
+        
+        if (typeof occurrenceStr === 'string') {
+          try {
+            const parsedOccurrence = JSON.parse(occurrenceStr);
+            const key = `${parsedOccurrence.recipeName}_${parsedOccurrence.dateTimeService}_${parsedOccurrence.horaire}`;
+            if (!seenRecipes.has(key)) {
+              seenRecipes.add(key);
+              allRecipeOccurrences.push(occurrenceStr);
+            }
+          } catch (e) {
+            console.warn('Occurrence invalide ignorée:', occurrenceStr);
+          }
+        }
       });
-      const consolidatedNeeds = this.consolidateQuantitiesByUnit(allNeededQuantities);
-      const allRecipeOccurrences = sourceIngredients.flatMap(ing => ing.recipeOccurrences || []);
+    });
 
-      // 2. Déterminer les `who` finaux à partir de la sélection de l'utilisateur
-      const finalWho = this.modals.merge.allVolunteers
+      const finalWho = this.mergeModal.allVolunteers
         .filter(v => v.selected)
         .map(v => v.name);
 
-      // 3. Déterminer `pFrais` et `pSurgel` à partir de la sélection de l'utilisateur
-      const { productNature } = this.modals.merge.mergedIngredient;
+      const { productNature } = this.mergeModal.mergedIngredient;
       const finalPFrais = productNature === 'frais';
       const finalPSurgel = productNature === 'surgel';
 
-      // 4. Construire l'objet de données final
       const newIngredientData = {
         ingredientUuid: `merged_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         ingredientName: mergedData.name,
@@ -415,15 +476,17 @@ export const IngredientManagementMixin = {
 
       console.log('[DEBUG] fusionedTopose → ', newIngredientData);
 
-      // UNCOMMENT WHEN [DEBUG] FINISHED
-      // const response = await this.database.createDocument(
-      //   this.appwriteDataService.config.databaseId,
-      //   'ingredients',
-      //   "unique()",
-      //   newIngredientData
-      // );
+      const response = await this.database.createDocument(
+        this.appwriteDataService.config.databaseId,
+        'ingredients',
+        "unique()",
+        newIngredientData
+      );
 
-      // return response;
+      // Ajouter à la collection locale
+      this._updateLocalCollection(this.ingredients, response, 'add');
+
+      return response;
     },
 
     /**
@@ -445,7 +508,6 @@ export const IngredientManagementMixin = {
           updateData
         );
 
-        // Mettre à jour localement
         ingredient.isMerged = true;
         ingredient.mergedInto = newIngredient.$id;
         this._updateLocalCollection(this.ingredients, ingredient, 'update');
@@ -480,7 +542,5 @@ export const IngredientManagementMixin = {
     handleRenameIngredient(ingredient) {
       this.openRenameModal(ingredient);
     },
-
-
   }
 };
