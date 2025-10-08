@@ -1,13 +1,13 @@
 <!-- Modal de Fusion d'Ingrédients -->
-<div v-if="mergeModal.isOpen" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+<div v-if="modals.merge.isOpen" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">
           <i class="fas fa-object-group me-2"></i>
-          Fusionner [[ mergeModal.selectedIngredients.length ]] ingrédients
+          Fusionner [[ modals.merge.selectedIngredients.length ]] ingrédients
         </h5>
-        <button type="button" class="btn-close" @click="closeMergeModal" :disabled="mergeModal.isSaving"></button>
+        <button type="button" class="btn-close" @click="closeMergeModal" :disabled="modals.merge.isSaving"></button>
       </div>
 
       <div class="modal-body">
@@ -15,7 +15,7 @@
         <div class="mb-4">
           <h6 class="text-muted mb-3">Ingrédients à fusionner :</h6>
           <div class="row">
-            <div v-for="ingredient in mergeModal.selectedIngredients" :key="ingredient.$id" class="col-md-6 mb-2">
+            <div v-for="ingredient in modals.merge.selectedIngredients" :key="ingredient.$id" class="col-md-6 mb-2">
               <div class="card card-body py-2">
                 <div class="d-flex justify-content-between align-items-center">
                   <strong>[[ ingredient.ingredientName ]]</strong>
@@ -67,19 +67,19 @@
               type="text"
               class="form-control"
               id="mergedIngredientName"
-              v-model="mergeModal.mergedIngredient.name"
+              v-model="modals.merge.mergedIngredient.name"
               @input="checkNameConflicts"
-              :class="{ 'is-invalid': mergeModal.nameConflicts.length }"
+              :class="{ 'is-invalid': modals.merge.nameConflicts.length }"
               placeholder="Entrez le nom pour l'ingrédient fusionné"
               required
             >
             <!-- Conflits de noms -->
-            <div v-if="mergeModal.nameConflicts.length" class="invalid-feedback">
+            <div v-if="modals.merge.nameConflicts.length" class="invalid-feedback">
               <div class="mb-2">
                 <i class="fas fa-exclamation-triangle me-1"></i>
                 Ce nom existe déjà :
               </div>
-              <div v-for="conflict in mergeModal.nameConflicts" :key="conflict.$id" class="mb-2">
+              <div v-for="conflict in modals.merge.nameConflicts" :key="conflict.$id" class="mb-2">
                 <button
                   type="button"
                   class="btn btn-sm btn-warning me-2"
@@ -93,31 +93,31 @@
           </div>
 
           <!-- Type d'ingrédient (Conditionnel) -->
-          <div v-if="mergeModal.showTypeSelector" class="mb-3">
+          <div v-if="modals.merge.showTypeSelector" class="mb-3">
             <label for="mergedIngredientType" class="form-label"><i class="fas fa-list me-1"></i>Type d'ingrédient *</label>
             <div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-1"></i>Les types divergent. Veuillez choisir le type final.</div>
-            <select class="form-select" id="mergedIngredientType" v-model="mergeModal.mergedIngredient.ingType" required>
+            <select class="form-select" id="mergedIngredientType" v-model="modals.merge.mergedIngredient.ingType" required>
               <option value="">Sélectionner un type...</option>
               <option v-for="type in availableTypes" :key="type" :value="type">[[ formatTypeShort(type) ]]</option>
             </select>
           </div>
 
           <!-- Magasin (Conditionnel) -->
-          <div v-if="mergeModal.showStoreSelector" class="mb-3">
+          <div v-if="modals.merge.showStoreSelector" class="mb-3">
             <label for="mergedIngredientStore" class="form-label"><i class="fas fa-store me-1"></i>Magasin</label>
             <div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-1"></i>Les magasins divergent. Veuillez en choisir un.</div>
-            <select class="form-select" id="mergedIngredientStore" v-model="mergeModal.mergedIngredient.store">
+            <select class="form-select" id="mergedIngredientStore" v-model="modals.merge.mergedIngredient.store">
               <option value="">Choisir un magasin...</option>
-              <option v-for="store in mergeModal.availableStores" :key="store" :value="store">[[ store ]]</option>
+              <option v-for="store in modals.merge.availableStores" :key="store" :value="store">[[ store ]]</option>
             </select>
           </div>
 
           <!-- Volontaires (Interactif & Conditionnel) -->
-          <div v-if="mergeModal.showWhoSelector" class="mb-3">
+          <div v-if="modals.merge.showWhoSelector" class="mb-3">
             <label class="form-label"><i class="fas fa-users me-1"></i>Responsables</label>
             <div class="alert alert-info py-2 small">Cliquez sur un nom pour l'inclure ou l'exclure de l'ingrédient final.</div>
             <div class="p-2 border rounded bg-light d-flex flex-wrap gap-2">
-              <span v-for="volunteer in mergeModal.allVolunteers" :key="volunteer.name" class="badge d-flex align-items-center gap-1 cursor-pointer" :class="volunteer.selected ? 'bg-success' : 'bg-secondary'" @click="toggleMergedVolunteer(volunteer)">
+              <span v-for="volunteer in modals.merge.allVolunteers" :key="volunteer.name" class="badge d-flex align-items-center gap-1 cursor-pointer" :class="volunteer.selected ? 'bg-success' : 'bg-secondary'" @click="toggleMergedVolunteer(volunteer)">
                 <i class="fas fa-user me-1"></i>
                 <span>[[ volunteer.name ]]</span>
                 <span class="ms-1"><i class="fas" :class="volunteer.selected ? 'fa-check' : 'fa-times'"></i></span>
@@ -126,20 +126,20 @@
           </div>
 
           <!-- Nature du produit (pFrais/pSurgel) (Radio & Conditionnel) -->
-          <div v-if="mergeModal.showProductNatureSelector" class="mb-3">
+          <div v-if="modals.merge.showProductNatureSelector" class="mb-3">
             <label class="form-label"><i class="fas fa-snowflake me-1"></i>Nature du produit</label>
             <div class="alert alert-warning py-2 small"><i class="fas fa-exclamation-triangle me-1"></i>La nature des produits diverge (Frais/Surgelé). Veuillez choisir la nature finale.</div>
             <div class="d-flex justify-content-around border rounded p-2">
               <div class="form-check">
-                <input class="form-check-input" type="radio" name="productNature" id="natureFrais" value="frais" v-model="mergeModal.mergedIngredient.productNature">
+                <input class="form-check-input" type="radio" name="productNature" id="natureFrais" value="frais" v-model="modals.merge.mergedIngredient.productNature">
                 <label class="form-check-label" for="natureFrais">Produit Frais</label>
               </div>
               <div class="form-check">
-                <input class="form-check-input" type="radio" name="productNature" id="natureSurgel" value="surgel" v-model="mergeModal.mergedIngredient.productNature">
+                <input class="form-check-input" type="radio" name="productNature" id="natureSurgel" value="surgel" v-model="modals.merge.mergedIngredient.productNature">
                 <label class="form-check-label" for="natureSurgel">Produit Surgelé</label>
               </div>
               <div class="form-check">
-                <input class="form-check-input" type="radio" name="productNature" id="natureNone" value="none" v-model="mergeModal.mergedIngredient.productNature">
+                <input class="form-check-input" type="radio" name="productNature" id="natureNone" value="none" v-model="modals.merge.mergedIngredient.productNature">
                 <label class="form-check-label" for="natureNone">Aucun / Sec</label>
               </div>
             </div>
@@ -148,18 +148,18 @@
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" @click="closeMergeModal" :disabled="mergeModal.isSaving">
+        <button type="button" class="btn btn-secondary" @click="closeMergeModal" :disabled="modals.merge.isSaving">
           <i class="fas fa-times me-1"></i>Annuler
         </button>
         <button
           type="button"
           class="btn btn-primary"
           @click="saveMerge"
-          :disabled="!isMergeFormValid || mergeModal.isSaving"
+          :disabled="!isMergeFormValid || modals.merge.isSaving"
         >
-          <span v-if="mergeModal.isSaving" class="spinner-border spinner-border-sm me-1"></span>
+          <span v-if="modals.merge.isSaving" class="spinner-border spinner-border-sm me-1"></span>
           <i v-else class="fas fa-object-group me-1"></i>
-          [[ mergeModal.isSaving ? 'Fusion en cours...' : 'Fusionner les ingrédients' ]]
+          [[ modals.merge.isSaving ? 'Fusion en cours...' : 'Fusionner les ingrédients' ]]
         </button>
       </div>
     </div>
@@ -167,7 +167,7 @@
 </div>
 
 <!-- Modal de Renommage d'Ingrédient -->
-<div v-if="renameModal.isOpen" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+<div v-if="modals.rename.isOpen" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -175,7 +175,7 @@
           <i class="fas fa-edit me-2"></i>
           Renommer l'ingrédient
         </h5>
-        <button type="button" class="btn-close" @click="closeRenameModal" :disabled="renameModal.isSaving"></button>
+        <button type="button" class="btn-close" @click="closeRenameModal" :disabled="modals.rename.isSaving"></button>
       </div>
 
       <div class="modal-body">
@@ -184,15 +184,15 @@
           <div class="mb-3">
             <label class="form-label">Nom actuel :</label>
             <div class="form-control-plaintext fw-bold">
-              [[ renameModal.ingredient?.ingredientName ]]
+              [[ modals.rename.ingredient?.ingredientName ]]
             </div>
           </div>
 
           <!-- Historique des noms précédents -->
-          <div v-if="renameModal.ingredient?.previousNames?.length" class="mb-3">
+          <div v-if="modals.rename.ingredient?.previousNames?.length" class="mb-3">
             <label class="form-label">Noms précédents :</label>
             <div class="p-2 border rounded bg-light">
-              <div v-for="previousName in renameModal.ingredient.previousNames" :key="previousName"
+              <div v-for="previousName in modals.rename.ingredient.previousNames" :key="previousName"
                    class="badge bg-secondary me-1 mb-1">
                 [[ previousName ]]
               </div>
@@ -208,7 +208,7 @@
               type="text"
               class="form-control"
               id="newIngredientName"
-              v-model="renameModal.newName"
+              v-model="modals.rename.newName"
               placeholder="Entrez le nouveau nom"
               required
             >
@@ -220,18 +220,18 @@
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" @click="closeRenameModal" :disabled="renameModal.isSaving">
+        <button type="button" class="btn btn-secondary" @click="closeRenameModal" :disabled="modals.rename.isSaving">
           <i class="fas fa-times me-1"></i>Annuler
         </button>
         <button
           type="button"
           class="btn btn-primary"
           @click="saveRename"
-          :disabled="!isRenameFormValid || renameModal.isSaving"
+          :disabled="!isRenameFormValid || modals.rename.isSaving"
         >
-          <span v-if="renameModal.isSaving" class="spinner-border spinner-border-sm me-1"></span>
+          <span v-if="modals.rename.isSaving" class="spinner-border spinner-border-sm me-1"></span>
           <i v-else class="fas fa-save me-1"></i>
-          [[ renameModal.isSaving ? 'Renommage en cours...' : 'Renommer' ]]
+          [[ modals.rename.isSaving ? 'Renommage en cours...' : 'Renommer' ]]
         </button>
       </div>
     </div>

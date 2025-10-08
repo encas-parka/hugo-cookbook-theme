@@ -179,7 +179,7 @@ export function createCollaborativeApp() {
         showUpdatePrompt: false,
         unsubscribeRealtime: () => { },
 
-        // Services
+        // Services INITIALISATION
         syncService: null,
         colorManager: null,
         suggestionsCacheManager: null,
@@ -232,7 +232,7 @@ export function createCollaborativeApp() {
 
         // Gestion des vues
         currentView: 'grouped', // 'table', 'grouped', 'cards', 'compact'
-        tableGrouping: ['storeDisplay'], // Pour TanStack Table - groupement par magasin (mode simple)
+        tableGrouping: ['ingType'], // Pour TanStack Table : 'ingType', 'storeDisplay'
 
         // Service d'authentification
         authManager: null, // Sera initialisé dans initializeApp()
@@ -242,14 +242,14 @@ export function createCollaborativeApp() {
         allowAnonymousView: true,
         isAuthenticated: false, // État synchrone pour les templates
 
-        deleteConfirmation: {
-          show: false,
-          message: '',
-          itemType: '',
-          itemId: null,
-          progress: 0,
-          progressInterval: null
-        },
+        // deleteConfirmation: {
+        //   show: false,
+        //   message: '',
+        //   itemType: '',
+        //   itemId: null,
+        //   progress: 0,
+        //   progressInterval: null
+        // },
         // Ces propriétés sont maintenant gérées par ModalMixin pour éviter les conflits
         // newPurchase, newStock, newVolunteer, editingStore sont définis dans ModalMixin
 
@@ -270,16 +270,48 @@ export function createCollaborativeApp() {
           }
         },
 
-        // États d'ouverture des modals
-        groupWhoModal: {
-          isOpen: false
-        },
-        groupStoreModal: {
-          isOpen: false
-        },
-        mergeModal: {
-          isOpen: false
-        },
+        // MODAL STATE
+           modals: {
+             unified: { // Previously in ModalMixin
+               isOpen: false,
+               currentTab: 'recettes',
+               editingIngredient: null,
+             },
+             rename: { // Previously in IngredientManagementMixin
+               isOpen: false,
+               ingredient: null,
+               newName: '',
+               isSaving: false
+             },
+             merge: { // Previously split between this file and IngredientManagementMixin
+               isOpen: false,
+               selectedIngredients: [],
+               mergedIngredient:  {
+                 name: '',
+                 ingType: '',
+                 store: '',
+                 who: [],
+                 consolidatedQuantities: [],
+                 pFrais: false,
+                 pSurgel: false,
+               },
+               availableStores: [],
+               nameConflicts: [],
+               allVolunteers: [],
+                showTypeSelector: false,
+                showStoreSelector: false,
+                showWhoSelector: false,
+                showProductNatureSelector: false,
+               isSaving: false
+             },
+             groupAssignWho: { // Previously groupWhoModal
+               isOpen: false,
+             },
+             groupAssignStore: { // Previously groupStoreModal
+               isOpen: false,
+             },
+           },
+
 
 
         modalSelectedIngredients: [],
@@ -618,15 +650,6 @@ export function createCollaborativeApp() {
         },
         deep: true
       },
-
-      // // Watcher pour la table - simplifié car la sélection est gérée par onRowSelectionChange
-      // table: {
-      //   handler() {
-      //     console.log('[Collaborative App] Table initialisée ou mise à jour');
-      //     // La sélection est maintenant gérée directement par onRowSelectionChange
-      //   },
-      //   deep: false
-      // },
     },
 
       mounted() {
@@ -1553,7 +1576,7 @@ export function createCollaborativeApp() {
          */
         openGroupWhoModal(context, groupName, ingredients) {
           this.initGroupAssignment(context, 'volunteer', groupName, ingredients);
-          this.groupWhoModal.isOpen = true;
+          this.modals.groupAssignWho.isOpen = true;
         },
 
         /**
@@ -1561,7 +1584,7 @@ export function createCollaborativeApp() {
          */
         openGroupStoreModal(context, groupName, ingredients) {
           this.initGroupAssignment(context, 'store', groupName, ingredients);
-          this.groupStoreModal.isOpen = true;
+          this.modals.groupAssignStore.isOpen = true;
         },
 
         /**
@@ -1596,7 +1619,7 @@ export function createCollaborativeApp() {
          * Ferme le modal d'attribution de bénévoles
          */
         closeGroupWhoModal() {
-          this.groupWhoModal.isOpen = false;
+          this.modals.groupAssignWho.isOpen = false;
           setTimeout(() => {
             this.resetGroupAssignmentData();
           }, 300); // Attendre la fin de l'animation
@@ -1606,7 +1629,7 @@ export function createCollaborativeApp() {
          * Ferme le modal d'attribution de magasins
          */
         closeGroupStoreModal() {
-          this.groupStoreModal.isOpen = false;
+          this.modals.groupAssignStore.isOpen = false;
           setTimeout(() => {
             this.resetGroupAssignmentData();
           }, 300); // Attendre la fin de l'animation
@@ -2023,6 +2046,39 @@ export function createCollaborativeApp() {
           }
         },
 
+        // === METHODES DE GESTION DES MODAL ===
+
+        handleOpenMergeModal() {
+          // Récupérer les objets ingrédients complets avec données transformées (UI)
+          const selectedIngredients = this.selectedIngredients
+            .map(id => this.transformedIngredients.find(ing => ing.$id === id))
+            .filter(Boolean); // Filtrer les undefined au cas où
+
+          if (selectedIngredients.length < 2) {
+            this.showErrorToast('Veuillez sélectionner au moins 2 ingrédients à fusionner');
+            return;
+          }
+
+          this.modals.merge.selectedIngredients = selectedIngredients;
+          this.modals.merge.isOpen = true;
+
+          // Initialiser les données de fusion
+          this.initializeMergeData();
+        },
+
+        handleCloseMergeModal() {
+          this.modals.merge.isOpen = false;
+          this.modals.merge.selectedIngredients = [];
+          this.modals.merge.nameConflicts = [];
+        },
+
+
+        handleCloseRenameModal() {
+
+          this.modals.rename.isOpen = false;
+          this.modals.rename.ingredient = null;
+          this.modals.rename.newName = '';
+        },
         /**
          * Gère la soumission du formulaire d'attribution groupée
          */
@@ -2086,142 +2142,70 @@ export function createCollaborativeApp() {
         },
 
         /**
-         * Traite l'attribution groupée avec Promise.all
-         */
-        async processGroupAssignment(ingredients) {
-          console.log('[Collaborative App] Traitement groupée pour', ingredients.length, 'ingrédients');
+                * Traite l'attribution groupée en construisant une liste de patchs
+                * et en utilisant le service de mise à jour en batch.
+                */
+               async processGroupAssignment(ingredients) {
+                 console.log('[Collaborative App] Traitement groupé pour', ingredients.length, 'ingrédients');
+                 const updates = [];
 
-          const promises = ingredients.map(async (ingredient) => {
-            try {
-              if (this.groupAssignment.type === 'volunteer') {
-                // Récupérer les bénévoles actuels
-                const currentVolunteers = Array.isArray(ingredient.who) ? ingredient.who : [];
-                const newVolunteer = this.groupAssignment.value.trim();
+                 for (const ingredient of ingredients) {
+                   let patchData = {};
+                   if (this.groupAssignment.type === 'volunteer') {
+                     const currentVolunteers = Array.isArray(ingredient.who) ? ingredient.who : [];
+                     const newVolunteer = this.groupAssignment.value.trim();
+                     const volunteersToRemove = this.groupAssignment.assignmentsToRemove.get(ingredient.$id) || new Set();
+                     let finalVolunteers = currentVolunteers.filter(v => !volunteersToRemove.has(v));
 
-                // Calculer les bénévoles à conserver (ceux qui ne sont pas marqués pour suppression)
-                const volunteersToRemove = this.groupAssignment.assignmentsToRemove.get(ingredient.$id) || new Set();
-                const keptVolunteers = currentVolunteers.filter(v => !volunteersToRemove.has(v));
+                     if (newVolunteer && !finalVolunteers.includes(newVolunteer)) {
+                       finalVolunteers.push(newVolunteer);
+                     }
+                     patchData.who = finalVolunteers;
+                   } else if (this.groupAssignment.type === 'store') {
+                     patchData.store = this.groupAssignment.value.trim();
+                   }
 
-                // Construire la liste finale des bénévoles
-                let finalVolunteers = [...keptVolunteers];
+                   if (Object.keys(patchData).length > 0) {
+                     updates.push({
+                       ingredientId: ingredient.$id,
+                       patchData: patchData
+                     });
+                   }
+                 }
 
-                // Ajouter le nouveau bénévole si spécifié et pas déjà présent
-                if (newVolunteer && !finalVolunteers.includes(newVolunteer)) {
-                  finalVolunteers.push(newVolunteer);
-                }
+                 if (updates.length > 0) {
+                   await this.appwriteDataService.batchUpdateIngredients(updates, this.database);
+                 } else {
+                   console.warn('[Collaborative App] Aucune mise à jour à effectuer pour l\'attribution groupée.');
+                 }
+               },
 
-                // Sauvegarder avec les suppressions et ajouts
-                await this.appwriteDataService.saveVolunteers(
-                  finalVolunteers,
-                  volunteersToRemove,
-                  ingredient.$id,
-                  this.database
-                );
+               /**
+                * Gère la soumission du formulaire d'attribution groupée (unifié pour volontaires et magasins).
+                */
+               async handleGroupAssignmentSubmit() {
+                 const selectedIngredients = this.modalSelectedIngredients.filter(ing => ing.selected);
+                 if (selectedIngredients.length === 0) {
+                   this.showWarningToast("Aucun ingrédient sélectionné.");
+                   return;
+                 }
+                 this.groupAssignment.isProcessing = true;
+                 try {
+                   await this.processGroupAssignment(selectedIngredients);
 
-              } else if (this.groupAssignment.type === 'store') {
-                // Logique simple : un seul magasin par ingrédient
-                const editingStore = this.groupAssignment.value.trim();
+                   const typeName = this.groupAssignment.type === 'volunteer' ? 'Bénévole' : 'Magasin';
+                   this.showSuccessToast(`${typeName} assigné avec succès à ${selectedIngredients.length} ingrédient(s).`);
 
-                // Remplacer directement le magasin (passer une string simple)
-                await this.appwriteDataService.saveStore(
-                  editingStore,
-                  ingredient.$id,
-                  this.database
-                );
-              }
+                   if (this.groupAssignment.type === 'volunteer') this.closeGroupWhoModal();
+                   if (this.groupAssignment.type === 'store') this.closeGroupStoreModal();
 
-              console.log(`[Collaborative App] Attribution réussie pour ${ingredient.ingredientName}`);
-              return { success: true, ingredient: ingredient.ingredientName };
-            } catch (error) {
-              console.error(`[Collaborative App] Erreur pour ${ingredient.ingredientName}:`, error);
-              return {
-                success: false,
-                ingredient: ingredient.ingredientName,
-                error: error.message
-              };
-            }
-          });
-
-          const results = await Promise.all(promises);
-
-          // Analyser les résultats pour les erreurs individuelles
-          const failures = results.filter(result => !result.success);
-          if (failures.length > 0) {
-            const errorMessages = failures.map(f => `${f.ingredient}: ${f.error}`).join('\n');
-            throw new Error(
-              `${failures.length} attribution(s) ont échoué:\n${errorMessages}`
-            );
-          }
-
-          return results;
-        },
-
-        /**
-         * Gère la soumission du formulaire d'assignation de magasins
-         */
-        async handleStoreAssignmentSubmit() {
-
-          // Filtrer les ingrédients sélectionnés pour le traitement
-          const selectedIngredients = this.modalSelectedIngredients.filter(ing => ing.selected);
-          this.groupAssignment.isProcessing = true;
-
-          try {
-            const promises = selectedIngredients.map(async (ingredient) => {
-              try {
-                const editingStore = this.groupAssignment.value.trim();
-
-                // Remplacer directement le magasin
-                await this.appwriteDataService.saveStore(
-                  editingStore,
-                  ingredient.$id,
-                  this.database
-                );
-
-                console.log(`[Collaborative App] Assignation du magasin réussie pour ${ingredient.ingredientName}`);
-                return { success: true, ingredient: ingredient.ingredientName };
-              } catch (error) {
-                console.error(`[Collaborative App] Erreur pour ${ingredient.ingredientName}:`, error);
-                return {
-                  success: false,
-                  ingredient: ingredient.ingredientName,
-                  error: error.message
-                };
-              }
-            });
-
-            const results = await Promise.all(promises);
-
-            // Analyser les résultats pour les erreurs individuelles
-            const failures = results.filter(result => !result.success);
-            const successes = results.filter(result => result.success);
-
-            if (failures.length > 0) {
-              const errorMessages = failures.map(f => `${f.ingredient}: ${f.error}`).join('\n');
-              this.showToast(
-                `${failures.length} assignation(s) ont échoué:\n${errorMessages}`,
-                'danger',
-                5000
-              );
-            }
-
-            if (successes.length > 0) {
-              let successMessage = `Magasin "${this.groupAssignment.value.trim()}" assigné à ${successes.length} ingrédient(s)`;
-              this.showToast(successMessage, 'success', 3000);
-            }
-
-            // Fermer le modal uniquement s'il y a eu des succès
-            if (successes.length > 0) {
-              this.closeGroupStoreModal();
-            }
-
-          } catch (error) {
-            console.error('[Collaborative App] Erreur lors de la soumission groupée des magasins:', error);
-            this.showToast(`Erreur lors de l'assignation des magasins: ${error.message}`, 'danger', 5000);
-          } finally {
-            this.groupAssignment.isProcessing = false;
-          }
-        },
-
+                 } catch (error) {
+                   console.error('[Collaborative App] Erreur lors de l\'attribution groupée:', error);
+                   this.showErrorToast(`Erreur lors de l'attribution: ${error.message}`);
+                 } finally {
+                   this.groupAssignment.isProcessing = false;
+                 }
+               },
         /**
          * Vérifie s'il y a des modifications pour les magasins
          * @returns {boolean}

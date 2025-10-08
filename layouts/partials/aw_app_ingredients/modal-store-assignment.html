@@ -1,5 +1,5 @@
 <!-- Modal d'assignation de magasin (remplacement unique) -->
-<div v-if="groupStoreModal.isOpen" class="modal fade show d-block modal-fullscreen-sm-down" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
+<div v-if="modals.groupAssignStore.isOpen" class="modal fade show d-block modal-fullscreen-sm-down" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
@@ -36,7 +36,7 @@
           </div>
         </div>
 
-        <form @submit.prevent="handleStoreAssignmentSubmit">
+        <form @submit.prevent="handleGroupAssignmentSubmit">
           <!-- Champ de saisie avec auto-complétion -->
           <div class="mb-3">
             <label class="form-label fw-bold">
@@ -207,7 +207,7 @@
         <button
           type="button"
           class="btn btn-primary"
-          @click="handleStoreAssignmentSubmit"
+          @click="handleGroupAssignmentSubmit"
           :disabled="groupAssignment.isProcessing || selectedCount === 0 || !hasStoreModifications()"
         >
           <span v-if="groupAssignment.isProcessing">

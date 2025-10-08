@@ -167,67 +167,31 @@ export class AppwriteDataService {
   //   }
   // }
 
-  /**
-   * Sauvegarde les volontaires
-   * @param {Array} volunteers - Liste des volontaires
-   * @param {Set} deletedVolunteers - Set des volontaires supprimés
-   * @param {string} ingredientId - ID de l'ingrédient
-   * @param {Object} database - Instance de base de données Appwrite
-   * @returns {Promise<string>} ID de l'ingrédient mis à jour
-   */
-  async saveVolunteers(volunteers, deletedVolunteers, ingredientId, database) {
-    const activeVolunteers = volunteers.filter(v => !deletedVolunteers.has(v));
 
-    try {
-      const result = await database.updateDocument(
+  /**
+   * Met à jour plusieurs ingrédients en batch.
+   * @param {Array<Object>} updates - Un tableau d'objets { ingredientId: string, patchData: Object }
+   * @param {Object} database - Instance de base de données Appwrite
+   * @returns {Promise<Array>} Tableau des résultats de mise à jour
+   */
+  async batchUpdateIngredients(updates, database) {
+    const promises = updates.map(update => {
+      return database.updateDocument(
         this.config.databaseId,
         this.config.collections.ingredients,
-        ingredientId,
-        {
-          who: activeVolunteers
-        }
+        update.ingredientId,
+        update.patchData
       );
+    });
 
-      console.log('[AppwriteDataService] Volontaires mis à jour:', result.$id);
-      return result.$id;
-    } catch (error) {
-      throw this.handleAppwriteError(error, 'mise à jour volontaires');
-    }
-  }
-
-  /**
-   * Sauvegarde les magasins
-   * @param {Array} stores - Liste des magasins
-   * @param {Set} deletedStores - Set des magasins supprimés
-   * @param {string} ingredientId - ID de l'ingrédient
-   * @param {Object} database - Instance de base de données Appwrite
-   * @returns {Promise<string>} ID de l'ingrédient mis à jour
-   */
-  /**
-   * Sauvegarde un seul magasin pour un ingrédient
-   * @param {string} store - Le magasin à assigner
-   * @param {string} ingredientId - ID de l'ingrédient
-   * @param {Object} database - Instance de base de données Appwrite
-   * @returns {Promise<string>} ID de l'ingrédient mis à jour
-   */
-  async saveStore(store, ingredientId, database) {
     try {
-      const result = await database.updateDocument(
-        this.config.databaseId,
-        this.config.collections.ingredients,
-        ingredientId,
-        {
-          store: store.trim() || ''
-        }
-      );
-      console.log('[AppwriteDataService] Store mis à jour:', result.$id);
-      return result.$id;
+      const results = await Promise.all(promises);
+      console.log(`[AppwriteDataService] ${results.length} ingrédients mis à jour en batch.`);
+      return results;
     } catch (error) {
-      throw this.handleAppwriteError(error, 'mise à jour magasin');
+      throw this.handleAppwriteError(error, 'mise à jour en batch');
     }
   }
-
-
   /**
    * Construit l'objet de patch pour la mise à jour d'un ingrédient
    * @param {Set} dirtyFields - Champs modifiés
