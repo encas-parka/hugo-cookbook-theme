@@ -74,20 +74,42 @@ export class DataTransformer {
   }
 
   /**
+   * Extrait l'ID d'ingrédient de manière robuste depuis listIngredient
+   * Gère les différents formats : string, objet avec $id, ou null
+   */
+  static _extractIngredientId(listIngredient) {
+    if (!listIngredient) return null;
+    
+    if (typeof listIngredient === 'string') {
+      return listIngredient;
+    }
+    
+    if (typeof listIngredient === 'object' && listIngredient.$id) {
+      return listIngredient.$id;
+    }
+    
+    return null;
+  }
+
+  /**
    * Ajoute les achats à un ingrédient en gérant les fusions
    */
   static _addPurchasesToIngredient(ingredient, allPurchases) {
-    let ingredientPurchases = allPurchases.filter(p => p.listIngredient?.$id === ingredient.$id);
+    let ingredientPurchases = allPurchases.filter(p => {
+      const ingredientId = this._extractIngredientId(p.listIngredient);
+      return ingredientId === ingredient.$id;
+    });
 
-    // Si l'ingrédient est fusionné, ajouter les achats de ses composants
-    if (ingredient.isMerged && Array.isArray(ingredient.mergedFrom)) {
-      const mergedFromIds = ingredient.mergedFrom
-        .filter(merged => merged && merged.$id)
-        .map(merged => merged.$id);
+    // Si l'ingrédient est issu d'une fusion, ajouter les achats de ses sources
+    if (Array.isArray(ingredient.mergedFrom) && ingredient.mergedFrom.length > 0)  {
+      const mergedFromIds = ingredient.mergedFrom.map(source =>
+        this._extractIngredientId(source)
+      ).filter(Boolean);
 
-      const mergedPurchases = allPurchases.filter(p =>
-        p.listIngredient && mergedFromIds.includes(p.listIngredient)
-      );
+      const mergedPurchases = allPurchases.filter(p => {
+        const ingredientId = this._extractIngredientId(p.listIngredient);
+        return ingredientId && mergedFromIds.includes(ingredientId);
+      });
 
       ingredientPurchases = [...ingredientPurchases, ...mergedPurchases];
     }

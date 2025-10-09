@@ -139,23 +139,39 @@ export class LocalStorageService {
 
   /**
    * Met à jour le cache depuis un ingredient (pour les filtres)
+   * Gère les données brutes d'Appwrite avec différents formats possibles
    */
   updateFromIngredient(ingredient) {
-
-    // Maintenant ingredient.store est une string simple
-    if (ingredient.store && typeof ingredient.store === 'string') {
-      const store = ingredient.store.trim();
-      if (store && store !== '-') {
-        this.cache.ingredients.stores.add(store);
+    // Gérer ingredient.store qui peut être string, array ou null/undefined
+    if (ingredient.store) {
+      if (typeof ingredient.store === 'string') {
+        const store = ingredient.store.trim();
+        if (store && store !== '-') {
+          this.cache.ingredients.stores.add(store);
+        }
+      } else if (Array.isArray(ingredient.store)) {
+        ingredient.store.forEach(store => {
+          if (store && typeof store === 'string' && store.trim() && store.trim() !== '-') {
+            this.cache.ingredients.stores.add(store.trim());
+          }
+        });
       }
     }
 
-    if (ingredient.who && Array.isArray(ingredient.who)) {
-      ingredient.who.forEach(person => {
-        if (person && person.trim() && person.trim() !== '-') {
-          this.cache.ingredients.users.add(person.trim());
+    // Gérer ingredient.who qui peut être string, array ou null/undefined
+    if (ingredient.who) {
+      if (typeof ingredient.who === 'string') {
+        const person = ingredient.who.trim();
+        if (person && person !== '-') {
+          this.cache.ingredients.users.add(person);
         }
-      });
+      } else if (Array.isArray(ingredient.who)) {
+        ingredient.who.forEach(person => {
+          if (person && typeof person === 'string' && person.trim() && person.trim() !== '-') {
+            this.cache.ingredients.users.add(person.trim());
+          }
+        });
+      }
     }
   }
 
@@ -436,11 +452,8 @@ export class LocalStorageService {
     if (!ingredientsCacheExists || !purchasesCacheExists) {
       // console.log('[LocalStorage] Création des caches de suggestions manquants...');
 
-      // Transformer les ingredients pour avoir les bons champs
-      const transformedIngredients = this._transformIngredientsForCache(ingredients);
-
-      // Initialiser les caches
-      this.checkAndInitializeCaches(listId, transformedIngredients, purchases);
+      // Initialiser les caches avec les données brutes
+      this.checkAndInitializeCaches(listId, ingredients, purchases);
 
       // console.log('[LocalStorage] Caches de suggestions créés avec succès');
     } else {
@@ -449,19 +462,7 @@ export class LocalStorageService {
     }
   }
 
-  /**
-   * Transforme les ingredients bruts pour avoir les champs attendus par le cache
-   */
-  _transformIngredientsForCache(ingredients) {
-    if (!ingredients || !Array.isArray(ingredients)) return [];
-
-    return ingredients.map(ingredient => ({
-      ...ingredient,
-      // S'assurer que les champs store et qui sont des arrays
-      store: ingredient.store || [],
-      who: ingredient.who || []
-    }));
-  }
+  
 
   /**
    * Met à jour le timestamp de dernière synchronisation

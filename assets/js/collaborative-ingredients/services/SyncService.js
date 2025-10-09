@@ -281,14 +281,11 @@ export class SyncService {
     });
 
     try {
-      // Transformer les ingredients pour le cache
-      const transformedIngredients = this._transformIngredientsForCache(ingredients);
-
       // Charger les caches existants
       localStorageService.loadFromStorage(this.listId);
 
-      // Mettre à jour avec les nouvelles données
-      localStorageService.updateFromIngredients(transformedIngredients);
+      // Mettre à jour avec les nouvelles données brutes
+      localStorageService.updateFromIngredients(ingredients);
       localStorageService.updateFromPurchases(purchases);
 
       // Sauvegarder les caches mis à jour
@@ -300,19 +297,7 @@ export class SyncService {
     }
   }
 
-  /**
-   * Transforme les ingredients pour avoir les bons champs pour le cache
-   */
-  _transformIngredientsForCache(ingredients) {
-    if (!ingredients || !Array.isArray(ingredients)) return [];
-
-    return ingredients.map(ingredient => ({
-      ...ingredient,
-      // S'assurer que les champs store et who sont des arrays
-      store: ingredient.store || '',
-      who: ingredient.who || []
-    }));
-  }
+  
 
   /**
    * Applique les changements temps réel au cache local
@@ -397,13 +382,8 @@ export class SyncService {
   _updateSuggestionsCachesFromDocument(collectionName, document) {
     try {
       if (collectionName === 'ingredients') {
-        // Transformer l'ingredient pour le cache
-        const transformedIngredient = {
-          ...document,
-          store: document.store || '',
-          who: document.who || []
-        };
-        localStorageService.updateFromIngredient(transformedIngredient);
+        // Utiliser les données brutes d'Appwrite sans transformation
+        localStorageService.updateFromIngredient(document);
         localStorageService.saveToStorage(this.listId);
         // console.log('[SyncService] Cache suggestions mis à jour depuis ingredient:', document.$id);
       } else if (collectionName === 'purchases') {

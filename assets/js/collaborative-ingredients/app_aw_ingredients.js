@@ -1361,9 +1361,9 @@ export function createCollaborativeApp() {
             if (affectedIngredientIds.has(ingredient.$id)) {
               ingredientsToRecalculate.push(ingredient);
             }
-            // Si l'ingrédient est fusionné, vérifier aussi ses enfants
-            if (ingredient.isMerged === true && ingredient.mergedFrom) {
-              const sourceIds = ingredient.mergedFrom.map((src) => src.$id);
+            // Si l'ingrédient est issu d'une fusion (nouvel ingrédient), vérifier ses sources
+            if (ingredient.mergedFrom && Array.isArray(ingredient.mergedFrom) && ingredient.mergedFrom.length > 0) {
+              const sourceIds = ingredient.mergedFrom.map((src) => typeof src === 'string' ? src : src.$id);
               if (sourceIds.some((id) => affectedIngredientIds.has(id))) {
                 ingredientsToRecalculate.push(ingredient);
               }
@@ -1401,39 +1401,7 @@ export function createCollaborativeApp() {
         }
       },
 
-      /**
-       * Récupère tous les achats pertinents pour un ingrédient (fusionné ou non) depuis le cache local.
-       * @param {Object} ingredient - L'objet ingrédient.
-       * @returns {Array} - Un tableau des documents d'achat correspondants.
-       */
-      _getAggregatedPurchasesForIngredient(ingredient) {
-        if (!ingredient || !this.purchases) {
-          return [];
-        }
 
-        const relatedIngredientIds = new Set();
-
-        // 1. Ajouter l'ID de l'ingrédient lui-même
-        relatedIngredientIds.add(ingredient.$id);
-
-        // 2. Si l'ingrédient est fusionné, ajouter les IDs de ses enfants
-        // On suppose que `mergedFrom` contient les objets ingrédients complets.
-        if (
-          ingredient.isMerged === true &&
-          Array.isArray(ingredient.mergedFrom)
-        ) {
-          ingredient.mergedFrom.forEach((sourceIngredient) => {
-            if (sourceIngredient && sourceIngredient.$id) {
-              relatedIngredientIds.add(sourceIngredient.$id);
-            }
-          });
-        }
-
-        // 3. Filtrer le cache global des achats
-        return this.purchases.filter(
-          (p) => p.listIngredient && relatedIngredientIds.has(p.listIngredient),
-        );
-      },
 
       // === MÉTHODES DE SYNCHRONISATION TEMPS RÉEL ===
 
