@@ -213,7 +213,7 @@
                 </div>
                 <div v-else>
                   <button
-                    class="btn btn-success w-100"
+                    class="btn btn-success w-100 mb-2"
                     type="button"
                     id="createCollaborativeListBtn"
                     @click="createCollaborativeList"
@@ -224,10 +224,34 @@
                     <span v-if="!isCreatingList">Créer une liste modifiable</span>
                     <span v-else>Création en cours...</span>
                   </button>
-                  <small class="form-text text-muted mt-1">
-                    Transformez cette liste en tableau collaboratif pour gérer vos achats en équipe
-                  </small>
+
                 </div>
+                <button
+                  class="btn btn-primary w-100 mb-2"
+                  type="button"
+                  id="createCollaborativeProductsListBtn"
+                  @click="createCollaborativeProductsList"
+                  :disabled="isCreatingProductsList"
+                  v-if="!existingMainGroupExists"
+                >
+                  <span v-if="isCreatingProductsList" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  <i class="fas fa-box me-2" style="font-size: 1.1rem;"></i>
+                  <span v-if="!isCreatingProductsList">Créer une liste produits collaborative</span>
+                  <span v-else>Création en cours...</span>
+                </button>
+                <button
+                  class="btn btn-info w-100 mb-2"
+                  type="button"
+                  id="viewExistingProductsListBtn"
+                  @click="viewExistingProductsList"
+                  v-else
+                >
+                  <i class="fas fa-box me-2" style="font-size: 1.1rem;"></i>
+                  Voir la liste produits existante
+                </button>
+                <small class="form-text text-muted mt-1">
+                  Transformez cette liste en tableau collaboratif pour gérer vos achats en équipe
+                </small>
               </div>
 
               <!-- Liens de navigation -->

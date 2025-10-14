@@ -101,8 +101,10 @@ export function createEventApp(initialData = {}) {
 
         // Collaborative list creation
         isCreatingList: false,
+        isCreatingProductsList: false,
         existingListExists: false,
-        
+        existingMainGroupExists: false,
+
         // Authentication state
         isAuthenticated: false,
       };
@@ -128,6 +130,9 @@ export function createEventApp(initialData = {}) {
 
       // Vérifier si une liste collaborative existe déjà pour cet événement
       this.checkExistingListOnInit();
+
+      // Vérifier si un main group existe déjà pour cet événement
+      this.checkExistingMainGroupOnInit();
 
       // Vérifier l'état d'authentification
       this.checkAuthenticationStatus();
@@ -795,9 +800,28 @@ export function createEventApp(initialData = {}) {
         }
       },
 
+      async createCollaborativeProductsList() {
+        if (this.isCreatingProductsList) return;
+        this.isCreatingProductsList = true;
+        try {
+          const eventId = this.getEventId();
+          await window.AppwriteClient.createCollaborativeProductsListFromEvent(eventId);
+        } catch (error) {
+          console.error('Erreur lors de la création de la liste produits collaborative:', error);
+          alert('Erreur lors de la création de la liste produits collaborative. Veuillez réessayer.');
+        } finally {
+          this.isCreatingProductsList = false;
+        }
+      },
+
       viewExistingCollaborativeList() {
         const eventId = this.getEventId();
         this.redirectToCollaborativeList(eventId);
+      },
+
+      viewExistingProductsList() {
+        const mainGroupId = this.getEventId(); // Le mainGroupId correspond à l'eventId
+        this.redirectToProductsList(mainGroupId);
       },
 
       async checkExistingListOnInit() {
@@ -808,6 +832,17 @@ export function createEventApp(initialData = {}) {
         } catch (error) {
           console.error('Erreur lors de la vérification de la liste existante:', error);
           this.existingListExists = false;
+        }
+      },
+
+      async checkExistingMainGroupOnInit() {
+        try {
+          const mainGroupId = this.getEventId(); // Le mainGroupId correspond à l'eventId
+          this.existingMainGroupExists = await window.AppwriteClient.checkExistingMainGroup(mainGroupId);
+          console.log(`[Vue App] Main group existant pour ${mainGroupId}: ${this.existingMainGroupExists}`);
+        } catch (error) {
+          console.error('Erreur lors de la vérification du main group existant:', error);
+          this.existingMainGroupExists = false;
         }
       },
 
@@ -833,6 +868,13 @@ export function createEventApp(initialData = {}) {
         const baseUrl = window.location.origin;
         const collaborativeUrl = `${baseUrl}/app/ingredients-collaborative/?listId=${listId}`;
         window.location.href = collaborativeUrl;
+      },
+
+      redirectToProductsList(mainGroupId) {
+        // Construire l'URL vers l'application produits collaborative avec un query parameter
+        const baseUrl = window.location.origin;
+        const productsUrl = `${baseUrl}/sv_products/?listId=${mainGroupId}`;
+        window.location.href = productsUrl;
       }
     }
   });

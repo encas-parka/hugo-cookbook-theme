@@ -2,6 +2,7 @@
  * Appwrite Data Service
  * Service pur de logique métier pour la gestion des données sur Appwrite
  * Aucune dépendance à Vue - peut être testé unitairement
+
  */
 
 export class AppwriteDataService {
