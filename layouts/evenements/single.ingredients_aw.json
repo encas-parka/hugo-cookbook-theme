@@ -7,18 +7,26 @@
 {{- $eventData := partialCached "functions/event-data-processor.html" . .File.UniqueID -}}
 {{- $ingredient_totals := $eventData.ingredient_totals -}}
 {{- $ingredient_occurrences := $eventData.ingredient_occurrences -}}
+{{- $ingredient_by_date := $eventData.ingredient_by_date -}}
+{{- $ingredient_date_counts := $eventData.ingredient_date_counts -}}
+{{- $multi_date_ingredients := $eventData.multi_date_ingredients -}}
+{{- $recipe_occurrences_by_ingredient := $eventData.recipe_occurrences_by_ingredient -}}
+{{- $totalAssiettesByIngredient := $eventData.totalAssiettesByIngredient -}}
+{{- $recipesByIngredient := $eventData.recipesByIngredient -}}
 
 {
-  "event_id": "{{ .File.ContentBaseName | default .File.UniqueID }}",
+  "mainGroup_id": "{{ .File.ContentBaseName | default .File.UniqueID }}",
   "name": {{ .Title | jsonify }},
   "ingredients": [
     {{- $first := true -}}
     {{- range $name, $data := sort $ingredient_totals "name" -}}
       {{- if not $first }},{{ end }}{{- $first = false -}}
       {
-        "ingredientUuid": {{ $data.uuid | jsonify }},
+        "ingredientHugoUuid": {{ $data.uuid | jsonify }},
         "ingredientName": {{ $data.name | jsonify }},
         "ingType": {{ $data.type | jsonify }},
+        "totalAssiettes": {{ (int (index $totalAssiettesByIngredient $data.name | default 0)) | jsonify }},
+        "nbRecipes": {{ (len (index $recipesByIngredient $data.name | default dict)) | jsonify }},
         {{- if $data.pFrais }}"pFrais": true,{{ end -}}
         {{- if $data.pSurgel }}"pSurgel": true,{{ end -}}
         {{- if and $data.has_equivalence (gt (len $data.conversion_rules) 0) -}}
@@ -27,30 +35,80 @@
         {{- if $data.has_equivalence  -}}
         "totalNeededRaw": [
           {{- $firstCategory := true -}}
-          {{- if gt $data.category_weight 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.3f" $data.category_weight | jsonify -}}, "unit": "gr.", "category": "weight" }{{- end -}}
-          {{- if gt $data.category_volume 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.3f" $data.category_volume | jsonify -}}, "unit": "ml", "category": "volume" }{{- end -}}
-          {{- range $unit, $quantity := $data.category_other -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.3f" $quantity | jsonify -}}, "unit": {{ $unit | jsonify }}, "category": "other" }{{- end -}}
+          {{- if gt $data.category_weight 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.0f" $data.category_weight | jsonify -}}, "unit": "gr." }{{- end -}}
+          {{- if gt $data.category_volume 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- printf "%.0f" $data.category_volume | jsonify -}}, "unit": "ml" }{{- end -}}
+          {{- range $unit, $quantity := $data.category_other -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "value": {{- if eq $unit "recette·s" }}{{ printf "%.0f" $quantity | jsonify }}{{ else }}{{- printf "%.1f" $quantity | jsonify }}{{ end -}}, "unit": {{ $unit | jsonify }} }{{- end -}}
         ],
         {{- end -}}
         "totalNeededConsolidated": [
           {{- $firstConsolidated := true -}}
-          {{- if gt $data.consolidated_weight 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.3f" $data.consolidated_weight | jsonify -}}, "unit": "gr.", "category": "weight" }{{- end -}}
-          {{- if gt $data.consolidated_volume 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.3f" $data.consolidated_volume | jsonify -}}, "unit": "ml", "category": "volume" }{{- end -}}
-          {{- range $unit, $quantity := $data.consolidated_other -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.3f" $quantity | jsonify -}}, "unit": {{ $unit | jsonify }}, "category": "other" }{{- end -}}
+          {{- if gt $data.consolidated_weight 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.0f" $data.consolidated_weight | jsonify -}}, "unit": "gr." }{{- end -}}
+          {{- if gt $data.consolidated_volume 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.0f" $data.consolidated_volume | jsonify -}}, "unit": "ml" }{{- end -}}
+          {{- range $unit, $quantity := $data.consolidated_other -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- if eq $unit "recette·s" }}{{ printf "%.0f" $quantity | jsonify }}{{ else }}{{- printf "%.1f" $quantity | jsonify }}{{ end -}}, "unit": {{ $unit | jsonify }} }{{- end -}}
         ],
-        {{- /*  FIX : il n'y a pas de "delimit" avec hugo ?? */ -}}
-        "recipeOccurrences": [
+        {{- /* Optimisation: vérifier si l'ingrédient apparaît à plusieurs dates */}}
+        {{- if isset $multi_date_ingredients $data.name -}}
+        "neededConsolidatedByDate": [
+          {{- $firstDate := true -}}
+          {{- range $dateTime, $ingredients := $ingredient_by_date -}}
+            {{- $ingData := index $ingredients $data.name -}}
+            {{- if $ingData -}}
+              {{- if not $firstDate }},{{ end }}{{- $firstDate = false -}}
+              {
+                "dateTimeService": {{ $dateTime | jsonify }},
+                "neededConsolidatedForDate": [
+                  {{- $firstConsItem := true -}}
+                  {{- if gt $ingData.weight 0 -}}{{- if not $firstConsItem }},{{ end }}{{- $firstConsItem = false -}}{ "quantity": {{- printf "%.0f" $ingData.weight | jsonify -}}, "unit": "gr." }{{- end -}}
+                  {{- if gt $ingData.volume 0 -}}{{- if not $firstConsItem }},{{ end }}{{- $firstConsItem = false -}}{ "quantity": {{- printf "%.0f" $ingData.volume | jsonify -}}, "unit": "ml" }{{- end -}}
+                  {{- range $unit, $quantity := $ingData.other -}}{{- if not $firstConsItem }},{{ end }}{{- $firstConsItem = false -}}{ "quantity": {{- if eq $unit "recette·s" }}{{ printf "%.0f" $quantity | jsonify }}{{ else }}{{- printf "%.1f" $quantity | jsonify }}{{ end -}}, "unit": {{ $unit | jsonify }} }{{- end -}}
+                ],
+                {{- if $ingData.has_equivalence -}}
+                "needRawForDate": [
+                  {{- $firstRawItem := true -}}
+                  {{- if gt $ingData.raw_weight 0 -}}{{- if not $firstRawItem }},{{ end }}{{- $firstRawItem = false -}}{ "quantity": {{- printf "%.0f" $ingData.raw_weight | jsonify -}}, "unit": "gr." }{{- end -}}
+                  {{- if gt $ingData.raw_volume 0 -}}{{- if not $firstRawItem }},{{ end }}{{- $firstRawItem = false -}}{ "quantity": {{- printf "%.0f" $ingData.raw_volume | jsonify -}}, "unit": "ml" }{{- end -}}
+                  {{- range $unit, $quantity := $ingData.raw_other -}}{{- if not $firstRawItem }},{{ end }}{{- $firstRawItem = false -}}{ "quantity": {{- if eq $unit "recette·s" }}{{ printf "%.0f" $quantity | jsonify }}{{ else }}{{- printf "%.1f" $quantity | jsonify }}{{ end -}}, "unit": {{ $unit | jsonify }} }{{- end -}}
+                ],
+                {{- if gt (len $ingData.conversion_rules) 0 -}}
+                "conversionRules": {{ $ingData.conversion_rules | jsonify }},
+                {{- end -}}
+                {{- end -}}
+                "recipeNames": {{ $ingData.recipeNames | jsonify }},
+                "totalAssiettes": {{ $ingData.totalAssiettes }}
+              }
+            {{- end -}}
+          {{- end -}}
+        ]
+        {{- else -}}
+        {{- /* Ingrédient à date unique : structure simplifiée au premier niveau */}}
+          {{- range $dateTime, $ingredients := $ingredient_by_date -}}
+            {{- $ingData := index $ingredients $data.name -}}
+            {{- if $ingData -}}
+              "dateTimeService": {{ $dateTime | jsonify }},
+              "recipeNames": {{ $ingData.recipeNames | jsonify }},
+            {{- end -}}
+          {{- end -}}
+        {{- end -}}
+      }
+    {{- end -}}
+  ],
+  "recipeOccurrencesByIngredient": [
+    {{- $first := true -}}
+    {{- range $ingredient_uuid, $data := $recipe_occurrences_by_ingredient -}}
+      {{- if not $first }},{{ end }}{{- $first = false -}}
+      {
+        "ingredientUuid": {{ $data.ingredientUuid | jsonify }},
+        "ingredientName": {{ $data.ingredientName | jsonify }},
+        "occurrences": [
           {{- $firstOccurrence := true -}}
-          {{- range $occurrence := index $ingredient_occurrences $data.name -}}
+          {{- range $occurrence := $data.occurrences -}}
             {{- if not $firstOccurrence }},{{ end }}{{- $firstOccurrence = false -}}
             {
               "recipeName": {{ $occurrence.recipe_name | jsonify }},
               "dateTimeService": {{ $occurrence.dateTimeService | jsonify }},
-              "horaire": {{ $occurrence.horaire | jsonify }},
-              "typePlat": {{ $occurrence.typePlat | jsonify }},
               "assiettes": {{ $occurrence.assiettes }},
-              "quantity": {{- printf "%.3f" $occurrence.quantite | jsonify -}},
-              "unit": {{ $occurrence.unit | jsonify }}
+              "quantity": {{- $unitLower := $occurrence.unit | lower -}}{{- $convertedQty := $occurrence.quantite -}}{{- if eq $unitLower "kg" }}{{- $convertedQty = mul $occurrence.quantite 1000 -}}{{- else if eq $unitLower "l." }}{{- $convertedQty = mul $occurrence.quantite 1000 -}}{{- end -}}{{- if or (eq $unitLower "kg") (eq $unitLower "gr.") (eq $unitLower "l.") (eq $unitLower "ml") }}{{ printf "%.0f" $convertedQty | jsonify }}{{- else if eq $unitLower "recette·s" }}{{ printf "%.0f" $convertedQty | jsonify }}{{- else }}{{ printf "%.1f" $convertedQty | jsonify }}{{- end -}},
+              "unit": {{- if eq $unitLower "kg" }}"gr."{{- else if eq $unitLower "l." }}"ml"{{- else }}{{ $occurrence.unit | jsonify }}{{- end -}}
             }
           {{- end -}}
         ]
