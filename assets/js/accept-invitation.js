@@ -117,16 +117,18 @@ async function acceptInvitation() {
       throw new Error("Cette invitation n'est pas valide pour cette application.");
     }
 
-    // Accepte l'invitation. Une session est créée en arrière-plan.
+    // Accepte l'invitation sans authentification préalable.
+    // Le secret de l'invitation sert d'authentification temporaire.
     // console.log("Acceptation de l'invitation:", { teamId, membershipId, userId, secret });
+    
+    const teams = await getTeams();
+    await teams.updateMembershipStatus(teamId, membershipId, userId, secret);
+
+    // Après acceptation, une session est créée. Récupérer les infos utilisateur.
     const account = await getAccount();
     const user = await account.get();
     localStorage.setItem('appwrite-user-email', user.email);
     localStorage.setItem('appwrite-user-name', user.name);
-
-    const teams = await getTeams();
-    await teams.updateMembershipStatus(teamId, membershipId, userId, secret);
-
 
     // Affiche le message de succès et le formulaire pour définir le mot de passe
     showUIState('setPassword');
@@ -134,8 +136,9 @@ async function acceptInvitation() {
   } catch (error) {
     console.error("Erreur lors de l'acceptation de l'invitation:", error);
     let errorMsg = "Une erreur est survenue lors du traitement de votre invitation.";
+    
     if (error.code === 401) {
-      errorMsg = "Vous devez être connecté pour accepter cette invitation. Veuillez vous connecter ou créer un compte.";
+      errorMsg = "Cette invitation n'est pas valide ou a expiré.";
     } else if (error.code === 404) {
       errorMsg = "Cette invitation n'existe pas ou a expiré.";
     } else if (error.code === 409) {
@@ -206,8 +209,21 @@ function showPasswordError(message) {
 /**
  * Logique principale exécutée au chargement de la page
  */
-document.addEventListener('DOMContentLoaded', async () => {
+async function initializeAcceptInvitation() {
+  console.log("🚀 [Accept-Invitation] Initialisation du traitement");
+  
   const queryParams = getQueryParams();
+  console.log("📋 [Accept-Invitation] Paramètres URL:", {
+    hasTeamId: queryParams.has('teamId'),
+    hasMembershipId: queryParams.has('membershipId'), 
+    hasUserId: queryParams.has('userId'),
+    hasSecret: queryParams.has('secret'),
+    teamId: queryParams.get('teamId'),
+    membershipId: queryParams.get('membershipId'),
+    userId: queryParams.get('userId'),
+    secret: queryParams.get('secret') ? '***' : null
+  });
+  
   if (queryParams.has('teamId') && queryParams.has('membershipId') &&
       queryParams.has('userId') && queryParams.has('secret')) {
     acceptInvitation();
@@ -217,4 +233,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     showUIState('error');
   }
-});
+}
+
+// Vérifie si le DOM est déjà chargé, sinon attend l'événement
+if (document.readyState === 'loading') {
+  console.log("⏳ [Accept-Invitation] DOM en cours de chargement, attente de DOMContentLoaded");
+  document.addEventListener('DOMContentLoaded', initializeAcceptInvitation);
+} else {
+  console.log("✅ [Accept-Invitation] DOM déjà chargé, exécution immédiate");
+  initializeAcceptInvitation();
+}
