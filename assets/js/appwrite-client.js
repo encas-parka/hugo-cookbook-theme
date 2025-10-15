@@ -2,12 +2,6 @@
 // Module commun pour l'initialisation et la gestion du client Appwrite
 // Évite la duplication d'initialisation entre auth-status.js et authAppwrite.js
 
-// --- CONFIGURATION APPWRITE ---
-// #AI: TODO: migrer les js pour utiliser APPWRITE_CONFIG
-const APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1";
-const APPWRITE_PROJECT_ID = "689725820024e81781b7";
-const APPWRITE_FUNCTION_ID = "68976500002eb5c6ee4f"; // ID de la fonction cms-auth-function
-const ACCESS_REQUEST_FUNCTION_ID = "689cdea5001a4d74549d"; // ID de la fonction d'envoi d'email
 
 // --- CONFIGURATION CENTRALE APPWRITE ---
 const APPWRITE_CONFIG = {

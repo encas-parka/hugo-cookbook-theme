@@ -14,7 +14,7 @@ export function getMainIdFromUrl(fallbackId: string = 'your-main-id'): string {
 
   const urlParams = new URLSearchParams(window.location.search);
   const listIdFromUrl = urlParams.get('listId');
-  
+
   return listIdFromUrl || fallbackId;
 }
 
