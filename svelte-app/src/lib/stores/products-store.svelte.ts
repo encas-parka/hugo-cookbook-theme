@@ -1,6 +1,7 @@
 // stores/products.svelte.ts
 import { PersistedState } from 'runed';
 import { useDebounce } from 'runed';
+import { createStorageKey, getMainIdFromUrl } from '../utils/url-utils';
 
 interface Product {
   $id: string;
@@ -54,20 +55,67 @@ interface SyncState {
 const { Query } = window.Appwrite;
 
 class ProductsStore {
+  private currentMainId: string | null = getMainIdFromUrl();
+  private statesByMainId: Map<string, { productsState: PersistedState<ProductsState>, syncState: PersistedState<SyncState> }> = new Map();
 
-  // States persistantes
-  private productsState = new PersistedState<ProductsState>('products-state', {
-    products: [],
-    loading: false,
-    error: null,
-    syncing: false,
-    realtimeConnected: false
-  });
+  // States persistantes actifs (getter pour accéder à l'état du mainId courant)
+  private get productsState(): PersistedState<ProductsState> {
+    if (!this.currentMainId) {
+      throw new Error('ProductsStore non initialisé');
+    }
+    const state = this.statesByMainId.get(this.currentMainId);
+    if (!state) {
+      throw new Error(`État non trouvé pour mainId: ${this.currentMainId}`);
+    }
+    return state.productsState;
+  }
 
-  private syncState = new PersistedState<SyncState>('products-sync-state', {
-    lastSync: null,
-    mainId: null
-  });
+  private get syncState(): PersistedState<SyncState> {
+    if (!this.currentMainId) {
+      throw new Error('ProductsStore non initialisé');
+    }
+    const state = this.statesByMainId.get(this.currentMainId);
+    if (!state) {
+      throw new Error(`État non trouvé pour mainId: ${this.currentMainId}`);
+    }
+    return state.syncState;
+  }
+
+  /**
+   * Crée ou récupère les états persistants pour un mainId donné
+   */
+  private getOrCreateStates(mainId: string): { productsState: PersistedState<ProductsState>, syncState: PersistedState<SyncState> } {
+    // Vérifier si les états existent déjà
+    let existingStates = this.statesByMainId.get(mainId);
+    if (existingStates) {
+      return existingStates;
+    }
+
+    // Créer de nouveaux états persistants
+    const productsKey = createStorageKey('products-state', mainId);
+    const syncKey = createStorageKey('products-sync-state', mainId);
+
+    const productsState = new PersistedState<ProductsState>(productsKey, {
+      products: [],
+      loading: false,
+      error: null,
+      syncing: false,
+      realtimeConnected: false
+    });
+
+    const syncState = new PersistedState<SyncState>(syncKey, {
+      lastSync: null,
+      mainId: null
+    });
+
+    const states = { productsState, syncState };
+    this.statesByMainId.set(mainId, states);
+
+    console.log(`[ProductsStore] Nouveaux états créés pour mainId: ${mainId}`);
+    console.log(`[ProductsStore] Clés de stockage: ${productsKey}, ${syncKey}`);
+
+    return states;
+  }
 
   // Debounce pour la mise à jour du lastSync
   private debouncedSync = $state<(() => void) | null>(null);
@@ -106,13 +154,23 @@ class ProductsStore {
    * Initialise le store avec chargement initial et sync
    */
   async initialize(mainId: string) {
+    // Récupérer ou créer les états pour ce mainId
+    const states = this.getOrCreateStates(mainId);
+    this.currentMainId = mainId;
+
+    console.log('[ProductsStore] Initialisation avec mainId:', mainId);
+    console.log('[ProductsStore] Produits dans le cache:', this.productsState.current.products.length);
+
     // Si même mainId et on a déjà des données, charger du cache puis sync en background
     if (this.syncState.current.mainId === mainId && this.productsState.current.products.length > 0) {
-      console.log('[ProductsStore] Chargement depuis le cache');
+      console.log('[ProductsStore] Chargement depuis le cache - produits trouvés:', this.productsState.current.products.length);
+      console.log('[ProductsStore] Exemples de produits du cache:', this.productsState.current.products.slice(0, 3).map(p => ({ id: p.$id, name: p.productName })));
       this.syncInBackground();
     } else {
       // Première connexion ou changement de mainId : chargement complet
-      console.log('[ProductsStore] Première connexion ou changement de mainId');
+      console.log('[ProductsStore] Première connexion ou changement de mainId - raisons:');
+      console.log('- mainId différent:', this.syncState.current.mainId !== mainId);
+      console.log('- pas de produits dans le cache:', this.productsState.current.products.length === 0);
       await this.loadFromAppwrite(mainId);
     }
 
@@ -397,9 +455,14 @@ class ProductsStore {
   }
 
   /**
-   * Vide le cache
+   * Vide le cache pour le mainId actuel
    */
   clearCache() {
+    if (!this.currentMainId) {
+      console.warn('[ProductsStore] Impossible de vider le cache: aucun mainId actuel');
+      return;
+    }
+
     this.productsState.current = {
       products: [],
       loading: false,
@@ -412,6 +475,29 @@ class ProductsStore {
       lastSync: null,
       mainId: null
     };
+
+    console.log(`[ProductsStore] Cache vidé pour mainId: ${this.currentMainId}`);
+  }
+
+  /**
+   * Vide tous les caches pour tous les mainIds
+   */
+  clearAllCaches() {
+    for (const [mainId, states] of this.statesByMainId) {
+      states.productsState.current = {
+        products: [],
+        loading: false,
+        error: null,
+        syncing: false,
+        realtimeConnected: false
+      };
+
+      states.syncState.current = {
+        lastSync: null,
+        mainId: null
+      };
+    }
+    console.log('[ProductsStore] Tous les caches ont été vidés');
   }
 }
 

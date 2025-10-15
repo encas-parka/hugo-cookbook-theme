@@ -128,10 +128,10 @@ async function getDatabases() {
 }
 
 function getConfig() {
-    return { 
-        APPWRITE_ENDPOINT: APPWRITE_CONFIG.endpoint, 
-        APPWRITE_PROJECT_ID: APPWRITE_CONFIG.projectId, 
-        APPWRITE_FUNCTION_ID: APPWRITE_CONFIG.functions.cmsAuth, 
+    return {
+        APPWRITE_ENDPOINT: APPWRITE_CONFIG.endpoint,
+        APPWRITE_PROJECT_ID: APPWRITE_CONFIG.projectId,
+        APPWRITE_FUNCTION_ID: APPWRITE_CONFIG.functions.cmsAuth,
         ACCESS_REQUEST_FUNCTION_ID: APPWRITE_CONFIG.functions.accessRequest,
         APPWRITE_CONFIG: APPWRITE_CONFIG
     };
@@ -695,6 +695,6 @@ if (typeof window !== 'undefined') {
         isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms, isAuthenticatedAppwrite, isConnectedAppwrite,
         getUserEmail, getUserName, clearAuthData, setAuthData, logoutGlobal,
         isEmailVerified, sendVerificationEmail, verifyEmail, getLocalEmailVerificationStatus,
-         createCollaborativeProductsListFromEvent,  checkExistingMainGroup
+        createCollaborativeProductsListFromEvent,  checkExistingMainGroup, subscribeToCollections
     };
 }

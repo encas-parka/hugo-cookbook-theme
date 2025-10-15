@@ -3,20 +3,18 @@
 
   // FIXIT: use alias of vite.config.ts
   import { productsStore } from './lib/stores/products-store.svelte';
+  import { getMainIdFromUrl } from './lib/utils/url-utils';
 
   // Props (si tu as besoin de passer le mainId depuis l'extérieur)
-  // Récupérer mainId depuis les paramètres de l'URL
-  // Cherche le paramètre 'listId' dans l'URL. Si trouvé, utilise sa valeur, sinon utilise 'your-main-id' par défaut.
-  let { mainId = 'your-main-id' }: { mainId?: string } = $props();
-  const urlParams = new URLSearchParams(window.location.search);
-  const listIdFromUrl = urlParams.get('listId');
-
-  if (listIdFromUrl) {
-    mainId = listIdFromUrl;
-  }
+  // Récupérer mainId depuis les paramètres de l'URL via la fonction utilitaire
+  let { mainId = getMainIdFromUrl() }: { mainId?: string } = $props();
 
   // Dériver les valeurs réactives du store
-  let products = $derived(productsStore.products);
+  let products = $derived.by(() => {
+    const prods = productsStore.products;
+    console.log('[App.svelte] produits dérivés:', prods.length, prods.slice(0, 3));
+    return prods;
+  });
   let loading = $derived(productsStore.loading);
   let error = $derived(productsStore.error);
   let syncing = $derived(productsStore.syncing);
