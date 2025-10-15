@@ -1,6 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
+import path from 'path';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -21,10 +22,11 @@ export default defineConfig({
 
     // Important pour que les imports fonctionnent correctement
     resolve: {
-      alias: {
-        '$lib': '/src/lib'
-      }
-    },
+       alias: {
+         '@': path.resolve(__dirname, './src'),
+         '@lib': path.resolve(__dirname, './src/lib')
+       }
+     },
 
     // --- Configuration du serveur de développement ---
     server: {

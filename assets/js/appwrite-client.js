@@ -19,8 +19,6 @@ const APPWRITE_CONFIG = {
         accessRequest: "689cdea5001a4d74549d"
     },
     collections: {
-        events: "ingredient_lists",
-        ingredients: "ingredients",
         main: "main",
         purchases: "purchases",
         products: "products"
@@ -79,8 +77,8 @@ async function initializeAppwrite() {
             const { Client, Account, Functions, Databases } = window.Appwrite;
 
             client = new Client()
-                .setEndpoint(APPWRITE_ENDPOINT)
-                .setProject(APPWRITE_PROJECT_ID);
+                .setEndpoint(APPWRITE_CONFIG.endpoint)
+                .setProject(APPWRITE_CONFIG.projectId);
 
             account = new Account(client);
             functions = new Functions(client);
@@ -130,7 +128,13 @@ async function getDatabases() {
 }
 
 function getConfig() {
-    return { APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, APPWRITE_FUNCTION_ID, ACCESS_REQUEST_FUNCTION_ID };
+    return { 
+        APPWRITE_ENDPOINT: APPWRITE_CONFIG.endpoint, 
+        APPWRITE_PROJECT_ID: APPWRITE_CONFIG.projectId, 
+        APPWRITE_FUNCTION_ID: APPWRITE_CONFIG.functions.cmsAuth, 
+        ACCESS_REQUEST_FUNCTION_ID: APPWRITE_CONFIG.functions.accessRequest,
+        APPWRITE_CONFIG: APPWRITE_CONFIG
+    };
 }
 
 function isInitialized() {
@@ -463,7 +467,7 @@ async function createCollaborativeProductsListFromEvent(eventId) {
                         productName: ingredient.ingredientName || '',
                         productType: ingredient.ingType || '',
                         mainId: eventId,
-                        // Conversion en JSON strings pour préserver la structure
+                        // Conversion en JSON strings car les champs Appwrite sont maintenant des string
                         totalNeededConsolidated: JSON.stringify(ingredient.totalNeededConsolidated || []),
                         totalNeededRaw: JSON.stringify(ingredient.totalNeededRaw || []),
                         neededConsolidatedByDate: JSON.stringify(ingredient.neededConsolidatedByDate || []),
@@ -472,9 +476,9 @@ async function createCollaborativeProductsListFromEvent(eventId) {
                         pSurgel: ingredient.pSurgel || false,
                         nbRecipes: ingredient.nbRecipes || 0,
                         totalAssiettes: ingredient.totalAssiettes || 0,
-                        conversionRules: JSON.stringify(ingredient.conversionRules || []),
+                        conversionRules: ingredient.conversionRules,
                         dateTimeService: ingredient.neededConsolidatedByDate?.[0]?.dateTimeService || null,
-                        recipeNames: ingredient.neededConsolidatedByDate?.[0]?.recipeNames?.join(', ') || ''
+                        recipeNames: ingredient.recipeNames || null
                     };
 
                     await databases.createDocument(
@@ -522,14 +526,6 @@ async function createCollaborativeProductsListFromEvent(eventId) {
             try {
                 const { databases } = await initializeAppwrite();
                 await cleanupFullOperation(eventId, createdMain, createdProducts, databases);
-
-                // Marquer comme échoué si le main a été créé
-                if (createdMain) {
-                    await databases.updateDocument('689d15b10003a5a13636', 'main', eventId, {
-                        status: 'failed',
-                        error: `${new Date().toISOString()} - Erreur globale: ${error.message}`
-                    });
-                }
             } catch (cleanupError) {
                 console.error(`[Appwrite Client] Erreur lors du nettoyage:`, cleanupError);
             }
@@ -699,6 +695,6 @@ if (typeof window !== 'undefined') {
         isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms, isAuthenticatedAppwrite, isConnectedAppwrite,
         getUserEmail, getUserName, clearAuthData, setAuthData, logoutGlobal,
         isEmailVerified, sendVerificationEmail, verifyEmail, getLocalEmailVerificationStatus,
-        createCollaborativeListFromEvent, createCollaborativeProductsListFromEvent, checkExistingCollaborativeList, checkExistingMainGroup
+         createCollaborativeProductsListFromEvent,  checkExistingMainGroup
     };
 }
