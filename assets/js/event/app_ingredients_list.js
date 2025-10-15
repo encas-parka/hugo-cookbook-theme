@@ -100,9 +100,7 @@ export function createEventApp(initialData = {}) {
         _rangeStandardizedCache: {},
 
         // Collaborative list creation
-        isCreatingList: false,
         isCreatingProductsList: false,
-        existingListExists: false,
         existingMainGroupExists: false,
 
         // Authentication state
@@ -129,7 +127,7 @@ export function createEventApp(initialData = {}) {
       }
 
       // Vérifier si une liste collaborative existe déjà pour cet événement
-      this.checkExistingListOnInit();
+      // this.checkExistingListOnInit();
 
       // Vérifier si un main group existe déjà pour cet événement
       this.checkExistingMainGroupOnInit();
@@ -785,20 +783,7 @@ export function createEventApp(initialData = {}) {
 
       formatTypeShort,
 
-      // --- Méthodes pour les listes collaboratives ---
-      async createCollaborativeList() {
-        if (this.isCreatingList) return;
-        this.isCreatingList = true;
-        try {
-          const eventId = this.getEventId();
-          await window.AppwriteClient.createCollaborativeListFromEvent(eventId);
-        } catch (error) {
-          console.error('Erreur lors de la création de la liste collaborative:', error);
-          alert('Erreur lors de la création de la liste collaborative. Veuillez réessayer.');
-        } finally {
-          this.isCreatingList = false;
-        }
-      },
+
 
       async createCollaborativeProductsList() {
         if (this.isCreatingProductsList) return;
@@ -822,17 +807,6 @@ export function createEventApp(initialData = {}) {
       viewExistingProductsList() {
         const mainGroupId = this.getEventId(); // Le mainGroupId correspond à l'eventId
         this.redirectToProductsList(mainGroupId);
-      },
-
-      async checkExistingListOnInit() {
-        try {
-          const eventId = this.getEventId();
-          this.existingListExists = await window.AppwriteClient.checkExistingCollaborativeList(eventId);
-          console.log(`[Vue App] Liste existante pour l'événement ${eventId}: ${this.existingListExists}`);
-        } catch (error) {
-          console.error('Erreur lors de la vérification de la liste existante:', error);
-          this.existingListExists = false;
-        }
       },
 
       async checkExistingMainGroupOnInit() {

@@ -197,35 +197,6 @@
 
               <!-- Bouton pour créer une liste collaborative -->
               <div class="mb-4" v-if="isAuthenticated">
-                <div v-if="existingListExists">
-                  <button
-                    class="btn btn-info w-100"
-                    type="button"
-                    id="viewExistingListBtn"
-                    @click="viewExistingCollaborativeList"
-                  >
-                    {{ partialCached "components/icon-svg" (dict "name" "eye" "size" "1.1rem") "eye-icon" "1.1rem" }}
-                    Voir la liste existante
-                  </button>
-                  <small class="form-text text-muted mt-1">
-                    Une liste collaborative existe déjà pour cet événement
-                  </small>
-                </div>
-                <div v-else>
-                  <button
-                    class="btn btn-success w-100 mb-2"
-                    type="button"
-                    id="createCollaborativeListBtn"
-                    @click="createCollaborativeList"
-                    :disabled="isCreatingList"
-                  >
-                    <span v-if="isCreatingList" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    <i class="fas fa-plus me-2" style="font-size: 1.1rem;"></i>
-                    <span v-if="!isCreatingList">Créer une liste modifiable</span>
-                    <span v-else>Création en cours...</span>
-                  </button>
-
-                </div>
                 <button
                   class="btn btn-primary w-100 mb-2"
                   type="button"
