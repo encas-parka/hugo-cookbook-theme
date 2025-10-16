@@ -4,10 +4,10 @@
   import { productsStore } from '../stores/ProductsStore.svelte';
 
   // Accès direct aux valeurs dérivées du store
-  const { 
-    filteredProducts, 
-    groupedProducts, 
-    stats, 
+  const {
+    filteredProducts,
+    groupedFormattedProducts,
+    stats,
     uniqueStores,
     uniqueWho,
     uniqueProductTypes,
@@ -96,9 +96,9 @@
         <label class="label" for="product-type-select">
           <span class="label-text">Type de produit</span>
         </label>
-        <select 
-          id="product-type-select" 
-          class="select select-bordered" 
+        <select
+          id="product-type-select"
+          class="select select-bordered"
           value={filters.selectedProductType}
           onchange={(e) => productsStore.setProductType(e.currentTarget.value)}
         >
@@ -114,9 +114,9 @@
         <label class="label" for="grouping-select">
           <span class="label-text">Groupement</span>
         </label>
-        <select 
-          id="grouping-select" 
-          class="select select-bordered" 
+        <select
+          id="grouping-select"
+          class="select select-bordered"
           value={filters.groupBy}
           onchange={(e) => productsStore.setGroupBy(e.currentTarget.value as any)}
         >
@@ -239,7 +239,7 @@
             </div>
           </th>
           <th>Temp.</th>
-          <th class="cursor-pointer hover:bg-base-400" onclick={() => productsStore.handleSort('totalNeededConsolidated')}>
+          <th>
             <div class="flex items-center gap-2">
               Quantité totale
               {#if filters.sortColumn === 'totalNeededConsolidated'}
@@ -259,7 +259,7 @@
         </tr>
       </thead>
       <tbody>
-        {#each Object.entries(groupedProducts) as [groupKey, groupProducts] (groupKey)}
+        {#each Object.entries(groupedFormattedProducts) as [groupKey, groupProducts] (groupKey)}
           {#if groupKey !== ''}
             <!-- Header de groupe -->
             <tr class="bg-base-300 font-semibold">
@@ -323,7 +323,7 @@
                 </div>
               </td>
               <td class="text-right font-semibold">
-                {product.totalNeededConsolidated || '0'}
+                {product.totalNeededDisplay || '-'}
               </td>
               <td class="text-center">
                 <div class="text-sm">
@@ -336,7 +336,7 @@
                 onclick={() => handleCellClick('purchases', product)}
               >
                 <div class="badge badge-warning badge-sm">
-                  {product.purchases?.length || 0} ach{(product.purchases?.length || 0) > 1 ? 'ats' : 'at'}
+                  {product.nbPurchases || 0} ach{(product.nbPurchases || 0) > 1 ? 'ats' : 'at'}
                 </div>
               </td>
             </tr>

@@ -3,6 +3,25 @@ import { useDebounce } from 'runed';
 import { createStorageKey } from '../utils/url-utils';
 import { type Products } from '../types/appwrite.d';
 
+/**
+ * ProductsStore - Store des produits avec flux de données réactif Svelte 5
+ * 
+ * Flux de données automatique avec $derived (pas de synchronisation manuelle) :
+ * 
+ * products (bruts) 
+ *   ↓ filteredProducts (filtrés par recherche/store/type/etc.)
+ *   ↓ formattedProducts (formatés pour l'affichage)
+ *   ↓ groupedFormattedProducts (groupés par magasin/type)
+ * 
+ * @usage
+ * await productsStore.initialize('mainId');
+ * productsStore.setSearchQuery('pâtes');     // Met à jour tout le flux automatiquement
+ * productsStore.toggleStore('Carrefour');   // Reactive les dérivés
+ */
+
+/**
+ * État principal des produits utilisé avec PersistedState
+ */
 interface ProductsState {
   products: Products[];
   loading: boolean;
@@ -11,14 +30,21 @@ interface ProductsState {
   realtimeConnected: boolean;
 }
 
+/**
+ * État de synchronisation pour le suivi des dernières mises à jour
+ */
 interface SyncState {
   lastSync: string | null;
   mainId: string | null;
 }
 
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
 const { Query } = window.Appwrite;
-const BATCH_LIMIT = 1000;
-const SYNC_DEBOUNCE_MS = 500;
+const BATCH_LIMIT = 1000;           // Limite de produits par requête Appwrite
+const SYNC_DEBOUNCE_MS = 500;       // Délai de debounce pour la synchro en arrière-plan
 
 // =============================================================================
 // STORE SINGLETON - État partagé réactif Svelte 5
@@ -105,20 +131,17 @@ class ProductsStore {
   });
 
   // Produits groupés (dérivé)
+  // @deprecated
   groupedProducts = $derived.by(() => {
     if (this.#filters.groupBy === 'none') {
       return { '': this.filteredProducts };
     }
 
-    const groups: Record<string, Products[]> = {};
-    for (const product of this.filteredProducts) {
-      const key = this.#filters.groupBy === 'store' 
-        ? (product.store || 'Non défini') 
+    return Object.groupBy(this.filteredProducts, (product) => {
+      return this.#filters.groupBy === 'store'
+        ? (product.store || 'Non défini')
         : product.productType;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(product);
-    }
-    return groups;
+    });
   });
 
   // Produits formatés pour l'affichage (dérivé)
@@ -129,6 +152,19 @@ class ProductsStore {
       stockReelDisplay: this.#formatQuantity(p.stockReel),
       nbPurchases: p.purchases?.length ?? 0
     }));
+  });
+
+  // Produits formatés groupés (dérivé) - pour affichage optimisé
+  groupedFormattedProducts = $derived.by(() => {
+    if (this.#filters.groupBy === 'none') {
+      return { '': this.formattedProducts };
+    }
+
+    return Object.groupBy(this.formattedProducts, (product) => {
+      return this.#filters.groupBy === 'store'
+        ? (product.store || 'Non défini')
+        : product.productType;
+    });
   });
 
   // Statistiques dérivées
@@ -510,11 +546,11 @@ class ProductsStore {
 
   #formatQuantity(jsonString: string | null): string {
     if (!jsonString) return '-';
-    
+
     try {
       const quantities = JSON.parse(jsonString);
       if (!Array.isArray(quantities) || quantities.length === 0) return '-';
-      
+
       return quantities
         .map((q: { value: string; unit: string }) => this.#formatSingleQuantity(q.value, q.unit))
         .join(' et ');
