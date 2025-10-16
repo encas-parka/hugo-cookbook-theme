@@ -1,111 +1,18 @@
 <script lang="ts">
   import type { Products } from '../types/appwrite.d';
   import { Search, Funnel, X, ChevronDown, ChevronRight, FunnelIcon } from '@lucide/svelte';
+  import { productsStore } from '../stores/ProductsStore.svelte';
 
-  interface Props {
-    products: Products[];
-  }
-
-  let { products }: Props = $props();
-
-  // États réactifs pour les filtres
-  let searchQuery = $state('');
-  let selectedStores = $state<string[]>([]);
-  let selectedWho = $state<string[]>([]);
-  let selectedProductType = $state<string>('');
-  let showPFrais = $state(true);
-  let showPSurgel = $state(true);
-  let groupBy = $state<'store' | 'productType' | 'none'>('none');
-  let sortColumn = $state<string>('');
-  let sortDirection = $state<'asc' | 'desc'>('asc');
-
-  // Extraire les valeurs uniques pour les filtres
-  const uniqueStores = $derived([...new Set(products.map(p => p.store).filter(Boolean))] as string[]);
-  const uniqueWho = $derived([...new Set(products.flatMap(p => p.who || []).filter(Boolean))] as string[]);
-  const uniqueProductTypes = $derived([...new Set(products.map(p => p.productType).filter(Boolean))] as string[]);
-
-  // Filtrer les produits selon les critères
-  const filteredProducts = $derived.by(() => {
-    let filtered = products;
-
-    // Recherche textuelle
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(p =>
-        p.productName.toLowerCase().includes(query)
-      );
-    }
-
-    // Filtre par store
-    if (selectedStores.length > 0) {
-      filtered = filtered.filter(p => p.store && selectedStores.includes(p.store));
-    }
-
-    // Filtre par who
-    if (selectedWho.length > 0) {
-      filtered = filtered.filter(p =>
-        p.who && p.who.some(w => selectedWho.includes(w))
-      );
-    }
-
-    // Filtre par productType
-    if (selectedProductType) {
-      filtered = filtered.filter(p => p.productType === selectedProductType);
-    }
-
-    // Filtres pFrais/pSurgel
-    if (!showPFrais && !showPSurgel) {
-      return [];
-    }
-    if (!showPFrais) {
-      filtered = filtered.filter(p => !p.pFrais);
-    }
-    if (!showPSurgel) {
-      filtered = filtered.filter(p => !p.pSurgel);
-    }
-
-    return filtered;
-  });
-
-  // Grouper les produits
-  const groupedProducts = $derived.by(() => {
-    if (groupBy === 'none') {
-      return { '': filteredProducts };
-    }
-
-    const groups: Record<string, Products[]> = {};
-    for (const product of filteredProducts) {
-      const key = groupBy === 'store' ? (product.store || 'Non défini') : product.productType;
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-      groups[key].push(product);
-    }
-    return groups;
-  });
-
-  // Trier les produits
-  function sortProducts(products: Products[]): Products[] {
-    if (!sortColumn) return products;
-
-    return [...products].sort((a, b) => {
-      let aVal: any = a[sortColumn as keyof Products];
-      let bVal: any = b[sortColumn as keyof Products];
-
-      // Gérer les cas spéciaux
-      if (sortColumn === 'totalNeededConsolidated') {
-        aVal = parseFloat(aVal) || 0;
-        bVal = parseFloat(bVal) || 0;
-      } else if (sortColumn === 'purchases') {
-        aVal = a.purchases?.length || 0;
-        bVal = b.purchases?.length || 0;
-      }
-
-      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }
+  // Accès direct aux valeurs dérivées du store
+  const { 
+    filteredProducts, 
+    groupedProducts, 
+    stats, 
+    uniqueStores,
+    uniqueWho,
+    uniqueProductTypes,
+    filters
+  } = $derived(productsStore);
 
   // Gestionnaire de clics sur les cellules
   function handleCellClick(type: string, product: Products) {
@@ -126,53 +33,6 @@
         break;
     }
   }
-
-  // Gestionnaire de tri
-  function handleSort(column: string) {
-    if (sortColumn === column) {
-      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortColumn = column;
-      sortDirection = 'asc';
-    }
-  }
-
-  // Fonctions utilitaires pour les filtres
-  function toggleStore(store: string) {
-    if (selectedStores.includes(store)) {
-      selectedStores = selectedStores.filter(s => s !== store);
-    } else {
-      selectedStores = [...selectedStores, store];
-    }
-  }
-
-  function toggleWho(who: string) {
-    if (selectedWho.includes(who)) {
-      selectedWho = selectedWho.filter(w => w !== who);
-    } else {
-      selectedWho = [...selectedWho, who];
-    }
-  }
-
-  function clearAllFilters() {
-    searchQuery = '';
-    selectedStores = [];
-    selectedWho = [];
-    selectedProductType = '';
-    showPFrais = true;
-    showPSurgel = true;
-    groupBy = 'none';
-    sortColumn = '';
-    sortDirection = 'asc';
-  }
-
-  // Calculer les statistiques
-  const stats = $derived({
-    total: filteredProducts.length,
-    frais: filteredProducts.filter(p => p.pFrais).length,
-    surgel: filteredProducts.filter(p => p.pSurgel).length,
-    merged: filteredProducts.filter(p => p.isMerged).length
-  });
 </script>
 
 <div class="space-y-6">
@@ -205,7 +65,7 @@
       </h3>
       <button
         class="btn btn-sm btn-ghost"
-        onclick={clearAllFilters}
+        onclick={() => productsStore.clearFilters()}
       >
         <X class="w-4 h-4" />
         Tout effacer
@@ -225,7 +85,8 @@
             type="text"
             placeholder="Nom du produit..."
             class="grow"
-            bind:value={searchQuery}
+            value={filters.searchQuery}
+            oninput={(e) => productsStore.setSearchQuery(e.currentTarget.value)}
           />
         </div>
       </div>
@@ -235,7 +96,12 @@
         <label class="label" for="product-type-select">
           <span class="label-text">Type de produit</span>
         </label>
-        <select id="product-type-select" class="select select-bordered" bind:value={selectedProductType}>
+        <select 
+          id="product-type-select" 
+          class="select select-bordered" 
+          value={filters.selectedProductType}
+          onchange={(e) => productsStore.setProductType(e.currentTarget.value)}
+        >
           <option value="">Tous les types</option>
           {#each uniqueProductTypes as type (type)}
             <option value={type}>{type}</option>
@@ -248,7 +114,12 @@
         <label class="label" for="grouping-select">
           <span class="label-text">Groupement</span>
         </label>
-        <select id="grouping-select" class="select select-bordered" bind:value={groupBy}>
+        <select 
+          id="grouping-select" 
+          class="select select-bordered" 
+          value={filters.groupBy}
+          onchange={(e) => productsStore.setGroupBy(e.currentTarget.value as any)}
+        >
           <option value="none">Aucun</option>
           <option value="store">Par magasin</option>
           <option value="productType">Par type</option>
@@ -268,7 +139,8 @@
               id="frais-checkbox"
               type="checkbox"
               class="checkbox checkbox-info"
-              bind:checked={showPFrais}
+              checked={filters.showPFrais}
+              onchange={(e) => productsStore.setTemperatureFilters(e.currentTarget.checked, filters.showPSurgel)}
             />
             <span>Produits frais</span>
           </label>
@@ -277,7 +149,8 @@
               id="surgele-checkbox"
               type="checkbox"
               class="checkbox checkbox-success"
-              bind:checked={showPSurgel}
+              checked={filters.showPSurgel}
+              onchange={(e) => productsStore.setTemperatureFilters(filters.showPFrais, e.currentTarget.checked)}
             />
             <span>Produits surgelés</span>
           </label>
@@ -295,8 +168,8 @@
           <div class="flex flex-wrap gap-2" role="group">
             {#each uniqueStores as store (store)}
               <button
-                class="btn btn-sm {selectedStores.includes(store) ? 'btn-primary' : 'btn-outline'}"
-                onclick={() => toggleStore(store)}
+                class="btn btn-sm {filters.selectedStores.includes(store) ? 'btn-primary' : 'btn-outline'}"
+                onclick={() => productsStore.toggleStore(store)}
               >
                 {store}
               </button>
@@ -316,8 +189,8 @@
           <div class="flex flex-wrap gap-2" role="group">
             {#each uniqueWho as who (who)}
               <button
-                class="btn btn-sm {selectedWho.includes(who) ? 'btn-primary' : 'btn-outline'}"
-                onclick={() => toggleWho(who)}
+                class="btn btn-sm {filters.selectedWho.includes(who) ? 'btn-primary' : 'btn-outline'}"
+                onclick={() => productsStore.toggleWho(who)}
               >
                 {who}
               </button>
@@ -333,53 +206,53 @@
     <table class="table w-full">
       <thead>
         <tr class="bg-base-300">
-          <th class="cursor-pointer hover:bg-base-400" onclick={() => handleSort('productName')}>
+          <th class="cursor-pointer hover:bg-base-400" onclick={() => productsStore.handleSort('productName')}>
             <div class="flex items-center gap-2">
               Nom du produit
-              {#if sortColumn === 'productName'}
-                {sortDirection === 'asc' ? '↑' : '↓'}
+              {#if filters.sortColumn === 'productName'}
+                {filters.sortDirection === 'asc' ? '↑' : '↓'}
               {/if}
             </div>
           </th>
-          <th class="cursor-pointer hover:bg-base-400" onclick={() => handleSort('store')}>
+          <th class="cursor-pointer hover:bg-base-400" onclick={() => productsStore.handleSort('store')}>
             <div class="flex items-center gap-2">
               Magasin
-              {#if sortColumn === 'store'}
-                {sortDirection === 'asc' ? '↑' : '↓'}
+              {#if filters.sortColumn === 'store'}
+                {filters.sortDirection === 'asc' ? '↑' : '↓'}
               {/if}
             </div>
           </th>
-          <th class="cursor-pointer hover:bg-base-400" onclick={() => handleSort('who')}>
+          <th class="cursor-pointer hover:bg-base-400" onclick={() => productsStore.handleSort('who')}>
             <div class="flex items-center gap-2">
               Qui
-              {#if sortColumn === 'who'}
-                {sortDirection === 'asc' ? '↑' : '↓'}
+              {#if filters.sortColumn === 'who'}
+                {filters.sortDirection === 'asc' ? '↑' : '↓'}
               {/if}
             </div>
           </th>
-          <th class="cursor-pointer hover:bg-base-400" onclick={() => handleSort('productType')}>
+          <th class="cursor-pointer hover:bg-base-400" onclick={() => productsStore.handleSort('productType')}>
             <div class="flex items-center gap-2">
               Type
-              {#if sortColumn === 'productType'}
-                {sortDirection === 'asc' ? '↑' : '↓'}
+              {#if filters.sortColumn === 'productType'}
+                {filters.sortDirection === 'asc' ? '↑' : '↓'}
               {/if}
             </div>
           </th>
           <th>Temp.</th>
-          <th class="cursor-pointer hover:bg-base-400" onclick={() => handleSort('totalNeededConsolidated')}>
+          <th class="cursor-pointer hover:bg-base-400" onclick={() => productsStore.handleSort('totalNeededConsolidated')}>
             <div class="flex items-center gap-2">
               Quantité totale
-              {#if sortColumn === 'totalNeededConsolidated'}
-                {sortDirection === 'asc' ? '↑' : '↓'}
+              {#if filters.sortColumn === 'totalNeededConsolidated'}
+                {filters.sortDirection === 'asc' ? '↑' : '↓'}
               {/if}
             </div>
           </th>
           <th>Recettes / Assiettes</th>
-          <th class="cursor-pointer hover:bg-base-400" onclick={() => handleSort('purchases')}>
+          <th class="cursor-pointer hover:bg-base-400" onclick={() => productsStore.handleSort('purchases')}>
             <div class="flex items-center gap-2">
               Achats
-              {#if sortColumn === 'purchases'}
-                {sortDirection === 'asc' ? '↑' : '↓'}
+              {#if filters.sortColumn === 'purchases'}
+                {filters.sortDirection === 'asc' ? '↑' : '↓'}
               {/if}
             </div>
           </th>
@@ -392,7 +265,7 @@
             <tr class="bg-base-300 font-semibold">
               <td colspan="8" class="py-2">
                 <div class="flex items-center gap-2">
-                  {#if groupBy === 'store'}
+                  {#if filters.groupBy === 'store'}
                     🏪 {groupKey} ({groupProducts.length})
                   {:else}
                     📦 {groupKey} ({groupProducts.length})
@@ -403,7 +276,7 @@
           {/if}
 
           <!-- Produits du groupe -->
-          {#each sortProducts(groupProducts) as product (product.$id)}
+          {#each productsStore.sortProducts(groupProducts) as product (product.$id)}
             <tr class="hover:bg-base-300 transition-colors">
               <td
                 class="cursor-pointer hover:bg-blue-50"

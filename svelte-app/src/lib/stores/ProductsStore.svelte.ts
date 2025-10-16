@@ -31,14 +31,115 @@ class ProductsStore {
   #syncState: PersistedState<SyncState> | null = $state(null);
   #unsubscribe: (() => void) | null = $state(null);
 
-  // États publics réactifs - accédés directement sans fonction
-  products = $state<Products[]>([]);
-  loading = $state(false);
-  error = $state<string | null>(null);
-  syncing = $state(false);
-  realtimeConnected = $state(false);
-  lastSync = $state<string | null>(null);
-  mainId = $state<string | null>(null);
+  // États dérivés directement depuis PersistedState - plus de duplication !
+  products = $derived(this.#productsState?.current.products ?? []);
+  loading = $derived(this.#productsState?.current.loading ?? false);
+  error = $derived(this.#productsState?.current.error ?? null);
+  syncing = $derived(this.#productsState?.current.syncing ?? false);
+  realtimeConnected = $derived(this.#productsState?.current.realtimeConnected ?? false);
+  lastSync = $derived(this.#syncState?.current.lastSync ?? null);
+  mainId = $derived(this.#syncState?.current.mainId ?? null);
+
+  // États des filtres
+  #filters = $state({
+    searchQuery: '',
+    selectedStores: [] as string[],
+    selectedWho: [] as string[],
+    selectedProductType: '',
+    showPFrais: true,
+    showPSurgel: true,
+    groupBy: 'none' as 'store' | 'productType' | 'none',
+    sortColumn: '',
+    sortDirection: 'asc' as 'asc' | 'desc'
+  });
+
+  // Exposition des filtres (lecture/écriture)
+  get filters() { return this.#filters; }
+
+  // Valeurs uniques pour les filtres (dérivés)
+  uniqueStores = $derived([...new Set(this.products.map(p => p.store).filter(Boolean))] as string[]);
+  uniqueWho = $derived([...new Set(this.products.flatMap(p => p.who || []).filter(Boolean))] as string[]);
+  uniqueProductTypes = $derived([...new Set(this.products.map(p => p.productType).filter(Boolean))] as string[]);
+
+  // Produits filtrés (dérivé)
+  filteredProducts = $derived.by(() => {
+    let filtered = this.products;
+
+    // Recherche textuelle
+    if (this.#filters.searchQuery.trim()) {
+      const query = this.#filters.searchQuery.toLowerCase();
+      filtered = filtered.filter(p =>
+        p.productName.toLowerCase().includes(query)
+      );
+    }
+
+    // Filtre par store
+    if (this.#filters.selectedStores.length > 0) {
+      filtered = filtered.filter(p => p.store && this.#filters.selectedStores.includes(p.store));
+    }
+
+    // Filtre par who
+    if (this.#filters.selectedWho.length > 0) {
+      filtered = filtered.filter(p =>
+        p.who && p.who.some(w => this.#filters.selectedWho.includes(w))
+      );
+    }
+
+    // Filtre par productType
+    if (this.#filters.selectedProductType) {
+      filtered = filtered.filter(p => p.productType === this.#filters.selectedProductType);
+    }
+
+    // Filtres pFrais/pSurgel
+    if (!this.#filters.showPFrais && !this.#filters.showPSurgel) {
+      return [];
+    }
+    if (!this.#filters.showPFrais) {
+      filtered = filtered.filter(p => !p.pFrais);
+    }
+    if (!this.#filters.showPSurgel) {
+      filtered = filtered.filter(p => !p.pSurgel);
+    }
+
+    return filtered;
+  });
+
+  // Produits groupés (dérivé)
+  groupedProducts = $derived.by(() => {
+    if (this.#filters.groupBy === 'none') {
+      return { '': this.filteredProducts };
+    }
+
+    const groups: Record<string, Products[]> = {};
+    for (const product of this.filteredProducts) {
+      const key = this.#filters.groupBy === 'store' 
+        ? (product.store || 'Non défini') 
+        : product.productType;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(product);
+    }
+    return groups;
+  });
+
+  // Produits formatés pour l'affichage (dérivé)
+  formattedProducts = $derived.by(() => {
+    return this.filteredProducts.map(p => ({
+      ...p,
+      totalNeededDisplay: this.#formatQuantity(p.totalNeededConsolidated),
+      stockReelDisplay: this.#formatQuantity(p.stockReel),
+      nbPurchases: p.purchases?.length ?? 0
+    }));
+  });
+
+  // Statistiques dérivées
+  stats = $derived.by(() => ({
+    total: this.filteredProducts.length,
+    frais: this.filteredProducts.filter(p => p.pFrais).length,
+    surgel: this.filteredProducts.filter(p => p.pSurgel).length,
+    merged: this.filteredProducts.filter(p => p.isMerged).length,
+    byStore: this.#groupByStore(this.products),
+    byType: this.#groupByType(this.products)
+  }));
 
   // Getters pour l'accès
   get currentMainId() { return this.#currentMainId; }
@@ -107,20 +208,6 @@ class ProductsStore {
       mainId: null
     });
 
-    // Synchroniser les états du PersistedState vers les états publics
-    this.#syncPersistedToPublic();
-  }
-
-  #syncPersistedToPublic() {
-    if (!this.#productsState || !this.#syncState) return;
-
-    this.products = this.#productsState.current.products;
-    this.loading = this.#productsState.current.loading;
-    this.error = this.#productsState.current.error;
-    this.syncing = this.#productsState.current.syncing;
-    this.realtimeConnected = this.#productsState.current.realtimeConnected;
-    this.lastSync = this.#syncState.current.lastSync;
-    this.mainId = this.#syncState.current.mainId;
   }
 
   // =========================================================================
@@ -293,9 +380,6 @@ class ProductsStore {
       ...this.#productsState.current,
       ...partial
     };
-
-    // Synchroniser les états publics
-    this.#syncPersistedToPublic();
   }
 
   // =========================================================================
@@ -332,6 +416,142 @@ class ProductsStore {
     };
 
     console.log(`[ProductsStore] Cache vidé pour ${this.#currentMainId}`);
+  }
+
+  // =========================================================================
+  // MÉTHODES DE FILTRAGE PUBLICS
+  // =========================================================================
+
+  // Méthodes publiques pour manipuler les filtres
+  setSearchQuery(query: string) {
+    this.#filters.searchQuery = query;
+  }
+
+  setProductType(type: string) {
+    this.#filters.selectedProductType = type;
+  }
+
+  setGroupBy(groupBy: 'store' | 'productType' | 'none') {
+    this.#filters.groupBy = groupBy;
+  }
+
+  toggleStore(store: string) {
+    const index = this.#filters.selectedStores.indexOf(store);
+    if (index > -1) {
+      this.#filters.selectedStores.splice(index, 1);
+    } else {
+      this.#filters.selectedStores.push(store);
+    }
+  }
+
+  toggleWho(who: string) {
+    const index = this.#filters.selectedWho.indexOf(who);
+    if (index > -1) {
+      this.#filters.selectedWho.splice(index, 1);
+    } else {
+      this.#filters.selectedWho.push(who);
+    }
+  }
+
+  setTemperatureFilters(showPFrais: boolean, showPSurgel: boolean) {
+    this.#filters.showPFrais = showPFrais;
+    this.#filters.showPSurgel = showPSurgel;
+  }
+
+  handleSort(column: string) {
+    if (this.#filters.sortColumn === column) {
+      this.#filters.sortDirection = this.#filters.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.#filters.sortColumn = column;
+      this.#filters.sortDirection = 'asc';
+    }
+  }
+
+  clearFilters() {
+    this.#filters = {
+      searchQuery: '',
+      selectedStores: [],
+      selectedWho: [],
+      selectedProductType: '',
+      showPFrais: true,
+      showPSurgel: true,
+      groupBy: 'none',
+      sortColumn: '',
+      sortDirection: 'asc'
+    };
+  }
+
+  // Trier les produits
+  sortProducts(products: Products[]): Products[] {
+    if (!this.#filters.sortColumn) return products;
+
+    return [...products].sort((a, b) => {
+      let aVal: any = a[this.#filters.sortColumn as keyof Products];
+      let bVal: any = b[this.#filters.sortColumn as keyof Products];
+
+      // Gérer les cas spéciaux
+      if (this.#filters.sortColumn === 'totalNeededConsolidated') {
+        aVal = parseFloat(aVal) || 0;
+        bVal = parseFloat(bVal) || 0;
+      } else if (this.#filters.sortColumn === 'purchases') {
+        aVal = a.purchases?.length || 0;
+        bVal = b.purchases?.length || 0;
+      }
+
+      if (aVal < bVal) return this.#filters.sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return this.#filters.sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  // =========================================================================
+  // MÉTHODES PRIVÉES UTILITAIRES
+  // =========================================================================
+
+  #formatQuantity(jsonString: string | null): string {
+    if (!jsonString) return '-';
+    
+    try {
+      const quantities = JSON.parse(jsonString);
+      if (!Array.isArray(quantities) || quantities.length === 0) return '-';
+      
+      return quantities
+        .map((q: { value: string; unit: string }) => this.#formatSingleQuantity(q.value, q.unit))
+        .join(' et ');
+    } catch {
+      return '-';
+    }
+  }
+
+  #formatSingleQuantity(value: string, unit: string): string {
+    const num = parseFloat(value);
+    if (isNaN(num)) return `${value} ${unit}`;
+
+    // Conversion gr -> kg et ml -> l si >= 1000
+    if ((unit === 'gr.' || unit === 'ml') && num >= 1000) {
+      const converted = (num / 1000).toFixed(2);
+      const newUnit = unit === 'gr.' ? 'kg' : 'l';
+      return `${converted} ${newUnit}`;
+    }
+
+    return `${num} ${unit}`;
+  }
+
+  #groupByStore(products: Products[]) {
+    const groups: Record<string, number> = {};
+    for (const product of products) {
+      const store = product.store || 'Non défini';
+      groups[store] = (groups[store] || 0) + 1;
+    }
+    return groups;
+  }
+
+  #groupByType(products: Products[]) {
+    const groups: Record<string, number> = {};
+    for (const product of products) {
+      groups[product.productType] = (groups[product.productType] || 0) + 1;
+    }
+    return groups;
   }
 }
 
