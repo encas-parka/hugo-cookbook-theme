@@ -1,44 +1,10 @@
 import { PersistedState } from 'runed';
 import { useDebounce } from 'runed';
-import { createStorageKey, getMainIdFromUrl } from '../utils/url-utils';
-
-interface Product {
-  $id: string;
-  productHugoUuid: string;
-  productName: string;
-  productType: string;
-  pFrais: boolean;
-  pSurgel: boolean;
-  stockReel: string | null;
-  status: string;
-  who: string[];
-  store: string | null;
-  previousNames: string[];
-  isMerged: boolean;
-  mergedInto: string | null;
-  mergedFrom: string[];
-  mergeDate: string | null;
-  mergeReason: string | null;
-  nbRecipes: number;
-  totalAssiettes: number;
-  dateTimeService: string | null;
-  recipeNames: string | null;
-  totalNeededConsolidated: string;
-  totalNeededRaw: string;
-  conversionRules: string[];
-  recipesOccurrences: string;
-  neededConsolidatedByDate: string;
-  $createdAt: string;
-  $updatedAt: string;
-  $permissions: string[];
-  mainId: string;
-  $databaseId: string;
-  $collectionId: string;
-  $sequence?: number;
-}
+import { createStorageKey } from '../utils/url-utils';
+import { type Products } from '../types/appwrite.d';
 
 interface ProductsState {
-  products: Product[];
+  products: Products[];
   loading: boolean;
   error: string | null;
   syncing: boolean;
@@ -65,16 +31,16 @@ class ProductsStore {
   #syncState: PersistedState<SyncState> | null = $state(null);
   #unsubscribe: (() => void) | null = $state(null);
 
-  // États dérivés réactifs
-  products = $derived.by(() => this.#productsState?.current.products ?? []);
-  loading = $derived.by(() => this.#productsState?.current.loading ?? false);
-  error = $derived.by(() => this.#productsState?.current.error ?? null);
-  syncing = $derived.by(() => this.#productsState?.current.syncing ?? false);
-  realtimeConnected = $derived.by(() => this.#productsState?.current.realtimeConnected ?? false);
-  lastSync = $derived.by(() => this.#syncState?.current.lastSync ?? null);
-  mainId = $derived.by(() => this.#syncState?.current.mainId ?? null);
+  // États publics réactifs - accédés directement sans fonction
+  products = $state<Products[]>([]);
+  loading = $state(false);
+  error = $state<string | null>(null);
+  syncing = $state(false);
+  realtimeConnected = $state(false);
+  lastSync = $state<string | null>(null);
+  mainId = $state<string | null>(null);
 
-  // Getters pour l'accès depuis les composants
+  // Getters pour l'accès
   get currentMainId() { return this.#currentMainId; }
   get isInitialized() { return this.#isInitialized; }
 
@@ -115,7 +81,7 @@ class ProductsStore {
     }
 
     // Configuration realtime
-    this.#setupRealtime(mainId);
+    await this.#setupRealtime(mainId);
   }
 
   #createPersistedStates(mainId: string) {
@@ -140,6 +106,21 @@ class ProductsStore {
       lastSync: null,
       mainId: null
     });
+
+    // Synchroniser les états du PersistedState vers les états publics
+    this.#syncPersistedToPublic();
+  }
+
+  #syncPersistedToPublic() {
+    if (!this.#productsState || !this.#syncState) return;
+
+    this.products = this.#productsState.current.products;
+    this.loading = this.#productsState.current.loading;
+    this.error = this.#productsState.current.error;
+    this.syncing = this.#productsState.current.syncing;
+    this.realtimeConnected = this.#productsState.current.realtimeConnected;
+    this.lastSync = this.#syncState.current.lastSync;
+    this.mainId = this.#syncState.current.mainId;
   }
 
   // =========================================================================
@@ -162,12 +143,13 @@ class ProductsStore {
         config.APPWRITE_CONFIG.collections.products,
         [
           Query.equal('mainId', mainId),
+          Query.orderAsc('productName'),
           Query.limit(BATCH_LIMIT)
         ]
       );
 
       this.#updateState({
-        products: response.documents as Product[],
+        products: response.documents as Products[],
         loading: false,
         error: null
       });
@@ -205,7 +187,7 @@ class ProductsStore {
       );
 
       if (response.documents.length > 0) {
-        this.#mergeProducts(response.documents as Product[]);
+        this.#mergeProducts(response.documents as Products[]);
         this.#updateLastSync();
         console.log(`[ProductsStore] ${response.documents.length} mises à jour synchronisées`);
       }
@@ -218,12 +200,11 @@ class ProductsStore {
     }
   }
 
-  #mergeProducts(updatedProducts: Product[]) {
-    const existing = this.products;
+  #mergeProducts(updatedProducts: Products[]) {
     const updated = new Map(updatedProducts.map(p => [p.$id, p]));
-    const merged = existing.map(p => updated.get(p.$id) ?? p);
-    const newIds = new Set(existing.map(p => p.$id));
-    const news = updatedProducts.filter(p => !newIds.has(p.$id));
+    const merged = this.products.map(p => updated.get(p.$id) ?? p);
+    const existingIds = new Set(this.products.map(p => p.$id));
+    const news = updatedProducts.filter(p => !existingIds.has(p.$id));
 
     this.#updateState({ products: [...merged, ...news] });
   }
@@ -232,36 +213,43 @@ class ProductsStore {
   // REALTIME
   // =========================================================================
 
-  #setupRealtime(mainId: string) {
-    this.#unsubscribe?.();
+  async #setupRealtime(mainId: string) {
+     this.#unsubscribe?.();
 
-    console.log('[ProductsStore] Configuration realtime:', mainId);
+     console.log('[ProductsStore] Configuration realtime:', mainId);
 
-    this.#unsubscribe = window.AppwriteClient.subscribeToCollections(
-      ['products'],
-      mainId,
-      (response: any) => this.#handleRealtimeEvent(response),
-      {
-        onConnect: () => {
-          console.log('[ProductsStore] Realtime connecté');
-          this.#updateState({ realtimeConnected: true });
-        },
-        onDisconnect: () => {
-          console.log('[ProductsStore] Realtime déconnecté');
-          this.#updateState({ realtimeConnected: false });
-        },
-        onError: (error: any) => {
-          console.error('[ProductsStore] Erreur realtime:', error);
-        }
-      }
-    );
-  }
+     try {
+       // S'assurer qu'Appwrite est initialisé avant de s'abonner
+       await window.AppwriteClient.initializeAppwrite();
+
+       this.#unsubscribe = window.AppwriteClient.subscribeToCollections(
+         ['products'],
+         mainId,
+         (response: any) => this.#handleRealtimeEvent(response),
+         {
+           onConnect: () => {
+             console.log('[ProductsStore] Realtime connecté');
+             this.#updateState({ realtimeConnected: true });
+           },
+           onDisconnect: () => {
+             console.log('[ProductsStore] Realtime déconnecté');
+             this.#updateState({ realtimeConnected: false });
+           },
+           onError: (error: any) => {
+             console.error('[ProductsStore] Erreur realtime:', error);
+           }
+         }
+       );
+     } catch (err) {
+       console.error('[ProductsStore] Impossible de configurer realtime:', err);
+     }
+   }
 
   #handleRealtimeEvent(response: any) {
     const { events, payload } = response;
     if (!payload || !this.#productsState) return;
 
-    const product = payload as Product;
+    const product = payload as Products;
     const isCreate = events.some((e: string) => e.includes('.create'));
     const isUpdate = events.some((e: string) => e.includes('.update'));
     const isDelete = events.some((e: string) => e.includes('.delete'));
@@ -289,18 +277,25 @@ class ProductsStore {
   #updateLastSync() {
     if (!this.#currentMainId || !this.#syncState) return;
 
+    const now = new Date().toISOString();
     this.#syncState.current = {
-      lastSync: new Date().toISOString(),
+      lastSync: now,
       mainId: this.#currentMainId
     };
+    this.lastSync = now;
+    this.mainId = this.#currentMainId;
   }
 
   #updateState(partial: Partial<ProductsState>) {
     if (!this.#productsState) return;
+
     this.#productsState.current = {
       ...this.#productsState.current,
       ...partial
     };
+
+    // Synchroniser les états publics
+    this.#syncPersistedToPublic();
   }
 
   // =========================================================================
@@ -346,21 +341,6 @@ class ProductsStore {
 
 export const productsStore = new ProductsStore();
 
-// Exports pour compatibilité et facilité d'utilisation
-export const initializeProducts = (mainId: string) => productsStore.initialize(mainId);
-export const forceReloadProducts = (mainId: string) => productsStore.forceReload(mainId);
-export const destroyProducts = () => productsStore.destroy();
-export const clearProductsCache = () => productsStore.clearCache();
-export const isProductsStoreInitialized = () => productsStore.isInitialized;
-export const getCurrentMainId = () => productsStore.currentMainId;
 
-// Exports des états pour les composants
-export const getProducts = () => productsStore.products;
-export const getLoading = () => productsStore.loading;
-export const getError = () => productsStore.error;
-export const getSyncing = () => productsStore.syncing;
-export const getRealtimeConnected = () => productsStore.realtimeConnected;
-export const getLastSync = () => productsStore.lastSync;
-export const getMainId = () => productsStore.mainId;
-
-export type { Product, ProductsState, SyncState };
+// Export des types
+export type { Products, ProductsState, SyncState };

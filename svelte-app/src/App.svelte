@@ -1,48 +1,35 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import {
-    initializeProducts,
-    destroyProducts,
-    getProducts,
-    getLoading,
-    getError,
-    getSyncing,
-    getRealtimeConnected,
-    getLastSync
+    productsStore,
+    type Products
   } from './lib/stores/ProductsStore.svelte';
   import { getMainIdFromUrl } from './lib/utils/url-utils';
-  import ProductList from './lib/components/ProductList.svelte';
+  import ProductsTable from './lib/components/ProductsTable.svelte';
   import LoadingSpinner from './lib/components/LoadingSpinner.svelte';
   import ErrorAlert from './lib/components/ErrorAlert.svelte';
 
-  let mainId: string = $state('');
-  let error: string | null = $state(null);
+  let mainId: string;
+  let initError: string | null = $state(null);
 
   onMount(async () => {
     mainId = getMainIdFromUrl();
 
     try {
-      await initializeProducts(mainId);
+      await productsStore.initialize(mainId);
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Erreur lors de l\'initialisation';
+      initError = err instanceof Error ? err.message : 'Erreur lors de l\'initialisation';
       console.error('[App] Erreur initialisation:', err);
     }
   });
 
   onDestroy(() => {
-    destroyProducts();
+    productsStore.destroy();
   });
 
-  // États réactifs du store
-  $effect(() => {
-    error = getError();
-  });
-
-  const products = $derived(getProducts());
-  const loading = $derived(getLoading());
-  const syncing = $derived(getSyncing());
-  const realtimeConnected = $derived(getRealtimeConnected());
-  const lastSync = $derived(getLastSync());
+  // Accès direct aux états du store
+  const displayError = $derived(initError || productsStore.error);
+  const isLoading = $derived(productsStore.loading && productsStore.products.length === 0);
 </script>
 
 <div class="min-h-screen bg-base-100">
@@ -57,22 +44,22 @@
 
         <!-- Statut de sync -->
         <div class="flex items-center gap-4 text-sm">
-          {#if realtimeConnected}
+          {#if productsStore.realtimeConnected}
             <div class="flex items-center gap-2 text-success">
               <div class="badge badge-success badge-sm">Temps réel connecté</div>
             </div>
           {/if}
 
-          {#if syncing}
+          {#if productsStore.syncing}
             <div class="flex items-center gap-2 text-info">
               <div class="loading loading-spinner loading-xs"></div>
               <span>Synchronisation...</span>
             </div>
           {/if}
 
-          {#if lastSync}
+          {#if productsStore.lastSync}
             <div class="text-base-content/60">
-              Maj: {new Date(lastSync).toLocaleTimeString()}
+              Maj: {new Date(productsStore.lastSync).toLocaleTimeString()}
             </div>
           {/if}
         </div>
@@ -83,19 +70,19 @@
   <!-- Contenu principal -->
   <main class="container mx-auto px-4 py-8">
     <!-- Erreur d'initialisation -->
-    {#if error}
-      <ErrorAlert message={error} />
+    {#if displayError}
+      <ErrorAlert message={displayError} />
     {/if}
 
     <!-- Chargement initial -->
-    {#if loading && products.length === 0}
+    {#if isLoading}
       <LoadingSpinner />
     {/if}
 
     <!-- Liste des produits -->
-    {#if products.length > 0}
-      <ProductList {products} />
-    {:else if !loading}
+    {#if productsStore.products.length > 0}
+      <ProductsTable products={productsStore.products} />
+    {:else if !productsStore.loading}
       <div class="alert alert-info">
         <div>
           <svg class="stroke-current shrink-0 h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -109,7 +96,5 @@
 </div>
 
 <style>
-  :global(body) {
-    @apply bg-base-100;
-  }
+
 </style>

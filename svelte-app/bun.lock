@@ -6,6 +6,7 @@
       "dependencies": {
         "@lucide/svelte": "^0.545.0",
         "@revolist/revogrid": "^4.19.1",
+        "@revolist/svelte-datagrid": "^4.17.3",
         "@tailwindcss/vite": "^4.1.14",
         "appwrite": "^21.2.1",
         "daisyui": "^5.2.3",
@@ -91,6 +92,8 @@
     "@lucide/svelte": ["@lucide/svelte@0.545.0", "", { "peerDependencies": { "svelte": "^5" } }, "sha512-RlAtWefx9MdpXaOMbx3Qv3/NqpeZKOIPxN2D0RBN2+op0opKly8VgYEEWZTT6Ow/zf7UwyTg6/0ExJlsVLK+8g=="],
 
     "@revolist/revogrid": ["@revolist/revogrid@4.19.1", "", {}, "sha512-lQ0jR7LuB3Ldn5jKr5O4Xzq+l5x94oiRLjD7fbPTkTFmH3d9KWukA3cTrBKCeDAblnlkl+2VLBkyOY5SF8V/9w=="],
+
+    "@revolist/svelte-datagrid": ["@revolist/svelte-datagrid@4.17.3", "", { "dependencies": { "@revolist/revogrid": "4.17.3" } }, "sha512-3/oYZVGUX+omkvgeccxMJX6Sf9LqJJ7vzXgr3Bzb0bDPQGdnU+mwIDke//JgXr0iF15DQtdy95QAmBY8/bpQvw=="],
 
     "@rollup/rollup-android-arm-eabi": ["@rollup/rollup-android-arm-eabi@4.52.4", "", { "os": "android", "cpu": "arm" }, "sha512-BTm2qKNnWIQ5auf4deoetINJm2JzvihvGb9R6K/ETwKLql/Bb3Eg2H1FBp1gUb4YGbydMA3jcmQTR73q7J+GAA=="],
 
@@ -297,6 +300,8 @@
     "yallist": ["yallist@5.0.0", "", {}, "sha512-YgvUTfwqyc7UXVMrB+SImsVYSmTS8X/tSrtdNZMImM+n7+QTriRXyXim0mBrTXNeqzVF0KWGgHPeiyViFFrNDw=="],
 
     "zimmerframe": ["zimmerframe@1.1.4", "", {}, "sha512-B58NGBEoc8Y9MWWCQGl/gq9xBCe4IiKM0a2x7GZdQKOW5Exr8S1W24J6OgM1njK8xCRGvAJIL/MxXHf6SkmQKQ=="],
+
+    "@revolist/svelte-datagrid/@revolist/revogrid": ["@revolist/revogrid@4.17.3", "", {}, "sha512-kHlz+8krf6ij+aLY1ePwsgS8t3Qp5KkFvSlEVbgOmyKXxPP0ODkyRfUxlMQHlg9tyPBx4x7TQv2q8qyAGGzciA=="],
 
     "@tailwindcss/oxide-wasm32-wasi/@emnapi/core": ["@emnapi/core@1.5.0", "", { "dependencies": { "@emnapi/wasi-threads": "1.1.0", "tslib": "^2.4.0" }, "bundled": true }, "sha512-sbP8GzB1WDzacS8fgNPpHlp6C9VZe+SJP3F90W9rLemaQj2PzIuTEl1qDOYQf58YIpyjViI24y9aPWCjEzY2cg=="],
 

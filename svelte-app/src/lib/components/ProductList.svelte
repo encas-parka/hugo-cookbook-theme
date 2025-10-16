@@ -1,6 +1,9 @@
 <script lang="ts">
   // import type { Product } from '../types/product.types';
 
+  import {
+    type Product
+  } from '../stores/ProductsStore.svelte';
   interface Props {
     products: Product[];
   }
