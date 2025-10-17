@@ -45,10 +45,7 @@
           {{- if gt $data.consolidated_weight 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.0f" $data.consolidated_weight | jsonify -}}, "unit": "gr." }{{- end -}}
           {{- if gt $data.consolidated_volume 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.0f" $data.consolidated_volume | jsonify -}}, "unit": "ml" }{{- end -}}
           {{- range $unit, $quantity := $data.consolidated_other -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- if eq $unit "recette·s" }}{{ printf "%.0f" $quantity | jsonify }}{{ else }}{{- printf "%.1f" $quantity | jsonify }}{{ end -}}, "unit": {{ $unit | jsonify }} }{{- end -}}
-        ]
-        {{- /* Optimisation: vérifier si l'ingrédient apparaît à plusieurs dates */}}
-        {{- if isset $multi_date_ingredients $data.name -}}
-        ,
+        ],
         "neededConsolidatedByDate": [
           {{- $firstDate := true -}}
           {{- range $dateTime, $ingredients := $ingredient_by_date -}}
@@ -81,16 +78,6 @@
           {{- end -}}
         ]
 
-        {{- else -}}
-        {{- /* Ingrédient à date unique : structure simplifiée au premier niveau */}}
-          {{- range $dateTime, $ingredients := $ingredient_by_date -}}
-            {{- $ingData := index $ingredients $data.name -}}
-            {{- if $ingData -}}
-              "dateTimeService": {{ $dateTime | jsonify }},
-              "recipeNames": {{ $ingData.recipeNames | jsonify }},
-            {{- end -}}
-          {{- end -}}
-        {{- end -}}
         {{- if gt (len (index $recipesByIngredient $data.name | default dict)) 1 }},
         "recipesOccurrences": [
           {{- $firstOccurrence := true -}}

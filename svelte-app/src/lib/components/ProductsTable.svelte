@@ -2,6 +2,7 @@
   import type { Products } from '../types/appwrite.d';
   import { Search, Funnel, X, ChevronDown, ChevronRight, FunnelIcon } from '@lucide/svelte';
   import { productsStore } from '../stores/ProductsStore.svelte';
+  import ProductModal from './ProductModal.svelte';
 
   // Accès direct aux valeurs dérivées du store
   const {
@@ -14,25 +15,53 @@
     filters
   } = $derived(productsStore);
 
-  // Gestionnaire de clics sur les cellules
+  // État du ProductModal
+  let productModalOpen = $state(false);
+  let productModalSelectedProduct = $state<Products | null>(null);
+  let productModalInitialTab = $state('recettes');
+
+  // Gestionnaire de clics sur les cellules pour le ProductModal
   function handleCellClick(type: string, product: Products) {
     console.log(`Cell clicked: ${type}`, product);
-    // TODO: Ouvrir les modals appropriées
+    productModalSelectedProduct = product;
+    
+    // Déterminer l'onglet à ouvrir selon le type de clic
     switch(type) {
       case 'store':
-        // Modal pour modifier le store
+        productModalInitialTab = 'magasins';
         break;
       case 'who':
-        // Modal pour modifier who
+        productModalInitialTab = 'volontaires';
         break;
       case 'purchases':
-        // Modal pour voir/éditer les achats
+        productModalInitialTab = 'achats';
         break;
       case 'productName':
-        // Modal pour éditer le produit
+        productModalInitialTab = 'recettes';
         break;
+      default:
+        productModalInitialTab = 'recettes';
     }
+    
+    productModalOpen = true;
   }
+
+  function closeProductModal() {
+    productModalOpen = false;
+    productModalSelectedProduct = null;
+  }
+
+  // Gérer les événements du clavier (ESC pour fermer le ProductModal)
+  $effect(() => {
+    function handleKeyPress(e: KeyboardEvent) {
+      if (e.key === 'Escape' && productModalOpen) {
+        closeProductModal();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  });
 </script>
 
 <div class="space-y-6">
@@ -390,3 +419,11 @@
     </div>
   </div>
 </div>
+
+<!-- ProductModal -->
+<ProductModal 
+  isOpen={productModalOpen} 
+  product={productModalSelectedProduct}
+  initialTab={productModalInitialTab}
+  onclose={closeProductModal}
+/>

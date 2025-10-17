@@ -4,20 +4,20 @@
 
 
 // --- CONFIGURATION CENTRALE APPWRITE ---
-const APPWRITE_CONFIG = {
-    endpoint: "https://cloud.appwrite.io/v1",
-    projectId: "689725820024e81781b7",
-    databaseId: "689d15b10003a5a13636",
-    functions: {
-        cmsAuth: "68976500002eb5c6ee4f",
-        accessRequest: "689cdea5001a4d74549d"
-    },
-    collections: {
-        main: "main",
-        purchases: "purchases",
-        products: "products"
-    }
-};
+  const APPWRITE_CONFIG = {
+      endpoint: "https://cloud.appwrite.io/v1",
+      projectId: "689725820024e81781b7",
+      databaseId: "689d15b10003a5a13636",
+      functions: {
+          cmsAuth: "68976500002eb5c6ee4f",
+          accessRequest: "689cdea5001a4d74549d"
+      },
+      collections: {
+          main: "main",
+          purchases: "purchases",
+          products: "products"
+      }
+  };
 
 // Variables globales pour les clients Appwrite (initialisées une seule fois)
 let client = null;
@@ -270,127 +270,7 @@ function clearAuthData() {
     localStorage.removeItem('appwrite-user-name');
     localStorage.removeItem('email-verification-status');
 }
-/**
-* @deprecated
-*/
-async function createCollaborativeListFromEvent(eventId) {
-    try {
-        console.log(`[Appwrite Client] Création d'une liste collaborative pour l'événement ${eventId}`);
-        const response = await fetch(`/evenements/${eventId}/ingredients_aw/index.json`);
-        if (!response.ok) throw new Error(`Impossible de récupérer les données de l'événement: ${response.status}`);
-        const eventData = await response.json();
-        console.log(`[Appwrite Client] Données de l'événement récupérées:`, eventData);
 
-        const { account, databases } = await initializeAppwrite();
-        const user = await account.get();
-        console.log(`[Appwrite Client] Utilisateur authentifié: ${user.$id}`);
-
-        // Vérifier si l'événement existe déjà dans la collection 'ingredient_lists'
-        try {
-            await databases.getDocument(
-                '689d15b10003a5a13636',
-                'ingredient_lists',
-                eventId
-            );
-            console.log(`[Appwrite Client] L'événement ${eventId} existe déjà`);
-            window.location.href = `/app/ingredients-collaborative/?listId=${eventId}`;
-            return;
-        } catch (error) {
-            if (error.code !== 404) {
-                throw error;
-            }
-        }
-
-        // Récupérer le hash depuis les paramètres globaux
-        const contentHash = window.__HUGO_PARAMS__?.listContentHash;
-        if (!contentHash) {
-            throw new Error('Le hash du contenu n\'est pas défini');
-          return;
-        }
-
-        // Créer l'événement dans la collection 'ingredient_lists'
-        const eventDataForAppwrite = {
-            name: eventData.name || `Événement ${eventId}`,
-            originalDataHash: contentHash,
-            isActive: true,
-            createdBy: user.$id
-        };
-        console.log(`[Appwrite Client] Création de l'événement avec les données:`, eventDataForAppwrite);
-
-        await databases.createDocument(
-            '689d15b10003a5a13636',
-            'ingredient_lists',
-            eventId,
-            eventDataForAppwrite,
-            [`read("user:${user.$id}")`, `update("user:${user.$id}")`, `delete("user:${user.$id}")`]
-        );
-
-        if (eventData.ingredients && Array.isArray(eventData.ingredients)) {
-            console.log(`[Appwrite Client] Création de ${eventData.ingredients.length} ingrédients`);
-            let successCount = 0;
-            let errorCount = 0;
-
-            for (const ingredient of eventData.ingredients) {
-                const ingredientData = {
-                    ingredientUuid: ingredient.ingredientUuid || window.Appwrite.ID.unique(), // Utiliser l'UUID du JSON ou en générer un
-                    ingredientLists: eventId, // Relation avec l'événement
-                    ingredientName: ingredient.ingredientName || '',
-                    ingType: ingredient.ingType || '',
-                    totalNeededConsolidated: JSON.stringify(ingredient.totalNeededConsolidated || []),
-                    totalNeededRaw: JSON.stringify(ingredient.totalNeededRaw || []),
-                    recipeOccurrences: (ingredient.recipeOccurrences || []).map(o => JSON.stringify(o)),
-                    pFrais: ingredient.pFrais || false,
-                    pSurgel: ingredient.pSurgel || false,
-
-                };
-                try {
-                    await databases.createDocument(
-                        '689d15b10003a5a13636',
-                        'ingredients',
-                        window.Appwrite.ID.unique(),
-                        ingredientData,
-                        [`read("user:${user.$id}")`, `update("user:${user.$id}")`, `delete("user:${user.$id}")`]
-                    );
-                    successCount++;
-                } catch (error) {
-                    errorCount++;
-                    console.error(`[Appwrite Client] Erreur lors de la création de l'ingrédient ${ingredientData.ingredientName}:`, error);
-                    // Continuer avec les autres ingrédients même si celui-ci échoue
-                }
-            }
-
-            console.log(`[Appwrite Client] Création des ingrédients terminée: ${successCount} succès, ${errorCount} erreurs`);
-
-            if (errorCount > 0) {
-                // Stocker les ingrédients échoués pour nouvelle tentative
-                const failedIngredients = eventData.ingredients.filter((_, index) => {
-                    // Simplement recréer la liste des ingrédients échoués (logique simplifiée)
-                    return index >= successCount; // Approximation pour l'exemple
-                });
-
-                localStorage.setItem(`failed_ingredients_${eventId}`, JSON.stringify(failedIngredients));
-
-                // Afficher un message à l'utilisateur
-                const errorMessage = `${errorCount} ingrédient(s) n'ont pas pu être créés. Voulez-vous réessayer ?\n\n` +
-                    `Ingrédients en échec:\n` +
-                    failedIngredients.slice(0, 5).map(ing => `- ${ing.name}`).join('\n') +
-                    (failedIngredients.length > 5 ? `\n... et ${failedIngredients.length - 5} autres` : '');
-
-                if (confirm(errorMessage + '\n\nCliquez sur OK pour réessayer ou Annuler pour continuer quand même.')) {
-                    // Réessayer de créer les ingrédients échoués
-                    console.log(`[Appwrite Client] Nouvelle tentative pour ${failedIngredients.length} ingrédients...`);
-                    await retryFailedIngredients(eventId, failedIngredients, databases, user);
-                }
-            }
-        }
-
-        console.log(`[Appwrite Client] Redirection vers l'application collaborative`);
-        window.location.href = `/app/ingredients-collaborative/?listId=${eventId}`;
-    } catch (error) {
-        console.error('[Appwrite Client] Erreur lors de la création de la liste collaborative:', error);
-        throw error;
-    }
-}
 
 async function createCollaborativeProductsListFromEvent(eventId) {
     let createdMain = false;
@@ -465,14 +345,12 @@ async function createCollaborativeProductsListFromEvent(eventId) {
                         totalNeededConsolidated: JSON.stringify(ingredient.totalNeededConsolidated || []),
                         totalNeededRaw: JSON.stringify(ingredient.totalNeededRaw || []),
                         neededConsolidatedByDate: JSON.stringify(ingredient.neededConsolidatedByDate || []),
-                        recipesOccurrences: JSON.stringify(ingredient.recipeOccurrences || []),
+                        recipesOccurrences: JSON.stringify(ingredient.recipesOccurrences || []),
                         pFrais: ingredient.pFrais || false,
                         pSurgel: ingredient.pSurgel || false,
                         nbRecipes: ingredient.nbRecipes || 0,
                         totalAssiettes: ingredient.totalAssiettes || 0,
                         conversionRules: ingredient.conversionRules,
-                        dateTimeService: ingredient.neededConsolidatedByDate?.[0]?.dateTimeService || null,
-                        recipeNames: ingredient.recipeNames || null
                     };
 
                     await databases.createDocument(
@@ -679,7 +557,7 @@ export {
     isInitialized, initializeAppwrite, getLocalCmsUser, isAuthenticatedCms, isAuthenticatedAppwrite, isConnectedAppwrite, getUserEmail,
     getUserName, clearAuthData, setAuthData, logoutGlobal, isEmailVerified,
     sendVerificationEmail, verifyEmail, getLocalEmailVerificationStatus,
-    createCollaborativeListFromEvent, createCollaborativeProductsListFromEvent, checkExistingCollaborativeList, checkExistingMainGroup
+     createCollaborativeProductsListFromEvent, checkExistingCollaborativeList, checkExistingMainGroup
 };
 
 // Exposition globale pour compatibilité avec les scripts non-module

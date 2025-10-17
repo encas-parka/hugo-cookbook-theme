@@ -5,14 +5,14 @@ import { type Products } from '../types/appwrite.d';
 
 /**
  * ProductsStore - Store des produits avec flux de données réactif Svelte 5
- * 
+ *
  * Flux de données automatique avec $derived (pas de synchronisation manuelle) :
- * 
- * products (bruts) 
+ *
+ * products (bruts)
  *   ↓ filteredProducts (filtrés par recherche/store/type/etc.)
  *   ↓ formattedProducts (formatés pour l'affichage)
  *   ↓ groupedFormattedProducts (groupés par magasin/type)
- * 
+ *
  * @usage
  * await productsStore.initialize('mainId');
  * productsStore.setSearchQuery('pâtes');     // Met à jour tout le flux automatiquement
@@ -65,6 +65,7 @@ class ProductsStore {
   realtimeConnected = $derived(this.#productsState?.current.realtimeConnected ?? false);
   lastSync = $derived(this.#syncState?.current.lastSync ?? null);
   mainId = $derived(this.#syncState?.current.mainId ?? null);
+
 
   // États des filtres
   #filters = $state({
@@ -261,7 +262,7 @@ class ProductsStore {
       const databases = await window.AppwriteClient.getDatabases();
       const config = window.AppwriteClient.getConfig();
 
-      const response = await databases.listDocuments(
+      const productsResponse = await databases.listDocuments(
         config.APPWRITE_CONFIG.databaseId,
         config.APPWRITE_CONFIG.collections.products,
         [
@@ -270,15 +271,28 @@ class ProductsStore {
           Query.limit(BATCH_LIMIT)
         ]
       );
+      const products = productsResponse.documents as Products[];
 
-      this.#updateState({
-        products: response.documents as Products[],
-        loading: false,
-        error: null
-      });
+      // Charger les achats associés
+       const purchasesResponse = await databases.listDocuments(
+         config.APPWRITE_CONFIG.databaseId,
+         config.APPWRITE_CONFIG.collections.purchases,
+         [Query.equal('mainId', mainId)]
+       );
+
+       // Associer les achats aux produits
+       const purchases = purchasesResponse.documents as Purchases[];
+       const productsWithPurchases = products.map(product => ({
+         ...product,
+         purchases: purchases.filter(purchase =>
+           purchase.products.some(p => p.$id === product.$id)
+         )
+       }));
+
+      this.#updateState({ products: productsWithPurchases })
 
       this.#updateLastSync();
-      console.log(`[ProductsStore] ${response.documents.length} produits chargés`);
+      console.log(`[ProductsStore] ${productsResponse.documents.length} produits chargés`);
 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors du chargement';
@@ -329,7 +343,7 @@ class ProductsStore {
     const existingIds = new Set(this.products.map(p => p.$id));
     const news = updatedProducts.filter(p => !existingIds.has(p.$id));
 
-    this.#updateState({ products: [...merged, ...news] });
+
   }
 
   // =========================================================================

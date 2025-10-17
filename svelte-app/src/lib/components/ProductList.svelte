@@ -2,10 +2,10 @@
   // import type { Product } from '../types/product.types';
 
   import {
-    type Product
+    type Products
   } from '../stores/ProductsStore.svelte';
   interface Props {
-    products: Product[];
+    products: Products[];
   }
 
   let { products }: Props = $props();

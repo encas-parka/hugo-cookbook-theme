@@ -300,8 +300,7 @@
                     "conversion_rules" $newConversionRules
                   ) -}}
 
-                  {{- /* --- VRAIE OPTIMISATION: Calculs byDate SEULEMENT pour les ingrédients multi-dates --- */}}
-                  {{- if isset $multi_date_ingredients $name -}}
+                  {{- /* --- Calculs byDate pour TOUS les ingrédients --- */}}
                     {{- $dateKey := $dateTimeService -}}
                     {{- if not (isset $ingredient_by_date $dateKey) -}}
                       {{- $ingredient_by_date = merge $ingredient_by_date (dict $dateKey (dict)) -}}
@@ -373,7 +372,6 @@
 
                     {{- $dateData = merge $dateData (dict $name $ingByDate) -}}
                     {{- $ingredient_by_date = merge $ingredient_by_date (dict $dateKey $dateData) -}}
-                  {{- end -}}
 
                   {{- $ingredient_totals = merge $ingredient_totals (dict $name $current) -}}
                 {{- end -}}
