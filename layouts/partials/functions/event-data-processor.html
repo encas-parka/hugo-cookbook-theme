@@ -337,9 +337,7 @@
                       {{- end -}}
                     {{- else -}}
                       {{- $newRawOther = merge $newRawOther (dict $unit (add (index $newRawOther $unit | default 0.0) $quantite)) -}}
-                      {{- if not (eq $unitEq $unit) -}}
-                        {{- $newOther = merge $newOther (dict $unitEq (add (index $newOther $unitEq | default 0.0) $quantiteEq)) -}}
-                      {{- end -}}
+                      {{- $newOther = merge $newOther (dict $unitEq (add (index $newOther $unitEq | default 0.0) $quantiteEq)) -}}
                     {{- end -}}
 
                     {{- /* Mise à jour des flags et règles de conversion */}}

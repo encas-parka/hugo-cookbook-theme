@@ -34,10 +34,6 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
 
-  // Pour la gestion des volontaires
-  let newVolunteer = $state('');
-  let editingWho = $state<string[]>([]);
-
   // Pour la gestion des magasins
   let editingStore = $state('');
 
@@ -91,12 +87,14 @@
   });
   let recipesOccurrences = $derived.by(() =>parseRecipesOccurrences(currentProduct?.recipesOccurrences || null));
 
+  // État dérivé pour les volontaires - utilise directement les données du produit
+  let currentWho = $derived.by(() => currentProduct?.who || []);
+
   // Réagir aux changements de produit // remplir au montage
   $effect(() => {
     if (currentProduct) {
       currentTab = initialTab;
       stockEntries = parseStockData(currentProduct.stockReel);
-      editingWho = currentProduct.who ? [...currentProduct.who] : [];
       editingStore = currentProduct.store || '';
       resetForms();
     }
@@ -128,7 +126,6 @@
 
   function handleTabClick(tab: string) {
     currentTab = tab;
-    console.log('Tab clicked:', currentTab);
   }
 
   // Gestion du chargement et des erreurs
@@ -329,24 +326,21 @@
   }
 
   // Fonctions pour la gestion des volontaires
-  async function handleAddVolunteer() {
-    if (!currentProduct || !newVolunteer.trim()) return;
+  async function handleAddVolunteer(volunteerName: string) {
+    if (!currentProduct || !volunteerName.trim()) return;
 
     await withLoading(async () => {
-      const volunteerName = newVolunteer.trim();
+      const name = volunteerName.trim();
 
       // Vérifier si le volontaire existe déjà
-      if (editingWho.includes(volunteerName)) {
+      if (currentWho.includes(name)) {
         throw new Error('Ce volontaire est déjà ajouté');
       }
 
-      const updatedWho = [...editingWho, volunteerName];
+      const updatedWho = [...currentWho, name];
       const result = await updateProductWho(currentProduct.$id, updatedWho);
 
       if (result) {
-        editingWho = updatedWho;
-        newVolunteer = '';
-
         // Notification de succès
         const successEvent = new CustomEvent('toast', {
           detail: { type: 'success', message: 'Volontaire ajouté avec succès' }
@@ -364,12 +358,10 @@
     }
 
     await withLoading(async () => {
-      const updatedWho = editingWho.filter(v => v !== volunteer);
+      const updatedWho = currentWho.filter(v => v !== volunteer);
       const result = await updateProductWho(currentProduct.$id, updatedWho);
 
       if (result) {
-        editingWho = updatedWho;
-
         // Notification de succès
         const successEvent = new CustomEvent('toast', {
           detail: { type: 'success', message: 'Volontaire retiré avec succès' }
@@ -574,7 +566,7 @@
             {:else if currentTab === 'volontaires'}
               <VolunteerManager
                 product={currentProduct}
-                {editingWho}
+                editingWho={currentWho}
                 {loading}
                 onAddVolunteer={handleAddVolunteer}
                 onRemoveVolunteer={handleRemoveVolunteer}

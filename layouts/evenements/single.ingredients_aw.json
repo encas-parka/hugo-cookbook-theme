@@ -76,9 +76,8 @@
               }
             {{- end -}}
           {{- end -}}
-        ]
+        ],
 
-        {{- if gt (len (index $recipesByIngredient $data.name | default dict)) 1 }},
         "recipesOccurrences": [
           {{- $firstOccurrence := true -}}
           {{- range $occurrence := (index $ingredient_occurrences $data.name | default (slice)) -}}
@@ -92,7 +91,6 @@
             }
           {{- end -}}
         ]
-        {{- end -}}
       }
     {{- end -}}
 

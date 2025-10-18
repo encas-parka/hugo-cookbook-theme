@@ -63,7 +63,7 @@ class ProductsStore {
     if (!jsonString || jsonString.trim() === '') {
       return defaultValue;
     }
-    
+
     try {
       return JSON.parse(jsonString) as T;
     } catch (error) {
@@ -119,10 +119,10 @@ class ProductsStore {
     const storeNames = this.enrichedProducts
       .map(p => p.storeInfo?.storeName)
       .filter(Boolean);
-    
+
     return [...new Set(storeNames)] as string[];
   });
-  
+
   uniqueWho = $derived.by(() => [...new Set(this.products.flatMap(p => p.who || []).filter(Boolean))] as string[]);
   uniqueProductTypes = $derived.by(() => [...new Set(this.products.map(p => p.productType).filter(Boolean))] as string[]);
 
@@ -130,7 +130,7 @@ class ProductsStore {
   filteredGroupedProducts = $derived.by(() => {
     // Filtrage
     const filtered = this.enrichedProducts.filter(p => this.#matchesFilters(p));
-    
+
     // Groupement
     if (this.#filters.groupBy === 'none') {
       return { '': filtered };
@@ -370,11 +370,11 @@ class ProductsStore {
   #handleRealtimeEvent(response: any) {
     const { events, payload } = response;
     if (!payload || !this.#productsState) return;
-    
+
     // Déterminer la collection source à partir des événements
     const isProductsCollection = events.some((e: string) => e.includes('products.'));
     const isPurchasesCollection = events.some((e: string) => e.includes('purchases.'));
-    
+
     const isCreate = events.some((e: string) => e.includes('.create'));
     const isUpdate = events.some((e: string) => e.includes('.update'));
     const isDelete = events.some((e: string) => e.includes('.delete'));
@@ -397,20 +397,14 @@ class ProductsStore {
               // Create a merged product that preserves all existing fields
               // while updating only the fields that came in the payload
               const mergedProduct = { ...p };
-              
+
               // Only update the fields that are present in the payload
               Object.keys(updatedProduct).forEach(key => {
                 if (updatedProduct[key as keyof Products] !== undefined) {
                   (mergedProduct as any)[key] = updatedProduct[key as keyof Products];
                 }
               });
-              
-              console.log('[ProductsStore] Merged product after realtime update:', {
-                productId: mergedProduct.$id,
-                preservedFields: ['purchases', 'recipesOccurrences', 'store', 'productName'],
-                mergedProduct
-              });
-              
+
               return mergedProduct;
             }
             return p;
@@ -426,13 +420,13 @@ class ProductsStore {
       console.log('[ProductsStore] Événement purchase détecté, mise à jour des produits concernés...');
       this.#updateProductsFromPurchase(payload as Purchases);
     }
-    
+
     this.#debouncedUpdateLastSync();
   }
 
   #updateProductsFromPurchase(purchase: Purchases) {
     if (!purchase.products || purchase.products.length === 0) return;
-    
+
     // Mettre à jour uniquement les produits concernés par ce purchase
     this.#updateState({
       products: this.products.map(product => {
@@ -441,7 +435,7 @@ class ProductsStore {
           const existingPurchases = product.purchases || [];
           const updatedPurchases = existingPurchases.filter(p => p.$id !== purchase.$id);
           updatedPurchases.push(purchase);
-          
+
           return {
             ...product,
             purchases: updatedPurchases
@@ -450,7 +444,7 @@ class ProductsStore {
         return product;
       })
     });
-    
+
     console.log(`[ProductsStore] ${purchase.products.length} produit(s) mis à jour avec le purchase ${purchase.$id}`);
   }
 
