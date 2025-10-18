@@ -3,9 +3,9 @@ import { useDebounce } from 'runed';
 import { createStorageKey } from '../utils/url-utils';
 import type { Products, Purchases } from '../types/appwrite.d';
 import type { StoreInfo } from '../types/store.types';
-import { 
-  loadProducts, 
-  syncProducts, 
+import {
+  loadProducts,
+  syncProducts,
   applyProductUpdates,
   subscribeToRealtime,
   type LoadProductsOptions,
@@ -130,18 +130,31 @@ class ProductsStore {
 
   // Étape 1 : Parsing & Formatting (calculé une seule fois)
   enrichedProducts = $derived.by(() => {
-    return this.products.map(p => ({
-      ...p,
-      // Parsing des JSON strings en objets exploitables
-      storeInfo: p.store ? this.#safeJsonParse<StoreInfo>(p.store) : null,
-      totalNeededArray: p.totalNeededConsolidated ? this.#safeJsonParse(p.totalNeededConsolidated) : [],
-      recipesArray: p.recipesOccurrences ? this.#safeJsonParse(p.recipesOccurrences) : [],
-      stockArray: p.stockReel ? this.#safeJsonParse(p.stockReel) : [],
-      // Propriétés formatées pour l'affichage
-      displayQuantity: this.#formatQuantity(p.totalNeededConsolidated),
-      displayName: p.productName.trim(),
-      nbPurchases: p.purchases?.length ?? 0
-    }));
+    return this.products.map(p => {
+      const totalPurchases = this.#calculateTotalPurchasesArray(p.purchases ?? []);
+      const missingQuantity = this.#calculateMissingQuantity(
+        p.totalNeededConsolidated ? this.#safeJsonParse(p.totalNeededConsolidated) : [],
+        totalPurchases
+      );
+      
+      return {
+        ...p,
+        // Parsing des JSON strings en objets exploitables
+        storeInfo: p.store ? this.#safeJsonParse<StoreInfo>(p.store) : null,
+        totalNeededArray: p.totalNeededConsolidated ? this.#safeJsonParse(p.totalNeededConsolidated) : [],
+        recipesArray: p.recipesOccurrences ? this.#safeJsonParse(p.recipesOccurrences) : [],
+        stockArray: p.stockReel ? this.#safeJsonParse(p.stockReel) : [],
+        // Propriétés formatées pour l'affichage
+        displayQuantity: this.#formatQuantity(p.totalNeededConsolidated),
+        displayName: p.productName.trim(),
+        totalPurchases: totalPurchases,
+        displayTotalPurchases: this.#displayTotalPurchases(p.purchases ?? []),
+        missingQuantity: missingQuantity,
+        displayMissingQuantity: missingQuantity.length > 0 
+          ? missingQuantity.map(m => this.#formatSingleQuantity(m.quantity.toString(), m.unit)).join(' et ')
+          : '✅ Complet'
+      };
+    });
   });
 
   // Valeurs uniques pour les filtres (utilise enrichedProducts)
@@ -189,8 +202,6 @@ class ProductsStore {
     frais: this.filteredProducts.filter(p => p.pFrais).length,
     surgel: this.filteredProducts.filter(p => p.pSurgel).length,
     merged: this.filteredProducts.filter(p => p.isMerged).length,
-    byStore: this.#groupByStore(this.enrichedProducts),
-    byType: this.#groupByType(this.enrichedProducts)
   }));
 
   // Getters pour l'accès
@@ -208,7 +219,7 @@ class ProductsStore {
   /**
    * Initialise le store avec un mainId
    * @param mainId - Identifiant du main à charger
-   * 
+   *
    * Flux d'initialisation :
    * 1. Crée les états persistés (products-state, sync-state)
    * 2. Charge depuis le cache OU fait un chargement initial via loadProducts()
@@ -322,8 +333,8 @@ class ProductsStore {
       const updatedProducts = await syncProducts(this.#currentMainId!, options);
 
       if (updatedProducts.length > 0) {
-        this.#updateState({ 
-          products: applyProductUpdates(this.products, updatedProducts) 
+        this.#updateState({
+          products: applyProductUpdates(this.products, updatedProducts)
         });
         this.#updateLastSync();
         console.log(`[ProductsStore] ${updatedProducts.length} mises à jour synchronisées`);
@@ -343,7 +354,7 @@ class ProductsStore {
 
   #handleProductCreate(createdProduct: Products) {
     if (!this.#productsState) return;
-    
+
     const exists = this.products.some(p => p.$id === createdProduct.$id);
     if (!exists) {
       this.#updateState({
@@ -354,23 +365,23 @@ class ProductsStore {
 
   #handleProductUpdate(updatedProduct: Products) {
     if (!this.#productsState) return;
-    
+
     // Merge the updated fields with the existing product to preserve all data
     this.#updateState({
       products: this.products.map(p => {
         if (p.$id === updatedProduct.$id) {
           // Create a merged product that preserves all existing fields
           // while updating only the fields that came in the payload
-          const mergedProduct = { ...p };
+          const refreshedProducts = { ...p };
 
           // Only update the fields that are present in the payload
           Object.keys(updatedProduct).forEach(key => {
             if (updatedProduct[key as keyof Products] !== undefined) {
-              (mergedProduct as any)[key] = updatedProduct[key as keyof Products];
+              (refreshedProducts as any)[key] = updatedProduct[key as keyof Products];
             }
           });
 
-          return mergedProduct;
+          return refreshedProducts;
         }
         return p;
       })
@@ -379,7 +390,7 @@ class ProductsStore {
 
   #handleProductDelete(deletedProductId: string) {
     if (!this.#productsState) return;
-    
+
     this.#updateState({
       products: this.products.filter(p => p.$id !== deletedProductId)
     });
@@ -686,29 +697,87 @@ class ProductsStore {
     // Conversion gr -> kg et ml -> l si >= 1000
     if ((unit === 'gr.' || unit === 'ml') && num >= 1000) {
       const converted = (num / 1000).toFixed(2);
-      const newUnit = unit === 'gr.' ? 'kg' : 'l';
+      const newUnit = unit === 'gr.' ? 'kg' : 'l.';
       return `${converted} ${newUnit}`;
     }
 
     return `${num} ${unit}`;
   }
 
-  #groupByStore(products: any[]) {
-    const groups: Record<string, number> = {};
-    for (const product of products) {
-      const store = product.storeInfo?.storeName || 'Non défini';
-      groups[store] = (groups[store] || 0) + 1;
-    }
-    return groups;
+  #displayTotalPurchases(purchases: any[]): string {
+    if (!purchases || purchases.length === 0) return '-';
+
+    const purchasesArray = this.#calculateTotalPurchasesArray(purchases);
+    
+    return purchasesArray
+      .map(p => this.#formatSingleQuantity(p.quantity.toString(), p.unit))
+      .join(' et ');
   }
 
-  #groupByType(products: any[]) {
-    const groups: Record<string, number> = {};
-    for (const product of products) {
-      groups[product.productType] = (groups[product.productType] || 0) + 1;
-    }
-    return groups;
+  #calculateTotalPurchasesArray(purchases: any[]): {quantity: number, unit: string}[] {
+    if (!purchases || purchases.length === 0) return [];
+
+    // Les unités sont déjà normalisées en gr./ml/unités spécifiques
+    const quantityMap = new Map<string, number>();
+
+    purchases.forEach(purchase => {
+      if (!purchase.quantity || !purchase.unit) return;
+
+      const quantity = parseFloat(purchase.quantity);
+      if (isNaN(quantity)) return;
+
+      // Additionner par unité exacte (plus simple car déjà normalisé)
+      const existing = quantityMap.get(purchase.unit) || 0;
+      quantityMap.set(purchase.unit, existing + quantity);
+    });
+
+    const result: {quantity: number, unit: string}[] = [];
+    quantityMap.forEach((total, unit) => {
+      result.push({quantity: total, unit});
+    });
+
+    return result;
   }
+
+  #calculateMissingQuantity(neededArray: any[], purchasesArray: {quantity: number, unit: string}[]): {quantity: number, unit: string}[] {
+    if (!neededArray || neededArray.length === 0) return [];
+    if (!purchasesArray || purchasesArray.length === 0) {
+      // Pas d'achats, tout est manquant
+      return neededArray.map(n => ({quantity: parseFloat(n.value), unit: n.unit}));
+    }
+
+    // Créer des maps pour les calculs simples (unités déjà en gr. et ml)
+    const neededMap = new Map<string, number>();
+    const purchasesMap = new Map<string, number>();
+
+    // Remplir les besoins
+    neededArray.forEach(needed => {
+      const quantity = parseFloat(needed.value);
+      if (!isNaN(quantity)) {
+        neededMap.set(needed.unit, (neededMap.get(needed.unit) || 0) + quantity);
+      }
+    });
+
+    // Remplir les achats
+    purchasesArray.forEach(purchase => {
+      purchasesMap.set(purchase.unit, (purchasesMap.get(purchase.unit) || 0) + purchase.quantity);
+    });
+
+    // Calculer la différence : besoins - achats
+    const result: {quantity: number, unit: string}[] = [];
+    
+    neededMap.forEach((needed, unit) => {
+      const purchased = purchasesMap.get(unit) || 0;
+      const missing = needed - purchased;
+      if (missing > 0) {
+        result.push({quantity: missing, unit});
+      }
+    });
+
+    return result;
+  }
+
+
 }
 
 // =============================================================================

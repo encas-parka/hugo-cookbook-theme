@@ -183,11 +183,23 @@
         throw new Error('Veuillez remplir les champs obligatoires');
       }
 
+      // Normaliser les unités avant envoi à Appwrite
+      let normalizedQuantity = newPurchase.quantity;
+      let normalizedUnit = newPurchase.unit;
+
+      if (newPurchase.unit === 'kg') {
+        normalizedQuantity = newPurchase.quantity * 1000;
+        normalizedUnit = 'gr.';
+      } else if (newPurchase.unit === 'l.') {
+        normalizedQuantity = newPurchase.quantity * 1000;
+        normalizedUnit = 'ml';
+      }
+
       const result = await createPurchase({
         products: [currentProduct.$id],
         mainId: currentProduct.mainId.$id,
-        unit: newPurchase.unit,
-        quantity: newPurchase.quantity,
+        unit: normalizedUnit,
+        quantity: normalizedQuantity,
         store: newPurchase.store || null,
         who: newPurchase.who || null,
         notes: newPurchase.notes || '',
@@ -220,9 +232,22 @@
 
     await withLoading(async () => {
       const purchaseId = editingPurchase!.$id;
+      
+      // Normaliser les unités avant envoi à Appwrite
+      let normalizedQuantity = editingPurchase!.quantity;
+      let normalizedUnit = editingPurchase!.unit;
+
+      if (editingPurchase!.unit === 'kg') {
+        normalizedQuantity = editingPurchase!.quantity * 1000;
+        normalizedUnit = 'gr.';
+      } else if (editingPurchase!.unit === 'l.') {
+        normalizedQuantity = editingPurchase!.quantity * 1000;
+        normalizedUnit = 'ml';
+      }
+
       const updates = {
-        unit: editingPurchase!.unit,
-        quantity: editingPurchase!.quantity,
+        unit: normalizedUnit,
+        quantity: normalizedQuantity,
         store: editingPurchase?.store || null,
         who: editingPurchase?.who || null,
         notes: editingPurchase?.notes || '',

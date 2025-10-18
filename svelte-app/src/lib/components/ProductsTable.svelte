@@ -1,6 +1,5 @@
 <script lang="ts">
-  import type { Products } from '../types/appwrite.d';
-import type { StoreInfo, EnrichedProduct } from '../types/store.types';
+  import type { EnrichedProduct } from '../types/store.types';
   import { Search, X, FunnelIcon } from '@lucide/svelte';
   import { productsStore } from '../stores/ProductsStore.svelte';
   import ProductModal from './ProductModal.svelte';
@@ -269,21 +268,16 @@ import type { StoreInfo, EnrichedProduct } from '../types/store.types';
           <th>Temp.</th>
           <th>
             <div class="flex items-center gap-2">
-              Quantité totale
+              Besoins
               {#if filters.sortColumn === 'totalNeededConsolidated'}
                 {filters.sortDirection === 'asc' ? '↑' : '↓'}
               {/if}
             </div>
           </th>
           <th>Recettes / Assiettes</th>
-          <th class="cursor-pointer hover:bg-base-400" onclick={() => productsStore.handleSort('purchases')}>
-            <div class="flex items-center gap-2">
-              Achats
-              {#if filters.sortColumn === 'purchases'}
-                {filters.sortDirection === 'asc' ? '↑' : '↓'}
-              {/if}
-            </div>
-          </th>
+
+          <th>Achats</th>
+          <th>Quantité manquante</th>
         </tr>
       </thead>
       <tbody>
@@ -291,7 +285,7 @@ import type { StoreInfo, EnrichedProduct } from '../types/store.types';
           {#if groupKey !== ''}
             <!-- Header de groupe -->
             <tr class="bg-base-300 font-semibold">
-              <td colspan="8" class="py-2">
+              <td colspan="10" class="py-2">
                 <div class="flex items-center gap-2">
                   {#if filters.groupBy === 'store'}
                     🏪 {groupKey} ({groupProducts.length})
@@ -365,13 +359,12 @@ import type { StoreInfo, EnrichedProduct } from '../types/store.types';
                   <div class="text-xs text-gray-600">{product.totalAssiettes || 0} ass</div>
                 </div>
               </td>
-              <td
-                class="cursor-pointer hover:bg-orange-50 text-center"
-                onclick={() => handleCellClick('purchases', product)}
-              >
-                <div class="badge badge-warning badge-sm">
-                  {product.nbPurchases || 0} ach{(product.nbPurchases || 0) > 1 ? 'ats' : 'at'}
-                </div>
+
+              <td class="text-center font-medium cursor-pointer hover:bg-red-50" onclick={() => handleCellClick('purchases',product)}>
+                {product.displayTotalPurchases || '-'}
+              </td>
+              <td class="text-center font-medium {product.displayMissingQuantity === '✅ Complet' ? 'text-success' : 'text-warning'}">
+                {product.displayMissingQuantity}
               </td>
             </tr>
           {/each}
