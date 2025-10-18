@@ -1,6 +1,15 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
+@theme{
+  --color-lavender: oklch(0.8051 0.0952 298.69);
+  --color-lavender-content: oklch(0.415 0.1018 298.69)
+  --color-peach: oklch(88% 0.055 45.47);
+  --color-cream: oklch(94% 0.035 85.43);        /* Cream plus intense - jaune clair */
+
+
+}
+
 @plugin "daisyui/theme" {
   name: "corporatered";
   default: true;
@@ -26,6 +35,7 @@
   --color-warning-content: oklch(0% 0 0);
   --color-error: oklch(70% 0.191 22.216);
   --color-error-content: oklch(0% 0 0);
+  --color-lavender: oklch(85% 0.06 298.69);
   --radius-selector: 0.25rem;
   --radius-field: 0.25rem;
   --radius-box: 0.25rem;
@@ -34,4 +44,9 @@
   --border: 1px;
   --depth: 0;
   --noise: 0;
+}
+
+:root {
+  --color-lavender: oklch(85% 0.06 298.69);
+  --color-lavender-content: oklch(20% 0.02 298.69);
 }

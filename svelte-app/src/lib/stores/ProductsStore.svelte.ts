@@ -117,10 +117,9 @@ class ProductsStore {
     searchQuery: '',
     selectedStores: [] as string[],
     selectedWho: [] as string[],
-    selectedProductType: '',
-    showPFrais: true,
-    showPSurgel: true,
-    groupBy: 'none' as 'store' | 'productType' | 'none',
+    selectedProductTypes: [] as string[],
+    selectedTemperatures: [] as string[],
+    groupBy: 'productType' as 'store' | 'productType' | 'none',
     sortColumn: '',
     sortDirection: 'asc' as 'asc' | 'desc'
   });
@@ -136,7 +135,7 @@ class ProductsStore {
         p.totalNeededConsolidated ? this.#safeJsonParse(p.totalNeededConsolidated) : [],
         totalPurchases
       );
-      
+
       return {
         ...p,
         // Parsing des JSON strings en objets exploitables
@@ -150,7 +149,7 @@ class ProductsStore {
         totalPurchases: totalPurchases,
         displayTotalPurchases: this.#displayTotalPurchases(p.purchases ?? []),
         missingQuantity: missingQuantity,
-        displayMissingQuantity: missingQuantity.length > 0 
+        displayMissingQuantity: missingQuantity.length > 0
           ? missingQuantity.map(m => this.#formatSingleQuantity(m.quantity.toString(), m.unit)).join(' et ')
           : '✅ Complet'
       };
@@ -547,9 +546,43 @@ class ProductsStore {
     this.#filters.searchQuery = query;
   }
 
-  setProductType(type: string) {
-    this.#filters.selectedProductType = type;
+  toggleProductType(type: string) {
+    const index = this.#filters.selectedProductTypes.indexOf(type);
+    if (index > -1) {
+      this.#filters.selectedProductTypes.splice(index, 1);
+    } else {
+      this.#filters.selectedProductTypes.push(type);
+    }
   }
+
+  toggleTemperature(temperature: 'frais' | 'surgele') {
+    const index = this.#filters.selectedTemperatures.indexOf(temperature);
+    if (index > -1) {
+      this.#filters.selectedTemperatures.splice(index, 1);
+    } else {
+      this.#filters.selectedTemperatures.push(temperature);
+    }
+  }
+
+  clearTypeAndTemperatureFilters() {
+    this.#filters.selectedProductTypes = [];
+    this.#filters.selectedTemperatures = [];
+  }
+
+  // =============================================================================
+  // MÉTHODES OBSOLÈTES (conservées pour référence)
+  // =============================================================================
+
+  // setProductType(type: string) {
+  //   // OBSOLÈTE: Remplacé par toggleProductType() pour filtres cumulatifs
+  //   this.#filters.selectedProductType = type;
+  // }
+
+  // setTemperatureFilters(showPFrais: boolean, showPSurgel: boolean) {
+  //   // OBSOLÈTE: Remplacé par toggleTemperature() pour filtres cumulatifs
+  //   this.#filters.showPFrais = showPFrais;
+  //   this.#filters.showPSurgel = showPSurgel;
+  // }
 
   setGroupBy(groupBy: 'store' | 'productType' | 'none') {
     this.#filters.groupBy = groupBy;
@@ -581,10 +614,7 @@ class ProductsStore {
     this.#filters.selectedWho = [];
   }
 
-  setTemperatureFilters(showPFrais: boolean, showPSurgel: boolean) {
-    this.#filters.showPFrais = showPFrais;
-    this.#filters.showPSurgel = showPSurgel;
-  }
+
 
   handleSort(column: string) {
     if (this.#filters.sortColumn === column) {
@@ -600,9 +630,8 @@ class ProductsStore {
       searchQuery: '',
       selectedStores: [],
       selectedWho: [],
-      selectedProductType: '',
-      showPFrais: true,
-      showPSurgel: true,
+      selectedProductTypes: [],
+      selectedTemperatures: [],
       groupBy: 'none',
       sortColumn: '',
       sortDirection: 'asc'
@@ -662,22 +691,22 @@ class ProductsStore {
       }
     }
 
-    // Filtre par productType
-    if (this.#filters.selectedProductType) {
-      if (product.productType !== this.#filters.selectedProductType) {
+    // Filtre par productType (cumulatif)
+    if (this.#filters.selectedProductTypes.length > 0) {
+      if (!product.productType || !this.#filters.selectedProductTypes.includes(product.productType)) {
         return false;
       }
     }
 
-    // Filtres pFrais/pSurgel
-    if (!this.#filters.showPFrais && !this.#filters.showPSurgel) {
-      return false;
-    }
-    if (!this.#filters.showPFrais && product.pFrais) {
-      return false;
-    }
-    if (!this.#filters.showPSurgel && product.pSurgel) {
-      return false;
+    // Filtres température (cumulatifs)
+    if (this.#filters.selectedTemperatures.length > 0) {
+      const hasValidTemperature =
+        (this.#filters.selectedTemperatures.includes('frais') && product.pFrais) ||
+        (this.#filters.selectedTemperatures.includes('surgele') && product.pSurgel);
+
+      if (!hasValidTemperature) {
+        return false;
+      }
     }
 
     return true;
@@ -706,13 +735,13 @@ class ProductsStore {
     if ((unit === 'gr.' || unit === 'ml') && num >= 1000) {
       const converted = num / 1000;
       const newUnit = unit === 'gr.' ? 'kg' : 'l.';
-      
+
       // Arrondi mathématique à 2 décimales + suppression des ,0
       const rounded = Math.round(converted * 100) / 100;
       let formatted = rounded.toString();
       if (formatted.endsWith(',0')) formatted = formatted.slice(0, -2);
       if (formatted.endsWith(',00')) formatted = formatted.slice(0, -3);
-      
+
       return `${formatted} ${newUnit}`;
     }
 
@@ -721,7 +750,7 @@ class ProductsStore {
       const rounded = Math.round(num * 10) / 10;
       let formatted = rounded.toString();
       if (formatted.endsWith(',0')) formatted = formatted.slice(0, -2);
-      
+
       return `${formatted} ${unit}`;
     }
 
@@ -733,7 +762,7 @@ class ProductsStore {
     if (!purchases || purchases.length === 0) return '-';
 
     const purchasesArray = this.#calculateTotalPurchasesArray(purchases);
-    
+
     return purchasesArray
       .map(p => this.#formatSingleQuantity(p.quantity.toString(), p.unit))
       .join(' et ');
@@ -790,7 +819,7 @@ class ProductsStore {
 
     // Calculer la différence : besoins - achats
     const result: {quantity: number, unit: string}[] = [];
-    
+
     neededMap.forEach((needed, unit) => {
       const purchased = purchasesMap.get(unit) || 0;
       const missing = needed - purchased;
