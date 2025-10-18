@@ -404,15 +404,15 @@
               <td colspan="7" class="py-2">
                 <div class="flex items-center justify-center gap-2">
                   {#if filters.groupBy === 'store'}
-                    🏪 {groupKey} ({groupProducts.length})
+                    🏪 {groupKey} ({groupProducts!.length})
                   {:else if filters.groupBy === 'productType'}
                     <div class="flex items-center gap-2">
                       <groupTypeInfo.icon class="w-4 h-4" />
                       <span>{groupTypeInfo.displayName}</span>
-                      <span class="text-sm opacity-70">({groupProducts.length})</span>
+                      <span class="text-sm opacity-70">({groupProducts!.length})</span>
                     </div>
                   {:else}
-                    📦 {groupKey} ({groupProducts.length})
+                    📦 {groupKey} ({groupProducts!.length})
                   {/if}
                 </div>
               </td>
@@ -420,7 +420,7 @@
           {/if}
 
           <!-- Produits du groupe -->
-          {#each productsStore.sortProducts(groupProducts) as product (product.$id)}
+          {#each productsStore.sortProducts(groupProducts!) as product (product.$id)}
             {@const typeInfo = getProductTypeInfo(product.productType)}
 
             <tr class="hover:bg-base-300 transition-colors">
@@ -559,73 +559,68 @@
         {#each productsStore.sortProducts(groupProducts) as product (product.$id)}
           {@const typeInfo = getProductTypeInfo(product.productType)}
           {@const isComplete = product.displayMissingQuantity === '✅ Complet'}
+          <div class="flex">
 
-          <div class="indicator">
-            <!-- Badge indicator pour le type -->
-            <span class="indicator-item badge badge-soft badge-sm badge-secondary">
-              <typeInfo.icon class="w-4 h-4 mr-1" />
-            </span>
+              <div class="card bg-base-100 shadow-lg cursor-pointer hover:shadow-xl transition-all w-full">
+                <div class="card-body px-4 py-2">
+                  <!-- Header: Nom + icônes température -->
+                  <button class="flex items-center justify-between mb-2"
+                       onclick={() => handleCellClick('productName', product)} aria-label="Click to edit product name">
+                      <div class="truncate max-w-fit font-semibold text-base">{product.productName}</div>
+                      <div class="flex gap-1 ms-auto justify-end">
 
-            <div class="card bg-base-100 shadow-lg cursor-pointer hover:shadow-xl transition-all">
-              <div class="card-body p-4">
-                <!-- Header: Nom + icônes température -->
-                <div class="flex items-center justify-between mb-2"
-                     onclick={() => handleCellClick('productName', product)}>
-                  <h3 class="font-semibold text-base flex items-center gap-2">
-                    <span class="truncate max-w-[180px]">{product.productName}</span>
-                    <div class="flex gap-1">
-                      {#if product.pFrais}
-                        <div class="badge badge-success badge-sm">F</div>
-                      {/if}
-                      {#if product.pSurgel}
-                        <div class="badge badge-info badge-sm">S</div>
-                      {/if}
-                    </div>
-                  </h3>
-                </div>
+                        {#if product.pFrais}
+                          <div class="text-success"><ShoppingBasket size={22} /></div>
+                        {/if}
+                        {#if product.pSurgel}
+                          <div class="text-info"><Snowflake size={22} /></div>
+                        {/if}
+                         <typeInfo.icon size={22}  />
+                      </div>
+                    </button>
 
-                <!-- Magasin + Qui -->
-                <div class="flex items-center gap-3 text-md opacity-80 mb-3">
-                  <div class="flex items-center gap-1 cursor-pointer hover:bg-green-50 px-2 py-1 rounded transition-colors"
-                       onclick={(e) => { e.stopPropagation(); handleCellClick('store', product); }}>
-                    <Store class="w-5 h-5" />
-                    <span class="truncate max-w-[80px]">{product.storeInfo?.storeName || '-'}</span>
+                  <!-- Magasin + Qui -->
+                  <div class="flex flex-wrap items-center gap-2 text-md opacity-80 mb-3 justify-between">
+                    <button class="flex flex-1 items-center  gap-1 btn btn-sm btn-ghost"
+                         onclick={(e) => { e.stopPropagation(); handleCellClick('store', product); }}>
+                      <Store  class="w-5 h-5" />
+                      <span class="truncate">{product.storeInfo?.storeName || '-'}</span>
+                    </button>
+
+                      <button class="flex flex-1 items-center gap-1 btn btn-ghost btn-sm" onclick={(e) => { e.stopPropagation(); handleCellClick('who', product); }}>
+                        <Users class="w-5 h-5" />
+                    {#if product.who && product.who.length > 0}
+                        <div class="flex flex-wrap gap-1">
+                          {#each product.who.slice(0, 2) as person (person)}
+                            <span class="badge badge-soft badge-info badge-sm">{person}</span>
+                          {/each}
+                          {#if product.who.length > 2}
+                            <span class="badge badge-soft badge-info badge-sm">+{product.who.length - 2}</span>
+                          {/if}
+                        </div>
+                    {/if}
+                      </button>
                   </div>
 
-                  {#if product.who && product.who.length > 0}
-                    <div class="flex items-center gap-1">
-                      <Users class="w-5 h-5" />
-                      <div class="flex gap-1">
-                        {#each product.who.slice(0, 2) as person (person)}
-                          <span class="badge badge-soft badge-info badge-sm">{person}</span>
-                        {/each}
-                        {#if product.who.length > 2}
-                          <span class="badge badge-soft badge-info badge-sm">+{product.who.length - 2}</span>
-                        {/if}
+                  <!-- Quantité principale (logique conditionnelle) -->
+                  <button class="mb-3"
+                       onclick={(e) => { e.stopPropagation(); handleCellClick('purchases', product); }}>
+                    {#if isComplete}
+                      <div class="alert alert-success py-2 px-3 cursor-pointer hover:bg-success/10 transition-colors">
+                        <CheckCircle class="w-4 h-4 shrink-0" />
+                        <span class="text-sm font-medium">{product.displayTotalPurchases} acheté</span>
                       </div>
-                    </div>
-                  {/if}
+                    {:else}
+                      <div class="alert alert-warning py-2 px-3 cursor-pointer hover:bg-warning/10 transition-colors">
+                        <AlertCircle class="w-4 h-4 shrink-0" />
+                        <span class="text-sm font-medium">Manque {product.displayMissingQuantity}</span>
+                      </div>
+                    {/if}
+                  </button>
+
+
                 </div>
-
-                <!-- Quantité principale (logique conditionnelle) -->
-                <div class="mb-3"
-                     onclick={(e) => { e.stopPropagation(); handleCellClick('purchases', product); }}>
-                  {#if isComplete}
-                    <div class="alert alert-success py-2 px-3 cursor-pointer hover:bg-success/10 transition-colors">
-                      <CheckCircle class="w-4 h-4 shrink-0" />
-                      <span class="text-sm font-medium">{product.displayTotalPurchases} acheté</span>
-                    </div>
-                  {:else}
-                    <div class="alert alert-warning py-2 px-3 cursor-pointer hover:bg-warning/10 transition-colors">
-                      <AlertCircle class="w-4 h-4 shrink-0" />
-                      <span class="text-sm font-medium">Manque {product.displayMissingQuantity}</span>
-                    </div>
-                  {/if}
-                </div>
-
-
               </div>
-            </div>
           </div>
         {/each}
       </div>
