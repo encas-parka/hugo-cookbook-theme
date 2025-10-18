@@ -3,6 +3,13 @@ import { useDebounce } from 'runed';
 import { createStorageKey } from '../utils/url-utils';
 import type { Products, Purchases } from '../types/appwrite.d';
 import type { StoreInfo } from '../types/store.types';
+import { 
+  loadProducts, 
+  syncProducts, 
+  mergeUpdatedProducts,
+  type LoadProductsOptions,
+  type SyncOptions
+} from '../services/appwrite-interactions';
 
 /**
  * ProductsStore - Store des produits avec flux de données réactif Svelte 5
@@ -197,7 +204,7 @@ class ProductsStore {
     const hasCache = this.products.length > 0 && this.#syncState!.current.mainId === mainId;
     if (hasCache) {
       console.log(`[ProductsStore] Utilisation du cache (${this.products.length} produits)`);
-      this.#syncInBackground();
+      await this.#syncInBackground();
     } else {
       console.log('[ProductsStore] Chargement initial depuis Appwrite');
       await this.#loadFromAppwrite(mainId);
@@ -244,40 +251,19 @@ class ProductsStore {
     this.#updateState({ loading: true, error: null });
 
     try {
-      const databases = await window.AppwriteClient.getDatabases();
-      const config = window.AppwriteClient.getConfig();
+      const options: LoadProductsOptions = {
+        includePurchases: true,
+        limit: BATCH_LIMIT,
+        orderBy: 'productName',
+        orderDirection: 'asc'
+      };
 
-      const productsResponse = await databases.listDocuments(
-        config.APPWRITE_CONFIG.databaseId,
-        config.APPWRITE_CONFIG.collections.products,
-        [
-          Query.equal('mainId', mainId),
-          Query.orderAsc('productName'),
-          Query.limit(BATCH_LIMIT)
-        ]
-      );
-      const products = productsResponse.documents as Products[];
+      const productsWithPurchases = await loadProducts(mainId, options);
 
-      // Charger les achats associés
-       const purchasesResponse = await databases.listDocuments(
-         config.APPWRITE_CONFIG.databaseId,
-         config.APPWRITE_CONFIG.collections.purchases,
-         [Query.equal('mainId', mainId)]
-       );
-
-       // Associer les achats aux produits
-       const purchases = purchasesResponse.documents as Purchases[];
-       const productsWithPurchases = products.map(product => ({
-         ...product,
-         purchases: purchases.filter(purchase =>
-           purchase.products.some(p => p.$id === product.$id)
-         )
-       }));
-
-      this.#updateState({ products: productsWithPurchases })
+      this.#updateState({ products: productsWithPurchases });
 
       this.#updateLastSync();
-      console.log(`[ProductsStore] ${productsResponse.documents.length} produits chargés`);
+      console.log(`[ProductsStore] ${productsWithPurchases.length} produits chargés`);
 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors du chargement';
@@ -295,23 +281,17 @@ class ProductsStore {
     this.#updateState({ syncing: true });
 
     try {
-      const databases = await window.AppwriteClient.getDatabases();
-      const config = window.AppwriteClient.getConfig();
+      const options: SyncOptions = {
+        lastSync: this.#syncState.current.lastSync,
+        limit: BATCH_LIMIT
+      };
 
-      const response = await databases.listDocuments(
-        config.APPWRITE_CONFIG.databaseId,
-        config.APPWRITE_CONFIG.collections.products,
-        [
-          Query.greaterThan('$updatedAt', this.#syncState.current.lastSync),
-          Query.equal('mainId', this.#currentMainId),
-          Query.limit(BATCH_LIMIT)
-        ]
-      );
+      const updatedProducts = await syncProducts(this.#currentMainId!, options);
 
-      if (response.documents.length > 0) {
-        this.#mergeProducts(response.documents as Products[]);
+      if (updatedProducts.length > 0) {
+        this.#mergeProducts(updatedProducts);
         this.#updateLastSync();
-        console.log(`[ProductsStore] ${response.documents.length} mises à jour synchronisées`);
+        console.log(`[ProductsStore] ${updatedProducts.length} mises à jour synchronisées`);
       }
 
       this.#updateState({ syncing: false });
@@ -323,12 +303,8 @@ class ProductsStore {
   }
 
   #mergeProducts(updatedProducts: Products[]) {
-    const updated = new Map(updatedProducts.map(p => [p.$id, p]));
-    const merged = this.products.map(p => updated.get(p.$id) ?? p);
-    const existingIds = new Set(this.products.map(p => p.$id));
-    const news = updatedProducts.filter(p => !existingIds.has(p.$id));
-
-
+    const mergedProducts = mergeUpdatedProducts(this.products, updatedProducts);
+    this.#updateState({ products: mergedProducts });
   }
 
   // =========================================================================
