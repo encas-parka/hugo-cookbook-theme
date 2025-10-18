@@ -1,7 +1,7 @@
 import { PersistedState } from 'runed';
 import { useDebounce } from 'runed';
 import { createStorageKey } from '../utils/url-utils';
-import { type Products } from '../types/appwrite.d';
+import type { Products, Purchases } from '../types/appwrite.d';
 
 /**
  * ProductsStore - Store des produits avec flux de données réactif Svelte 5
@@ -360,7 +360,7 @@ class ProductsStore {
        await window.AppwriteClient.initializeAppwrite();
 
        this.#unsubscribe = window.AppwriteClient.subscribeToCollections(
-         ['products'],
+         ['products', 'purchases'],
          mainId,
          (response: any) => this.#handleRealtimeEvent(response),
          {
@@ -385,30 +385,65 @@ class ProductsStore {
   #handleRealtimeEvent(response: any) {
     const { events, payload } = response;
     if (!payload || !this.#productsState) return;
-
-    const product = payload as Products;
+    
+    // Déterminer la collection source à partir des événements
+    const isProductsCollection = events.some((e: string) => e.includes('products.'));
+    const isPurchasesCollection = events.some((e: string) => e.includes('purchases.'));
+    
     const isCreate = events.some((e: string) => e.includes('.create'));
     const isUpdate = events.some((e: string) => e.includes('.update'));
     const isDelete = events.some((e: string) => e.includes('.delete'));
 
-    if (isCreate) {
-      const exists = this.products.some(p => p.$id === product.$id);
-      if (!exists) {
+    if (isProductsCollection) {
+      // Gérer les événements de la collection products (comportement existant)
+      const product = payload as Products;
+      if (isCreate) {
+        const exists = this.products.some(p => p.$id === product.$id);
+        if (!exists) {
+          this.#updateState({
+            products: [...this.products, product]
+          });
+        }
+      } else if (isUpdate) {
         this.#updateState({
-          products: [...this.products, product]
+          products: this.products.map(p => p.$id === product.$id ? product : p)
+        });
+      } else if (isDelete) {
+        this.#updateState({
+          products: this.products.filter(p => p.$id !== product.$id)
         });
       }
-    } else if (isUpdate) {
-      this.#updateState({
-        products: this.products.map(p => p.$id === product.$id ? product : p)
-      });
-    } else if (isDelete) {
-      this.#updateState({
-        products: this.products.filter(p => p.$id !== product.$id)
-      });
+    } else if (isPurchasesCollection) {
+      // Pour les événements de purchases, mettre à jour uniquement les produits concernés
+      console.log('[ProductsStore] Événement purchase détecté, mise à jour des produits concernés...');
+      this.#updateProductsFromPurchase(payload as Purchases);
     }
-
+    
     this.#debouncedUpdateLastSync();
+  }
+
+  #updateProductsFromPurchase(purchase: Purchases) {
+    if (!purchase.products || purchase.products.length === 0) return;
+    
+    // Mettre à jour uniquement les produits concernés par ce purchase
+    this.#updateState({
+      products: this.products.map(product => {
+        if (purchase.products.some(p => p.$id === product.$id)) {
+          // Ajouter ou mettre à jour le purchase dans la liste des purchases du produit
+          const existingPurchases = product.purchases || [];
+          const updatedPurchases = existingPurchases.filter(p => p.$id !== purchase.$id);
+          updatedPurchases.push(purchase);
+          
+          return {
+            ...product,
+            purchases: updatedPurchases
+          };
+        }
+        return product;
+      })
+    });
+    
+    console.log(`[ProductsStore] ${purchase.products.length} produit(s) mis à jour avec le purchase ${purchase.$id}`);
   }
 
   #updateLastSync() {

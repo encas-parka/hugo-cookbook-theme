@@ -13,7 +13,10 @@ import { errorMessages } from 'vue/compiler-sfc';
 
 export type ProductUpdate = Partial<Omit<Products, '$id' | keyof Models.Row | 'purchases' | 'mainId'>>;
 
-export type PurchaseCreate = Omit<Purchases, '$id' | keyof Models.Row | 'purchases' | 'createdBy' | 'status'>;
+export type PurchaseCreate = Omit<Purchases, '$id' | keyof Models.Row | 'purchases' | 'createdBy' | 'status' | 'products' | 'mainId'> & {
+  products: string[];  // IDs des produits pour la relation
+  mainId: string;      // ID du main pour la relation
+};
 
 export type PurchaseUpdate = Partial<Omit<Purchases, '$id' | keyof Models.Row | 'mainId' | 'products' | 'createdBy' | 'status'>>;
 
@@ -78,7 +81,20 @@ export async function updateProductStore(
     productId: string,
     store: string | null
 ): Promise<Products> {
-    return updateProduct(productId, { store });
+    console.log(`[Appwrite Interactions] Mise à jour du magasin pour produit ${productId}:`, store);
+    
+    // Valider les entrées
+    if (!productId) {
+        throw new Error('ID du produit requis pour la mise à jour du magasin');
+    }
+    
+    // Normaliser la valeur du magasin
+    const normalizedStore = store && store.trim() !== '' ? store.trim() : null;
+    
+    const result = await updateProduct(productId, { store: normalizedStore });
+    console.log(`[Appwrite Interactions] Magasin mis à jour pour produit ${productId}, nouvelle valeur:`, result.store);
+    
+    return result;
 }
 
 /**

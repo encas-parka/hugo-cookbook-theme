@@ -22,7 +22,6 @@
 
 	function handleQuickSelectStore(store: string) {
 		editingStore = store;
-		handleUpdateStore();
 	}
 </script>
 
@@ -52,7 +51,7 @@
 						}}
 					/>
 				</div>
-				<button class="btn btn-primary btn-sm" onclick={handleUpdateStore} disabled={loading}>
+				<button class="btn btn-primary btn-sm" onclick={handleUpdateStore} disabled={loading || editingStore === product?.store}>
 					{#if loading}
 						<span class="loading loading-spinner loading-sm"></span>
 					{:else}

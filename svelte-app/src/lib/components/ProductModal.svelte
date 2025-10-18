@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Products, Purchases } from '../types/appwrite';
-  import { X, Package, ShoppingCart, Archive, Users, Store, Clock, CheckCircle, AlertTriangle } from '@lucide/svelte';
+  import { X, Package, ShoppingCart, Archive, Users, Store, Clock, CircleCheck, TriangleAlert } from '@lucide/svelte';
+  import { productsStore } from '../stores/ProductsStore.svelte';
   import { updateProduct, updateProductStore, updateProductWho, updateProductStock, createPurchase, updatePurchase, deletePurchase, parseStockData, parseRecipesOccurrences } from '../services/appwrite-interactions';
   import PurchaseManager from './PurchaseManager.svelte';
   import StockManager from './StockManager.svelte';
@@ -11,19 +12,22 @@
   // Props en mode runes
   interface Props {
     isOpen: boolean;
-    product: Products | null;
+    productId: string | null;
     initialTab: string;
     onclose: () => void;
   }
 
   let {
     isOpen = $bindable(false),
-    product = $bindable(null),
+    productId = $bindable(null),
     initialTab = 'recettes',
     onclose
   }: Props = $props();
 
-
+  // Wrapper réactif - suit automatiquement les mises à jour du store
+  let currentProduct = $derived.by(() =>
+    productId ? productsStore.products.find(p => p.$id === productId) : null
+  );
 
   // État local
   let currentTab = $state(initialTab);
@@ -54,24 +58,47 @@
     dateTime: ''
   });
 
-  let editingProduct = $state<Partial<Products>>({});
-  let editingPurchases = $state<Purchases[]>([]);
+
   let stockEntries = $state<Array<{quantity: string; unit: string; notes: string; dateTime: string}>>([]);
   let editingPurchase = $state<Purchases | null>(null);
 
-  // Données dérivées
-  let recipesOccurrences = $derived.by(() =>parseRecipesOccurrences(product?.recipesOccurrences || null));
+  // Données dérivées - plus besoin d'état local dupliqué
+  let currentProductPurchases = $derived.by(() => {
+    const purchases = currentProduct?.purchases;
+    if (!purchases || !Array.isArray(purchases)) {
+      console.warn('[ProductModal] Purchases is not a valid array:', purchases);
+      return [];
+    }
+    
+    // Filtrer les purchases qui n'ont pas de $id valide
+    const validPurchases = purchases.filter(purchase => {
+      if (!purchase || typeof purchase !== 'object') {
+        console.warn('[ProductModal] Invalid purchase object:', purchase);
+        return false;
+      }
+      if (!purchase.$id) {
+        console.warn('[ProductModal] Purchase missing $id:', purchase);
+        return false;
+      }
+      return true;
+    });
+    
+    if (validPurchases.length !== purchases.length) {
+      console.warn(`[ProductModal] Filtered ${purchases.length - validPurchases.length} invalid purchases`);
+    }
+    
+    return validPurchases;
+  });
+  let recipesOccurrences = $derived.by(() =>parseRecipesOccurrences(currentProduct?.recipesOccurrences || null));
 
   // Réagir aux changements de produit
   $effect(() => {
-    console.log('ProductModal - $effect triggered with product:', product);
-    if (product) {
+    console.log('ProductModal - $effect triggered with currentProduct:', currentProduct);
+    if (currentProduct) {
       currentTab = initialTab;
-      editingProduct = { ...product };
-      editingPurchases = product.purchases ? [...product.purchases] : [];
-      stockEntries = parseStockData(product.stockReel);
-      editingWho = product.who ? [...product.who] : [];
-      editingStore = product.store || '';
+      stockEntries = parseStockData(currentProduct.stockReel);
+      editingWho = currentProduct.who ? [...currentProduct.who] : [];
+      editingStore = currentProduct.store || '';
       resetForms();
     }
   });
@@ -80,7 +107,7 @@
     newPurchase = {
       quantity: 0,
       unit: '',
-      store: product?.store || '',
+      store: currentProduct?.store || '',
       who: '',
       price: null,
       notes: ''
@@ -153,17 +180,16 @@
 
   // Fonctions CRUD pour les achats
   async function handleAddPurchase() {
-    if (!product) return;
+    if (!currentProduct) return;
     loading = true;
-
     await withLoading(async () => {
-      if (!newPurchase.quantity || !newPurchase.unit) {
+      if (!newPurchase.quantity || !newPurchase.unit.trim()) {
         throw new Error('Veuillez remplir les champs obligatoires');
       }
 
       const result = await createPurchase({
-        products: [product.$id],
-        mainId: product.mainId.$id,
+        products: [currentProduct.$id],
+        mainId: currentProduct.mainId.$id,
         unit: newPurchase.unit,
         quantity: newPurchase.quantity,
         store: newPurchase.store || null,
@@ -173,8 +199,7 @@
       });
 
       if (result) {
-        // Ajouter à la liste locale (le realtime mettra à jour automatiquement)
-        editingPurchases = [...editingPurchases, result];
+        // Le realtime mettra à jour automatiquement via currentProduct
         resetForms();
 
         // Notification de succès
@@ -198,23 +223,20 @@
     if (!editingPurchase) return;
 
     await withLoading(async () => {
-      const purchaseId = editingPurchase.$id;
+      const purchaseId = editingPurchase!.$id;
       const updates = {
-        unit: editingPurchase.unit,
-        quantity: editingPurchase.quantity,
-        store: editingPurchase.store || null,
-        who: editingPurchase.who || null,
-        notes: editingPurchase.notes || '',
-        price: editingPurchase.price || null
+        unit: editingPurchase!.unit,
+        quantity: editingPurchase!.quantity,
+        store: editingPurchase?.store || null,
+        who: editingPurchase?.who || null,
+        notes: editingPurchase?.notes || '',
+        price: editingPurchase?.price || null
       };
 
       const result = await updatePurchase(purchaseId, updates);
 
       if (result) {
-        // Mettre à jour la liste locale
-        editingPurchases = editingPurchases.map(p =>
-          p.$id === purchaseId ? result : p
-        );
+        // Le realtime mettra à jour automatiquement via currentProduct
         editingPurchase = null;
 
         // Notification de succès
@@ -234,8 +256,7 @@
     await withLoading(async () => {
       await deletePurchase(purchase.$id);
 
-      // Retirer de la liste locale
-      editingPurchases = editingPurchases.filter(p => p.$id !== purchase.$id);
+      // Le realtime mettra à jour automatiquement via currentProduct
 
       // Notification de succès
       const successEvent = new CustomEvent('toast', {
@@ -247,7 +268,7 @@
 
   // Fonctions pour la gestion du stock
   async function handleAddStock() {
-    if (!product) return;
+    if (!currentProduct) return;
 
     await withLoading(async () => {
       if (!newStock.quantity || !newStock.unit) {
@@ -266,7 +287,7 @@
       const updatedStockEntries = [...stockEntries, newStockEntry];
 
       // Mettre à jour le produit
-      const productId = product.$id;
+      const productId = currentProduct.$id;
       const result = await updateProductStock(productId, JSON.stringify(updatedStockEntries));
 
       if (result) {
@@ -286,13 +307,15 @@
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce relevé de stock ?')) {
       return;
     }
+    if (!currentProduct) return;
+
 
     await withLoading(async () => {
       // Supprimer l'entrée
       const updatedStockEntries = stockEntries.filter((_, i) => i !== index);
 
       // Mettre à jour le produit
-      const result = await updateProductStock(product.$id, JSON.stringify(updatedStockEntries));
+      const result = await updateProductStock(currentProduct.$id, JSON.stringify(updatedStockEntries));
 
       if (result) {
         stockEntries = updatedStockEntries;
@@ -308,7 +331,7 @@
 
   // Fonctions pour la gestion des volontaires
   async function handleAddVolunteer() {
-    if (!product || !newVolunteer.trim()) return;
+    if (!currentProduct || !newVolunteer.trim()) return;
 
     await withLoading(async () => {
       const volunteerName = newVolunteer.trim();
@@ -319,7 +342,7 @@
       }
 
       const updatedWho = [...editingWho, volunteerName];
-      const result = await updateProductWho(product.$id, updatedWho);
+      const result = await updateProductWho(currentProduct.$id, updatedWho);
 
       if (result) {
         editingWho = updatedWho;
@@ -335,7 +358,7 @@
   }
 
   async function handleRemoveVolunteer(volunteer: string) {
-    if (!product) return;
+    if (!currentProduct) return;
 
     if (!confirm(`Retirer ${volunteer} de la liste des volontaires ?`)) {
       return;
@@ -343,7 +366,7 @@
 
     await withLoading(async () => {
       const updatedWho = editingWho.filter(v => v !== volunteer);
-      const result = await updateProductWho(product.$id, updatedWho);
+      const result = await updateProductWho(currentProduct.$id, updatedWho);
 
       if (result) {
         editingWho = updatedWho;
@@ -358,11 +381,18 @@
   }
 
   // Fonctions pour la gestion du magasin
-  async function handleUpdateStore() {
-    if (!product) return;
+  async function handleUpdateStore(storeValue?: string | null) {
+    if (!currentProduct) return;
 
     await withLoading(async () => {
-      const result = await updateProductStore(product.$id, editingStore || null);
+      // Utiliser la valeur passée en paramètre, sinon utiliser editingStore
+      const finalStoreValue = storeValue !== undefined 
+        ? storeValue 
+        : (editingStore && editingStore.trim() !== '' ? editingStore.trim() : currentProduct.store);
+      
+      console.log('[ProductModal] handleUpdateStore called with:', { storeValue, editingStore, finalStoreValue });
+      
+      const result = await updateProductStore(currentProduct.$id, finalStoreValue);
 
       if (result) {
         // Notification de succès
@@ -370,39 +400,39 @@
           detail: { type: 'success', message: 'Magasin mis à jour avec succès' }
         });
         window.dispatchEvent(successEvent);
+        
+        // Synchroniser editingStore avec la valeur mise à jour
+        editingStore = result.store || '';
       }
     });
   }
 
-
-  $inspect('product', product)
-  $inspect('editingProduct', editingProduct)
 </script>
 
-{#if isOpen && product}
+{#if isOpen && currentProduct}
   <div class="modal modal-open">
     <div class="modal-box max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
       <!-- Header -->
       <div class="flex items-center justify-between p-4 border-b">
         <div class="flex-1">
-          <h2 class="text-xl font-bold">{product.productName}</h2>
+          <h2 class="text-xl font-bold">{currentProduct.productName}</h2>
           <div class="flex items-center gap-3 mt-2">
-            <span class="badge badge-secondary">{product.productType}</span>
+            <span class="badge badge-secondary">{currentProduct.productType}</span>
 
-            {#if product.status === 'active'}
+            {#if currentProduct.status === 'active'}
               <div class="badge badge-success gap-1">
-                <CheckCircle class="w-3 h-3" />
+                <CircleCheck class="w-3 h-3" />
                 Actif
               </div>
             {:else}
               <div class="badge badge-warning gap-1">
-                <AlertTriangle class="w-3 h-3" />
-                {product.status}
+                <TriangleAlert class="w-3 h-3" />
+                {currentProduct.status}
               </div>
             {/if}
 
             <div class="text-sm opacity-75">
-              <span class="font-medium">Besoin:</span> {formatQuantity(product.totalNeededConsolidated)}
+              <span class="font-medium">Besoin:</span> {formatQuantity(currentProduct.totalNeededConsolidated)}
             </div>
           </div>
         </div>
@@ -434,8 +464,8 @@
         >
           <ShoppingCart class="w-4 h-4 mr-1" />
           Achats
-          {#if editingPurchases.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1">{editingPurchases.length}</span>
+          {#if currentProductPurchases.length > 0}
+            <span class="badge badge-sm badge-secondary ml-1">{currentProductPurchases.length}</span>
           {/if}
         </button>
 
@@ -456,8 +486,8 @@
         >
           <Users class="w-4 h-4 mr-1" />
           Volontaires
-          {#if product.who && product.who.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1">{product.who.length}</span>
+          {#if currentProduct.who && currentProduct.who.length > 0}
+            <span class="badge badge-sm badge-secondary ml-1">{currentProduct.who.length}</span>
           {/if}
         </button>
 
@@ -524,9 +554,10 @@
               </div>
             {:else if currentTab === 'achats'}
               <PurchaseManager
-                {product}
-                {editingPurchases}
+                product={currentProduct}
+              {currentProductPurchases}
                 {loading}
+                {newPurchase}
                 onAddPurchase={handleAddPurchase}
                 onStartEditPurchase={startEditPurchase}
                 onCancelEditPurchase={cancelEditPurchase}
@@ -535,7 +566,7 @@
               />
             {:else if currentTab === 'stock'}
               <StockManager
-                {product}
+                product={currentProduct}
                 {stockEntries}
                 {loading}
                 onAddStock={handleAddStock}
@@ -543,7 +574,7 @@
               />
             {:else if currentTab === 'volontaires'}
               <VolunteerManager
-                {product}
+                product={currentProduct}
                 {editingWho}
                 {loading}
                 onAddVolunteer={handleAddVolunteer}
@@ -551,7 +582,7 @@
               />
             {:else if currentTab === 'magasins'}
               <StoreManager
-                {product}
+                product={currentProduct}
                 {editingStore}
                 {loading}
                 onUpdateStore={handleUpdateStore}

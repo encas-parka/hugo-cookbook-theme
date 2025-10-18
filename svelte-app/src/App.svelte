@@ -81,7 +81,7 @@
 
     <!-- Liste des produits -->
     {#if productsStore.products.length > 0}
-      <ProductsTable products={productsStore.products} />
+      <ProductsTable/>
     {:else if !productsStore.loading}
       <div class="alert alert-info">
         <div>

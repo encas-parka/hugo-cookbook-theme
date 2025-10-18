@@ -18,7 +18,7 @@
 		onRemoveVolunteer
 	}: Props = $props();
 
-	let newVolunteer = '';
+	let newVolunteer = $state('');
 
 	async function handleAddVolunteer() {
 		if (newVolunteer.trim()) {

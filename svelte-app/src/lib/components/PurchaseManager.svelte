@@ -1,11 +1,19 @@
 <script lang="ts">
-	import { ShoppingCart, Edit2, Save, X } from '@lucide/svelte';
+	import { ShoppingCart, SquarePen, Save, X } from '@lucide/svelte';
 	import type { Products, Purchases } from '../types/appwrite.d.ts';
 
 	interface Props {
 		product: Products | null;
-		editingPurchases: Purchases[];
+		currentProductPurchases: Purchases[];
 		loading: boolean;
+		newPurchase: {
+			quantity: number;
+			unit: string;
+			store: string;
+			who: string;
+			price: number | null;
+			notes: string;
+		};
 		onAddPurchase: () => Promise<void>;
 		onStartEditPurchase: (purchase: Purchases) => void;
 		onCancelEditPurchase: () => void;
@@ -15,8 +23,9 @@
 
 	let {
 		product,
-		editingPurchases,
+		currentProductPurchases,
 		loading,
+		newPurchase,
 		onAddPurchase,
 		onStartEditPurchase,
 		onCancelEditPurchase,
@@ -24,16 +33,7 @@
 		onDeletePurchase
 	}: Props = $props();
 
-	let newPurchase = {
-		quantity: '',
-		unit: '',
-		store: '',
-		who: '',
-		price: '',
-		notes: ''
-	};
-
-	let editingPurchase: Purchases | null = null;
+	let editingPurchase: Purchases | null = $state(null);
 
 	function formatQuantity(quantity: number, unit: string): string {
 		if (unit === 'g' && quantity >= 1000) {
@@ -101,14 +101,14 @@
 					<label for="purchase-unit" class="label">
 						<span class="label-text">Unité</span>
 					</label>
-					<select id="purchase-unit" class="select select-bordered select-sm" bind:value={newPurchase.unit} required>
-						<option value="">Sélectionner</option>
+					<select id="purchase-unit" class="select select-bordered select-sm validator" bind:value={newPurchase.unit} required>
+						<option disabled selected value="">Sélectionner</option>
 						<option value="kg">kg</option>
-						<option value="g">g</option>
-						<option value="l">l</option>
+						<option value="gr.">gr.</option>
+						<option value="l.">l.</option>
 						<option value="ml">ml</option>
-						<option value="unités">unités</option>
-						<option value="pièces">pièces</option>
+						<option value="unité">unités</option>
+						<option value="bottes">botte·s</option>
 					</select>
 				</div>
 				<div class="form-control">
@@ -120,7 +120,7 @@
 						type="text"
 						class="input input-bordered input-sm"
 						bind:value={newPurchase.store}
-						placeholder="Ex: Carrefour"
+						placeholder="Ex: Marché"
 					/>
 				</div>
 				<div class="form-control">
@@ -142,7 +142,7 @@
 					<input
 						id="purchase-price"
 						type="number"
-						step="0.01"
+						step="1"
 						class="input input-bordered input-sm"
 						bind:value={newPurchase.price}
 						placeholder="0.00"
@@ -173,7 +173,7 @@
 		</div>
 	</div>
 
-	{#if editingPurchases.length === 0}
+	{#if currentProductPurchases.length === 0}
 		<div class="text-center py-8 opacity-50">
 			<ShoppingCart class="w-12 h-12 mx-auto mb-2" />
 			<p>Aucun achat enregistré pour ce produit</p>
@@ -193,7 +193,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each editingPurchases as purchase (purchase.$id)}
+					{#each currentProductPurchases as purchase (purchase.$id)}
 						{#if editingPurchase?.$id === purchase.$id}
 							<tr class="bg-warning/10">
 								<td>
@@ -206,11 +206,11 @@
 										/>
 										<select class="select select-bordered select-xs w-16" bind:value={editingPurchase.unit}>
 											<option value="kg">kg</option>
-											<option value="g">g</option>
-											<option value="l">l</option>
+											<option value="gr.">gr.</option>
+											<option value="l.">l.</option>
 											<option value="ml">ml</option>
-											<option value="unités">unités</option>
-											<option value="pièces">pièces</option>
+											<option value="unité">unité·s</option>
+											<option value="bottes">botte·s</option>
 										</select>
 									</div>
 								</td>
@@ -229,7 +229,7 @@
 									/>
 								</td>
 								<td class="text-xs opacity-75">
-									{formatDate(purchase.dateTimePurchase)}
+									{formatDate(purchase.$createdAt)}
 								</td>
 								<td>
 									<input
@@ -272,7 +272,7 @@
 								</td>
 								<td>{purchase.store}</td>
 								<td>{purchase.who}</td>
-								<td class="text-xs opacity-75">{formatDate(purchase.dateTimePurchase)}</td>
+								<td class="text-xs opacity-75">{formatDate(purchase.$createdAt)}</td>
 								<td>{purchase.price ? `${purchase.price}€` : '-'}</td>
 								<td>{purchase.notes || '-'}</td>
 								<td>
@@ -281,7 +281,7 @@
 											class="btn btn-ghost btn-xs"
 											onclick={() => startEditPurchase(purchase)}
 										>
-											<Edit2 class="w-3 h-3" />
+											<SquarePen class="w-3 h-3" />
 										</button>
 										<button
 											class="btn btn-ghost btn-xs text-error"

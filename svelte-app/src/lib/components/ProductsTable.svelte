@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Products } from '../types/appwrite.d';
-  import { Search, Funnel, X, ChevronDown, ChevronRight, FunnelIcon } from '@lucide/svelte';
+  import { Search, X, FunnelIcon } from '@lucide/svelte';
   import { productsStore } from '../stores/ProductsStore.svelte';
   import ProductModal from './ProductModal.svelte';
 
@@ -17,14 +17,14 @@
 
   // État du ProductModal
   let productModalOpen = $state(false);
-  let productModalSelectedProduct = $state<Products | null>(null);
+  let productModalSelectedProductId = $state<string | null>(null);
   let productModalInitialTab = $state('recettes');
 
   // Gestionnaire de clics sur les cellules pour le ProductModal
   function handleCellClick(type: string, product: Products) {
     console.log(`Cell clicked: ${type}`, product);
-    productModalSelectedProduct = product;
-    
+    productModalSelectedProductId = product.$id;
+
     // Déterminer l'onglet à ouvrir selon le type de clic
     switch(type) {
       case 'store':
@@ -42,13 +42,13 @@
       default:
         productModalInitialTab = 'recettes';
     }
-    
+
     productModalOpen = true;
   }
 
   function closeProductModal() {
     productModalOpen = false;
-    productModalSelectedProduct = null;
+    productModalSelectedProductId = null;
   }
 
   // Gérer les événements du clavier (ESC pour fermer le ProductModal)
@@ -421,9 +421,9 @@
 </div>
 
 <!-- ProductModal -->
-<ProductModal 
-  isOpen={productModalOpen} 
-  product={productModalSelectedProduct}
+<ProductModal
+  isOpen={productModalOpen}
+  productId={productModalSelectedProductId}
   initialTab={productModalInitialTab}
   onclose={closeProductModal}
 />
