@@ -36,12 +36,10 @@
 	let editingPurchase: Purchases | null = $state(null);
 
 	function formatQuantity(quantity: number, unit: string): string {
-		if (unit === 'g' && quantity >= 1000) {
+		if (unit === 'gr.' && quantity >= 1000) {
 			return `${(quantity / 1000).toFixed(1)} kg`;
 		} else if (unit === 'ml' && quantity >= 1000) {
 			return `${(quantity / 1000).toFixed(1)} l`;
-		} else if (unit === 'unités' || unit === 'pièces') {
-			return `${quantity} ${unit}`;
 		}
 		return `${quantity} ${unit}`;
 	}
@@ -92,7 +90,7 @@
 						id="purchase-quantity"
 						type="number"
 						step="0.01"
-						class="input input-bordered input-sm"
+						class="input input-bordered validator"
 						bind:value={newPurchase.quantity}
 						required
 					/>
@@ -101,7 +99,7 @@
 					<label for="purchase-unit" class="label">
 						<span class="label-text">Unité</span>
 					</label>
-					<select id="purchase-unit" class="select select-bordered select-sm validator" bind:value={newPurchase.unit} required>
+					<select id="purchase-unit" class="select select-bordered validator" bind:value={newPurchase.unit} required>
 						<option disabled selected value="">Sélectionner</option>
 						<option value="kg">kg</option>
 						<option value="gr.">gr.</option>
@@ -118,7 +116,7 @@
 					<input
 						id="purchase-store"
 						type="text"
-						class="input input-bordered input-sm"
+						class="input input-bordered"
 						bind:value={newPurchase.store}
 						placeholder="Ex: Marché"
 					/>
@@ -130,7 +128,7 @@
 					<input
 						id="purchase-who"
 						type="text"
-						class="input input-bordered input-sm"
+						class="input input-bordered"
 						bind:value={newPurchase.who}
 						placeholder="Votre nom"
 					/>
@@ -143,7 +141,7 @@
 						id="purchase-price"
 						type="number"
 						step="1"
-						class="input input-bordered input-sm"
+						class="input input-bordered"
 						bind:value={newPurchase.price}
 						placeholder="0.00"
 					/>
@@ -155,7 +153,7 @@
 					<input
 						id="purchase-notes"
 						type="text"
-						class="input input-bordered input-sm"
+						class="input input-bordered"
 						bind:value={newPurchase.notes}
 						placeholder="Promotion, remarques..."
 					/>
@@ -201,10 +199,10 @@
 										<input
 											type="number"
 											step="0.01"
-											class="input input-bordered input-xs w-20"
+											class="input input-bordered w-20"
 											bind:value={editingPurchase.quantity}
 										/>
-										<select class="select select-bordered select-xs w-16" bind:value={editingPurchase.unit}>
+										<select class="select select-bordered w-16" bind:value={editingPurchase.unit}>
 											<option value="kg">kg</option>
 											<option value="gr.">gr.</option>
 											<option value="l.">l.</option>
@@ -217,14 +215,14 @@
 								<td>
 									<input
 										type="text"
-										class="input input-bordered input-xs w-24"
+										class="input input-bordered w-24"
 										bind:value={editingPurchase.store}
 									/>
 								</td>
 								<td>
 									<input
 										type="text"
-										class="input input-bordered input-xs w-20"
+										class="input input-bordered w-20"
 										bind:value={editingPurchase.who}
 									/>
 								</td>
@@ -235,38 +233,38 @@
 									<input
 										type="number"
 										step="0.01"
-										class="input input-bordered input-xs w-16"
+										class="input input-bordered w-16"
 										bind:value={editingPurchase.price}
 									/>
 								</td>
 								<td>
 									<input
 										type="text"
-										class="input input-bordered input-xs w-24"
+										class="input input-bordered w-24"
 										bind:value={editingPurchase.notes}
 									/>
 								</td>
 								<td>
-									<div class="btn-group btn-group-xs">
+									<div class="btn-group btn-group-sm">
 										<button
-											class="btn btn-success btn-xs"
+											class="btn btn-success btn-sm"
 											onclick={handleSavePurchase}
 											disabled={loading}
 										>
 											{#if loading}
-												<span class="loading loading-spinner loading-xs"></span>
+												<span class="loading loading-spinner loading-sm"></span>
 											{:else}
 												<Save class="w-3 h-3" />
 											{/if}
 										</button>
-										<button class="btn btn-ghost btn-xs" onclick={cancelEditPurchase}>
+										<button class="btn btn-ghost btn-sm" onclick={cancelEditPurchase}>
 											<X class="w-3 h-3" />
 										</button>
 									</div>
 								</td>
 							</tr>
 						{:else}
-							<tr>
+							<tr >
 								<td class="font-medium">
 									{formatQuantity(purchase.quantity, purchase.unit)}
 								</td>
@@ -278,20 +276,20 @@
 								<td>
 									<div class="btn-group btn-group-sm">
 										<button
-											class="btn btn-ghost btn-xs"
+											class="btn btn-ghost btn-sm"
 											onclick={() => startEditPurchase(purchase)}
 										>
-											<SquarePen class="w-3 h-3" />
+											<SquarePen class="w-4 h-4" />
 										</button>
 										<button
-											class="btn btn-ghost btn-xs text-error"
+											class="btn btn-ghost btn-sm text-error"
 											onclick={() => handleDeletePurchase(purchase.$id)}
 											disabled={loading}
 										>
 											{#if loading}
-												<span class="loading loading-spinner loading-xs"></span>
+												<span class="loading loading-spinner loading-sm"></span>
 											{:else}
-												<X class="w-3 h-3" />
+												<X class="w-4 h-4" />
 											{/if}
 										</button>
 									</div>

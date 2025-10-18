@@ -39,7 +39,7 @@
 
   // Données pour les formulaires
   let newPurchase = $state({
-    quantity: 0,
+    quantity: null as number | null,
     unit: '',
     store: '',
     who: '',
@@ -232,7 +232,7 @@
 
     await withLoading(async () => {
       const purchaseId = editingPurchase!.$id;
-      
+
       // Normaliser les unités avant envoi à Appwrite
       let normalizedQuantity = editingPurchase!.quantity;
       let normalizedUnit = editingPurchase!.unit;

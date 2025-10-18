@@ -696,11 +696,28 @@ class ProductsStore {
 
     // Conversion gr -> kg et ml -> l si >= 1000
     if ((unit === 'gr.' || unit === 'ml') && num >= 1000) {
-      const converted = (num / 1000).toFixed(2);
+      const converted = num / 1000;
       const newUnit = unit === 'gr.' ? 'kg' : 'l.';
-      return `${converted} ${newUnit}`;
+      
+      // Arrondi mathématique à 2 décimales + suppression des ,0
+      const rounded = Math.round(converted * 100) / 100;
+      let formatted = rounded.toString();
+      if (formatted.endsWith(',0')) formatted = formatted.slice(0, -2);
+      if (formatted.endsWith(',00')) formatted = formatted.slice(0, -3);
+      
+      return `${formatted} ${newUnit}`;
     }
 
+    // Pour les unités spécifiques : 1 décimale avec arrondi mathématique + suppression des ,0
+    if (!['gr.', 'ml', 'kg', 'l.'].includes(unit)) {
+      const rounded = Math.round(num * 10) / 10;
+      let formatted = rounded.toString();
+      if (formatted.endsWith(',0')) formatted = formatted.slice(0, -2);
+      
+      return `${formatted} ${unit}`;
+    }
+
+    // Pour gr. et ml (< 1000) : format entier
     return `${num} ${unit}`;
   }
 

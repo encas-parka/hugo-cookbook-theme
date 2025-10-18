@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { EnrichedProduct } from '../types/store.types';
-  import { Search, X, FunnelIcon } from '@lucide/svelte';
+  import { Search, X, FunnelIcon, Edit3, Store, Users, ShoppingCart, Refrigerator, Snowflake } from '@lucide/svelte';
   import { productsStore } from '../stores/ProductsStore.svelte';
   import ProductModal from './ProductModal.svelte';
 
@@ -229,64 +229,72 @@
   </div>
 
   <!-- Tableau -->
-  <div class="bg-base-200 rounded-lg p-4 overflow-x-auto">
+  <div class="bg-base-200 rounded-lg overflow-x-auto max-h-[calc(100vh-200px)]">
     <table class="table w-full">
-      <thead>
+      <thead class="sticky top-0 z-20 bg-base-300">
         <tr class="bg-base-300">
-          <th class="cursor-pointer hover:bg-base-400" onclick={() => productsStore.handleSort('productName')}>
-            <div class="flex items-center gap-2">
+          <th class="cursor-pointer hover:bg-base-200 text-center" onclick={() => productsStore.handleSort('productName')}>
+            <div class="flex items-center justify-center gap-2">
               Nom du produit
               {#if filters.sortColumn === 'productName'}
                 {filters.sortDirection === 'asc' ? '↑' : '↓'}
               {/if}
             </div>
           </th>
-          <th class="cursor-pointer hover:bg-base-400" onclick={() => productsStore.handleSort('store')}>
-            <div class="flex items-center gap-2">
+          <th class="cursor-pointer hover:bg-base-200 text-center {filters.groupBy === 'store' ? 'hidden' : ''}" onclick={() => productsStore.handleSort('store')}>
+            <div class="flex items-center justify-center gap-2">
+              <Store class="w-4 h-4" />
               Magasin
               {#if filters.sortColumn === 'store'}
                 {filters.sortDirection === 'asc' ? '↑' : '↓'}
               {/if}
             </div>
           </th>
-          <th class="cursor-pointer hover:bg-base-400" onclick={() => productsStore.handleSort('who')}>
-            <div class="flex items-center gap-2">
+          <th class="cursor-pointer hover:bg-base-200 text-center" onclick={() => productsStore.handleSort('who')}>
+            <div class="flex items-center justify-center gap-2">
+              <Users class="w-4 h-4" />
               Qui
               {#if filters.sortColumn === 'who'}
                 {filters.sortDirection === 'asc' ? '↑' : '↓'}
               {/if}
             </div>
           </th>
-          <th class="cursor-pointer hover:bg-base-400" onclick={() => productsStore.handleSort('productType')}>
-            <div class="flex items-center gap-2">
+          <th class="cursor-pointer hover:bg-base-200 text-center {filters.groupBy === 'productType' ? 'hidden' : ''}" onclick={() => productsStore.handleSort('productType')}>
+            <div class="flex items-center justify-center gap-2">
               Type
               {#if filters.sortColumn === 'productType'}
                 {filters.sortDirection === 'asc' ? '↑' : '↓'}
               {/if}
             </div>
           </th>
-          <th>Temp.</th>
-          <th>
-            <div class="flex items-center gap-2">
+          <th class="text-center">Temp.</th>
+          <th class="text-center">
+            <div class="flex items-center justify-center gap-2">
               Besoins
               {#if filters.sortColumn === 'totalNeededConsolidated'}
                 {filters.sortDirection === 'asc' ? '↑' : '↓'}
               {/if}
             </div>
           </th>
-          <th>Recettes / Assiettes</th>
-
-          <th>Achats</th>
-          <th>Quantité manquante</th>
+          <th class="text-center">
+            <div class="flex items-center justify-center gap-2">
+              <ShoppingCart class="w-4 h-4" />
+              Achats
+              {#if filters.sortColumn === 'totalPurchases'}
+                {filters.sortDirection === 'asc' ? '↑' : '↓'}
+              {/if}
+            </div>
+          </th>
+          <th class="text-center">Quantité manquante</th>
         </tr>
       </thead>
       <tbody>
         {#each Object.entries(groupedFormattedProducts) as [groupKey, groupProducts] (groupKey)}
           {#if groupKey !== ''}
             <!-- Header de groupe -->
-            <tr class="bg-base-300 font-semibold">
-              <td colspan="10" class="py-2">
-                <div class="flex items-center gap-2">
+            <tr class="bg-base-300 font-semibold sticky top-10 z-10">
+              <td colspan="8" class="py-2">
+                <div class="flex items-center justify-center gap-2">
                   {#if filters.groupBy === 'store'}
                     🏪 {groupKey} ({groupProducts.length})
                   {:else}
@@ -301,18 +309,20 @@
           {#each productsStore.sortProducts(groupProducts) as product (product.$id)}
             <tr class="hover:bg-base-300 transition-colors">
               <td
-                class="cursor-pointer hover:bg-blue-50"
+                class="cursor-pointer hover:bg-blue-50 relative group"
                 onclick={() => handleCellClick('productName', product)}
               >
-                <div class="font-medium">{product.productName}</div>
+                <div class="font-medium pr-8">{product.productName}</div>
                 {#if product.previousNames && product.previousNames.length > 0}
                   <div class="text-xs text-base-content/60">
                     Ancien: {product.previousNames[0]}
                   </div>
                 {/if}
+                <div class="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Edit3 class="w-3 h-3 text-blue-500" />
+                </div>
               </td>
-              <td
-                class="cursor-pointer hover:bg-green-50 font-medium"
+              <td class="{filters.groupBy === 'store' ? 'hidden' : ''} cursor-pointer hover:bg-green-50 font-medium relative group"
                 onclick={() => handleCellClick('store', product)}
               >
                 {#if product.storeInfo?.storeComment}
@@ -322,46 +332,65 @@
                 {:else}
                   {product.storeInfo?.storeName || '-'}
                 {/if}
+                <div class="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Edit3 class="w-3 h-3 text-green-500" />
+                </div>
               </td>
               <td
-                class="cursor-pointer hover:bg-purple-50"
+                class="cursor-pointer hover:bg-purple-50 relative group"
                 onclick={() => handleCellClick('who', product)}
               >
                 {#if product.who && product.who.length > 0}
-                  <div class="flex flex-wrap gap-1">
+                  <div class="flex flex-wrap gap-1 pr-8">
                     {#each product.who as person (person)}
-                      <span class="badge badge-outline badge-sm">{person}</span>
+                      <span class="badge badge-soft badge-success badge-sm">{person}</span>
                     {/each}
                   </div>
                 {:else}
                   -
                 {/if}
+                <div class="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Edit3 class="w-3 h-3 text-purple-500" />
+                </div>
               </td>
-              <td>
+              <td class="{filters.groupBy === 'productType' ? 'hidden' : ''}">
                 <span class="badge badge-ghost">{product.productType}</span>
               </td>
               <td>
                 <div class="flex gap-1">
                   {#if product.pFrais}
-                    <div class="badge badge-info badge-sm">F</div>
+                    <div class="badge badge-info badge-sm flex items-center gap-1">
+                      <Refrigerator class="w-3 h-3" />
+                      F
+                    </div>
                   {/if}
                   {#if product.pSurgel}
-                    <div class="badge badge-success badge-sm">S</div>
+                    <div class="badge badge-success badge-sm flex items-center gap-1">
+                      <Snowflake class="w-3 h-3" />
+                      S
+                    </div>
                   {/if}
                 </div>
               </td>
               <td class="text-right font-semibold">
-                {product.displayQuantity || '-'}
-              </td>
-              <td class="text-center">
-                <div class="text-sm">
-                  <div class="font-medium">{product.nbRecipes || 0} rec</div>
-                  <div class="text-xs text-gray-600">{product.totalAssiettes || 0} ass</div>
-                </div>
+                <div>{product.displayQuantity || '-'}</div>
+                {#if product.nbRecipes || product.totalAssiettes}
+                  <div class="text-sm text-base-content/70 flex gap-2">
+                    {#if product.nbRecipes}
+                      <span class="badge badge-ghost badge-xs">{product.nbRecipes} rec</span>
+                    {/if}
+                    {#if product.totalAssiettes}
+                      <span class="badge badge-ghost badge-xs">{product.totalAssiettes} ass</span>
+                    {/if}
+                  </div>
+                {/if}
               </td>
 
-              <td class="text-center font-medium cursor-pointer hover:bg-red-50" onclick={() => handleCellClick('purchases',product)}>
+              <td class="text-center font-medium cursor-pointer hover:bg-red-50 relative group" onclick={() => handleCellClick('purchases',product)}>
                 {product.displayTotalPurchases || '-'}
+                <div class="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Edit3 class="w-3 h-3 text-red-500" />
+                </div>
               </td>
               <td class="text-center font-medium {product.displayMissingQuantity === '✅ Complet' ? 'text-success' : 'text-warning'}">
                 {product.displayMissingQuantity}
