@@ -5,6 +5,7 @@
 
 import { ID, type Models } from 'appwrite';
 import type { Products, Purchases } from '../types/appwrite.d';
+import type { StoreInfo } from '../types/store.types';
 import { errorMessages } from 'vue/compiler-sfc';
 
 // =============================================================================
@@ -75,11 +76,11 @@ export async function updateProduct(
 /**
  * Met à jour le magasin d'un produit
  * @param productId - ID du produit
- * @param store - Nouveau magasin (null pour effacer)
+ * @param store - Nouveau magasin (objet StoreInfo ou null)
  */
 export async function updateProductStore(
     productId: string,
-    store: string | null
+    store: StoreInfo | null
 ): Promise<Products> {
     console.log(`[Appwrite Interactions] Mise à jour du magasin pour produit ${productId}:`, store);
     
@@ -88,10 +89,10 @@ export async function updateProductStore(
         throw new Error('ID du produit requis pour la mise à jour du magasin');
     }
     
-    // Normaliser la valeur du magasin
-    const normalizedStore = store && store.trim() !== '' ? store.trim() : null;
+    // Sérialiser l'objet StoreInfo en string JSON pour Appwrite
+    const serializedStore = store ? JSON.stringify(store) : null;
     
-    const result = await updateProduct(productId, { store: normalizedStore });
+    const result = await updateProduct(productId, { store: serializedStore });
     console.log(`[Appwrite Interactions] Magasin mis à jour pour produit ${productId}, nouvelle valeur:`, result.store);
     
     return result;

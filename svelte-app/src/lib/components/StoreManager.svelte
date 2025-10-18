@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { Store } from '@lucide/svelte';
 	import type { Products } from '../types/appwrite.d.ts';
+	import type { StoreInfo, EnrichedProduct } from '../types/store.types';
 
 	interface Props {
-		product: Products | null;
-		editingStore: string;
+		product: EnrichedProduct | null;
+		editingStore: StoreInfo | null;
 		loading: boolean;
-		onUpdateStore: (store: string) => Promise<void>;
+		onUpdateStore: (store: StoreInfo | null) => Promise<void>;
 	}
 
 	let {
@@ -16,12 +17,41 @@
 		onUpdateStore
 	}: Props = $props();
 
+	// État local pour le formulaire
+	let storeName = $state(editingStore?.storeName || '');
+	let storeComment = $state(editingStore?.storeComment || '');
+
+	// Synchroniser quand le produit change
+	$effect(() => {
+		if (product?.storeInfo) {
+			// Utiliser directement storeInfo depuis le produit enrichi
+			storeName = product.storeInfo.storeName || '';
+			storeComment = product.storeInfo.storeComment || '';
+		} else if (product?.store) {
+			try {
+				const storeInfo = JSON.parse(product.store) as StoreInfo;
+				storeName = storeInfo.storeName || '';
+				storeComment = storeInfo.storeComment || '';
+			} catch {
+				storeName = product.store || '';
+				storeComment = '';
+			}
+		} else {
+			storeName = '';
+			storeComment = '';
+		}
+	});
+
 	async function handleUpdateStore() {
-		await onUpdateStore(editingStore);
+		const storeInfo: StoreInfo | null = storeName.trim() 
+			? { storeName: storeName.trim(), storeComment: storeComment.trim() || undefined }
+			: null;
+		
+		await onUpdateStore(storeInfo);
 	}
 
 	function handleQuickSelectStore(store: string) {
-		editingStore = store;
+		storeName = store;
 	}
 </script>
 
@@ -37,26 +67,54 @@
 			<p class="text-sm opacity-75 mb-4">
 				Définissez le magasin où ce produit est généralement acheté
 			</p>
-			<div class="flex gap-2">
-				<div class="form-control flex-1">
-					<input
-						type="text"
-						class="input input-bordered input-sm"
-						bind:value={editingStore}
-						placeholder="Ex: Carrefour, Leclerc..."
-						onkeydown={(e) => {
-							if (e.key === 'Enter') {
-								handleUpdateStore();
-							}
-						}}
-					/>
-				</div>
-				<button class="btn btn-primary btn-sm" onclick={handleUpdateStore} disabled={loading || editingStore === product?.store}>
+			
+			<!-- Nom du magasin -->
+			<div class="form-control mb-3">
+				<label class="label" for="store-name">
+					<span class="label-text">Nom du magasin</span>
+				</label>
+				<input
+					id="store-name"
+					type="text"
+					class="input input-bordered input-sm"
+					bind:value={storeName}
+					placeholder="Ex: Carrefour, Leclerc..."
+					onkeydown={(e) => {
+						if (e.key === 'Enter') {
+							handleUpdateStore();
+						}
+					}}
+				/>
+			</div>
+
+			<!-- Commentaire du magasin -->
+			<div class="form-control mb-4">
+				<label class="label" for="store-comment">
+					<span class="label-text">Commentaire (optionnel)</span>
+				</label>
+				<textarea
+					id="store-comment"
+					class="textarea textarea-bordered textarea-sm"
+					bind:value={storeComment}
+					placeholder="Ex: Près de la caisse, rayon frais, etc."
+					rows="2"
+				></textarea>
+			</div>
+
+			<div class="flex gap-2 mb-4">
+				<button class="btn btn-primary btn-sm" onclick={handleUpdateStore} disabled={loading}>
 					{#if loading}
 						<span class="loading loading-spinner loading-sm"></span>
 					{:else}
 						Mettre à jour
 					{/if}
+				</button>
+				<button 
+					class="btn btn-ghost btn-sm" 
+					onclick={() => { storeName = ''; storeComment = ''; }}
+					disabled={loading}
+				>
+					Effacer
 				</button>
 			</div>
 
@@ -85,7 +143,14 @@
 				<Store class="w-4 h-4" />
 				<div>
 					<h4 class="font-semibold">Information sur le magasin actuel</h4>
-					{#if product?.store}
+					{#if product?.storeInfo}
+						<p class="text-sm">
+							<strong>Magasin défini :</strong> {product.storeInfo.storeName}
+							{#if product.storeInfo.storeComment}
+								<br><small class="opacity-75">{product.storeInfo.storeComment}</small>
+							{/if}
+						</p>
+					{:else if product?.store}
 						<p class="text-sm">
 							<strong>Magasin défini :</strong> {product.store}
 						</p>

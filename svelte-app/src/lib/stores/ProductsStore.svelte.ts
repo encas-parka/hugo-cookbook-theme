@@ -2,6 +2,7 @@ import { PersistedState } from 'runed';
 import { useDebounce } from 'runed';
 import { createStorageKey } from '../utils/url-utils';
 import type { Products, Purchases } from '../types/appwrite.d';
+import type { StoreInfo } from '../types/store.types';
 
 /**
  * ProductsStore - Store des produits avec flux de données réactif Svelte 5
@@ -57,6 +58,20 @@ class ProductsStore {
   #syncState: PersistedState<SyncState> | null = $state(null);
   #unsubscribe: (() => void) | null = $state(null);
 
+  // Utilitaire pour parser JSON en toute sécurité
+  #safeJsonParse<T>(jsonString: string | null, defaultValue: T | null = null): T | null {
+    if (!jsonString || jsonString.trim() === '') {
+      return defaultValue;
+    }
+    
+    try {
+      return JSON.parse(jsonString) as T;
+    } catch (error) {
+      console.warn('[ProductsStore] Erreur de parsing JSON, utilisation de la valeur par défaut:', error);
+      return defaultValue;
+    }
+  }
+
   // États dérivés directement depuis PersistedState - plus de duplication !
   products = $derived(this.#productsState?.current.products ?? []);
   loading = $derived(this.#productsState?.current.loading ?? false);
@@ -83,90 +98,60 @@ class ProductsStore {
   // Exposition des filtres (lecture/écriture)
   get filters() { return this.#filters; }
 
-  // Valeurs uniques pour les filtres (dérivés)
-  uniqueStores = $derived([...new Set(this.products.map(p => p.store).filter(Boolean))] as string[]);
-  uniqueWho = $derived([...new Set(this.products.flatMap(p => p.who || []).filter(Boolean))] as string[]);
-  uniqueProductTypes = $derived([...new Set(this.products.map(p => p.productType).filter(Boolean))] as string[]);
-
-  // Produits filtrés (dérivé)
-  filteredProducts = $derived.by(() => {
-    let filtered = this.products;
-
-    // Recherche textuelle
-    if (this.#filters.searchQuery.trim()) {
-      const query = this.#filters.searchQuery.toLowerCase();
-      filtered = filtered.filter(p =>
-        p.productName.toLowerCase().includes(query)
-      );
-    }
-
-    // Filtre par store
-    if (this.#filters.selectedStores.length > 0) {
-      filtered = filtered.filter(p => p.store && this.#filters.selectedStores.includes(p.store));
-    }
-
-    // Filtre par who
-    if (this.#filters.selectedWho.length > 0) {
-      filtered = filtered.filter(p =>
-        p.who && p.who.some(w => this.#filters.selectedWho.includes(w))
-      );
-    }
-
-    // Filtre par productType
-    if (this.#filters.selectedProductType) {
-      filtered = filtered.filter(p => p.productType === this.#filters.selectedProductType);
-    }
-
-    // Filtres pFrais/pSurgel
-    if (!this.#filters.showPFrais && !this.#filters.showPSurgel) {
-      return [];
-    }
-    if (!this.#filters.showPFrais) {
-      filtered = filtered.filter(p => !p.pFrais);
-    }
-    if (!this.#filters.showPSurgel) {
-      filtered = filtered.filter(p => !p.pSurgel);
-    }
-
-    return filtered;
-  });
-
-  // Produits groupés (dérivé)
-  // @deprecated
-  groupedProducts = $derived.by(() => {
-    if (this.#filters.groupBy === 'none') {
-      return { '': this.filteredProducts };
-    }
-
-    return Object.groupBy(this.filteredProducts, (product) => {
-      return this.#filters.groupBy === 'store'
-        ? (product.store || 'Non défini')
-        : product.productType;
-    });
-  });
-
-  // Produits formatés pour l'affichage (dérivé)
-  formattedProducts = $derived.by(() => {
-    return this.filteredProducts.map(p => ({
+  // Étape 1 : Parsing & Formatting (calculé une seule fois)
+  enrichedProducts = $derived.by(() => {
+    return this.products.map(p => ({
       ...p,
-      totalNeededDisplay: this.#formatQuantity(p.totalNeededConsolidated),
-      stockReelDisplay: this.#formatQuantity(p.stockReel),
+      // Parsing des JSON strings en objets exploitables
+      storeInfo: p.store ? this.#safeJsonParse<StoreInfo>(p.store) : null,
+      totalNeededArray: p.totalNeededConsolidated ? this.#safeJsonParse(p.totalNeededConsolidated) : [],
+      recipesArray: p.recipesOccurrences ? this.#safeJsonParse(p.recipesOccurrences) : [],
+      stockArray: p.stockReel ? this.#safeJsonParse(p.stockReel) : [],
+      // Propriétés formatées pour l'affichage
+      displayQuantity: this.#formatQuantity(p.totalNeededConsolidated),
+      displayName: p.productName.trim(),
       nbPurchases: p.purchases?.length ?? 0
     }));
   });
 
-  // Produits formatés groupés (dérivé) - pour affichage optimisé
-  groupedFormattedProducts = $derived.by(() => {
+  // Valeurs uniques pour les filtres (utilise enrichedProducts)
+  uniqueStores = $derived.by(() => {
+    const storeNames = this.enrichedProducts
+      .map(p => p.storeInfo?.storeName)
+      .filter(Boolean);
+    
+    return [...new Set(storeNames)] as string[];
+  });
+  
+  uniqueWho = $derived.by(() => [...new Set(this.products.flatMap(p => p.who || []).filter(Boolean))] as string[]);
+  uniqueProductTypes = $derived.by(() => [...new Set(this.products.map(p => p.productType).filter(Boolean))] as string[]);
+
+  // Étape 2 : Filtrage & Groupement (réactif aux filtres)
+  filteredGroupedProducts = $derived.by(() => {
+    // Filtrage
+    const filtered = this.enrichedProducts.filter(p => this.#matchesFilters(p));
+    
+    // Groupement
     if (this.#filters.groupBy === 'none') {
-      return { '': this.formattedProducts };
+      return { '': filtered };
     }
 
-    return Object.groupBy(this.formattedProducts, (product) => {
-      return this.#filters.groupBy === 'store'
-        ? (product.store || 'Non défini')
-        : product.productType;
+    return Object.groupBy(filtered, (product) => {
+      if (this.#filters.groupBy === 'store') {
+        return product.storeInfo?.storeName || 'Non défini';
+      } else {
+        return product.productType || 'Non défini';
+      }
     });
   });
+
+  // Alias pour compatibilité avec l'existant
+  filteredProducts = $derived.by(() => {
+    const groups = Object.values(this.filteredGroupedProducts);
+    return groups.flat();
+  });
+
+  groupedFormattedProducts = $derived.by(() => this.filteredGroupedProducts);
 
   // Statistiques dérivées
   stats = $derived.by(() => ({
@@ -174,8 +159,8 @@ class ProductsStore {
     frais: this.filteredProducts.filter(p => p.pFrais).length,
     surgel: this.filteredProducts.filter(p => p.pSurgel).length,
     merged: this.filteredProducts.filter(p => p.isMerged).length,
-    byStore: this.#groupByStore(this.products),
-    byType: this.#groupByType(this.products)
+    byStore: this.#groupByStore(this.enrichedProducts),
+    byType: this.#groupByType(this.enrichedProducts)
   }));
 
   // Getters pour l'accès
@@ -593,6 +578,53 @@ class ProductsStore {
   // MÉTHODES PRIVÉES UTILITAIRES
   // =========================================================================
 
+  /**
+   * Vérifie si un produit correspond aux filtres actuels
+   */
+  #matchesFilters(product: any): boolean {
+    // Recherche textuelle
+    if (this.#filters.searchQuery.trim()) {
+      const query = this.#filters.searchQuery.toLowerCase();
+      if (!product.productName.toLowerCase().includes(query)) {
+        return false;
+      }
+    }
+
+    // Filtre par store
+    if (this.#filters.selectedStores.length > 0) {
+      if (!product.storeInfo?.storeName || !this.#filters.selectedStores.includes(product.storeInfo.storeName)) {
+        return false;
+      }
+    }
+
+    // Filtre par who
+    if (this.#filters.selectedWho.length > 0) {
+      if (!product.who || !product.who.some(w => this.#filters.selectedWho.includes(w))) {
+        return false;
+      }
+    }
+
+    // Filtre par productType
+    if (this.#filters.selectedProductType) {
+      if (product.productType !== this.#filters.selectedProductType) {
+        return false;
+      }
+    }
+
+    // Filtres pFrais/pSurgel
+    if (!this.#filters.showPFrais && !this.#filters.showPSurgel) {
+      return false;
+    }
+    if (!this.#filters.showPFrais && product.pFrais) {
+      return false;
+    }
+    if (!this.#filters.showPSurgel && product.pSurgel) {
+      return false;
+    }
+
+    return true;
+  }
+
   #formatQuantity(jsonString: string | null): string {
     if (!jsonString) return '-';
 
@@ -622,16 +654,16 @@ class ProductsStore {
     return `${num} ${unit}`;
   }
 
-  #groupByStore(products: Products[]) {
+  #groupByStore(products: any[]) {
     const groups: Record<string, number> = {};
     for (const product of products) {
-      const store = product.store || 'Non défini';
+      const store = product.storeInfo?.storeName || 'Non défini';
       groups[store] = (groups[store] || 0) + 1;
     }
     return groups;
   }
 
-  #groupByType(products: Products[]) {
+  #groupByType(products: any[]) {
     const groups: Record<string, number> = {};
     for (const product of products) {
       groups[product.productType] = (groups[product.productType] || 0) + 1;

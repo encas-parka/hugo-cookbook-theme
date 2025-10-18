@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Products } from '../types/appwrite.d';
+import type { StoreInfo, EnrichedProduct } from '../types/store.types';
   import { Search, X, FunnelIcon } from '@lucide/svelte';
   import { productsStore } from '../stores/ProductsStore.svelte';
   import ProductModal from './ProductModal.svelte';
@@ -13,7 +14,7 @@
     uniqueWho,
     uniqueProductTypes,
     filters
-  } = $derived(productsStore);
+  } = productsStore;
 
   // État du ProductModal
   let productModalOpen = $state(false);
@@ -21,7 +22,7 @@
   let productModalInitialTab = $state('recettes');
 
   // Gestionnaire de clics sur les cellules pour le ProductModal
-  function handleCellClick(type: string, product: Products) {
+  function handleCellClick(type: string, product: EnrichedProduct) {
     console.log(`Cell clicked: ${type}`, product);
     productModalSelectedProductId = product.$id;
 
@@ -322,7 +323,13 @@
                 class="cursor-pointer hover:bg-green-50 font-medium"
                 onclick={() => handleCellClick('store', product)}
               >
-                {product.store || '-'}
+                {#if product.storeInfo?.storeComment}
+                  <div class="tooltip tooltip-info" data-tip={product.storeInfo.storeComment}>
+                    {product.storeInfo.storeName || '-'}
+                  </div>
+                {:else}
+                  {product.storeInfo?.storeName || '-'}
+                {/if}
               </td>
               <td
                 class="cursor-pointer hover:bg-purple-50"
@@ -352,7 +359,7 @@
                 </div>
               </td>
               <td class="text-right font-semibold">
-                {product.totalNeededDisplay || '-'}
+                {product.displayQuantity || '-'}
               </td>
               <td class="text-center">
                 <div class="text-sm">
