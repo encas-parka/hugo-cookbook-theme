@@ -6,7 +6,8 @@ import type { StoreInfo } from '../types/store.types';
 import { 
   loadProducts, 
   syncProducts, 
-  mergeUpdatedProducts,
+  applyProductUpdates,
+  subscribeToRealtime,
   type LoadProductsOptions,
   type SyncOptions
 } from '../services/appwrite-interactions';
@@ -14,12 +15,34 @@ import {
 /**
  * ProductsStore - Store des produits avec flux de données réactif Svelte 5
  *
+ * Architecture moderne avec séparation des responsabilités :
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │                    ProductsStore                           │
+ * │  • Gestion d'état réactif (Svelte 5)                       │
+ * │  • Logique métier (filtres, formatage, groupement)        │
+ * │  • UI réactive (loading, error, syncing)                  │
+ * └─────────────────▲───────────────────────────────────────────┘
+ *                   │ Appelle les services
+ *                   │
+ * ┌─────────────────▼───────────────────────────────────────────┐
+ * │              appwrite-interactions                         │
+ * │  • Accès aux données Appwrite pur                          │
+ * │  • Logique de chargement, synchro, realtime               │
+ * │  • Transformations de données sans état                   │
+ * └─────────────────────────────────────────────────────────────┘
+ *
  * Flux de données automatique avec $derived (pas de synchronisation manuelle) :
  *
- * products (bruts)
+ * products (bruts, issus d'appwrite-interactions)
  *   ↓ filteredProducts (filtrés par recherche/store/type/etc.)
  *   ↓ formattedProducts (formatés pour l'affichage)
  *   ↓ groupedFormattedProducts (groupés par magasin/type)
+ *
+ * Services utilisés :
+ * • loadProducts() : Chargement initial des produits avec achats
+ * • syncProducts() : Synchronisation incrémentielle (si cache existant)
+ * • applyProductUpdates() : Application des mises à jour de sync
+ * • subscribeToRealtime() : Abonnement aux événements temps réel
  *
  * @usage
  * await productsStore.initialize('mainId');
@@ -182,6 +205,17 @@ class ProductsStore {
   // INITIALISATION
   // =========================================================================
 
+  /**
+   * Initialise le store avec un mainId
+   * @param mainId - Identifiant du main à charger
+   * 
+   * Flux d'initialisation :
+   * 1. Crée les états persistés (products-state, sync-state)
+   * 2. Charge depuis le cache OU fait un chargement initial via loadProducts()
+   * 3. Synchronise incrémentiellement via syncProducts() si cache existant
+   * 4. Configure l'abonnement realtime via subscribeToRealtime()
+   */
+
   async initialize(mainId: string) {
     if (!mainId?.trim()) {
       throw new Error('mainId invalide fourni');
@@ -207,11 +241,12 @@ class ProductsStore {
       await this.#syncInBackground();
     } else {
       console.log('[ProductsStore] Chargement initial depuis Appwrite');
-      await this.#loadFromAppwrite(mainId);
+      await this.#loadProductsFromService(mainId);
     }
 
     // Configuration realtime
-    await this.#setupRealtime(mainId);
+    const callbacks = this.#setupRealtimeCallbacks();
+    this.#unsubscribe = subscribeToRealtime(mainId, callbacks);
   }
 
   #createPersistedStates(mainId: string) {
@@ -243,7 +278,7 @@ class ProductsStore {
   // CHARGEMENT & SYNCHRONISATION
   // =========================================================================
 
-  async #loadFromAppwrite(mainId: string) {
+  async #loadProductsFromService(mainId: string) {
     if (!this.#productsState) {
       throw new Error('ProductsStore non initialisé');
     }
@@ -259,9 +294,7 @@ class ProductsStore {
       };
 
       const productsWithPurchases = await loadProducts(mainId, options);
-
       this.#updateState({ products: productsWithPurchases });
-
       this.#updateLastSync();
       console.log(`[ProductsStore] ${productsWithPurchases.length} produits chargés`);
 
@@ -289,7 +322,9 @@ class ProductsStore {
       const updatedProducts = await syncProducts(this.#currentMainId!, options);
 
       if (updatedProducts.length > 0) {
-        this.#mergeProducts(updatedProducts);
+        this.#updateState({ 
+          products: applyProductUpdates(this.products, updatedProducts) 
+        });
         this.#updateLastSync();
         console.log(`[ProductsStore] ${updatedProducts.length} mises à jour synchronisées`);
       }
@@ -302,102 +337,73 @@ class ProductsStore {
     }
   }
 
-  #mergeProducts(updatedProducts: Products[]) {
-    const mergedProducts = mergeUpdatedProducts(this.products, updatedProducts);
-    this.#updateState({ products: mergedProducts });
+  // =========================================================================
+  // GESTION DÉTAT
+  // =========================================================================
+
+  #handleProductCreate(createdProduct: Products) {
+    if (!this.#productsState) return;
+    
+    const exists = this.products.some(p => p.$id === createdProduct.$id);
+    if (!exists) {
+      this.#updateState({
+        products: [...this.products, createdProduct]
+      });
+    }
   }
 
-  // =========================================================================
-  // REALTIME
-  // =========================================================================
+  #handleProductUpdate(updatedProduct: Products) {
+    if (!this.#productsState) return;
+    
+    // Merge the updated fields with the existing product to preserve all data
+    this.#updateState({
+      products: this.products.map(p => {
+        if (p.$id === updatedProduct.$id) {
+          // Create a merged product that preserves all existing fields
+          // while updating only the fields that came in the payload
+          const mergedProduct = { ...p };
 
-  async #setupRealtime(mainId: string) {
-     this.#unsubscribe?.();
-
-     console.log('[ProductsStore] Configuration realtime:', mainId);
-
-     try {
-       // S'assurer qu'Appwrite est initialisé avant de s'abonner
-       await window.AppwriteClient.initializeAppwrite();
-
-       this.#unsubscribe = window.AppwriteClient.subscribeToCollections(
-         ['products', 'purchases'],
-         mainId,
-         (response: any) => this.#handleRealtimeEvent(response),
-         {
-           onConnect: () => {
-             console.log('[ProductsStore] Realtime connecté');
-             this.#updateState({ realtimeConnected: true });
-           },
-           onDisconnect: () => {
-             console.log('[ProductsStore] Realtime déconnecté');
-             this.#updateState({ realtimeConnected: false });
-           },
-           onError: (error: any) => {
-             console.error('[ProductsStore] Erreur realtime:', error);
-           }
-         }
-       );
-     } catch (err) {
-       console.error('[ProductsStore] Impossible de configurer realtime:', err);
-     }
-   }
-
-  #handleRealtimeEvent(response: any) {
-    const { events, payload } = response;
-    if (!payload || !this.#productsState) return;
-
-    // Déterminer la collection source à partir des événements
-    const isProductsCollection = events.some((e: string) => e.includes('products.'));
-    const isPurchasesCollection = events.some((e: string) => e.includes('purchases.'));
-
-    const isCreate = events.some((e: string) => e.includes('.create'));
-    const isUpdate = events.some((e: string) => e.includes('.update'));
-    const isDelete = events.some((e: string) => e.includes('.delete'));
-
-    if (isProductsCollection) {
-      // Gérer les événements de la collection products (comportement existant)
-      const updatedProduct = payload as Products;
-      if (isCreate) {
-        const exists = this.products.some(p => p.$id === updatedProduct.$id);
-        if (!exists) {
-          this.#updateState({
-            products: [...this.products, updatedProduct]
-          });
-        }
-      } else if (isUpdate) {
-        // Merge the updated fields with the existing product to preserve all data
-        this.#updateState({
-          products: this.products.map(p => {
-            if (p.$id === updatedProduct.$id) {
-              // Create a merged product that preserves all existing fields
-              // while updating only the fields that came in the payload
-              const mergedProduct = { ...p };
-
-              // Only update the fields that are present in the payload
-              Object.keys(updatedProduct).forEach(key => {
-                if (updatedProduct[key as keyof Products] !== undefined) {
-                  (mergedProduct as any)[key] = updatedProduct[key as keyof Products];
-                }
-              });
-
-              return mergedProduct;
+          // Only update the fields that are present in the payload
+          Object.keys(updatedProduct).forEach(key => {
+            if (updatedProduct[key as keyof Products] !== undefined) {
+              (mergedProduct as any)[key] = updatedProduct[key as keyof Products];
             }
-            return p;
-          })
-        });
-      } else if (isDelete) {
-        this.#updateState({
-          products: this.products.filter(p => p.$id !== updatedProduct.$id)
-        });
-      }
-    } else if (isPurchasesCollection) {
-      // Pour les événements de purchases, mettre à jour uniquement les produits concernés
-      console.log('[ProductsStore] Événement purchase détecté, mise à jour des produits concernés...');
-      this.#updateProductsFromPurchase(payload as Purchases);
-    }
+          });
 
-    this.#debouncedUpdateLastSync();
+          return mergedProduct;
+        }
+        return p;
+      })
+    });
+  }
+
+  #handleProductDelete(deletedProductId: string) {
+    if (!this.#productsState) return;
+    
+    this.#updateState({
+      products: this.products.filter(p => p.$id !== deletedProductId)
+    });
+  }
+
+  #handlePurchaseCreate(purchase: Purchases) {
+    console.log('[ProductsStore] Purchase créé, mise à jour des produits concernés...');
+    this.#updateProductsFromPurchase(purchase);
+  }
+
+  #handlePurchaseUpdate(purchase: Purchases) {
+    console.log('[ProductsStore] Purchase mis à jour, mise à jour des produits concernés...');
+    this.#updateProductsFromPurchase(purchase);
+  }
+
+  #handlePurchaseDelete(purchaseId: string) {
+    console.log('[ProductsStore] Purchase supprimé, nettoyage des produits concernés...');
+    // Retirer le purchase supprimé de tous les produits
+    this.#updateState({
+      products: this.products.map(product => ({
+        ...product,
+        purchases: (product.purchases || []).filter(p => p.$id !== purchaseId)
+      }))
+    });
   }
 
   #updateProductsFromPurchase(purchase: Purchases) {
@@ -422,6 +428,46 @@ class ProductsStore {
     });
 
     console.log(`[ProductsStore] ${purchase.products.length} produit(s) mis à jour avec le purchase ${purchase.$id}`);
+  }
+
+  #setupRealtimeCallbacks() {
+    return {
+      onProductCreate: (product: Products) => {
+        this.#handleProductCreate(product);
+        this.#debouncedUpdateLastSync();
+      },
+      onProductUpdate: (product: Products) => {
+        this.#handleProductUpdate(product);
+        this.#debouncedUpdateLastSync();
+      },
+      onProductDelete: (productId: string) => {
+        this.#handleProductDelete(productId);
+        this.#debouncedUpdateLastSync();
+      },
+      onPurchaseCreate: (purchase: Purchases) => {
+        this.#handlePurchaseCreate(purchase);
+        this.#debouncedUpdateLastSync();
+      },
+      onPurchaseUpdate: (purchase: Purchases) => {
+        this.#handlePurchaseUpdate(purchase);
+        this.#debouncedUpdateLastSync();
+      },
+      onPurchaseDelete: (purchaseId: string) => {
+        this.#handlePurchaseDelete(purchaseId);
+        this.#debouncedUpdateLastSync();
+      },
+      onConnect: () => {
+        console.log('[ProductsStore] Realtime connecté');
+        this.#updateState({ realtimeConnected: true });
+      },
+      onDisconnect: () => {
+        console.log('[ProductsStore] Realtime déconnecté');
+        this.#updateState({ realtimeConnected: false });
+      },
+      onError: (error: any) => {
+        console.error('[ProductsStore] Erreur realtime:', error);
+      }
+    };
   }
 
   #updateLastSync() {
@@ -450,7 +496,7 @@ class ProductsStore {
   // =========================================================================
 
   async forceReload(mainId: string) {
-    await this.#loadFromAppwrite(mainId);
+    await this.#loadProductsFromService(mainId);
   }
 
   destroy() {

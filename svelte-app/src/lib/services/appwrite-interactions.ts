@@ -1,6 +1,43 @@
 /**
  * Services d'interaction avec Appwrite pour la gestion des produits et achats
+ * 
+ * Architecture moderne avec séparation des responsabilités :
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │              appwrite-interactions                         │
+ * │  • Accès aux données Appwrite pur                          │
+ * │  • Transformations de données sans état                   │
+ * │  • Logique de chargement, synchro, realtime               │
+ * └─────────────────▲───────────────────────────────────────────┘
+ *                   │ Fournit les services
+ *                   │
+ * ┌─────────────────▼───────────────────────────────────────────┐
+ * │                    ProductsStore                           │
+ * │  • Gestion d'état réactif (Svelte 5)                       │
+ * │  • Logique métier (filtres, formatage, groupement)        │
+ * │  • UI réactive (loading, error, syncing)                  │
+ * └─────────────────────────────────────────────────────────────┘
+ * 
+ * Services principaux :
+ * ─────────────────────────────────────────────────────────────
+ * Lecture :
+ * • loadProducts() : Chargement initial des produits avec achats associés
+ * • syncProducts() : Synchronisation incrémentielle (delta depuis lastSync)
+ * 
+ * Écriture :
+ * • updateProduct() : Mise à jour d'un produit
+ * • createPurchase() : Création d'un purchase
+ * • updatePurchase() : Mise à jour d'un purchase
+ * • deletePurchase() : Suppression d'un purchase
+ * 
+ * Realtime :
+ * • subscribeToRealtime() : Abonnement aux événements produits/achats
+ * 
+ * Utilitaires :
+ * • mergeProductsWithPurchases() : Enrichit les produits avec leurs achats
+ * • applyProductUpdates() : Applique les mises à jour incrémentielles
+ * 
  * Ce fichier encapsule les opérations CRUD en utilisant le client Appwrite existant
+ * et fournit une API propre pour les stores Svelte 5.
  */
 
 import { ID, Query, type Models } from 'appwrite';
@@ -77,9 +114,19 @@ async function getAppwriteInstances() {
 
 /**
  * Charge les produits depuis Appwrite avec leurs achats associés
+ * 
+ * Service principal de chargement initial pour ProductsStore.
+ * Gère le chargement des produits et optionnellement leurs achats associés.
+ * 
  * @param mainId - ID du main pour filtrer les produits
  * @param options - Options de chargement (pagination, tri, inclusion des achats)
- * @returns Promise<ProductWithPurchases[]>
+ * @returns Promise<ProductWithPurchases[]> - Produits enrichis avec leurs achats si demandé
+ * 
+ * Flux :
+ * 1. Charge les produits depuis la collection products
+ * 2. Si includePurchases=true, charge les achats associés
+ * 3. Utilise mergeProductsWithPurchases pour enrichir les produits
+ * 4. Retourne les produits prêts à être utilisés par ProductsStore
  */
 export async function loadProducts(
     mainId: string,
@@ -135,9 +182,19 @@ export async function loadProducts(
 
 /**
  * Synchronise les produits depuis Appwrite (uniquement les mises à jour)
+ * 
+ * Service de synchronisation incrémentielle pour ProductsStore.
+ * Optimisé pour ne charger que les modifications depuis dernière synchronisation.
+ * 
  * @param mainId - ID du main pour filtrer les produits
  * @param options - Options de synchronisation (dernière sync, limite)
- * @returns Promise<Products[]>
+ * @returns Promise<Products[]> - Uniquement les produits modifiés/créés depuis lastSync
+ * 
+ * Flux :
+ * 1. Vérifie la présence de lastSync (sinon retourne vide)
+ * 2. Requête Appwrite avec filtre $updatedAt > lastSync
+ * 3. Retourne uniquement le delta des modifications
+ * 4. ProductsStore utilisera applyProductUpdates pour fusionner ces changements
  */
 export async function syncProducts(
     mainId: string,
@@ -375,14 +432,24 @@ export function mergeProductsWithPurchases(
 }
 
 /**
- * Fusionne les produits existants avec les produits mis à jour
- * Conserve les produits existants qui ne sont pas dans les mises à jour
- * Ajoute les nouveaux produits
- * @param currentProducts - Liste actuelle des produits
- * @param updatedProducts - Liste des produits mis à jour ou nouveaux
- * @returns Array<Products>
+ * Applique les mises à jour de produits aux produits existants
+ * 
+ * Utilitaire principal pour la synchronisation incrémentielle de ProductsStore.
+ * Fusionne intelligemment les produits existants avec les mises à jour reçues.
+ * 
+ * @param currentProducts - Liste actuelle des produits dans le store
+ * @param updatedProducts - Liste des produits mis à jour ou nouveaux (de syncProducts)
+ * @returns Array<Products> - Liste fusionnée prête à remplacer l'état du store
+ * 
+ * Algorithme :
+ * 1. Crée un Map des produits mis à jour pour lookup O(1)
+ * 2. Remplace les produits existants par leurs versions mises à jour
+ * 3. Conserve les produits non modifiés
+ * 4. Ajoute les nouveaux produits qui n'existaient pas
+ * 
+ * Utilisé par ProductsStore après syncProducts() ou lors des événements realtime.
  */
-export function mergeUpdatedProducts(
+export function applyProductUpdates(
     currentProducts: Products[],
     updatedProducts: Products[]
 ): Products[] {
@@ -468,6 +535,115 @@ export function parseRecipesOccurrences(recipesJson: string | null): Array<{
 }
 
 // =============================================================================
+// SERVICES REALTIME
+// =============================================================================
+
+/**
+ * S'abonne aux événements realtime des collections products et purchases
+ * 
+ * Service principal pour les mises à jour en temps réel de ProductsStore.
+ * Gère l'abonnement Appwrite et dispatche les événements vers les callbacks appropriés.
+ * 
+ * @param mainId - ID du main pour filtrer les événements
+ * @param callbacks - Fonctions de callback pour chaque type d'événement
+ * @returns Function - Fonction de désabonnement (appeler pour se désabonner)
+ * 
+ * Flux :
+ * 1. Initialise AppwriteClient si nécessaire
+ * 2. S'abonne aux collections products et purchases pour ce mainId
+ * 3. Parse les événements Appwrite (create/update/delete)
+ * 4. Dispatch vers les callbacks appropriés (onProductCreate, onPurchaseUpdate, etc.)
+ * 5. Gère le cycle de vie (connect/disconnect/error)
+ * 
+ * ProductsStore fournit les callbacks qui mettent à jour l'état réactif.
+ */
+export function subscribeToRealtime(
+    mainId: string,
+    callbacks: RealtimeCallbacks = {}
+): () => void {
+    let unsubscribe: (() => void) | null = null;
+
+    const handleRealtimeEvent = (response: any) => {
+        const { events, payload } = response;
+        if (!payload) return;
+
+        // Déterminer la collection source à partir des événements
+        const isProductsCollection = events.some((e: string) => e.includes('products.'));
+        const isPurchasesCollection = events.some((e: string) => e.includes('purchases.'));
+
+        const isCreate = events.some((e: string) => e.includes('.create'));
+        const isUpdate = events.some((e: string) => e.includes('.update'));
+        const isDelete = events.some((e: string) => e.includes('.delete'));
+
+        // Dispatcher vers les callbacks appropriés
+        if (isProductsCollection) {
+            const product = payload as Products;
+            
+            if (isCreate && callbacks.onProductCreate) {
+                callbacks.onProductCreate(product);
+            } else if (isUpdate && callbacks.onProductUpdate) {
+                callbacks.onProductUpdate(product);
+            } else if (isDelete && callbacks.onProductDelete) {
+                callbacks.onProductDelete(product.$id);
+            }
+        } else if (isPurchasesCollection) {
+            const purchase = payload as Purchases;
+            
+            if (isCreate && callbacks.onPurchaseCreate) {
+                callbacks.onPurchaseCreate(purchase);
+            } else if (isUpdate && callbacks.onPurchaseUpdate) {
+                callbacks.onPurchaseUpdate(purchase);
+            } else if (isDelete && callbacks.onPurchaseDelete) {
+                callbacks.onPurchaseDelete(purchase.$id);
+            }
+        }
+    };
+
+    const setupSubscription = async () => {
+        try {
+            // S'assurer qu'Appwrite est initialisé avant de s'abonner
+            if (typeof window !== 'undefined' && window.AppwriteClient) {
+                await window.AppwriteClient.initializeAppwrite();
+
+                unsubscribe = window.AppwriteClient.subscribeToCollections(
+                    ['products', 'purchases'],
+                    mainId,
+                    handleRealtimeEvent,
+                    {
+                        onConnect: () => {
+                            console.log('[Appwrite Interactions] Realtime connecté');
+                            callbacks.onConnect?.();
+                        },
+                        onDisconnect: () => {
+                            console.log('[Appwrite Interactions] Realtime déconnecté');
+                            callbacks.onDisconnect?.();
+                        },
+                        onError: (error: any) => {
+                            console.error('[Appwrite Interactions] Erreur realtime:', error);
+                            callbacks.onError?.(error);
+                        }
+                    }
+                );
+            }
+        } catch (error) {
+            console.error('[Appwrite Interactions] Impossible de configurer realtime:', error);
+            callbacks.onError?.(error);
+        }
+    };
+
+    // Lancer la configuration de l'abonnement
+    setupSubscription();
+
+    // Retourner la fonction de désabonnement
+    return () => {
+        if (unsubscribe) {
+            unsubscribe();
+            unsubscribe = null;
+        }
+    };
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -476,6 +652,9 @@ export default {
     loadProducts,
     syncProducts,
     
+    // Services realtime
+    subscribeToRealtime,
+
     // Services produits - mise à jour
     updateProduct,
     updateProductStore,
@@ -489,7 +668,7 @@ export default {
 
     // Utilitaires de merge
     mergeProductsWithPurchases,
-    mergeUpdatedProducts,
+    applyProductUpdates,
 
     // Utilitaires de parsing
     formatStockData,
