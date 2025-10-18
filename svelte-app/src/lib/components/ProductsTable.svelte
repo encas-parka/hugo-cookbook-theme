@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { EnrichedProduct } from '../types/store.types';
-  import { Search, X, FunnelIcon, SquarePen, Store, Users, User, ShoppingCart, Refrigerator, Snowflake, Utensils, LayoutList, ListTodo, Combine, Beef, Carrot, CandyCane, Egg, ChefHat, Leaf, Package, Bean, ShoppingBasket } from '@lucide/svelte';
+  import { Search, X, FunnelIcon, SquarePen, Store, Users, User, ShoppingCart, Refrigerator, Snowflake, Utensils, LayoutList, ListTodo, Combine, Beef, Carrot, CandyCane, Egg, ChefHat, Leaf, Package, Bean, ShoppingBasket, CheckCircle, AlertCircle, ChevronDown } from '@lucide/svelte';
   import { productsStore } from '../stores/ProductsStore.svelte';
   import ProductModal from './ProductModal.svelte';
 
@@ -330,8 +330,8 @@
 
 
 
-  <!-- Tableau -->
-  <div class="bg-base-200 rounded-lg overflow-x-auto max-h-[calc(100vh-200px)]">
+  <!-- Tableau Desktop -->
+  <div class="hidden md:block bg-base-200 rounded-lg overflow-x-auto max-h-[calc(100vh-200px)]">
     <table class="table w-full">
       <thead class="sticky top-0 z-10 bg-base-300">
         <tr class="bg-base-300">
@@ -531,36 +531,120 @@
     {/if}
   </div>
 
-  <!-- Légende -->
-  <div class="bg-base-200 rounded-lg p-4">
-    <h4 class="font-semibold mb-2">Légende</h4>
-    <div class="flex flex-wrap gap-4 text-sm">
-      <div class="flex items-center gap-2">
-        <div class="w-4 h-4 bg-blue-100 rounded"></div>
-        <span>Cliquable (produit)</span>
+  <!-- Vue Mobile Cards -->
+  <div class="md:hidden bg-base-200 rounded-lg p-1">
+    {#each Object.entries(groupedFormattedProducts) as [groupKey, groupProducts] (groupKey)}
+      {#if groupKey !== ''}
+        <!-- Header de groupe mobile -->
+        {@const groupTypeInfo = getProductTypeInfo(groupKey)}
+        <div class="bg-base-300 rounded-lg p-3 mb-3 font-semibold sticky top-0 z-10">
+          <div class="flex items-center justify-center gap-2">
+            {#if filters.groupBy === 'store'}
+              <Store class="w-4 h-4" />
+              <span>{groupKey}</span>
+            {:else if filters.groupBy === 'productType'}
+              <groupTypeInfo.icon class="w-4 h-4" />
+              <span>{groupTypeInfo.displayName}</span>
+            {:else}
+              <Package class="w-4 h-4" />
+              <span>{groupKey}</span>
+            {/if}
+            <span class="text-sm opacity-70">({groupProducts.length})</span>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Cards des produits -->
+      <div class="space-y-3 mb-4">
+        {#each productsStore.sortProducts(groupProducts) as product (product.$id)}
+          {@const typeInfo = getProductTypeInfo(product.productType)}
+          {@const isComplete = product.displayMissingQuantity === '✅ Complet'}
+
+          <div class="indicator">
+            <!-- Badge indicator pour le type -->
+            <span class="indicator-item badge badge-soft badge-sm badge-secondary">
+              <typeInfo.icon class="w-4 h-4 mr-1" />
+            </span>
+
+            <div class="card bg-base-100 shadow-lg cursor-pointer hover:shadow-xl transition-all">
+              <div class="card-body p-4">
+                <!-- Header: Nom + icônes température -->
+                <div class="flex items-center justify-between mb-2"
+                     onclick={() => handleCellClick('productName', product)}>
+                  <h3 class="font-semibold text-base flex items-center gap-2">
+                    <span class="truncate max-w-[180px]">{product.productName}</span>
+                    <div class="flex gap-1">
+                      {#if product.pFrais}
+                        <div class="badge badge-success badge-sm">F</div>
+                      {/if}
+                      {#if product.pSurgel}
+                        <div class="badge badge-info badge-sm">S</div>
+                      {/if}
+                    </div>
+                  </h3>
+                </div>
+
+                <!-- Magasin + Qui -->
+                <div class="flex items-center gap-3 text-md opacity-80 mb-3">
+                  <div class="flex items-center gap-1 cursor-pointer hover:bg-green-50 px-2 py-1 rounded transition-colors"
+                       onclick={(e) => { e.stopPropagation(); handleCellClick('store', product); }}>
+                    <Store class="w-5 h-5" />
+                    <span class="truncate max-w-[80px]">{product.storeInfo?.storeName || '-'}</span>
+                  </div>
+
+                  {#if product.who && product.who.length > 0}
+                    <div class="flex items-center gap-1">
+                      <Users class="w-5 h-5" />
+                      <div class="flex gap-1">
+                        {#each product.who.slice(0, 2) as person (person)}
+                          <span class="badge badge-soft badge-info badge-sm">{person}</span>
+                        {/each}
+                        {#if product.who.length > 2}
+                          <span class="badge badge-soft badge-info badge-sm">+{product.who.length - 2}</span>
+                        {/if}
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+
+                <!-- Quantité principale (logique conditionnelle) -->
+                <div class="mb-3"
+                     onclick={(e) => { e.stopPropagation(); handleCellClick('purchases', product); }}>
+                  {#if isComplete}
+                    <div class="alert alert-success py-2 px-3 cursor-pointer hover:bg-success/10 transition-colors">
+                      <CheckCircle class="w-4 h-4 shrink-0" />
+                      <span class="text-sm font-medium">{product.displayTotalPurchases} acheté</span>
+                    </div>
+                  {:else}
+                    <div class="alert alert-warning py-2 px-3 cursor-pointer hover:bg-warning/10 transition-colors">
+                      <AlertCircle class="w-4 h-4 shrink-0" />
+                      <span class="text-sm font-medium">Manque {product.displayMissingQuantity}</span>
+                    </div>
+                  {/if}
+                </div>
+
+
+              </div>
+            </div>
+          </div>
+        {/each}
       </div>
-      <div class="flex items-center gap-2">
-        <div class="w-4 h-4 bg-green-100 rounded"></div>
-        <span>Cliquable (magasin)</span>
+    {/each}
+
+    {#if filteredProducts.length === 0}
+      <div class="text-center py-8">
+        <div class="alert alert-info">
+          <div>
+            <svg class="stroke-current shrink-0 h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Aucun produit trouvé avec les filtres actuels</span>
+          </div>
+        </div>
       </div>
-      <div class="flex items-center gap-2">
-        <div class="w-4 h-4 bg-purple-100 rounded"></div>
-        <span>Cliquable (qui)</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <div class="w-4 h-4 bg-orange-100 rounded"></div>
-        <span>Cliquable (achats)</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <div class="badge badge-info badge-sm">F</div>
-        <span>Frais</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <div class="badge badge-success badge-sm">S</div>
-        <span>Surgelé</span>
-      </div>
-    </div>
+    {/if}
   </div>
+
 </div>
 
 <!-- ProductModal -->
