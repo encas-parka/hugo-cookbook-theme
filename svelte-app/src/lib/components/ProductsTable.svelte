@@ -5,16 +5,14 @@ import type { StoreInfo, EnrichedProduct } from '../types/store.types';
   import { productsStore } from '../stores/ProductsStore.svelte';
   import ProductModal from './ProductModal.svelte';
 
-  // Accès direct aux valeurs dérivées du store
-  const {
-    filteredProducts,
-    groupedFormattedProducts,
-    stats,
-    uniqueStores,
-    uniqueWho,
-    uniqueProductTypes,
-    filters
-  } = productsStore;
+  // Accès réactif aux valeurs dérivées du store
+  const filteredProducts = $derived(productsStore.filteredProducts);
+  const groupedFormattedProducts = $derived(productsStore.groupedFormattedProducts);
+  const stats = $derived(productsStore.stats);
+  const uniqueStores = $derived(productsStore.uniqueStores);
+  const uniqueWho = $derived(productsStore.uniqueWho);
+  const uniqueProductTypes = $derived(productsStore.uniqueProductTypes);
+  const filters = $derived(productsStore.filters);
 
   // État du ProductModal
   let productModalOpen = $state(false);

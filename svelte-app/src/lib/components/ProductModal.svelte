@@ -69,7 +69,7 @@
       console.warn('[ProductModal] Purchases is not a valid array:', purchases);
       return [];
     }
-    
+
     // Filtrer les purchases qui n'ont pas de $id valide
     const validPurchases = purchases.filter(purchase => {
       if (!purchase || typeof purchase !== 'object') {
@@ -82,18 +82,17 @@
       }
       return true;
     });
-    
+
     if (validPurchases.length !== purchases.length) {
       console.warn(`[ProductModal] Filtered ${purchases.length - validPurchases.length} invalid purchases`);
     }
-    
+
     return validPurchases;
   });
   let recipesOccurrences = $derived.by(() =>parseRecipesOccurrences(currentProduct?.recipesOccurrences || null));
 
-  // Réagir aux changements de produit
+  // Réagir aux changements de produit // remplir au montage
   $effect(() => {
-    console.log('ProductModal - $effect triggered with currentProduct:', currentProduct);
     if (currentProduct) {
       currentTab = initialTab;
       stockEntries = parseStockData(currentProduct.stockReel);
@@ -386,12 +385,12 @@
 
     await withLoading(async () => {
       // Utiliser la valeur passée en paramètre, sinon utiliser editingStore
-      const finalStoreValue = storeValue !== undefined 
-        ? storeValue 
+      const finalStoreValue = storeValue !== undefined
+        ? storeValue
         : (editingStore && editingStore.trim() !== '' ? editingStore.trim() : currentProduct.store);
-      
+
       console.log('[ProductModal] handleUpdateStore called with:', { storeValue, editingStore, finalStoreValue });
-      
+
       const result = await updateProductStore(currentProduct.$id, finalStoreValue);
 
       if (result) {
@@ -400,7 +399,7 @@
           detail: { type: 'success', message: 'Magasin mis à jour avec succès' }
         });
         window.dispatchEvent(successEvent);
-        
+
         // Synchroniser editingStore avec la valeur mise à jour
         editingStore = result.store || '';
       }

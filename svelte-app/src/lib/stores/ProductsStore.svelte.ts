@@ -381,21 +381,44 @@ class ProductsStore {
 
     if (isProductsCollection) {
       // Gérer les événements de la collection products (comportement existant)
-      const product = payload as Products;
+      const updatedProduct = payload as Products;
       if (isCreate) {
-        const exists = this.products.some(p => p.$id === product.$id);
+        const exists = this.products.some(p => p.$id === updatedProduct.$id);
         if (!exists) {
           this.#updateState({
-            products: [...this.products, product]
+            products: [...this.products, updatedProduct]
           });
         }
       } else if (isUpdate) {
+        // Merge the updated fields with the existing product to preserve all data
         this.#updateState({
-          products: this.products.map(p => p.$id === product.$id ? product : p)
+          products: this.products.map(p => {
+            if (p.$id === updatedProduct.$id) {
+              // Create a merged product that preserves all existing fields
+              // while updating only the fields that came in the payload
+              const mergedProduct = { ...p };
+              
+              // Only update the fields that are present in the payload
+              Object.keys(updatedProduct).forEach(key => {
+                if (updatedProduct[key as keyof Products] !== undefined) {
+                  (mergedProduct as any)[key] = updatedProduct[key as keyof Products];
+                }
+              });
+              
+              console.log('[ProductsStore] Merged product after realtime update:', {
+                productId: mergedProduct.$id,
+                preservedFields: ['purchases', 'recipesOccurrences', 'store', 'productName'],
+                mergedProduct
+              });
+              
+              return mergedProduct;
+            }
+            return p;
+          })
         });
       } else if (isDelete) {
         this.#updateState({
-          products: this.products.filter(p => p.$id !== product.$id)
+          products: this.products.filter(p => p.$id !== updatedProduct.$id)
         });
       }
     } else if (isPurchasesCollection) {
