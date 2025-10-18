@@ -573,6 +573,14 @@ class ProductsStore {
     }
   }
 
+  clearStoreFilters() {
+    this.#filters.selectedStores = [];
+  }
+
+  clearWhoFilters() {
+    this.#filters.selectedWho = [];
+  }
+
   setTemperatureFilters(showPFrais: boolean, showPSurgel: boolean) {
     this.#filters.showPFrais = showPFrais;
     this.#filters.showPSurgel = showPSurgel;

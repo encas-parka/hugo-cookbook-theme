@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { EnrichedProduct } from '../types/store.types';
-  import { Search, X, FunnelIcon, Edit3, Store, Users, ShoppingCart, Refrigerator, Snowflake, Utensils, LayoutList, ListTodo, Filter } from '@lucide/svelte';
+  import { Search, X, FunnelIcon, Edit3, Store, Users, ShoppingCart, Refrigerator, Snowflake, Utensils, LayoutList, ListTodo, Filter, Combine } from '@lucide/svelte';
   import { productsStore } from '../stores/ProductsStore.svelte';
   import ProductModal from './ProductModal.svelte';
 
@@ -67,28 +67,45 @@
 
 <div class="space-y-6">
   <!-- Stats -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="stat bg-base-200 rounded-lg">
-      <div class="stat-title">Total</div>
-      <div class="stat-value">{stats.total}</div>
+  <div class="flex flex-wrap gap-2 items-center">
+    <div class="badge badge-neutral badge-lg">
+      <LayoutList class="w-4 h-4 mr-1" />
+      {stats.total}
     </div>
-    <div class="stat bg-base-200 rounded-lg">
-      <div class="stat-title">Frais</div>
-      <div class="stat-value text-info">{stats.frais}</div>
+    <div class="badge badge-info badge-lg">
+      <Refrigerator strokeWidth={2} class="w-4 h-4 mr-1" />
+      frais:
+      {stats.frais}
     </div>
-    <div class="stat bg-base-200 rounded-lg">
-      <div class="stat-title">Surgelés</div>
-      <div class="stat-value text-success">{stats.surgel}</div>
+    <div class="badge badge-success badge-lg">
+      <Snowflake class="w-4 h-4 mr-1" />
+      surgelés:
+      {stats.surgel}
     </div>
-    <div class="stat bg-base-200 rounded-lg">
-      <div class="stat-title">Fusionnés</div>
-      <div class="stat-value text-warning">{stats.merged}</div>
+    <div class="badge badge-warning badge-lg">
+      <Combine strokeWidth={2} class="w-4 h-4 mr-1" />
+      fusionnés:
+      {stats.merged}
     </div>
   </div>
 
   <!-- Recherche persistante en haut -->
   <div class="bg-base-200 rounded-lg p-4">
-    <div class="form-control">
+    <div class="hidden md:block">
+      <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-semibold flex items-center gap-2">
+        <FunnelIcon class="w-5 h-5" />
+        Filtres
+      </h3>
+      <button
+        class="btn btn-sm btn-ghost"
+        onclick={() => productsStore.clearFilters()}
+      >
+        <X class="w-4 h-4" />
+        Tout effacer
+      </button>
+    </div></div>
+    <div class="form-control md:mb-4">
       <label class="label" for="search-input">
         <span class="label-text">Recherche</span>
       </label>
@@ -104,146 +121,152 @@
         />
       </div>
     </div>
-  </div>
-
-  <!-- Filtres desktop -->
-  <div class="hidden md:block bg-base-200 rounded-lg p-4">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-semibold flex items-center gap-2">
-        <FunnelIcon class="w-5 h-5" />
-        Filtres
-      </h3>
-      <button
-        class="btn btn-sm btn-ghost"
-        onclick={() => productsStore.clearFilters()}
-      >
-        <X class="w-4 h-4" />
-        Tout effacer
-      </button>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <!-- Filtre par type -->
-      <div class="form-control">
-        <label class="label" for="product-type-select">
-          <span class="label-text">Type de produit</span>
-        </label>
-        <select
-          id="product-type-select"
-          class="select select-bordered"
-          value={filters.selectedProductType}
-          onchange={(e) => productsStore.setProductType(e.currentTarget.value)}
-        >
-          <option value="">Tous les types</option>
-          {#each uniqueProductTypes as type (type)}
-            <option value={type}>{type}</option>
-          {/each}
-        </select>
-      </div>
-
-      <!-- Groupement -->
-      <div class="form-control">
-        <label class="label" for="grouping-select">
-          <span class="label-text">Groupement</span>
-        </label>
-        <select
-          id="grouping-select"
-          class="select select-bordered"
-          value={filters.groupBy}
-          onchange={(e) => productsStore.setGroupBy(e.currentTarget.value as any)}
-        >
-          <option value="none">Aucun</option>
-          <option value="store">Par magasin</option>
-          <option value="productType">Par type</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Filtres température -->
-    <div class="mt-4">
-      <fieldset>
-        <legend class="label">
-          <span class="label-text">Température</span>
-        </legend>
-        <div class="flex gap-4">
-          <label class="cursor-pointer flex items-center gap-2">
-            <input
-              id="frais-checkbox"
-              type="checkbox"
-              class="checkbox checkbox-info"
-              checked={filters.showPFrais}
-              onchange={(e) => productsStore.setTemperatureFilters(e.currentTarget.checked, filters.showPSurgel)}
-            />
-            <span>Produits frais</span>
+    <!-- Filtres desktop -->
+    <div class="hidden md:block">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Filtre par type -->
+        <div class="form-control">
+          <label class="label" for="product-type-select">
+            <span class="label-text">Type de produit</span>
           </label>
-          <label class="cursor-pointer flex items-center gap-2">
-            <input
-              id="surgele-checkbox"
-              type="checkbox"
-              class="checkbox checkbox-success"
-              checked={filters.showPSurgel}
-              onchange={(e) => productsStore.setTemperatureFilters(filters.showPFrais, e.currentTarget.checked)}
-            />
-            <span>Produits surgelés</span>
-          </label>
+          <select
+            id="product-type-select"
+            class="select select-bordered"
+            value={filters.selectedProductType}
+            onchange={(e) => productsStore.setProductType(e.currentTarget.value)}
+          >
+            <option value="">Tous les types</option>
+            {#each uniqueProductTypes as type (type)}
+              <option value={type}>{type}</option>
+            {/each}
+          </select>
         </div>
-      </fieldset>
+
+        <!-- Groupement -->
+        <div class="form-control">
+          <label class="label" for="grouping-select">
+            <span class="label-text">Groupement</span>
+          </label>
+          <select
+            id="grouping-select"
+            class="select select-bordered"
+            value={filters.groupBy}
+            onchange={(e) => productsStore.setGroupBy(e.currentTarget.value as any)}
+          >
+            <option value="none">Aucun</option>
+            <option value="store">Par magasin</option>
+            <option value="productType">Par type</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Filtres température -->
+      <div class="mt-4">
+        <fieldset>
+          <legend class="label">
+            <span class="label-text">Température</span>
+          </legend>
+          <div class="flex gap-4">
+            <label class="cursor-pointer flex items-center gap-2">
+              <input
+                id="frais-checkbox"
+                type="checkbox"
+                class="checkbox checkbox-info"
+                checked={filters.showPFrais}
+                onchange={(e) => productsStore.setTemperatureFilters(e.currentTarget.checked, filters.showPSurgel)}
+              />
+              <span>Produits frais</span>
+            </label>
+            <label class="cursor-pointer flex items-center gap-2">
+              <input
+                id="surgele-checkbox"
+                type="checkbox"
+                class="checkbox checkbox-success"
+                checked={filters.showPSurgel}
+                onchange={(e) => productsStore.setTemperatureFilters(filters.showPFrais, e.currentTarget.checked)}
+              />
+              <span>Produits surgelés</span>
+            </label>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- Filtres par magasin et qui -->
+      <div class="flex flex-col lg:flex-row gap-6 mt-4">
+        {#if uniqueStores.length > 0}
+          <div class="flex-1">
+            <fieldset>
+              <legend class="label">
+                <span class="label-text">Magasins</span>
+              </legend>
+              <div class="flex flex-wrap gap-2 items-center" role="group">
+                {#each uniqueStores as store (store)}
+                  <button
+                    class="btn btn-sm {
+                      filters.selectedStores.length === 0
+                        ? 'btn-soft btn-accent'
+                        : filters.selectedStores.includes(store)
+                          ? 'btn-accent'
+                          : 'btn-dash btn-accent'
+                    }"
+                    onclick={() => productsStore.toggleStore(store)}
+                  >
+                    {store}
+                  </button>
+                {/each}
+                {#if filters.selectedStores.length > 0}
+                  <button
+                    class="btn btn-sm btn-circle btn-ghost text-error hover:bg-error/10"
+                    onclick={() => productsStore.clearStoreFilters()}
+                    title="Effacer les filtres de magasins"
+                  >
+                    <X class="w-3 h-3" />
+                  </button>
+                {/if}
+              </div>
+            </fieldset>
+          </div>
+        {/if}
+
+        {#if uniqueWho.length > 0}
+          <div class="flex-1">
+            <fieldset>
+              <legend class="label">
+                <span class="label-text">Qui</span>
+              </legend>
+              <div class="flex flex-wrap gap-2 items-center" role="group">
+                {#each uniqueWho as who (who)}
+                  <button
+                    class="btn btn-sm {
+                      filters.selectedWho.length === 0
+                        ? 'btn-soft btn-accent'
+                        : filters.selectedWho.includes(who)
+                          ? 'btn-accent'
+                          : 'btn-dash btn-accent'
+                    }"
+                    onclick={() => productsStore.toggleWho(who)}
+                  >
+                    {who}
+                  </button>
+                {/each}
+                {#if filters.selectedWho.length > 0}
+                  <button
+                    class="btn btn-sm btn-circle btn-ghost text-error hover:bg-error/10"
+                    onclick={() => productsStore.clearWhoFilters()}
+                    title="Effacer les filtres de qui"
+                  >
+                    <X class="w-3 h-3" />
+                  </button>
+                {/if}
+              </div>
+            </fieldset>
+          </div>
+        {/if}
+      </div>
     </div>
-
-    <!-- Filtres par magasin -->
-    {#if uniqueStores.length > 0}
-      <div class="mt-4">
-        <fieldset>
-          <legend class="label">
-            <span class="label-text">Magasins</span>
-          </legend>
-          <div class="flex flex-wrap gap-2" role="group">
-            {#each uniqueStores as store (store)}
-              <button
-                class="btn btn-sm {
-                  filters.selectedStores.length === 0 
-                    ? 'btn-soft btn-accent' 
-                    : filters.selectedStores.includes(store) 
-                      ? 'btn-accent' 
-                      : 'btn-dash btn-accent'
-                }"
-                onclick={() => productsStore.toggleStore(store)}
-              >
-                {store}
-              </button>
-            {/each}
-          </div>
-        </fieldset>
-      </div>
-    {/if}
-
-    <!-- Filtres par who -->
-    {#if uniqueWho.length > 0}
-      <div class="mt-4">
-        <fieldset>
-          <legend class="label">
-            <span class="label-text">Qui</span>
-          </legend>
-          <div class="flex flex-wrap gap-2" role="group">
-            {#each uniqueWho as who (who)}
-              <button
-                class="btn btn-sm {
-                  filters.selectedWho.length === 0 
-                    ? 'btn-soft btn-accent' 
-                    : filters.selectedWho.includes(who) 
-                      ? 'btn-accent' 
-                      : 'btn-dash btn-accent'
-                }"
-                onclick={() => productsStore.toggleWho(who)}
-              >
-                {who}
-              </button>
-            {/each}
-          </div>
-        </fieldset>
-      </div>
-    {/if}
   </div>
+
+
 
   <!-- Tableau -->
   <div class="bg-base-200 rounded-lg overflow-x-auto max-h-[calc(100vh-200px)]">
@@ -575,10 +598,10 @@
               {#each uniqueStores as store (store)}
                 <button
                   class="btn btn-sm {
-                    filters.selectedStores.length === 0 
-                      ? 'btn-soft btn-accent' 
-                      : filters.selectedStores.includes(store) 
-                        ? 'btn-accent' 
+                    filters.selectedStores.length === 0
+                      ? 'btn-soft btn-accent'
+                      : filters.selectedStores.includes(store)
+                        ? 'btn-accent'
                         : 'btn-dash btn-accent'
                   }"
                   onclick={() => productsStore.toggleStore(store)}
@@ -602,10 +625,10 @@
               {#each uniqueWho as who (who)}
                 <button
                   class="btn btn-sm {
-                    filters.selectedWho.length === 0 
-                      ? 'btn-soft btn-accent' 
-                      : filters.selectedWho.includes(who) 
-                        ? 'btn-accent' 
+                    filters.selectedWho.length === 0
+                      ? 'btn-soft btn-accent'
+                      : filters.selectedWho.includes(who)
+                        ? 'btn-accent'
                         : 'btn-dash btn-accent'
                   }"
                   onclick={() => productsStore.toggleWho(who)}
