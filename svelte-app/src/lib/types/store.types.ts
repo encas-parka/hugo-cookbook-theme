@@ -11,7 +11,7 @@ export interface StoreInfo {
  * Types pour les quantités
  */
 export interface QuantityInfo {
-  value: string;
+  quantity: string;
   unit: string;
 }
 
@@ -48,6 +48,14 @@ export interface StockEntry {
   dateTime: string;
 }
 
+/**
+ * Types pour les quantités avec valeur numérique (pour les calculs)
+ */
+export interface NumericQuantity {
+  quantity: number;
+  unit: string;
+}
+
 // Type enrichi pour les produits utilisés dans les composants
 export interface EnrichedProduct {
   $id: string;
@@ -82,16 +90,21 @@ export interface EnrichedProduct {
   recipesOccurrences: string | null;
   neededConsolidatedByDate: string | null;
   purchases: any[]; // Type Purchases à importer depuis appwrite.d.ts
-  
+
   // Propriétés enrichies ajoutées par le store
   storeInfo: StoreInfo | null;
-  totalNeededArray: any[];
-  recipesArray: any[];
-  stockArray: any[];
+  totalNeededArray: QuantityInfo[];
+  recipesArray: RecipeOccurrence[];
+  stockArray: StockEntry[];
   displayQuantity: string;
   displayName: string;
+  totalPurchases: NumericQuantity[];
+  missingQuantity: NumericQuantity[];
+  displayTotalPurchases: string;
+  displayMissingQuantity: string;
   nbPurchases: number;
 }
+
 
 // Alias pour compatibilité (gardés pour la transition)
 export type StoreDisplay = StoreInfo | null;

@@ -43,10 +43,10 @@
 	});
 
 	async function handleUpdateStore() {
-		const storeInfo: StoreInfo | null = storeName.trim() 
-			? { storeName: storeName.trim(), storeComment: storeComment.trim() || undefined }
+		const storeInfo: StoreInfo | null = storeName.trim()
+			? { storeName: storeName.trim(), storeComment: storeComment.trim() || '' }
 			: null;
-		
+
 		await onUpdateStore(storeInfo);
 	}
 
@@ -67,7 +67,7 @@
 			<p class="text-sm opacity-75 mb-4">
 				Définissez le magasin où ce produit est généralement acheté
 			</p>
-			
+
 			<!-- Nom du magasin -->
 			<div class="form-control mb-3">
 				<label class="label" for="store-name">
@@ -109,8 +109,8 @@
 						Mettre à jour
 					{/if}
 				</button>
-				<button 
-					class="btn btn-ghost btn-sm" 
+				<button
+					class="btn btn-ghost btn-sm"
 					onclick={() => { storeName = ''; storeComment = ''; }}
 					disabled={loading}
 				>

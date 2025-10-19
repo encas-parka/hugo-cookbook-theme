@@ -2,7 +2,7 @@ import { PersistedState } from 'runed';
 import { useDebounce } from 'runed';
 import { createStorageKey } from '../utils/url-utils';
 import type { Products, Purchases } from '../types/appwrite.d';
-import type { StoreInfo } from '../types/store.types';
+import type { QuantityInfo, StoreInfo } from '../types/store.types';
 import {
   loadProducts,
   syncProducts,
@@ -131,8 +131,9 @@ class ProductsStore {
   enrichedProducts = $derived.by(() => {
     return this.products.map(p => {
       const totalPurchases = this.#calculateTotalPurchasesArray(p.purchases ?? []);
+      const totalNeededArray = p.totalNeededConsolidated ? this.#safeJsonParse<QuantityInfo[]>(p.totalNeededConsolidated) : [];
       const missingQuantity = this.#calculateMissingQuantity(
-        p.totalNeededConsolidated ? this.#safeJsonParse(p.totalNeededConsolidated) : [],
+        totalNeededArray,
         totalPurchases
       );
 
@@ -140,7 +141,7 @@ class ProductsStore {
         ...p,
         // Parsing des JSON strings en objets exploitables
         storeInfo: p.store ? this.#safeJsonParse<StoreInfo>(p.store) : null,
-        totalNeededArray: p.totalNeededConsolidated ? this.#safeJsonParse(p.totalNeededConsolidated) : [],
+        totalNeededArray: totalNeededArray,
         recipesArray: p.recipesOccurrences ? this.#safeJsonParse(p.recipesOccurrences) : [],
         stockArray: p.stockReel ? this.#safeJsonParse(p.stockReel) : [],
         // Propriétés formatées pour l'affichage
@@ -720,7 +721,7 @@ class ProductsStore {
       if (!Array.isArray(quantities) || quantities.length === 0) return '-';
 
       return quantities
-        .map((q: { value: string; unit: string }) => this.#formatSingleQuantity(q.value, q.unit))
+        .map((q: { quantity: string; unit: string }) => this.#formatSingleQuantity(q.quantity, q.unit))
         .join(' et ');
     } catch {
       return '-';
@@ -793,11 +794,11 @@ class ProductsStore {
     return result;
   }
 
-  #calculateMissingQuantity(neededArray: any[], purchasesArray: {quantity: number, unit: string}[]): {quantity: number, unit: string}[] {
+  #calculateMissingQuantity(neededArray: QuantityInfo[], purchasesArray: {quantity: number, unit: string}[]): {quantity: number, unit: string}[] {
     if (!neededArray || neededArray.length === 0) return [];
     if (!purchasesArray || purchasesArray.length === 0) {
       // Pas d'achats, tout est manquant
-      return neededArray.map(n => ({quantity: parseFloat(n.value), unit: n.unit}));
+      return neededArray.map(n => ({quantity: parseFloat(n.quantity), unit: n.unit}));
     }
 
     // Créer des maps pour les calculs simples (unités déjà en gr. et ml)
@@ -806,7 +807,7 @@ class ProductsStore {
 
     // Remplir les besoins
     neededArray.forEach(needed => {
-      const quantity = parseFloat(needed.value);
+      const quantity = parseFloat(needed.quantity);
       if (!isNaN(quantity)) {
         neededMap.set(needed.unit, (neededMap.get(needed.unit) || 0) + quantity);
       }

@@ -42,9 +42,9 @@
         {{- end -}}
         "totalNeededConsolidated": [
           {{- $firstConsolidated := true -}}
-          {{- if gt $data.consolidated_weight 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.0f" $data.consolidated_weight | jsonify -}}, "unit": "gr." }{{- end -}}
-          {{- if gt $data.consolidated_volume 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- printf "%.0f" $data.consolidated_volume | jsonify -}}, "unit": "ml" }{{- end -}}
-          {{- range $unit, $quantity := $data.consolidated_other -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "value": {{- if eq $unit "recette·s" }}{{ printf "%.0f" $quantity | jsonify }}{{ else }}{{- printf "%.1f" $quantity | jsonify }}{{ end -}}, "unit": {{ $unit | jsonify }} }{{- end -}}
+          {{- if gt $data.consolidated_weight 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "quantity": {{- printf "%.0f" $data.consolidated_weight | jsonify -}}, "unit": "gr." }{{- end -}}
+          {{- if gt $data.consolidated_volume 0 -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "quantity": {{- printf "%.0f" $data.consolidated_volume | jsonify -}}, "unit": "ml" }{{- end -}}
+          {{- range $unit, $quantity := $data.consolidated_other -}}{{- if not $firstConsolidated }},{{ end }}{{- $firstConsolidated = false -}}{ "quantity": {{- if eq $unit "recette·s" }}{{ printf "%.0f" $quantity | jsonify }}{{ else }}{{- printf "%.1f" $quantity | jsonify }}{{ end -}}, "unit": {{ $unit | jsonify }} }{{- end -}}
         ],
         "neededConsolidatedByDate": [
           {{- $firstDate := true -}}

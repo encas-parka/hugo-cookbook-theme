@@ -1,6 +1,6 @@
 /**
  * Services d'interaction avec Appwrite pour la gestion des produits et achats
- * 
+ *
  * Architecture moderne avec séparation des responsabilités :
  * ┌─────────────────────────────────────────────────────────────┐
  * │              appwrite-interactions                         │
@@ -16,26 +16,26 @@
  * │  • Logique métier (filtres, formatage, groupement)        │
  * │  • UI réactive (loading, error, syncing)                  │
  * └─────────────────────────────────────────────────────────────┘
- * 
+ *
  * Services principaux :
  * ─────────────────────────────────────────────────────────────
  * Lecture :
  * • loadProducts() : Chargement initial des produits avec achats associés
  * • syncProducts() : Synchronisation incrémentielle (delta depuis lastSync)
- * 
+ *
  * Écriture :
  * • updateProduct() : Mise à jour d'un produit
  * • createPurchase() : Création d'un purchase
  * • updatePurchase() : Mise à jour d'un purchase
  * • deletePurchase() : Suppression d'un purchase
- * 
+ *
  * Realtime :
  * • subscribeToRealtime() : Abonnement aux événements produits/achats
- * 
+ *
  * Utilitaires :
  * • mergeProductsWithPurchases() : Enrichit les produits avec leurs achats
  * • applyProductUpdates() : Applique les mises à jour incrémentielles
- * 
+ *
  * Ce fichier encapsule les opérations CRUD en utilisant le client Appwrite existant
  * et fournit une API propre pour les stores Svelte 5.
  */
@@ -114,14 +114,14 @@ async function getAppwriteInstances() {
 
 /**
  * Charge les produits depuis Appwrite avec leurs achats associés
- * 
+ *
  * Service principal de chargement initial pour ProductsStore.
  * Gère le chargement des produits et optionnellement leurs achats associés.
- * 
+ *
  * @param mainId - ID du main pour filtrer les produits
  * @param options - Options de chargement (pagination, tri, inclusion des achats)
  * @returns Promise<ProductWithPurchases[]> - Produits enrichis avec leurs achats si demandé
- * 
+ *
  * Flux :
  * 1. Charge les produits depuis la collection products
  * 2. Si includePurchases=true, charge les achats associés
@@ -182,14 +182,14 @@ export async function loadProducts(
 
 /**
  * Synchronise les produits depuis Appwrite (uniquement les mises à jour)
- * 
+ *
  * Service de synchronisation incrémentielle pour ProductsStore.
  * Optimisé pour ne charger que les modifications depuis dernière synchronisation.
- * 
+ *
  * @param mainId - ID du main pour filtrer les produits
  * @param options - Options de synchronisation (dernière sync, limite)
  * @returns Promise<Products[]> - Uniquement les produits modifiés/créés depuis lastSync
- * 
+ *
  * Flux :
  * 1. Vérifie la présence de lastSync (sinon retourne vide)
  * 2. Requête Appwrite avec filtre $updatedAt > lastSync
@@ -275,18 +275,18 @@ export async function updateProductStore(
     store: StoreInfo | null
 ): Promise<Products> {
     console.log(`[Appwrite Interactions] Mise à jour du magasin pour produit ${productId}:`, store);
-    
+
     // Valider les entrées
     if (!productId) {
         throw new Error('ID du produit requis pour la mise à jour du magasin');
     }
-    
+
     // Sérialiser l'objet StoreInfo en string JSON pour Appwrite
     const serializedStore = store ? JSON.stringify(store) : null;
-    
+
     const result = await updateProduct(productId, { store: serializedStore });
     console.log(`[Appwrite Interactions] Magasin mis à jour pour produit ${productId}, nouvelle valeur:`, result.store);
-    
+
     return result;
 }
 
@@ -433,20 +433,20 @@ export function mergeProductsWithPurchases(
 
 /**
  * Applique les mises à jour de produits aux produits existants
- * 
+ *
  * Utilitaire principal pour la synchronisation incrémentielle de ProductsStore.
  * Fusionne intelligemment les produits existants avec les mises à jour reçues.
- * 
+ *
  * @param currentProducts - Liste actuelle des produits dans le store
  * @param updatedProducts - Liste des produits mis à jour ou nouveaux (de syncProducts)
  * @returns Array<Products> - Liste fusionnée prête à remplacer l'état du store
- * 
+ *
  * Algorithme :
  * 1. Crée un Map des produits mis à jour pour lookup O(1)
  * 2. Remplace les produits existants par leurs versions mises à jour
  * 3. Conserve les produits non modifiés
  * 4. Ajoute les nouveaux produits qui n'existaient pas
- * 
+ *
  * Utilisé par ProductsStore après syncProducts() ou lors des événements realtime.
  */
 export function applyProductUpdates(
@@ -457,7 +457,7 @@ export function applyProductUpdates(
     const merged = currentProducts.map(p => updated.get(p.$id) ?? p);
     const existingIds = new Set(currentProducts.map(p => p.$id));
     const news = updatedProducts.filter(p => !existingIds.has(p.$id));
-    
+
     return [...merged, ...news];
 }
 
@@ -540,21 +540,21 @@ export function parseRecipesOccurrences(recipesJson: string | null): Array<{
 
 /**
  * S'abonne aux événements realtime des collections products et purchases
- * 
+ *
  * Service principal pour les mises à jour en temps réel de ProductsStore.
  * Gère l'abonnement Appwrite et dispatche les événements vers les callbacks appropriés.
- * 
+ *
  * @param mainId - ID du main pour filtrer les événements
  * @param callbacks - Fonctions de callback pour chaque type d'événement
  * @returns Function - Fonction de désabonnement (appeler pour se désabonner)
- * 
+ *
  * Flux :
  * 1. Initialise AppwriteClient si nécessaire
  * 2. S'abonne aux collections products et purchases pour ce mainId
  * 3. Parse les événements Appwrite (create/update/delete)
  * 4. Dispatch vers les callbacks appropriés (onProductCreate, onPurchaseUpdate, etc.)
  * 5. Gère le cycle de vie (connect/disconnect/error)
- * 
+ *
  * ProductsStore fournit les callbacks qui mettent à jour l'état réactif.
  */
 export function subscribeToRealtime(
@@ -578,7 +578,7 @@ export function subscribeToRealtime(
         // Dispatcher vers les callbacks appropriés
         if (isProductsCollection) {
             const product = payload as Products;
-            
+
             if (isCreate && callbacks.onProductCreate) {
                 callbacks.onProductCreate(product);
             } else if (isUpdate && callbacks.onProductUpdate) {
@@ -588,7 +588,7 @@ export function subscribeToRealtime(
             }
         } else if (isPurchasesCollection) {
             const purchase = payload as Purchases;
-            
+
             if (isCreate && callbacks.onPurchaseCreate) {
                 callbacks.onPurchaseCreate(purchase);
             } else if (isUpdate && callbacks.onPurchaseUpdate) {
@@ -651,7 +651,7 @@ export default {
     // Services produits - lecture
     loadProducts,
     syncProducts,
-    
+
     // Services realtime
     subscribeToRealtime,
 

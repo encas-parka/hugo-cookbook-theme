@@ -1,61 +1,66 @@
 <script lang="ts">
-  import type { Products, Purchases } from '../types/appwrite';
+  import type {  Purchases } from '../types/appwrite';
+  import type { EnrichedProduct } from '../types/store.types';
   import { X, Package, ShoppingCart, Archive, Users, Store, Clock, CircleCheck, TriangleAlert } from '@lucide/svelte';
+
+  // Stores and Global States
   import { productsStore } from '../stores/ProductsStore.svelte';
+  import { modal, closeProductModal, userName } from '../stores/GlobalState.svelte';
+
+
+  // Services
   import { updateProduct, updateProductStore, updateProductWho, updateProductStock, createPurchase, updatePurchase, deletePurchase, parseStockData, parseRecipesOccurrences } from '../services/appwrite-interactions';
+
+  // Components
   import PurchaseManager from './PurchaseManager.svelte';
   import StockManager from './StockManager.svelte';
   import VolunteerManager from './VolunteerManager.svelte';
   import StoreManager from './StoreManager.svelte';
 
 
-  // Props en mode runes
-  interface Props {
-    isOpen: boolean;
-    productId: string | null;
-    initialTab: string;
-    onclose: () => void;
-  }
-
-  let {
-    isOpen = $bindable(false),
-    productId = $bindable(null),
-    initialTab = 'recettes',
-    onclose
-  }: Props = $props();
+  let currentTab = $derived(modal.product.tab);
+  let productId = $derived(modal.product.id)
+  let isOpen = $derived(modal.product.isOpen)
 
   // Wrapper réactif - suit automatiquement les mises à jour du store
-  let currentProduct = $derived.by(() =>
-    productId ? productsStore.products.find(p => p.$id === productId) : null
+  let currentProduct = $derived(
+     productsStore.enrichedProducts.find(p => p.$id === productId)
   );
 
   // État local
-  let currentTab = $state(initialTab);
   let loading = $state(false);
   let error = $state<string | null>(null);
 
   // Pour la gestion des magasins
-  let editingStore = $state('');
+  let editingStore = $state(currentProduct?.storeInfo || null);
 
   // Données pour les formulaires
   let newPurchase = $state({
     quantity: null as number | null,
     unit: '',
-    store: '',
-    who: '',
+    store: currentProduct?.storeInfo?.storeName || '', // Pas de réactivité nécessaire ici
+    who: userName() || '',
     price: null as number | null,
     notes: ''
   });
 
   let newStock = $state({
-    quantity: 0,
+    quantity: null as number | null,
     unit: '',
     notes: '',
-    dateTime: ''
+    dateTime: new Date().toISOString()
   });
 
 
-  let stockEntries = $state<Array<{quantity: string; unit: string; notes: string; dateTime: string}>>([]);
+  let stockEntries = $derived.by(() => {
+    if (!currentProduct?.stockReel) {
+      // console.warn('No stock data available');
+      return [];
+    }
+    return parseStockData(currentProduct.stockReel);
+  });
+
+
   let editingPurchase = $state<Purchases | null>(null);
 
   // Données dérivées - plus besoin d'état local dupliqué
@@ -90,42 +95,28 @@
   // État dérivé pour les volontaires - utilise directement les données du produit
   let currentWho = $derived.by(() => currentProduct?.who || []);
 
-  // Réagir aux changements de produit // remplir au montage
-  $effect(() => {
-    if (currentProduct) {
-      currentTab = initialTab;
-      stockEntries = parseStockData(currentProduct.stockReel);
-      editingStore = currentProduct.store || '';
-      resetForms();
-    }
-  });
+
 
   function resetForms() {
     newPurchase = {
-      quantity: 0,
+      quantity: null,
       unit: '',
-      store: currentProduct?.store || '',
-      who: '',
+      store: currentProduct?.storeInfo?.storeName || '',
+      who: userName(),
       price: null,
       notes: ''
     };
     newStock = {
-      quantity: 0,
+      quantity: null,
       unit: '',
       notes: '',
       dateTime: new Date().toISOString().slice(0, 16)
     };
   }
 
-  function closeModal() {
-    isOpen = false;
-    currentTab = initialTab;
-    error = null;
-    onclose();
-  }
 
   function handleTabClick(tab: string) {
-    currentTab = tab;
+    modal.product.tab = tab;
   }
 
   // Gestion du chargement et des erreurs
@@ -269,13 +260,14 @@
     });
   }
 
-  async function handleDeletePurchase(purchase: Purchases) {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer cet achat (${purchase.quantity} ${purchase.unit}) ?`)) {
+  async function handleDeletePurchase(purchaseId: string) {
+    const purchase = currentProductPurchases.find(p => p.$id === purchaseId);
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer cet achat (${purchase?.quantity} ${purchase?.unit}) ?`)) {
       return;
     }
 
     await withLoading(async () => {
-      await deletePurchase(purchase.$id);
+      await deletePurchase(purchaseId);
 
       // Le realtime mettra à jour automatiquement via currentProduct
 
@@ -397,16 +389,16 @@
   }
 
   // Fonctions pour la gestion du magasin
-  async function handleUpdateStore(storeValue?: string | null) {
+  async function handleUpdateStore(storeInfo?: string | null) {
     if (!currentProduct) return;
 
     await withLoading(async () => {
       // Utiliser la valeur passée en paramètre, sinon utiliser editingStore
-      const finalStoreValue = storeValue !== undefined
-        ? storeValue
-        : (editingStore && editingStore.trim() !== '' ? editingStore.trim() : currentProduct.store);
+      const finalStoreValue = storeInfo !== undefined
+        ? storeInfo
+        : (editingStore?.storeName && editingStore.storeName.trim() !== '' ? editingStore.storeName.trim() : currentProduct.store);
 
-      console.log('[ProductModal] handleUpdateStore called with:', { storeValue, editingStore, finalStoreValue });
+      console.log('[ProductModal] handleUpdateStore called with:', { storeInfo, editingStore, finalStoreValue });
 
       const result = await updateProductStore(currentProduct.$id, finalStoreValue);
 
@@ -417,11 +409,10 @@
         });
         window.dispatchEvent(successEvent);
 
-        // Synchroniser editingStore avec la valeur mise à jour
-        editingStore = result.store || '';
       }
     });
   }
+
 
 </script>
 
@@ -454,7 +445,7 @@
         </div>
         <button
           class="btn btn-circle btn-ghost btn-sm"
-          onclick={closeModal}
+          onclick={closeProductModal}
           aria-label="Fermer"
         >
           <X class="w-4 h-4" />
@@ -609,7 +600,7 @@
 
       <!-- Footer -->
       <div class="modal-action">
-        <button class="btn btn-ghost" onclick={closeModal}>
+        <button class="btn btn-ghost" onclick={closeProductModal}>
           Fermer
         </button>
       </div>

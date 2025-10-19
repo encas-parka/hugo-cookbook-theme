@@ -7,7 +7,7 @@
 		currentProductPurchases: Purchases[];
 		loading: boolean;
 		newPurchase: {
-			quantity: number;
+			quantity: number | null;
 			unit: string;
 			store: string;
 			who: string;

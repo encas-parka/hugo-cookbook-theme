@@ -1,8 +1,18 @@
 <script lang="ts">
-  import type { EnrichedProduct } from '../types/store.types';
-  import { Search, X, FunnelIcon, SquarePen, Store, Users, User, ShoppingCart, Refrigerator, Snowflake, Utensils, LayoutList, ListTodo, Combine, Beef, Carrot, CandyCane, Egg, ChefHat, Leaf, Package, Bean, ShoppingBasket, CheckCircle, AlertCircle, ChevronDown } from '@lucide/svelte';
+  import { Search, X, FunnelIcon, SquarePen, Store, Users, User, ShoppingCart, Refrigerator, Snowflake, Utensils, LayoutList, ListTodo, Combine, Beef, Carrot, CandyCane, Egg, ChefHat, Leaf, Package, Bean, ShoppingBasket, CircleCheck, CircleAlert, ChevronDown, CircleCheckBig } from '@lucide/svelte';
+
+  // Store and global state
   import { productsStore } from '../stores/ProductsStore.svelte';
+  import { openProductModal } from '../stores/GlobalState.svelte';
+
+  // Components
   import ProductModal from './ProductModal.svelte';
+  import ProductDrawerFilters from './ProductDrawerFilters.svelte';
+
+  // utils
+  import { getProductTypeInfo, sortEnrichedProducts } from '../utils/products-display';
+
+
 
   // Accès réactif aux valeurs dérivées du store
   const filteredProducts = $derived(productsStore.filteredProducts);
@@ -13,82 +23,17 @@
   const uniqueProductTypes = $derived(productsStore.uniqueProductTypes);
   const filters = $derived(productsStore.filters);
 
-  // État du drawer
-  let filtersDrawerOpen = $state(false);
 
-  // État du ProductModal
-  let productModalOpen = $state(false);
-  let productModalSelectedProductId = $state<string | null>(null);
-  let productModalInitialTab = $state('recettes');
 
   // Gestionnaire de clics sur les cellules pour le ProductModal
-  function handleCellClick(type: string, product: EnrichedProduct) {
-    console.log(`Cell clicked: ${type}`, product);
-    productModalSelectedProductId = product.$id;
-
-    // Déterminer l'onglet à ouvrir selon le type de clic
-    switch(type) {
-      case 'store':
-        productModalInitialTab = 'magasins';
-        break;
-      case 'who':
-        productModalInitialTab = 'volontaires';
-        break;
-      case 'purchases':
-        productModalInitialTab = 'achats';
-        break;
-      case 'productName':
-        productModalInitialTab = 'recettes';
-        break;
-      default:
-        productModalInitialTab = 'recettes';
-    }
-
-    productModalOpen = true;
+  function handleOpenProductModal(tab: string, productId: string) {
+    openProductModal(tab, productId);
   }
 
-  function closeProductModal() {
-    productModalOpen = false;
-    productModalSelectedProductId = null;
-  }
 
-  // Fonction pour obtenir le nom d'affichage et l'icône d'un type de produit
-  function getProductTypeInfo(type: string) {
-    const typeLower = type.toLowerCase();
 
-    switch (typeLower) {
-      case 'sec':
-        return { displayName: 'Produits Sec', icon: Bean };
-      case 'animaux':
-        return { displayName: 'Viandes et Poissons', icon: Beef };
-      case 'legumes':
-        return { displayName: 'Fruits et Légumes', icon: Carrot };
-      case 'sucres':
-        return { displayName: 'Sucrées', icon: CandyCane };
-      case 'lof':
-        return { displayName: 'L.O.F', icon: Egg };
-      case 'autres':
-        return { displayName: 'Autres', icon: ChefHat };
-      case 'epices':
-        return { displayName: 'Assaisonnements', icon: Leaf };
-      case 'frais':
-        return { displayName: 'Produits Frais', icon: Refrigerator };
-      default:
-        return { displayName: type, icon: Package };
-    }
-  }
 
-  // Gérer les événements du clavier (ESC pour fermer le ProductModal)
-  $effect(() => {
-    function handleKeyPress(e: KeyboardEvent) {
-      if (e.key === 'Escape' && productModalOpen) {
-        closeProductModal();
-      }
-    }
 
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
-  });
 </script>
 
 
@@ -331,11 +276,11 @@
 
 
   <!-- Tableau Desktop -->
-  <div class="hidden md:block bg-base-200 rounded-lg overflow-x-auto max-h-[calc(100vh-200px)]">
+  <div class="hidden md:block bg-base-100 rounded-lg overflow-x-auto max-h-[calc(100vh-200px)]">
     <table class="table w-full">
-      <thead class="sticky top-0 z-10 bg-base-300">
-        <tr class="bg-base-300">
-          <th class="cursor-pointer hover:bg-base-200 text-center" onclick={() => productsStore.handleSort('productName')}>
+      <thead class="sticky top-0 z-10 bg-base-200">
+        <tr class="bg-base-200">
+          <th class="cursor-pointer hover:bg-base-100 text-center" onclick={() => productsStore.handleSort('productName')}>
             <div class="flex items-center justify-center gap-2">
               <LayoutList class="w-4 h-4" />
               Nom du produit
@@ -344,7 +289,7 @@
               {/if}
             </div>
           </th>
-          <th class="cursor-pointer hover:bg-base-200 text-center {filters.groupBy === 'store' ? 'hidden' : ''}" onclick={() => productsStore.handleSort('store')}>
+          <th class="cursor-pointer hover:bg-base-100 text-center {filters.groupBy === 'store' ? 'hidden' : ''}" onclick={() => productsStore.handleSort('store')}>
             <div class="flex items-center justify-center gap-2">
               <Store class="w-4 h-4" />
               Magasin
@@ -353,7 +298,7 @@
               {/if}
             </div>
           </th>
-          <th class="cursor-pointer hover:bg-base-200 text-center" onclick={() => productsStore.handleSort('who')}>
+          <th class="cursor-pointer hover:bg-base-100 text-center" onclick={() => productsStore.handleSort('who')}>
             <div class="flex items-center justify-center gap-2">
               <Users class="w-4 h-4" />
               Qui
@@ -362,7 +307,7 @@
               {/if}
             </div>
           </th>
-          <th class="cursor-pointer hover:bg-base-200 text-center {filters.groupBy === 'productType' ? 'hidden' : ''}" onclick={() => productsStore.handleSort('productType')}>
+          <th class="cursor-pointer hover:bg-base-100 text-center {filters.groupBy === 'productType' ? 'hidden' : ''}" onclick={() => productsStore.handleSort('productType')}>
             <div class="flex items-center justify-center gap-2">
               Type
               {#if filters.sortColumn === 'productType'}
@@ -400,7 +345,7 @@
           {#if groupKey !== ''}
             <!-- Header de groupe -->
             {@const groupTypeInfo = getProductTypeInfo(groupKey)}
-            <tr class="bg-base-300 font-semibold sticky top-10 z-10">
+            <tr class="bg-base-200 font-semibold sticky top-10 z-10">
               <td colspan="7" class="py-2">
                 <div class="flex items-center justify-center gap-2">
                   {#if filters.groupBy === 'store'}
@@ -420,13 +365,13 @@
           {/if}
 
           <!-- Produits du groupe -->
-          {#each productsStore.sortProducts(groupProducts!) as product (product.$id)}
+          {#each sortEnrichedProducts(groupProducts!, filters) as product (product.$id)}
             {@const typeInfo = getProductTypeInfo(product.productType)}
 
-            <tr class="hover:bg-base-300 transition-colors">
+            <tr class="hover:bg-base-200/20 transition-colors">
               <td
-                class="cursor-pointer hover:bg-blue-50 relative group"
-                onclick={() => handleCellClick('productName', product)}
+                class="cursor-pointer hover:inset-ring-2 hover:inset-ring-amber-400/50 rounded relative group"
+                onclick={() => handleOpenProductModal('recettes', product.$id)}
               >
                 <div class="flex items-center justify-between pr-8">
                   <div>
@@ -451,11 +396,11 @@
                   </div>
                 </div>
                 <div class="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <SquarePen class="w-3 h-3 text-blue-500" />
+                  <SquarePen class="w-4 h-4 text-amber-600" />
                 </div>
               </td>
-              <td class="{filters.groupBy === 'store' ? 'hidden' : ''} cursor-pointer hover:bg-green-50 font-medium relative group"
-                onclick={() => handleCellClick('store', product)}
+              <td class="{filters.groupBy === 'store' ? 'hidden' : ''} cursor-pointer hover:inset-ring-2 hover:inset-ring-amber-400/50 rounded font-medium relative group"
+                onclick={() => handleOpenProductModal('magasins', product.$id)}
               >
                 {#if product.storeInfo?.storeComment}
                   <div class="tooltip tooltip-info" data-tip={product.storeInfo.storeComment}>
@@ -465,12 +410,12 @@
                   {product.storeInfo?.storeName || '-'}
                 {/if}
                 <div class="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <SquarePen class="w-3 h-3 text-green-500" />
+                  <SquarePen class="w-4 h-4 text-amber-600" />
                 </div>
               </td>
               <td
-                class="cursor-pointer hover:bg-purple-50 relative group"
-                onclick={() => handleCellClick('who', product)}
+                class="cursor-pointer hover:inset-ring-2 hover:inset-ring-amber-400/50 rounded relative group"
+                onclick={() => handleOpenProductModal('volontaires', product.$id)}
               >
                 {#if product.who && product.who.length > 0}
                   <div class="flex flex-wrap gap-1 pr-8">
@@ -482,7 +427,7 @@
                   -
                 {/if}
                 <div class="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <SquarePen class="w-3 h-3 text-purple-500" />
+                  <SquarePen class="w-4 h-4 text-amber-600" />
                 </div>
               </td>
               <td class="{filters.groupBy === 'productType' ? 'hidden' : ''}">
@@ -502,14 +447,18 @@
                 {/if}
               </td>
 
-              <td class="text-center font-medium cursor-pointer hover:bg-red-50 relative group" onclick={() => handleCellClick('purchases',product)}>
+              <td class="text-center font-medium cursor-pointer hover:inset-ring-2 hover:inset-ring-amber-400/50 rounded relative group" onclick={() => handleOpenProductModal('achats',product.$id)}>
                 {product.displayTotalPurchases || '-'}
                 <div class="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <SquarePen class="w-3 h-3 text-red-500" />
+                  <SquarePen class="w-4 h-4 text-amber-600" />
                 </div>
               </td>
-              <td class="text-center font-medium {product.displayMissingQuantity === '✅ Complet' ? 'text-success' : 'text-warning'}">
-                {product.displayMissingQuantity}
+              <td class="relative group text-center">
+                {#if product.displayMissingQuantity !== '✅ Complet'}
+                <div class="bg-warning px-2 py-1 rounded m-auto">{product.displayMissingQuantity}</div>
+                {:else}
+                <CircleCheckBig size={28} strokeWidth={3} class="text-success m-auto" />
+              {/if}
               </td>
             </tr>
           {/each}
@@ -532,323 +481,10 @@
   </div>
 
   <!-- Vue Mobile Cards -->
-  <div class="md:hidden bg-base-200 rounded-lg p-1">
-    {#each Object.entries(groupedFormattedProducts) as [groupKey, groupProducts] (groupKey)}
-      {#if groupKey !== ''}
-        <!-- Header de groupe mobile -->
-        {@const groupTypeInfo = getProductTypeInfo(groupKey)}
-        <div class="bg-base-300 rounded-lg p-3 mb-3 font-semibold sticky top-0 z-10">
-          <div class="flex items-center justify-center gap-2">
-            {#if filters.groupBy === 'store'}
-              <Store class="w-4 h-4" />
-              <span>{groupKey}</span>
-            {:else if filters.groupBy === 'productType'}
-              <groupTypeInfo.icon class="w-4 h-4" />
-              <span>{groupTypeInfo.displayName}</span>
-            {:else}
-              <Package class="w-4 h-4" />
-              <span>{groupKey}</span>
-            {/if}
-            <span class="text-sm opacity-70">({groupProducts.length})</span>
-          </div>
-        </div>
-      {/if}
-
-      <!-- Cards des produits -->
-      <div class="space-y-3 mb-4">
-        {#each productsStore.sortProducts(groupProducts) as product (product.$id)}
-          {@const typeInfo = getProductTypeInfo(product.productType)}
-          {@const isComplete = product.displayMissingQuantity === '✅ Complet'}
-          <div class="flex">
-
-              <div class="card bg-base-100 shadow-lg cursor-pointer hover:shadow-xl transition-all w-full">
-                <div class="card-body px-4 py-2">
-                  <!-- Header: Nom + icônes température -->
-                  <button class="flex items-center justify-between mb-2"
-                       onclick={() => handleCellClick('productName', product)} aria-label="Click to edit product name">
-                      <div class="truncate max-w-fit font-semibold text-base">{product.productName}</div>
-                      <div class="flex gap-1 ms-auto justify-end">
-
-                        {#if product.pFrais}
-                          <div class="text-success"><ShoppingBasket size={22} /></div>
-                        {/if}
-                        {#if product.pSurgel}
-                          <div class="text-info"><Snowflake size={22} /></div>
-                        {/if}
-                         <typeInfo.icon size={22}  />
-                      </div>
-                    </button>
-
-                  <!-- Magasin + Qui -->
-                  <div class="flex flex-wrap items-center gap-2 text-md opacity-80 mb-3 justify-between">
-                    <button class="flex flex-1 items-center  gap-1 btn btn-sm btn-ghost"
-                         onclick={(e) => { e.stopPropagation(); handleCellClick('store', product); }}>
-                      <Store  class="w-5 h-5" />
-                      <span class="truncate">{product.storeInfo?.storeName || '-'}</span>
-                    </button>
-
-                      <button class="flex flex-1 items-center gap-1 btn btn-ghost btn-sm" onclick={(e) => { e.stopPropagation(); handleCellClick('who', product); }}>
-                        <Users class="w-5 h-5" />
-                    {#if product.who && product.who.length > 0}
-                        <div class="flex flex-wrap gap-1">
-                          {#each product.who.slice(0, 2) as person (person)}
-                            <span class="badge badge-soft badge-info badge-sm">{person}</span>
-                          {/each}
-                          {#if product.who.length > 2}
-                            <span class="badge badge-soft badge-info badge-sm">+{product.who.length - 2}</span>
-                          {/if}
-                        </div>
-                    {/if}
-                      </button>
-                  </div>
-
-                  <!-- Quantité principale (logique conditionnelle) -->
-                  <button class="mb-3"
-                       onclick={(e) => { e.stopPropagation(); handleCellClick('purchases', product); }}>
-                    {#if isComplete}
-                      <div class="alert alert-success py-2 px-3 cursor-pointer hover:bg-success/10 transition-colors">
-                        <CheckCircle class="w-4 h-4 shrink-0" />
-                        <span class="text-sm font-medium">{product.displayTotalPurchases} acheté</span>
-                      </div>
-                    {:else}
-                      <div class="alert alert-warning py-2 px-3 cursor-pointer hover:bg-warning/10 transition-colors">
-                        <AlertCircle class="w-4 h-4 shrink-0" />
-                        <span class="text-sm font-medium">Manque {product.displayMissingQuantity}</span>
-                      </div>
-                    {/if}
-                  </button>
-
-
-                </div>
-              </div>
-          </div>
-        {/each}
-      </div>
-    {/each}
-
-    {#if filteredProducts.length === 0}
-      <div class="text-center py-8">
-        <div class="alert alert-info">
-          <div>
-            <svg class="stroke-current shrink-0 h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <span>Aucun produit trouvé avec les filtres actuels</span>
-          </div>
-        </div>
-      </div>
-    {/if}
-  </div>
 
 </div>
 
-<!-- ProductModal -->
-<ProductModal
-  isOpen={productModalOpen}
-  productId={productModalSelectedProductId}
-  initialTab={productModalInitialTab}
-  onclose={closeProductModal}
-/>
+<ProductModal/>
 
-<!-- Drawer pour filtres mobile -->
-<div class="drawer drawer-end">
-  <input
-    id="filters-drawer"
-    type="checkbox"
-    class="drawer-toggle"
-    bind:checked={filtersDrawerOpen}
-  />
 
-  <div class="drawer-side">
-    <label for="filters-drawer" class="drawer-overlay"></label>
-
-    <!-- Filtres mobile dans le drawer -->
-    <div class="menu bg-base-200 min-h-full w-80 p-4">
-      <div class="flex items-center justify-between mb-6">
-        <h3 class="text-lg font-semibold flex items-center gap-2">
-          <FunnelIcon class="w-5 h-5" />
-          Filtres
-        </h3>
-        <label for="filters-drawer" class="btn btn-sm btn-ghost btn-circle">
-          <X class="w-4 h-4" />
-        </label>
-      </div>
-
-      <!-- Groupement -->
-      <div class="form-control mb-4">
-        <label class="label" for="grouping-select-mobile">
-          <span class="label-text">Groupement</span>
-        </label>
-        <div class="join join-vertical">
-          <input
-            class="join-item btn"
-            type="radio"
-            name="grouping-options-mobile"
-            aria-label="Aucun"
-            checked={filters.groupBy === 'none'}
-            onchange={() => productsStore.setGroupBy('none')}
-          />
-          <input
-            class="join-item btn"
-            type="radio"
-            name="grouping-options-mobile"
-            aria-label="Par magasin"
-            checked={filters.groupBy === 'store'}
-            onchange={() => productsStore.setGroupBy('store')}
-          />
-          <input
-            class="join-item btn"
-            type="radio"
-            name="grouping-options-mobile"
-            aria-label="Par type"
-            checked={filters.groupBy === 'productType'}
-            onchange={() => productsStore.setGroupBy('productType')}
-          />
-        </div>
-      </div>
-
-      <!-- Filtres par type et température mobile -->
-      <div class="mb-6">
-        <fieldset>
-          <legend class="label mb-2">
-            <span class="label-text">Types & Température</span>
-          </legend>
-          <div class="flex flex-wrap gap-2 mb-3" role="group">
-            {#each uniqueProductTypes as type (type)}
-              {@const typeInfo = getProductTypeInfo(type)}
-              <button
-                class="btn btn-sm {
-                  filters.selectedProductTypes.length === 0
-                    ? 'btn-soft btn-accent'
-                    : filters.selectedProductTypes.includes(type)
-                      ? 'btn-accent'
-                      : 'btn-dash btn-accent'
-                }"
-                onclick={() => productsStore.toggleProductType(type)}
-              >
-                <typeInfo.icon class="w-3 h-3 mr-1" />
-                {typeInfo.displayName}
-              </button>
-            {/each}
-          </div>
-
-          <div class="flex flex-wrap gap-2" role="group">
-            <button
-              class="btn btn-sm {
-                filters.selectedTemperatures.length === 0
-                  ? 'btn-soft btn-success'
-                  : filters.selectedTemperatures.includes('frais')
-                    ? 'btn-success'
-                    : 'btn-dash btn-success'
-              }"
-              onclick={() => productsStore.toggleTemperature('frais')}
-            >
-              <ShoppingBasket class="w-3 h-3" />
-              Frais
-            </button>
-            <button
-              class="btn btn-sm {
-                filters.selectedTemperatures.length === 0
-                  ? 'btn-soft btn-info'
-                  : filters.selectedTemperatures.includes('surgele')
-                    ? 'btn-info'
-                    : 'btn-dash btn-info'
-              }"
-              onclick={() => productsStore.toggleTemperature('surgele')}
-            >
-              <Snowflake class="w-3 h-3" />
-              Surgelés
-            </button>
-
-            {#if filters.selectedProductTypes.length > 0 || filters.selectedTemperatures.length > 0}
-              <button
-                class="btn btn-sm btn-circle btn-ghost text-error hover:bg-error/10"
-                onclick={() => productsStore.clearTypeAndTemperatureFilters()}
-                title="Effacer les filtres de types et température"
-              >
-                <X class="w-3 h-3" />
-              </button>
-            {/if}
-          </div>
-        </fieldset>
-      </div>
-
-      <!-- Filtres par magasin -->
-      {#if uniqueStores.length > 0}
-        <div class="mb-6">
-          <fieldset>
-            <legend class="label mb-2">
-              <span class="label-text">Magasins</span>
-            </legend>
-            <div class="flex flex-wrap gap-2" role="group">
-              {#each uniqueStores as store (store)}
-                <button
-                  class="btn btn-sm {
-                    filters.selectedStores.length === 0
-                      ? 'btn-soft btn-accent'
-                      : filters.selectedStores.includes(store)
-                        ? 'btn-accent'
-                        : 'btn-dash btn-accent'
-                  }"
-                  onclick={() => productsStore.toggleStore(store)}
-                >
-                  {store}
-                </button>
-              {/each}
-            </div>
-          </fieldset>
-        </div>
-      {/if}
-
-      <!-- Filtres par who -->
-      {#if uniqueWho.length > 0}
-        <div class="mb-6">
-          <fieldset>
-            <legend class="label mb-2">
-              <span class="label-text">Qui</span>
-            </legend>
-            <div class="flex flex-wrap gap-2" role="group">
-              {#each uniqueWho as who (who)}
-                <button
-                  class="btn btn-sm {
-                    filters.selectedWho.length === 0
-                      ? 'btn-soft btn-accent'
-                      : filters.selectedWho.includes(who)
-                        ? 'btn-accent'
-                        : 'btn-dash btn-accent'
-                  }"
-                  onclick={() => productsStore.toggleWho(who)}
-                >
-                  {who}
-                </button>
-              {/each}
-            </div>
-          </fieldset>
-        </div>
-      {/if}
-
-      <!-- Actions -->
-      <div class="divider"></div>
-      <button
-        class="btn btn-primary w-full mb-2"
-        onclick={() => {
-          productsStore.clearFilters();
-          filtersDrawerOpen = false;
-        }}
-      >
-        <X class="w-4 h-4 mr-2" />
-        Tout effacer
-      </button>
-      <label for="filters-drawer" class="btn btn-outline w-full">
-        Appliquer
-      </label>
-    </div>
-  </div>
-</div>
-
-<!-- FAB flottant pour mobile -->
-<div class="md:hidden fixed bottom-4 left-4 z-50">
-  <label for="filters-drawer" class="btn btn-primary btn-circle btn-lg shadow-lg">
-    <FunnelIcon class="w-6 h-6" />
-  </label>
-</div>
+<ProductDrawerFilters />
