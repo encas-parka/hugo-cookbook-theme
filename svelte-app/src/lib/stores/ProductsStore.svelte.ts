@@ -2,7 +2,7 @@ import { PersistedState } from 'runed';
 import { useDebounce } from 'runed';
 import { createStorageKey } from '../utils/url-utils';
 import type { Products, Purchases } from '../types/appwrite.d';
-import type { QuantityInfo, StoreInfo } from '../types/store.types';
+import type { NumericQuantity, QuantityInfo, StoreInfo } from '../types/store.types';
 import {
   loadProducts,
   syncProducts,
@@ -82,10 +82,15 @@ const SYNC_DEBOUNCE_MS = 500;       // Délai de debounce pour la synchro en arr
 // =============================================================================
 
 class ProductsStore {
+
   #currentMainId = $state<string | null>(null);
+
   #isInitialized = $state(false);
+
   #productsState: PersistedState<ProductsState> | null = $state(null);
+
   #syncState: PersistedState<SyncState> | null = $state(null);
+
   #unsubscribe: (() => void) | null = $state(null);
 
   // Utilitaire pour parser JSON en toute sécurité
@@ -130,29 +135,35 @@ class ProductsStore {
   // Étape 1 : Parsing & Formatting (calculé une seule fois)
   enrichedProducts = $derived.by(() => {
     return this.products.map(p => {
-      const totalPurchases = this.#calculateTotalPurchasesArray(p.purchases ?? []);
-      const totalNeededArray = p.totalNeededConsolidated ? this.#safeJsonParse<QuantityInfo[]>(p.totalNeededConsolidated) : [];
-      const missingQuantity = this.#calculateMissingQuantity(
+
+      const totalPurchasesArray = this.#calculateTotalPurchasesArray(p.purchases ?? []);
+
+      const totalNeededArray = p.totalNeededConsolidated
+        ? this.#parseToNumericQuantity(p.totalNeededConsolidated)
+        : [];
+
+      const missingQuantityArray = this.#calculateMissingQuantity(
         totalNeededArray,
-        totalPurchases
+        totalPurchasesArray
       );
 
       return {
         ...p,
         // Parsing des JSON strings en objets exploitables
         storeInfo: p.store ? this.#safeJsonParse<StoreInfo>(p.store) : null,
-        totalNeededArray: totalNeededArray,
+        totalNeededArray,
+        totalPurchasesArray,
         recipesArray: p.recipesOccurrences ? this.#safeJsonParse(p.recipesOccurrences) : [],
         stockArray: p.stockReel ? this.#safeJsonParse(p.stockReel) : [],
+        missingQuantityArray,
         // Propriétés formatées pour l'affichage
-        displayQuantity: this.#formatQuantity(p.totalNeededConsolidated),
-        displayName: p.productName.trim(),
-        totalPurchases: totalPurchases,
-        displayTotalPurchases: this.#displayTotalPurchases(p.purchases ?? []),
-        missingQuantity: missingQuantity,
-        displayMissingQuantity: missingQuantity.length > 0
-          ? missingQuantity.map(m => this.#formatSingleQuantity(m.quantity.toString(), m.unit)).join(' et ')
-          : '✅ Complet'
+        displayTotalQuantity: this.#formatTotalQuantity(totalNeededArray),
+        // displayName: p.productName.trim(), // UNUSED
+        displayTotalPurchases:  this.#formatTotalQuantity(totalPurchasesArray ?? []),
+
+        displayMissingQuantity: missingQuantityArray.length > 0
+          ? missingQuantityArray.map(m => this.#formatSingleQuantity(m.quantity.toString(), m.unit)).join(' et ')
+          : '✅ Complet' // FIXIT Improve: Complet ??
       };
     });
   });
@@ -374,7 +385,7 @@ class ProductsStore {
           // while updating only the fields that came in the payload
           const refreshedProducts = { ...p };
 
-          // Only update the fields that are present in the payload
+          // Only update the fields that are present in the payload (le payload ne contient pas tous les champs, risque de perdre des données si update non granulaire)
           Object.keys(updatedProduct).forEach(key => {
             if (updatedProduct[key as keyof Products] !== undefined) {
               (refreshedProducts as any)[key] = updatedProduct[key as keyof Products];
@@ -759,17 +770,35 @@ class ProductsStore {
     return `${num} ${unit}`;
   }
 
-  #displayTotalPurchases(purchases: any[]): string {
-    if (!purchases || purchases.length === 0) return '-';
 
-    const purchasesArray = this.#calculateTotalPurchasesArray(purchases);
+  /**
+   * Formate un tableau de quantités numériques en une chaîne lisible.
+   * @param total - Le tableau de quantities numériques à formater.
+   * @returns Une chaîne représentant les quantités formatées, ou '-' si le tableau est vide.
+   * @usages: displayTotalQuantity, displayTotalPurchases
+   */
+  #formatTotalQuantity(total: NumericQuantity[]): string {
+    if (!total || total.length === 0) return '-';
 
-    return purchasesArray
+    return total
       .map(p => this.#formatSingleQuantity(p.quantity.toString(), p.unit))
       .join(' et ');
   }
 
-  #calculateTotalPurchasesArray(purchases: any[]): {quantity: number, unit: string}[] {
+  #parseToNumericQuantity(jsonString: string): NumericQuantity[] {
+    try {
+      const quantityInfoArray = JSON.parse(jsonString) as QuantityInfo[];
+      return quantityInfoArray.map(q => ({
+        quantity: parseFloat(q.quantity),
+        unit: q.unit
+      })).filter(q => !isNaN(q.quantity));
+    } catch (error) {
+      console.error('[ProductsStore] Erreur parsing NumericQuantity:', error);
+      return [];
+    }
+  }
+
+  #calculateTotalPurchasesArray(purchases: any[]): NumericQuantity[] {
     if (!purchases || purchases.length === 0) return [];
 
     // Les unités sont déjà normalisées en gr./ml/unités spécifiques
@@ -786,7 +815,7 @@ class ProductsStore {
       quantityMap.set(purchase.unit, existing + quantity);
     });
 
-    const result: {quantity: number, unit: string}[] = [];
+    const result: NumericQuantity[] = [];
     quantityMap.forEach((total, unit) => {
       result.push({quantity: total, unit});
     });
@@ -794,7 +823,7 @@ class ProductsStore {
     return result;
   }
 
-  #calculateMissingQuantity(neededArray: QuantityInfo[], purchasesArray: {quantity: number, unit: string}[]): {quantity: number, unit: string}[] {
+  #calculateMissingQuantity(neededArray: NumericQuantity[], purchasesArray: NumericQuantity[]): NumericQuantity[] {
     if (!neededArray || neededArray.length === 0) return [];
     if (!purchasesArray || purchasesArray.length === 0) {
       // Pas d'achats, tout est manquant

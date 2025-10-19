@@ -93,13 +93,13 @@ export interface EnrichedProduct {
 
   // Propriétés enrichies ajoutées par le store
   storeInfo: StoreInfo | null;
-  totalNeededArray: QuantityInfo[];
+  totalNeededArray: NumericQuantity[];
   recipesArray: RecipeOccurrence[];
   stockArray: StockEntry[];
+  missingQuantityArray: NumericQuantity[];
+  totalPurchasesArray: NumericQuantity[];
   displayQuantity: string;
-  displayName: string;
-  totalPurchases: NumericQuantity[];
-  missingQuantity: NumericQuantity[];
+  // displayName: string; // UNUSED
   displayTotalPurchases: string;
   displayMissingQuantity: string;
   nbPurchases: number;

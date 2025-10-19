@@ -437,7 +437,7 @@
                 </span>
               </td>
               <td class="text-center font-semibold">
-                <div class="pb-1 text-center font-semibold">{product.displayQuantity || '-'}</div>
+                <div class="pb-1 text-center font-semibold">{product.displayTotalQuantity || '-'}</div>
                 {#if product.nbRecipes || product.totalAssiettes}
                   <div class="text-xs text-base-content/70 flex gap-2 items-center justify-center">
                     <Utensils class="w-3 h-3" />

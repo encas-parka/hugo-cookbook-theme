@@ -1,3 +1,4 @@
+import type { Purchases } from '../types/appwrite';
 import type { EnrichedProduct } from '../types/store.types';
 
 export function createProductModalState(product: EnrichedProduct) {
@@ -27,13 +28,25 @@ export function createProductModalState(product: EnrichedProduct) {
     },
     who: {
       name: localStorage.getItem("appwrite-user-name") || '',
-    }
+    },
+
+
+
 
   });
 
-  const recipes = $derived(product?.recipesArray || []);
-  const currentsWho = $derived(product?.who || []);
 
+  // Autres données à afficher
+  const recipes = $derived(product?.recipesArray || []);
+  const whoList = $derived(product?.who || []);
+  const stockEntries = $derived(product?.stockArray || []);
+  const purchasesList = $derived(product?.totalPurchasesArray || []);
+
+  // Edition d'une donnée existante (plus besoin de edit.store ?)
+  let edit = $state({
+    purchase: null as Purchases | null,
+    whoList: whoList || null as string[] | null
+  })
 
 
 }
