@@ -93,6 +93,9 @@ class ProductsStore {
 
   #unsubscribe: (() => void) | null = $state(null);
 
+  // Cache pour les produits enrichis afin d'éviter les re-calculs lourds
+  #enrichmentCache = $state(new Map<string, any>());
+
   // Utilitaire pour parser JSON en toute sécurité
   #safeJsonParse<T>(jsonString: string | null, defaultValue: T | null = null): T | null {
     if (!jsonString || jsonString.trim() === '') {
@@ -131,23 +134,33 @@ class ProductsStore {
 
   // Exposition des filtres (lecture/écriture)
   get filters() { return this.#filters; }
+  
+  // ===============================================================
+  //  Mise a jours de données consommé par les templates 
+  // ===============================================================
 
-  // Étape 1 : Parsing & Formatting (calculé une seule fois)
+  // Étape 1 : Parsing & Formatting (calculé une seule fois avec optimisation cache)
   enrichedProducts = $derived.by(() => {
     return this.products.map(p => {
+      // Clé de cache basée sur l'ID et la date de modification pour détecter les changements
+      const cacheKey = `${p.$id}-${p.$updatedAt}`;
 
+      // Vérifier si le produit est déjà en cache et inchangé
+      if (this.#enrichmentCache.has(cacheKey)) {
+        return this.#enrichmentCache.get(cacheKey)!;
+      }
+
+      // Calculer l'enrichissement seulement si nécessaire
       const totalPurchasesArray = this.#calculateTotalPurchasesArray(p.purchases ?? []);
 
       const totalNeededArray = p.totalNeededConsolidated
         ? this.#parseToNumericQuantity(p.totalNeededConsolidated)
         : [];
 
-      const missingQuantityArray = this.#calculateMissingQuantity(
-        totalNeededArray,
-        totalPurchasesArray
-      );
+      const { numeric: missingQuantityArray, display: displayMissingQuantity } =
+        this.#calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
 
-      return {
+      const enriched = {
         ...p,
         // Parsing des JSON strings en objets exploitables
         storeInfo: p.store ? this.#safeJsonParse<StoreInfo>(p.store) : null,
@@ -157,14 +170,18 @@ class ProductsStore {
         stockArray: p.stockReel ? this.#safeJsonParse(p.stockReel) : [],
         missingQuantityArray,
         // Propriétés formatées pour l'affichage
-        displayTotalQuantity: this.#formatTotalQuantity(totalNeededArray),
+        displayTotalNeeded: this.#formatTotalQuantity(totalNeededArray),
         // displayName: p.productName.trim(), // UNUSED
-        displayTotalPurchases:  this.#formatTotalQuantity(totalPurchasesArray ?? []),
+        displayTotalPurchases:  this.#formatTotalQuantity(totalPurchasesArray ?? []), // FIXIT : reactivité perdu avec la strategie de cache : le updatedAt ne change pas lorsqu'un nouveau purchase arrive !!
 
-        displayMissingQuantity: missingQuantityArray.length > 0
-          ? missingQuantityArray.map(m => this.#formatSingleQuantity(m.quantity.toString(), m.unit)).join(' et ')
-          : '✅ Complet' // FIXIT Improve: Complet ??
+        displayMissingQuantity, // Utilise la valeur déjà formatée
       };
+
+      // Mettre en cache pour les prochaines utilisations
+      this.#enrichmentCache.set(cacheKey, enriched);
+
+
+      return enriched;
     });
   });
 
@@ -775,7 +792,7 @@ class ProductsStore {
    * Formate un tableau de quantités numériques en une chaîne lisible.
    * @param total - Le tableau de quantities numériques à formater.
    * @returns Une chaîne représentant les quantités formatées, ou '-' si le tableau est vide.
-   * @usages: displayTotalQuantity, displayTotalPurchases
+   * @usages: displayTotalNeeded, displayTotalPurchases
    */
   #formatTotalQuantity(total: NumericQuantity[]): string {
     if (!total || total.length === 0) return '-';
@@ -823,11 +840,27 @@ class ProductsStore {
     return result;
   }
 
-  #calculateMissingQuantity(neededArray: NumericQuantity[], purchasesArray: NumericQuantity[]): NumericQuantity[] {
-    if (!neededArray || neededArray.length === 0) return [];
+
+  /**
+   * Calcule les quantités manquantes ET leur formatage en une seule passe
+   * @param neededArray - Tableau des quantités nécessaires
+   * @param purchasesArray - Tableau des quantités achetées
+   * @returns Objet contenant le tableau numérique et la chaîne formatée
+   */
+  #calculateAndFormatMissing(
+    neededArray: NumericQuantity[],
+    purchasesArray: NumericQuantity[]
+  ): { numeric: NumericQuantity[], display: string } {
+    if (!neededArray || neededArray.length === 0) {
+      return { numeric: [], display: '✅ Complet' };
+    }
     if (!purchasesArray || purchasesArray.length === 0) {
       // Pas d'achats, tout est manquant
-      return neededArray.map(n => ({quantity: parseFloat(n.quantity), unit: n.unit}));
+      const numeric = neededArray.map(n => ({quantity: parseFloat(n.quantity), unit: n.unit}));
+      const display = numeric.length > 0
+        ? numeric.map(m => this.#formatSingleQuantity(m.quantity.toString(), m.unit)).join(' et ')
+        : '✅ Complet';
+      return { numeric, display };
     }
 
     // Créer des maps pour les calculs simples (unités déjà en gr. et ml)
@@ -847,18 +880,29 @@ class ProductsStore {
       purchasesMap.set(purchase.unit, (purchasesMap.get(purchase.unit) || 0) + purchase.quantity);
     });
 
-    // Calculer la différence : besoins - achats
-    const result: {quantity: number, unit: string}[] = [];
+    // Calculer la différence : besoins - achats ET formatter en même temps
+    const numeric: {quantity: number, unit: string}[] = [];
+    const formattedQuantities: string[] = [];
 
     neededMap.forEach((needed, unit) => {
       const purchased = purchasesMap.get(unit) || 0;
       const missing = needed - purchased;
       if (missing > 0) {
-        result.push({quantity: missing, unit});
+        const missingItem = {quantity: missing, unit};
+        numeric.push(missingItem);
+
+        // Formatage immédiat pour éviter un deuxième parcours
+        formattedQuantities.push(
+          this.#formatSingleQuantity(missing.toString(), unit)
+        );
       }
     });
 
-    return result;
+    const display = formattedQuantities.length > 0
+      ? formattedQuantities.join(' et ')
+      : '✅ Complet';
+
+    return { numeric, display };
   }
 
 

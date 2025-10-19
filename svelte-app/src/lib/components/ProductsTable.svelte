@@ -276,7 +276,7 @@
 
 
   <!-- Tableau Desktop -->
-  <div class="hidden md:block bg-base-100 rounded-lg overflow-x-auto max-h-[calc(100vh-200px)]">
+  <div class="hidden md:block bg-base-100 rounded-lg ">
     <table class="table w-full">
       <thead class="sticky top-0 z-10 bg-base-200">
         <tr class="bg-base-200">
@@ -318,18 +318,12 @@
           <th class="text-center">
             <div class="flex items-center justify-center gap-2">
               Besoins
-              {#if filters.sortColumn === 'totalNeededConsolidated'}
-                {filters.sortDirection === 'asc' ? '↑' : '↓'}
-              {/if}
             </div>
           </th>
           <th class="text-center">
             <div class="flex items-center justify-center gap-2">
               <ShoppingCart class="w-4 h-4" />
-              Achats
-              {#if filters.sortColumn === 'totalPurchases'}
-                {filters.sortDirection === 'asc' ? '↑' : '↓'}
-              {/if}
+              Achats / Reccup
             </div>
           </th>
 
@@ -437,7 +431,7 @@
                 </span>
               </td>
               <td class="text-center font-semibold">
-                <div class="pb-1 text-center font-semibold">{product.displayTotalQuantity || '-'}</div>
+                <div class="pb-1 text-center font-semibold">{product.displayTotalNeeded || '-'}</div>
                 {#if product.nbRecipes || product.totalAssiettes}
                   <div class="text-xs text-base-content/70 flex gap-2 items-center justify-center">
                     <Utensils class="w-3 h-3" />

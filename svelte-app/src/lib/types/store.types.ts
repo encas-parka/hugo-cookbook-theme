@@ -102,7 +102,6 @@ export interface EnrichedProduct {
   // displayName: string; // UNUSED
   displayTotalPurchases: string;
   displayMissingQuantity: string;
-  nbPurchases: number;
 }
 
 
