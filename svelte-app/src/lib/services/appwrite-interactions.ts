@@ -233,6 +233,74 @@ export async function syncProducts(
     }
 }
 
+/**
+ * Synchronise les produits ET les purchases depuis Appwrite (uniquement les mises à jour)
+ *
+ * Service de synchronisation hybride pour ProductsStore.
+ * Récupère les modifications des collections products ET purchases depuis la dernière synchronisation.
+ *
+ * @param mainId - ID du main pour filtrer les données
+ * @param options - Options de synchronisation (dernière sync, limite)
+ * @returns Promise<{products: Products[], purchases: Purchases[]}> - Modifications des deux collections
+ *
+ * Flux :
+ * 1. Vérifie la présence de lastSync (sinon retourne vide)
+ * 2. Parallélise les requêtes sur products et purchases avec filtre $updatedAt > lastSync
+ * 3. Retourne le delta des modifications pour les deux collections
+ * 4. ProductsStore utilisera applyProductUpdates et applyPurchaseUpdates pour fusionner
+ */
+export async function syncProductsAndPurchases(
+    mainId: string,
+    options: SyncOptions
+): Promise<{ products: Products[], purchases: Purchases[] }> {
+    const { lastSync, limit = 100 } = options;
+
+    if (!lastSync) {
+        console.log('[Appwrite Interactions] Aucune dernière sync fournie, retour vide pour sync hybride');
+        return { products: [], purchases: [] };
+    }
+
+    try {
+        const { databases, config } = await getAppwriteInstances();
+
+        // Paralléliser les deux requêtes pour optimiser la performance
+        const [productsResponse, purchasesResponse] = await Promise.all([
+            databases.listDocuments(
+                config.APPWRITE_CONFIG.databaseId,
+                config.APPWRITE_CONFIG.collections.products,
+                [
+                    Query.greaterThan('$updatedAt', lastSync),
+                    Query.equal('mainId', mainId),
+                    Query.limit(limit)
+                ]
+            ),
+            databases.listDocuments(
+                config.APPWRITE_CONFIG.databaseId,
+                config.APPWRITE_CONFIG.collections.purchases,
+                [
+                    Query.greaterThan('$updatedAt', lastSync),
+                    Query.equal('mainId', mainId),
+                    Query.limit(limit)
+                ]
+            )
+        ]);
+
+        const products = productsResponse.documents as Products[];
+        const purchases = purchasesResponse.documents as Purchases[];
+
+        if (products.length > 0 || purchases.length > 0) {
+            console.log(`[Appwrite Interactions] Sync hybride: ${products.length} produits et ${purchases.length} achats synchronisés`);
+        }
+
+        return { products, purchases };
+
+    } catch (error) {
+        console.error(`[Appwrite Interactions] Erreur sync hybride pour mainId ${mainId}:`, error);
+        const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la synchronisation hybride';
+        throw new Error(`Échec de la synchronisation hybride: ${errorMessage}`);
+    }
+}
+
 // =============================================================================
 // SERVICES PRODUITS - MISE À JOUR
 // =============================================================================

@@ -6,6 +6,7 @@ import type { NumericQuantity, QuantityInfo, StoreInfo } from '../types/store.ty
 import {
   loadProducts,
   syncProducts,
+  syncProductsAndPurchases,
   applyProductUpdates,
   subscribeToRealtime,
   type LoadProductsOptions,
@@ -134,9 +135,9 @@ class ProductsStore {
 
   // Exposition des filtres (lecture/écriture)
   get filters() { return this.#filters; }
-  
+
   // ===============================================================
-  //  Mise a jours de données consommé par les templates 
+  //  Mise a jours de données consommé par les templates
   // ===============================================================
 
   // Étape 1 : Parsing & Formatting (calculé une seule fois avec optimisation cache)
@@ -358,14 +359,31 @@ class ProductsStore {
         limit: BATCH_LIMIT
       };
 
-      const updatedProducts = await syncProducts(this.#currentMainId!, options);
+      // 🚨 NOUVEAU : Synchronisation hybride products + purchases
+      const { products: updatedProducts, purchases: updatedPurchases } =
+        await syncProductsAndPurchases(this.#currentMainId!, options);
 
+      let hasChanges = false;
+
+      // Appliquer les mises à jour de produits
       if (updatedProducts.length > 0) {
         this.#updateState({
           products: applyProductUpdates(this.products, updatedProducts)
         });
+        hasChanges = true;
+        console.log(`[ProductsStore] ${updatedProducts.length} mises à jour de produits synchronisées`);
+      }
+
+      // 🆕 Appliquer les mises à jour de purchases
+      if (updatedPurchases.length > 0) {
+        this.#applyPurchaseUpdates(updatedPurchases);
+        hasChanges = true;
+        console.log(`[ProductsStore] ${updatedPurchases.length} mises à jour d'achats synchronisées`);
+      }
+
+      // Mettre à jour le timestamp de sync si des changements ont eu lieu
+      if (hasChanges) {
         this.#updateLastSync();
-        console.log(`[ProductsStore] ${updatedProducts.length} mises à jour synchronisées`);
       }
 
       this.#updateState({ syncing: false });
@@ -436,17 +454,32 @@ class ProductsStore {
 
   #handlePurchaseDelete(purchaseId: string) {
     console.log('[ProductsStore] Purchase supprimé, nettoyage des produits concernés...');
-    // Retirer le purchase supprimé de tous les produits
+
+    // Retirer le purchase supprimé de tous les produits et mettre à jour updatedAt
+    const affectedProducts = this.products.filter(product =>
+      product.purchases && product.purchases.some(p => p.$id === purchaseId)
+    );
+
     this.#updateState({
-      products: this.products.map(product => ({
-        ...product,
-        purchases: (product.purchases || []).filter(p => p.$id !== purchaseId)
-      }))
+      products: this.products.map(product => {
+        const hadThePurchase = product.purchases && product.purchases.some(p => p.$id === purchaseId);
+
+        return {
+          ...product,
+          purchases: (product.purchases || []).filter(p => p.$id !== purchaseId),
+          // 🚨 Mettre à jour updatedAt seulement si le produit était affecté
+          ...(hadThePurchase && { $updatedAt: new Date().toISOString() })
+        };
+      })
     });
+
+    if (affectedProducts.length > 0) {
+      console.log(`[ProductsStore] Purchase ${purchaseId} supprimé de ${affectedProducts.length} produit(s)`);
+    }
   }
 
   #updateProductsFromPurchase(purchase: Purchases) {
-    if (!purchase.products || purchase.products.length === 0) return;
+    if (!purchase.products || purchase.products.length === 0 ) return;
 
     // Mettre à jour uniquement les produits concernés par ce purchase
     this.#updateState({
@@ -459,7 +492,9 @@ class ProductsStore {
 
           return {
             ...product,
-            purchases: updatedPurchases
+            purchases: updatedPurchases,
+            // 🚨 Mettre à jour updatedAt pour forcer le recalcul du cache
+            $updatedAt: new Date().toISOString()
           };
         }
         return product;
@@ -467,6 +502,45 @@ class ProductsStore {
     });
 
     console.log(`[ProductsStore] ${purchase.products.length} produit(s) mis à jour avec le purchase ${purchase.$id}`);
+  }
+
+  /**
+   * Applique les mises à jour de purchases reçues de la synchronisation
+   * @param updatedPurchases - Purchases mis à jour depuis Appwrite
+   */
+  #applyPurchaseUpdates(updatedPurchases: Purchases[]) {
+    if (!updatedPurchases || updatedPurchases.length === 0) return;
+
+    this.#updateState({
+      products: this.products.map(product => {
+        // Trouver les purchases qui concernent ce produit
+        const relevantPurchases = updatedPurchases.filter(purchase =>
+          purchase.products && purchase.products.some((p: any) => p.$id === product.$id)
+        );
+
+        if (relevantPurchases.length > 0) {
+          // Fusionner les purchases existants avec les nouveaux
+          const existingPurchases = product.purchases || [];
+          let updatedPurchasesList = [...existingPurchases];
+
+          relevantPurchases.forEach(newPurchase => {
+            // Remplacer ou ajouter le purchase
+            updatedPurchasesList = updatedPurchasesList.filter(p => p.$id !== newPurchase.$id);
+            updatedPurchasesList.push(newPurchase);
+          });
+
+          return {
+            ...product,
+            purchases: updatedPurchasesList,
+            // 🚨 Mettre à jour updatedAt pour forcer le recalcul du cache
+            $updatedAt: new Date().toISOString()
+          };
+        }
+        return product;
+      })
+    });
+
+    console.log(`[ProductsStore] ${updatedPurchases.length} purchases synchronisés et appliqués`);
   }
 
   #setupRealtimeCallbacks() {
