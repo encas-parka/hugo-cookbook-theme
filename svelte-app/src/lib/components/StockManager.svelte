@@ -1,7 +1,30 @@
 <script lang="ts">
 	import { Archive } from '@lucide/svelte';
 	import type { Products } from '../types/appwrite.d.ts';
+	import { createProductModalState } from '../stores/ProductModalState.svelte';
+	import { productsStore } from '../stores/ProductsStore.svelte';
 
+	// --- NOUVELLE APPROCHE : Consommation directe de ProductModalState ---
+	// Le composant consomme directement le store au lieu de recevoir des props
+	
+	interface Props {
+		product: Products | null;
+	}
+
+	let { product }: Props = $props();
+
+	// Accès direct au store
+	const modalState = $derived.by(() => {
+		return product ? createProductModalState(product) : null;
+	});
+
+	// Données dérivées du store
+	const stockEntries = $derived(modalState?.stockEntries ?? []);
+	const loading = $derived(modalState?.loading ?? false);
+	const stockForm = $derived(modalState?.forms.stock);
+
+	// --- CODE LEGACY (conservé pour référence) ---
+	/*
 	interface StockEntry {
 		quantity: number;
 		unit: string;
@@ -31,6 +54,7 @@
 		dateTime: '',
 		notes: ''
 	};
+	*/
 
 	function formatQuantity(quantity: number, unit: string): string {
 		if (unit === 'g' && quantity >= 1000) {
@@ -51,9 +75,21 @@
 		});
 	}
 
+	// --- NOUVELLE APPROCHE : Utilisation directe des actions du store ---
+	async function handleAddStock() {
+		await modalState?.addStock();
+	}
+
+	async function handleDeleteStock(index: number) {
+		await modalState?.deleteStock(index);
+	}
+
+	// --- CODE LEGACY (conservé pour référence) ---
+	/*
 	async function handleDeleteStock(dateTime: string) {
 		await onDeleteStock(dateTime);
 	}
+	*/
 </script>
 
 <div class="space-y-4">
@@ -75,7 +111,7 @@
 						type="number"
 						step="0.01"
 						class="input input-bordered input-sm"
-						bind:value={newStock.quantity}
+						bind:value={stockForm?.quantity}
 						required
 					/>
 				</div>
@@ -83,7 +119,7 @@
 					<label for="stock-unit" class="label">
 						<span class="label-text">Unité</span>
 					</label>
-					<select id="stock-unit" class="select select-bordered select-sm" bind:value={newStock.unit} required>
+					<select id="stock-unit" class="select select-bordered select-sm" bind:value={stockForm?.unit} required>
 						<option value="">Sélectionner</option>
 						<option value="kg">kg</option>
 						<option value="g">g</option>
@@ -101,7 +137,7 @@
 						id="stock-datetime"
 						type="datetime-local"
 						class="input input-bordered input-sm"
-						bind:value={newStock.dateTime}
+						bind:value={stockForm?.dateTime}
 						required
 					/>
 				</div>
@@ -113,13 +149,13 @@
 						id="stock-notes"
 						type="text"
 						class="input input-bordered input-sm"
-						bind:value={newStock.notes}
+						bind:value={stockForm?.notes}
 						placeholder="Origine, remarques..."
 					/>
 				</div>
 			</div>
 			<div class="card-actions justify-end mt-4">
-				<button class="btn btn-primary btn-sm" onclick={onAddStock} disabled={loading}>
+				<button class="btn btn-primary btn-sm" onclick={handleAddStock} disabled={loading}>
 					{#if loading}
 						<span class="loading loading-spinner loading-sm"></span>
 					{:else}
@@ -157,7 +193,7 @@
 							<td>
 								<button
 									class="btn btn-ghost btn-xs text-error"
-									onclick={() => handleDeleteStock(entry.dateTime)}
+									onclick={() => handleDeleteStock(index)}
 									disabled={loading}
 								>
 									{#if loading}

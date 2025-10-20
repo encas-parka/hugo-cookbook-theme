@@ -1,7 +1,28 @@
 <script lang="ts">
 	import { ShoppingCart, SquarePen, Save, X } from '@lucide/svelte';
 	import type { Products, Purchases } from '../types/appwrite.d.ts';
+	import { useProductModal } from '../hooks/useProductModal';
 
+	// --- NOUVELLE APPROCHE : Consommation directe de ProductModalState ---
+	// Le composant consomme directement le store au lieu de recevoir des props
+	
+	interface Props {
+		product: Products | null;
+	}
+
+	let { product }: Props = $props();
+
+	// Utilisation du hook pour accéder à ProductModalState
+	const modalState = useProductModal(product?.$id);
+
+	// Données dérivées du store
+	const purchases = $derived(modalState?.purchasesList ?? []);
+	const loading = $derived(modalState?.loading ?? false);
+	const purchaseForm = $derived(modalState?.forms.purchase);
+	const editingPurchaseData = $derived(modalState?.edit.purchase);
+
+	// --- CODE LEGACY (conservé pour référence) ---
+	/*
 	interface Props {
 		product: Products | null;
 		currentProductPurchases: Purchases[];
@@ -34,6 +55,7 @@
 	}: Props = $props();
 
 	let editingPurchase: Purchases | null = $state(null);
+	*/
 
 	function formatQuantity(quantity: number, unit: string): string {
 		if (unit === 'gr.' && quantity >= 1000) {
@@ -52,6 +74,29 @@
 		});
 	}
 
+	// --- NOUVELLE APPROCHE : Utilisation directe des actions du store ---
+	function startEditPurchase(purchase: Purchases) {
+		modalState?.startEditPurchase(purchase);
+	}
+
+	function cancelEditPurchase() {
+		modalState?.cancelEditPurchase();
+	}
+
+	async function handleSavePurchase() {
+		await modalState?.savePurchase();
+	}
+
+	async function handleDeletePurchase(purchaseId: string) {
+		await modalState?.deletePurchase(purchaseId);
+	}
+
+	async function handleAddPurchase() {
+		await modalState?.addPurchase();
+	}
+
+	// --- CODE LEGACY (conservé pour référence) ---
+	/*
 	function startEditPurchase(purchase: Purchases) {
 		editingPurchase = { ...purchase };
 		onStartEditPurchase(purchase);
@@ -70,6 +115,7 @@
 	async function handleDeletePurchase(purchaseId: string) {
 		await onDeletePurchase(purchaseId);
 	}
+	*/
 </script>
 
 <div class="space-y-4">
@@ -91,7 +137,7 @@
 						type="number"
 						step="0.01"
 						class="input input-bordered validator"
-						bind:value={newPurchase.quantity}
+						bind:value={purchaseForm?.quantity}
 						required
 					/>
 				</div>
@@ -99,7 +145,7 @@
 					<label for="purchase-unit" class="label">
 						<span class="label-text">Unité</span>
 					</label>
-					<select id="purchase-unit" class="select select-bordered validator" bind:value={newPurchase.unit} required>
+					<select id="purchase-unit" class="select select-bordered validator" bind:value={purchaseForm?.unit} required>
 						<option disabled selected value="">Sélectionner</option>
 						<option value="kg">kg</option>
 						<option value="gr.">gr.</option>
@@ -117,7 +163,7 @@
 						id="purchase-store"
 						type="text"
 						class="input input-bordered"
-						bind:value={newPurchase.store}
+						bind:value={purchaseForm?.store}
 						placeholder="Ex: Marché"
 					/>
 				</div>
@@ -129,7 +175,7 @@
 						id="purchase-who"
 						type="text"
 						class="input input-bordered"
-						bind:value={newPurchase.who}
+						bind:value={purchaseForm?.who}
 						placeholder="Votre nom"
 					/>
 				</div>
@@ -142,7 +188,7 @@
 						type="number"
 						step="1"
 						class="input input-bordered"
-						bind:value={newPurchase.price}
+						bind:value={purchaseForm?.price}
 						placeholder="0.00"
 					/>
 				</div>
@@ -154,13 +200,13 @@
 						id="purchase-notes"
 						type="text"
 						class="input input-bordered"
-						bind:value={newPurchase.notes}
+						bind:value={purchaseForm?.notes}
 						placeholder="Promotion, remarques..."
 					/>
 				</div>
 			</div>
 			<div class="card-actions justify-end mt-4">
-				<button class="btn btn-primary btn-sm" onclick={onAddPurchase} disabled={loading}>
+				<button class="btn btn-primary btn-sm" onclick={handleAddPurchase} disabled={loading}>
 					{#if loading}
 						<span class="loading loading-spinner loading-sm"></span>
 					{:else}
@@ -171,7 +217,7 @@
 		</div>
 	</div>
 
-	{#if currentProductPurchases.length === 0}
+	{#if purchases.length === 0}
 		<div class="text-center py-8 opacity-50">
 			<ShoppingCart class="w-12 h-12 mx-auto mb-2" />
 			<p>Aucun achat enregistré pour ce produit</p>
@@ -191,8 +237,8 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each currentProductPurchases as purchase (purchase.$id)}
-						{#if editingPurchase?.$id === purchase.$id}
+					{#each purchases as purchase (purchase.$id)}
+						{#if editingPurchaseData?.$id === purchase.$id}
 							<tr class="bg-warning/10">
 								<td>
 									<div class="flex gap-2">
@@ -200,9 +246,9 @@
 											type="number"
 											step="0.01"
 											class="input input-bordered w-20"
-											bind:value={editingPurchase.quantity}
+											bind:value={editingPurchaseData.quantity}
 										/>
-										<select class="select select-bordered w-16" bind:value={editingPurchase.unit}>
+										<select class="select select-bordered w-16" bind:value={editingPurchaseData.unit}>
 											<option value="kg">kg</option>
 											<option value="gr.">gr.</option>
 											<option value="l.">l.</option>
@@ -216,14 +262,14 @@
 									<input
 										type="text"
 										class="input input-bordered w-24"
-										bind:value={editingPurchase.store}
+										bind:value={editingPurchaseData.store}
 									/>
 								</td>
 								<td>
 									<input
 										type="text"
 										class="input input-bordered w-20"
-										bind:value={editingPurchase.who}
+										bind:value={editingPurchaseData.who}
 									/>
 								</td>
 								<td class="text-xs opacity-75">
@@ -234,14 +280,14 @@
 										type="number"
 										step="0.01"
 										class="input input-bordered w-16"
-										bind:value={editingPurchase.price}
+										bind:value={editingPurchaseData.price}
 									/>
 								</td>
 								<td>
 									<input
 										type="text"
 										class="input input-bordered w-24"
-										bind:value={editingPurchase.notes}
+										bind:value={editingPurchaseData.notes}
 									/>
 								</td>
 								<td>

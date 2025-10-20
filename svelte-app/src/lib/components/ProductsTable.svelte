@@ -30,10 +30,6 @@
     openProductModal(tab, productId);
   }
 
-
-
-
-
 </script>
 
 
@@ -159,7 +155,7 @@
 
               <!-- Filtres température -->
               <button
-                class="btn btn-sm {
+                class="btn btn-sm ms-4 {
                   filters.selectedTemperatures.length === 0
                     ? 'btn-soft btn-success'
                     : filters.selectedTemperatures.includes('frais')
@@ -188,7 +184,7 @@
               {#if filters.selectedProductTypes.length > 0 || filters.selectedTemperatures.length > 0}
                 <button
                   class="btn btn-sm btn-circle btn-ghost text-error hover:bg-error/10"
-                  onclick={() => productsStore.clearTypeAndTemperatureFilters}
+                  onclick={() => productsStore.clearTypeAndTemperatureFilters()}
                   title="Effacer les filtres de types et température"
                 >
                   <X class="w-3 h-3" />

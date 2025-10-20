@@ -6,6 +6,7 @@
   // Stores and Global States
   import { productsStore } from '../stores/ProductsStore.svelte';
   import { modal, closeProductModal, userName } from '../stores/GlobalState.svelte';
+  import { createProductModalState } from '../stores/ProductModalState.svelte';
 
 
   // Services
@@ -26,18 +27,38 @@
      productsStore.getEnrichedProductById(productId)
   );
 
-  // État local
-  let loading = $state(false);
-  let error = $state<string | null>(null);
+  // Instance de ProductModalState (nouveau store centralisé)
+  let modalState = $derived.by(() => {
+    return currentProduct ? createProductModalState(currentProduct) : null;
+  });
+
+  // --- NOUVELLE APPROCHE : Utilisation de ProductModalState ---
+  // Utilise le store centralisé pour l'état de chargement
+  const loading = $derived(modalState?.loading ?? false);
+  const error = $derived(modalState?.error ?? null);
+  const stockEntries = $derived(modalState?.stockEntries ?? []);
+  const purchasesList = $derived(modalState?.purchasesList ?? []);
+  const recipes = $derived(modalState?.recipes ?? []);
+  const whoList = $derived(modalState?.whoList ?? []);
+  
+  // État local (legacy - sera progressivement remplacé)
+  // let loading = $state(false);
+  // let error = $state<string | null>(null);
+  // let stockEntries = $derived.by(() => { ... });
+  // let currentProductPurchases = $derived.by(() => { ... });
+  // let recipesOccurrences = $derived.by(() => parseRecipesOccurrences(...));
+  // let currentWho = $derived.by(() => currentProduct?.who || []);
 
   // Pour la gestion des magasins
   let editingStore = $state(currentProduct?.storeInfo || null);
 
   // Données pour les formulaires
+  // NOTE: Ces variables seront progressivement remplacées par modalState.forms
+  /*
   let newPurchase = $state({
     quantity: null as number | null,
     unit: '',
-    store: currentProduct?.storeInfo?.storeName || '', // Pas de réactivité nécessaire ici
+    store: currentProduct?.storeInfo?.storeName || '',
     who: userName() || '',
     price: null as number | null,
     notes: ''
@@ -49,15 +70,16 @@
     notes: '',
     dateTime: new Date().toISOString()
   });
+  */
 
 
-  let stockEntries = $derived.by(() => {
-    if (!currentProduct?.stockReel) {
-      // console.warn('No stock data available');
-      return [];
-    }
-    return parseStockData(currentProduct.stockReel);
-  });
+  // let stockEntries = $derived.by(() => {
+  //   if (!currentProduct?.stockReel) {
+  //     // console.warn('No stock data available');
+  //     return [];
+  //   }
+  //   return parseStockData(currentProduct.stockReel);
+  // });
 
 
   let editingPurchase = $state<Purchases | null>(null);
@@ -115,7 +137,13 @@
 
 
   function handleTabClick(tab: string) {
-    modal.product.tab = tab;
+    // --- NOUVELLE APPROCHE : Utilisation de ProductModalState ---
+    if (modalState) {
+      modalState.setCurrentTab(tab);
+    }
+    
+    // --- CODE LEGACY ---
+    // modal.product.tab = tab;
   }
 
   // Gestion du chargement et des erreurs
@@ -166,6 +194,13 @@
 
   // Fonctions CRUD pour les achats
   async function handleAddPurchase() {
+    // --- NOUVELLE APPROCHE : Utilisation de ProductModalState ---
+    if (modalState) {
+      await modalState.addPurchase();
+    }
+    
+    // --- CODE LEGACY ---
+    /*
     if (!currentProduct) return;
     loading = true;
     await withLoading(async () => {
@@ -207,14 +242,27 @@
         window.dispatchEvent(successEvent);
       }
     });
+    */
   }
 
   function startEditPurchase(purchase: Purchases) {
-    editingPurchase = { ...purchase };
+    // --- NOUVELLE APPROCHE : Utilisation de ProductModalState ---
+    if (modalState) {
+      modalState.startEditPurchase(purchase);
+    }
+    
+    // --- CODE LEGACY ---
+    // editingPurchase = { ...purchase };
   }
 
   function cancelEditPurchase() {
-    editingPurchase = null;
+    // --- NOUVELLE APPROCHE : Utilisation de ProductModalState ---
+    if (modalState) {
+      modalState.cancelEditPurchase();
+    }
+    
+    // --- CODE LEGACY ---
+    // editingPurchase = null;
   }
 
   async function handleSavePurchase() {
@@ -459,8 +507,8 @@
         >
           <Package class="w-4 h-4 mr-1" />
           Recettes
-          {#if recipesOccurrences.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1">{recipesOccurrences.length}</span>
+          {#if recipes.length > 0}
+            <span class="badge badge-sm badge-secondary ml-1">{recipes.length}</span>
           {/if}
         </button>
 
@@ -470,8 +518,8 @@
         >
           <ShoppingCart class="w-4 h-4 mr-1" />
           Achats
-          {#if currentProductPurchases.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1">{currentProductPurchases.length}</span>
+          {#if purchasesList.length > 0}
+            <span class="badge badge-sm badge-secondary ml-1">{purchasesList.length}</span>
           {/if}
         </button>
 
@@ -524,7 +572,7 @@
                   Recettes utilisant ce produit
                 </h3>
 
-                {#if recipesOccurrences.length === 0}
+                {#if recipes.length === 0}
                   <div class="text-center py-8 opacity-50">
                     <Package class="w-12 h-12 mx-auto mb-2" />
                     <p>Aucune recette trouvée pour ce produit</p>
@@ -543,7 +591,7 @@
                         </tr>
                       </thead>
                       <tbody>
-                        {#each recipesOccurrences as recipe (recipe.recipeName + recipe.dateTimeService)}
+                        {#each recipes as recipe (recipe.recipeName + recipe.dateTimeService)}
                           <tr>
                             <td class="font-medium">{recipe.recipeName}</td>
                             <td>{recipe.quantity} {recipe.unit}</td>
@@ -561,37 +609,18 @@
             {:else if currentTab === 'achats'}
               <PurchaseManager
                 product={currentProduct}
-              {currentProductPurchases}
-                {loading}
-                {newPurchase}
-                onAddPurchase={handleAddPurchase}
-                onStartEditPurchase={startEditPurchase}
-                onCancelEditPurchase={cancelEditPurchase}
-                onSavePurchase={handleSavePurchase}
-                onDeletePurchase={handleDeletePurchase}
               />
             {:else if currentTab === 'stock'}
               <StockManager
                 product={currentProduct}
-                {stockEntries}
-                {loading}
-                onAddStock={handleAddStock}
-                onDeleteStock={handleDeleteStock}
               />
             {:else if currentTab === 'volontaires'}
               <VolunteerManager
                 product={currentProduct}
-                editingWho={currentWho}
-                {loading}
-                onAddVolunteer={handleAddVolunteer}
-                onRemoveVolunteer={handleRemoveVolunteer}
               />
             {:else if currentTab === 'magasins'}
               <StoreManager
                 product={currentProduct}
-                {editingStore}
-                {loading}
-                onUpdateStore={handleUpdateStore}
               />
             {/if}
           </div>

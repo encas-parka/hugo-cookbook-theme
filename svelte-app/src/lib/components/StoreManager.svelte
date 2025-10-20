@@ -2,7 +2,54 @@
 	import { Store } from '@lucide/svelte';
 	import type { Products } from '../types/appwrite.d.ts';
 	import type { StoreInfo, EnrichedProduct } from '../types/store.types';
+	import { createProductModalState } from '../stores/ProductModalState.svelte';
 
+	// --- NOUVELLE APPROCHE : Consommation directe de ProductModalState ---
+	// Le composant consomme directement le store au lieu de recevoir des props
+	
+	interface Props {
+		product: EnrichedProduct | null;
+	}
+
+	let { product }: Props = $props();
+
+	// Accès direct au store
+	const modalState = $derived.by(() => {
+		return product ? createProductModalState(product) : null;
+	});
+
+	// Données dérivées du store
+	const loading = $derived(modalState?.loading ?? false);
+	const storeForm = $derived(modalState?.forms.store);
+	const editingStoreData = $derived(modalState?.edit.store);
+
+	// État local pour le formulaire (synchronisé avec le store)
+	let storeName = $state(storeForm?.name || '');
+	let storeComment = $state(storeForm?.comment || '');
+
+	// Synchroniser avec le store quand les données changent
+	$effect(() => {
+		if (storeForm) {
+			storeName = storeForm.name || '';
+			storeComment = storeForm.comment || '';
+		}
+	});
+
+	// --- NOUVELLE APPROCHE : Utilisation directe des actions du store ---
+	async function handleUpdateStore() {
+		const storeInfo: StoreInfo | null = storeName.trim()
+			? { storeName: storeName.trim(), storeComment: storeComment.trim() || '' }
+			: null;
+
+		await modalState?.updateStore(storeInfo?.storeName || null);
+	}
+
+	function handleQuickSelectStore(store: string) {
+		storeName = store;
+	}
+
+	// --- CODE LEGACY (conservé pour référence) ---
+	/*
 	interface Props {
 		product: EnrichedProduct | null;
 		editingStore: StoreInfo | null;
@@ -53,6 +100,7 @@
 	function handleQuickSelectStore(store: string) {
 		storeName = store;
 	}
+	*/
 </script>
 
 <div class="space-y-4">

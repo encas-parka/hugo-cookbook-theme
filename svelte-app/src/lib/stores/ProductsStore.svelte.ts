@@ -1,6 +1,7 @@
 import { SvelteMap } from 'svelte/reactivity';
 import superjson from 'superjson';
 import { createStorageKey } from '../utils/url-utils';
+import { useDebounce } from 'runed';
 import type { Products, Purchases } from '../types/appwrite.d';
 import type { NumericQuantity, QuantityInfo, StoreInfo, EnrichedProduct, RecipeOccurrence } from '../types/store.types';
 
@@ -9,8 +10,6 @@ import {
   syncProductsAndPurchases,
   subscribeToRealtime,
   type LoadProductsOptions,
-  type SyncOptions,
-  loadProductById,
   loadProductsListByIds
 } from '../services/appwrite-interactions';
 
@@ -688,9 +687,14 @@ class ProductsStore {
   }
 
   // Setters publics pour les filtres
-  setSearchQuery(query: string) {
-    this.#filters.searchQuery = query;
-  }
+
+  // recherche debouncée
+  setSearchQuery = useDebounce(
+    (query: string) => {
+      this.#filters.searchQuery = query;
+    },
+    () => 500
+  );
 
   toggleProductType(type: string) {
     const idx = this.#filters.selectedProductTypes.indexOf(type);

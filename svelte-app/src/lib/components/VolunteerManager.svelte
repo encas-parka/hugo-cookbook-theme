@@ -1,7 +1,43 @@
 <script lang="ts">
 	import { Users, X } from '@lucide/svelte';
 	import type { Products } from '../types/appwrite.d.ts';
+	import { createProductModalState } from '../stores/ProductModalState.svelte';
 
+	// --- NOUVELLE APPROCHE : Consommation directe de ProductModalState ---
+	// Le composant consomme directement le store au lieu de recevoir des props
+	
+	interface Props {
+		product: Products | null;
+	}
+
+	let { product }: Props = $props();
+
+	// Accès direct au store
+	const modalState = $derived.by(() => {
+		return product ? createProductModalState(product) : null;
+	});
+
+	// Données dérivées du store
+	const volunteers = $derived(modalState?.whoList ?? []);
+	const loading = $derived(modalState?.loading ?? false);
+
+	// État local pour le formulaire
+	let newVolunteer = $state('');
+
+	// --- NOUVELLE APPROCHE : Utilisation directe des actions du store ---
+	async function handleAddVolunteer() {
+		if (newVolunteer.trim()) {
+			await modalState?.addVolunteer(newVolunteer.trim());
+			newVolunteer = '';
+		}
+	}
+
+	async function handleRemoveVolunteer(volunteer: string) {
+		await modalState?.removeVolunteer(volunteer);
+	}
+
+	// --- CODE LEGACY (conservé pour référence) ---
+	/*
 	interface Props {
 		product: Products | null;
 		editingWho: string[];
@@ -30,6 +66,7 @@
 	async function handleRemoveVolunteer(volunteer: string) {
 		await onRemoveVolunteer(volunteer);
 	}
+	*/
 </script>
 
 <div class="space-y-4">
@@ -70,18 +107,18 @@
 		<div class="card-body">
 			<h4 class="card-title text-base">
 				Volontaires
-				{#if editingWho.length > 0}
-					<span class="badge badge-primary badge-sm">{editingWho.length}</span>
+				{#if volunteers.length > 0}
+					<span class="badge badge-primary badge-sm">{volunteers.length}</span>
 				{/if}
 			</h4>
-			{#if editingWho.length === 0}
+			{#if volunteers.length === 0}
 				<div class="text-center py-8 opacity-50">
 					<Users class="w-12 h-12 mx-auto mb-2" />
 					<p>Aucun volontaire assigné à ce produit</p>
 				</div>
 			{:else}
 				<div class="flex flex-wrap gap-2">
-					{#each editingWho as volunteer (volunteer)}
+					{#each volunteers as volunteer (volunteer)}
 						<div class="badge badge-primary badge-lg gap-2">
 							{volunteer}
 							<button
