@@ -3,7 +3,7 @@
 	import type { Purchases } from '../types/appwrite.d.ts';
     import { createProductModalState } from '../stores/ProductModalState.svelte.js';
     import type { EnrichedProduct } from '../types/store.types.js';
-    import { formatQuantity } from '../utils/products-display.js';
+    import { formatDate, formatQuantity } from '../utils/products-display.js';
 
 	// --- NOUVELLE APPROCHE : Consommation directe de ProductModalState ---
 	// Le composant consomme directement le store au lieu de recevoir des props
@@ -18,11 +18,30 @@
 		return product ? createProductModalState(product) : null;
 	});
 
-	// Données dérivées du store
+	// Données dérivées du store - plus besoin de fallbacks grâce à ProductModalState
 	const purchases = $derived(modalState?.purchasesList ?? []);
 	const loading = $derived(modalState?.loading ?? false);
-	const purchaseForm = $derived(modalState?.forms.purchase);
-	const editingPurchaseData = $derived(modalState?.edit.purchase);
+	const purchaseForm = $derived(modalState?.forms.purchase ?? {
+		quantity: null,
+		unit: '',
+		store: '',
+		who: '',
+		price: null,
+		notes: ''
+	});
+	const editingPurchaseData = $derived(modalState?.edit.purchase ?? {
+		$id: '',
+		quantity: 0,
+		unit: '',
+		store: '',
+		who: '',
+		price: 0,
+		notes: '',
+		$createdAt: '',
+		$updatedAt: '',
+		$permissions: []
+	});
+	const editingPurchaseId = $derived(modalState?.editingPurchaseId ?? null);
 
 	function startEditPurchase(purchase: Purchases) {
 		modalState?.startEditPurchase(purchase);
@@ -46,6 +65,7 @@
 
 </script>
 
+{#if product && modalState}
 <div class="space-y-4">
 	<h3 class="text-lg font-semibold flex items-center gap-2">
 		<ShoppingCart class="w-5 h-5" />
@@ -65,7 +85,7 @@
 						type="number"
 						step="0.01"
 						class="input input-bordered validator"
-						bind:value={purchaseForm?.quantity}
+						bind:value={purchaseForm.quantity}
 						required
 					/>
 				</div>
@@ -73,7 +93,7 @@
 					<label for="purchase-unit" class="label">
 						<span class="label-text">Unité</span>
 					</label>
-					<select id="purchase-unit" class="select select-bordered validator" bind:value={purchaseForm?.unit} required>
+					<select id="purchase-unit" class="select select-bordered validator" bind:value={purchaseForm.unit} required>
 						<option disabled selected value="">Sélectionner</option>
 						<option value="kg">kg</option>
 						<option value="gr.">gr.</option>
@@ -91,7 +111,7 @@
 						id="purchase-store"
 						type="text"
 						class="input input-bordered"
-						bind:value={purchaseForm?.store}
+						bind:value={purchaseForm.store}
 						placeholder="Ex: Marché"
 					/>
 				</div>
@@ -103,7 +123,7 @@
 						id="purchase-who"
 						type="text"
 						class="input input-bordered"
-						bind:value={purchaseForm?.who}
+						bind:value={purchaseForm.who}
 						placeholder="Votre nom"
 					/>
 				</div>
@@ -116,7 +136,7 @@
 						type="number"
 						step="1"
 						class="input input-bordered"
-						bind:value={purchaseForm?.price}
+						bind:value={purchaseForm.price}
 						placeholder="0.00"
 					/>
 				</div>
@@ -128,7 +148,7 @@
 						id="purchase-notes"
 						type="text"
 						class="input input-bordered"
-						bind:value={purchaseForm?.notes}
+						bind:value={purchaseForm.notes}
 						placeholder="Promotion, remarques..."
 					/>
 				</div>
@@ -166,7 +186,7 @@
 				</thead>
 				<tbody>
 					{#each purchases as purchase, index (index)}
-						{#if editingPurchaseData?.$id === purchase.$id}
+						{#if editingPurchaseId === purchase.$id}
 							<tr class="bg-warning/10">
 								<td>
 									<div class="flex gap-2">
@@ -174,9 +194,9 @@
 											type="number"
 											step="0.01"
 											class="input input-bordered w-20"
-											bind:value={editingPurchaseData?.quantity}
+											bind:value={editingPurchaseData.quantity}
 										/>
-										<select class="select select-bordered w-16" bind:value={editingPurchaseData?.unit}>
+										<select class="select select-bordered w-16" bind:value={editingPurchaseData.unit}>
 											<option value="kg">kg</option>
 											<option value="gr.">gr.</option>
 											<option value="l.">l.</option>
@@ -190,14 +210,14 @@
 									<input
 										type="text"
 										class="input input-bordered w-24"
-										bind:value={editingPurchaseData?.store}
+										bind:value={editingPurchaseData.store}
 									/>
 								</td>
 								<td>
 									<input
 										type="text"
 										class="input input-bordered w-20"
-										bind:value={editingPurchaseData?.who}
+										bind:value={editingPurchaseData.who}
 									/>
 								</td>
 								<td class="text-xs opacity-75">
@@ -206,16 +226,16 @@
 								<td>
 									<input
 										type="number"
-										step="0.01"
+										step="1"
 										class="input input-bordered w-16"
-										bind:value={editingPurchaseData?.price}
+										bind:value={editingPurchaseData.price}
 									/>
 								</td>
 								<td>
 									<input
 										type="text"
 										class="input input-bordered w-24"
-										bind:value={editingPurchaseData?.notes}
+										bind:value={editingPurchaseData.notes}
 									/>
 								</td>
 								<td>
@@ -276,3 +296,4 @@
 		</div>
 	{/if}
 </div>
+{/if}

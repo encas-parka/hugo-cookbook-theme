@@ -13,31 +13,34 @@
 		return product ? createProductModalState(product) : null;
 	});
 
-	// Données dérivées du store
-	const loading = $derived(modalState?.loading ?? false);
 	const storeForm = $derived(modalState?.forms.store);
-	const editingStoreData = $derived(modalState?.edit.store);
+	// Données initiales du produit
+	const initialStoreName = $derived(storeForm?.name || '');
+	const initialStoreComment = $derived(storeForm?.comment || '');
 
-	// État local pour le formulaire (synchronisé avec le store)
+	// État local pour le formulaire
 	// svelte-ignore  state_referenced_locally
-	let storeName = $state(storeForm?.name || '');
+	let storeName = $state(initialStoreName);
 	// svelte-ignore  state_referenced_locally
-	let storeComment = $state(storeForm?.comment || '');
+	let storeComment = $state(initialStoreComment);
 
-	// Synchroniser avec le store quand les données changent
-	$effect(() => {
-		if (storeForm) {
-			storeName = storeForm.name || '';
-			storeComment = storeForm.comment || '';
-		}
-	});
+	// Accès au loading depuis le modalState
+	const loading = $derived(modalState?.loading ?? false);
+
+	// Validation : formulaire valide si au moins une valeur a changé
+	const isFormValid = $derived(
+		(storeName.trim() !== (storeForm?.name || '') || storeComment.trim() !== (storeForm?.comment || ''))
+	);
 
 	async function handleUpdateStore() {
-		const storeInfo: StoreInfo | null = storeName.trim()
-			? { storeName: storeName.trim(), storeComment: storeComment.trim() || '' }
-			: null;
+		if (!isFormValid) return;
 
-		await modalState?.updateStore(storeInfo?.storeName || null);
+		const storeInfo: StoreInfo = {
+			storeName: storeName.trim(),
+			storeComment: storeComment.trim()
+		};
+
+		await modalState?.updateStore(storeInfo);
 	}
 
 	function handleQuickSelectStore(store: string) {
@@ -93,7 +96,7 @@
 			</div>
 
 			<div class="flex gap-2 mb-4">
-				<button class="btn btn-primary btn-sm" onclick={handleUpdateStore} disabled={loading}>
+				<button class="btn btn-primary btn-sm" onclick={handleUpdateStore} disabled={loading || !isFormValid}>
 					{#if loading}
 						<span class="loading loading-spinner loading-sm"></span>
 					{:else}

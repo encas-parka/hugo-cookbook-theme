@@ -22,11 +22,17 @@
 	// État local pour le formulaire
 	let newVolunteer = $state('');
 
+	// Validation : formulaire valide si le nom n'est pas vide ET n'existe pas déjà
+	const isFormValid = $derived(
+		newVolunteer.trim().length > 0 &&
+		!volunteers.includes(newVolunteer.trim())
+	);
+
 	async function handleAddVolunteer() {
-		if (newVolunteer.trim()) {
-			await modalState?.addVolunteer(newVolunteer.trim());
-			newVolunteer = '';
-		}
+		if (!isFormValid || !modalState) return;
+
+		await modalState.addVolunteer(newVolunteer.trim());
+		newVolunteer = '';
 	}
 
 	async function handleRemoveVolunteer(volunteer: string) {
@@ -58,7 +64,7 @@
 						}}
 					/>
 				</div>
-				<button class="btn btn-primary btn-sm" onclick={handleAddVolunteer} disabled={loading}>
+				<button class="btn btn-primary btn-sm" onclick={handleAddVolunteer} disabled={loading || !isFormValid}>
 					{#if loading}
 						<span class="loading loading-spinner loading-sm"></span>
 					{:else}

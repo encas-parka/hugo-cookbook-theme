@@ -10,7 +10,9 @@ import {
   syncProductsAndPurchases,
   subscribeToRealtime,
   type LoadProductsOptions,
-  loadProductsListByIds
+  loadProductsListByIds,
+  loadPurchasesListByIds,
+  type SyncOptions
 } from '../services/appwrite-interactions';
 
 /**
@@ -363,6 +365,10 @@ class ProductsStore {
      this.#syncing = true;
 
      try {
+       const options: SyncOptions = {
+         lastSync: this.#lastSync,
+         limit: BATCH_LIMIT
+       };
        const { products: updatedProducts, purchases: updatedPurchases } =
          await syncProductsAndPurchases(this.#currentMainId!, options);
 
@@ -378,14 +384,13 @@ class ProductsStore {
 
        // 2️⃣ Appliquer les purchases
        if (updatedPurchases.length > 0) {
-         const affectedProductIds = new Set<string>();
-
-         updatedPurchases.forEach(purchase => {
-           purchase.products?.forEach((prod: any) => {
-             const productId = typeof prod === 'string' ? prod : prod.$id;
-             if (productId) affectedProductIds.add(productId);
-           });
-         });
+         const affectedProductIds = new Set(
+           updatedPurchases
+             .filter(purchase => purchase.products?.length > 0)
+             .flatMap(purchase => purchase.products)
+             .map((prod: any) => typeof prod === 'string' ? prod : prod.$id)
+             .filter(Boolean)
+         );
 
          const productsToLoad = Array.from(affectedProductIds)
            .filter(id => !productsMap.has(id));
@@ -433,7 +438,7 @@ class ProductsStore {
 
     return {
       ...product,
-      storeInfo: product.store ? this.#safeJsonParse<StoreInfo>(product.store) : null,
+      storeInfo: product.store ? this.#safeJsonParse(product.store) : null,
       totalNeededArray,
       totalPurchasesArray,
       recipesArray: this.#safeJsonParse<RecipeOccurrence[]>(product.recipesOccurrences) ?? [],
@@ -467,19 +472,19 @@ class ProductsStore {
   /**
    * Applique les mises à jour de purchases aux produits concernés
    * ✅ Récupère les produits frais depuis Appwrite pour être sûr d'avoir les purchases à jour
+   * @legacy : on utilise la methode optimiste #applyPurchaseUpdatesOptimistic
    */
   async #applyPurchaseUpdates(updatedPurchases: Purchases[]) {
     if (!updatedPurchases?.length) return;
 
     // 1️⃣ Identifier tous les produits affectés
-    const affectedProductIds = new Set<string>();
-
-    updatedPurchases.forEach(purchase => {
-      purchase.products?.forEach((prod: any) => {
-        const productId = typeof prod === 'string' ? prod : prod.$id;
-        if (productId) affectedProductIds.add(productId);
-      });
-    });
+    const affectedProductIds = new Set(
+      updatedPurchases
+        .filter(purchase => purchase.products?.length > 0)
+        .flatMap(purchase => purchase.products)
+        .map((prod: any) => typeof prod === 'string' ? prod : prod.$id)
+        .filter(Boolean)
+    );
 
     if (affectedProductIds.size === 0) {
       console.log('[ProductsStore] Aucun produit affecté par ces purchases');
@@ -511,8 +516,7 @@ class ProductsStore {
 
 
   // =========================================================================
-  // VARIANTE PLUS RAPIDE : Mettre à jour localement ET re-charger en async
-  // (Affichage immédiat pour l'utilisateur local, puis correction si réel-time change)
+  // VARIANTE OPTIMISTE : Mettre à jour localement ET re-charger en async
   // =========================================================================
 
   /**
@@ -522,13 +526,48 @@ class ProductsStore {
     if (!updatedPurchases?.length) return;
 
     const affectedProductIds = new Set<string>();
+    const purchasesNeedingReload: Purchases[] = [];
 
-    updatedPurchases.forEach(purchase => {
-      purchase.products?.forEach((prod: any) => {
-        const productId = typeof prod === 'string' ? prod : prod.$id;
-        if (productId) affectedProductIds.add(productId);
-      });
-    });
+    // Séparer les purchases avec et sans relations products
+    const purchasesWithProducts = updatedPurchases.filter(p => p.products?.length > 0);
+    purchasesNeedingReload.push(...updatedPurchases.filter(p => !p.products?.length));
+
+    // Extraire tous les IDs de produits des purchases valides
+    const allProductIds = purchasesWithProducts
+      .flatMap(purchase => purchase.products)
+      .map((prod: any) => typeof prod === 'string' ? prod : prod.$id)
+      .filter(Boolean);
+
+    // Ajouter les IDs au Set
+    allProductIds.forEach(id => affectedProductIds.add(id));
+
+    // Recharger uniquement les champs nécessaires pour les purchases sans relations
+    if (purchasesNeedingReload.length > 0) {
+      console.log(`[ProductsStore] ${purchasesNeedingReload.length} purchases sans relation products, rechargement ciblé depuis Appwrite...`);
+      try {
+        const reloadedPurchases = await loadPurchasesListByIds(purchasesNeedingReload.map(p => p.$id));
+
+        // Ajouter les purchases rechargés à la liste des purchases mis à jour
+        reloadedPurchases.forEach(reloadedPurchase => {
+          if (reloadedPurchase.products?.length > 0) {
+            // Extraire les IDs de produits et les ajouter au Set
+            const productIds = reloadedPurchase.products
+              .map((prod: any) => typeof prod === 'string' ? prod : prod.$id)
+              .filter(Boolean);
+
+            productIds.forEach(id => affectedProductIds.add(id));
+
+            // Remplacer le purchase incomplet par le purchase complet
+            const incompleteIndex = updatedPurchases.findIndex(p => p.$id === reloadedPurchase.$id);
+            if (incompleteIndex >= 0) {
+              updatedPurchases[incompleteIndex] = reloadedPurchase;
+            }
+          }
+        });
+      } catch (err) {
+        console.error('[ProductsStore] Erreur rechargement ciblé des purchases:', err);
+      }
+    }
 
     if (affectedProductIds.size === 0) return;
 
@@ -536,16 +575,22 @@ class ProductsStore {
     for (const productId of affectedProductIds) {
       const currentProduct = this.#enrichedProducts.get(productId);
       if (currentProduct) {
-        // Ajouter les nouveaux purchases localement
-        const updatedPurchases_ = currentProduct.purchases || [];
+        // Mettre à jour les purchases (ajout ET modification)
+        let updatedPurchases_ = currentProduct.purchases || [];
+
         updatedPurchases.forEach(purchase => {
-          // Éviter les doublons
-          if (!updatedPurchases_.some(p => p.$id === purchase.$id)) {
+          const existingIndex = updatedPurchases_.findIndex(p => p.$id === purchase.$id);
+
+          if (existingIndex >= 0) {
+            // Remplacer le purchase existant (modification)
+            updatedPurchases_[existingIndex] = purchase;
+          } else {
+            // Ajouter le nouveau purchase
             updatedPurchases_.push(purchase);
           }
         });
 
-        // Re-enrichir avec les nouveaux purchases
+        // Re-enrichir avec les purchases mis à jour
         const enriched = this.#enrichProduct({
           ...currentProduct,
           purchases: updatedPurchases_

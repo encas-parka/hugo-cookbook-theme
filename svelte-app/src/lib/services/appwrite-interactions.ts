@@ -45,7 +45,7 @@ import type { Products, Purchases } from '../types/appwrite.d';
 import type { StoreInfo } from '../types/store.types';
 
 // =============================================================================
-// TYPES INTERNE (utilise les types générés automatiquement)
+// TYPES INTERNE (utilise les types générés automatiquement ??)
 // =============================================================================
 
 export type ProductUpdate = Partial<Omit<Products, '$id' | keyof Models.Row | 'purchases' | 'mainId'>>;
@@ -55,7 +55,9 @@ export type PurchaseCreate = Omit<Purchases, '$id' | keyof Models.Row | 'purchas
   mainId: string;      // ID du main pour la relation
 };
 
-export type PurchaseUpdate = Partial<Omit<Purchases, '$id' | keyof Models.Row | 'mainId' | 'products' | 'createdBy' | 'status'>>;
+export type PurchaseUpdate = Partial<Omit<Purchases, '$id' | keyof Models.Row | 'mainId' | 'createdBy' | 'status'>> & {
+  products?: Products[];
+};
 
 // =============================================================================
 // NOUVEAUX TYPES POUR LA MIGRATION PRODUCTSSTORE
@@ -396,9 +398,9 @@ export async function updateProduct(
  */
 export async function updateProductStore(
     productId: string,
-    store: StoreInfo | null
+    store: StoreInfo
 ): Promise<Products> {
-    console.log(`[Appwrite Interactions] Mise à jour du magasin pour produit ${productId}:`, store);
+    // console.log(`[Appwrite Interactions] Mise à jour du magasin pour produit ${productId}:`, store);
 
     // Valider les entrées
     if (!productId) {
@@ -493,14 +495,28 @@ export async function updatePurchase(
     try {
         const { databases, config } = await getAppwriteInstances();
 
+        // Récupérer le purchase existant pour préserver la relation products
+        const existingPurchase = await databases.getDocument(
+            config.APPWRITE_CONFIG.databaseId,
+            config.APPWRITE_CONFIG.collections.purchases,
+            purchaseId
+        );
+
+        // Préparer les mises à jour en préservant la relation products
+        const finalUpdates = {
+            ...updates,
+            // Conserver la relation products existante si non fournie dans les updates
+            products: updates.products || (existingPurchase as Purchases).products
+        };
+
         const response = await databases.updateDocument(
             config.APPWRITE_CONFIG.databaseId,
             config.APPWRITE_CONFIG.collections.purchases,
             purchaseId,
-            updates
+            finalUpdates
         );
 
-        console.log(`[Appwrite Interactions] Achat ${purchaseId} mis à jour:`, updates);
+        console.log(`[Appwrite Interactions] Achat ${purchaseId} mis à jour:`, finalUpdates);
         return response as Purchases;
     } catch (error) {
         console.error(`[Appwrite Interactions] Erreur mise à jour achat ${purchaseId}:`, error);
@@ -531,7 +547,46 @@ export async function deletePurchase(purchaseId: string): Promise<void> {
     }
 }
 
+/**
+ * Charge les purchases avec leurs relations products (requête ciblée)
+ *
+ * Utilitaire optimisé pour charger uniquement les champs nécessaires des purchases,
+ * en particulier la relation products pour identifier les produits associés.
+ *
+ * @param purchaseIds - Liste des IDs des purchases à charger
+ * @returns Promise<Purchases[]> - Purchases avec leurs relations products
+ *
+ * Flux :
+ * 1. Utilise Query.select() pour charger uniquement les champs nécessaires
+ * 2. Inclut le champ products pour avoir les relations
+ * 3. Retourne les purchases complets avec leurs produits associés
+ */
+export async function loadPurchasesListByIds(
+    purchaseIds: string[]
+): Promise<Purchases[]> {
+    if (!purchaseIds?.length) return [];
 
+    try {
+        const { databases, config } = await getAppwriteInstances();
+
+        const response = await databases.listDocuments(
+            config.APPWRITE_CONFIG.databaseId,
+            config.APPWRITE_CONFIG.collections.purchases,
+            [
+                Query.equal('$id', purchaseIds)
+                // Pas de Query.select() pour les champs de relation manuelle
+            ]
+        );
+
+        console.log(`[Appwrite Interactions] ${response.documents.length} purchases chargés avec relations products`);
+        return response.documents as Purchases[];
+
+    } catch (error) {
+        console.error('[Appwrite Interactions] Erreur chargement purchases avec relations:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+        throw new Error(`Échec du chargement des purchases: ${errorMessage}`);
+    }
+}
 
 // =============================================================================
 // UTILITAIRES DE MERGE

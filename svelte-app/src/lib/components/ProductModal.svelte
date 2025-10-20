@@ -1,23 +1,18 @@
 <script lang="ts">
-  import type {  Purchases } from '../types/appwrite';
-  import type { EnrichedProduct } from '../types/store.types';
-  import { X, Package, ShoppingCart, Archive, Users, Store, Clock, CircleCheck, TriangleAlert } from '@lucide/svelte';
+  import { X, Package, ShoppingCart, Archive, Users, Store, CircleCheck, TriangleAlert } from '@lucide/svelte';
 
   // Stores and Global States
   import { productsStore } from '../stores/ProductsStore.svelte';
-  import { modal, closeProductModal, userName } from '../stores/GlobalState.svelte';
+  import { modal, closeProductModal } from '../stores/GlobalState.svelte';
   import { createProductModalState } from '../stores/ProductModalState.svelte';
 
-
-  // Services
-  import { updateProduct, updateProductStore, updateProductWho, updateProductStock, createPurchase, updatePurchase, deletePurchase, parseStockData, parseRecipesOccurrences } from '../services/appwrite-interactions';
 
   // Components
   import PurchaseManager from './PurchaseManager.svelte';
   import StockManager from './StockManager.svelte';
   import VolunteerManager from './VolunteerManager.svelte';
   import StoreManager from './StoreManager.svelte';
-    import { formatDate } from '../utils/products-display';
+  import { formatDate } from '../utils/products-display';
 
 
   let currentTab = $derived(modal.product.tab);
@@ -30,74 +25,28 @@
 
   // Instance de ProductModalState (nouveau store centralisé)
   let modalState = $derived.by(() => {
+    // console.log("currentProduct", currentProduct ? currentProduct : "null")
     return currentProduct ? createProductModalState(currentProduct) : null;
   });
 
-  // --- NOUVELLE APPROCHE : Utilisation de ProductModalState ---
-  // Utilise le store centralisé pour l'état de chargement
+
   const loading = $derived(modalState?.loading ?? false);
   const error = $derived(modalState?.error ?? null);
   const stockEntries = $derived(modalState?.stockEntries ?? []);
   const purchasesList = $derived(modalState?.purchasesList ?? []);
   const recipes = $derived(modalState?.recipes ?? []);
 
-  // État local (legacy - sera progressivement remplacé)
-  // let loading = $state(false);
-  // let error = $state<string | null>(null);
-  // let stockEntries = $derived.by(() => { ... });
-  // let currentProductPurchases = $derived.by(() => { ... });
-  // let recipesOccurrences = $derived.by(() => parseRecipesOccurrences(...));
-  // let currentWho = $derived.by(() => currentProduct?.who || []);
-
-  // Pour la gestion des magasins
-
-  // Données pour les formulaires
-  // NOTE: Ces variables seront progressivement remplacées par modalState.forms
-  /*
-  let newPurchase = $state({
-    quantity: null as number | null,
-    unit: '',
-    store: currentProduct?.storeInfo?.storeName || '',
-    who: userName() || '',
-    price: null as number | null,
-    notes: ''
-  });
-
-  let newStock = $state({
-    quantity: null as number | null,
-    unit: '',
-    notes: '',
-    dateTime: new Date().toISOString()
-  });
-  */
-
-
-  // let stockEntries = $derived.by(() => {
-  //   if (!currentProduct?.stockReel) {
-  //     // console.warn('No stock data available');
-  //     return [];
-  //   }
-  //   return parseStockData(currentProduct.stockReel);
-  // });
-
-
-
-  // Données dérivées - plus besoin d'état local dupliqué
-
-  // État dérivé pour les volontaires - utilise directement les données du produit
-
-
 
 
 
   function handleTabClick(tab: string) {
-    // --- NOUVELLE APPROCHE : Utilisation de ProductModalState ---
-    if (modalState) {
-      modalState.setCurrentTab(tab);
-    }
+    // --- FIXIT ? : Utilisation de ProductModalState // implémentation non terminée... Preserver ?---
+    // if (modalState) {
+    //   modalState.setCurrentTab(tab);
+    // }
 
-    // --- CODE LEGACY ---
-    // modal.product.tab = tab;
+    // --- CODE LEGACY → globalState ---
+    modal.product.tab = tab;
   }
 
 
@@ -226,7 +175,6 @@
                           <th>Recette</th>
                           <th>Quantité</th>
                           <th>Date service</th>
-                          <th>Horaire</th>
                           <th>Type plat</th>
                           <th>Assiettes</th>
                         </tr>
@@ -237,8 +185,6 @@
                             <td class="font-medium">{recipe.recipeName}</td>
                             <td>{recipe.quantity} {recipe.unit}</td>
                             <td>{formatDate(recipe.dateTimeService)}</td>
-                            <td>{recipe.horaire || '-'}</td>
-                            <td>{recipe.typePlat || '-'}</td>
                             <td>{recipe.assiettes || '-'}</td>
                           </tr>
                         {/each}

@@ -22,7 +22,7 @@
 	// Données dérivées du store
 	const stockEntries = $derived(modalState?.stockEntries ?? []);
 	const loading = $derived(modalState?.loading ?? false);
-	const stockForm = $derived(modalState?.forms.stock);
+	const stockForm = $derived(modalState!.forms.stock);
 
 
 
@@ -56,7 +56,7 @@
 						type="number"
 						step="0.01"
 						class="input input-bordered input-sm"
-						bind:value={stockForm?.quantity}
+						bind:value={stockForm.quantity}
 						required
 					/>
 				</div>
@@ -64,7 +64,7 @@
 					<label for="stock-unit" class="label">
 						<span class="label-text">Unité</span>
 					</label>
-					<select id="stock-unit" class="select select-bordered select-sm" bind:value={stockForm?.unit} required>
+					<select id="stock-unit" class="select select-bordered select-sm" bind:value={stockForm.unit} required>
 						<option value="">Sélectionner</option>
 						<option value="kg">kg</option>
 						<option value="g">g</option>
@@ -82,7 +82,7 @@
 						id="stock-datetime"
 						type="datetime-local"
 						class="input input-bordered input-sm"
-						bind:value={stockForm?.dateTime}
+						bind:value={stockForm.dateTime}
 						required
 					/>
 				</div>
@@ -94,7 +94,7 @@
 						id="stock-notes"
 						type="text"
 						class="input input-bordered input-sm"
-						bind:value={stockForm?.notes}
+						bind:value={stockForm.notes}
 						placeholder="Origine, remarques..."
 					/>
 				</div>
@@ -131,7 +131,7 @@
 					{#each stockEntries as entry, index (entry.dateTime)}
 						<tr>
 							<td class="font-medium">
-								{formatQuantity(entry.quantity, entry.unit)}
+								{entry.quantity} {entry.unit}
 							</td>
 							<td>{formatDate(entry.dateTime)}</td>
 							<td>{entry.notes || '-'}</td>

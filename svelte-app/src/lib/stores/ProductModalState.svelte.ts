@@ -23,7 +23,7 @@ export function createProductModalState(product: EnrichedProduct) {
   // Préremplissage intelligent des formulaires
   const forms = $state({
     purchase: {
-      quantity: null,
+      quantity: product.missingQuantityArray[0].quantity || 0,
       unit: product.totalNeededArray[0]?.unit || '', // Unité par défaut du produit
       store: product.storeInfo?.storeName || '', // Magasin du produit
       who: userName() || '', // Utilisateur courant
@@ -31,7 +31,7 @@ export function createProductModalState(product: EnrichedProduct) {
       notes: ''
     },
     stock: {
-      quantity: null,
+      quantity: 0,
       unit: product.totalNeededArray[0]?.unit || '', // Unité par défaut du produit
       notes: '',
       dateTime: new Date().toISOString()
@@ -53,14 +53,24 @@ export function createProductModalState(product: EnrichedProduct) {
 
   const stockEntries = $derived(product?.stockArray || []);
 
-  const purchasesList = $derived(product?.totalPurchasesArray || []);
+  const purchasesList = $derived(product?.purchases || []);
 
-  // États d'édition
+  // États d'édition - avec valeurs de secours pour éviter les null bindings
   let edit = $state({
-    purchase: null as Purchases | null,
-    store: product.storeInfo || null as StoreInfo | null,
-    whoList: null as string[] | null
+    purchase: {
+      quantity: 0,
+      unit: '',
+      store: '',
+      who: '',
+      price: null,
+      notes: '',
+    } as Partial<Purchases>,
+    store: product.storeInfo || { storeName: '', storeComment: '' } as StoreInfo,
+    whoList: [] as string[]
   });
+
+  // Suivi de l'état d'édition pour éviter les erreurs de timing
+  let editingPurchaseId = $state<string | null>(null);
 
   // Gestion du chargement et des erreurs
   async function withLoading<T>(operation: () => Promise<T>): Promise<T | null> {
@@ -89,7 +99,7 @@ export function createProductModalState(product: EnrichedProduct) {
   // Réinitialisation des formulaires
   function resetForms() {
     forms.purchase = {
-      quantity: null,
+      quantity: product.missingQuantityArray[0].quantity || 0,
       unit: product.totalNeededArray[0]?.unit || '',
       store: product.storeInfo?.storeName || '',
       who: userName() || '',
@@ -97,12 +107,20 @@ export function createProductModalState(product: EnrichedProduct) {
       notes: ''
     };
     forms.stock = {
-      quantity: null,
+      quantity: 0,
       unit: product.totalNeededArray[0]?.unit || '',
       notes: '',
       dateTime: new Date().toISOString()
     };
-    edit.purchase = null;
+
+    edit.purchase = {
+      quantity: 0,
+      unit: product.totalNeededArray[0]?.unit || '',
+      store: product.storeInfo?.storeName || '',
+      who: userName() || '',
+      price: null,
+      notes: '',
+    };
   }
 
   // Actions CRUD - Achats
@@ -112,6 +130,10 @@ export function createProductModalState(product: EnrichedProduct) {
         throw new Error('Veuillez remplir les champs obligatoires');
       }
 
+      if (!productsStore || !productsStore.currentMainId) {
+        throw new Error('Une erreur est survenue');
+      } // FIXTIT : recupération plus propre du mainId
+
       // Normaliser les unités avant envoi à Appwrite
       const { quantity: normalizedQuantity, unit: normalizedUnit } = normalizeUnit(
         forms.purchase.quantity,
@@ -120,7 +142,7 @@ export function createProductModalState(product: EnrichedProduct) {
 
       const result = await createPurchase({
         products: [product.$id],
-        mainId: productsStore.currentMainId,
+        mainId: productsStore!.currentMainId!,
         unit: normalizedUnit,
         quantity: normalizedQuantity,
         store: forms.purchase.store || null,
@@ -138,14 +160,29 @@ export function createProductModalState(product: EnrichedProduct) {
 
   function startEditPurchase(purchase: Purchases) {
     edit.purchase = { ...purchase };
+    editingPurchaseId = purchase.$id;
+    console.log('startEditPurchase', purchase);
   }
 
   function cancelEditPurchase() {
-    edit.purchase = null;
+    // Réinitialiser avec des valeurs vides au lieu de null
+    edit.purchase = {
+      $id: '',
+      quantity: 0,
+      unit: product.totalNeededArray[0]?.unit || '',
+      store: product.storeInfo?.storeName || '',
+      who: userName() || '',
+      price: null,
+      notes: '',
+      $createdAt: '',
+      $updatedAt: '',
+      $permissions: []
+    };
+    editingPurchaseId = null;
   }
 
   async function savePurchase() {
-    if (!edit.purchase) return;
+    if (!edit.purchase || !edit.purchase.$id) return; // Vérifier qu'il y a un ID valide
 
     await withLoading(async () => {
       // Normaliser les unités avant envoi à Appwrite
@@ -163,10 +200,10 @@ export function createProductModalState(product: EnrichedProduct) {
         price: edit.purchase?.price || null
       };
 
-      const result = await updatePurchase(edit.purchase!.$id, updates);
+      const result = await updatePurchase(edit.purchase.$id, updates);
 
       if (result) {
-        edit.purchase = null;
+        editingPurchaseId = null;
         showToast('success', 'Achat modifié avec succès');
       }
     });
@@ -269,14 +306,9 @@ export function createProductModalState(product: EnrichedProduct) {
   }
 
   // Actions CRUD - Magasin
-  async function updateStore(storeInfo?: string | null) {
+  async function updateStore(storeInfo: StoreInfo) {
     await withLoading(async () => {
-      // Utiliser la valeur passée en paramètre, sinon utiliser editingStore
-      const finalStoreValue = storeInfo !== undefined
-        ? storeInfo
-        : (edit.store?.storeName && edit.store.storeName.trim() !== '' ? edit.store.storeName.trim() : product.store);
-
-      const result = await updateProductStore(product.$id, finalStoreValue);
+      const result = await updateProductStore(product.$id, storeInfo);
 
       if (result) {
         showToast('success', 'Magasin mis à jour avec succès');
@@ -295,6 +327,7 @@ export function createProductModalState(product: EnrichedProduct) {
     get loading() { return loading; },
     get error() { return error; },
     get currentTab() { return currentTab; },
+    get editingPurchaseId() { return editingPurchaseId; },
 
     // Formulaires
     forms,
@@ -333,7 +366,4 @@ export function createProductModalState(product: EnrichedProduct) {
     formatDate,
     formatDisplayQuantity
   };
-}
-
-
 }
