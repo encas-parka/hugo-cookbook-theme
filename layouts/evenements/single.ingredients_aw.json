@@ -86,7 +86,7 @@
               "recipeName": {{ $occurrence.recipe_name | jsonify }},
               "dateTimeService": {{ $occurrence.dateTimeService | jsonify }},
               "assiettes": {{ $occurrence.assiettes }},
-              "quantity": {{- $unitLower := $occurrence.unit | lower -}}{{- $convertedQty := $occurrence.quantite -}}{{- if eq $unitLower "kg" }}{{- $convertedQty = mul $occurrence.quantite 1000 -}}{{- else if eq $unitLower "l." }}{{- $convertedQty = mul $occurrence.quantite 1000 -}}{{- end -}}{{- if or (eq $unitLower "kg") (eq $unitLower "gr.") (eq $unitLower "l.") (eq $unitLower "ml") }}{{ printf "%.0f" $convertedQty | jsonify }}{{- else if eq $unitLower "recette·s" }}{{ printf "%.0f" $convertedQty | jsonify }}{{- else }}{{ printf "%.1f" $convertedQty | jsonify }}{{- end -}},
+              "quantity": {{- $unitLower := $occurrence.unit | lower -}}{{- $convertedQty := float $occurrence.quantite -}}{{- if eq $unitLower "kg" }}{{- $convertedQty = mul $convertedQty 1000 -}}{{- else if eq $unitLower "l." }}{{- $convertedQty = mul $convertedQty 1000 -}}{{- end -}}{{- if or (eq $unitLower "kg") (eq $unitLower "gr.") (eq $unitLower "l.") (eq $unitLower "ml") }}{{ printf "%.0f" $convertedQty | jsonify }}{{- else if eq $unitLower "recette·s" }}{{ printf "%.0f" $convertedQty | jsonify }}{{- else }}{{ printf "%.1f" $convertedQty | jsonify }}{{- end -}},
               "unit": {{- if eq $unitLower "kg" }}"gr."{{- else if eq $unitLower "l." }}"ml"{{- else }}{{ $occurrence.unit | jsonify }}{{- end -}}
             }
           {{- end -}}

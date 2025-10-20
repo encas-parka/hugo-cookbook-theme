@@ -272,169 +272,154 @@ function clearAuthData() {
 }
 
 
-async function createCollaborativeProductsListFromEvent(eventId) {
-    let createdMain = false;
-    const createdProducts = [];
+/**
+ * Valide et prépare les données nécessaires pour la création transactionnelle
+ * @param {string} eventId - ID de l'événement
+ * @returns {Promise<{eventData, user, contentHash}>} Données validées
+ */
+async function validateAndPrepareEventData(eventId) {
+    console.log(`[Appwrite Client] Validation des données pour l'événement ${eventId}`);
 
+    // Récupérer et valider les données de l'événement
+    const response = await fetch(`/evenements/${eventId}/ingredients_aw/index.json`);
+    if (!response.ok) throw new Error(`Impossible de récupérer les données de l'événement: ${response.status}`);
+    const eventData = await response.json();
+    console.log(`[Appwrite Client] Données de l'événement récupérées:`, eventData);
+
+    const { account, databases } = await initializeAppwrite();
+    const user = await account.get();
+    console.log(`[Appwrite Client] Utilisateur authentifié: ${user.$id}`);
+
+    // Vérifier si l'événement existe déjà
     try {
-        console.log(`[Appwrite Client] Début de la création de liste collaborative pour l'événement ${eventId}`);
-
-        // Récupérer et valider les données de l'événement
-        const response = await fetch(`/evenements/${eventId}/ingredients_aw/index.json`);
-        if (!response.ok) throw new Error(`Impossible de récupérer les données de l'événement: ${response.status}`);
-        const eventData = await response.json();
-        console.log(`[Appwrite Client] Données de l'événement récupérées:`, eventData);
-
-        const { account, databases } = await initializeAppwrite();
-        const user = await account.get();
-        console.log(`[Appwrite Client] Utilisateur authentifié: ${user.$id}`);
-
-        // Vérifier si l'événement existe déjà
-        try {
-            await databases.getDocument('689d15b10003a5a13636', 'main', eventId);
-            console.log(`[Appwrite Client] L'événement ${eventId} existe déjà dans main`);
-            window.location.href = `/sv_products/?listId=${eventId}`;
-            return;
-        } catch (error) {
-            if (error.code !== 404) {
-                throw error;
-            }
+        await databases.getDocument(APPWRITE_CONFIG.databaseId, APPWRITE_CONFIG.collections.main, eventId);
+        console.log(`[Appwrite Client] L'événement ${eventId} existe déjà dans main`);
+        window.location.href = `/sv_products/?listId=${eventId}`;
+        return null; // Retourner null pour indiquer une redirection
+    } catch (error) {
+        if (error.code !== 404) {
+            throw error;
         }
+    }
 
-        // Récupérer le hash depuis les paramètres globaux
-        const contentHash = window.__HUGO_PARAMS__?.listContentHash;
-        if (!contentHash) {
-            throw new Error('Le hash du contenu n\'est pas défini');
-        }
+    // Récupérer le hash depuis les paramètres globaux
+    const contentHash = window.__HUGO_PARAMS__?.listContentHash;
+    if (!contentHash) {
+        throw new Error('Le hash du contenu n\'est pas défini');
+    }
 
-        // Créer l'enregistrement main avec statut 'creating'
-        const mainData = {
+    return { eventData, user, contentHash };
+}
+
+/**
+ * Prépare les opérations pour la transaction Appwrite
+ * @param {string} eventId - ID de l'événement
+ * @param {object} eventData - Données de l'événement
+ * @param {object} user - Utilisateur Appwrite
+ * @param {string} contentHash - Hash du contenu
+ * @returns {Array} Tableau d'opérations pour createOperations
+ */
+function prepareTransactionOperations(eventId, eventData, user, contentHash) {
+    const operations = [];
+
+    // 1. Créer l'enregistrement main (statut 'active' directement avec transaction)
+    operations.push({
+        action: 'create',
+        databaseId: APPWRITE_CONFIG.databaseId,
+        collectionId: APPWRITE_CONFIG.collections.main,
+        documentId: eventId,
+        data: {
             name: eventData.name || `Événement ${eventId}`,
             originalDataHash: contentHash,
             isActive: true,
             createdBy: user.$id,
-            status: 'creating', // creating, active, failed
-            error: null
-        };
-
-        await databases.createDocument(
-            '689d15b10003a5a13636',
-            'main',
-            eventId,
-            mainData,
-            [`read("user:${user.$id}")`, `update("user:${user.$id}")`, `delete("user:${user.$id}")`]
-        );
-        createdMain = true;
-        console.log(`[Appwrite Client] Enregistrement main créé avec statut 'creating'`);
-
-        // Création des produits
-        if (eventData.ingredients && Array.isArray(eventData.ingredients)) {
-            console.log(`[Appwrite Client] Création de ${eventData.ingredients.length} produits`);
-
-            for (let i = 0; i < eventData.ingredients.length; i++) {
-                const ingredient = eventData.ingredients[i];
-                const productId = `${ingredient.ingredientHugoUuid}_${eventId}`;
-
-                try {
-                    const productData = {
-                        productHugoUuid: ingredient.ingredientHugoUuid || window.Appwrite.ID.unique(),
-                        productName: ingredient.ingredientName || '',
-                        productType: ingredient.ingType || '',
-                        mainId: eventId,
-                        // Conversion en JSON strings car les champs Appwrite sont maintenant des string
-                        totalNeededConsolidated: JSON.stringify(ingredient.totalNeededConsolidated || []),
-                        totalNeededRaw: JSON.stringify(ingredient.totalNeededRaw || []),
-                        neededConsolidatedByDate: JSON.stringify(ingredient.neededConsolidatedByDate || []),
-                        recipesOccurrences: JSON.stringify(ingredient.recipesOccurrences || []),
-                        pFrais: ingredient.pFrais || false,
-                        pSurgel: ingredient.pSurgel || false,
-                        nbRecipes: ingredient.nbRecipes || 0,
-                        totalAssiettes: ingredient.totalAssiettes || 0,
-                        conversionRules: ingredient.conversionRules,
-                    };
-
-                    await databases.createDocument(
-                        '689d15b10003a5a13636',
-                        'products',
-                        productId,
-                        productData,
-                        [`read("user:${user.$id}")`, `update("user:${user.$id}")`, `delete("user:${user.$id}")`]
-                    );
-
-                    createdProducts.push(productId);
-                    console.log(`[Appwrite Client] Produit ${i + 1}/${eventData.ingredients.length} créé: ${productId} (${ingredient.ingredientName})`);
-
-                } catch (productError) {
-                    console.error(`[Appwrite Client] Erreur création produit ${i + 1} (${ingredient.ingredientName}):`, productError);
-
-                    // Nettoyage complet en cas d'échec
-                    await cleanupFullOperation(eventId, createdMain, createdProducts, databases);
-
-                    // Marquer l'opération comme échouée
-                    await databases.updateDocument('689d15b10003a5a13636', 'main', eventId, {
-                        status: 'failed',
-                        error: `${new Date().toISOString()} - Échec création produit ${ingredient.ingredientName}: ${productError.message}`
-                    });
-
-                    throw new Error(`Échec création produit ${ingredient.ingredientName}: ${productError.message}`);
-                }
-            }
-        }
-
-        // Marquer comme actif si tout est réussi
-        await databases.updateDocument('689d15b10003a5a13636', 'main', eventId, {
             status: 'active',
             error: null
+        },
+        permissions: [`read("user:${user.$id}")`, `update("user:${user.$id}")`, `delete("user:${user.$id}")`]
+    });
+
+    // 2. Créer tous les produits en lot
+    if (eventData.ingredients && Array.isArray(eventData.ingredients)) {
+        const productOperations = eventData.ingredients.map(ingredient => {
+            const productId = `${ingredient.ingredientHugoUuid}_${eventId}`;
+            
+            return {
+                action: 'create',
+                databaseId: APPWRITE_CONFIG.databaseId,
+                collectionId: APPWRITE_CONFIG.collections.products,
+                documentId: productId,
+                data: {
+                    productHugoUuid: ingredient.ingredientHugoUuid || window.Appwrite.ID.unique(),
+                    productName: ingredient.ingredientName || '',
+                    productType: ingredient.ingType || '',
+                    mainId: eventId,
+                    totalNeededConsolidated: JSON.stringify(ingredient.totalNeededConsolidated || []),
+                    totalNeededRaw: JSON.stringify(ingredient.totalNeededRaw || []),
+                    neededConsolidatedByDate: JSON.stringify(ingredient.neededConsolidatedByDate || []),
+                    recipesOccurrences: JSON.stringify(ingredient.recipesOccurrences || []),
+                    pFrais: ingredient.pFrais || false,
+                    pSurgel: ingredient.pSurgel || false,
+                    nbRecipes: ingredient.nbRecipes || 0,
+                    totalAssiettes: ingredient.totalAssiettes || 0,
+                    conversionRules: ingredient.conversionRules,
+                },
+                permissions: [`read("user:${user.$id}")`, `update("user:${user.$id}")`, `delete("user:${user.$id}")`]
+            };
         });
 
-        console.log(`[Appwrite Client] Opération réussie (${createdProducts.length} produits), redirection`);
+        operations.push(...productOperations);
+    }
+
+    return operations;
+}
+
+async function createCollaborativeProductsListFromEvent(eventId) {
+    try {
+        console.log(`[Appwrite Client] Début de la création transactionnelle pour l'événement ${eventId}`);
+
+        // 1. Validation et préparation des données
+        const validationResult = await validateAndPrepareEventData(eventId);
+        if (!validationResult) {
+            // Redirection déjà gérée dans validateAndPrepareEventData
+            return;
+        }
+
+        const { eventData, user, contentHash } = validationResult;
+        console.log(`[Appwrite Client] Données validées, début de la transaction`);
+
+        // 2. Initialisation Appwrite et création de la transaction
+        const { databases } = await initializeAppwrite();
+        const transaction = await databases.createTransaction();
+        console.log(`[Appwrite Client] Transaction créée: ${transaction.$id}`);
+
+        // 3. Préparation des opérations
+        const operations = prepareTransactionOperations(eventId, eventData, user, contentHash);
+        console.log(`[Appwrite Client] ${operations.length} opérations préparées`);
+
+        // 4. Exécution des opérations en lot
+        await databases.createOperations(transaction.$id, operations);
+        console.log(`[Appwrite Client] Opérations exécutées avec succès`);
+
+        // 5. Commit de la transaction
+        await databases.updateTransaction(transaction.$id, true);
+        console.log(`[Appwrite Client] Transaction validée avec succès`);
+
+        // 6. Redirection vers la liste créée
+        console.log(`[Appwrite Client] Opération transactionnelle réussie, redirection`);
         window.location.href = `/sv_products/?listId=${eventId}`;
 
     } catch (error) {
-        console.error(`[Appwrite Client] Erreur globale:`, error);
-
-        // Nettoyage si l'erreur n'est pas déjà gérée
-        if (createdMain || createdProducts.length > 0) {
-            try {
-                const { databases } = await initializeAppwrite();
-                await cleanupFullOperation(eventId, createdMain, createdProducts, databases);
-            } catch (cleanupError) {
-                console.error(`[Appwrite Client] Erreur lors du nettoyage:`, cleanupError);
-            }
+        console.error(`[Appwrite Client] Erreur lors de la création transactionnelle:`, error);
+        
+        // Gestion simple des erreurs - plus besoin de nettoyage manuel
+        if (error.code === 'conflict') {
+            throw new Error('Conflit détecté: les données ont été modifiées par une autre opération. Veuillez réessayer.');
+        } else if (error.code === 'transaction_limit_exceeded') {
+            throw new Error('Limite de transactions dépassée. Veuillez réduire le nombre d\'ingrédients ou réessayer plus tard.');
+        } else {
+            throw error;
         }
-
-        throw error;
-    }
-}
-
-// Fonction de nettoyage en cas d'échec
-async function cleanupFullOperation(eventId, createdMain, createdProducts, databases) {
-    console.log(`[Appwrite Client] Nettoyage de l'opération échouée pour l'événement ${eventId}`);
-
-    try {
-        // Supprimer les produits créés
-        for (const productId of createdProducts) {
-            try {
-                await databases.deleteDocument('689d15b10003a5a13636', 'products', productId);
-                console.log(`[Appwrite Client] Produit ${productId} supprimé`);
-            } catch (error) {
-                console.error(`[Appwrite Client] Erreur suppression produit ${productId}:`, error);
-            }
-        }
-
-        // Supprimer l'enregistrement main si créé
-        if (createdMain) {
-            try {
-                await databases.deleteDocument('689d15b10003a5a13636', 'main', eventId);
-                console.log(`[Appwrite Client] Enregistrement main ${eventId} supprimé`);
-            } catch (error) {
-                console.error(`[Appwrite Client] Erreur suppression main ${eventId}:`, error);
-            }
-        }
-
-        console.log(`[Appwrite Client] Nettoyage terminé`);
-    } catch (error) {
-        console.error(`[Appwrite Client] Erreur lors du nettoyage:`, error);
     }
 }
 
