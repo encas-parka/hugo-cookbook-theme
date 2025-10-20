@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { Archive } from '@lucide/svelte';
-	import type { Products } from '../types/appwrite.d.ts';
+	import type { EnrichedProduct } from '../types/store.types.js';
 	import { createProductModalState } from '../stores/ProductModalState.svelte';
 	import { productsStore } from '../stores/ProductsStore.svelte';
+    import { formatDate, formatQuantity } from '../utils/products-display.js';
 
 	// --- NOUVELLE APPROCHE : Consommation directe de ProductModalState ---
 	// Le composant consomme directement le store au lieu de recevoir des props
-	
+
 	interface Props {
-		product: Products | null;
+		product: EnrichedProduct | null;
 	}
 
 	let { product }: Props = $props();
@@ -23,57 +24,7 @@
 	const loading = $derived(modalState?.loading ?? false);
 	const stockForm = $derived(modalState?.forms.stock);
 
-	// --- CODE LEGACY (conservé pour référence) ---
-	/*
-	interface StockEntry {
-		quantity: number;
-		unit: string;
-		dateTime: string;
-		notes?: string | null;
-	}
 
-	interface Props {
-		product: Products | null;
-		stockEntries: StockEntry[];
-		loading: boolean;
-		onAddStock: () => Promise<void>;
-		onDeleteStock: (dateTime: string) => Promise<void>;
-	}
-
-	let {
-		product,
-		stockEntries,
-		loading,
-		onAddStock,
-		onDeleteStock
-	}: Props = $props();
-
-	let newStock = {
-		quantity: '',
-		unit: '',
-		dateTime: '',
-		notes: ''
-	};
-	*/
-
-	function formatQuantity(quantity: number, unit: string): string {
-		if (unit === 'g' && quantity >= 1000) {
-			return `${(quantity / 1000).toFixed(1)} kg`;
-		} else if (unit === 'ml' && quantity >= 1000) {
-			return `${(quantity / 1000).toFixed(1)} l`;
-		} else if (unit === 'unités' || unit === 'pièces') {
-			return `${quantity} ${unit}`;
-		}
-		return `${quantity} ${unit}`;
-	}
-
-	function formatDate(dateString: string): string {
-		return new Date(dateString).toLocaleDateString('fr-FR', {
-			day: 'numeric',
-			month: 'short',
-			year: 'numeric'
-		});
-	}
 
 	// --- NOUVELLE APPROCHE : Utilisation directe des actions du store ---
 	async function handleAddStock() {
@@ -84,12 +35,6 @@
 		await modalState?.deleteStock(index);
 	}
 
-	// --- CODE LEGACY (conservé pour référence) ---
-	/*
-	async function handleDeleteStock(dateTime: string) {
-		await onDeleteStock(dateTime);
-	}
-	*/
 </script>
 
 <div class="space-y-4">

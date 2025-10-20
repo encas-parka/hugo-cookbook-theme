@@ -1,19 +1,22 @@
 <script lang="ts">
 	import { ShoppingCart, SquarePen, Save, X } from '@lucide/svelte';
-	import type { Products, Purchases } from '../types/appwrite.d.ts';
-	import { useProductModal } from '../hooks/useProductModal';
+	import type { Purchases } from '../types/appwrite.d.ts';
+    import { createProductModalState } from '../stores/ProductModalState.svelte.js';
+    import type { EnrichedProduct } from '../types/store.types.js';
+    import { formatQuantity } from '../utils/products-display.js';
 
 	// --- NOUVELLE APPROCHE : Consommation directe de ProductModalState ---
 	// Le composant consomme directement le store au lieu de recevoir des props
-	
+
 	interface Props {
-		product: Products | null;
+		product: EnrichedProduct | null;
 	}
 
 	let { product }: Props = $props();
 
-	// Utilisation du hook pour accéder à ProductModalState
-	const modalState = useProductModal(product?.$id);
+	const modalState = $derived.by(() => {
+		return product ? createProductModalState(product) : null;
+	});
 
 	// Données dérivées du store
 	const purchases = $derived(modalState?.purchasesList ?? []);
@@ -21,60 +24,6 @@
 	const purchaseForm = $derived(modalState?.forms.purchase);
 	const editingPurchaseData = $derived(modalState?.edit.purchase);
 
-	// --- CODE LEGACY (conservé pour référence) ---
-	/*
-	interface Props {
-		product: Products | null;
-		currentProductPurchases: Purchases[];
-		loading: boolean;
-		newPurchase: {
-			quantity: number | null;
-			unit: string;
-			store: string;
-			who: string;
-			price: number | null;
-			notes: string;
-		};
-		onAddPurchase: () => Promise<void>;
-		onStartEditPurchase: (purchase: Purchases) => void;
-		onCancelEditPurchase: () => void;
-		onSavePurchase: () => Promise<void>;
-		onDeletePurchase: (purchaseId: string) => Promise<void>;
-	}
-
-	let {
-		product,
-		currentProductPurchases,
-		loading,
-		newPurchase,
-		onAddPurchase,
-		onStartEditPurchase,
-		onCancelEditPurchase,
-		onSavePurchase,
-		onDeletePurchase
-	}: Props = $props();
-
-	let editingPurchase: Purchases | null = $state(null);
-	*/
-
-	function formatQuantity(quantity: number, unit: string): string {
-		if (unit === 'gr.' && quantity >= 1000) {
-			return `${(quantity / 1000).toFixed(1)} kg`;
-		} else if (unit === 'ml' && quantity >= 1000) {
-			return `${(quantity / 1000).toFixed(1)} l`;
-		}
-		return `${quantity} ${unit}`;
-	}
-
-	function formatDate(dateString: string): string {
-		return new Date(dateString).toLocaleDateString('fr-FR', {
-			day: 'numeric',
-			month: 'short',
-			year: 'numeric'
-		});
-	}
-
-	// --- NOUVELLE APPROCHE : Utilisation directe des actions du store ---
 	function startEditPurchase(purchase: Purchases) {
 		modalState?.startEditPurchase(purchase);
 	}
@@ -95,27 +44,6 @@
 		await modalState?.addPurchase();
 	}
 
-	// --- CODE LEGACY (conservé pour référence) ---
-	/*
-	function startEditPurchase(purchase: Purchases) {
-		editingPurchase = { ...purchase };
-		onStartEditPurchase(purchase);
-	}
-
-	function cancelEditPurchase() {
-		editingPurchase = null;
-		onCancelEditPurchase();
-	}
-
-	async function handleSavePurchase() {
-		await onSavePurchase();
-		editingPurchase = null;
-	}
-
-	async function handleDeletePurchase(purchaseId: string) {
-		await onDeletePurchase(purchaseId);
-	}
-	*/
 </script>
 
 <div class="space-y-4">
@@ -237,7 +165,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each purchases as purchase (purchase.$id)}
+					{#each purchases as purchase, index (index)}
 						{#if editingPurchaseData?.$id === purchase.$id}
 							<tr class="bg-warning/10">
 								<td>
@@ -246,9 +174,9 @@
 											type="number"
 											step="0.01"
 											class="input input-bordered w-20"
-											bind:value={editingPurchaseData.quantity}
+											bind:value={editingPurchaseData?.quantity}
 										/>
-										<select class="select select-bordered w-16" bind:value={editingPurchaseData.unit}>
+										<select class="select select-bordered w-16" bind:value={editingPurchaseData?.unit}>
 											<option value="kg">kg</option>
 											<option value="gr.">gr.</option>
 											<option value="l.">l.</option>
@@ -262,14 +190,14 @@
 									<input
 										type="text"
 										class="input input-bordered w-24"
-										bind:value={editingPurchaseData.store}
+										bind:value={editingPurchaseData?.store}
 									/>
 								</td>
 								<td>
 									<input
 										type="text"
 										class="input input-bordered w-20"
-										bind:value={editingPurchaseData.who}
+										bind:value={editingPurchaseData?.who}
 									/>
 								</td>
 								<td class="text-xs opacity-75">
@@ -280,14 +208,14 @@
 										type="number"
 										step="0.01"
 										class="input input-bordered w-16"
-										bind:value={editingPurchaseData.price}
+										bind:value={editingPurchaseData?.price}
 									/>
 								</td>
 								<td>
 									<input
 										type="text"
 										class="input input-bordered w-24"
-										bind:value={editingPurchaseData.notes}
+										bind:value={editingPurchaseData?.notes}
 									/>
 								</td>
 								<td>

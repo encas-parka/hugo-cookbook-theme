@@ -1,12 +1,7 @@
 <script lang="ts">
 	import { Store } from '@lucide/svelte';
-	import type { Products } from '../types/appwrite.d.ts';
 	import type { StoreInfo, EnrichedProduct } from '../types/store.types';
 	import { createProductModalState } from '../stores/ProductModalState.svelte';
-
-	// --- NOUVELLE APPROCHE : Consommation directe de ProductModalState ---
-	// Le composant consomme directement le store au lieu de recevoir des props
-	
 	interface Props {
 		product: EnrichedProduct | null;
 	}
@@ -24,7 +19,9 @@
 	const editingStoreData = $derived(modalState?.edit.store);
 
 	// État local pour le formulaire (synchronisé avec le store)
+	// svelte-ignore  state_referenced_locally
 	let storeName = $state(storeForm?.name || '');
+	// svelte-ignore  state_referenced_locally
 	let storeComment = $state(storeForm?.comment || '');
 
 	// Synchroniser avec le store quand les données changent
@@ -35,7 +32,6 @@
 		}
 	});
 
-	// --- NOUVELLE APPROCHE : Utilisation directe des actions du store ---
 	async function handleUpdateStore() {
 		const storeInfo: StoreInfo | null = storeName.trim()
 			? { storeName: storeName.trim(), storeComment: storeComment.trim() || '' }
@@ -48,59 +44,6 @@
 		storeName = store;
 	}
 
-	// --- CODE LEGACY (conservé pour référence) ---
-	/*
-	interface Props {
-		product: EnrichedProduct | null;
-		editingStore: StoreInfo | null;
-		loading: boolean;
-		onUpdateStore: (store: StoreInfo | null) => Promise<void>;
-	}
-
-	let {
-		product,
-		editingStore,
-		loading,
-		onUpdateStore
-	}: Props = $props();
-
-	// État local pour le formulaire
-	let storeName = $state(editingStore?.storeName || '');
-	let storeComment = $state(editingStore?.storeComment || '');
-
-	// Synchroniser quand le produit change
-	$effect(() => {
-		if (product?.storeInfo) {
-			// Utiliser directement storeInfo depuis le produit enrichi
-			storeName = product.storeInfo.storeName || '';
-			storeComment = product.storeInfo.storeComment || '';
-		} else if (product?.store) {
-			try {
-				const storeInfo = JSON.parse(product.store) as StoreInfo;
-				storeName = storeInfo.storeName || '';
-				storeComment = storeInfo.storeComment || '';
-			} catch {
-				storeName = product.store || '';
-				storeComment = '';
-			}
-		} else {
-			storeName = '';
-			storeComment = '';
-		}
-	});
-
-	async function handleUpdateStore() {
-		const storeInfo: StoreInfo | null = storeName.trim()
-			? { storeName: storeName.trim(), storeComment: storeComment.trim() || '' }
-			: null;
-
-		await onUpdateStore(storeInfo);
-	}
-
-	function handleQuickSelectStore(store: string) {
-		storeName = store;
-	}
-	*/
 </script>
 
 <div class="space-y-4">

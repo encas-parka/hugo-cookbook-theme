@@ -1,13 +1,11 @@
 <script lang="ts">
 	import { Users, X } from '@lucide/svelte';
-	import type { Products } from '../types/appwrite.d.ts';
+	import type { EnrichedProduct } from '../types/store.types.js';
+
 	import { createProductModalState } from '../stores/ProductModalState.svelte';
 
-	// --- NOUVELLE APPROCHE : Consommation directe de ProductModalState ---
-	// Le composant consomme directement le store au lieu de recevoir des props
-	
 	interface Props {
-		product: Products | null;
+		product: EnrichedProduct | null;
 	}
 
 	let { product }: Props = $props();
@@ -24,7 +22,6 @@
 	// État local pour le formulaire
 	let newVolunteer = $state('');
 
-	// --- NOUVELLE APPROCHE : Utilisation directe des actions du store ---
 	async function handleAddVolunteer() {
 		if (newVolunteer.trim()) {
 			await modalState?.addVolunteer(newVolunteer.trim());
@@ -36,37 +33,6 @@
 		await modalState?.removeVolunteer(volunteer);
 	}
 
-	// --- CODE LEGACY (conservé pour référence) ---
-	/*
-	interface Props {
-		product: Products | null;
-		editingWho: string[];
-		loading: boolean;
-		onAddVolunteer: (volunteer: string) => Promise<void>;
-		onRemoveVolunteer: (volunteer: string) => Promise<void>;
-	}
-
-	let {
-		product,
-		editingWho,
-		loading,
-		onAddVolunteer,
-		onRemoveVolunteer
-	}: Props = $props();
-
-	let newVolunteer = $state('');
-
-	async function handleAddVolunteer() {
-		if (newVolunteer.trim()) {
-			await onAddVolunteer(newVolunteer.trim());
-			newVolunteer = '';
-		}
-	}
-
-	async function handleRemoveVolunteer(volunteer: string) {
-		await onRemoveVolunteer(volunteer);
-	}
-	*/
 </script>
 
 <div class="space-y-4">

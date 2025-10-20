@@ -17,6 +17,7 @@
   import StockManager from './StockManager.svelte';
   import VolunteerManager from './VolunteerManager.svelte';
   import StoreManager from './StoreManager.svelte';
+    import { formatDate } from '../utils/products-display';
 
 
   let currentTab = $derived(modal.product.tab);
@@ -39,8 +40,7 @@
   const stockEntries = $derived(modalState?.stockEntries ?? []);
   const purchasesList = $derived(modalState?.purchasesList ?? []);
   const recipes = $derived(modalState?.recipes ?? []);
-  const whoList = $derived(modalState?.whoList ?? []);
-  
+
   // État local (legacy - sera progressivement remplacé)
   // let loading = $state(false);
   // let error = $state<string | null>(null);
@@ -50,7 +50,6 @@
   // let currentWho = $derived.by(() => currentProduct?.who || []);
 
   // Pour la gestion des magasins
-  let editingStore = $state(currentProduct?.storeInfo || null);
 
   // Données pour les formulaires
   // NOTE: Ces variables seront progressivement remplacées par modalState.forms
@@ -82,58 +81,13 @@
   // });
 
 
-  let editingPurchase = $state<Purchases | null>(null);
 
   // Données dérivées - plus besoin d'état local dupliqué
-  let currentProductPurchases = $derived.by(() => {
-    const purchases = currentProduct?.purchases;
-    if (!purchases || !Array.isArray(purchases)) {
-      console.warn('[ProductModal] Purchases is not a valid array:', purchases);
-      return [];
-    }
-
-    // Filtrer les purchases qui n'ont pas de $id valide
-    const validPurchases = purchases.filter(purchase => {
-      if (!purchase || typeof purchase !== 'object') {
-        console.warn('[ProductModal] Invalid purchase object:', purchase);
-        return false;
-      }
-      if (!purchase.$id) {
-        console.warn('[ProductModal] Purchase missing $id:', purchase);
-        return false;
-      }
-      return true;
-    });
-
-    if (validPurchases.length !== purchases.length) {
-      console.warn(`[ProductModal] Filtered ${purchases.length - validPurchases.length} invalid purchases`);
-    }
-
-    return validPurchases;
-  });
-  let recipesOccurrences = $derived.by(() =>parseRecipesOccurrences(currentProduct?.recipesOccurrences || null));
 
   // État dérivé pour les volontaires - utilise directement les données du produit
-  let currentWho = $derived.by(() => currentProduct?.who || []);
 
 
 
-  function resetForms() {
-    newPurchase = {
-      quantity: null,
-      unit: '',
-      store: currentProduct?.storeInfo?.storeName || '',
-      who: userName(),
-      price: null,
-      notes: ''
-    };
-    newStock = {
-      quantity: null,
-      unit: '',
-      notes: '',
-      dateTime: new Date().toISOString().slice(0, 16)
-    };
-  }
 
 
   function handleTabClick(tab: string) {
@@ -141,324 +95,11 @@
     if (modalState) {
       modalState.setCurrentTab(tab);
     }
-    
+
     // --- CODE LEGACY ---
     // modal.product.tab = tab;
   }
 
-  // Gestion du chargement et des erreurs
-  async function withLoading<T>(operation: () => Promise<T>): Promise<T | null> {
-    loading = true;
-    error = null;
-    try {
-      const result = await operation();
-      return result;
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Une erreur est survenue';
-      console.error('[ProductModal] Erreur:', err);
-      return null;
-    } finally {
-      loading = false;
-    }
-  }
-
-  // Helper pour formater les dates
-  function formatDate(dateString: string): string {
-    if (!dateString) return '-';
-    try {
-      return new Date(dateString).toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return dateString;
-    }
-  }
-
-  // Helper pour formater les quantités
-  function formatQuantity(quantity: string | null): string {
-    if (!quantity) return '-';
-    try {
-      const parsed = JSON.parse(quantity);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map(q => `${q.value} ${q.unit}`).join(' et ');
-      }
-    } catch {
-      return quantity;
-    }
-    return quantity;
-  }
-
-  // Fonctions CRUD pour les achats
-  async function handleAddPurchase() {
-    // --- NOUVELLE APPROCHE : Utilisation de ProductModalState ---
-    if (modalState) {
-      await modalState.addPurchase();
-    }
-    
-    // --- CODE LEGACY ---
-    /*
-    if (!currentProduct) return;
-    loading = true;
-    await withLoading(async () => {
-      if (!newPurchase.quantity || !newPurchase.unit.trim()) {
-        throw new Error('Veuillez remplir les champs obligatoires');
-      }
-
-      // Normaliser les unités avant envoi à Appwrite
-      let normalizedQuantity = newPurchase.quantity;
-      let normalizedUnit = newPurchase.unit;
-
-      if (newPurchase.unit === 'kg') {
-        normalizedQuantity = newPurchase.quantity * 1000;
-        normalizedUnit = 'gr.';
-      } else if (newPurchase.unit === 'l.') {
-        normalizedQuantity = newPurchase.quantity * 1000;
-        normalizedUnit = 'ml';
-      }
-
-      const result = await createPurchase({
-        products: [currentProduct.$id],
-        mainId: productsStore.currentMainId,
-        unit: normalizedUnit,
-        quantity: normalizedQuantity,
-        store: newPurchase.store || null,
-        who: newPurchase.who || null,
-        notes: newPurchase.notes || '',
-        price: newPurchase.price || null,
-      });
-
-      if (result) {
-        // Le realtime mettra à jour automatiquement via currentProduct
-        resetForms();
-
-        // Notification de succès
-        const successEvent = new CustomEvent('toast', {
-          detail: { type: 'success', message: 'Achat ajouté avec succès' }
-        });
-        window.dispatchEvent(successEvent);
-      }
-    });
-    */
-  }
-
-  function startEditPurchase(purchase: Purchases) {
-    // --- NOUVELLE APPROCHE : Utilisation de ProductModalState ---
-    if (modalState) {
-      modalState.startEditPurchase(purchase);
-    }
-    
-    // --- CODE LEGACY ---
-    // editingPurchase = { ...purchase };
-  }
-
-  function cancelEditPurchase() {
-    // --- NOUVELLE APPROCHE : Utilisation de ProductModalState ---
-    if (modalState) {
-      modalState.cancelEditPurchase();
-    }
-    
-    // --- CODE LEGACY ---
-    // editingPurchase = null;
-  }
-
-  async function handleSavePurchase() {
-    if (!editingPurchase) return;
-
-    await withLoading(async () => {
-      const purchaseId = editingPurchase!.$id;
-
-      // Normaliser les unités avant envoi à Appwrite
-      let normalizedQuantity = editingPurchase!.quantity;
-      let normalizedUnit = editingPurchase!.unit;
-
-      if (editingPurchase!.unit === 'kg') {
-        normalizedQuantity = editingPurchase!.quantity * 1000;
-        normalizedUnit = 'gr.';
-      } else if (editingPurchase!.unit === 'l.') {
-        normalizedQuantity = editingPurchase!.quantity * 1000;
-        normalizedUnit = 'ml';
-      }
-
-      const updates = {
-        unit: normalizedUnit,
-        quantity: normalizedQuantity,
-        store: editingPurchase?.store || null,
-        who: editingPurchase?.who || null,
-        notes: editingPurchase?.notes || '',
-        price: editingPurchase?.price || null
-      };
-
-      const result = await updatePurchase(purchaseId, updates);
-
-      if (result) {
-        // Le realtime mettra à jour automatiquement via currentProduct
-        editingPurchase = null;
-
-        // Notification de succès
-        const successEvent = new CustomEvent('toast', {
-          detail: { type: 'success', message: 'Achat modifié avec succès' }
-        });
-        window.dispatchEvent(successEvent);
-      }
-    });
-  }
-
-  async function handleDeletePurchase(purchaseId: string) {
-    const purchase = currentProductPurchases.find(p => p.$id === purchaseId);
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer cet achat (${purchase?.quantity} ${purchase?.unit}) ?`)) {
-      return;
-    }
-
-    await withLoading(async () => {
-      await deletePurchase(purchaseId);
-
-      // Le realtime mettra à jour automatiquement via currentProduct
-
-      // Notification de succès
-      const successEvent = new CustomEvent('toast', {
-        detail: { type: 'success', message: 'Achat supprimé avec succès' }
-      });
-      window.dispatchEvent(successEvent);
-    });
-  }
-
-  // Fonctions pour la gestion du stock
-  async function handleAddStock() {
-    if (!currentProduct) return;
-
-    await withLoading(async () => {
-      if (!newStock.quantity || !newStock.unit) {
-        throw new Error('Veuillez remplir les champs obligatoires');
-      }
-
-      // Créer la nouvelle entrée de stock
-      const newStockEntry = {
-        quantity: newStock.quantity.toString(),
-        unit: newStock.unit,
-        notes: newStock.notes || '',
-        dateTime: newStock.dateTime || new Date().toISOString()
-      };
-
-      // Ajouter aux entrées existantes
-      const updatedStockEntries = [...stockEntries, newStockEntry];
-
-      // Mettre à jour le produit
-      const productId = currentProduct.$id;
-      const result = await updateProductStock(productId, JSON.stringify(updatedStockEntries));
-
-      if (result) {
-        stockEntries = updatedStockEntries;
-        resetForms();
-
-        // Notification de succès
-        const successEvent = new CustomEvent('toast', {
-          detail: { type: 'success', message: 'Relevé de stock ajouté avec succès' }
-        });
-        window.dispatchEvent(successEvent);
-      }
-    });
-  }
-
-  async function handleDeleteStock(index: number) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce relevé de stock ?')) {
-      return;
-    }
-    if (!currentProduct) return;
-
-
-    await withLoading(async () => {
-      // Supprimer l'entrée
-      const updatedStockEntries = stockEntries.filter((_, i) => i !== index);
-
-      // Mettre à jour le produit
-      const result = await updateProductStock(currentProduct.$id, JSON.stringify(updatedStockEntries));
-
-      if (result) {
-        stockEntries = updatedStockEntries;
-
-        // Notification de succès
-        const successEvent = new CustomEvent('toast', {
-          detail: { type: 'success', message: 'Relevé de stock supprimé avec succès' }
-        });
-        window.dispatchEvent(successEvent);
-      }
-    });
-  }
-
-  // Fonctions pour la gestion des volontaires
-  async function handleAddVolunteer(volunteerName: string) {
-    if (!currentProduct || !volunteerName.trim()) return;
-
-    await withLoading(async () => {
-      const name = volunteerName.trim();
-
-      // Vérifier si le volontaire existe déjà
-      if (currentWho.includes(name)) {
-        throw new Error('Ce volontaire est déjà ajouté');
-      }
-
-      const updatedWho = [...currentWho, name];
-      const result = await updateProductWho(currentProduct.$id, updatedWho);
-
-      if (result) {
-        // Notification de succès
-        const successEvent = new CustomEvent('toast', {
-          detail: { type: 'success', message: 'Volontaire ajouté avec succès' }
-        });
-        window.dispatchEvent(successEvent);
-      }
-    });
-  }
-
-  async function handleRemoveVolunteer(volunteer: string) {
-    if (!currentProduct) return;
-
-    if (!confirm(`Retirer ${volunteer} de la liste des volontaires ?`)) {
-      return;
-    }
-
-    await withLoading(async () => {
-      const updatedWho = currentWho.filter(v => v !== volunteer);
-      const result = await updateProductWho(currentProduct.$id, updatedWho);
-
-      if (result) {
-        // Notification de succès
-        const successEvent = new CustomEvent('toast', {
-          detail: { type: 'success', message: 'Volontaire retiré avec succès' }
-        });
-        window.dispatchEvent(successEvent);
-      }
-    });
-  }
-
-  // Fonctions pour la gestion du magasin
-  async function handleUpdateStore(storeInfo?: string | null) {
-    if (!currentProduct) return;
-
-    await withLoading(async () => {
-      // Utiliser la valeur passée en paramètre, sinon utiliser editingStore
-      const finalStoreValue = storeInfo !== undefined
-        ? storeInfo
-        : (editingStore?.storeName && editingStore.storeName.trim() !== '' ? editingStore.storeName.trim() : currentProduct.store);
-
-      console.log('[ProductModal] handleUpdateStore called with:', { storeInfo, editingStore, finalStoreValue });
-
-      const result = await updateProductStore(currentProduct.$id, finalStoreValue);
-
-      if (result) {
-        // Notification de succès
-        const successEvent = new CustomEvent('toast', {
-          detail: { type: 'success', message: 'Magasin mis à jour avec succès' }
-        });
-        window.dispatchEvent(successEvent);
-
-      }
-    });
-  }
 
 
 </script>
@@ -486,7 +127,7 @@
             {/if}
 
             <div class="text-sm opacity-75">
-              <span class="font-medium">Besoin:</span> {formatQuantity(currentProduct.totalNeededConsolidated)}
+              <span class="font-medium">Besoin:</span> {currentProduct.displayTotalNeeded}
             </div>
           </div>
         </div>

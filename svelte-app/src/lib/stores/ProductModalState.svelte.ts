@@ -1,14 +1,14 @@
 import type { Purchases, Products } from '../types/appwrite';
 import type { EnrichedProduct, StoreInfo } from '../types/store.types';
-import { 
-  createPurchase, 
-  updatePurchase, 
-  deletePurchase, 
+import {
+  createPurchase,
+  updatePurchase,
+  deletePurchase,
   updateProductStock,
   updateProductWho,
   updateProductStore,
-  parseStockData, 
-  parseRecipesOccurrences 
+  parseStockData,
+  parseRecipesOccurrences
 } from '../services/appwrite-interactions';
 import { productsStore } from './ProductsStore.svelte';
 import { userName } from './GlobalState.svelte';
@@ -48,11 +48,11 @@ export function createProductModalState(product: EnrichedProduct) {
 
   // Données dérivées - utilise les propriétés enrichies par ProductsStore
   const recipes = $derived(product?.recipesArray || []);
-  
+
   const whoList = $derived(product?.who || []);
-  
+
   const stockEntries = $derived(product?.stockArray || []);
-  
+
   const purchasesList = $derived(product?.totalPurchasesArray || []);
 
   // États d'édition
@@ -114,7 +114,7 @@ export function createProductModalState(product: EnrichedProduct) {
 
       // Normaliser les unités avant envoi à Appwrite
       const { quantity: normalizedQuantity, unit: normalizedUnit } = normalizeUnit(
-        forms.purchase.quantity, 
+        forms.purchase.quantity,
         forms.purchase.unit
       );
 
@@ -150,7 +150,7 @@ export function createProductModalState(product: EnrichedProduct) {
     await withLoading(async () => {
       // Normaliser les unités avant envoi à Appwrite
       const { quantity: normalizedQuantity, unit: normalizedUnit } = normalizeUnit(
-        edit.purchase!.quantity, 
+        edit.purchase!.quantity,
         edit.purchase!.unit
       );
 
@@ -295,39 +295,39 @@ export function createProductModalState(product: EnrichedProduct) {
     get loading() { return loading; },
     get error() { return error; },
     get currentTab() { return currentTab; },
-    
+
     // Formulaires
     forms,
     edit,
-    
+
     // Données dérivées
     get recipes() { return recipes; },
     get whoList() { return whoList; },
     get stockEntries() { return stockEntries; },
     get purchasesList() { return purchasesList; },
-    
+
     // Actions - Achats
     addPurchase,
     startEditPurchase,
     cancelEditPurchase,
     savePurchase,
     deletePurchase,
-    
+
     // Actions - Stock
     addStock,
     deleteStock,
-    
+
     // Actions - Volontaires
     addVolunteer,
     removeVolunteer,
-    
+
     // Actions - Magasin
     updateStore,
-    
+
     // Utilitaires
     resetForms,
     setCurrentTab,
-    
+
     // Helper functions exposées pour les composants
     formatQuantity,
     formatDate,
