@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Search, X, FunnelIcon, SquarePen, Store, Users, User, ShoppingCart, Refrigerator, Snowflake, Utensils, LayoutList, ListTodo, Combine, Beef, Carrot, CandyCane, Egg, ChefHat, Leaf, Package, Bean, ShoppingBasket, CircleCheck, CircleAlert, ChevronDown, CircleCheckBig } from '@lucide/svelte';
+  import { Search, X, FunnelIcon, SquarePen, Store, Users, User, ShoppingCart, Snowflake, Utensils, LayoutList, ListTodo, Combine, ShoppingBasket, CircleCheckBig } from '@lucide/svelte';
 
   // Store and global state
   import { productsStore } from '../stores/ProductsStore.svelte';
@@ -16,7 +16,7 @@
 
   // Accès réactif aux valeurs dérivées du store
   const filteredProducts = $derived(productsStore.filteredProducts);
-  const groupedFormattedProducts = $derived(productsStore.groupedFormattedProducts);
+  const groupedFormattedProducts = $derived(productsStore.filteredGroupedProducts);
   const stats = $derived(productsStore.stats);
   const uniqueStores = $derived(productsStore.uniqueStores);
   const uniqueWho = $derived(productsStore.uniqueWho);
@@ -188,7 +188,7 @@
               {#if filters.selectedProductTypes.length > 0 || filters.selectedTemperatures.length > 0}
                 <button
                   class="btn btn-sm btn-circle btn-ghost text-error hover:bg-error/10"
-                  onclick={() => productsStore.clearTypeAndTemperatureFilters()}
+                  onclick={() => productsStore.clearTypeAndTemperatureFilters}
                   title="Effacer les filtres de types et température"
                 >
                   <X class="w-3 h-3" />

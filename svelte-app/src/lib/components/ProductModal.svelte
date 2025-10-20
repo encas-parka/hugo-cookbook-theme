@@ -22,8 +22,6 @@
   let productId = $derived(modal.product.id)
   let isOpen = $derived(modal.product.isOpen)
 
-  // Wrapper réactif - suit automatiquement les mises à jour du store
-  // 🚀 OPTIMISATION : Utilisation de getEnrichedProductById (O(1) vs O(n))
   let currentProduct = $derived(
      productsStore.getEnrichedProductById(productId)
   );
@@ -189,7 +187,7 @@
 
       const result = await createPurchase({
         products: [currentProduct.$id],
-        mainId: currentProduct.mainId.$id,
+        mainId: currentProduct.mainId,
         unit: normalizedUnit,
         quantity: normalizedQuantity,
         store: newPurchase.store || null,

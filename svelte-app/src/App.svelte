@@ -29,7 +29,7 @@
 
   // Accès direct aux états du store
   const displayError = $derived(initError || productsStore.error);
-  const isLoading = $derived(productsStore.loading && productsStore.products.length === 0);
+  const isLoading = $derived(productsStore.loading);
 </script>
 
 <div class="min-h-screen bg-base-100">
@@ -80,7 +80,7 @@
     {/if}
 
     <!-- Liste des produits -->
-    {#if productsStore.products.length > 0}
+    {#if productsStore.enrichedProducts.length > 0}
       <ProductsTable/>
     {:else if !productsStore.loading}
       <div class="alert alert-info">
