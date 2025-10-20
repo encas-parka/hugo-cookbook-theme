@@ -26,6 +26,7 @@
     "appwrite": "^21.2.1",
     "daisyui": "^5.2.3",
     "runed": "^0.34.0",
+    "superjson": "^2.2.2",
     "tailwindcss": "^4.1.14"
   }
 }

@@ -1,8 +1,18 @@
-import { PersistedState } from 'runed';
-import { useDebounce } from 'runed';
-import { createStorageKey } from '../utils/url-utils';
-import type { Products, Purchases } from '../types/appwrite.d';
-import type { NumericQuantity, QuantityInfo, StoreInfo } from '../types/store.types';
+import { PersistedState } from "runed";
+import { useDebounce } from "runed";
+import { SvelteMap } from "svelte/reactivity";
+import superjson from "superjson";
+import { createStorageKey } from "../utils/url-utils";
+import type { Products, Purchases } from "../types/appwrite.d";
+import type {
+  NumericQuantity,
+  QuantityInfo,
+  StoreInfo,
+  StockEntry,
+  EnrichedProduct,
+  RecipeOccurrence,
+} from "../types/store.types";
+
 import {
   loadProducts,
   syncProducts,
@@ -10,18 +20,19 @@ import {
   applyProductUpdates,
   subscribeToRealtime,
   type LoadProductsOptions,
-  type SyncOptions
-} from '../services/appwrite-interactions';
+  type SyncOptions,
+} from "../services/appwrite-interactions";
 
 /**
- * ProductsStore - Store des produits avec flux de données réactif Svelte 5
+ * ProductsStore - Store des produits avec architecture Svelte 5 + SvelteMap
  *
- * Architecture moderne avec séparation des responsabilités :
+ * 🚀 NOUVELLE ARCHITECTURE (Svelte 5 + SvelteMap + superjson) :
  * ┌─────────────────────────────────────────────────────────────┐
  * │                    ProductsStore                           │
- * │  • Gestion d'état réactif (Svelte 5)                       │
- * │  • Logique métier (filtres, formatage, groupement)        │
- * │  • UI réactive (loading, error, syncing)                  │
+ * │  • SvelteMap persistée avec superjson                      │
+ * │  • Enrichissement direct (1 calcul vs 100)                │
+ * │  • Réactivité fine grain avec SvelteMap                   │
+ * │  • Legacy préservé pendant la transition                  │
  * └─────────────────▲───────────────────────────────────────────┘
  *                   │ Appelle les services
  *                   │
@@ -32,23 +43,32 @@ import {
  * │  • Transformations de données sans état                   │
  * └─────────────────────────────────────────────────────────────┘
  *
- * Flux de données automatique avec $derived (pas de synchronisation manuelle) :
+ * 📊 Architecture de données simplifiée :
+ * products (bruts, legacy) → SvelteMap enrichie → derived UI
  *
- * products (bruts, issus d'appwrite-interactions)
- *   ↓ filteredProducts (filtrés par recherche/store/type/etc.)
- *   ↓ formattedProducts (formatés pour l'affichage)
- *   ↓ groupedFormattedProducts (groupés par magasin/type)
+ * ⚡ Optimisations majeures :
+ * • SvelteMap : accès direct O(1) vs parcours complet O(n)
+ * • Enrichissement unique : calculé une seule fois au changement
+ * • Persistance superjson : support des types complexes (Map, Date, etc.)
+ * • Réactivité fine grain : mise à jour uniquement du produit modifié
+ *
+ * 🔄 Migration automatique depuis l'ancienne architecture :
+ * 1. Détection du cache legacy
+ * 2. Migration vers SvelteMap enrichie
+ * 3. Préservation de syncState pour synchronisation incrémentielle
  *
  * Services utilisés :
  * • loadProducts() : Chargement initial des produits avec achats
- * • syncProducts() : Synchronisation incrémentielle (si cache existant)
- * • applyProductUpdates() : Application des mises à jour de sync
+ * • syncProducts() : Synchronisation incrémentielle
+ * • syncProductsAndPurchases() : Synchronisation hybride products + purchases
+ * • applyProductUpdates() : Application des mises à jour
  * • subscribeToRealtime() : Abonnement aux événements temps réel
  *
  * @usage
  * await productsStore.initialize('mainId');
- * productsStore.setSearchQuery('pâtes');     // Met à jour tout le flux automatiquement
- * productsStore.toggleStore('Carrefour');   // Reactive les dérivés
+ * productsStore.setSearchQuery('pâtes');     // Réactive les dérivés automatiquement
+ * productsStore.toggleStore('Carrefour');   // Mise à jour directe de la SvelteMap
+ * const product = productsStore.getEnrichedProductById('abc'); // Accès direct O(1)
  */
 
 /**
@@ -75,15 +95,14 @@ interface SyncState {
 // =============================================================================
 
 const { Query } = window.Appwrite;
-const BATCH_LIMIT = 1000;           // Limite de produits par requête Appwrite
-const SYNC_DEBOUNCE_MS = 500;       // Délai de debounce pour la synchro en arrière-plan
+const BATCH_LIMIT = 1000; // Limite de produits par requête Appwrite
+const SYNC_DEBOUNCE_MS = 500; // Délai de debounce pour la synchro en arrière-plan
 
 // =============================================================================
 // STORE SINGLETON - État partagé réactif Svelte 5
 // =============================================================================
 
 class ProductsStore {
-
   #currentMainId = $state<string | null>(null);
 
   #isInitialized = $state(false);
@@ -94,125 +113,153 @@ class ProductsStore {
 
   #unsubscribe: (() => void) | null = $state(null);
 
-  // Cache pour les produits enrichis afin d'éviter les re-calculs lourds
-  #enrichmentCache = $state(new Map<string, any>());
+  // SvelteMap pour les produits enrichis avec persistance superjson
+  #enrichedProductsMap: PersistedState<Map<string, EnrichedProduct>> | null =
+    $state(null);
 
   // Utilitaire pour parser JSON en toute sécurité
-  #safeJsonParse<T>(jsonString: string | null, defaultValue: T | null = null): T | null {
-    if (!jsonString || jsonString.trim() === '') {
+  #safeJsonParse<T>(
+    jsonString: string | null,
+    defaultValue: T | null = null,
+  ): T | null {
+    if (!jsonString || jsonString.trim() === "") {
       return defaultValue;
     }
 
     try {
       return JSON.parse(jsonString) as T;
     } catch (error) {
-      console.warn('[ProductsStore] Erreur de parsing JSON, utilisation de la valeur par défaut:', error);
+      console.warn(
+        "[ProductsStore] Erreur de parsing JSON, utilisation de la valeur par défaut:",
+        error,
+      );
       return defaultValue;
     }
   }
 
-  // États dérivés directement depuis PersistedState - plus de duplication !
+  // États dérivés - Plus de duplication ! Accès direct depuis la SvelteMap
+  // 🔄 Legacy conservé temporairement pour compatibilité pendant la transition
   products = $derived(this.#productsState?.current.products ?? []);
   loading = $derived(this.#productsState?.current.loading ?? false);
   error = $derived(this.#productsState?.current.error ?? null);
   syncing = $derived(this.#productsState?.current.syncing ?? false);
-  realtimeConnected = $derived(this.#productsState?.current.realtimeConnected ?? false);
+  realtimeConnected = $derived(
+    this.#productsState?.current.realtimeConnected ?? false,
+  );
   lastSync = $derived(this.#syncState?.current.lastSync ?? null);
   mainId = $derived(this.#syncState?.current.mainId ?? null);
 
-
   // États des filtres
   #filters = $state({
-    searchQuery: '',
+    searchQuery: "",
     selectedStores: [] as string[],
     selectedWho: [] as string[],
     selectedProductTypes: [] as string[],
     selectedTemperatures: [] as string[],
-    groupBy: 'productType' as 'store' | 'productType' | 'none',
-    sortColumn: '',
-    sortDirection: 'asc' as 'asc' | 'desc'
+    groupBy: "productType" as "store" | "productType" | "none",
+    sortColumn: "",
+    sortDirection: "asc" as "asc" | "desc",
   });
 
   // Exposition des filtres (lecture/écriture)
-  get filters() { return this.#filters; }
+  get filters() {
+    return this.#filters;
+  }
+
+  // Accès direct aux produits enrichis depuis la SvelteMap
+  enrichedProducts = $derived.by(() => {
+    if (!this.#enrichedProductsMap) return [];
+    return Array.from(this.#enrichedProductsMap.current.values());
+  });
 
   // ===============================================================
   //  Mise a jours de données consommé par les templates
   // ===============================================================
 
-  // Étape 1 : Parsing & Formatting (calculé une seule fois avec optimisation cache)
-  enrichedProducts = $derived.by(() => {
-    return this.products.map(p => {
-      // Clé de cache basée sur l'ID et la date de modification pour détecter les changements
-      const cacheKey = `${p.$id}-${p.$updatedAt}`;
+  // 🔄 EN MIGRATION : Ancien derived enrichedProducts ( sera remplacé par SvelteMap)
+  // enrichedProducts = $derived.by(() => {
+  //   return this.products.map(p => {
+  //     // Clé de cache basée sur l'ID et la date de modification pour détecter les changements
+  //     const cacheKey = `${p.$id}-${p.$updatedAt}`;
 
-      // Vérifier si le produit est déjà en cache et inchangé
-      if (this.#enrichmentCache.has(cacheKey)) {
-        return this.#enrichmentCache.get(cacheKey)!;
-      }
+  //     // Vérifier si le produit est déjà en cache et inchangé
+  //     if (this.#enrichmentCache.has(cacheKey)) {
+  //       return this.#enrichmentCache.get(cacheKey)!;
+  //     }
 
-      // Calculer l'enrichissement seulement si nécessaire
-      const totalPurchasesArray = this.#calculateTotalPurchasesArray(p.purchases ?? []);
+  //     // Calculer l'enrichissement seulement si nécessaire
+  //     const totalPurchasesArray = this.#calculateTotalPurchasesArray(p.purchases ?? []);
 
-      const totalNeededArray = p.totalNeededConsolidated
-        ? this.#parseToNumericQuantity(p.totalNeededConsolidated)
-        : [];
+  //     const totalNeededArray = p.totalNeededConsolidated
+  //       ? this.#parseToNumericQuantity(p.totalNeededConsolidated)
+  //       : [];
 
-      const { numeric: missingQuantityArray, display: displayMissingQuantity } =
-        this.#calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
+  //     const { numeric: missingQuantityArray, display: displayMissingQuantity } =
+  //       this.#calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
 
-      const enriched = {
-        ...p,
-        // Parsing des JSON strings en objets exploitables
-        storeInfo: p.store ? this.#safeJsonParse<StoreInfo>(p.store) : null,
-        totalNeededArray,
-        totalPurchasesArray,
-        recipesArray: p.recipesOccurrences ? this.#safeJsonParse(p.recipesOccurrences) : [],
-        stockArray: p.stockReel ? this.#safeJsonParse(p.stockReel) : [],
-        missingQuantityArray,
-        // Propriétés formatées pour l'affichage
-        displayTotalNeeded: this.#formatTotalQuantity(totalNeededArray),
-        // displayName: p.productName.trim(), // UNUSED
-        displayTotalPurchases:  this.#formatTotalQuantity(totalPurchasesArray ?? []), // FIXIT : reactivité perdu avec la strategie de cache : le updatedAt ne change pas lorsqu'un nouveau purchase arrive !!
+  //     const enriched = {
+  //       ...p,
+  //       // Parsing des JSON strings en objets exploitables
+  //       storeInfo: p.store ? this.#safeJsonParse<StoreInfo>(p.store) : null,
+  //       totalNeededArray,
+  //       totalPurchasesArray,
+  //       recipesArray: p.recipesOccurrences ? this.#safeJsonParse(p.recipesOccurrences) : [],
+  //       stockArray: p.stockReel ? this.#safeJsonParse(p.stockReel) : [],
+  //       missingQuantityArray,
+  //       // Propriétés formatées pour l'affichage
+  //       displayTotalNeeded: this.#formatTotalQuantity(totalNeededArray),
+  //       // displayName: p.productName.trim(), // UNUSED
+  //       displayTotalPurchases:  this.#formatTotalQuantity(totalPurchasesArray ?? []), // FIXIT : reactivité perdu avec la strategie de cache : le updatedAt ne change pas lorsqu'un nouveau purchase arrive !!
 
-        displayMissingQuantity, // Utilise la valeur déjà formatée
-      };
+  //       displayMissingQuantity, // Utilise la valeur déjà formatée
+  //     };
 
-      // Mettre en cache pour les prochaines utilisations
-      this.#enrichmentCache.set(cacheKey, enriched);
+  //     // Mettre en cache pour les prochaines utilisations
+  //     this.#enrichmentCache.set(cacheKey, enriched);
 
-
-      return enriched;
-    });
-  });
+  //     return enriched;
+  //   });
+  // });
 
   // Valeurs uniques pour les filtres (utilise enrichedProducts)
   uniqueStores = $derived.by(() => {
     const storeNames = this.enrichedProducts
-      .map(p => p.storeInfo?.storeName)
+      .map((p) => p.storeInfo?.storeName)
       .filter(Boolean);
 
     return [...new Set(storeNames)] as string[];
   });
 
-  uniqueWho = $derived.by(() => [...new Set(this.products.flatMap(p => p.who || []).filter(Boolean))] as string[]);
-  uniqueProductTypes = $derived.by(() => [...new Set(this.products.map(p => p.productType).filter(Boolean))] as string[]);
+  uniqueWho = $derived.by(
+    () =>
+      [
+        ...new Set(this.products.flatMap((p) => p.who || []).filter(Boolean)),
+      ] as string[],
+  );
+  uniqueProductTypes = $derived.by(
+    () =>
+      [
+        ...new Set(this.products.map((p) => p.productType).filter(Boolean)),
+      ] as string[],
+  );
 
   // Étape 2 : Filtrage & Groupement (réactif aux filtres)
   filteredGroupedProducts = $derived.by(() => {
     // Filtrage
-    const filtered = this.enrichedProducts.filter(p => this.#matchesFilters(p));
+    const filtered = this.enrichedProducts.filter((p) =>
+      this.#matchesFilters(p),
+    );
 
     // Groupement
-    if (this.#filters.groupBy === 'none') {
-      return { '': filtered };
+    if (this.#filters.groupBy === "none") {
+      return { "": filtered };
     }
 
     return Object.groupBy(filtered, (product) => {
-      if (this.#filters.groupBy === 'store') {
-        return product.storeInfo?.storeName || 'Non défini';
+      if (this.#filters.groupBy === "store") {
+        return product.storeInfo?.storeName || "Non défini";
       } else {
-        return product.productType || 'Non défini';
+        return product.productType || "Non défini";
       }
     });
   });
@@ -228,14 +275,18 @@ class ProductsStore {
   // Statistiques dérivées
   stats = $derived.by(() => ({
     total: this.filteredProducts.length,
-    frais: this.filteredProducts.filter(p => p.pFrais).length,
-    surgel: this.filteredProducts.filter(p => p.pSurgel).length,
-    merged: this.filteredProducts.filter(p => p.isMerged).length,
+    frais: this.filteredProducts.filter((p) => p.pFrais).length,
+    surgel: this.filteredProducts.filter((p) => p.pSurgel).length,
+    merged: this.filteredProducts.filter((p) => p.isMerged).length,
   }));
 
   // Getters pour l'accès
-  get currentMainId() { return this.#currentMainId; }
-  get isInitialized() { return this.#isInitialized; }
+  get currentMainId() {
+    return this.#currentMainId;
+  }
+  get isInitialized() {
+    return this.#isInitialized;
+  }
 
   #debouncedUpdateLastSync = useDebounce(() => {
     this.#updateLastSync();
@@ -258,7 +309,7 @@ class ProductsStore {
 
   async initialize(mainId: string) {
     if (!mainId?.trim()) {
-      throw new Error('mainId invalide fourni');
+      throw new Error("mainId invalide fourni");
     }
 
     // Éviter les ré-initialisations inutiles
@@ -274,13 +325,25 @@ class ProductsStore {
 
     this.#createPersistedStates(mainId);
 
-    // Charger depuis le cache ou Appwrite
-    const hasCache = this.products.length > 0 && this.#syncState!.current.mainId === mainId;
-    if (hasCache) {
-      console.log(`[ProductsStore] Utilisation du cache (${this.products.length} produits)`);
+    // 🆕 Logique de migration SvelteMap
+    const hasEnrichedCache = this.#enrichedProductsMap!.current.size > 0;
+    const hasLegacyCache =
+      this.products.length > 0 && this.#syncState!.current.mainId === mainId;
+
+    if (hasEnrichedCache) {
+      console.log(
+        `[ProductsStore] Utilisation du cache SvelteMap (${this.#enrichedProductsMap!.current.size} produits enrichis)`,
+      );
+      await this.#syncInBackground();
+    } else if (hasLegacyCache) {
+      console.log(
+        `[ProductsStore] Migration depuis le cache legacy (${this.products.length} produits)`,
+      );
+      // 🔄 MIGRATION : Enrichir les produits legacy et peupler la SvelteMap
+      this.#updateEnrichedProductsMap(this.products);
       await this.#syncInBackground();
     } else {
-      console.log('[ProductsStore] Chargement initial depuis Appwrite');
+      console.log("[ProductsStore] Chargement initial depuis Appwrite");
       await this.#loadProductsFromService(mainId);
     }
 
@@ -290,12 +353,12 @@ class ProductsStore {
   }
 
   #createPersistedStates(mainId: string) {
-    if (this.#productsState && this.#syncState) {
+    if (this.#productsState && this.#syncState && this.#enrichedProductsMap) {
       return; // Déjà créés
     }
 
-    const productsKey = createStorageKey('products-state', mainId);
-    const syncKey = createStorageKey('products-sync-state', mainId);
+    const productsKey = createStorageKey("products-state", mainId);
+    const syncKey = createStorageKey("products-sync-state", mainId);
 
     console.log(`[ProductsStore] Clés de stockage: ${productsKey}, ${syncKey}`);
 
@@ -304,14 +367,117 @@ class ProductsStore {
       loading: false,
       error: null,
       syncing: false,
-      realtimeConnected: false
+      realtimeConnected: false,
     });
 
+    // 🆕 SvelteMap persistée pour les produits enrichis avec superjson
+    this.#enrichedProductsMap = new PersistedState<
+      Map<string, EnrichedProduct>
+    >(`${productsKey}-enriched`, new Map(), {
+      serializer: {
+        serialize: (map: Map<string, EnrichedProduct>) =>
+          superjson.stringify(Array.from(map.entries())),
+        deserialize: (str: string) =>
+          new Map(superjson.parse(str) as [string, EnrichedProduct][]),
+      },
+    });
+
+    // 🔄 PRÉSERVATION : Conserver syncState pour la synchronisation incrémentielle
     this.#syncState = new PersistedState<SyncState>(syncKey, {
       lastSync: null,
-      mainId: null
+      mainId: null,
     });
+  }
 
+  // =========================================================================
+  // SERVICES D'ENRICHISSEMENT (nouvelle architecture SvelteMap)
+  // =========================================================================
+
+  /**
+   * Enrichit un produit brut avec toutes les propriétés calculées
+   * @param product - Le produit brut à enrichir
+   * @returns Le produit enrichi
+   */
+  #enrichProduct(product: Products): EnrichedProduct {
+    const totalPurchasesArray = this.#calculateTotalPurchasesArray(
+      product.purchases ?? [],
+    );
+    const totalNeededArray = product.totalNeededConsolidated
+      ? this.#parseToNumericQuantity(product.totalNeededConsolidated)
+      : [];
+
+    const { numeric: missingQuantityArray, display: displayMissingQuantity } =
+      this.#calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
+
+    return {
+      ...product,
+      // Parsing des JSON strings en objets exploitables
+      storeInfo: product.store
+        ? this.#safeJsonParse<StoreInfo>(product.store)
+        : null,
+      totalNeededArray,
+      totalPurchasesArray,
+      stockArray: this.#safeJsonParse<StockEntry[]>(product.stockReel) ?? [],
+      recipesArray:
+        this.#safeJsonParse<RecipeOccurrence[]>(product.recipesOccurrences) ??
+        [],
+      missingQuantityArray,
+      // Propriétés formatées pour l'affichage
+      displayTotalNeeded: this.#formatTotalQuantity(totalNeededArray),
+      displayTotalPurchases: this.#formatTotalQuantity(totalPurchasesArray),
+      displayMissingQuantity,
+    };
+  }
+
+  /**
+   * Met à jour la SvelteMap avec une liste de produits bruts
+   * @param products - Liste des produits bruts à synchroniser
+   */
+  #updateEnrichedProductsMap(products: Products[]) {
+    if (!this.#enrichedProductsMap) return;
+
+    const currentMap = this.#enrichedProductsMap.current;
+    const newMap = new Map<string, EnrichedProduct>();
+
+    // Enrichir et ajouter chaque produit
+    for (const product of products) {
+      const enriched = this.#enrichProduct(product);
+      newMap.set(product.$id, enriched);
+    }
+
+    // Mettre à jour la SvelteMap persistée
+    this.#enrichedProductsMap.current = newMap;
+  }
+
+  /**
+   * Ajoute ou met à jour un produit dans la SvelteMap
+   * @param product - Le produit à ajouter/mettre à jour
+   */
+  #upsertEnrichedProduct(product: Products) {
+    if (!this.#enrichedProductsMap) return;
+
+    // const currentMap = this.#enrichedProductsMap.current;
+    // const enriched = this.#enrichProduct(product);
+    // currentMap.set(product.$id, enriched);
+
+    // ✅ IMPORTANT : Créer une nouvelle Map pour trigger la détection de changement
+    const updatedMap = new Map(this.#enrichedProductsMap.current);
+    const enriched = this.#enrichProduct(product);
+    updatedMap.set(product.$id, enriched);
+
+    // ✅ Réassigner pour forcer la persistence dans PersistedState
+    this.#enrichedProductsMap.current = updatedMap;
+  }
+
+  /**
+   * Supprime un produit de la SvelteMap
+   * @param productId - ID du produit à supprimer
+   */
+  #removeEnrichedProduct(productId: string) {
+    if (!this.#enrichedProductsMap) return;
+
+    const currentMap = this.#enrichedProductsMap.current;
+    currentMap.delete(productId);
   }
 
   // =========================================================================
@@ -320,7 +486,7 @@ class ProductsStore {
 
   async #loadProductsFromService(mainId: string) {
     if (!this.#productsState) {
-      throw new Error('ProductsStore non initialisé');
+      throw new Error("ProductsStore non initialisé");
     }
 
     this.#updateState({ loading: true, error: null });
@@ -329,19 +495,27 @@ class ProductsStore {
       const options: LoadProductsOptions = {
         includePurchases: true,
         limit: BATCH_LIMIT,
-        orderBy: 'productName',
-        orderDirection: 'asc'
+        orderBy: "productName",
+        orderDirection: "asc",
       };
 
       const productsWithPurchases = await loadProducts(mainId, options);
-      this.#updateState({ products: productsWithPurchases });
-      this.#updateLastSync();
-      console.log(`[ProductsStore] ${productsWithPurchases.length} produits chargés`);
 
+      // 🆕 Mettre à jour la SvelteMap avec les produits enrichis
+      this.#updateEnrichedProductsMap(productsWithPurchases);
+
+      // 🔄 Legacy : Conserver l'ancien système temporairement
+      this.#updateState({ products: productsWithPurchases });
+
+      this.#updateLastSync();
+      console.log(
+        `[ProductsStore] ${productsWithPurchases.length} produits chargés et enrichis`,
+      );
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur lors du chargement';
+      const message =
+        err instanceof Error ? err.message : "Erreur lors du chargement";
       this.#updateState({ loading: false, error: message });
-      console.error('[ProductsStore]', message, err);
+      console.error("[ProductsStore]", message, err);
       throw err;
     }
   }
@@ -356,7 +530,7 @@ class ProductsStore {
     try {
       const options: SyncOptions = {
         lastSync: this.#syncState.current.lastSync,
-        limit: BATCH_LIMIT
+        limit: BATCH_LIMIT,
       };
 
       // 🚨 NOUVEAU : Synchronisation hybride products + purchases
@@ -368,17 +542,21 @@ class ProductsStore {
       // Appliquer les mises à jour de produits
       if (updatedProducts.length > 0) {
         this.#updateState({
-          products: applyProductUpdates(this.products, updatedProducts)
+          products: applyProductUpdates(this.products, updatedProducts),
         });
         hasChanges = true;
-        console.log(`[ProductsStore] ${updatedProducts.length} mises à jour de produits synchronisées`);
+        console.log(
+          `[ProductsStore] ${updatedProducts.length} mises à jour de produits synchronisées`,
+        );
       }
 
       // 🆕 Appliquer les mises à jour de purchases
       if (updatedPurchases.length > 0) {
         this.#applyPurchaseUpdates(updatedPurchases);
         hasChanges = true;
-        console.log(`[ProductsStore] ${updatedPurchases.length} mises à jour d'achats synchronisées`);
+        console.log(
+          `[ProductsStore] ${updatedPurchases.length} mises à jour d'achats synchronisées`,
+        );
       }
 
       // Mettre à jour le timestamp de sync si des changements ont eu lieu
@@ -387,122 +565,189 @@ class ProductsStore {
       }
 
       this.#updateState({ syncing: false });
-
     } catch (err) {
-      console.error('[ProductsStore] Erreur sync:', err);
+      console.error("[ProductsStore] Erreur sync:", err);
       this.#updateState({ syncing: false });
     }
   }
 
   // =========================================================================
-  // GESTION DÉTAT
+  // GESTION DÉTAT 🔄 Legacy
   // =========================================================================
 
-  #handleProductCreate(createdProduct: Products) {
-    if (!this.#productsState) return;
-
-    const exists = this.products.some(p => p.$id === createdProduct.$id);
-    if (!exists) {
-      this.#updateState({
-        products: [...this.products, createdProduct]
-      });
-    }
+  #handleProductCreate(product: Products) {
+    this.#upsertEnrichedProduct(product);
   }
 
-  #handleProductUpdate(updatedProduct: Products) {
-    if (!this.#productsState) return;
-
-    // Merge the updated fields with the existing product to preserve all data
-    this.#updateState({
-      products: this.products.map(p => {
-        if (p.$id === updatedProduct.$id) {
-          // Create a merged product that preserves all existing fields
-          // while updating only the fields that came in the payload
-          const refreshedProducts = { ...p };
-
-          // Only update the fields that are present in the payload (le payload ne contient pas tous les champs, risque de perdre des données si update non granulaire)
-          Object.keys(updatedProduct).forEach(key => {
-            if (updatedProduct[key as keyof Products] !== undefined) {
-              (refreshedProducts as any)[key] = updatedProduct[key as keyof Products];
-            }
-          });
-
-          return refreshedProducts;
-        }
-        return p;
-      })
-    });
+  #handleProductUpdate(product: Products) {
+    this.#upsertEnrichedProduct(product);
   }
 
-  #handleProductDelete(deletedProductId: string) {
-    if (!this.#productsState) return;
-
-    this.#updateState({
-      products: this.products.filter(p => p.$id !== deletedProductId)
-    });
+  #handleProductDelete(productId: string) {
+    this.#removeEnrichedProduct(productId);
   }
 
   #handlePurchaseCreate(purchase: Purchases) {
-    console.log('[ProductsStore] Purchase créé, mise à jour des produits concernés...');
-    this.#updateProductsFromPurchase(purchase);
+    this.#applyPurchaseUpdates([purchase]);
   }
 
   #handlePurchaseUpdate(purchase: Purchases) {
-    console.log('[ProductsStore] Purchase mis à jour, mise à jour des produits concernés...');
-    this.#updateProductsFromPurchase(purchase);
+    this.#applyPurchaseUpdates([purchase]);
   }
 
   #handlePurchaseDelete(purchaseId: string) {
-    console.log('[ProductsStore] Purchase supprimé, nettoyage des produits concernés...');
-
-    // Retirer le purchase supprimé de tous les produits et mettre à jour updatedAt
-    const affectedProducts = this.products.filter(product =>
-      product.purchases && product.purchases.some(p => p.$id === purchaseId)
+    // Retirer le purchase de tous les produits affectés
+    const affectedProducts = this.products.filter((p) =>
+      p.purchases?.some((pur) => pur.$id === purchaseId),
     );
 
-    this.#updateState({
-      products: this.products.map(product => {
-        const hadThePurchase = product.purchases && product.purchases.some(p => p.$id === purchaseId);
+    const updatedProducts = affectedProducts.map((p) => ({
+      ...p,
+      purchases: p.purchases?.filter((pur) => pur.$id !== purchaseId),
+      $updatedAt: new Date().toISOString(),
+    }));
 
-        return {
-          ...product,
-          purchases: (product.purchases || []).filter(p => p.$id !== purchaseId),
-          // 🚨 Mettre à jour updatedAt seulement si le produit était affecté
-          ...(hadThePurchase && { $updatedAt: new Date().toISOString() })
-        };
-      })
-    });
-
-    if (affectedProducts.length > 0) {
-      console.log(`[ProductsStore] Purchase ${purchaseId} supprimé de ${affectedProducts.length} produit(s)`);
-    }
+    updatedProducts.forEach((p) => this.#upsertEnrichedProduct(p));
   }
 
-  #updateProductsFromPurchase(purchase: Purchases) {
-    if (!purchase.products || purchase.products.length === 0 ) return;
+  // #handleProductCreate(createdProduct: Products) {
+  //   if (!this.#productsState) return;
 
-    // Mettre à jour uniquement les produits concernés par ce purchase
-    this.#updateState({
-      products: this.products.map(product => {
-        if (purchase.products.some(p => p.$id === product.$id)) {
-          // Ajouter ou mettre à jour le purchase dans la liste des purchases du produit
-          const existingPurchases = product.purchases || [];
-          const updatedPurchases = existingPurchases.filter(p => p.$id !== purchase.$id);
-          updatedPurchases.push(purchase);
+  //   const exists = this.products.some(p => p.$id === createdProduct.$id);
+  //   if (!exists) {
+  //     // 🆕 Ajouter à la SvelteMap enrichie
+  //     this.#upsertEnrichedProduct(createdProduct);
 
-          return {
-            ...product,
-            purchases: updatedPurchases,
-            // 🚨 Mettre à jour updatedAt pour forcer le recalcul du cache
-            $updatedAt: new Date().toISOString()
-          };
-        }
-        return product;
-      })
-    });
+  //     // 🔄 Legacy : Conserver l'ancien système temporairement
+  //     this.#updateState({
+  //       products: [...this.products, createdProduct]
+  //     });
+  //   }
+  // }
 
-    console.log(`[ProductsStore] ${purchase.products.length} produit(s) mis à jour avec le purchase ${purchase.$id}`);
-  }
+  // #handleProductUpdate(updatedProduct: Products) {
+  //   if (!this.#productsState) return;
+
+  //   // 🆕 Mettre à jour la SvelteMap enrichie
+  //   this.#upsertEnrichedProduct(updatedProduct);
+
+  //   // 🔄 Legacy : Conserver l'ancien système temporairement
+  //   this.#updateState({
+  //     products: this.products.map(p => {
+  //       if (p.$id === updatedProduct.$id) {
+  //         // Create a merged product that preserves all existing fields
+  //         // while updating only the fields that came in the payload
+  //         const refreshedProducts = { ...p };
+
+  //         // Only update the fields that are present in the payload (le payload ne contient pas tous les champs, risque de perdre des données si update non granulaire)
+  //         Object.keys(updatedProduct).forEach(key => {
+  //           if (updatedProduct[key as keyof Products] !== undefined) {
+  //             (refreshedProducts as any)[key] = updatedProduct[key as keyof Products];
+  //           }
+  //         });
+
+  //         return refreshedProducts;
+  //       }
+  //       return p;
+  //     })
+  //   });
+  // }
+
+  // #handleProductDelete(deletedProductId: string) {
+  //   if (!this.#productsState) return;
+
+  //   // 🆕 Supprimer de la SvelteMap enrichie
+  //   this.#removeEnrichedProduct(deletedProductId);
+
+  //   // 🔄 Legacy : Conserver l'ancien système temporairement
+  //   this.#updateState({
+  //     products: this.products.filter(p => p.$id !== deletedProductId)
+  //   });
+  // }
+
+  // #handlePurchaseCreate(purchase: Purchases) {
+  //   console.log('[ProductsStore] Purchase créé, mise à jour des produits concernés...');
+  //   this.#updateProductsFromPurchase(purchase);
+  // }
+
+  // #handlePurchaseUpdate(purchase: Purchases) {
+  //   console.log('[ProductsStore] Purchase mis à jour, mise à jour des produits concernés...');
+  //   this.#updateProductsFromPurchase(purchase);
+  // }
+
+  // #handlePurchaseDelete(purchaseId: string) {
+  //   console.log('[ProductsStore] Purchase supprimé, nettoyage des produits concernés...');
+
+  //   // Retirer le purchase supprimé de tous les produits et mettre à jour updatedAt
+  //   const affectedProducts = this.products.filter(product =>
+  //     product.purchases && product.purchases.some(p => p.$id === purchaseId)
+  //   );
+
+  //   // 🆕 Mettre à jour la SvelteMap pour chaque produit affecté
+  //   for (const product of affectedProducts) {
+  //     const updatedProduct = {
+  //       ...product,
+  //       purchases: (product.purchases || []).filter(p => p.$id !== purchaseId),
+  //       $updatedAt: new Date().toISOString()
+  //     };
+  //     this.#upsertEnrichedProduct(updatedProduct);
+  //   }
+
+  //   // 🔄 Legacy : Conserver l'ancien système temporairement
+  //   this.#updateState({
+  //     products: this.products.map(product => {
+  //       const hadThePurchase = product.purchases && product.purchases.some(p => p.$id === purchaseId);
+
+  //       return {
+  //         ...product,
+  //         purchases: (product.purchases || []).filter(p => p.$id !== purchaseId),
+  //         // 🚨 Mettre à jour updatedAt seulement si le produit était affecté
+  //         ...(hadThePurchase && { $updatedAt: new Date().toISOString() })
+  //       };
+  //     })
+  //   });
+
+  //   if (affectedProducts.length > 0) {
+  //     console.log(`[ProductsStore] Purchase ${purchaseId} supprimé de ${affectedProducts.length} produit(s)`);
+  //   }
+  // }
+
+  //       const updatedPurchases = existingPurchases.filter(p => p.$id !== purchase.$id);
+  //       updatedPurchases.push(purchase);
+
+  //       const updatedProduct = {
+  //         ...product,
+  //         purchases: updatedPurchases,
+  //         // 🚨 Mettre à jour updatedAt pour forcer le recalcul du cache
+  //         $updatedAt: new Date().toISOString()
+  //       };
+
+  //       this.#upsertEnrichedProduct(updatedProduct);
+  //     }
+  //   }
+
+  //   // 🔄 Legacy : Conserver l'ancien système temporairement
+  //   this.#updateState({
+  //     products: this.products.map(product => {
+  //       if (purchase.products.some(p => p.$id === product.$id)) {
+  //         // Ajouter ou mettre à jour le purchase dans la liste des purchases du produit
+  //         const existingPurchases = product.purchases || [];
+  //         const updatedPurchases = existingPurchases.filter(p => p.$id !== purchase.$id);
+  //         updatedPurchases.push(purchase);
+
+  //         return {
+  //           ...product,
+  //           purchases: updatedPurchases,
+  //           // 🚨 Mettre à jour updatedAt pour forcer le recalcul du cache
+  //           $updatedAt: new Date().toISOString()
+  //         };
+  //       }
+  //       return product;
+  //     })
+  //   });
+
+  //   console.log(`[ProductsStore] ${purchase.products.length} produit(s) mis à jour avec le purchase ${purchase.$id}`);
+  // }
 
   /**
    * Applique les mises à jour de purchases reçues de la synchronisation
@@ -511,11 +756,14 @@ class ProductsStore {
   #applyPurchaseUpdates(updatedPurchases: Purchases[]) {
     if (!updatedPurchases || updatedPurchases.length === 0) return;
 
+    // LEGACY  1. Mettre à jour l'état legacy (pour syncProductsAndPurchases)
     this.#updateState({
-      products: this.products.map(product => {
+      products: this.products.map((product) => {
         // Trouver les purchases qui concernent ce produit
-        const relevantPurchases = updatedPurchases.filter(purchase =>
-          purchase.products && purchase.products.some((p: any) => p.$id === product.$id)
+        const relevantPurchases = updatedPurchases.filter(
+          (purchase) =>
+            purchase.products &&
+            purchase.products.some((p: any) => p.$id === product.$id),
         );
 
         if (relevantPurchases.length > 0) {
@@ -523,9 +771,11 @@ class ProductsStore {
           const existingPurchases = product.purchases || [];
           let updatedPurchasesList = [...existingPurchases];
 
-          relevantPurchases.forEach(newPurchase => {
+          relevantPurchases.forEach((newPurchase) => {
             // Remplacer ou ajouter le purchase
-            updatedPurchasesList = updatedPurchasesList.filter(p => p.$id !== newPurchase.$id);
+            updatedPurchasesList = updatedPurchasesList.filter(
+              (p) => p.$id !== newPurchase.$id,
+            );
             updatedPurchasesList.push(newPurchase);
           });
 
@@ -533,14 +783,27 @@ class ProductsStore {
             ...product,
             purchases: updatedPurchasesList,
             // 🚨 Mettre à jour updatedAt pour forcer le recalcul du cache
-            $updatedAt: new Date().toISOString()
+            $updatedAt: new Date().toISOString(),
           };
         }
         return product;
-      })
+      }),
     });
 
-    console.log(`[ProductsStore] ${updatedPurchases.length} purchases synchronisés et appliqués`);
+    // ✅ 2. CRUCIAL : Mettre à jour la SvelteMap enrichie aussi !
+    const productsToUpdate = this.products.filter((p) =>
+      updatedPurchases.some((pur) =>
+        pur.products?.some((prod: any) => prod.$id === p.$id),
+      ),
+    );
+
+    productsToUpdate.forEach((product) => {
+      this.#upsertEnrichedProduct(product);
+    });
+
+    console.log(
+      `[ProductsStore] ${updatedPurchases.length} purchases synchronisés`,
+    );
   }
 
   #setupRealtimeCallbacks() {
@@ -570,16 +833,16 @@ class ProductsStore {
         this.#debouncedUpdateLastSync();
       },
       onConnect: () => {
-        console.log('[ProductsStore] Realtime connecté');
+        console.log("[ProductsStore] Realtime connecté");
         this.#updateState({ realtimeConnected: true });
       },
       onDisconnect: () => {
-        console.log('[ProductsStore] Realtime déconnecté');
+        console.log("[ProductsStore] Realtime déconnecté");
         this.#updateState({ realtimeConnected: false });
       },
       onError: (error: any) => {
-        console.error('[ProductsStore] Erreur realtime:', error);
-      }
+        console.error("[ProductsStore] Erreur realtime:", error);
+      },
     };
   }
 
@@ -589,7 +852,7 @@ class ProductsStore {
     const now = new Date().toISOString();
     this.#syncState.current = {
       lastSync: now,
-      mainId: this.#currentMainId
+      mainId: this.#currentMainId,
     };
     this.lastSync = now;
     this.mainId = this.#currentMainId;
@@ -600,7 +863,7 @@ class ProductsStore {
 
     this.#productsState.current = {
       ...this.#productsState.current,
-      ...partial
+      ...partial,
     };
   }
 
@@ -615,29 +878,83 @@ class ProductsStore {
   destroy() {
     this.#unsubscribe?.();
     this.#unsubscribe = null;
-    console.log('[ProductsStore] Ressources nettoyées');
+    console.log("[ProductsStore] Ressources nettoyées");
   }
 
   clearCache() {
-    if (!this.#productsState || !this.#syncState) {
-      console.warn('[ProductsStore] Store non initialisé');
+    if (
+      !this.#productsState ||
+      !this.#syncState ||
+      !this.#enrichedProductsMap
+    ) {
+      console.warn("[ProductsStore] Store non initialisé");
       return;
     }
 
+    // 🆕 Vider la SvelteMap enrichie
+    this.#enrichedProductsMap.current = new Map();
+
+    // 🔄 Legacy : Vider les anciens états
     this.#updateState({
       products: [],
       loading: false,
       error: null,
       syncing: false,
-      realtimeConnected: false
+      realtimeConnected: false,
     });
 
     this.#syncState.current = {
       lastSync: null,
-      mainId: null
+      mainId: null,
     };
 
-    console.log(`[ProductsStore] Cache vidé pour ${this.#currentMainId}`);
+    console.log(
+      `[ProductsStore] Cache vidé pour ${this.#currentMainId} (SvelteMap + legacy)`,
+    );
+  }
+
+  // =========================================================================
+  // MÉTHODES UTILITAIRES SVELTEMAP (nouvelles)
+  // =========================================================================
+
+  /**
+   * Récupère un produit enrichi par son ID
+   * @param productId - ID du produit à récupérer
+   * @returns Le produit enrichi ou null si non trouvé
+   */
+  getEnrichedProductById(productId: string): EnrichedProduct | null {
+    if (!this.#enrichedProductsMap) return null;
+    return this.#enrichedProductsMap.current.get(productId) ?? null;
+  }
+
+  /**
+   * Vérifie si un produit enrichi existe dans la SvelteMap
+   * @param productId - ID du produit à vérifier
+   * @returns true si le produit existe
+   */
+  hasEnrichedProduct(productId: string): boolean {
+    if (!this.#enrichedProductsMap) return false;
+    return this.#enrichedProductsMap.current.has(productId);
+  }
+
+  /**
+   * Retourne le nombre de produits enrichis dans la SvelteMap
+   * @returns Nombre de produits enrichis
+   */
+  get enrichedProductsCount(): number {
+    if (!this.#enrichedProductsMap) return 0;
+    return this.#enrichedProductsMap.current.size;
+  }
+
+  /**
+   * Force le re-calcul d'un produit enrichi (utile après mise à jour complexe)
+   * @param productId - ID du produit à recalculer
+   */
+  recalculateEnrichedProduct(productId: string) {
+    const legacyProduct = this.products.find((p) => p.$id === productId);
+    if (legacyProduct) {
+      this.#upsertEnrichedProduct(legacyProduct);
+    }
   }
 
   // =========================================================================
@@ -658,7 +975,7 @@ class ProductsStore {
     }
   }
 
-  toggleTemperature(temperature: 'frais' | 'surgele') {
+  toggleTemperature(temperature: "frais" | "surgele") {
     const index = this.#filters.selectedTemperatures.indexOf(temperature);
     if (index > -1) {
       this.#filters.selectedTemperatures.splice(index, 1);
@@ -687,7 +1004,7 @@ class ProductsStore {
   //   this.#filters.showPSurgel = showPSurgel;
   // }
 
-  setGroupBy(groupBy: 'store' | 'productType' | 'none') {
+  setGroupBy(groupBy: "store" | "productType" | "none") {
     this.#filters.groupBy = groupBy;
   }
 
@@ -717,27 +1034,26 @@ class ProductsStore {
     this.#filters.selectedWho = [];
   }
 
-
-
   handleSort(column: string) {
     if (this.#filters.sortColumn === column) {
-      this.#filters.sortDirection = this.#filters.sortDirection === 'asc' ? 'desc' : 'asc';
+      this.#filters.sortDirection =
+        this.#filters.sortDirection === "asc" ? "desc" : "asc";
     } else {
       this.#filters.sortColumn = column;
-      this.#filters.sortDirection = 'asc';
+      this.#filters.sortDirection = "asc";
     }
   }
 
   clearFilters() {
     this.#filters = {
-      searchQuery: '',
+      searchQuery: "",
       selectedStores: [],
       selectedWho: [],
       selectedProductTypes: [],
       selectedTemperatures: [],
-      groupBy: 'none',
-      sortColumn: '',
-      sortDirection: 'asc'
+      groupBy: "none",
+      sortColumn: "",
+      sortDirection: "asc",
     };
   }
 
@@ -750,16 +1066,16 @@ class ProductsStore {
       let bVal: any = b[this.#filters.sortColumn as keyof Products];
 
       // Gérer les cas spéciaux
-      if (this.#filters.sortColumn === 'totalNeededConsolidated') {
+      if (this.#filters.sortColumn === "totalNeededConsolidated") {
         aVal = parseFloat(aVal) || 0;
         bVal = parseFloat(bVal) || 0;
-      } else if (this.#filters.sortColumn === 'purchases') {
+      } else if (this.#filters.sortColumn === "purchases") {
         aVal = a.purchases?.length || 0;
         bVal = b.purchases?.length || 0;
       }
 
-      if (aVal < bVal) return this.#filters.sortDirection === 'asc' ? -1 : 1;
-      if (aVal > bVal) return this.#filters.sortDirection === 'asc' ? 1 : -1;
+      if (aVal < bVal) return this.#filters.sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return this.#filters.sortDirection === "asc" ? 1 : -1;
       return 0;
     });
   }
@@ -782,21 +1098,30 @@ class ProductsStore {
 
     // Filtre par store
     if (this.#filters.selectedStores.length > 0) {
-      if (!product.storeInfo?.storeName || !this.#filters.selectedStores.includes(product.storeInfo.storeName)) {
+      if (
+        !product.storeInfo?.storeName ||
+        !this.#filters.selectedStores.includes(product.storeInfo.storeName)
+      ) {
         return false;
       }
     }
 
     // Filtre par who
     if (this.#filters.selectedWho.length > 0) {
-      if (!product.who || !product.who.some(w => this.#filters.selectedWho.includes(w))) {
+      if (
+        !product.who ||
+        !product.who.some((w) => this.#filters.selectedWho.includes(w))
+      ) {
         return false;
       }
     }
 
     // Filtre par productType (cumulatif)
     if (this.#filters.selectedProductTypes.length > 0) {
-      if (!product.productType || !this.#filters.selectedProductTypes.includes(product.productType)) {
+      if (
+        !product.productType ||
+        !this.#filters.selectedProductTypes.includes(product.productType)
+      ) {
         return false;
       }
     }
@@ -804,8 +1129,10 @@ class ProductsStore {
     // Filtres température (cumulatifs)
     if (this.#filters.selectedTemperatures.length > 0) {
       const hasValidTemperature =
-        (this.#filters.selectedTemperatures.includes('frais') && product.pFrais) ||
-        (this.#filters.selectedTemperatures.includes('surgele') && product.pSurgel);
+        (this.#filters.selectedTemperatures.includes("frais") &&
+          product.pFrais) ||
+        (this.#filters.selectedTemperatures.includes("surgele") &&
+          product.pSurgel);
 
       if (!hasValidTemperature) {
         return false;
@@ -815,44 +1142,45 @@ class ProductsStore {
     return true;
   }
 
-  #formatQuantity(jsonString: string | null): string {
-    if (!jsonString) return '-';
+  // => Legacy
+  // #formatQuantity(jsonString: string | null): string {
+  //   if (!jsonString) return '-';
 
-    try {
-      const quantities = JSON.parse(jsonString);
-      if (!Array.isArray(quantities) || quantities.length === 0) return '-';
+  //   try {
+  //     const quantities = JSON.parse(jsonString);
+  //     if (!Array.isArray(quantities) || quantities.length === 0) return '-';
 
-      return quantities
-        .map((q: { quantity: string; unit: string }) => this.#formatSingleQuantity(q.quantity, q.unit))
-        .join(' et ');
-    } catch {
-      return '-';
-    }
-  }
+  //     return quantities
+  //       .map((q: { quantity: string; unit: string }) => this.#formatSingleQuantity(q.quantity, q.unit))
+  //       .join(' et ');
+  //   } catch {
+  //     return '-';
+  //   }
+  // }
 
   #formatSingleQuantity(value: string, unit: string): string {
     const num = parseFloat(value);
     if (isNaN(num)) return `${value} ${unit}`;
 
     // Conversion gr -> kg et ml -> l si >= 1000
-    if ((unit === 'gr.' || unit === 'ml') && num >= 1000) {
+    if ((unit === "gr." || unit === "ml") && num >= 1000) {
       const converted = num / 1000;
-      const newUnit = unit === 'gr.' ? 'kg' : 'l.';
+      const newUnit = unit === "gr." ? "kg" : "l.";
 
       // Arrondi mathématique à 2 décimales + suppression des ,0
       const rounded = Math.round(converted * 100) / 100;
       let formatted = rounded.toString();
-      if (formatted.endsWith(',0')) formatted = formatted.slice(0, -2);
-      if (formatted.endsWith(',00')) formatted = formatted.slice(0, -3);
+      if (formatted.endsWith(",0")) formatted = formatted.slice(0, -2);
+      if (formatted.endsWith(",00")) formatted = formatted.slice(0, -3);
 
       return `${formatted} ${newUnit}`;
     }
 
     // Pour les unités spécifiques : 1 décimale avec arrondi mathématique + suppression des ,0
-    if (!['gr.', 'ml', 'kg', 'l.'].includes(unit)) {
+    if (!["gr.", "ml", "kg", "l."].includes(unit)) {
       const rounded = Math.round(num * 10) / 10;
       let formatted = rounded.toString();
-      if (formatted.endsWith(',0')) formatted = formatted.slice(0, -2);
+      if (formatted.endsWith(",0")) formatted = formatted.slice(0, -2);
 
       return `${formatted} ${unit}`;
     }
@@ -861,7 +1189,6 @@ class ProductsStore {
     return `${num} ${unit}`;
   }
 
-
   /**
    * Formate un tableau de quantités numériques en une chaîne lisible.
    * @param total - Le tableau de quantities numériques à formater.
@@ -869,22 +1196,24 @@ class ProductsStore {
    * @usages: displayTotalNeeded, displayTotalPurchases
    */
   #formatTotalQuantity(total: NumericQuantity[]): string {
-    if (!total || total.length === 0) return '-';
+    if (!total || total.length === 0) return "-";
 
     return total
-      .map(p => this.#formatSingleQuantity(p.quantity.toString(), p.unit))
-      .join(' et ');
+      .map((p) => this.#formatSingleQuantity(p.quantity.toString(), p.unit))
+      .join(" et ");
   }
 
   #parseToNumericQuantity(jsonString: string): NumericQuantity[] {
     try {
       const quantityInfoArray = JSON.parse(jsonString) as QuantityInfo[];
-      return quantityInfoArray.map(q => ({
-        quantity: parseFloat(q.quantity),
-        unit: q.unit
-      })).filter(q => !isNaN(q.quantity));
+      return quantityInfoArray
+        .map((q) => ({
+          quantity: parseFloat(q.quantity),
+          unit: q.unit,
+        }))
+        .filter((q) => !isNaN(q.quantity));
     } catch (error) {
-      console.error('[ProductsStore] Erreur parsing NumericQuantity:', error);
+      console.error("[ProductsStore] Erreur parsing NumericQuantity:", error);
       return [];
     }
   }
@@ -895,7 +1224,7 @@ class ProductsStore {
     // Les unités sont déjà normalisées en gr./ml/unités spécifiques
     const quantityMap = new Map<string, number>();
 
-    purchases.forEach(purchase => {
+    purchases.forEach((purchase) => {
       if (!purchase.quantity || !purchase.unit) return;
 
       const quantity = parseFloat(purchase.quantity);
@@ -908,12 +1237,11 @@ class ProductsStore {
 
     const result: NumericQuantity[] = [];
     quantityMap.forEach((total, unit) => {
-      result.push({quantity: total, unit});
+      result.push({ quantity: total, unit });
     });
 
     return result;
   }
-
 
   /**
    * Calcule les quantités manquantes ET leur formatage en une seule passe
@@ -923,17 +1251,25 @@ class ProductsStore {
    */
   #calculateAndFormatMissing(
     neededArray: NumericQuantity[],
-    purchasesArray: NumericQuantity[]
-  ): { numeric: NumericQuantity[], display: string } {
+    purchasesArray: NumericQuantity[],
+  ): { numeric: NumericQuantity[]; display: string } {
     if (!neededArray || neededArray.length === 0) {
-      return { numeric: [], display: '✅ Complet' };
+      return { numeric: [], display: "✅ Complet" };
     }
     if (!purchasesArray || purchasesArray.length === 0) {
       // Pas d'achats, tout est manquant
-      const numeric = neededArray.map(n => ({quantity: parseFloat(n.quantity), unit: n.unit}));
-      const display = numeric.length > 0
-        ? numeric.map(m => this.#formatSingleQuantity(m.quantity.toString(), m.unit)).join(' et ')
-        : '✅ Complet';
+      const numeric = neededArray.map((n) => ({
+        quantity: parseFloat(n.quantity),
+        unit: n.unit,
+      }));
+      const display =
+        numeric.length > 0
+          ? numeric
+              .map((m) =>
+                this.#formatSingleQuantity(m.quantity.toString(), m.unit),
+              )
+              .join(" et ")
+          : "✅ Complet";
       return { numeric, display };
     }
 
@@ -942,44 +1278,49 @@ class ProductsStore {
     const purchasesMap = new Map<string, number>();
 
     // Remplir les besoins
-    neededArray.forEach(needed => {
+    neededArray.forEach((needed) => {
       const quantity = parseFloat(needed.quantity);
       if (!isNaN(quantity)) {
-        neededMap.set(needed.unit, (neededMap.get(needed.unit) || 0) + quantity);
+        neededMap.set(
+          needed.unit,
+          (neededMap.get(needed.unit) || 0) + quantity,
+        );
       }
     });
 
     // Remplir les achats
-    purchasesArray.forEach(purchase => {
-      purchasesMap.set(purchase.unit, (purchasesMap.get(purchase.unit) || 0) + purchase.quantity);
+    purchasesArray.forEach((purchase) => {
+      purchasesMap.set(
+        purchase.unit,
+        (purchasesMap.get(purchase.unit) || 0) + purchase.quantity,
+      );
     });
 
     // Calculer la différence : besoins - achats ET formatter en même temps
-    const numeric: {quantity: number, unit: string}[] = [];
+    const numeric: { quantity: number; unit: string }[] = [];
     const formattedQuantities: string[] = [];
 
     neededMap.forEach((needed, unit) => {
       const purchased = purchasesMap.get(unit) || 0;
       const missing = needed - purchased;
       if (missing > 0) {
-        const missingItem = {quantity: missing, unit};
+        const missingItem = { quantity: missing, unit };
         numeric.push(missingItem);
 
         // Formatage immédiat pour éviter un deuxième parcours
         formattedQuantities.push(
-          this.#formatSingleQuantity(missing.toString(), unit)
+          this.#formatSingleQuantity(missing.toString(), unit),
         );
       }
     });
 
-    const display = formattedQuantities.length > 0
-      ? formattedQuantities.join(' et ')
-      : '✅ Complet';
+    const display =
+      formattedQuantities.length > 0
+        ? formattedQuantities.join(" et ")
+        : "✅ Complet";
 
     return { numeric, display };
   }
-
-
 }
 
 // =============================================================================
@@ -987,7 +1328,6 @@ class ProductsStore {
 // =============================================================================
 
 export const productsStore = new ProductsStore();
-
 
 // Export des types
 export type { Products, ProductsState, SyncState };

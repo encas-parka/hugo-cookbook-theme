@@ -23,8 +23,9 @@
   let isOpen = $derived(modal.product.isOpen)
 
   // Wrapper réactif - suit automatiquement les mises à jour du store
+  // 🚀 OPTIMISATION : Utilisation de getEnrichedProductById (O(1) vs O(n))
   let currentProduct = $derived(
-     productsStore.enrichedProducts.find(p => p.$id === productId)
+     productsStore.getEnrichedProductById(productId)
   );
 
   // État local

@@ -98,7 +98,7 @@ export interface EnrichedProduct {
   stockArray: StockEntry[];
   missingQuantityArray: NumericQuantity[];
   totalPurchasesArray: NumericQuantity[];
-  displayQuantity: string;
+  displayTotalNeeded: string; // Ajout de la propriété manquante
   // displayName: string; // UNUSED
   displayTotalPurchases: string;
   displayMissingQuantity: string;
