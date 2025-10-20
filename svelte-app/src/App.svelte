@@ -1,25 +1,43 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import {
-    productsStore,
-    type Products
-  } from './lib/stores/ProductsStore.svelte';
+    productsStore  } from './lib/stores/ProductsStore.svelte';
   import { getMainIdFromUrl } from './lib/utils/url-utils';
   import ProductsTable from './lib/components/ProductsTable.svelte';
   import LoadingSpinner from './lib/components/LoadingSpinner.svelte';
   import ErrorAlert from './lib/components/ErrorAlert.svelte';
+  import AuthErrorAlert from './lib/components/AuthErrorAlert.svelte';
+    import { LogInIcon } from '@lucide/svelte';
 
   let mainId: string;
   let initError: string | null = $state(null);
+  let isCheckingAuth = $state(true);
 
   onMount(async () => {
     mainId = getMainIdFromUrl();
 
     try {
+      // 1️⃣ Vérifier l'authentification AVANT d'initialiser le store
+      if (!window.AppwriteClient) {
+        throw new Error('AppwriteClient non disponible');
+      }
+
+      const isConnected = await window.AppwriteClient.isConnectedAppwrite();
+      if (!isConnected) {
+        throw new Error('Veuillez vous connecter pour accéder à la liste des produits.');
+      }
+
+      console.log('[App] Utilisateur connecté, initialisation du store...');
+
+      // 2️⃣ Initialiser le store seulement si l'utilisateur est connecté
       await productsStore.initialize(mainId);
+
     } catch (err) {
-      initError = err instanceof Error ? err.message : 'Erreur lors de l\'initialisation';
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de l\'initialisation';
+      initError = errorMessage;
       console.error('[App] Erreur initialisation:', err);
+    } finally {
+      isCheckingAuth = false;
     }
   });
 
@@ -29,17 +47,19 @@
 
   // Accès direct aux états du store
   const displayError = $derived(initError || productsStore.error);
-  const isLoading = $derived(productsStore.loading);
+  const isLoading = $derived(isCheckingAuth || productsStore.loading);
+
+  const loginUrl = `/login/?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+
 </script>
 
 <div class="min-h-screen bg-base-100">
   <!-- En-tête -->
   <header class="sticky top-0 z-10 bg-base-200 shadow-sm">
-    <div class="container mx-auto px-4 py-4">
+    <div class="container mx-auto px-4 py-2">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-base-content">Produits</h1>
-          <p class="text-sm text-base-content/70">Liste: {mainId}</p>
+          <h1 class="text-1xl font-bold text-base-content">Liste de courses</h1>
         </div>
 
         <!-- Statut de sync -->
@@ -62,6 +82,15 @@
               Maj: {new Date(productsStore.lastSync).toLocaleTimeString()}
             </div>
           {/if}
+
+          {#if initError}
+          <div class="">
+            <a href={loginUrl} class="btn btn-primary btn-sm">
+              <LogInIcon class="w-4 h-4 mr-2" />
+              Se connecter
+            </a>
+          </div>
+          {/if}
         </div>
       </div>
     </div>
@@ -69,8 +98,11 @@
 
   <!-- Contenu principal -->
   <main class="container mx-auto px-4 py-8">
-    <!-- Erreur d'initialisation -->
-    {#if displayError}
+    <!-- Erreur d'authentification -->
+    {#if initError}
+      <AuthErrorAlert message={displayError} />
+    <!-- Erreur d'initialisation (non-auth) -->
+    {:else if displayError}
       <ErrorAlert message={displayError} />
     {/if}
 
@@ -82,7 +114,7 @@
     <!-- Liste des produits -->
     {#if productsStore.enrichedProducts.length > 0}
       <ProductsTable/>
-    {:else if !productsStore.loading}
+    {:else if !productsStore.loading && !initError}
       <div class="alert alert-info">
         <div>
           <svg class="stroke-current shrink-0 h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

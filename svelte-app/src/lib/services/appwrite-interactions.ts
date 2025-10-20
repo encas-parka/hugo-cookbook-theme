@@ -181,6 +181,62 @@ export async function loadProducts(
 }
 
 /**
+ * Charge un produit spécifique par son ID depuis Appwrite
+ *
+ * Service utilitaire pour récupérer un seul produit. Utile pour des vues détaillées
+ * ou des opérations ponctuelles sur un produit sans charger toute la liste.
+ *
+ * @param productId - L'ID du produit à récupérer.
+ * @returns Promise<Products | null> - Le produit trouvé, ou null si une erreur survient ou si le produit n'existe pas.
+ *
+ * Flux :
+ * 1. Récupère les instances Appwrite nécessaires (databases, config).
+ * 2. Appelle `databases.getDocument` avec les informations de la collection `products`.
+ * 3. Retourne le document trouvé, casté en `Products`.
+ * 4. En cas d'erreur (ex: produit non trouvé), log l'erreur et retourne `null`.
+ */
+export async function loadProductById(productId: string): Promise<Products | null> {
+  try {
+    const { databases, config } = await getAppwriteInstances();
+    const response = await databases.getDocument(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.products,
+      productId
+    );
+    return response as Products;
+  } catch (err) {
+    console.error('[Appwrite Interactions] Erreur chargement produit:', err);
+    return null;
+  }
+}
+
+/**
+ * Charge plusieurs produits par leurs IDs
+ */
+export async function loadProductsListByIds(
+  productIds: string[]
+): Promise<Products[]> {
+  try {
+    const { databases, config } = await getAppwriteInstances();
+
+    // Utiliser une requête avec filtre OR pour récupérer les produits
+    const response = await databases.listDocuments(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.products,
+      [
+        Query.equal('$id', productIds)  // ← Filtre par IDs
+      ]
+    );
+
+    return response.documents as Products[];
+  } catch (err) {
+    console.error('[Appwrite Interactions] Erreur chargement produits:', err);
+    return [];
+  }
+}
+
+
+/**
  * Synchronise les produits depuis Appwrite (uniquement les mises à jour)
  *
  * Service de synchronisation incrémentielle pour ProductsStore.

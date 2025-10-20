@@ -9,7 +9,9 @@ import {
   syncProductsAndPurchases,
   subscribeToRealtime,
   type LoadProductsOptions,
-  type SyncOptions
+  type SyncOptions,
+  loadProductById,
+  loadProductsListByIds
 } from '../services/appwrite-interactions';
 
 /**
@@ -357,35 +359,48 @@ class ProductsStore {
   /**
    * Synchronisation incrémentielle en arrière-plan
    */
-  async #syncInBackground() {
-    if (!this.#lastSync) {
-      return;
-    }
+   async #syncInBackground() {
+     if (!this.#lastSync) return;
+     this.#syncing = true;
 
-    this.#syncing = true;
+     try {
+       const { products: updatedProducts, purchases: updatedPurchases } =
+         await syncProductsAndPurchases(this.#currentMainId!, options);
 
-    try {
-      const options: SyncOptions = {
-        lastSync: this.#lastSync,
-        limit: BATCH_LIMIT
-      };
+       const productsMap = new Map(updatedProducts.map(p => [p.$id, p]));
 
-      const { products: updatedProducts, purchases: updatedPurchases } =
-        await syncProductsAndPurchases(this.#currentMainId!, options);
+       // 1️⃣ Appliquer les produits
+       if (updatedProducts.length > 0) {
+         updatedProducts.forEach(product => {
+           const enriched = this.#enrichProduct(product);
+           this.#enrichedProducts.set(product.$id, enriched);
+         });
+       }
 
-      // Appliquer les mises à jour de produits
-      if (updatedProducts.length > 0) {
-        updatedProducts.forEach(product => {
-          const enriched = this.#enrichProduct(product);
-          this.#enrichedProducts.set(product.$id, enriched);
-        });
-        console.log(`[ProductsStore] ${updatedProducts.length} produits synchronisés`);
-      }
+       // 2️⃣ Appliquer les purchases
+       if (updatedPurchases.length > 0) {
+         const affectedProductIds = new Set<string>();
 
-      // Appliquer les mises à jour de purchases
-      if (updatedPurchases.length > 0) {
-        this.#applyPurchaseUpdates(updatedPurchases);
-      }
+         updatedPurchases.forEach(purchase => {
+           purchase.products?.forEach((prod: any) => {
+             const productId = typeof prod === 'string' ? prod : prod.$id;
+             if (productId) affectedProductIds.add(productId);
+           });
+         });
+
+         const productsToLoad = Array.from(affectedProductIds)
+           .filter(id => !productsMap.has(id));
+
+         // ✅ Charger UNIQUEMENT si nécessaire
+         if (productsToLoad.length > 0) {
+           console.log(`[ProductsStore] Rechargement de ${productsToLoad.length} produits affectés par purchases`);
+           const loadedProducts = await loadProductsListByIds(productsToLoad);
+           loadedProducts.forEach(product => {
+             const enriched = this.#enrichProduct(product);
+             this.#enrichedProducts.set(product.$id, enriched);
+           });
+         }
+       }
 
       // Persister si des changements
       if (updatedProducts.length > 0 || updatedPurchases.length > 0) {
@@ -452,28 +467,105 @@ class ProductsStore {
 
   /**
    * Applique les mises à jour de purchases aux produits concernés
+   * ✅ Récupère les produits frais depuis Appwrite pour être sûr d'avoir les purchases à jour
    */
-  #applyPurchaseUpdates(updatedPurchases: Purchases[]) {
+  async #applyPurchaseUpdates(updatedPurchases: Purchases[]) {
     if (!updatedPurchases?.length) return;
 
-    // Trouver tous les produits affectés
+    // 1️⃣ Identifier tous les produits affectés
     const affectedProductIds = new Set<string>();
 
     updatedPurchases.forEach(purchase => {
       purchase.products?.forEach((prod: any) => {
-        affectedProductIds.add(prod.$id);
+        const productId = typeof prod === 'string' ? prod : prod.$id;
+        if (productId) affectedProductIds.add(productId);
       });
     });
 
-    // Récupérer les produits et les re-enrichir
-    const affectedProducts = Array.from(this.#enrichedProducts.values())
-      .filter(p => affectedProductIds.has(p.$id));
+    if (affectedProductIds.size === 0) {
+      console.log('[ProductsStore] Aucun produit affecté par ces purchases');
+      return;
+    }
 
-    affectedProducts.forEach(product => {
-      this.#upsertEnrichedProduct(product as any);
+    try {
+      // 2️⃣ Récupérer les produits frais depuis Appwrite
+      const refreshedProducts = await loadProductsListByIds(Array.from(affectedProductIds));
+
+      if (refreshedProducts.length === 0) {
+        console.warn('[ProductsStore] Impossible de charger les produits affectés');
+        return;
+      }
+
+      // 3️⃣ Enrichir et mettre à jour la SvelteMap
+      refreshedProducts.forEach(product => {
+        const enriched = this.#enrichProduct(product);
+        this.#enrichedProducts.set(product.$id, enriched);
+      });
+
+      console.log(`[ProductsStore] ${updatedPurchases.length} purchases appliqués à ${refreshedProducts.length} produit(s)`);
+
+    } catch (err) {
+      console.error('[ProductsStore] Erreur application purchases:', err);
+    }
+  }
+
+
+
+  // =========================================================================
+  // VARIANTE PLUS RAPIDE : Mettre à jour localement ET re-charger en async
+  // (Affichage immédiat pour l'utilisateur local, puis correction si réel-time change)
+  // =========================================================================
+
+  /**
+   * Version optimiste : update local + rechargement async en arrière-plan
+   */
+  async #applyPurchaseUpdatesOptimistic(updatedPurchases: Purchases[]) {
+    if (!updatedPurchases?.length) return;
+
+    const affectedProductIds = new Set<string>();
+
+    updatedPurchases.forEach(purchase => {
+      purchase.products?.forEach((prod: any) => {
+        const productId = typeof prod === 'string' ? prod : prod.$id;
+        if (productId) affectedProductIds.add(productId);
+      });
     });
 
-    console.log(`[ProductsStore] ${updatedPurchases.length} purchases appliqués à ${affectedProducts.length} produit(s)`);
+    if (affectedProductIds.size === 0) return;
+
+    // 1️⃣ UPDATE LOCAL IMMÉDIAT (optimiste)
+    for (const productId of affectedProductIds) {
+      const currentProduct = this.#enrichedProducts.get(productId);
+      if (currentProduct) {
+        // Ajouter les nouveaux purchases localement
+        const updatedPurchases_ = currentProduct.purchases || [];
+        updatedPurchases.forEach(purchase => {
+          // Éviter les doublons
+          if (!updatedPurchases_.some(p => p.$id === purchase.$id)) {
+            updatedPurchases_.push(purchase);
+          }
+        });
+
+        // Re-enrichir avec les nouveaux purchases
+        const enriched = this.#enrichProduct({
+          ...currentProduct,
+          purchases: updatedPurchases_
+        } as any);
+
+        this.#enrichedProducts.set(productId, enriched);
+      }
+    }
+
+    // 2️⃣ RECHARGER EN ARRIÈRE-PLAN (pour corriger les erreurs)
+    try {
+      const refreshedProducts = await loadProductsListByIds(Array.from(affectedProductIds));
+      refreshedProducts.forEach(product => {
+        const enriched = this.#enrichProduct(product);
+        this.#enrichedProducts.set(product.$id, enriched);
+      });
+    } catch (err) {
+      console.warn('[ProductsStore] Erreur rechargement async:', err);
+    }
   }
 
   // =========================================================================
@@ -498,12 +590,12 @@ class ProductsStore {
         this.#debouncedPersist();
       },
       onPurchaseCreate: (purchase: Purchases) => {
-        this.#applyPurchaseUpdates([purchase]);
+        this.#applyPurchaseUpdatesOptimistic([purchase]);
         this.#updateLastSync();
         this.#debouncedPersist();
       },
       onPurchaseUpdate: (purchase: Purchases) => {
-        this.#applyPurchaseUpdates([purchase]);
+        this.#applyPurchaseUpdatesOptimistic([purchase]);
         this.#updateLastSync();
         this.#debouncedPersist();
       },

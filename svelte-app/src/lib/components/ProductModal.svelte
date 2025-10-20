@@ -187,7 +187,7 @@
 
       const result = await createPurchase({
         products: [currentProduct.$id],
-        mainId: currentProduct.mainId,
+        mainId: productsStore.currentMainId,
         unit: normalizedUnit,
         quantity: normalizedQuantity,
         store: newPurchase.store || null,
