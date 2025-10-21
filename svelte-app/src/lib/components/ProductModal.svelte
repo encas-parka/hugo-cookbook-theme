@@ -12,7 +12,12 @@
   import StockManager from './StockManager.svelte';
   import VolunteerManager from './VolunteerManager.svelte';
   import StoreManager from './StoreManager.svelte';
+  import RecipesManager from './RecipesManager.svelte';
   import { formatDate } from '../utils/products-display';
+
+  import type { ProductModalStateType } from '../types/store.types.js';
+
+
 
 
   let currentTab = $derived(modal.product.tab);
@@ -23,16 +28,14 @@
      productsStore.getEnrichedProductById(productId)
   );
 
-  // Instance de ProductModalState (nouveau store centralisé)
+  // Instance de ProductModalState (store centralisé)
   let modalState = $derived.by(() => {
-    // console.log("currentProduct", currentProduct ? currentProduct : "null")
-    return currentProduct ? createProductModalState(currentProduct) : null;
-  });
-
+    return productId ? createProductModalState(productId) : null;
+  }) as ProductModalStateType | null;
 
   const loading = $derived(modalState?.loading ?? false);
   const error = $derived(modalState?.error ?? null);
-  const stockEntries = $derived(modalState?.stockEntries ?? []);
+  const stockEntries = $derived(modalState.stockEntries ?? []);
   const purchasesList = $derived(modalState?.purchasesList ?? []);
   const recipes = $derived(modalState?.recipes ?? []);
 
@@ -53,7 +56,7 @@
 
 </script>
 
-{#if isOpen && currentProduct}
+{#if isOpen && currentProduct && modalState}
   <div class="modal modal-open">
     <div class="modal-box max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
       <!-- Header -->
@@ -155,59 +158,24 @@
 
           <div class="">
             {#if currentTab === 'recettes'}
-              <!-- Onglet Recettes -->
-              <div class="space-y-4">
-                <h3 class="text-lg font-semibold flex items-center gap-2">
-                  <Package class="w-5 h-5" />
-                  Recettes utilisant ce produit
-                </h3>
-
-                {#if recipes.length === 0}
-                  <div class="text-center py-8 opacity-50">
-                    <Package class="w-12 h-12 mx-auto mb-2" />
-                    <p>Aucune recette trouvée pour ce produit</p>
-                  </div>
-                {:else}
-                  <div class="overflow-x-auto">
-                    <table class="table table-zebra table-sm">
-                      <thead>
-                        <tr>
-                          <th>Recette</th>
-                          <th>Quantité</th>
-                          <th>Date service</th>
-                          <th>Type plat</th>
-                          <th>Assiettes</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {#each recipes as recipe (recipe.recipeName + recipe.dateTimeService)}
-                          <tr>
-                            <td class="font-medium">{recipe.recipeName}</td>
-                            <td>{recipe.quantity} {recipe.unit}</td>
-                            <td>{formatDate(recipe.dateTimeService)}</td>
-                            <td>{recipe.assiettes || '-'}</td>
-                          </tr>
-                        {/each}
-                      </tbody>
-                    </table>
-                  </div>
-                {/if}
-              </div>
+              <RecipesManager
+                {modalState}
+              />
             {:else if currentTab === 'achats'}
               <PurchaseManager
-                product={currentProduct}
+                {modalState}
               />
             {:else if currentTab === 'stock'}
               <StockManager
-                product={currentProduct}
+                {modalState}
               />
             {:else if currentTab === 'volontaires'}
               <VolunteerManager
-                product={currentProduct}
+                {modalState}
               />
             {:else if currentTab === 'magasins'}
               <StoreManager
-                product={currentProduct}
+                {modalState}
               />
             {/if}
           </div>

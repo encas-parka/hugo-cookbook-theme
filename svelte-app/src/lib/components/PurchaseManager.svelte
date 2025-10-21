@@ -1,66 +1,59 @@
 <script lang="ts">
 	import { ShoppingCart, SquarePen, Save, X } from '@lucide/svelte';
 	import type { Purchases } from '../types/appwrite.d.ts';
-    import { createProductModalState } from '../stores/ProductModalState.svelte.js';
-    import type { EnrichedProduct } from '../types/store.types.js';
-    import { formatDate, formatQuantity } from '../utils/products-display.js';
-
-
+	import type { ProductModalStateType } from '../types/store.types.js';
+	import { formatDate, formatQuantity } from '../utils/products-display.js';
 
 	interface Props {
-		product: EnrichedProduct;
+		modalState: ProductModalStateType;
 	}
 
-	let { product }: Props = $props();
+	let { modalState }: Props = $props();
 
-	const modalState = $derived(createProductModalState(product));
-
-	// Données dérivées du store - plus besoin de fallbacks grâce à ProductModalState
-	const purchases = $derived(modalState.purchasesList);
-	const loading = $derived(modalState.loading ?? false);
-
-	const purchaseForm = $derived(modalState.forms.purchase);
-
-	const editingPurchaseData = $derived(modalState?.edit.purchase);
-	const editingPurchaseId = $derived(modalState?.editingPurchaseId ?? null);
-
-	// État de validation du formulaire pour l'édition
-	const isFormValid = $derived(
-		modalState &&
-		purchaseForm.quantity !== null && purchaseForm.quantity !== 0   &&
-		purchaseForm.unit?.trim() !== ''
-	);
-
-	const isEditingFormValid = $derived(
-		modalState &&
-		editingPurchaseData.quantity !== null && editingPurchaseData.quantity !== 0   &&
-		editingPurchaseData.unit?.trim() !== ''
-	);
-
-	function startEditPurchase(purchase: Purchases) {
-		modalState?.startEditPurchase(purchase);
+	// ✅ Validation inline - pas de $derived inutiles
+	function isAddFormValid(): boolean {
+		return (
+			modalState.forms.purchase.quantity !== null &&
+			modalState.forms.purchase.quantity !== 0 &&
+			modalState.forms.purchase.unit?.trim() !== ''
+		);
 	}
 
-	function cancelEditPurchase() {
-		modalState?.cancelEditPurchase();
+	function isEditFormValid(purchase: Purchases): boolean {
+		return (
+			purchase.quantity !== null &&
+			purchase.quantity !== 0 &&
+			purchase.unit?.trim() !== ''
+		);
 	}
 
-	async function handleUpdateEditedPurchase() {
-		if (!isEditingFormValid) return;
-		await modalState!.updateEditedPurchase();
+	// ✅ Pas besoin d'intermédiaires - accès direct au state du modalState
+	function handleAddPurchase() {
+		if (!isAddFormValid()) return;
+		modalState.addPurchase();
 	}
 
-	async function handleDeletePurchase(purchaseId: string) {
-		await modalState?.deletePurchase(purchaseId);
+	function handleUpdateEditedPurchase() {
+		const edited = modalState.editingPurchaseData;
+		if (!edited || !isEditFormValid(edited)) return;
+		modalState.updateEditedPurchase(edited);
 	}
 
-	async function handleAddPurchase() {
-		await modalState?.addPurchase();
+	function handleDeletePurchase(purchaseId: string) {
+		modalState.removePurchase(purchaseId);
+	}
+
+	function handleStartEdit(purchase: Purchases) {
+		modalState.startEditPurchase(purchase);
+	}
+
+	function handleCancelEdit() {
+		modalState.cancelEditPurchase();
 	}
 
 </script>
 
-{#if product && modalState}
+{#if modalState && modalState.product}
 <div class="space-y-4">
 	<h3 class="text-lg font-semibold flex items-center gap-2">
 		<ShoppingCart class="w-5 h-5" />
@@ -79,8 +72,8 @@
 						id="purchase-quantity"
 						type="number"
 						step="0.01"
-						class="input input-bordered validator"
-						bind:value={purchaseForm.quantity}
+						class="input input-bordered"
+						bind:value={modalState.forms.purchase.quantity}
 						required
 					/>
 				</div>
@@ -88,8 +81,12 @@
 					<label for="purchase-unit" class="label">
 						<span class="label-text">Unité</span>
 					</label>
-					<select id="purchase-unit" class="select select-bordered validator" required bind:value={purchaseForm.unit} >
-						<option disabled selected value="">Sélectionner</option>
+					<select
+						id="purchase-unit"
+						class="select select-bordered"
+						bind:value={modalState.forms.purchase.unit}
+					>
+						<option disabled value="">Sélectionner</option>
 						<option value="kg">kg</option>
 						<option value="gr.">gr.</option>
 						<option value="l.">l.</option>
@@ -106,7 +103,7 @@
 						id="purchase-store"
 						type="text"
 						class="input input-bordered"
-						bind:value={purchaseForm.store}
+						bind:value={modalState.forms.purchase.store}
 						placeholder="Ex: Marché"
 					/>
 				</div>
@@ -118,7 +115,7 @@
 						id="purchase-who"
 						type="text"
 						class="input input-bordered"
-						bind:value={purchaseForm.who}
+						bind:value={modalState.forms.purchase.who}
 						placeholder="Votre nom"
 					/>
 				</div>
@@ -129,9 +126,9 @@
 					<input
 						id="purchase-price"
 						type="number"
-						step="1"
+						step="0.01"
 						class="input input-bordered"
-						bind:value={purchaseForm.price}
+						bind:value={modalState.forms.purchase.price}
 						placeholder="0.00"
 					/>
 				</div>
@@ -143,14 +140,18 @@
 						id="purchase-notes"
 						type="text"
 						class="input input-bordered"
-						bind:value={purchaseForm.notes}
+						bind:value={modalState.forms.purchase.notes}
 						placeholder="Promotion, remarques..."
 					/>
 				</div>
 			</div>
 			<div class="card-actions justify-end mt-4">
-				<button class="btn btn-primary btn-sm" onclick={handleAddPurchase} disabled={loading || !isFormValid}>
-					{#if loading}
+				<button
+					class="btn btn-primary btn-sm"
+					onclick={handleAddPurchase}
+					disabled={modalState.loading || !isAddFormValid()}
+				>
+					{#if modalState.loading}
 						<span class="loading loading-spinner loading-sm"></span>
 					{:else}
 						Ajouter l'achat
@@ -160,7 +161,8 @@
 		</div>
 	</div>
 
-	{#if purchases.length === 0}
+	<!-- Table des achats -->
+	{#if modalState.purchasesList.length === 0}
 		<div class="text-center py-8 opacity-50">
 			<ShoppingCart class="w-12 h-12 mx-auto mb-2" />
 			<p>Aucun achat enregistré pour ce produit</p>
@@ -180,8 +182,9 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each purchases as purchase, index (index)}
-						{#if editingPurchaseId === purchase.$id}
+					{#each modalState.purchasesList as purchase (purchase.$id)}
+						{#if modalState.editingPurchaseId === purchase.$id}
+							<!-- Mode édition -->
 							<tr class="bg-warning/10">
 								<td>
 									<div class="flex gap-2">
@@ -189,9 +192,9 @@
 											type="number"
 											step="0.01"
 											class="input input-bordered w-20"
-											bind:value={editingPurchaseData.quantity}
+											bind:value={purchase.quantity}
 										/>
-										<select class="select select-bordered w-16" bind:value={editingPurchaseData.unit}>
+										<select class="select select-bordered w-16" bind:value={purchase.unit}>
 											<option value="kg">kg</option>
 											<option value="gr.">gr.</option>
 											<option value="l.">l.</option>
@@ -205,14 +208,14 @@
 									<input
 										type="text"
 										class="input input-bordered w-24"
-										bind:value={editingPurchaseData.store}
+										bind:value={purchase.store}
 									/>
 								</td>
 								<td>
 									<input
 										type="text"
 										class="input input-bordered w-20"
-										bind:value={editingPurchaseData.who}
+										bind:value={purchase.who}
 									/>
 								</td>
 								<td class="text-xs opacity-75">
@@ -221,16 +224,16 @@
 								<td>
 									<input
 										type="number"
-										step="1"
+										step="0.01"
 										class="input input-bordered w-16"
-										bind:value={editingPurchaseData.price}
+										bind:value={purchase.price}
 									/>
 								</td>
 								<td>
 									<input
 										type="text"
 										class="input input-bordered w-24"
-										bind:value={editingPurchaseData.notes}
+										bind:value={purchase.notes}
 									/>
 								</td>
 								<td>
@@ -238,27 +241,31 @@
 										<button
 											class="btn btn-success btn-sm"
 											onclick={handleUpdateEditedPurchase}
-											disabled={loading || !isEditingFormValid}
+											disabled={modalState.loading || !isEditFormValid(purchase)}
 										>
-											{#if loading}
+											{#if modalState.loading}
 												<span class="loading loading-spinner loading-sm"></span>
 											{:else}
 												<Save class="w-3 h-3" />
 											{/if}
 										</button>
-										<button class="btn btn-ghost btn-sm" onclick={cancelEditPurchase}>
+										<button
+											class="btn btn-ghost btn-sm"
+											onclick={handleCancelEdit}
+										>
 											<X class="w-3 h-3" />
 										</button>
 									</div>
 								</td>
 							</tr>
 						{:else}
-							<tr >
+							<!-- Mode affichage -->
+							<tr>
 								<td class="font-medium">
 									{formatQuantity(purchase.quantity, purchase.unit)}
 								</td>
-								<td>{purchase.store}</td>
-								<td>{purchase.who}</td>
+								<td>{purchase.store || '-'}</td>
+								<td>{purchase.who || '-'}</td>
 								<td class="text-xs opacity-75">{formatDate(purchase.$createdAt)}</td>
 								<td>{purchase.price ? `${purchase.price}€` : '-'}</td>
 								<td>{purchase.notes || '-'}</td>
@@ -266,16 +273,16 @@
 									<div class="btn-group btn-group-sm">
 										<button
 											class="btn btn-ghost btn-sm"
-											onclick={() => startEditPurchase(purchase)}
+											onclick={() => handleStartEdit(purchase)}
 										>
 											<SquarePen class="w-4 h-4" />
 										</button>
 										<button
 											class="btn btn-ghost btn-sm text-error"
 											onclick={() => handleDeletePurchase(purchase.$id)}
-											disabled={loading}
+											disabled={modalState.loading}
 										>
-											{#if loading}
+											{#if modalState.loading}
 												<span class="loading loading-spinner loading-sm"></span>
 											{:else}
 												<X class="w-4 h-4" />

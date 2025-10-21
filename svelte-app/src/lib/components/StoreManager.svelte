@@ -1,22 +1,20 @@
 <script lang="ts">
 	import { Store } from '@lucide/svelte';
-	import type { StoreInfo, EnrichedProduct } from '../types/store.types';
+	import type { StoreInfo, ProductModalStateType } from '../types/store.types';
 	import { createProductModalState } from '../stores/ProductModalState.svelte';
+
+
 	interface Props {
-		product: EnrichedProduct | null;
+		modalState: ProductModalStateType;
 	}
 
-	let { product }: Props = $props();
+	let { modalState }: Props = $props();
 
-	// Accès direct au store
-	const modalState = $derived.by(() => {
-		return product ? createProductModalState(product) : null;
-	});
 
-	const storeForm = $derived(modalState?.forms.store);
+	const storeForm = $derived(modalState.forms.store);
 	// Données initiales du produit
-	const initialStoreName = $derived(storeForm?.name || '');
-	const initialStoreComment = $derived(storeForm?.comment || '');
+	const initialStoreName = $derived(storeForm.name || '');
+	const initialStoreComment = $derived(storeForm.comment || '');
 
 	// État local pour le formulaire
 	// svelte-ignore  state_referenced_locally
@@ -24,12 +22,10 @@
 	// svelte-ignore  state_referenced_locally
 	let storeComment = $state(initialStoreComment);
 
-	// Accès au loading depuis le modalState
-	const loading = $derived(modalState?.loading ?? false);
 
 	// Validation : formulaire valide si au moins une valeur a changé
 	const isFormValid = $derived(
-		(storeName.trim() !== (storeForm?.name || '') || storeComment.trim() !== (storeForm?.comment || ''))
+		(storeName.trim() !== (storeForm.name || '') || storeComment.trim() !== (storeForm.comment || ''))
 	);
 
 	async function handleUpdateStore() {
@@ -40,7 +36,7 @@
 			storeComment: storeComment.trim()
 		};
 
-		await modalState?.updateStore(storeInfo);
+		await modalState.updateStore(storeInfo);
 	}
 
 	function handleQuickSelectStore(store: string) {
@@ -96,8 +92,8 @@
 			</div>
 
 			<div class="flex gap-2 mb-4">
-				<button class="btn btn-primary btn-sm" onclick={handleUpdateStore} disabled={loading || !isFormValid}>
-					{#if loading}
+				<button class="btn btn-primary btn-sm" onclick={handleUpdateStore} disabled={modalState.loading  || !isFormValid}>
+					{#if modalState.loading }
 						<span class="loading loading-spinner loading-sm"></span>
 					{:else}
 						Mettre à jour
@@ -106,7 +102,7 @@
 				<button
 					class="btn btn-ghost btn-sm"
 					onclick={() => { storeName = ''; storeComment = ''; }}
-					disabled={loading}
+					disabled={modalState.loading }
 				>
 					Effacer
 				</button>
@@ -123,7 +119,7 @@
 						<button
 							class="btn btn-outline btn-xs"
 							onclick={() => handleQuickSelectStore(store)}
-							disabled={loading}
+							disabled={modalState.loading }
 						>
 							{store}
 						</button>
@@ -137,16 +133,16 @@
 				<Store class="w-4 h-4" />
 				<div>
 					<h4 class="font-semibold">Information sur le magasin actuel</h4>
-					{#if product?.storeInfo}
+					{#if modalState.product?.storeInfo}
 						<p class="text-sm">
-							<strong>Magasin défini :</strong> {product.storeInfo.storeName}
-							{#if product.storeInfo.storeComment}
-								<br><small class="opacity-75">{product.storeInfo.storeComment}</small>
+							<strong>Magasin défini :</strong> {modalState.product.storeInfo.storeName}
+							{#if modalState.product.storeInfo.storeComment}
+								<br><small class="opacity-75">{modalState.product.storeInfo.storeComment}</small>
 							{/if}
 						</p>
-					{:else if product?.store}
+					{:else if modalState.product?.store}
 						<p class="text-sm">
-							<strong>Magasin défini :</strong> {product.store}
+							<strong>Magasin défini :</strong> {modalState.product.store}
 						</p>
 					{:else}
 						<p class="text-sm">

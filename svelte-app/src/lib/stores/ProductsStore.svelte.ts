@@ -945,4 +945,3 @@ class ProductsStore {
 // =============================================================================
 
 export const productsStore = new ProductsStore();
-export type { FiltersState, SyncMetadata };

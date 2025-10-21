@@ -1,4 +1,4 @@
-import type { Products } from './appwrite.d';
+import type { Products, Purchases } from './appwrite.d';
 
 /**
  * Types pour la gestion des magasins
@@ -70,6 +70,102 @@ export interface EnrichedProduct extends Products {
   displayTotalNeeded: string;
   displayTotalPurchases: string;
   displayMissingQuantity: string;
+}
+
+
+/**
+ * Type pour le formulaire d'achat
+ */
+export interface PurchaseFormData {
+  quantity: number | null;
+  unit: string;
+  store: string;
+  who: string;
+  price: number | null;
+  notes: string;
+}
+
+/**
+ * Type pour le formulaire de stock
+ */
+export interface StockFormData {
+  quantity: number | null;
+  unit: string;
+  notes: string;
+  dateTime: string;
+}
+
+/**
+ * Type pour le formulaire de magasin
+ */
+export interface StoreFormData {
+  name: string | null;
+  comment: string | null;
+}
+
+/**
+ * Type pour le formulaire de volontaire
+ */
+export interface WhoFormData {
+  name: string;
+}
+
+/**
+ * Type pour tous les formulaires
+ */
+export interface ModalForms {
+  purchase: PurchaseFormData;
+  stock: StockFormData;
+  store: StoreFormData;
+  who: WhoFormData;
+}
+
+/**
+ * Type principal pour ProductModalState
+ * Utilisation : const modalState: ProductModalStateType = createProductModalState(productId);
+ */
+export interface ProductModalStateType {
+  // État UI
+  readonly loading: boolean;
+  readonly error: string | null;
+  readonly currentTab: string;
+
+  // Données du produit (dérivées du store)
+  readonly product: EnrichedProduct | null;
+  readonly recipes: RecipeOccurrence[];
+  readonly whoList: string[];
+  readonly stockEntries: StockEntry[];
+  readonly purchasesList: Purchases[];
+
+  // État d'édition
+  readonly editingPurchaseId: string | null;
+  readonly editingPurchaseData: Purchases | null;
+
+  // Formulaires locaux
+  readonly forms: ModalForms;
+
+  // Actions - Purchases
+  addPurchase(): Promise<void>;
+  startEditPurchase(purchase: Purchases): void;
+  cancelEditPurchase(): void;
+  updateEditedPurchase(purchase: Purchases): Promise<void>;
+  removePurchase(purchaseId: string): Promise<void>;
+
+  // Actions - Stock
+  addStock(): Promise<void>;
+  removeStock(index: number): Promise<void>;
+
+  // Actions - Volunteers
+  addVolunteer(name: string): Promise<void>;
+  removeVolunteer(name: string): Promise<void>;
+
+  // Actions - Store
+  updateStore(storeInfo: StoreInfo): Promise<void>;
+
+  // Utilitaires
+  formatQuantity(quantity: number, unit: string): string;
+  formatDate(dateString: string): string;
+  formatDisplayQuantity(quantity: number, unit: string): string;
 }
 
 

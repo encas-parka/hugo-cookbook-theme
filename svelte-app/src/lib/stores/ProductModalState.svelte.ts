@@ -1,368 +1,340 @@
-import type { Purchases, Products } from '../types/appwrite';
-import type { EnrichedProduct, StoreInfo } from '../types/store.types';
 import {
-  createPurchase,
-  updatePurchase,
-  deletePurchase,
-  updateProductStock,
-  updateProductWho,
-  updateProductStore,
-  parseStockData,
-  parseRecipesOccurrences
-} from '../services/appwrite-interactions';
-import { productsStore } from './ProductsStore.svelte';
-import { userName } from './GlobalState.svelte';
-import { normalizeUnit, formatQuantity, formatDate, formatDisplayQuantity } from '../utils/products-display';
+    createPurchase,
+    deletePurchase,
+    updateProductStock,
+    updateProductStore,
+    updateProductWho,
+    updatePurchase,
+} from "../services/appwrite-interactions";
+import type { Purchases } from "../types/appwrite";
+import type { StoreInfo } from "../types/store.types";
+import {
+    formatDate,
+    formatDisplayQuantity,
+    formatQuantity,
+    normalizeUnit,
+} from "../utils/products-display";
+import { userName } from "./GlobalState.svelte";
+import { productsStore } from "./ProductsStore.svelte";
 
-export function createProductModalState(product: EnrichedProduct) {
-
+/**
+ * ProductModalState - Responsabilités UNIQUEMENT :
+ * 1. Gestion des formulaires locaux (purchase, stock, etc.)
+ * 2. Gestion de l'état d'édition (quel item est en cours d'édition)
+ * 3. Orchestration des appels Appwrite
+ * 4. Gestion du loading/error UI
+ *
+ * Les données du produit (purchases, recipes, stock, etc.) sont
+ * TOUJOURS lues en direct du ProductsStore, jamais copiées.
+ */
+export function createProductModalState(productId: string) {
   let loading = $state(false);
   let error = $state<string | null>(null);
-  let currentTab = $state('recettes');
+  let currentTab = $state("recettes");
 
-  // Préremplissage intelligent des formulaires
+  // ─────────────────────────────────────────────────────────────
+  // DONNÉES DÉRIVÉES - Toujours fraîches du store
+  // ─────────────────────────────────────────────────────────────
+
+  // ✅ Le produit est maintenant TOUJOURS lu du store
+  const product = $derived(productsStore.getEnrichedProductById(productId));
+
+  // ✅ Ces dérivés dépendent du produit du store, donc auto-update
+  const recipes = $derived(product?.recipesArray ?? []);
+  const whoList = $derived(product?.who ?? []);
+  const stockEntries = $derived(product?.stockArray ?? []);
+  const purchasesList = $derived(product?.purchases ?? []);
+
+  // ─────────────────────────────────────────────────────────────
+  // FORMULAIRES LOCAUX - État du modal uniquement
+  // ─────────────────────────────────────────────────────────────
+
   const forms = $state({
     purchase: {
-      quantity: product.missingQuantityArray[0].quantity || 0,
-      unit: product.totalNeededArray[0]?.unit || '', // Unité par défaut du produit
-      store: product.storeInfo?.storeName || '', // Magasin du produit
-      who: userName() || '', // Utilisateur courant
-      price: null,
-      notes: ''
+      quantity: null as number | null,
+      unit: "",
+      store: "",
+      who: userName() ?? "",
+      price: null as number | null,
+      notes: "",
     },
     stock: {
-      quantity: 0,
-      unit: product.totalNeededArray[0]?.unit || '', // Unité par défaut du produit
-      notes: '',
-      dateTime: new Date().toISOString()
+      quantity: null as number | null,
+      unit: "",
+      notes: "",
+      dateTime: new Date().toISOString(),
     },
     store: {
-      name: product.storeInfo?.storeName || null,
-      comment: product.storeInfo?.storeComment || null
+      name: null as string | null,
+      comment: null as string | null,
     },
     who: {
-      name: userName() || '',
+      name: "",
     },
   });
 
+  // Initialiser les formulaires une fois que le produit est dispo
+  $effect(() => {
+    if (!product) return;
 
-  // Données dérivées - utilise les propriétés enrichies par ProductsStore
-  const recipes = $derived(product?.recipesArray || []);
+    forms.purchase.quantity = product.missingQuantityArray[0]?.quantity ?? null;
+    forms.purchase.unit = product.totalNeededArray[0]?.unit ?? "";
+    forms.purchase.store = product.storeInfo?.storeName ?? "";
+    forms.purchase.who = userName() ?? "";
 
-  const whoList = $derived(product?.who || []);
+    forms.stock.unit = product.totalNeededArray[0]?.unit ?? "";
 
-  const stockEntries = $derived(product?.stockArray || []);
-
-  const purchasesList = $derived(product?.purchases || []);
-
-  // États d'édition - avec valeurs de secours pour éviter les null bindings
-  let edit = $state({
-    purchase: {
-      quantity: 0,
-      unit: '',
-      store: '',
-      who: '',
-      price: null,
-      notes: '',
-    } as Partial<Purchases>,
-    store: product.storeInfo || { storeName: '', storeComment: '' } as StoreInfo,
-    whoList: [] as string[]
+    forms.store.name = product.storeInfo?.storeName ?? null;
+    forms.store.comment = product.storeInfo?.storeComment ?? null;
   });
 
-  // Suivi de l'état d'édition pour éviter les erreurs de timing
+  // ─────────────────────────────────────────────────────────────
+  // ÉTAT D'ÉDITION - Tracking quel item est édité
+  // ─────────────────────────────────────────────────────────────
+
   let editingPurchaseId = $state<string | null>(null);
 
-  // Gestion du chargement et des erreurs
-  async function withLoading<T>(operation: () => Promise<T>): Promise<T | null> {
+  // ✅ Les données d'édition viennent du purchasesList dérivé
+  const editingPurchaseData = $derived.by(() => {
+    if (!editingPurchaseId) return null;
+    return purchasesList.find((p) => p.$id === editingPurchaseId) ?? null;
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  async function withLoading<T>(
+    operation: () => Promise<T>,
+    successMessage?: string,
+  ): Promise<T | null> {
     loading = true;
     error = null;
     try {
       const result = await operation();
+      if (successMessage) {
+        showToast("success", successMessage);
+      }
       return result;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Une erreur est survenue';
-      console.error('[ProductModalState] Erreur:', err);
+      const message =
+        err instanceof Error ? err.message : "Une erreur est survenue";
+      error = message;
+      showToast("error", message);
+      console.error("[ProductModalState]", err);
       return null;
     } finally {
       loading = false;
     }
   }
 
-  // Helper pour afficher des notifications
-  function showToast(type: 'success' | 'error', message: string) {
-    const event = new CustomEvent('toast', {
-      detail: { type, message }
+  function showToast(type: "success" | "error", message: string) {
+    const event = new CustomEvent("toast", {
+      detail: { type, message },
     });
     window.dispatchEvent(event);
   }
 
-  // Réinitialisation des formulaires
-  function resetForms() {
-    forms.purchase = {
-      quantity: product.missingQuantityArray[0].quantity || 0,
-      unit: product.totalNeededArray[0]?.unit || '',
-      store: product.storeInfo?.storeName || '',
-      who: userName() || '',
-      price: null,
-      notes: ''
-    };
-    forms.stock = {
-      quantity: 0,
-      unit: product.totalNeededArray[0]?.unit || '',
-      notes: '',
-      dateTime: new Date().toISOString()
-    };
+  // ─────────────────────────────────────────────────────────────
+  // ACTIONS - PURCHASES
+  // ─────────────────────────────────────────────────────────────
 
-    edit.purchase = {
-      quantity: 0,
-      unit: product.totalNeededArray[0]?.unit || '',
-      store: product.storeInfo?.storeName || '',
-      who: userName() || '',
-      price: null,
-      notes: '',
-    };
-  }
-
-  // Actions CRUD - Achats
   async function addPurchase() {
+    if (!product) return;
+
     await withLoading(async () => {
       if (!forms.purchase.quantity || !forms.purchase.unit.trim()) {
-        throw new Error('Veuillez remplir les champs obligatoires');
+        throw new Error("Veuillez remplir les champs obligatoires");
       }
 
-      if (!productsStore || !productsStore.currentMainId) {
-        throw new Error('Une erreur est survenue');
-      } // FIXTIT : recupération plus propre du mainId
+      if (!productsStore.currentMainId) {
+        throw new Error("mainId non disponible");
+      }
 
-      // Normaliser les unités avant envoi à Appwrite
-      const { quantity: normalizedQuantity, unit: normalizedUnit } = normalizeUnit(
+      const { quantity, unit } = normalizeUnit(
         forms.purchase.quantity,
-        forms.purchase.unit
+        forms.purchase.unit,
       );
 
-      const result = await createPurchase({
+      await createPurchase({
         products: [product.$id],
-        mainId: productsStore!.currentMainId!,
-        unit: normalizedUnit,
-        quantity: normalizedQuantity,
+        mainId: productsStore.currentMainId,
+        unit,
+        quantity,
         store: forms.purchase.store || null,
         who: forms.purchase.who || null,
-        notes: forms.purchase.notes || '',
+        notes: forms.purchase.notes || "",
         price: forms.purchase.price || null,
       });
 
-      if (result) {
-        resetForms();
-        showToast('success', 'Achat ajouté avec succès');
-      }
-    });
+      // ✅ Reset local form, les données du produit se mettront à jour via le store
+      forms.purchase = {
+        quantity: product.missingQuantityArray[0]?.quantity ?? null,
+        unit: product.totalNeededArray[0]?.unit ?? "",
+        store: forms.purchase.store,
+        who: forms.purchase.who,
+        price: null,
+        notes: "",
+      };
+    }, "Achat ajouté avec succès");
   }
 
   function startEditPurchase(purchase: Purchases) {
-    edit.purchase = { ...purchase };
     editingPurchaseId = purchase.$id;
-    console.log('startEditPurchase', purchase);
   }
 
   function cancelEditPurchase() {
-    // Réinitialiser avec des valeurs vides au lieu de null
-    edit.purchase = {
-      $id: '',
-      quantity: 0,
-      unit: product.totalNeededArray[0]?.unit || '',
-      store: product.storeInfo?.storeName || '',
-      who: userName() || '',
-      price: null,
-      notes: '',
-      $createdAt: '',
-      $updatedAt: '',
-      $permissions: []
-    };
     editingPurchaseId = null;
   }
 
-  async function updateEditedPurchase() {
-    console.log('savePurchase', edit.purchase);
-    if (!edit.purchase || !edit.purchase.$id) return; // Vérifier qu'il y a un ID valide
+  async function updateEditedPurchase(updatedPurchase: Purchases) {
+    if (!updatedPurchase.$id) return;
 
     await withLoading(async () => {
-      // Normaliser les unités avant envoi à Appwrite
-      const { quantity: normalizedQuantity, unit: normalizedUnit } = normalizeUnit(
-        edit.purchase.quantity,
-        edit.purchase.unit
+      const { quantity, unit } = normalizeUnit(
+        updatedPurchase.quantity,
+        updatedPurchase.unit,
       );
 
-      const updates = {
-        unit: normalizedUnit,
-        quantity: normalizedQuantity,
-        store: edit.purchase?.store || null,
-        who: edit.purchase?.who || null,
-        notes: edit.purchase?.notes || '',
-        price: edit.purchase?.price || null
-      };
+      await updatePurchase(updatedPurchase.$id, {
+        unit,
+        quantity,
+        store: updatedPurchase.store || null,
+        who: updatedPurchase.who || null,
+        notes: updatedPurchase.notes || "",
+        price: updatedPurchase.price || null,
+      });
 
-      const result = await updatePurchase(edit.purchase.$id, updates);
-
-      if (result) {
-        editingPurchaseId = null;
-        showToast('success', 'Achat modifié avec succès');
-      }
-    });
+      editingPurchaseId = null;
+    }, "Achat modifié avec succès");
   }
 
-  async function deletePurchase(purchaseId: string) {
-    const purchase = purchasesList.find(p => p.$id === purchaseId);
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer cet achat (${purchase?.quantity} ${purchase?.unit}) ?`)) {
+  async function removePurchase(purchaseId: string) {
+    const purchase = purchasesList.find((p) => p.$id === purchaseId);
+    if (!purchase) return;
+
+    if (
+      !confirm(`Supprimer cet achat (${purchase.quantity} ${purchase.unit}) ?`)
+    ) {
       return;
     }
 
     await withLoading(async () => {
       await deletePurchase(purchaseId);
-      showToast('success', 'Achat supprimé avec succès');
-    });
+    }, "Achat supprimé avec succès");
   }
 
-  // Actions CRUD - Stock
+  // ─────────────────────────────────────────────────────────────
+  // ACTIONS - STOCK (simplifié - même pattern)
+  // ─────────────────────────────────────────────────────────────
+
   async function addStock() {
+    if (!product) return;
+
     await withLoading(async () => {
       if (!forms.stock.quantity || !forms.stock.unit) {
-        throw new Error('Veuillez remplir les champs obligatoires');
+        throw new Error("Veuillez remplir les champs obligatoires");
       }
 
-      // Créer la nouvelle entrée de stock
-      const newStockEntry = {
+      const newEntry = {
         quantity: forms.stock.quantity.toString(),
         unit: forms.stock.unit,
-        notes: forms.stock.notes || '',
-        dateTime: forms.stock.dateTime || new Date().toISOString()
+        notes: forms.stock.notes,
+        dateTime: forms.stock.dateTime,
       };
 
-      // Ajouter aux entrées existantes
-      const updatedStockEntries = [...stockEntries, newStockEntry];
+      const updated = [...stockEntries, newEntry];
+      await updateProductStock(product.$id, JSON.stringify(updated));
 
-      // Mettre à jour le produit
-      const result = await updateProductStock(product.$id, JSON.stringify(updatedStockEntries));
-
-      if (result) {
-        forms.stock.quantity = null;
-        forms.stock.notes = '';
-        forms.stock.dateTime = new Date().toISOString();
-        showToast('success', 'Relevé de stock ajouté avec succès');
-      }
-    });
+      forms.stock.quantity = null;
+      forms.stock.notes = "";
+      forms.stock.dateTime = new Date().toISOString();
+    }, "Relevé de stock ajouté");
   }
 
-  async function deleteStock(index: number) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce relevé de stock ?')) {
-      return;
-    }
+  async function removeStock(index: number) {
+    if (!product) return;
+
+    if (!confirm("Supprimer ce relevé de stock ?")) return;
 
     await withLoading(async () => {
-      // Supprimer l'entrée
-      const updatedStockEntries = stockEntries.filter((_, i) => i !== index);
-
-      // Mettre à jour le produit
-      const result = await updateProductStock(product.$id, JSON.stringify(updatedStockEntries));
-
-      if (result) {
-        showToast('success', 'Relevé de stock supprimé avec succès');
-      }
-    });
+      const updated = stockEntries.filter((_, i) => i !== index);
+      await updateProductStock(product.$id, JSON.stringify(updated));
+    }, "Relevé de stock supprimé");
   }
 
-  // Actions CRUD - Volontaires
-  async function addVolunteer(volunteerName: string) {
-    if (!volunteerName.trim()) return;
+  // ─────────────────────────────────────────────────────────────
+  // ACTIONS - VOLUNTEERS & STORE (même pattern)
+  // ─────────────────────────────────────────────────────────────
+
+  async function addVolunteer(name: string) {
+    if (!product || !name.trim()) return;
 
     await withLoading(async () => {
-      const name = volunteerName.trim();
-
-      // Vérifier si le volontaire existe déjà
       if (whoList.includes(name)) {
-        throw new Error('Ce volontaire est déjà ajouté');
+        throw new Error("Ce volontaire est déjà ajouté");
       }
 
-      const updatedWho = [...whoList, name];
-      const result = await updateProductWho(product.$id, updatedWho);
-
-      if (result) {
-        showToast('success', 'Volontaire ajouté avec succès');
-      }
-    });
+      await updateProductWho(product.$id, [...whoList, name.trim()]);
+    }, "Volontaire ajouté");
   }
 
-  async function removeVolunteer(volunteer: string) {
-    if (!confirm(`Retirer ${volunteer} de la liste des volontaires ?`)) {
-      return;
-    }
+  async function removeVolunteer(name: string) {
+    if (!product) return;
+
+    if (!confirm(`Retirer ${name} ?`)) return;
 
     await withLoading(async () => {
-      const updatedWho = whoList.filter(v => v !== volunteer);
-      const result = await updateProductWho(product.$id, updatedWho);
-
-      if (result) {
-        showToast('success', 'Volontaire retiré avec succès');
-      }
-    });
+      await updateProductWho(
+        product.$id,
+        whoList.filter((v) => v !== name),
+      );
+    }, "Volontaire retiré");
   }
 
-  // Actions CRUD - Magasin
   async function updateStore(storeInfo: StoreInfo) {
+    if (!product) return;
+
     await withLoading(async () => {
-      const result = await updateProductStore(product.$id, storeInfo);
-
-      if (result) {
-        showToast('success', 'Magasin mis à jour avec succès');
-      }
-    });
+      await updateProductStore(product.$id, storeInfo);
+    }, "Magasin mis à jour");
   }
 
-  // Utilitaires
-  function setCurrentTab(tab: string) {
-    currentTab = tab;
-  }
 
-  // Retourner l'API publique du store
   return {
-    // États
+    // État UI
     get loading() { return loading; },
     get error() { return error; },
     get currentTab() { return currentTab; },
-    get editingPurchaseId() { return editingPurchaseId; },
+    set currentTab(value: string) { currentTab = value; },
 
-    // Formulaires
-    forms,
-    edit,
-
-    // Données dérivées
+    // Données du produit (toujours fraîches du store)
+    get product() { return product; },
     get recipes() { return recipes; },
     get whoList() { return whoList; },
     get stockEntries() { return stockEntries; },
     get purchasesList() { return purchasesList; },
 
-    // Actions - Achats
+    // État d'édition
+    get editingPurchaseId() { return editingPurchaseId; },
+    get editingPurchaseData() { return editingPurchaseData; },
+
+    // Formulaires locaux
+    forms,
+
+    // Actions
     addPurchase,
     startEditPurchase,
     cancelEditPurchase,
     updateEditedPurchase,
-    deletePurchase,
-
-    // Actions - Stock
+    removePurchase,
     addStock,
-    deleteStock,
-
-    // Actions - Volontaires
+    removeStock,
     addVolunteer,
     removeVolunteer,
-
-    // Actions - Magasin
     updateStore,
 
     // Utilitaires
-    resetForms,
-    setCurrentTab,
-
-    // Helper functions exposées pour les composants
     formatQuantity,
     formatDate,
     formatDisplayQuantity

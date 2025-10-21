@@ -1,38 +1,26 @@
 <script lang="ts">
 	import { Archive } from '@lucide/svelte';
-	import type { EnrichedProduct } from '../types/store.types.js';
-	import { createProductModalState } from '../stores/ProductModalState.svelte';
-	import { productsStore } from '../stores/ProductsStore.svelte';
-    import { formatDate, formatQuantity } from '../utils/products-display.js';
+	import type { ProductModalStateType } from '../types/store.types.js';
+  import { formatDate, formatQuantity } from '../utils/products-display.js';
 
-	// --- NOUVELLE APPROCHE : Consommation directe de ProductModalState ---
-	// Le composant consomme directement le store au lieu de recevoir des props
+
 
 	interface Props {
-		product: EnrichedProduct | null;
+		modalState: ProductModalStateType;
 	}
 
-	let { product }: Props = $props();
+	let { modalState }: Props = $props();
 
-	// Accès direct au store
-	const modalState = $derived.by(() => {
-		return product ? createProductModalState(product) : null;
-	});
 
 	// Données dérivées du store
-	const stockEntries = $derived(modalState?.stockEntries ?? []);
-	const loading = $derived(modalState?.loading ?? false);
-	const stockForm = $derived(modalState!.forms.stock);
+	const stockForm = $derived(modalState.forms.stock);
 
-
-
-	// --- NOUVELLE APPROCHE : Utilisation directe des actions du store ---
 	async function handleAddStock() {
 		await modalState?.addStock();
 	}
 
 	async function handleDeleteStock(index: number) {
-		await modalState?.deleteStock(index);
+		await modalState?.removeStock(index);
 	}
 
 </script>
@@ -100,8 +88,8 @@
 				</div>
 			</div>
 			<div class="card-actions justify-end mt-4">
-				<button class="btn btn-primary btn-sm" onclick={handleAddStock} disabled={loading}>
-					{#if loading}
+				<button class="btn btn-primary btn-sm" onclick={handleAddStock} disabled={modalState.loading}>
+					{#if modalState.loading}
 						<span class="loading loading-spinner loading-sm"></span>
 					{:else}
 						Ajouter au stock
@@ -111,7 +99,7 @@
 		</div>
 	</div>
 
-	{#if stockEntries.length === 0}
+	{#if modalState.stockEntries.length === 0}
 		<div class="text-center py-8 opacity-50">
 			<Archive class="w-12 h-12 mx-auto mb-2" />
 			<p>Aucun stock enregistré pour ce produit</p>
@@ -128,7 +116,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each stockEntries as entry, index (entry.dateTime)}
+					{#each modalState.stockEntries as entry, index (entry.dateTime)}
 						<tr>
 							<td class="font-medium">
 								{entry.quantity} {entry.unit}
@@ -139,9 +127,9 @@
 								<button
 									class="btn btn-ghost btn-xs text-error"
 									onclick={() => handleDeleteStock(index)}
-									disabled={loading}
+									disabled={modalState.loading}
 								>
-									{#if loading}
+									{#if modalState.loading}
 										<span class="loading loading-spinner loading-xs"></span>
 									{:else}
 										Supprimer

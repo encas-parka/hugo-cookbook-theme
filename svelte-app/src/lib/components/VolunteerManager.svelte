@@ -1,23 +1,15 @@
 <script lang="ts">
 	import { Users, X } from '@lucide/svelte';
-	import type { EnrichedProduct } from '../types/store.types.js';
+	import type { ProductModalStateType } from '../types/store.types.js';
 
 	import { createProductModalState } from '../stores/ProductModalState.svelte';
 
+
 	interface Props {
-		product: EnrichedProduct | null;
+		modalState: ProductModalStateType;
 	}
 
-	let { product }: Props = $props();
-
-	// Accès direct au store
-	const modalState = $derived.by(() => {
-		return product ? createProductModalState(product) : null;
-	});
-
-	// Données dérivées du store
-	const volunteers = $derived(modalState?.whoList ?? []);
-	const loading = $derived(modalState?.loading ?? false);
+	let { modalState }: Props = $props();
 
 	// État local pour le formulaire
 	let newVolunteer = $state('');
@@ -25,9 +17,10 @@
 	// Validation : formulaire valide si le nom n'est pas vide ET n'existe pas déjà
 	const isFormValid = $derived(
 		newVolunteer.trim().length > 0 &&
-		!volunteers.includes(newVolunteer.trim())
+		!modalState.whoList.includes(newVolunteer.trim())
 	);
 
+	// Appel modalState.Action → appwrite-interraction
 	async function handleAddVolunteer() {
 		if (!isFormValid || !modalState) return;
 
@@ -64,8 +57,8 @@
 						}}
 					/>
 				</div>
-				<button class="btn btn-primary btn-sm" onclick={handleAddVolunteer} disabled={loading || !isFormValid}>
-					{#if loading}
+				<button class="btn btn-primary btn-sm" onclick={handleAddVolunteer} disabled={modalState.loading  || !isFormValid}>
+					{#if modalState.loading }
 						<span class="loading loading-spinner loading-sm"></span>
 					{:else}
 						Ajouter
@@ -79,24 +72,24 @@
 		<div class="card-body">
 			<h4 class="card-title text-base">
 				Volontaires
-				{#if volunteers.length > 0}
-					<span class="badge badge-primary badge-sm">{volunteers.length}</span>
+				{#if modalState.whoList.length > 0}
+					<span class="badge badge-primary badge-sm">{modalState.whoList.length}</span>
 				{/if}
 			</h4>
-			{#if volunteers.length === 0}
+			{#if modalState.whoList.length === 0}
 				<div class="text-center py-8 opacity-50">
 					<Users class="w-12 h-12 mx-auto mb-2" />
 					<p>Aucun volontaire assigné à ce produit</p>
 				</div>
 			{:else}
 				<div class="flex flex-wrap gap-2">
-					{#each volunteers as volunteer (volunteer)}
+					{#each modalState.whoList as volunteer (volunteer)}
 						<div class="badge badge-primary badge-lg gap-2">
 							{volunteer}
 							<button
 								class="btn btn-ghost btn-xs p-0 hover:text-error"
 								onclick={() => handleRemoveVolunteer(volunteer)}
-								disabled={loading}
+								disabled={modalState.loading }
 							>
 								<X class="w-3 h-3" />
 							</button>
