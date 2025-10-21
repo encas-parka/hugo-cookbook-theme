@@ -181,14 +181,15 @@ export function createProductModalState(product: EnrichedProduct) {
     editingPurchaseId = null;
   }
 
-  async function savePurchase() {
+  async function updateEditedPurchase() {
+    console.log('savePurchase', edit.purchase);
     if (!edit.purchase || !edit.purchase.$id) return; // Vérifier qu'il y a un ID valide
 
     await withLoading(async () => {
       // Normaliser les unités avant envoi à Appwrite
       const { quantity: normalizedQuantity, unit: normalizedUnit } = normalizeUnit(
-        edit.purchase!.quantity,
-        edit.purchase!.unit
+        edit.purchase.quantity,
+        edit.purchase.unit
       );
 
       const updates = {
@@ -343,7 +344,7 @@ export function createProductModalState(product: EnrichedProduct) {
     addPurchase,
     startEditPurchase,
     cancelEditPurchase,
-    savePurchase,
+    updateEditedPurchase,
     deletePurchase,
 
     // Actions - Stock

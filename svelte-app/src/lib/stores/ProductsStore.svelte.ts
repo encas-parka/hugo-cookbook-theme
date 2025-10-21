@@ -6,7 +6,7 @@ import type { Products, Purchases } from '../types/appwrite.d';
 import type { NumericQuantity, QuantityInfo, StoreInfo, EnrichedProduct, RecipeOccurrence } from '../types/store.types';
 
 import {
-  loadProducts,
+  loadProductsWithPurchases,
   syncProductsAndPurchases,
   subscribeToRealtime,
   type LoadProductsOptions,
@@ -56,9 +56,9 @@ interface FiltersState {
   sortDirection: 'asc' | 'desc';
 }
 
-interface SyncMetadata {
+interface CacheData {
   lastSync: string | null;
-  mainId: string | null;
+  products: [string, EnrichedProduct][];
 }
 
 // =============================================================================
@@ -209,7 +209,6 @@ class ProductsStore {
 
     this.#currentMainId = mainId;
     this.#cacheKey = createStorageKey('products-enriched', mainId);
-    this.#metadataKey = createStorageKey('products-sync-metadata', mainId);
 
     try {
       // 1️⃣ Charger depuis cache
@@ -254,14 +253,11 @@ class ProductsStore {
         return;
       }
 
-      const entries = superjson.parse(cached) as [string, EnrichedProduct][];
-      entries.forEach(([id, product]) => this.#enrichedProducts.set(id, product));
+      const { products, lastSync } = superjson.parse(cached) as CacheData;
+      products.forEach(([id, product]) => this.#enrichedProducts.set(id, product));
+      this.#lastSync = lastSync;
 
-      // Restaurer les métadonnées de sync
-      this.#restoreSyncMetadata();
-
-      console.log(`[ProductsStore] ${entries.length} produits chargés du cache`);
-
+      console.log(`[ProductsStore] ${products.length} produits chargés du cache, lastSync: ${lastSync}`);
     } catch (err) {
       console.warn('[ProductsStore] Erreur lecture cache, ignoré:', err);
     }
@@ -270,53 +266,19 @@ class ProductsStore {
   /**
    * Persiste les produits enrichis dans localStorage
    */
-  #persistToCache() {
-    if (!this.#cacheKey) return;
+   #persistToCache() {
+     if (!this.#cacheKey) return;
+     try {
+       const cacheData: CacheData = {
+         lastSync: this.#lastSync,
+         products: Array.from(this.#enrichedProducts.entries())
+       };
+       localStorage.setItem(this.#cacheKey, superjson.stringify(cacheData));
+     } catch (err) {
+       console.error('[ProductsStore] Erreur persist cache:', err);
+     }
+   }
 
-    try {
-      const serialized = superjson.stringify(
-        Array.from(this.#enrichedProducts.entries())
-      );
-      localStorage.setItem(this.#cacheKey, serialized);
-    } catch (err) {
-      console.error('[ProductsStore] Erreur persist cache:', err);
-    }
-  }
-
-  /**
-   * Persiste les métadonnées de synchronisation
-   */
-  #persistSyncMetadata() {
-    if (!this.#metadataKey || !this.#currentMainId) return;
-
-    const metadata: SyncMetadata = {
-      lastSync: this.#lastSync,
-      mainId: this.#currentMainId
-    };
-
-    try {
-      localStorage.setItem(this.#metadataKey, JSON.stringify(metadata));
-    } catch (err) {
-      console.error('[ProductsStore] Erreur persist metadata:', err);
-    }
-  }
-
-  /**
-   * Restaure les métadonnées de synchronisation
-   */
-  #restoreSyncMetadata() {
-    if (!this.#metadataKey) return;
-
-    try {
-      const stored = localStorage.getItem(this.#metadataKey);
-      if (stored) {
-        const metadata: SyncMetadata = JSON.parse(stored);
-        this.#lastSync = metadata.lastSync;
-      }
-    } catch (err) {
-      console.warn('[ProductsStore] Erreur restauration metadata:', err);
-    }
-  }
 
   /**
    * Charge les produits initialement depuis Appwrite
@@ -327,13 +289,12 @@ class ProductsStore {
 
     try {
       const options: LoadProductsOptions = {
-        includePurchases: true,
         limit: BATCH_LIMIT,
         orderBy: 'productName',
         orderDirection: 'asc'
       };
 
-      const products = await loadProducts(mainId, options);
+      const products = await loadProductsWithPurchases(mainId, options);
 
       // Enrichir et ajouter à la SvelteMap
       products.forEach(product => {
@@ -343,7 +304,6 @@ class ProductsStore {
 
       this.#updateLastSync();
       this.#persistToCache();
-      this.#persistSyncMetadata();
 
       console.log(`[ProductsStore] ${products.length} produits chargés et enrichis`);
 
@@ -361,7 +321,7 @@ class ProductsStore {
    * Synchronisation incrémentielle en arrière-plan
    */
    async #syncInBackground() {
-     if (!this.#lastSync) return;
+     if (!this.#lastSync || !this.#currentMainId) return;
      this.#syncing = true;
 
      try {
@@ -369,56 +329,37 @@ class ProductsStore {
          lastSync: this.#lastSync,
          limit: BATCH_LIMIT
        };
-       const { products: updatedProducts, purchases: updatedPurchases } =
-         await syncProductsAndPurchases(this.#currentMainId!, options);
 
-       const productsMap = new Map(updatedProducts.map(p => [p.$id, p]));
+       // ✅ FIX: syncProductsAndPurchases retourne { allProducts }
+       const { allProducts } = await syncProductsAndPurchases(this.#currentMainId, options);
 
-       // 1️⃣ Appliquer les produits
-       if (updatedProducts.length > 0) {
-         updatedProducts.forEach(product => {
+       // Les allProducts contiennent DÉJÀ les purchases hydratées
+       // (products récupérés directement + products rechargés via purchases modifiés)
+
+       const productsMap = new Map(allProducts.map(p => [p.$id, p]));
+
+       // 1️⃣ Appliquer tous les produits synchronisés
+       if (allProducts.length > 0) {
+         allProducts.forEach(product => {
            const enriched = this.#enrichProduct(product);
            this.#enrichedProducts.set(product.$id, enriched);
          });
+         console.log(`[ProductsStore] ${allProducts.length} produits appliqués du sync`);
        }
 
-       // 2️⃣ Appliquer les purchases
-       if (updatedPurchases.length > 0) {
-         const affectedProductIds = new Set(
-           updatedPurchases
-             .filter(purchase => purchase.products?.length > 0)
-             .flatMap(purchase => purchase.products)
-             .map((prod: any) => typeof prod === 'string' ? prod : prod.$id)
-             .filter(Boolean)
-         );
-
-         const productsToLoad = Array.from(affectedProductIds)
-           .filter(id => !productsMap.has(id));
-
-         // ✅ Charger UNIQUEMENT si nécessaire
-         if (productsToLoad.length > 0) {
-           console.log(`[ProductsStore] Rechargement de ${productsToLoad.length} produits affectés par purchases`);
-           const loadedProducts = await loadProductsListByIds(productsToLoad);
-           loadedProducts.forEach(product => {
-             const enriched = this.#enrichProduct(product);
-             this.#enrichedProducts.set(product.$id, enriched);
-           });
-         }
+       // Persister les changements
+       if (allProducts.length > 0) {
+         this.#updateLastSync();
+         this.#persistToCache();
+         console.log(`[ProductsStore] Sync complétée: ${allProducts.length} produits`);
        }
 
-      // Persister si des changements
-      if (updatedProducts.length > 0 || updatedPurchases.length > 0) {
-        this.#updateLastSync();
-        this.#persistToCache();
-        this.#persistSyncMetadata();
-      }
-
-    } catch (err) {
-      console.error('[ProductsStore] Erreur sync:', err);
-    } finally {
-      this.#syncing = false;
-    }
-  }
+     } catch (err) {
+       console.error('[ProductsStore] Erreur sync:', err);
+     } finally {
+       this.#syncing = false;
+     }
+   }
 
   // =========================================================================
   // ENRICHISSEMENT DE PRODUITS
@@ -670,17 +611,13 @@ class ProductsStore {
   /**
    * Débouncer la persistence pour éviter les écritures excessives
    */
-  #debouncedPersist = (() => {
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-    return () => {
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        this.#persistToCache();
-        this.#persistSyncMetadata();
-        timeout = null;
-      }, SYNC_DEBOUNCE_MS);
-    };
-  })();
+   #debouncedPersist() {
+     if (this.#syncDebounceTimer) clearTimeout(this.#syncDebounceTimer);
+     this.#syncDebounceTimer = setTimeout(() => {
+       this.#persistToCache();
+       this.#syncDebounceTimer = null;
+     }, SYNC_DEBOUNCE_MS);
+   }
 
   #updateLastSync() {
     this.#lastSync = new Date().toISOString();
@@ -867,6 +804,13 @@ class ProductsStore {
   destroy() {
     this.#unsubscribe?.();
     this.#unsubscribe = null;
+
+    // 🔧 Ajouter le cleanup du debounce timeout ?
+    if (this.#syncDebounceTimer) {
+      clearTimeout(this.#syncDebounceTimer);
+      this.#syncDebounceTimer = null;
+    }
+
     console.log('[ProductsStore] Ressources nettoyées');
   }
 

@@ -1,3 +1,5 @@
+import type { Products } from './appwrite.d';
+
 /**
  * Types pour la gestion des magasins
  */
@@ -57,40 +59,7 @@ export interface NumericQuantity {
 }
 
 // Type enrichi pour les produits utilisés dans les composants
-export interface EnrichedProduct {
-  $id: string;
-  $collectionId: string;
-  $databaseId: string;
-  $createdAt: string;
-  $updatedAt: string;
-  $permissions: string[];
-  productHugoUuid: string;
-  productName: string;
-  productType: string;
-  pFrais: boolean;
-  pSurgel: boolean;
-  stockReel: StockEntry[] | null;
-  mainId: string;
-  status: string;
-  who: string[] | null;
-  store: string | null;
-  previousNames: string[] | null;
-  isMerged: boolean;
-  mergedInto: string | null;
-  mergedFrom: string[] | null;
-  mergeDate: string | null;
-  mergeReason: string | null;
-  nbRecipes: number | null;
-  totalAssiettes: number | null;
-  dateTimeService: string | null;
-  recipeNames: string | null;
-  totalNeededConsolidated: string | null;
-  totalNeededRaw: string | null;
-  conversionRules: string[] | null;
-  recipesOccurrences: string | null;
-  neededConsolidatedByDate: string | null;
-  purchases: any[]; // Type Purchases à importer depuis appwrite.d.ts
-
+export interface EnrichedProduct extends Products {
   // Propriétés enrichies ajoutées par le store
   storeInfo: StoreInfo | null;
   totalNeededArray: NumericQuantity[];
@@ -98,8 +67,7 @@ export interface EnrichedProduct {
   stockArray: StockEntry[];
   missingQuantityArray: NumericQuantity[];
   totalPurchasesArray: NumericQuantity[];
-  displayTotalNeeded: string; // Ajout de la propriété manquante
-  // displayName: string; // UNUSED
+  displayTotalNeeded: string;
   displayTotalPurchases: string;
   displayMissingQuantity: string;
 }

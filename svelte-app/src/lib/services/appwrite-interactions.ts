@@ -40,22 +40,35 @@
  * et fournit une API propre pour les stores Svelte 5.
  */
 
-import { ID, Query, type Models } from 'appwrite';
-import type { Products, Purchases } from '../types/appwrite.d';
-import type { StoreInfo } from '../types/store.types';
+import { ID, Query, type Models } from "appwrite";
+import type { Products, Purchases } from "../types/appwrite.d";
+import type { StoreInfo } from "../types/store.types";
 
 // =============================================================================
 // TYPES INTERNE (utilise les types générés automatiquement ??)
 // =============================================================================
 
-export type ProductUpdate = Partial<Omit<Products, '$id' | keyof Models.Row | 'purchases' | 'mainId'>>;
+export type ProductUpdate = Partial<
+  Omit<Products, "$id" | keyof Models.Row | "purchases" | "mainId">
+>;
 
-export type PurchaseCreate = Omit<Purchases, '$id' | keyof Models.Row | 'purchases' | 'createdBy' | 'status' | 'products' | 'mainId'> & {
-  products: string[];  // IDs des produits pour la relation
-  mainId: string;      // ID du main pour la relation
+export type PurchaseCreate = Omit<
+  Purchases,
+  | "$id"
+  | keyof Models.Row
+  | "purchases"
+  | "createdBy"
+  | "status"
+  | "products"
+  | "mainId"
+> & {
+  products: string[]; // IDs des produits pour la relation
+  mainId: string; // ID du main pour la relation
 };
 
-export type PurchaseUpdate = Partial<Omit<Purchases, '$id' | keyof Models.Row | 'mainId' | 'createdBy' | 'status'>> & {
+export type PurchaseUpdate = Partial<
+  Omit<Purchases, "$id" | keyof Models.Row | "mainId" | "createdBy" | "status">
+> & {
   products?: Products[];
 };
 
@@ -68,10 +81,9 @@ export interface ProductWithPurchases extends Products {
 }
 
 export interface LoadProductsOptions {
-  includePurchases?: boolean;
   limit?: number;
-  orderBy?: 'productName' | '$updatedAt';
-  orderDirection?: 'asc' | 'desc';
+  orderBy?: "productName" | "$updatedAt";
+  orderDirection?: "asc" | "desc";
 }
 
 export interface SyncOptions {
@@ -100,14 +112,14 @@ export interface RealtimeCallbacks {
  * @throws Error si AppwriteClient n'est pas disponible
  */
 async function getAppwriteInstances() {
-    if (!(window as any).AppwriteClient) {
-        throw new Error('AppwriteClient non disponible');
-    }
+  if (!(window as any).AppwriteClient) {
+    throw new Error("AppwriteClient non disponible");
+  }
 
-    const databases = await (window as any).AppwriteClient.getDatabases();
-    const config = (window as any).AppwriteClient.getConfig();
+  const databases = await (window as any).AppwriteClient.getDatabases();
+  const config = (window as any).AppwriteClient.getConfig();
 
-    return { databases, config };
+  return { databases, config };
 }
 
 // =============================================================================
@@ -127,59 +139,56 @@ async function getAppwriteInstances() {
  * Flux :
  * 1. Charge les produits depuis la collection products
  * 2. Si includePurchases=true, charge les achats associés
- * 3. Utilise mergeProductsWithPurchases pour enrichir les produits
+ * 3. Utilise mergeProductsWithPurchases pour enrichir les produits @LEGACY @USELESS
  * 4. Retourne les produits prêts à être utilisés par ProductsStore
  */
-export async function loadProducts(
-    mainId: string,
-    options: LoadProductsOptions = {}
+export async function loadProductsWithPurchases(
+  mainId: string,
+  options: LoadProductsOptions = {},
 ): Promise<ProductWithPurchases[]> {
-    const {
-        includePurchases = true,
-        limit = 100,
-        orderBy = 'productName',
-        orderDirection = 'asc'
-    } = options;
+  const {
+    limit = 100,
+    orderBy = "productName",
+    orderDirection = "asc",
+  } = options;
 
-    try {
-        const { databases, config } = await getAppwriteInstances();
+  try {
+    const { databases, config } = await getAppwriteInstances();
 
-        // Charger les produits
-        const productsResponse = await databases.listDocuments(
-            config.APPWRITE_CONFIG.databaseId,
-            config.APPWRITE_CONFIG.collections.products,
-            [
-                Query.equal('mainId', mainId),
-                Query.orderAsc(orderBy === 'productName' ? 'productName' : '$updatedAt'),
-                Query.limit(limit)
-            ]
-        );
-        const products = productsResponse.documents as Products[];
+    // Charger les produits avec leurs relations purchases
+    const productsResponse = await databases.listDocuments(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.products,
+      [
+        Query.equal("mainId", mainId),
+        Query.orderAsc(
+          orderBy === "productName" ? "productName" : "$updatedAt",
+        ),
+        Query.limit(limit),
+        Query.select(["*", "purchases.*"]), // Récupérer la relation purchases
+      ],
+    );
+    const products = productsResponse.documents as Products[];
 
-        if (!includePurchases) {
-            return products as ProductWithPurchases[];
-        }
+    // Les relations sont déjà incluses dans les produits
+    const productsWithPurchases = products as ProductWithPurchases[];
 
-        // Charger les achats associés
-        const purchasesResponse = await databases.listDocuments(
-            config.APPWRITE_CONFIG.databaseId,
-            config.APPWRITE_CONFIG.collections.purchases,
-            [Query.equal('mainId', mainId)]
-        );
+    console.log(
+      `[Appwrite Interactions] ${productsResponse.documents.length} produits chargés avec achats`,
+    );
 
-        // Associer les achats aux produits
-        const purchases = purchasesResponse.documents as Purchases[];
-        const productsWithPurchases = mergeProductsWithPurchases(products, purchases);
-
-        console.log(`[Appwrite Interactions] ${productsResponse.documents.length} produits chargés avec ${purchasesResponse.documents.length} achats`);
-
-        return productsWithPurchases;
-
-    } catch (error) {
-        console.error(`[Appwrite Interactions] Erreur chargement produits pour mainId ${mainId}:`, error);
-        const errorMessage = error instanceof Error ? error.message : 'Erreur lors du chargement des produits';
-        throw new Error(`Échec du chargement des produits: ${errorMessage}`);
-    }
+    return productsWithPurchases;
+  } catch (error) {
+    console.error(
+      `[Appwrite Interactions] Erreur chargement produits pour mainId ${mainId}:`,
+      error,
+    );
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Erreur lors du chargement des produits";
+    throw new Error(`Échec du chargement des produits: ${errorMessage}`);
+  }
 }
 
 /**
@@ -197,17 +206,19 @@ export async function loadProducts(
  * 3. Retourne le document trouvé, casté en `Products`.
  * 4. En cas d'erreur (ex: produit non trouvé), log l'erreur et retourne `null`.
  */
-export async function loadProductById(productId: string): Promise<Products | null> {
+export async function loadProductById(
+  productId: string,
+): Promise<Products | null> {
   try {
     const { databases, config } = await getAppwriteInstances();
     const response = await databases.getDocument(
       config.APPWRITE_CONFIG.databaseId,
       config.APPWRITE_CONFIG.collections.products,
-      productId
+      productId,
     );
     return response as Products;
   } catch (err) {
-    console.error('[Appwrite Interactions] Erreur chargement produit:', err);
+    console.error("[Appwrite Interactions] Erreur chargement produit:", err);
     return null;
   }
 }
@@ -216,7 +227,7 @@ export async function loadProductById(productId: string): Promise<Products | nul
  * Charge plusieurs produits par leurs IDs
  */
 export async function loadProductsListByIds(
-  productIds: string[]
+  productIds: string[],
 ): Promise<Products[]> {
   try {
     const { databases, config } = await getAppwriteInstances();
@@ -226,137 +237,202 @@ export async function loadProductsListByIds(
       config.APPWRITE_CONFIG.databaseId,
       config.APPWRITE_CONFIG.collections.products,
       [
-        Query.equal('$id', productIds)  // ← Filtre par IDs
-      ]
+        Query.equal("$id", productIds), // ← Filtre par IDs
+        Query.select(["*", "purchases.*"]),
+      ],
     );
 
     return response.documents as Products[];
   } catch (err) {
-    console.error('[Appwrite Interactions] Erreur chargement produits:', err);
+    console.error("[Appwrite Interactions] Erreur chargement produits:", err);
     return [];
   }
 }
 
-
 /**
- * Synchronise les produits depuis Appwrite (uniquement les mises à jour)
+ * Synchronise les produits avec leurs purchases depuis Appwrite (uniquement les mises à jour)
  *
  * Service de synchronisation incrémentielle pour ProductsStore.
  * Optimisé pour ne charger que les modifications depuis dernière synchronisation.
  *
  * @param mainId - ID du main pour filtrer les produits
  * @param options - Options de synchronisation (dernière sync, limite)
- * @returns Promise<Products[]> - Uniquement les produits modifiés/créés depuis lastSync
+ * @returns Promise<ProductWithPurchases[]> - Produits modifiés/créés avec leurs purchases depuis lastSync
+ * @deprecated use syncProductsAndPurchases
  *
  * Flux :
  * 1. Vérifie la présence de lastSync (sinon retourne vide)
- * 2. Requête Appwrite avec filtre $updatedAt > lastSync
- * 3. Retourne uniquement le delta des modifications
+ * 2. Requête Appwrite avec filtre $updatedAt > lastSync et relations purchases
+ * 3. Retourne uniquement le delta des modifications avec relations
  * 4. ProductsStore utilisera applyProductUpdates pour fusionner ces changements
  */
-export async function syncProducts(
-    mainId: string,
-    options: SyncOptions
-): Promise<Products[]> {
-    const { lastSync, limit = 100 } = options;
+export async function syncProductsWithPurchases(
+  mainId: string,
+  options: SyncOptions,
+): Promise<ProductWithPurchases[]> {
+  const { lastSync, limit = 100 } = options;
 
-    if (!lastSync) {
-        console.log('[Appwrite Interactions] Aucune dernière sync fournie, retour vide');
-        return [];
+  if (!lastSync) {
+    console.log(
+      "[Appwrite Interactions] Aucune dernière sync fournie, retour vide",
+    );
+    return [];
+  }
+
+  try {
+    const { databases, config } = await getAppwriteInstances();
+
+    const response = await databases.listDocuments(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.products,
+      [
+        Query.updatedAfter(lastSync),
+        Query.equal("mainId", mainId),
+        Query.limit(limit),
+        Query.select(["*", "purchases.*"]), // Récupérer la relation purchases
+      ],
+    );
+
+    if (response.documents.length > 0) {
+      console.log(
+        `[Appwrite Interactions] ${response.documents.length} produits synchronisés avec leurs purchases`,
+      );
     }
 
-    try {
-        const { databases, config } = await getAppwriteInstances();
-
-        const response = await databases.listDocuments(
-            config.APPWRITE_CONFIG.databaseId,
-            config.APPWRITE_CONFIG.collections.products,
-            [
-                Query.greaterThan('$updatedAt', lastSync),
-                Query.equal('mainId', mainId),
-                Query.limit(limit)
-            ]
-        );
-
-        if (response.documents.length > 0) {
-            console.log(`[Appwrite Interactions] ${response.documents.length} mises à jour synchronisées`);
-        }
-
-        return response.documents as Products[];
-
-    } catch (error) {
-        console.error(`[Appwrite Interactions] Erreur sync produits pour mainId ${mainId}:`, error);
-        const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la synchronisation';
-        throw new Error(`Échec de la synchronisation: ${errorMessage}`);
-    }
+    return response.documents as ProductWithPurchases[];
+  } catch (error) {
+    console.error(
+      `[Appwrite Interactions] Erreur sync produits avec purchases pour mainId ${mainId}:`,
+      error,
+    );
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Erreur lors de la synchronisation";
+    throw new Error(`Échec de la synchronisation: ${errorMessage}`);
+  }
 }
 
 /**
- * Synchronise les produits ET les purchases depuis Appwrite (uniquement les mises à jour)
+ * Synchronise les produits avec leurs relations purchases depuis Appwrite (uniquement les mises à jour)
  *
- * Service de synchronisation hybride pour ProductsStore.
- * Récupère les modifications des collections products ET purchases depuis la dernière synchronisation.
+ * Service de synchronisation pour ProductsStore.
+ * Récupère les modifications des produits avec leurs relations purchases depuis la dernière synchronisation.
  *
  * @param mainId - ID du main pour filtrer les données
  * @param options - Options de synchronisation (dernière sync, limite)
- * @returns Promise<{products: Products[], purchases: Purchases[]}> - Modifications des deux collections
+ * @returns Promise<{products: Products[], purchases: Purchases[]}> - Produits modifiés avec leurs relations
  *
  * Flux :
  * 1. Vérifie la présence de lastSync (sinon retourne vide)
- * 2. Parallélise les requêtes sur products et purchases avec filtre $updatedAt > lastSync
- * 3. Retourne le delta des modifications pour les deux collections
- * 4. ProductsStore utilisera applyProductUpdates et applyPurchaseUpdates pour fusionner
+ * 2. Charge les produits modifiés avec leurs relations purchases
+ * 3. Extrait les purchases des produits pour compatibilité avec le code existant
+ * 4. ProductsStore utilisera applyProductUpdates pour fusionner
  */
 export async function syncProductsAndPurchases(
-    mainId: string,
-    options: SyncOptions
-): Promise<{ products: Products[], purchases: Purchases[] }> {
-    const { lastSync, limit = 100 } = options;
+  mainId: string,
+  options: SyncOptions,
+): Promise<{ allProducts: Products[] }> {
+  const { lastSync, limit = 100 } = options;
 
-    if (!lastSync) {
-        console.log('[Appwrite Interactions] Aucune dernière sync fournie, retour vide pour sync hybride');
-        return { products: [], purchases: [] };
-    }
+  if (!lastSync) {
+    console.log(
+      "[Appwrite Interactions] Aucune dernière sync fournie, retour vide pour sync hybride",
+    );
+    return { allProducts: [] };
+  }
 
-    try {
-        const { databases, config } = await getAppwriteInstances();
+  try {
+    const { databases, config } = await getAppwriteInstances();
 
-        // Paralléliser les deux requêtes pour optimiser la performance
-        const [productsResponse, purchasesResponse] = await Promise.all([
-            databases.listDocuments(
-                config.APPWRITE_CONFIG.databaseId,
-                config.APPWRITE_CONFIG.collections.products,
-                [
-                    Query.greaterThan('$updatedAt', lastSync),
-                    Query.equal('mainId', mainId),
-                    Query.limit(limit)
-                ]
-            ),
-            databases.listDocuments(
-                config.APPWRITE_CONFIG.databaseId,
-                config.APPWRITE_CONFIG.collections.purchases,
-                [
-                    Query.greaterThan('$updatedAt', lastSync),
-                    Query.equal('mainId', mainId),
-                    Query.limit(limit)
-                ]
-            )
-        ]);
+    // Paralléliser les deux requêtes pour optimiser la performance
+    const [productsResponse, purchasesResponse] = await Promise.all([
+      databases.listDocuments(
+        config.APPWRITE_CONFIG.databaseId,
+        config.APPWRITE_CONFIG.collections.products,
+        [
+          Query.greaterThan("$updatedAt", lastSync),
+          Query.equal("mainId", mainId),
+          Query.select(["*", "purchases.*"]),
+          Query.limit(limit),
+        ],
+      ),
+      databases.listDocuments(
+        config.APPWRITE_CONFIG.databaseId,
+        config.APPWRITE_CONFIG.collections.purchases,
+        [
+          Query.greaterThan("$updatedAt", lastSync),
+          Query.equal("mainId", mainId),
+          Query.select(["products.$id"]),
+          Query.limit(limit),
+        ],
+      ),
+    ]);
+    // ===== DEBUG =====
+      // console.log('[Appwrite Interactions] Sync Response - Products:', JSON.stringify(productsResponse.documents, null, 2));
+      // console.log('[Appwrite Interactions] Sync Response - Purchases:', JSON.stringify(purchasesResponse.documents, null, 2));
 
-        const products = productsResponse.documents as Products[];
-        const purchases = purchasesResponse.documents as Purchases[];
+      // // Inspecter la structure réelle de p.products
+      // if (purchasesResponse.documents.length > 0) {
+      //     const firstPurchase = purchasesResponse.documents[0];
+      //     console.log('[Appwrite Interactions] Type de purchases[0].products:', typeof firstPurchase.products);
+      //     console.log('[Appwrite Interactions] Valeur de purchases[0].products:', firstPurchase.products);
+      //     if (Array.isArray(firstPurchase.products) && firstPurchase.products.length > 0) {
+      //         console.log('[Appwrite Interactions] Type du premier élément:', typeof firstPurchase.products[0]);
+      //         console.log('[Appwrite Interactions] Valeur du premier élément:', firstPurchase.products[0]);
+      //     }
+      // }
+    // ===== FIN DEBUG =====
 
-        if (products.length > 0 || purchases.length > 0) {
-            console.log(`[Appwrite Interactions] Sync hybride: ${products.length} produits et ${purchases.length} achats synchronisés`);
-        }
+      let allProducts = productsResponse.documents as Products[];
+      const existingProductIds = new Set(allProducts.map(p => p.$id));
 
-        return { products, purchases };
+      if (purchasesResponse.documents.length > 0) {
+          // Extraire les IDs des products
+          const affectedProductIds = purchasesResponse.documents
+              .flatMap(p => {
+                  if (!Array.isArray(p.products)) return [];
+                  // p.products contient des objets avec $id
+                  return p.products.map((prod: any) => prod.$id);
+              })
+              .filter((id, index, arr) => arr.indexOf(id) === index) // unique
+              .filter(id => !existingProductIds.has(id)); // ✅ Exclure les IDs déjà dans productsResponse
 
-    } catch (error) {
-        console.error(`[Appwrite Interactions] Erreur sync hybride pour mainId ${mainId}:`, error);
-        const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la synchronisation hybride';
-        throw new Error(`Échec de la synchronisation hybride: ${errorMessage}`);
-    }
+          console.log(`[Appwrite Interactions] Affected products from purchases: ${affectedProductIds.length}`);
+          console.log('[Appwrite Interactions] Affected product IDs:', affectedProductIds);
+
+          // Recharger les products affectés
+          if (affectedProductIds.length > 0) {
+              try {
+                  console.log('[Appwrite Interactions] Appel loadProductsListByIds avec IDs:', affectedProductIds);
+                  const updatedProducts = await loadProductsListByIds(affectedProductIds);
+                  console.log(`[Appwrite Interactions] Reloaded ${updatedProducts.length} products:`, JSON.stringify(updatedProducts, null, 2));
+
+                  allProducts = [...allProducts, ...updatedProducts];
+              } catch (error) {
+                  console.error('[Appwrite Interactions] Erreur lors du rechargement des products:', error);
+                  throw error;
+              }
+          }
+      }
+
+      if (allProducts.length > 0) {
+          console.log(`[Appwrite Interactions] Sync total: ${allProducts.length} produits synchronisés`);
+      }
+
+      return { allProducts };
+
+  } catch (error) {
+    console.error(
+      `[Appwrite Interactions] Erreur sync pour mainId ${mainId}:`,
+      error,
+    );
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Erreur lors de la synchronisation";
+    throw new Error(`Échec de la synchronisation: ${errorMessage}`);
+  }
 }
 
 // =============================================================================
@@ -370,25 +446,29 @@ export async function syncProductsAndPurchases(
  * @returns Promise<Products>
  */
 export async function updateProduct(
-    productId: string,
-    updates: ProductUpdate
+  productId: string,
+  updates: ProductUpdate,
 ): Promise<Products> {
-    try {
-        const { databases, config } = await getAppwriteInstances();
+  try {
+    const { databases, config } = await getAppwriteInstances();
 
-        const response = await databases.updateDocument(
-            config.APPWRITE_CONFIG.databaseId,
-            config.APPWRITE_CONFIG.collections.products,
-            productId,
-            updates
-        );
+    const response = await databases.updateDocument(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.products,
+      productId,
+      updates,
+    );
 
-        return response as Products;
-    } catch (error) {
-        console.error(`[Appwrite Interactions] Erreur mise à jour produit ${productId}:`, error);
-        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-        throw new Error(`Échec de la mise à jour du produit: ${errorMessage}`);
-    }
+    return response as Products;
+  } catch (error) {
+    console.error(
+      `[Appwrite Interactions] Erreur mise à jour produit ${productId}:`,
+      error,
+    );
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
+    throw new Error(`Échec de la mise à jour du produit: ${errorMessage}`);
+  }
 }
 
 /**
@@ -397,23 +477,26 @@ export async function updateProduct(
  * @param store - Nouveau magasin (objet StoreInfo ou null)
  */
 export async function updateProductStore(
-    productId: string,
-    store: StoreInfo
+  productId: string,
+  store: StoreInfo,
 ): Promise<Products> {
-    // console.log(`[Appwrite Interactions] Mise à jour du magasin pour produit ${productId}:`, store);
+  // console.log(`[Appwrite Interactions] Mise à jour du magasin pour produit ${productId}:`, store);
 
-    // Valider les entrées
-    if (!productId) {
-        throw new Error('ID du produit requis pour la mise à jour du magasin');
-    }
+  // Valider les entrées
+  if (!productId) {
+    throw new Error("ID du produit requis pour la mise à jour du magasin");
+  }
 
-    // Sérialiser l'objet StoreInfo en string JSON pour Appwrite
-    const serializedStore = store ? JSON.stringify(store) : null;
+  // Sérialiser l'objet StoreInfo en string JSON pour Appwrite
+  const serializedStore = store ? JSON.stringify(store) : null;
 
-    const result = await updateProduct(productId, { store: serializedStore });
-    console.log(`[Appwrite Interactions] Magasin mis à jour pour produit ${productId}, nouvelle valeur:`, result.store);
+  const result = await updateProduct(productId, { store: serializedStore });
+  console.log(
+    `[Appwrite Interactions] Magasin mis à jour pour produit ${productId}, nouvelle valeur:`,
+    result.store,
+  );
 
-    return result;
+  return result;
 }
 
 /**
@@ -422,10 +505,10 @@ export async function updateProductStore(
  * @param who - Liste des volontaires (null pour vide)
  */
 export async function updateProductWho(
-    productId: string,
-    who: string[] | null
+  productId: string,
+  who: string[] | null,
 ): Promise<Products> {
-    return updateProduct(productId, { who });
+  return updateProduct(productId, { who });
 }
 
 /**
@@ -434,10 +517,10 @@ export async function updateProductWho(
  * @param stockReel - Nouveau stock au format JSON string
  */
 export async function updateProductStock(
-    productId: string,
-    stockReel: string | null
+  productId: string,
+  stockReel: string | null,
 ): Promise<Products> {
-    return updateProduct(productId, { stockReel });
+  return updateProduct(productId, { stockReel });
 }
 
 // =============================================================================
@@ -450,36 +533,37 @@ export async function updateProductStock(
  * @returns Promise<Purchases>
  */
 export async function createPurchase(
-    purchaseData: PurchaseCreate
+  purchaseData: PurchaseCreate,
 ): Promise<Purchases> {
-    try {
-        const { databases, config } = await getAppwriteInstances();
-        const client = (window as any).AppwriteClient!;
+  try {
+    const { databases, config } = await getAppwriteInstances();
+    const client = (window as any).AppwriteClient!;
 
-        // Récupérer l'utilisateur courant
-        const account = await client.getAccount();
-        const user = await account.get();
+    // Récupérer l'utilisateur courant
+    const account = await client.getAccount();
+    const user = await account.get();
 
-        const completePurchaseData = {
-            ...purchaseData,
-            createdBy: user.$id,
-            status: 'active' // FIXIT : status devrait être utilisé pour distinguer les commandes effectué et les achats effectués. Trouver le bon pattern (date ?)
-        };
+    const completePurchaseData = {
+      ...purchaseData,
+      createdBy: user.$id,
+      status: "active", // FIXIT : status devrait être utilisé pour distinguer les commandes effectué et les achats effectués. Trouver le bon pattern (date ?)
+    };
 
-        const response = await databases.createDocument(
-            config.APPWRITE_CONFIG.databaseId,
-            config.APPWRITE_CONFIG.collections.purchases,
-            ID.unique(),
-            completePurchaseData
-        );
+    const response = await databases.createDocument(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.purchases,
+      ID.unique(),
+      completePurchaseData,
+    );
 
-        console.log('[Appwrite Interactions] Achat créé:', response);
-        return response as Purchases;
-    } catch (error) {
-        console.error('[Appwrite Interactions] Erreur création achat:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-        throw new Error(`Échec de la création de l'achat: ${errorMessage}`);
-    }
+    console.log("[Appwrite Interactions] Achat créé:", response);
+    return response as Purchases;
+  } catch (error) {
+    console.error("[Appwrite Interactions] Erreur création achat:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
+    throw new Error(`Échec de la création de l'achat: ${errorMessage}`);
+  }
 }
 
 /**
@@ -489,40 +573,47 @@ export async function createPurchase(
  * @returns Promise<Purchases>
  */
 export async function updatePurchase(
-    purchaseId: string,
-    updates: PurchaseUpdate
+  purchaseId: string,
+  updates: PurchaseUpdate,
 ): Promise<Purchases> {
-    try {
-        const { databases, config } = await getAppwriteInstances();
+  try {
+    const { databases, config } = await getAppwriteInstances();
 
-        // Récupérer le purchase existant pour préserver la relation products
-        const existingPurchase = await databases.getDocument(
-            config.APPWRITE_CONFIG.databaseId,
-            config.APPWRITE_CONFIG.collections.purchases,
-            purchaseId
-        );
+    // Récupérer le purchase existant pour préserver la relation products
+    const existingPurchase = await databases.getDocument(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.purchases,
+      purchaseId,
+    );
 
-        // Préparer les mises à jour en préservant la relation products
-        const finalUpdates = {
-            ...updates,
-            // Conserver la relation products existante si non fournie dans les updates
-            products: updates.products || (existingPurchase as Purchases).products
-        };
+    // Préparer les mises à jour en préservant la relation products
+    const finalUpdates = {
+      ...updates,
+      // Conserver la relation products existante si non fournie dans les updates
+      products: updates.products || (existingPurchase as Purchases).products,
+    };
 
-        const response = await databases.updateDocument(
-            config.APPWRITE_CONFIG.databaseId,
-            config.APPWRITE_CONFIG.collections.purchases,
-            purchaseId,
-            finalUpdates
-        );
+    const response = await databases.updateDocument(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.purchases,
+      purchaseId,
+      finalUpdates,
+    );
 
-        console.log(`[Appwrite Interactions] Achat ${purchaseId} mis à jour:`, finalUpdates);
-        return response as Purchases;
-    } catch (error) {
-        console.error(`[Appwrite Interactions] Erreur mise à jour achat ${purchaseId}:`, error);
-        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-        throw new Error(`Échec de la mise à jour de l'achat: ${errorMessage}`);
-    }
+    console.log(
+      `[Appwrite Interactions] Achat ${purchaseId} mis à jour:`,
+      finalUpdates,
+    );
+    return response as Purchases;
+  } catch (error) {
+    console.error(
+      `[Appwrite Interactions] Erreur mise à jour achat ${purchaseId}:`,
+      error,
+    );
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
+    throw new Error(`Échec de la mise à jour de l'achat: ${errorMessage}`);
+  }
 }
 
 /**
@@ -530,21 +621,25 @@ export async function updatePurchase(
  * @param purchaseId - ID de l'achat à supprimer
  */
 export async function deletePurchase(purchaseId: string): Promise<void> {
-    try {
-        const { databases, config } = await getAppwriteInstances();
+  try {
+    const { databases, config } = await getAppwriteInstances();
 
-        await databases.deleteDocument(
-            config.APPWRITE_CONFIG.databaseId,
-            config.APPWRITE_CONFIG.collections.purchases,
-            purchaseId
-        );
+    await databases.deleteDocument(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.purchases,
+      purchaseId,
+    );
 
-        console.log(`[Appwrite Interactions] Achat ${purchaseId} supprimé`);
-    } catch (error) {
-        console.error(`[Appwrite Interactions] Erreur suppression achat ${purchaseId}:`, error);
-        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-        throw new Error(`Échec de la suppression de l'achat: ${errorMessage}`);
-    }
+    console.log(`[Appwrite Interactions] Achat ${purchaseId} supprimé`);
+  } catch (error) {
+    console.error(
+      `[Appwrite Interactions] Erreur suppression achat ${purchaseId}:`,
+      error,
+    );
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
+    throw new Error(`Échec de la suppression de l'achat: ${errorMessage}`);
+  }
 }
 
 /**
@@ -562,53 +657,37 @@ export async function deletePurchase(purchaseId: string): Promise<void> {
  * 3. Retourne les purchases complets avec leurs produits associés
  */
 export async function loadPurchasesListByIds(
-    purchaseIds: string[]
+  purchaseIds: string[],
 ): Promise<Purchases[]> {
-    if (!purchaseIds?.length) return [];
+  if (!purchaseIds?.length) return [];
 
-    try {
-        const { databases, config } = await getAppwriteInstances();
+  try {
+    const { databases, config } = await getAppwriteInstances();
 
-        const response = await databases.listDocuments(
-            config.APPWRITE_CONFIG.databaseId,
-            config.APPWRITE_CONFIG.collections.purchases,
-            [
-                Query.equal('$id', purchaseIds)
-                // Pas de Query.select() pour les champs de relation manuelle
-            ]
-        );
+    const response = await databases.listDocuments(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.purchases,
+      [Query.equal("$id", purchaseIds), Query.select(["*", "products"])],
+    );
 
-        console.log(`[Appwrite Interactions] ${response.documents.length} purchases chargés avec relations products`);
-        return response.documents as Purchases[];
-
-    } catch (error) {
-        console.error('[Appwrite Interactions] Erreur chargement purchases avec relations:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-        throw new Error(`Échec du chargement des purchases: ${errorMessage}`);
-    }
+    console.log(
+      `[Appwrite Interactions] ${response.documents.length} purchases chargés avec relations products`,
+    );
+    return response.documents as Purchases[];
+  } catch (error) {
+    console.error(
+      "[Appwrite Interactions] Erreur chargement purchases avec relations:",
+      error,
+    );
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
+    throw new Error(`Échec du chargement des purchases: ${errorMessage}`);
+  }
 }
 
 // =============================================================================
 // UTILITAIRES DE MERGE
 // =============================================================================
-
-/**
- * Fusionne les produits avec leurs achats associés
- * @param products - Liste des produits
- * @param purchases - Liste des achats
- * @returns Array<ProductWithPurchases>
- */
-export function mergeProductsWithPurchases(
-    products: Products[],
-    purchases: Purchases[]
-): ProductWithPurchases[] {
-    return products.map(product => ({
-        ...product,
-        purchases: purchases.filter(purchase =>
-            purchase.products.some(p => p.$id === product.$id)
-        )
-    }));
-}
 
 /**
  * Applique les mises à jour de produits aux produits existants
@@ -629,15 +708,15 @@ export function mergeProductsWithPurchases(
  * Utilisé par ProductsStore après syncProducts() ou lors des événements realtime.
  */
 export function applyProductUpdates(
-    currentProducts: Products[],
-    updatedProducts: Products[]
+  currentProducts: Products[],
+  updatedProducts: Products[],
 ): Products[] {
-    const updated = new Map(updatedProducts.map(p => [p.$id, p]));
-    const merged = currentProducts.map(p => updated.get(p.$id) ?? p);
-    const existingIds = new Set(currentProducts.map(p => p.$id));
-    const news = updatedProducts.filter(p => !existingIds.has(p.$id));
+  const updated = new Map(updatedProducts.map((p) => [p.$id, p]));
+  const merged = currentProducts.map((p) => updated.get(p.$id) ?? p);
+  const existingIds = new Set(currentProducts.map((p) => p.$id));
+  const news = updatedProducts.filter((p) => !existingIds.has(p.$id));
 
-    return [...merged, ...news];
+  return [...merged, ...news];
 }
 
 // =============================================================================
@@ -653,19 +732,19 @@ export function applyProductUpdates(
  * @returns string JSON formaté
  */
 export function formatStockData(
-    quantity: number,
-    unit: string,
-    notes?: string,
-    dateTime?: string
+  quantity: number,
+  unit: string,
+  notes?: string,
+  dateTime?: string,
 ): string {
-    const stockEntry = {
-        quantity: quantity.toString(),
-        unit,
-        notes: notes || '',
-        dateTime: dateTime || new Date().toISOString()
-    };
+  const stockEntry = {
+    quantity: quantity.toString(),
+    unit,
+    notes: notes || "",
+    dateTime: dateTime || new Date().toISOString(),
+  };
 
-    return JSON.stringify([stockEntry]);
+  return JSON.stringify([stockEntry]);
 }
 
 /**
@@ -674,19 +753,19 @@ export function formatStockData(
  * @returns Array d'entrées de stock
  */
 export function parseStockData(stockJson: string | null): Array<{
-    quantity: string;
-    unit: string;
-    notes: string;
-    dateTime: string;
+  quantity: string;
+  unit: string;
+  notes: string;
+  dateTime: string;
 }> {
-    if (!stockJson) return [];
+  if (!stockJson) return [];
 
-    try {
-        return JSON.parse(stockJson);
-    } catch (error) {
-        console.error('[Appwrite Interactions] Erreur parsing stock data:', error);
-        return [];
-    }
+  try {
+    return JSON.parse(stockJson);
+  } catch (error) {
+    console.error("[Appwrite Interactions] Erreur parsing stock data:", error);
+    return [];
+  }
 }
 
 /**
@@ -695,22 +774,25 @@ export function parseStockData(stockJson: string | null): Array<{
  * @returns Array d'occurrences de recettes
  */
 export function parseRecipesOccurrences(recipesJson: string | null): Array<{
-    recipeName: string;
-    quantity: string;
-    unit: string;
-    dateTimeService: string;
-    horaire?: string;
-    typePlat?: string;
-    assiettes?: number;
+  recipeName: string;
+  quantity: string;
+  unit: string;
+  dateTimeService: string;
+  horaire?: string;
+  typePlat?: string;
+  assiettes?: number;
 }> {
-    if (!recipesJson) return [];
+  if (!recipesJson) return [];
 
-    try {
-        return JSON.parse(recipesJson);
-    } catch (error) {
-        console.error('[Appwrite Interactions] Erreur parsing recipes occurrences:', error);
-        return [];
-    }
+  try {
+    return JSON.parse(recipesJson);
+  } catch (error) {
+    console.error(
+      "[Appwrite Interactions] Erreur parsing recipes occurrences:",
+      error,
+    );
+    return [];
+  }
 }
 
 // =============================================================================
@@ -737,89 +819,96 @@ export function parseRecipesOccurrences(recipesJson: string | null): Array<{
  * ProductsStore fournit les callbacks qui mettent à jour l'état réactif.
  */
 export function subscribeToRealtime(
-    mainId: string,
-    callbacks: RealtimeCallbacks = {}
+  mainId: string,
+  callbacks: RealtimeCallbacks = {},
 ): () => void {
-    let unsubscribe: (() => void) | null = null;
+  let unsubscribe: (() => void) | null = null;
 
-    const handleRealtimeEvent = (response: any) => {
-        const { events, payload } = response;
-        if (!payload) return;
+  const handleRealtimeEvent = (response: any) => {
+    const { events, payload } = response;
+    if (!payload) return;
 
-        // Déterminer la collection source à partir des événements
-        const isProductsCollection = events.some((e: string) => e.includes('products.'));
-        const isPurchasesCollection = events.some((e: string) => e.includes('purchases.'));
+    // Déterminer la collection source à partir des événements
+    const isProductsCollection = events.some((e: string) =>
+      e.includes("products."),
+    );
+    const isPurchasesCollection = events.some((e: string) =>
+      e.includes("purchases."),
+    );
 
-        const isCreate = events.some((e: string) => e.includes('.create'));
-        const isUpdate = events.some((e: string) => e.includes('.update'));
-        const isDelete = events.some((e: string) => e.includes('.delete'));
+    const isCreate = events.some((e: string) => e.includes(".create"));
+    const isUpdate = events.some((e: string) => e.includes(".update"));
+    const isDelete = events.some((e: string) => e.includes(".delete"));
 
-        // Dispatcher vers les callbacks appropriés
-        if (isProductsCollection) {
-            const product = payload as Products;
+    // Dispatcher vers les callbacks appropriés
+    if (isProductsCollection) {
+      const product = payload as Products;
 
-            if (isCreate && callbacks.onProductCreate) {
-                callbacks.onProductCreate(product);
-            } else if (isUpdate && callbacks.onProductUpdate) {
-                callbacks.onProductUpdate(product);
-            } else if (isDelete && callbacks.onProductDelete) {
-                callbacks.onProductDelete(product.$id);
-            }
-        } else if (isPurchasesCollection) {
-            const purchase = payload as Purchases;
+      if (isCreate && callbacks.onProductCreate) {
+        callbacks.onProductCreate(product);
+      } else if (isUpdate && callbacks.onProductUpdate) {
+        callbacks.onProductUpdate(product);
+      } else if (isDelete && callbacks.onProductDelete) {
+        callbacks.onProductDelete(product.$id);
+      }
+    } else if (isPurchasesCollection) {
+      const purchase = payload as Purchases;
 
-            if (isCreate && callbacks.onPurchaseCreate) {
-                callbacks.onPurchaseCreate(purchase);
-            } else if (isUpdate && callbacks.onPurchaseUpdate) {
-                callbacks.onPurchaseUpdate(purchase);
-            } else if (isDelete && callbacks.onPurchaseDelete) {
-                callbacks.onPurchaseDelete(purchase.$id);
-            }
-        }
-    };
+      if (isCreate && callbacks.onPurchaseCreate) {
+        callbacks.onPurchaseCreate(purchase);
+      } else if (isUpdate && callbacks.onPurchaseUpdate) {
+        callbacks.onPurchaseUpdate(purchase);
+      } else if (isDelete && callbacks.onPurchaseDelete) {
+        callbacks.onPurchaseDelete(purchase.$id);
+      }
+    }
+  };
 
-    const setupSubscription = async () => {
-        try {
-            // S'assurer qu'Appwrite est initialisé avant de s'abonner
-            if (typeof window !== 'undefined' && window.AppwriteClient) {
-                await window.AppwriteClient.initializeAppwrite();
+  const setupSubscription = async () => {
+    try {
+      // S'assurer qu'Appwrite est initialisé avant de s'abonner
+      if (typeof window !== "undefined" && window.AppwriteClient) {
+        await window.AppwriteClient.initializeAppwrite();
 
-                unsubscribe = window.AppwriteClient.subscribeToCollections(
-                    ['products', 'purchases'],
-                    mainId,
-                    handleRealtimeEvent,
-                    {
-                        onConnect: () => {
-                            console.log('[Appwrite Interactions] Realtime connecté');
-                            callbacks.onConnect?.();
-                        },
-                        onDisconnect: () => {
-                            console.log('[Appwrite Interactions] Realtime déconnecté');
-                            callbacks.onDisconnect?.();
-                        },
-                        onError: (error: any) => {
-                            console.error('[Appwrite Interactions] Erreur realtime:', error);
-                            callbacks.onError?.(error);
-                        }
-                    }
-                );
-            }
-        } catch (error) {
-            console.error('[Appwrite Interactions] Impossible de configurer realtime:', error);
-            callbacks.onError?.(error);
-        }
-    };
+        unsubscribe = window.AppwriteClient.subscribeToCollections(
+          ["products", "purchases"],
+          mainId,
+          handleRealtimeEvent,
+          {
+            onConnect: () => {
+              console.log("[Appwrite Interactions] Realtime connecté");
+              callbacks.onConnect?.();
+            },
+            onDisconnect: () => {
+              console.log("[Appwrite Interactions] Realtime déconnecté");
+              callbacks.onDisconnect?.();
+            },
+            onError: (error: any) => {
+              console.error("[Appwrite Interactions] Erreur realtime:", error);
+              callbacks.onError?.(error);
+            },
+          },
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[Appwrite Interactions] Impossible de configurer realtime:",
+        error,
+      );
+      callbacks.onError?.(error);
+    }
+  };
 
-    // Lancer la configuration de l'abonnement
-    setupSubscription();
+  // Lancer la configuration de l'abonnement
+  setupSubscription();
 
-    // Retourner la fonction de désabonnement
-    return () => {
-        if (unsubscribe) {
-            unsubscribe();
-            unsubscribe = null;
-        }
-    };
+  // Retourner la fonction de désabonnement
+  return () => {
+    if (unsubscribe) {
+      unsubscribe();
+      unsubscribe = null;
+    }
+  };
 }
 
 // =============================================================================
@@ -827,30 +916,29 @@ export function subscribeToRealtime(
 // =============================================================================
 
 export default {
-    // Services produits - lecture
-    loadProducts,
-    syncProducts,
+  // Services produits - lecture
+  loadProducts: loadProductsWithPurchases,
 
-    // Services realtime
-    subscribeToRealtime,
+  // Services realtime
+  subscribeToRealtime,
 
-    // Services produits - mise à jour
-    updateProduct,
-    updateProductStore,
-    updateProductWho,
-    updateProductStock,
+  // Services produits - mise à jour
+  updateProduct,
+  updateProductStore,
+  updateProductWho,
+  updateProductStock,
 
-    // Services achats
-    createPurchase,
-    updatePurchase,
-    deletePurchase,
+  // Services achats
+  createPurchase,
+  updatePurchase,
+  deletePurchase,
 
-    // Utilitaires de merge
-    mergeProductsWithPurchases,
-    applyProductUpdates,
+  // Utilitaires de merge
+  // mergeProductsWithPurchases,
+  applyProductUpdates,
 
-    // Utilitaires de parsing
-    formatStockData,
-    parseStockData,
-    parseRecipesOccurrences
+  // Utilitaires de parsing
+  formatStockData,
+  parseStockData,
+  parseRecipesOccurrences,
 };

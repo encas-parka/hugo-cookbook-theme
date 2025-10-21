@@ -7,7 +7,7 @@
   import LoadingSpinner from './lib/components/LoadingSpinner.svelte';
   import ErrorAlert from './lib/components/ErrorAlert.svelte';
   import AuthErrorAlert from './lib/components/AuthErrorAlert.svelte';
-    import { LogInIcon } from '@lucide/svelte';
+  import { LogInIcon } from '@lucide/svelte';
 
   let mainId: string;
   let initError: string | null = $state(null);

@@ -5,43 +5,37 @@
     import type { EnrichedProduct } from '../types/store.types.js';
     import { formatDate, formatQuantity } from '../utils/products-display.js';
 
-	// --- NOUVELLE APPROCHE : Consommation directe de ProductModalState ---
-	// Le composant consomme directement le store au lieu de recevoir des props
+
 
 	interface Props {
-		product: EnrichedProduct | null;
+		product: EnrichedProduct;
 	}
 
 	let { product }: Props = $props();
 
-	const modalState = $derived.by(() => {
-		return product ? createProductModalState(product) : null;
-	});
+	const modalState = $derived(createProductModalState(product));
 
 	// Données dérivées du store - plus besoin de fallbacks grâce à ProductModalState
-	const purchases = $derived(modalState?.purchasesList ?? []);
-	const loading = $derived(modalState?.loading ?? false);
-	const purchaseForm = $derived(modalState?.forms.purchase ?? {
-		quantity: null,
-		unit: '',
-		store: '',
-		who: '',
-		price: null,
-		notes: ''
-	});
-	const editingPurchaseData = $derived(modalState?.edit.purchase ?? {
-		$id: '',
-		quantity: 0,
-		unit: '',
-		store: '',
-		who: '',
-		price: 0,
-		notes: '',
-		$createdAt: '',
-		$updatedAt: '',
-		$permissions: []
-	});
+	const purchases = $derived(modalState.purchasesList);
+	const loading = $derived(modalState.loading ?? false);
+
+	const purchaseForm = $derived(modalState.forms.purchase);
+
+	const editingPurchaseData = $derived(modalState?.edit.purchase);
 	const editingPurchaseId = $derived(modalState?.editingPurchaseId ?? null);
+
+	// État de validation du formulaire pour l'édition
+	const isFormValid = $derived(
+		modalState &&
+		purchaseForm.quantity !== null && purchaseForm.quantity !== 0   &&
+		purchaseForm.unit?.trim() !== ''
+	);
+
+	const isEditingFormValid = $derived(
+		modalState &&
+		editingPurchaseData.quantity !== null && editingPurchaseData.quantity !== 0   &&
+		editingPurchaseData.unit?.trim() !== ''
+	);
 
 	function startEditPurchase(purchase: Purchases) {
 		modalState?.startEditPurchase(purchase);
@@ -51,8 +45,9 @@
 		modalState?.cancelEditPurchase();
 	}
 
-	async function handleSavePurchase() {
-		await modalState?.savePurchase();
+	async function handleUpdateEditedPurchase() {
+		if (!isEditingFormValid) return;
+		await modalState!.updateEditedPurchase();
 	}
 
 	async function handleDeletePurchase(purchaseId: string) {
@@ -93,7 +88,7 @@
 					<label for="purchase-unit" class="label">
 						<span class="label-text">Unité</span>
 					</label>
-					<select id="purchase-unit" class="select select-bordered validator" bind:value={purchaseForm.unit} required>
+					<select id="purchase-unit" class="select select-bordered validator" required bind:value={purchaseForm.unit} >
 						<option disabled selected value="">Sélectionner</option>
 						<option value="kg">kg</option>
 						<option value="gr.">gr.</option>
@@ -154,7 +149,7 @@
 				</div>
 			</div>
 			<div class="card-actions justify-end mt-4">
-				<button class="btn btn-primary btn-sm" onclick={handleAddPurchase} disabled={loading}>
+				<button class="btn btn-primary btn-sm" onclick={handleAddPurchase} disabled={loading || !isFormValid}>
 					{#if loading}
 						<span class="loading loading-spinner loading-sm"></span>
 					{:else}
@@ -242,8 +237,8 @@
 									<div class="btn-group btn-group-sm">
 										<button
 											class="btn btn-success btn-sm"
-											onclick={handleSavePurchase}
-											disabled={loading}
+											onclick={handleUpdateEditedPurchase}
+											disabled={loading || !isEditingFormValid}
 										>
 											{#if loading}
 												<span class="loading loading-spinner loading-sm"></span>
