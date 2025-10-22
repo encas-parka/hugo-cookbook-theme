@@ -1,6 +1,16 @@
 import type { Products, Purchases } from "./appwrite.d";
 
 /**
+ * Types pour la gestion des événements principaux
+ */
+export interface MainEventData {
+  $id: string;
+  mainId: string;
+  name: string;
+  allDates: string;
+}
+
+/**
  * Types pour la gestion des magasins
  */
 

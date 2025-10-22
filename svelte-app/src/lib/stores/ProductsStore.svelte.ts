@@ -1,19 +1,29 @@
-import { SvelteMap } from 'svelte/reactivity';
-import superjson from 'superjson';
-import { createStorageKey } from '../utils/url-utils';
-import { useDebounce } from 'runed';
-import type { Products, Purchases } from '../types/appwrite.d';
-import type { NumericQuantity, QuantityInfo, StoreInfo, EnrichedProduct, RecipeOccurrence } from '../types/store.types';
+import { SvelteMap } from "svelte/reactivity";
+import superjson from "superjson";
+import { createStorageKey } from "../utils/url-utils";
+import { useDebounce } from "runed";
+import type { Products, Purchases } from "../types/appwrite.d";
+import { dateRangeState } from "./DateRangeState.svelte";
+import { calculateTotalNeededInRange } from "../utils/dateRangeUtils";
+import type {
+  NumericQuantity,
+  QuantityInfo,
+  StoreInfo,
+  EnrichedProduct,
+  RecipeOccurrence,
+} from "../types/store.types";
 
 import {
   loadProductsWithPurchases,
   syncProductsAndPurchases,
   subscribeToRealtime,
+  loadMainEventData,
+  loadAllDates,
   type LoadProductsOptions,
   loadProductsListByIds,
   loadPurchasesListByIds,
-  type SyncOptions
-} from '../services/appwrite-interactions';
+  type SyncOptions,
+} from "../services/appwrite-interactions";
 
 /**
  * ProductsStore - Architecture SvelteMap pure + persistence manuelle
@@ -51,9 +61,9 @@ interface FiltersState {
   selectedWho: string[];
   selectedProductTypes: string[];
   selectedTemperatures: string[];
-  groupBy: 'store' | 'productType' | 'none';
+  groupBy: "store" | "productType" | "none";
   sortColumn: string;
-  sortDirection: 'asc' | 'desc';
+  sortDirection: "asc" | "desc";
 }
 
 interface CacheData {
@@ -83,6 +93,7 @@ class ProductsStore {
   #error = $state<string | null>(null);
   #syncing = $state(false);
   #realtimeConnected = $state(false);
+  #allDates = $state<string[]>([]);
   #lastSync = $state<string | null>(null);
 
   // Cache keys
@@ -95,28 +106,48 @@ class ProductsStore {
 
   // Filtres
   #filters = $state<FiltersState>({
-    searchQuery: '',
+    searchQuery: "",
     selectedStores: [],
     selectedWho: [],
     selectedProductTypes: [],
     selectedTemperatures: [],
-    groupBy: 'productType',
-    sortColumn: '',
-    sortDirection: 'asc'
+    groupBy: "productType",
+    sortColumn: "",
+    sortDirection: "asc",
   });
 
   // =========================================================================
   // GETTERS PUBLICS
   // =========================================================================
 
-  get filters() { return this.#filters; }
-  get currentMainId() { return this.#currentMainId; }
-  get isInitialized() { return this.#isInitialized; }
-  get loading() { return this.#loading; }
-  get error() { return this.#error; }
-  get syncing() { return this.#syncing; }
-  get realtimeConnected() { return this.#realtimeConnected; }
-  get lastSync() { return this.#lastSync; }
+  get filters() {
+    return this.#filters;
+  }
+  get currentMainId() {
+    return this.#currentMainId;
+  }
+  get isInitialized() {
+    return this.#isInitialized;
+  }
+  get loading() {
+    return this.#loading;
+  }
+  get error() {
+    return this.#error;
+  }
+
+  get allDates() {
+    return this.#allDates;
+  }
+  get syncing() {
+    return this.#syncing;
+  }
+  get realtimeConnected() {
+    return this.#realtimeConnected;
+  }
+  get lastSync() {
+    return this.#lastSync;
+  }
 
   // =========================================================================
   // DÉRIVES RÉACTIFS - Consommés par les templates
@@ -130,13 +161,37 @@ class ProductsStore {
   });
 
   /**
+   * Total des besoins par plage de dates
+   */
+  totalNeededByDateRange = $derived.by(() => {
+    const { firstDate, lastDate } = dateRangeState;
+    if (!firstDate || !lastDate) return new Map();
+
+    const totalMap = new Map<string, number>();
+
+    this.enrichedProducts.forEach((product) => {
+      const total = calculateTotalNeededInRange(
+        product.neededConsolidatedByDateArray,
+        firstDate,
+        lastDate,
+      );
+
+      if (total > 0) {
+        totalMap.set(product.$id, total);
+      }
+    });
+
+    return totalMap;
+  });
+
+  /**
    * Statistiques des produits filtrés
    */
   stats = $derived.by(() => ({
     total: this.filteredProducts.length,
-    frais: this.filteredProducts.filter(p => p.pFrais).length,
-    surgel: this.filteredProducts.filter(p => p.pSurgel).length,
-    merged: this.filteredProducts.filter(p => p.isMerged).length,
+    frais: this.filteredProducts.filter((p) => p.pFrais).length,
+    surgel: this.filteredProducts.filter((p) => p.pSurgel).length,
+    merged: this.filteredProducts.filter((p) => p.isMerged).length,
   }));
 
   /**
@@ -144,18 +199,20 @@ class ProductsStore {
    */
   uniqueStores = $derived.by(() => {
     const storeNames = this.enrichedProducts
-      .map(p => p.storeInfo?.storeName)
+      .map((p) => p.storeInfo?.storeName)
       .filter(Boolean);
     return [...new Set(storeNames)] as string[];
   });
 
   uniqueWho = $derived.by(() => {
-    const whos = this.enrichedProducts.flatMap(p => p.who || []);
+    const whos = this.enrichedProducts.flatMap((p) => p.who || []);
     return [...new Set(whos)] as string[];
   });
 
   uniqueProductTypes = $derived.by(() => {
-    const types = this.enrichedProducts.map(p => p.productType).filter(Boolean);
+    const types = this.enrichedProducts
+      .map((p) => p.productType)
+      .filter(Boolean);
     return [...new Set(types)] as string[];
   });
 
@@ -163,7 +220,7 @@ class ProductsStore {
    * Filtrage des produits
    */
   filteredProducts = $derived.by(() => {
-    return this.enrichedProducts.filter(p => this.#matchesFilters(p));
+    return this.enrichedProducts.filter((p) => this.#matchesFilters(p));
   });
 
   /**
@@ -172,15 +229,15 @@ class ProductsStore {
   filteredGroupedProducts = $derived.by(() => {
     const filtered = this.filteredProducts;
 
-    if (this.#filters.groupBy === 'none') {
-      return { '': filtered };
+    if (this.#filters.groupBy === "none") {
+      return { "": filtered };
     }
 
     return Object.groupBy(filtered, (product) => {
-      if (this.#filters.groupBy === 'store') {
-        return product.storeInfo?.storeName || 'Non défini';
+      if (this.#filters.groupBy === "store") {
+        return product.storeInfo?.storeName || "Non défini";
       } else {
-        return product.productType || 'Non défini';
+        return product.productType || "Non défini";
       }
     });
   });
@@ -197,7 +254,7 @@ class ProductsStore {
    */
   async initialize(mainId: string) {
     if (!mainId?.trim()) {
-      throw new Error('mainId invalide fourni');
+      throw new Error("mainId invalide fourni");
     }
 
     if (this.#isInitialized && this.#currentMainId === mainId) {
@@ -208,30 +265,33 @@ class ProductsStore {
     console.log(`[ProductsStore] Initialisation avec mainId: ${mainId}`);
 
     this.#currentMainId = mainId;
-    this.#cacheKey = createStorageKey('products-enriched', mainId);
+    this.#cacheKey = createStorageKey("products-enriched", mainId);
 
     try {
-      // 1️⃣ Charger depuis cache
+      // Charger les dates depuis Appwrite
+      this.#allDates = await loadAllDates(mainId);
+
+      // Charger depuis cache
       await this.#loadFromCache();
 
-      // 2️⃣ Charger ou synchroniser depuis Appwrite
+      // Charger ou synchroniser depuis Appwrite
       if (this.#enrichedProducts.size === 0) {
         await this.#loadProductsFromService(mainId);
       } else {
         await this.#syncInBackground();
       }
 
-      // 3️⃣ Marquer comme initialisé
+      // Marquer comme initialisé
       this.#isInitialized = true;
 
       // 4️⃣ Setup realtime
       const callbacks = this.#setupRealtimeCallbacks();
       this.#unsubscribe = subscribeToRealtime(mainId, callbacks);
-
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de l\'initialisation';
+      const message =
+        err instanceof Error ? err.message : "Erreur lors de l'initialisation";
       this.#error = message;
-      console.error('[ProductsStore]', message, err);
+      console.error("[ProductsStore]", message, err);
       throw err;
     }
   }
@@ -249,36 +309,39 @@ class ProductsStore {
     try {
       const cached = localStorage.getItem(this.#cacheKey);
       if (!cached) {
-        console.log('[ProductsStore] Aucun cache trouvé');
+        console.log("[ProductsStore] Aucun cache trouvé");
         return;
       }
 
       const { products, lastSync } = superjson.parse(cached) as CacheData;
-      products.forEach(([id, product]) => this.#enrichedProducts.set(id, product));
+      products.forEach(([id, product]) =>
+        this.#enrichedProducts.set(id, product),
+      );
       this.#lastSync = lastSync;
 
-      console.log(`[ProductsStore] ${products.length} produits chargés du cache, lastSync: ${lastSync}`);
+      console.log(
+        `[ProductsStore] ${products.length} produits chargés du cache, lastSync: ${lastSync}`,
+      );
     } catch (err) {
-      console.warn('[ProductsStore] Erreur lecture cache, ignoré:', err);
+      console.warn("[ProductsStore] Erreur lecture cache, ignoré:", err);
     }
   }
 
   /**
    * Persiste les produits enrichis dans localStorage
    */
-   #persistToCache() {
-     if (!this.#cacheKey) return;
-     try {
-       const cacheData: CacheData = {
-         lastSync: this.#lastSync,
-         products: Array.from(this.#enrichedProducts.entries())
-       };
-       localStorage.setItem(this.#cacheKey, superjson.stringify(cacheData));
-     } catch (err) {
-       console.error('[ProductsStore] Erreur persist cache:', err);
-     }
-   }
-
+  #persistToCache() {
+    if (!this.#cacheKey) return;
+    try {
+      const cacheData: CacheData = {
+        lastSync: this.#lastSync,
+        products: Array.from(this.#enrichedProducts.entries()),
+      };
+      localStorage.setItem(this.#cacheKey, superjson.stringify(cacheData));
+    } catch (err) {
+      console.error("[ProductsStore] Erreur persist cache:", err);
+    }
+  }
 
   /**
    * Charge les produits initialement depuis Appwrite
@@ -290,14 +353,14 @@ class ProductsStore {
     try {
       const options: LoadProductsOptions = {
         limit: BATCH_LIMIT,
-        orderBy: 'productName',
-        orderDirection: 'asc'
+        orderBy: "productName",
+        orderDirection: "asc",
       };
 
       const products = await loadProductsWithPurchases(mainId, options);
 
       // Enrichir et ajouter à la SvelteMap
-      products.forEach(product => {
+      products.forEach((product) => {
         const enriched = this.#enrichProduct(product);
         this.#enrichedProducts.set(product.$id, enriched);
       });
@@ -305,12 +368,14 @@ class ProductsStore {
       this.#updateLastSync();
       this.#persistToCache();
 
-      console.log(`[ProductsStore] ${products.length} produits chargés et enrichis`);
-
+      console.log(
+        `[ProductsStore] ${products.length} produits chargés et enrichis`,
+      );
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur lors du chargement';
+      const message =
+        err instanceof Error ? err.message : "Erreur lors du chargement";
       this.#error = message;
-      console.error('[ProductsStore]', message, err);
+      console.error("[ProductsStore]", message, err);
       throw err;
     } finally {
       this.#loading = false;
@@ -320,46 +385,47 @@ class ProductsStore {
   /**
    * Synchronisation incrémentielle en arrière-plan
    */
-   async #syncInBackground() {
-     if (!this.#lastSync || !this.#currentMainId) return;
-     this.#syncing = true;
+  async #syncInBackground() {
+    if (!this.#lastSync || !this.#currentMainId) return;
+    this.#syncing = true;
 
-     try {
-       const options: SyncOptions = {
-         lastSync: this.#lastSync,
-         limit: BATCH_LIMIT
-       };
+    try {
+      const options: SyncOptions = {
+        lastSync: this.#lastSync,
+        limit: BATCH_LIMIT,
+      };
 
-       // ✅ FIX: syncProductsAndPurchases retourne { allProducts }
-       const { allProducts } = await syncProductsAndPurchases(this.#currentMainId, options);
+      // ✅ FIX: syncProductsAndPurchases retourne { allProducts }
+      const { allProducts } = await syncProductsAndPurchases(
+        this.#currentMainId,
+        options,
+      );
 
-       // Les allProducts contiennent DÉJÀ les purchases hydratées
-       // (products récupérés directement + products rechargés via purchases modifiés)
+      // 1️⃣ Appliquer tous les produits synchronisés
+      if (allProducts.length > 0) {
+        allProducts.forEach((product) => {
+          const enriched = this.#enrichProduct(product);
+          this.#enrichedProducts.set(product.$id, enriched);
+        });
+        console.log(
+          `[ProductsStore] ${allProducts.length} produits appliqués du sync`,
+        );
+      }
 
-       const productsMap = new Map(allProducts.map(p => [p.$id, p]));
-
-       // 1️⃣ Appliquer tous les produits synchronisés
-       if (allProducts.length > 0) {
-         allProducts.forEach(product => {
-           const enriched = this.#enrichProduct(product);
-           this.#enrichedProducts.set(product.$id, enriched);
-         });
-         console.log(`[ProductsStore] ${allProducts.length} produits appliqués du sync`);
-       }
-
-       // Persister les changements
-       if (allProducts.length > 0) {
-         this.#updateLastSync();
-         this.#persistToCache();
-         console.log(`[ProductsStore] Sync complétée: ${allProducts.length} produits`);
-       }
-
-     } catch (err) {
-       console.error('[ProductsStore] Erreur sync:', err);
-     } finally {
-       this.#syncing = false;
-     }
-   }
+      // Persister les changements
+      if (allProducts.length > 0) {
+        this.#updateLastSync();
+        this.#persistToCache();
+        console.log(
+          `[ProductsStore] Sync complétée: ${allProducts.length} produits`,
+        );
+      }
+    } catch (err) {
+      console.error("[ProductsStore] Erreur sync:", err);
+    } finally {
+      this.#syncing = false;
+    }
+  }
 
   // =========================================================================
   // ENRICHISSEMENT DE PRODUITS
@@ -369,7 +435,9 @@ class ProductsStore {
    * Enrichit un produit brut avec tous les calculs
    */
   #enrichProduct(product: Products): EnrichedProduct {
-    const totalPurchasesArray = this.#calculateTotalPurchasesArray(product.purchases ?? []);
+    const totalPurchasesArray = this.#calculateTotalPurchasesArray(
+      product.purchases ?? [],
+    );
     const totalNeededArray = product.totalNeededConsolidated
       ? this.#parseToNumericQuantity(product.totalNeededConsolidated)
       : [];
@@ -377,16 +445,34 @@ class ProductsStore {
     const { numeric: missingQuantityArray, display: displayMissingQuantity } =
       this.#calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
 
+    const stockArray = this.#safeJsonParse<any[]>(product.stockReel) ?? [];
+
+    const neededConsolidatedByDateArray = product.neededConsolidatedByDate
+      ? (this.#safeJsonParse<any[]>(product.neededConsolidatedByDate) ?? [])
+      : [];
+
+    const displayTotalPurchases =
+      this.#formatTotalQuantity(totalPurchasesArray);
+
+    const stockOrTotalPurchases =
+      stockArray && stockArray.length > 0
+        ? `${stockArray[stockArray.length - 1].quantity} ${stockArray[stockArray.length - 1].unit}`
+        : displayTotalPurchases;
+
     return {
       ...product,
       storeInfo: product.store ? this.#safeJsonParse(product.store) : null,
       totalNeededArray,
       totalPurchasesArray,
-      recipesArray: this.#safeJsonParse<RecipeOccurrence[]>(product.recipesOccurrences) ?? [],
-      stockArray: this.#safeJsonParse<any[]>(product.stockReel) ?? [],
+      recipesArray:
+        this.#safeJsonParse<RecipeOccurrence[]>(product.recipesOccurrences) ??
+        [],
+      stockArray,
+      stockOrTotalPurchases,
       missingQuantityArray,
+      neededConsolidatedByDateArray,
       displayTotalNeeded: this.#formatTotalQuantity(totalNeededArray),
-      displayTotalPurchases: this.#formatTotalQuantity(totalPurchasesArray),
+      displayTotalPurchases,
       displayMissingQuantity,
     };
   }
@@ -421,40 +507,43 @@ class ProductsStore {
     // 1️⃣ Identifier tous les produits affectés
     const affectedProductIds = new Set(
       updatedPurchases
-        .filter(purchase => purchase.products?.length > 0)
-        .flatMap(purchase => purchase.products)
-        .map((prod: any) => typeof prod === 'string' ? prod : prod.$id)
-        .filter(Boolean)
+        .filter((purchase) => purchase.products?.length > 0)
+        .flatMap((purchase) => purchase.products)
+        .map((prod: any) => (typeof prod === "string" ? prod : prod.$id))
+        .filter(Boolean),
     );
 
     if (affectedProductIds.size === 0) {
-      console.log('[ProductsStore] Aucun produit affecté par ces purchases');
+      console.log("[ProductsStore] Aucun produit affecté par ces purchases");
       return;
     }
 
     try {
       // 2️⃣ Récupérer les produits frais depuis Appwrite
-      const refreshedProducts = await loadProductsListByIds(Array.from(affectedProductIds));
+      const refreshedProducts = await loadProductsListByIds(
+        Array.from(affectedProductIds),
+      );
 
       if (refreshedProducts.length === 0) {
-        console.warn('[ProductsStore] Impossible de charger les produits affectés');
+        console.warn(
+          "[ProductsStore] Impossible de charger les produits affectés",
+        );
         return;
       }
 
       // 3️⃣ Enrichir et mettre à jour la SvelteMap
-      refreshedProducts.forEach(product => {
+      refreshedProducts.forEach((product) => {
         const enriched = this.#enrichProduct(product);
         this.#enrichedProducts.set(product.$id, enriched);
       });
 
-      console.log(`[ProductsStore] ${updatedPurchases.length} purchases appliqués à ${refreshedProducts.length} produit(s)`);
-
+      console.log(
+        `[ProductsStore] ${updatedPurchases.length} purchases appliqués à ${refreshedProducts.length} produit(s)`,
+      );
     } catch (err) {
-      console.error('[ProductsStore] Erreur application purchases:', err);
+      console.error("[ProductsStore] Erreur application purchases:", err);
     }
   }
-
-
 
   // =========================================================================
   // VARIANTE OPTIMISTE : Mettre à jour localement ET re-charger en async
@@ -470,43 +559,56 @@ class ProductsStore {
     const purchasesNeedingReload: Purchases[] = [];
 
     // Séparer les purchases avec et sans relations products
-    const purchasesWithProducts = updatedPurchases.filter(p => p.products?.length > 0);
-    purchasesNeedingReload.push(...updatedPurchases.filter(p => !p.products?.length));
+    const purchasesWithProducts = updatedPurchases.filter(
+      (p) => p.products?.length > 0,
+    );
+    purchasesNeedingReload.push(
+      ...updatedPurchases.filter((p) => !p.products?.length),
+    );
 
     // Extraire tous les IDs de produits des purchases valides
     const allProductIds = purchasesWithProducts
-      .flatMap(purchase => purchase.products)
-      .map((prod: any) => typeof prod === 'string' ? prod : prod.$id)
+      .flatMap((purchase) => purchase.products)
+      .map((prod: any) => (typeof prod === "string" ? prod : prod.$id))
       .filter(Boolean);
 
     // Ajouter les IDs au Set
-    allProductIds.forEach(id => affectedProductIds.add(id));
+    allProductIds.forEach((id) => affectedProductIds.add(id));
 
     // Recharger uniquement les champs nécessaires pour les purchases sans relations
     if (purchasesNeedingReload.length > 0) {
-      console.log(`[ProductsStore] ${purchasesNeedingReload.length} purchases sans relation products, rechargement ciblé depuis Appwrite...`);
+      console.log(
+        `[ProductsStore] ${purchasesNeedingReload.length} purchases sans relation products, rechargement ciblé depuis Appwrite...`,
+      );
       try {
-        const reloadedPurchases = await loadPurchasesListByIds(purchasesNeedingReload.map(p => p.$id));
+        const reloadedPurchases = await loadPurchasesListByIds(
+          purchasesNeedingReload.map((p) => p.$id),
+        );
 
         // Ajouter les purchases rechargés à la liste des purchases mis à jour
-        reloadedPurchases.forEach(reloadedPurchase => {
+        reloadedPurchases.forEach((reloadedPurchase) => {
           if (reloadedPurchase.products?.length > 0) {
             // Extraire les IDs de produits et les ajouter au Set
             const productIds = reloadedPurchase.products
-              .map((prod: any) => typeof prod === 'string' ? prod : prod.$id)
+              .map((prod: any) => (typeof prod === "string" ? prod : prod.$id))
               .filter(Boolean);
 
-            productIds.forEach(id => affectedProductIds.add(id));
+            productIds.forEach((id) => affectedProductIds.add(id));
 
             // Remplacer le purchase incomplet par le purchase complet
-            const incompleteIndex = updatedPurchases.findIndex(p => p.$id === reloadedPurchase.$id);
+            const incompleteIndex = updatedPurchases.findIndex(
+              (p) => p.$id === reloadedPurchase.$id,
+            );
             if (incompleteIndex >= 0) {
               updatedPurchases[incompleteIndex] = reloadedPurchase;
             }
           }
         });
       } catch (err) {
-        console.error('[ProductsStore] Erreur rechargement ciblé des purchases:', err);
+        console.error(
+          "[ProductsStore] Erreur rechargement ciblé des purchases:",
+          err,
+        );
       }
     }
 
@@ -519,8 +621,10 @@ class ProductsStore {
         // Mettre à jour les purchases (ajout ET modification)
         let updatedPurchases_ = currentProduct.purchases || [];
 
-        updatedPurchases.forEach(purchase => {
-          const existingIndex = updatedPurchases_.findIndex(p => p.$id === purchase.$id);
+        updatedPurchases.forEach((purchase) => {
+          const existingIndex = updatedPurchases_.findIndex(
+            (p) => p.$id === purchase.$id,
+          );
 
           if (existingIndex >= 0) {
             // Remplacer le purchase existant (modification)
@@ -534,7 +638,7 @@ class ProductsStore {
         // Re-enrichir avec les purchases mis à jour
         const enriched = this.#enrichProduct({
           ...currentProduct,
-          purchases: updatedPurchases_
+          purchases: updatedPurchases_,
         } as any);
 
         this.#enrichedProducts.set(productId, enriched);
@@ -543,13 +647,15 @@ class ProductsStore {
 
     // 2️⃣ RECHARGER EN ARRIÈRE-PLAN (pour corriger les erreurs)
     try {
-      const refreshedProducts = await loadProductsListByIds(Array.from(affectedProductIds));
-      refreshedProducts.forEach(product => {
+      const refreshedProducts = await loadProductsListByIds(
+        Array.from(affectedProductIds),
+      );
+      refreshedProducts.forEach((product) => {
         const enriched = this.#enrichProduct(product);
         this.#enrichedProducts.set(product.$id, enriched);
       });
     } catch (err) {
-      console.warn('[ProductsStore] Erreur rechargement async:', err);
+      console.warn("[ProductsStore] Erreur rechargement async:", err);
     }
   }
 
@@ -586,10 +692,11 @@ class ProductsStore {
       },
       onPurchaseDelete: (purchaseId: string) => {
         // Trouver et re-enrichir les produits affectés
-        const affectedProducts = Array.from(this.#enrichedProducts.values())
-          .filter(p => p.purchases?.some(pur => pur.$id === purchaseId));
+        const affectedProducts = Array.from(
+          this.#enrichedProducts.values(),
+        ).filter((p) => p.purchases?.some((pur) => pur.$id === purchaseId));
 
-        affectedProducts.forEach(product => {
+        affectedProducts.forEach((product) => {
           this.#upsertEnrichedProduct(product as any);
         });
 
@@ -603,21 +710,21 @@ class ProductsStore {
         this.#realtimeConnected = false;
       },
       onError: (error: any) => {
-        console.error('[ProductsStore] Erreur realtime:', error);
-      }
+        console.error("[ProductsStore] Erreur realtime:", error);
+      },
     };
   }
 
   /**
    * Débouncer la persistence pour éviter les écritures excessives
    */
-   #debouncedPersist() {
-     if (this.#syncDebounceTimer) clearTimeout(this.#syncDebounceTimer);
-     this.#syncDebounceTimer = setTimeout(() => {
-       this.#persistToCache();
-       this.#syncDebounceTimer = null;
-     }, SYNC_DEBOUNCE_MS);
-   }
+  #debouncedPersist() {
+    if (this.#syncDebounceTimer) clearTimeout(this.#syncDebounceTimer);
+    this.#syncDebounceTimer = setTimeout(() => {
+      this.#persistToCache();
+      this.#syncDebounceTimer = null;
+    }, SYNC_DEBOUNCE_MS);
+  }
 
   #updateLastSync() {
     this.#lastSync = new Date().toISOString();
@@ -638,21 +745,30 @@ class ProductsStore {
 
     // Filtre par store
     if (this.#filters.selectedStores.length > 0) {
-      if (!product.storeInfo?.storeName || !this.#filters.selectedStores.includes(product.storeInfo.storeName)) {
+      if (
+        !product.storeInfo?.storeName ||
+        !this.#filters.selectedStores.includes(product.storeInfo.storeName)
+      ) {
         return false;
       }
     }
 
     // Filtre par who
     if (this.#filters.selectedWho.length > 0) {
-      if (!product.who || !product.who.some(w => this.#filters.selectedWho.includes(w))) {
+      if (
+        !product.who ||
+        !product.who.some((w) => this.#filters.selectedWho.includes(w))
+      ) {
         return false;
       }
     }
 
     // Filtre par productType
     if (this.#filters.selectedProductTypes.length > 0) {
-      if (!product.productType || !this.#filters.selectedProductTypes.includes(product.productType)) {
+      if (
+        !product.productType ||
+        !this.#filters.selectedProductTypes.includes(product.productType)
+      ) {
         return false;
       }
     }
@@ -660,8 +776,10 @@ class ProductsStore {
     // Filtres température
     if (this.#filters.selectedTemperatures.length > 0) {
       const hasValidTemp =
-        (this.#filters.selectedTemperatures.includes('frais') && product.pFrais) ||
-        (this.#filters.selectedTemperatures.includes('surgele') && product.pSurgel);
+        (this.#filters.selectedTemperatures.includes("frais") &&
+          product.pFrais) ||
+        (this.#filters.selectedTemperatures.includes("surgele") &&
+          product.pSurgel);
       if (!hasValidTemp) return false;
     }
 
@@ -675,7 +793,7 @@ class ProductsStore {
     (query: string) => {
       this.#filters.searchQuery = query;
     },
-    () => 500
+    () => 500,
   );
 
   toggleProductType(type: string) {
@@ -687,7 +805,7 @@ class ProductsStore {
     }
   }
 
-  toggleTemperature(temperature: 'frais' | 'surgele') {
+  toggleTemperature(temperature: "frais" | "surgele") {
     const idx = this.#filters.selectedTemperatures.indexOf(temperature);
     if (idx > -1) {
       this.#filters.selectedTemperatures.splice(idx, 1);
@@ -741,14 +859,14 @@ class ProductsStore {
 
   clearFilters() {
     this.#filters = {
-      searchQuery: '',
+      searchQuery: "",
       selectedStores: [],
       selectedWho: [],
       selectedProductTypes: [],
       selectedTemperatures: [],
-      groupBy: 'productType',
-      sortColumn: '',
-      sortDirection: 'asc'
+      groupBy: "productType",
+      sortColumn: "",
+      sortDirection: "asc",
     };
   }
 
@@ -783,6 +901,13 @@ class ProductsStore {
     return this.#enrichedProducts.get(productId) ?? null;
   }
 
+  /**
+   * Récupère le total des besoins pour un produit sur la plage de dates définie
+   */
+  getNeededForProduct(productId: string): number {
+    return this.totalNeededByDateRange.get(productId) ?? 0;
+  }
+
   get enrichedProductsCount(): number {
     return this.#enrichedProducts.size;
   }
@@ -798,7 +923,7 @@ class ProductsStore {
     this.#lastSync = null;
     if (this.#cacheKey) localStorage.removeItem(this.#cacheKey);
     if (this.#metadataKey) localStorage.removeItem(this.#metadataKey);
-    console.log('[ProductsStore] Cache vidé');
+    console.log("[ProductsStore] Cache vidé");
   }
 
   destroy() {
@@ -811,7 +936,7 @@ class ProductsStore {
       this.#syncDebounceTimer = null;
     }
 
-    console.log('[ProductsStore] Ressources nettoyées');
+    console.log("[ProductsStore] Ressources nettoyées");
   }
 
   // =========================================================================
@@ -821,9 +946,9 @@ class ProductsStore {
   #safeJsonParse<T>(jsonString: string | null): T | null {
     if (!jsonString?.trim()) return null;
     try {
-      return JSON.parse(jsonString) as T;
+      return superjson.parse<T>(jsonString);
     } catch (err) {
-      console.warn('[ProductsStore] Erreur parsing JSON:', err);
+      console.warn("[ProductsStore] Erreur parsing JSON avec superjson:", err);
       return null;
     }
   }
@@ -832,13 +957,13 @@ class ProductsStore {
     try {
       const quantityInfoArray = JSON.parse(jsonString) as QuantityInfo[];
       return quantityInfoArray
-        .map(q => ({
+        .map((q) => ({
           quantity: parseFloat(q.quantity),
-          unit: q.unit
+          unit: q.unit,
         }))
-        .filter(q => !isNaN(q.quantity));
+        .filter((q) => !isNaN(q.quantity));
     } catch (err) {
-      console.error('[ProductsStore] Erreur parsing NumericQuantity:', err);
+      console.error("[ProductsStore] Erreur parsing NumericQuantity:", err);
       return [];
     }
   }
@@ -848,7 +973,7 @@ class ProductsStore {
 
     const quantityMap = new Map<string, number>();
 
-    purchases.forEach(purchase => {
+    purchases.forEach((purchase) => {
       if (!purchase.quantity || !purchase.unit) return;
       const quantity = parseFloat(purchase.quantity);
       if (isNaN(quantity)) return;
@@ -859,36 +984,36 @@ class ProductsStore {
 
     return Array.from(quantityMap.entries()).map(([unit, quantity]) => ({
       quantity,
-      unit
+      unit,
     }));
   }
 
   #calculateAndFormatMissing(
     neededArray: NumericQuantity[],
-    purchasesArray: NumericQuantity[]
-  ): { numeric: NumericQuantity[], display: string } {
+    purchasesArray: NumericQuantity[],
+  ): { numeric: NumericQuantity[]; display: string } {
     if (!neededArray?.length) {
-      return { numeric: [], display: '✅ Complet' };
+      return { numeric: [], display: "✅ Complet" };
     }
 
     if (!purchasesArray?.length) {
       const display = neededArray
-        .map(n => this.#formatSingleQuantity(n.quantity.toString(), n.unit))
-        .join(' et ');
+        .map((n) => this.#formatSingleQuantity(n.quantity.toString(), n.unit))
+        .join(" et ");
       return { numeric: neededArray as any, display };
     }
 
     const neededMap = new Map<string, number>();
     const purchasesMap = new Map<string, number>();
 
-    neededArray.forEach(n => {
+    neededArray.forEach((n) => {
       const qty = parseFloat(n.quantity as any);
       if (!isNaN(qty)) {
         neededMap.set(n.unit, (neededMap.get(n.unit) || 0) + qty);
       }
     });
 
-    purchasesArray.forEach(p => {
+    purchasesArray.forEach((p) => {
       purchasesMap.set(p.unit, (purchasesMap.get(p.unit) || 0) + p.quantity);
     });
 
@@ -904,35 +1029,36 @@ class ProductsStore {
       }
     });
 
-    const display = formatted.length > 0 ? formatted.join(' et ') : '✅ Complet';
+    const display =
+      formatted.length > 0 ? formatted.join(" et ") : "✅ Complet";
     return { numeric, display };
   }
 
   #formatTotalQuantity(total: NumericQuantity[]): string {
-    if (!total?.length) return '-';
+    if (!total?.length) return "-";
     return total
-      .map(p => this.#formatSingleQuantity(p.quantity.toString(), p.unit))
-      .join(' et ');
+      .map((p) => this.#formatSingleQuantity(p.quantity.toString(), p.unit))
+      .join(" et ");
   }
 
   #formatSingleQuantity(value: string, unit: string): string {
     const num = parseFloat(value);
     if (isNaN(num)) return `${value} ${unit}`;
 
-    if ((unit === 'gr.' || unit === 'ml') && num >= 1000) {
+    if ((unit === "gr." || unit === "ml") && num >= 1000) {
       const converted = num / 1000;
-      const newUnit = unit === 'gr.' ? 'kg' : 'l.';
+      const newUnit = unit === "gr." ? "kg" : "l.";
       const rounded = Math.round(converted * 100) / 100;
       let formatted = rounded.toString();
-      if (formatted.endsWith(',0')) formatted = formatted.slice(0, -2);
-      if (formatted.endsWith(',00')) formatted = formatted.slice(0, -3);
+      if (formatted.endsWith(",0")) formatted = formatted.slice(0, -2);
+      if (formatted.endsWith(",00")) formatted = formatted.slice(0, -3);
       return `${formatted} ${newUnit}`;
     }
 
-    if (!['gr.', 'ml', 'kg', 'l.'].includes(unit)) {
+    if (!["gr.", "ml", "kg", "l."].includes(unit)) {
       const rounded = Math.round(num * 10) / 10;
       let formatted = rounded.toString();
-      if (formatted.endsWith(',0')) formatted = formatted.slice(0, -2);
+      if (formatted.endsWith(",0")) formatted = formatted.slice(0, -2);
       return `${formatted} ${unit}`;
     }
 

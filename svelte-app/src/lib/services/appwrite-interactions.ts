@@ -22,6 +22,8 @@
  * Lecture :
  * • loadProducts() : Chargement initial des produits avec achats associés
  * • syncProducts() : Synchronisation incrémentielle (delta depuis lastSync)
+ * • loadMainEventData() : Chargement des données principales de l'événement
+ * • loadAllDates() : Extraction et parsing des dates depuis la collection main
  *
  * Écriture :
  * • updateProduct() : Mise à jour d'un produit
@@ -41,8 +43,9 @@
  */
 
 import { ID, Query, type Models } from "appwrite";
+import superjson from "superjson";
 import type { Products, Purchases } from "../types/appwrite.d";
-import type { StoreInfo } from "../types/store.types";
+import type { StoreInfo, MainEventData } from "../types/store.types";
 
 // =============================================================================
 // TYPES INTERNE (utilise les types générés automatiquement ??)
@@ -369,59 +372,75 @@ export async function syncProductsAndPurchases(
       ),
     ]);
     // ===== DEBUG =====
-      // console.log('[Appwrite Interactions] Sync Response - Products:', JSON.stringify(productsResponse.documents, null, 2));
-      // console.log('[Appwrite Interactions] Sync Response - Purchases:', JSON.stringify(purchasesResponse.documents, null, 2));
+    // console.log('[Appwrite Interactions] Sync Response - Products:', JSON.stringify(productsResponse.documents, null, 2));
+    // console.log('[Appwrite Interactions] Sync Response - Purchases:', JSON.stringify(purchasesResponse.documents, null, 2));
 
-      // // Inspecter la structure réelle de p.products
-      // if (purchasesResponse.documents.length > 0) {
-      //     const firstPurchase = purchasesResponse.documents[0];
-      //     console.log('[Appwrite Interactions] Type de purchases[0].products:', typeof firstPurchase.products);
-      //     console.log('[Appwrite Interactions] Valeur de purchases[0].products:', firstPurchase.products);
-      //     if (Array.isArray(firstPurchase.products) && firstPurchase.products.length > 0) {
-      //         console.log('[Appwrite Interactions] Type du premier élément:', typeof firstPurchase.products[0]);
-      //         console.log('[Appwrite Interactions] Valeur du premier élément:', firstPurchase.products[0]);
-      //     }
-      // }
+    // // Inspecter la structure réelle de p.products
+    // if (purchasesResponse.documents.length > 0) {
+    //     const firstPurchase = purchasesResponse.documents[0];
+    //     console.log('[Appwrite Interactions] Type de purchases[0].products:', typeof firstPurchase.products);
+    //     console.log('[Appwrite Interactions] Valeur de purchases[0].products:', firstPurchase.products);
+    //     if (Array.isArray(firstPurchase.products) && firstPurchase.products.length > 0) {
+    //         console.log('[Appwrite Interactions] Type du premier élément:', typeof firstPurchase.products[0]);
+    //         console.log('[Appwrite Interactions] Valeur du premier élément:', firstPurchase.products[0]);
+    //     }
+    // }
     // ===== FIN DEBUG =====
 
-      let allProducts = productsResponse.documents as Products[];
-      const existingProductIds = new Set(allProducts.map(p => p.$id));
+    let allProducts = productsResponse.documents as Products[];
+    const existingProductIds = new Set(allProducts.map((p) => p.$id));
 
-      if (purchasesResponse.documents.length > 0) {
-          // Extraire les IDs des products
-          const affectedProductIds = purchasesResponse.documents
-              .flatMap(p => {
-                  if (!Array.isArray(p.products)) return [];
-                  // p.products contient des objets avec $id
-                  return p.products.map((prod: any) => prod.$id);
-              })
-              .filter((id, index, arr) => arr.indexOf(id) === index) // unique
-              .filter(id => !existingProductIds.has(id)); // ✅ Exclure les IDs déjà dans productsResponse
+    if (purchasesResponse.documents.length > 0) {
+      // Extraire les IDs des products
+      const affectedProductIds = purchasesResponse.documents
+        .flatMap((p) => {
+          if (!Array.isArray(p.products)) return [];
+          // p.products contient des objets avec $id
+          return p.products.map((prod: any) => prod.$id);
+        })
+        .filter((id, index, arr) => arr.indexOf(id) === index) // unique
+        .filter((id) => !existingProductIds.has(id)); // ✅ Exclure les IDs déjà dans productsResponse
 
-          console.log(`[Appwrite Interactions] Affected products from purchases: ${affectedProductIds.length}`);
-          console.log('[Appwrite Interactions] Affected product IDs:', affectedProductIds);
+      console.log(
+        `[Appwrite Interactions] Affected products from purchases: ${affectedProductIds.length}`,
+      );
+      console.log(
+        "[Appwrite Interactions] Affected product IDs:",
+        affectedProductIds,
+      );
 
-          // Recharger les products affectés
-          if (affectedProductIds.length > 0) {
-              try {
-                  console.log('[Appwrite Interactions] Appel loadProductsListByIds avec IDs:', affectedProductIds);
-                  const updatedProducts = await loadProductsListByIds(affectedProductIds);
-                  console.log(`[Appwrite Interactions] Reloaded ${updatedProducts.length} products:`, JSON.stringify(updatedProducts, null, 2));
+      // Recharger les products affectés
+      if (affectedProductIds.length > 0) {
+        try {
+          console.log(
+            "[Appwrite Interactions] Appel loadProductsListByIds avec IDs:",
+            affectedProductIds,
+          );
+          const updatedProducts =
+            await loadProductsListByIds(affectedProductIds);
+          console.log(
+            `[Appwrite Interactions] Reloaded ${updatedProducts.length} products:`,
+            JSON.stringify(updatedProducts, null, 2),
+          );
 
-                  allProducts = [...allProducts, ...updatedProducts];
-              } catch (error) {
-                  console.error('[Appwrite Interactions] Erreur lors du rechargement des products:', error);
-                  throw error;
-              }
-          }
+          allProducts = [...allProducts, ...updatedProducts];
+        } catch (error) {
+          console.error(
+            "[Appwrite Interactions] Erreur lors du rechargement des products:",
+            error,
+          );
+          throw error;
+        }
       }
+    }
 
-      if (allProducts.length > 0) {
-          console.log(`[Appwrite Interactions] Sync total: ${allProducts.length} produits synchronisés`);
-      }
+    if (allProducts.length > 0) {
+      console.log(
+        `[Appwrite Interactions] Sync total: ${allProducts.length} produits synchronisés`,
+      );
+    }
 
-      return { allProducts };
-
+    return { allProducts };
   } catch (error) {
     console.error(
       `[Appwrite Interactions] Erreur sync pour mainId ${mainId}:`,
@@ -909,6 +928,84 @@ export function subscribeToRealtime(
       unsubscribe = null;
     }
   };
+}
+
+/**
+ * Charge les données principales de l'événement depuis la collection main
+ * @param mainId - ID de l'événement principal
+ * @returns Promise<MainEventData | null> - Données de l'événement ou null si non trouvé
+ */
+export async function loadMainEventData(
+  mainId: string,
+): Promise<MainEventData | null> {
+  try {
+    console.log(
+      `[Appwrite Interactions] Chargement des données principales pour mainId: ${mainId}`,
+    );
+
+    const { databases } = await getAppwriteInstances();
+    const config = (window as any).AppwriteClient.getConfig();
+
+    const response = await databases.listDocuments(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.main,
+      [Query.equal("mainId", mainId)],
+    );
+
+    if (response.documents.length === 0) {
+      console.warn(
+        `[Appwrite Interactions] Aucune donnée principale trouvée pour mainId: ${mainId}`,
+      );
+      return null;
+    }
+
+    const mainData = response.documents[0] as MainEventData;
+    console.log(
+      `[Appwrite Interactions] Données principales chargées pour: ${mainData.name}`,
+    );
+    return mainData;
+  } catch (error) {
+    console.error(
+      `[Appwrite Interactions] Erreur chargement données principales pour mainId ${mainId}:`,
+      error,
+    );
+    return null;
+  }
+}
+
+/**
+ * Extrait et parse le tableau des dates depuis la collection main
+ * @param mainId - ID de l'événement principal
+ * @returns Promise<string[]> - Tableau des dates ou tableau vide si non trouvé
+ */
+export async function loadAllDates(mainId: string): Promise<string[]> {
+  try {
+    console.log(
+      `[Appwrite Interactions] Chargement des dates pour mainId: ${mainId}`,
+    );
+
+    const mainData = await loadMainEventData(mainId);
+
+    if (!mainData || !mainData.allDates) {
+      console.warn(
+        `[Appwrite Interactions] Aucune date trouvée pour mainId: ${mainId}`,
+      );
+      return [];
+    }
+
+    // Parser le JSON depuis le champ allDates (string) avec superjson
+    const dates = superjson.parse(mainData.allDates) as string[];
+    console.log(
+      `[Appwrite Interactions] ${dates.length} dates chargées pour mainId: ${mainId}`,
+    );
+    return dates;
+  } catch (error) {
+    console.error(
+      `[Appwrite Interactions] Erreur chargement des dates pour mainId ${mainId}:`,
+      error,
+    );
+    return [];
+  }
 }
 
 // =============================================================================

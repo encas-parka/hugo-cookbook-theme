@@ -1,11 +1,12 @@
 {
-  "plugins": ["prettier-plugin-go-template"],
+  "plugins": ["prettier-plugin-go-template", "prettier-plugin-svelte", "prettier-plugin-tailwindcss"],
   "overrides": [
     {
       "files": ["*.html"],
       "options": {
         "parser": "go-template"
       }
-    }
+    },
+    { "files": ["*.svelte"], "options": { "parser": "svelte" } }
   ]
 }

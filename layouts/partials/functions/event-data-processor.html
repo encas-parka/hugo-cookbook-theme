@@ -45,6 +45,7 @@
 {{- $uniqueIngSet := dict -}}
 {{- $datesRepas := slice -}}
 {{- $datesTimeRepas := slice -}}
+{{- $allDates := slice -}}
 {{- $recettesLength := 0 -}}
 {{- $nbDate := 0 -}}
 {{- $missingRecipes := slice -}}
@@ -136,6 +137,7 @@
 
   {{- $datesRepas = $datesRepas | append $dateService -}}
   {{- $datesTimeRepas = $datesTimeRepas | append $dateTimeService -}}
+  {{- $allDates = $allDates | append $dateTimeService -}}
 
   {{- range .recettes_du_repas -}}
     {{- $recettesLength = add $recettesLength 1 -}}
@@ -385,6 +387,7 @@
 {{- /* --- Finalisation des données (tris, etc.) --- */}}
 {{- $datesTimeRepas = sort $datesTimeRepas | uniq -}}
 {{- $datesRepas = sort $datesRepas | uniq -}}
+{{- $allDates = sort $allDates | uniq -}}
 {{- $types := slice -}}
 {{- range $key, $value := $typesSet -}}
   {{- $types = $types | append $key -}}
@@ -407,6 +410,7 @@
   "ingByTypeList" $ingByTypeList
   "datesRepas" $datesRepas
   "datesTimeRepas" $datesTimeRepas
+  "allDates" $allDates
   "startDate" (cond (gt (len $datesRepas) 0) (index $datesRepas 0) "")
   "endDate" (cond (gt (len $datesRepas) 0) (index $datesRepas (sub (len $datesRepas) 1)) "")
   "types" $types

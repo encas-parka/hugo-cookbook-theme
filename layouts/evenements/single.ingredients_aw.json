@@ -17,6 +17,7 @@
 {
   "mainGroup_id": "{{ .File.ContentBaseName | default .File.UniqueID }}",
   "name": {{ .Title | jsonify }},
+  "allDates": {{ $eventData.allDates | jsonify }},
   "ingredients": [
     {{- $first := true -}}
     {{- range $name, $data := sort $ingredient_totals "name" -}}

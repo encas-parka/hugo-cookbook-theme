@@ -334,7 +334,8 @@ function prepareTransactionOperations(eventId, eventData, user, contentHash) {
             isActive: true,
             createdBy: user.$id,
             status: 'active',
-            error: null
+            error: null,
+            allDates: eventData.allDates || []
         },
         permissions: [`read("user:${user.$id}")`, `update("user:${user.$id}")`, `delete("user:${user.$id}")`]
     });
@@ -343,7 +344,7 @@ function prepareTransactionOperations(eventId, eventData, user, contentHash) {
     if (eventData.ingredients && Array.isArray(eventData.ingredients)) {
         const productOperations = eventData.ingredients.map(ingredient => {
             const productId = `${ingredient.ingredientHugoUuid}_${eventId}`;
-            
+
             return {
                 action: 'create',
                 databaseId: APPWRITE_CONFIG.databaseId,
@@ -411,7 +412,7 @@ async function createCollaborativeProductsListFromEvent(eventId) {
 
     } catch (error) {
         console.error(`[Appwrite Client] Erreur lors de la création transactionnelle:`, error);
-        
+
         // Gestion simple des erreurs - plus besoin de nettoyage manuel
         if (error.code === 'conflict') {
             throw new Error('Conflit détecté: les données ont été modifiées par une autre opération. Veuillez réessayer.');
