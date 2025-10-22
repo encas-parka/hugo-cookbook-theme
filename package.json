@@ -1,12 +1,14 @@
 {
   "devDependencies": {
-    "prettier-plugin-go-template": "^0.0.15"
+    "prettier": "^3.6.2",
+    "prettier-plugin-go-template": "^0.0.15",
+    "prettier-plugin-svelte": "^3.4.0"
   },
   "dependencies": {
     "@popperjs/core": "^2.11.8",
+    "@tanstack/vue-table": "^8.17.3",
     "bootstrap": "^5.3.3",
     "font-awesome": "^4.7.0",
-    "@tanstack/vue-table": "^8.17.3",
     "vue": "^3.4.27"
   }
 }

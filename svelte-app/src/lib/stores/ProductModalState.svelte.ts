@@ -1,18 +1,18 @@
 import {
-    createPurchase,
-    deletePurchase,
-    updateProductStock,
-    updateProductStore,
-    updateProductWho,
-    updatePurchase,
+  createPurchase,
+  deletePurchase,
+  updateProductStock,
+  updateProductStore,
+  updateProductWho,
+  updatePurchase,
 } from "../services/appwrite-interactions";
 import type { Purchases } from "../types/appwrite";
 import type { StoreInfo } from "../types/store.types";
 import {
-    formatDate,
-    formatDisplayQuantity,
-    formatQuantity,
-    normalizeUnit,
+  formatDate,
+  formatDisplayQuantity,
+  formatQuantity,
+  normalizeUnit,
 } from "../utils/products-display";
 import { userName } from "./GlobalState.svelte";
 import { productsStore } from "./ProductsStore.svelte";
@@ -300,24 +300,45 @@ export function createProductModalState(productId: string) {
     }, "Magasin mis à jour");
   }
 
-
   return {
     // État UI
-    get loading() { return loading; },
-    get error() { return error; },
-    get currentTab() { return currentTab; },
-    set currentTab(value: string) { currentTab = value; },
+    get loading() {
+      return loading;
+    },
+    get error() {
+      return error;
+    },
+    get currentTab() {
+      return currentTab;
+    },
+    set currentTab(value: string) {
+      currentTab = value;
+    },
 
     // Données du produit (toujours fraîches du store)
-    get product() { return product; },
-    get recipes() { return recipes; },
-    get whoList() { return whoList; },
-    get stockEntries() { return stockEntries; },
-    get purchasesList() { return purchasesList; },
+    get product() {
+      return product;
+    },
+    get recipes() {
+      return recipes;
+    },
+    get whoList() {
+      return whoList;
+    },
+    get stockEntries() {
+      return stockEntries;
+    },
+    get purchasesList() {
+      return purchasesList;
+    },
 
     // État d'édition
-    get editingPurchaseId() { return editingPurchaseId; },
-    get editingPurchaseData() { return editingPurchaseData; },
+    get editingPurchaseId() {
+      return editingPurchaseId;
+    },
+    get editingPurchaseData() {
+      return editingPurchaseData;
+    },
 
     // Formulaires locaux
     forms,
@@ -337,6 +358,6 @@ export function createProductModalState(productId: string) {
     // Utilitaires
     formatQuantity,
     formatDate,
-    formatDisplayQuantity
+    formatDisplayQuantity,
   };
 }

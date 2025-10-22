@@ -1,46 +1,39 @@
 <script lang="ts">
-  import { X, Package, ShoppingCart, Archive, Users, Store, CircleCheck, TriangleAlert } from '@lucide/svelte';
+  import {
+    X,
+    CookingPot,
+    ShoppingCart,
+    Archive,
+    Users,
+    Store,
+    CircleCheck,
+    TriangleAlert,
+  } from "@lucide/svelte";
 
   // Stores and Global States
-  import { productsStore } from '../stores/ProductsStore.svelte';
-  import { modal, closeProductModal } from '../stores/GlobalState.svelte';
-  import { createProductModalState } from '../stores/ProductModalState.svelte';
-
+  import { productsStore } from "../stores/ProductsStore.svelte";
+  import { modal, closeProductModal } from "../stores/GlobalState.svelte";
+  import { createProductModalState } from "../stores/ProductModalState.svelte";
 
   // Components
-  import PurchaseManager from './PurchaseManager.svelte';
-  import StockManager from './StockManager.svelte';
-  import VolunteerManager from './VolunteerManager.svelte';
-  import StoreManager from './StoreManager.svelte';
-  import RecipesManager from './RecipesManager.svelte';
-  import { formatDate } from '../utils/products-display';
+  import PurchaseManager from "./PurchaseManager.svelte";
+  import StockManager from "./StockManager.svelte";
+  import VolunteerManager from "./VolunteerManager.svelte";
+  import StoreManager from "./StoreManager.svelte";
+  import RecipesManager from "./RecipesManager.svelte";
 
-  import type { ProductModalStateType } from '../types/store.types.js';
-
-
-
+  import type { ProductModalStateType } from "../types/store.types.js";
 
   let currentTab = $derived(modal.product.tab);
-  let productId = $derived(modal.product.id)
-  let isOpen = $derived(modal.product.isOpen)
-
-  let currentProduct = $derived(
-     productsStore.getEnrichedProductById(productId)
-  );
+  let productId = $derived(modal.product.id);
+  let isOpen = $derived(modal.product.isOpen);
 
   // Instance de ProductModalState (store centralisé)
   let modalState = $derived.by(() => {
     return productId ? createProductModalState(productId) : null;
   }) as ProductModalStateType | null;
 
-  const loading = $derived(modalState?.loading ?? false);
-  const error = $derived(modalState?.error ?? null);
-  const stockEntries = $derived(modalState.stockEntries ?? []);
-  const purchasesList = $derived(modalState?.purchasesList ?? []);
-  const recipes = $derived(modalState?.recipes ?? []);
-
-
-
+  let currentProduct = $derived(modalState?.product);
 
   function handleTabClick(tab: string) {
     // --- FIXIT ? : Utilisation de ProductModalState // implémentation non terminée... Preserver ?---
@@ -51,134 +44,141 @@
     // --- CODE LEGACY → globalState ---
     modal.product.tab = tab;
   }
-
-
-
 </script>
 
 {#if isOpen && currentProduct && modalState}
   <div class="modal modal-open">
-    <div class="modal-box max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div
+      class="modal-box flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden"
+    >
       <!-- Header -->
-      <div class="flex items-center justify-between p-4 border-b">
-        <div class="flex-1">
-          <h2 class="text-xl font-bold">{currentProduct.productName}</h2>
-          <div class="flex items-center gap-3 mt-2">
-            <span class="badge badge-secondary">{currentProduct.productType}</span>
+      <div class="flex items-center justify-between border-b p-4 pt-0">
+        <div class="text-xl font-bold">{currentProduct.productName}</div>
+        <div class="me-2 mt-2 flex items-center gap-3">
+          <span class="badge badge-secondary">{currentProduct.productType}</span
+          >
 
-            {#if currentProduct.status === 'active'}
-              <div class="badge badge-success gap-1">
-                <CircleCheck class="w-3 h-3" />
-                Actif
-              </div>
-            {:else}
-              <div class="badge badge-warning gap-1">
-                <TriangleAlert class="w-3 h-3" />
-                {currentProduct.status}
-              </div>
-            {/if}
-
-            <div class="text-sm opacity-75">
-              <span class="font-medium">Besoin:</span> {currentProduct.displayTotalNeeded}
+          {#if currentProduct.status === "active"}
+            <div class="badge badge-success gap-1">
+              <CircleCheck class="h-3 w-3" />
+              Actif
             </div>
+          {:else}
+            <div class="badge badge-warning gap-1">
+              <TriangleAlert class="h-3 w-3" />
+              {currentProduct.status}
+            </div>
+          {/if}
+
+          <div class="text-sm opacity-75">
+            <span class="font-medium">Besoin:</span>
+            {currentProduct.displayTotalNeeded}
+          </div>
+
+          <div class="text-sm opacity-75">
+            <span class="font-medium">Stock:</span>
+            {currentProduct.displayTotalStock}
           </div>
         </div>
         <button
-          class="btn btn-circle btn-ghost btn-sm"
+          class="btn btn-circle btn-ghost btn-sm absolute top-2 right-2"
           onclick={closeProductModal}
           aria-label="Fermer"
         >
-          <X class="w-4 h-4" />
+          <X class="h-4 w-4" />
         </button>
       </div>
 
       <!-- Onglets -->
       <div class="tabs tabs-border flex-none" role="tablist">
         <button
-          role= "tab" class="tab {currentTab === 'recettes' ? 'tab-active' : ''}"
-          onclick={() => handleTabClick('recettes')}
+          role="tab"
+          class="tab {currentTab === 'recettes' ? 'tab-active' : ''}"
+          onclick={() => handleTabClick("recettes")}
         >
-          <Package class="w-4 h-4 mr-1" />
+          <CookingPot class="mr-1 h-5 w-5" />
           Recettes
-          {#if recipes.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1">{recipes.length}</span>
+          {#if modalState.recipes.length > 0}
+            <span class="badge badge-sm badge-secondary ml-1"
+              >{modalState.recipes.length}</span
+            >
           {/if}
         </button>
 
         <button
-          role= "tab" class="tab {currentTab === 'achats' ? 'tab-active' : ''}"
-          onclick={() => handleTabClick('achats')}
+          role="tab"
+          class="tab {currentTab === 'achats' ? 'tab-active' : ''}"
+          onclick={() => handleTabClick("achats")}
         >
-          <ShoppingCart class="w-4 h-4 mr-1" />
+          <ShoppingCart class="mr-1 h-5 w-5" />
           Achats
-          {#if purchasesList.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1">{purchasesList.length}</span>
+          {#if modalState.purchasesList.length > 0}
+            <span class="badge badge-sm badge-secondary ml-1"
+              >{modalState.purchasesList.length}</span
+            >
           {/if}
         </button>
 
         <button
-          role= "tab" class="tab {currentTab === 'stock' ? 'tab-active' : ''}"
-          onclick={() => handleTabClick('stock')}
+          role="tab"
+          class="tab {currentTab === 'stock' ? 'tab-active' : ''}"
+          onclick={() => handleTabClick("stock")}
         >
-          <Archive class="w-4 h-4 mr-1" />
+          <Archive class="mr-1 h-5 w-5" />
           Stock
-          {#if stockEntries.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1">{stockEntries.length}</span>
+          {#if modalState.stockEntries.length > 0}
+            <span class="badge badge-sm badge-secondary ml-1"
+              >{modalState.stockEntries.length}</span
+            >
           {/if}
         </button>
 
         <button
-          role= "tab" class="tab {currentTab === 'volontaires' ? 'tab-active' : ''}"
-          onclick={() => handleTabClick('volontaires')}
+          role="tab"
+          class="tab {currentTab === 'volontaires' ? 'tab-active' : ''}"
+          onclick={() => handleTabClick("volontaires")}
         >
-          <Users class="w-4 h-4 mr-1" />
+          <Users class="mr-1 h-5 w-5" />
           Volontaires
           {#if currentProduct.who && currentProduct.who.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1">{currentProduct.who.length}</span>
+            <span class="badge badge-sm badge-secondary ml-1"
+              >{currentProduct.who.length}</span
+            >
           {/if}
         </button>
 
         <button
-          role= "tab" class="tab {currentTab === 'magasins' ? 'tab-active' : ''}"
-          onclick={() => handleTabClick('magasins')}
+          role="tab"
+          class="tab {currentTab === 'magasins' ? 'tab-active' : ''}"
+          onclick={() => handleTabClick("magasins")}
         >
-          <Store class="w-4 h-4 mr-1" />
+          <Store class="mr-1 h-5 w-5" />
           Magasin
         </button>
       </div>
 
       <!-- Contenu -->
-      <div class="flex-1 overflow-y-auto p-4 min-h-96">
-        {#if error}
+      <div class="min-h-96 flex-1 overflow-y-auto p-4">
+        {#if modalState.error}
           <div class="alert alert-error mb-4">
-            <X class="w-4 h-4" />
-            <span>erreur : {error}</span>
+            <X class="h-4 w-4" />
+            <span>erreur : {modalState.error}</span>
           </div>
         {/if}
 
-          <div class="">
-            {#if currentTab === 'recettes'}
-              <RecipesManager
-                {modalState}
-              />
-            {:else if currentTab === 'achats'}
-              <PurchaseManager
-                {modalState}
-              />
-            {:else if currentTab === 'stock'}
-              <StockManager
-                {modalState}
-              />
-            {:else if currentTab === 'volontaires'}
-              <VolunteerManager
-                {modalState}
-              />
-            {:else if currentTab === 'magasins'}
-              <StoreManager
-                {modalState}
-              />
-            {/if}
-          </div>
+        <div class="">
+          {#if currentTab === "recettes"}
+            <RecipesManager {modalState} />
+          {:else if currentTab === "achats"}
+            <PurchaseManager {modalState} />
+          {:else if currentTab === "stock"}
+            <StockManager {modalState} />
+          {:else if currentTab === "volontaires"}
+            <VolunteerManager {modalState} />
+          {:else if currentTab === "magasins"}
+            <StoreManager {modalState} />
+          {/if}
+        </div>
       </div>
 
       <!-- Footer -->
@@ -192,5 +192,4 @@
 {/if}
 
 <style>
-
 </style>

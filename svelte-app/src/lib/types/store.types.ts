@@ -1,4 +1,4 @@
-import type { Products, Purchases } from './appwrite.d';
+import type { Products, Purchases } from "./appwrite.d";
 
 /**
  * Types pour la gestion des magasins
@@ -41,6 +41,16 @@ export interface NeededConsolidated {
 }
 
 /**
+ * Types pour le besoin consolidé par date (structure pour neededConsolidatedByDate)
+ */
+export interface NeededConsolidatedByDate {
+  dateTimeService: string;
+  neededConsolidatedForDate: QuantityInfo[];
+  recipeNames: string[];
+  totalAssiettes: number;
+}
+
+/**
  * Types pour les entrées de stock
  */
 export interface StockEntry {
@@ -65,13 +75,14 @@ export interface EnrichedProduct extends Products {
   totalNeededArray: NumericQuantity[];
   recipesArray: RecipeOccurrence[];
   stockArray: StockEntry[];
+  stockOrTotalPurchases: string;
   missingQuantityArray: NumericQuantity[];
   totalPurchasesArray: NumericQuantity[];
+  neededConsolidatedByDateArray: NeededConsolidatedByDate[];
   displayTotalNeeded: string;
   displayTotalPurchases: string;
   displayMissingQuantity: string;
 }
-
 
 /**
  * Type pour le formulaire d'achat
@@ -167,7 +178,6 @@ export interface ProductModalStateType {
   formatDate(dateString: string): string;
   formatDisplayQuantity(quantity: number, unit: string): string;
 }
-
 
 // Alias pour compatibilité (gardés pour la transition)
 export type StoreDisplay = StoreInfo | null;
