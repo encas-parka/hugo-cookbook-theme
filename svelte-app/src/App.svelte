@@ -6,11 +6,12 @@
   import LoadingSpinner from "./lib/components/ui/LoadingSpinner.svelte";
   import ErrorAlert from "./lib/components/ui/ErrorAlert.svelte";
   import AuthErrorAlert from "./lib/components/ui/AuthErrorAlert.svelte";
-  import { LogInIcon } from "@lucide/svelte";
+  import { LogInIcon, RefreshCwIcon } from "@lucide/svelte";
 
   let mainId: string;
   let initError: string | null = $state(null);
   let isCheckingAuth = $state(true);
+  let isReloading = $state(false);
 
   onMount(async () => {
     mainId = getMainIdFromUrl();
@@ -45,6 +46,20 @@
   onDestroy(() => {
     productsStore.destroy();
   });
+
+  // Fonction pour recharger forcé les données
+  async function handleForceReload() {
+    if (!mainId || isReloading) return;
+
+    isReloading = true;
+    try {
+      await productsStore.forceReload(mainId);
+    } catch (error) {
+      console.error("[App] Erreur lors du rechargement forcé:", error);
+    } finally {
+      isReloading = false;
+    }
+  }
 
   // Accès direct aux états du store
   const displayError = $derived(initError || productsStore.error);
@@ -83,6 +98,19 @@
             <div class="text-base-content/60">
               Maj: {new Date(productsStore.lastSync).toLocaleTimeString()}
             </div>
+          {/if}
+
+          <!-- Bouton de rechargement forcé -->
+          {#if !initError}
+            <button
+              class="btn btn-outline btn-sm"
+              class:loading={isReloading || productsStore.loading}
+              onclick={handleForceReload}
+              disabled={isReloading || productsStore.loading}
+              title="Forcer le rechargement depuis Appwrite"
+            >
+              <RefreshCwIcon class="h-4 w-4" />
+            </button>
           {/if}
 
           {#if initError}

@@ -25,6 +25,7 @@
   // Components
   import ProductModal from "./ProductModal.svelte";
   import ProductDrawerFilters from "./ProductDrawerFilters.svelte";
+  import MultiRangeSlider from "./MultiRangeSlider.svelte";
 
   // utils
   import {
@@ -42,6 +43,10 @@
   const uniqueWho = $derived(productsStore.uniqueWho);
   const uniqueProductTypes = $derived(productsStore.uniqueProductTypes);
   const filters = $derived(productsStore.filters);
+
+  const formattedTotalNeededByDateRange = $derived(
+    productsStore.formattedTotalNeededByDateRange,
+  );
 
   // Gestionnaire de clics sur les cellules pour le ProductModal
   function handleOpenProductModal(tab: string, productId: string) {
@@ -151,6 +156,8 @@
     </div>
     <!-- Filtres desktop -->
     <div class="hidden md:block">
+      <MultiRangeSlider class="mb-6" />
+
       <!-- Filtres par type, température, magasin et qui -->
       <div class="mt-4 flex">
         {#if uniqueProductTypes.length > 0}
@@ -472,7 +479,7 @@
                 onclick={() => handleOpenProductModal("recettes", product.$id)}
               >
                 <div class="pb-1 text-center font-semibold">
-                  {product.displayTotalNeeded || "-"}
+                  {formattedTotalNeededByDateRange.get(product.$id) ?? "-"}
                 </div>
                 {#if product.nbRecipes || product.totalAssiettes}
                   <div

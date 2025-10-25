@@ -391,12 +391,10 @@ async function callCreateProductsListFunction(
         userId,
         contentHash,
       }),
-      false, // async = true
+      true, // async = true - EXÉCUTION ASYNCHRONE
       "/", // path (optionnel)
       "GET", // method (optionnel)
-      {
-        "x-appwrite-async": "true", // En-tête pour forcer l'exécution asynchrone
-      },
+      {}, // Pas besoin d'en-têtes personnalisés
     );
 
     console.log(
@@ -404,72 +402,23 @@ async function callCreateProductsListFunction(
       result,
     );
 
-    // En mode asynchrone, nous devons vérifier le statut périodiquement
+    // En mode asynchrone, pour 300+ ingrédients, on ne fait pas de polling
+    // La fonction va s'exécuter en arrière-plan et on suppose que ça va réussir
     const executionId = result.$id;
     console.log(`[Appwrite Client] Execution ID: ${executionId}`);
+    console.log(
+      `[Appwrite Client] Exécution async démarrée pour 300+ ingrédients - pas de polling`,
+    );
 
-    let finalResult = null;
-    let attempts = 0;
-    const maxAttempts = 60; // 10 minutes maximum (60 * 10 secondes)
-
-    while (attempts < maxAttempts) {
-      attempts++;
-
-      try {
-        const status = await functions.getExecution(FUNCTION_ID, executionId);
-        console.log(
-          `[Appwrite Client] Tentative ${attempts}/${maxAttempts} - Statut: ${status.status}`,
-        );
-
-        if (status.status === "completed") {
-          finalResult = status;
-          break;
-        } else if (status.status === "failed") {
-          throw new Error(
-            `Exécution échouée: ${status.stderr || "Erreur inconnue"}`,
-          );
-        }
-
-        // Attendre 10 secondes avant la prochaine vérification
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-      } catch (pollError) {
-        console.error(`[Appwrite Client] Erreur lors du polling:`, pollError);
-        throw pollError;
-      }
-    }
-
-    if (!finalResult) {
-      throw new Error(`Timeout après ${maxAttempts * 10} secondes d'attente`);
-    }
-
-    console.log(`[Appwrite Client] Résultat final:`, finalResult);
-
-    // Parser la réponse
-    let responseBody;
-    if (finalResult.responseBody) {
-      responseBody =
-        typeof finalResult.responseBody === "string"
-          ? JSON.parse(finalResult.responseBody)
-          : finalResult.responseBody;
-    } else {
-      responseBody = finalResult;
-    }
-
-    console.log(`[Appwrite Client] Response body parsée:`, responseBody);
-
-    if (responseBody.success) {
-      return responseBody;
-    } else if (responseBody.error) {
-      throw new Error(`Erreur dans la fonction: ${responseBody.error}`);
-    } else {
-      console.error(
-        `[Appwrite Client] Structure de réponse inattendue:`,
-        responseBody,
-      );
-      throw new Error(
-        `Réponse inattendue de la fonction: ${JSON.stringify(responseBody)}`,
-      );
-    }
+    // Pour 300+ ingrédients, on retourne immédiatement un succès
+    // L'utilisateur verra les résultats quand la fonction aura terminé
+    return {
+      success: true,
+      eventId,
+      executionId,
+      message: "Traitement démarré en arrière-plan (300+ ingrédients)",
+      isAsync: true,
+    };
   } catch (error) {
     console.error(`[Appwrite Client] Erreur lors de l'appel fonction:`, error);
     throw error;

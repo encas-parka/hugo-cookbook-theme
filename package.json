@@ -9,6 +9,7 @@
     "@tanstack/vue-table": "^8.17.3",
     "bootstrap": "^5.3.3",
     "font-awesome": "^4.7.0",
+    "prettier-plugin-tailwindcss": "^0.7.1",
     "vue": "^3.4.27"
   }
 }

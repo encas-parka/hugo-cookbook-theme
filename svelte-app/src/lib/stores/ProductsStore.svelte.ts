@@ -3,13 +3,25 @@ import superjson from "superjson";
 import { createStorageKey } from "../utils/url-utils";
 import { useDebounce } from "runed";
 import type { Products, Purchases } from "../types/appwrite.d";
-import { dateRangeState } from "./DateRangeState.svelte";
-import { calculateTotalNeededInRange } from "../utils/dateRangeUtils";
+
+import {
+  calculateTotalNeededInRange,
+  safeJsonParse,
+  parseToNumericQuantity,
+  calculateAndFormatMissing,
+  calculateTotalPurchasesArray,
+  formatSingleQuantity,
+  formatTotalQuantity,
+  calculateTotalQuantityArray,
+} from "../utils/productsUtils";
+import {
+  reconstructFromOptimizedFormat,
+  validateCompressedFormat,
+  type CompressedOccurrence,
+} from "../utils/dataReconstruction";
 import type {
-  NumericQuantity,
-  QuantityInfo,
-  StoreInfo,
   EnrichedProduct,
+  NumericQuantity,
   RecipeOccurrence,
 } from "../types/store.types";
 
@@ -69,6 +81,7 @@ interface FiltersState {
 interface CacheData {
   lastSync: string | null;
   products: [string, EnrichedProduct][];
+  allDates: string[];
 }
 
 // =============================================================================
@@ -95,6 +108,10 @@ class ProductsStore {
   #realtimeConnected = $state(false);
   #allDates = $state<string[]>([]);
   #lastSync = $state<string | null>(null);
+
+  // Gestion de la plage de dates
+  #startDate = $state<string | null>(null);
+  #endDate = $state<string | null>(null);
 
   // Cache keys
   #cacheKey: string | null = null;
@@ -142,6 +159,46 @@ class ProductsStore {
   get syncing() {
     return this.#syncing;
   }
+
+  // Gestion de la plage de dates
+  get startDate() {
+    return this.#startDate;
+  }
+  get endDate() {
+    return this.#endDate;
+  }
+  setStartDate(date: string | null) {
+    this.#startDate = date;
+  }
+  setEndDate(date: string | null) {
+    this.#endDate = date;
+  }
+  setDateRange(start: string | null, end: string | null) {
+    this.#startDate = start;
+    this.#endDate = end;
+  }
+
+  /**
+   * Initialise automatiquement la plage de dates si elle est vide
+   */
+  private initializeDateRange() {
+    if ((!this.#startDate || !this.#endDate) && this.#allDates.length > 0) {
+      const sortedDates = [...this.#allDates].sort();
+      this.#startDate = sortedDates[0];
+      this.#endDate = sortedDates[sortedDates.length - 1];
+    }
+  }
+
+  // Bornes calculées (dérivées)
+  get firstDate() {
+    if (this.#allDates.length === 0) return null;
+    return [...this.#allDates].sort()[0];
+  }
+
+  get lastDate() {
+    if (this.#allDates.length === 0) return null;
+    return [...this.#allDates].sort().pop();
+  }
   get realtimeConnected() {
     return this.#realtimeConnected;
   }
@@ -161,27 +218,46 @@ class ProductsStore {
   });
 
   /**
-   * Total des besoins par plage de dates
+   * Total des besoins par plage de dates sélectionnée
    */
   totalNeededByDateRange = $derived.by(() => {
-    const { firstDate, lastDate } = dateRangeState;
-    if (!firstDate || !lastDate) return new Map();
-
-    const totalMap = new Map<string, number>();
+    const totalMap = new Map<string, NumericQuantity[]>();
 
     this.enrichedProducts.forEach((product) => {
       const total = calculateTotalNeededInRange(
         product.neededConsolidatedByDateArray,
-        firstDate,
-        lastDate,
+        this.#startDate,
+        this.#endDate,
       );
 
-      if (total > 0) {
+      if (total && total.length > 0) {
         totalMap.set(product.$id, total);
       }
     });
-
+    console.log(totalMap);
     return totalMap;
+  });
+
+  /**
+   * Même données que totalNeededByDateRange, mais formatées comme string
+   * Map<productId, "100kg et 50L">
+   */
+  formattedTotalNeededByDateRange = $derived.by(() => {
+    const formatted = new Map<string, string>();
+
+    // Pour chaque entrée du dérivé précédent
+    this.totalNeededByDateRange.forEach((quantities, productId) => {
+      // quantities est NumericQuantity[]
+      // Ex: [{quantity: 100, unit: "kg"}, {quantity: 50, unit: "L"}]
+
+      // Le formater en string
+      const displayString = formatTotalQuantity(quantities);
+      // Ex: "100kg et 50L"
+
+      formatted.set(productId, displayString);
+    });
+
+    return formatted;
   });
 
   /**
@@ -268,9 +344,6 @@ class ProductsStore {
     this.#cacheKey = createStorageKey("products-enriched", mainId);
 
     try {
-      // Charger les dates depuis Appwrite
-      this.#allDates = await loadAllDates(mainId);
-
       // Charger depuis cache
       await this.#loadFromCache();
 
@@ -280,6 +353,9 @@ class ProductsStore {
       } else {
         await this.#syncInBackground();
       }
+
+      // Initialiser la plage de dates (que ce soit depuis cache ou API)
+      this.initializeDateRange();
 
       // Marquer comme initialisé
       this.#isInitialized = true;
@@ -313,14 +389,17 @@ class ProductsStore {
         return;
       }
 
-      const { products, lastSync } = superjson.parse(cached) as CacheData;
+      const { products, lastSync, allDates } = superjson.parse(
+        cached,
+      ) as CacheData;
       products.forEach(([id, product]) =>
         this.#enrichedProducts.set(id, product),
       );
       this.#lastSync = lastSync;
+      this.#allDates = allDates || [];
 
       console.log(
-        `[ProductsStore] ${products.length} produits chargés du cache, lastSync: ${lastSync}`,
+        `[ProductsStore] ${products.length} produits chargés du cache, lastSync: ${lastSync}, allDates: ${allDates?.length || 0} dates`,
       );
     } catch (err) {
       console.warn("[ProductsStore] Erreur lecture cache, ignoré:", err);
@@ -336,6 +415,7 @@ class ProductsStore {
       const cacheData: CacheData = {
         lastSync: this.#lastSync,
         products: Array.from(this.#enrichedProducts.entries()),
+        allDates: this.#allDates,
       };
       localStorage.setItem(this.#cacheKey, superjson.stringify(cacheData));
     } catch (err) {
@@ -357,7 +437,10 @@ class ProductsStore {
         orderDirection: "asc",
       };
 
-      const products = await loadProductsWithPurchases(mainId, options);
+      const [products, allDates] = await Promise.all([
+        loadProductsWithPurchases(mainId, options),
+        loadAllDates(mainId),
+      ]);
 
       // Enrichir et ajouter à la SvelteMap
       products.forEach((product) => {
@@ -365,11 +448,14 @@ class ProductsStore {
         this.#enrichedProducts.set(product.$id, enriched);
       });
 
+      // Mettre à jour allDates
+      this.#allDates = allDates;
+
       this.#updateLastSync();
       this.#persistToCache();
 
       console.log(
-        `[ProductsStore] ${products.length} produits chargés et enrichis`,
+        `[ProductsStore] ${products.length} produits chargés et enrichis, ${allDates.length} dates récupérées`,
       );
     } catch (err) {
       const message =
@@ -435,24 +521,42 @@ class ProductsStore {
    * Enrichit un produit brut avec tous les calculs
    */
   #enrichProduct(product: Products): EnrichedProduct {
-    const totalPurchasesArray = this.#calculateTotalPurchasesArray(
+    const totalPurchasesArray = calculateTotalQuantityArray(
       product.purchases ?? [],
     );
-    const totalNeededArray = product.totalNeededConsolidated
-      ? this.#parseToNumericQuantity(product.totalNeededConsolidated)
-      : [];
-
     const { numeric: missingQuantityArray, display: displayMissingQuantity } =
-      this.#calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
+      calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
 
-    const stockArray = this.#safeJsonParse<any[]>(product.stockReel) ?? [];
+    const stockArray = safeJsonParse<any[]>(product.stockReel) ?? [];
 
-    const neededConsolidatedByDateArray = product.neededConsolidatedByDate
-      ? (this.#safeJsonParse<any[]>(product.neededConsolidatedByDate) ?? [])
-      : [];
+    // Nouvelle logique : reconstruction depuis format compressé ou format legacy
+    let neededConsolidatedByDateArray: any[] = [];
+    let totalNeededArray: NumericQuantity[] = [];
+    let recipesArray: RecipeOccurrence[] = [];
 
-    const displayTotalPurchases =
-      this.#formatTotalQuantity(totalPurchasesArray);
+    // Vérifier si on utilise le nouveau format compressé
+    const occData = safeJsonParse<CompressedOccurrence[]>(product.occ);
+    if (validateCompressedFormat(occData)) {
+      // Format optimisé : reconstruction
+      const reconstructed = reconstructFromOptimizedFormat(occData);
+      neededConsolidatedByDateArray = reconstructed.neededConsolidatedByDate;
+      totalNeededArray = parseToNumericQuantity(
+        JSON.stringify(reconstructed.totalNeededConsolidated),
+      );
+      recipesArray = reconstructed.recipesOccurrences;
+    } else {
+      // Format legacy : utilisation des champs existants
+      neededConsolidatedByDateArray = product.neededConsolidatedByDate
+        ? (safeJsonParse<any[]>(product.neededConsolidatedByDate) ?? [])
+        : [];
+      totalNeededArray = product.totalNeededConsolidated
+        ? parseToNumericQuantity(product.totalNeededConsolidated)
+        : [];
+      recipesArray =
+        safeJsonParse<RecipeOccurrence[]>(product.recipesOccurrences) ?? [];
+    }
+
+    const displayTotalPurchases = formatTotalQuantity(totalPurchasesArray);
 
     const stockOrTotalPurchases =
       stockArray && stockArray.length > 0
@@ -461,17 +565,15 @@ class ProductsStore {
 
     return {
       ...product,
-      storeInfo: product.store ? this.#safeJsonParse(product.store) : null,
+      storeInfo: product.store ? safeJsonParse(product.store) : null,
       totalNeededArray,
       totalPurchasesArray,
-      recipesArray:
-        this.#safeJsonParse<RecipeOccurrence[]>(product.recipesOccurrences) ??
-        [],
+      recipesArray,
       stockArray,
       stockOrTotalPurchases,
       missingQuantityArray,
       neededConsolidatedByDateArray,
-      displayTotalNeeded: this.#formatTotalQuantity(totalNeededArray),
+      displayTotalNeeded: formatTotalQuantity(totalNeededArray),
       displayTotalPurchases,
       displayMissingQuantity,
     };
@@ -904,6 +1006,7 @@ class ProductsStore {
   /**
    * Récupère le total des besoins pour un produit sur la plage de dates définie
    */
+  // FIXIT
   getNeededForProduct(productId: string): number {
     return this.totalNeededByDateRange.get(productId) ?? 0;
   }
@@ -913,13 +1016,13 @@ class ProductsStore {
   }
 
   async forceReload(mainId: string) {
-    this.#enrichedProducts.clear();
-    this.#lastSync = null;
+    this.clearCache();
     await this.#loadProductsFromService(mainId);
   }
 
   clearCache() {
     this.#enrichedProducts.clear();
+    this.#allDates = [];
     this.#lastSync = null;
     if (this.#cacheKey) localStorage.removeItem(this.#cacheKey);
     if (this.#metadataKey) localStorage.removeItem(this.#metadataKey);
@@ -937,132 +1040,6 @@ class ProductsStore {
     }
 
     console.log("[ProductsStore] Ressources nettoyées");
-  }
-
-  // =========================================================================
-  // UTILITAIRES PRIVÉS - Parsing & Calculs
-  // =========================================================================
-
-  #safeJsonParse<T>(jsonString: string | null): T | null {
-    if (!jsonString?.trim()) return null;
-    try {
-      return superjson.parse<T>(jsonString);
-    } catch (err) {
-      console.warn("[ProductsStore] Erreur parsing JSON avec superjson:", err);
-      return null;
-    }
-  }
-
-  #parseToNumericQuantity(jsonString: string): NumericQuantity[] {
-    try {
-      const quantityInfoArray = JSON.parse(jsonString) as QuantityInfo[];
-      return quantityInfoArray
-        .map((q) => ({
-          quantity: parseFloat(q.quantity),
-          unit: q.unit,
-        }))
-        .filter((q) => !isNaN(q.quantity));
-    } catch (err) {
-      console.error("[ProductsStore] Erreur parsing NumericQuantity:", err);
-      return [];
-    }
-  }
-
-  #calculateTotalPurchasesArray(purchases: any[]): NumericQuantity[] {
-    if (!purchases?.length) return [];
-
-    const quantityMap = new Map<string, number>();
-
-    purchases.forEach((purchase) => {
-      if (!purchase.quantity || !purchase.unit) return;
-      const quantity = parseFloat(purchase.quantity);
-      if (isNaN(quantity)) return;
-
-      const existing = quantityMap.get(purchase.unit) || 0;
-      quantityMap.set(purchase.unit, existing + quantity);
-    });
-
-    return Array.from(quantityMap.entries()).map(([unit, quantity]) => ({
-      quantity,
-      unit,
-    }));
-  }
-
-  #calculateAndFormatMissing(
-    neededArray: NumericQuantity[],
-    purchasesArray: NumericQuantity[],
-  ): { numeric: NumericQuantity[]; display: string } {
-    if (!neededArray?.length) {
-      return { numeric: [], display: "✅ Complet" };
-    }
-
-    if (!purchasesArray?.length) {
-      const display = neededArray
-        .map((n) => this.#formatSingleQuantity(n.quantity.toString(), n.unit))
-        .join(" et ");
-      return { numeric: neededArray as any, display };
-    }
-
-    const neededMap = new Map<string, number>();
-    const purchasesMap = new Map<string, number>();
-
-    neededArray.forEach((n) => {
-      const qty = parseFloat(n.quantity as any);
-      if (!isNaN(qty)) {
-        neededMap.set(n.unit, (neededMap.get(n.unit) || 0) + qty);
-      }
-    });
-
-    purchasesArray.forEach((p) => {
-      purchasesMap.set(p.unit, (purchasesMap.get(p.unit) || 0) + p.quantity);
-    });
-
-    const numeric: NumericQuantity[] = [];
-    const formatted: string[] = [];
-
-    neededMap.forEach((needed, unit) => {
-      const purchased = purchasesMap.get(unit) || 0;
-      const missing = needed - purchased;
-      if (missing > 0) {
-        numeric.push({ quantity: missing, unit });
-        formatted.push(this.#formatSingleQuantity(missing.toString(), unit));
-      }
-    });
-
-    const display =
-      formatted.length > 0 ? formatted.join(" et ") : "✅ Complet";
-    return { numeric, display };
-  }
-
-  #formatTotalQuantity(total: NumericQuantity[]): string {
-    if (!total?.length) return "-";
-    return total
-      .map((p) => this.#formatSingleQuantity(p.quantity.toString(), p.unit))
-      .join(" et ");
-  }
-
-  #formatSingleQuantity(value: string, unit: string): string {
-    const num = parseFloat(value);
-    if (isNaN(num)) return `${value} ${unit}`;
-
-    if ((unit === "gr." || unit === "ml") && num >= 1000) {
-      const converted = num / 1000;
-      const newUnit = unit === "gr." ? "kg" : "l.";
-      const rounded = Math.round(converted * 100) / 100;
-      let formatted = rounded.toString();
-      if (formatted.endsWith(",0")) formatted = formatted.slice(0, -2);
-      if (formatted.endsWith(",00")) formatted = formatted.slice(0, -3);
-      return `${formatted} ${newUnit}`;
-    }
-
-    if (!["gr.", "ml", "kg", "l."].includes(unit)) {
-      const rounded = Math.round(num * 10) / 10;
-      let formatted = rounded.toString();
-      if (formatted.endsWith(",0")) formatted = formatted.slice(0, -2);
-      return `${formatted} ${unit}`;
-    }
-
-    return `${num} ${unit}`;
   }
 }
 

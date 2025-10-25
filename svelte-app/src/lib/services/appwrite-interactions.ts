@@ -946,20 +946,11 @@ export async function loadMainEventData(
     const { databases } = await getAppwriteInstances();
     const config = (window as any).AppwriteClient.getConfig();
 
-    const response = await databases.listDocuments(
+    const mainData = (await databases.getDocument(
       config.APPWRITE_CONFIG.databaseId,
       config.APPWRITE_CONFIG.collections.main,
-      [Query.equal("mainId", mainId)],
-    );
-
-    if (response.documents.length === 0) {
-      console.warn(
-        `[Appwrite Interactions] Aucune donnée principale trouvée pour mainId: ${mainId}`,
-      );
-      return null;
-    }
-
-    const mainData = response.documents[0] as MainEventData;
+      mainId,
+    )) as MainEventData;
     console.log(
       `[Appwrite Interactions] Données principales chargées pour: ${mainData.name}`,
     );
@@ -993,8 +984,29 @@ export async function loadAllDates(mainId: string): Promise<string[]> {
       return [];
     }
 
-    // Parser le JSON depuis le champ allDates (string) avec superjson
-    const dates = superjson.parse(mainData.allDates) as string[];
+    // Le champ allDates peut être directement un tableau ou une chaîne JSON
+    let dates: string[];
+    if (Array.isArray(mainData.allDates)) {
+      // C'est déjà un tableau
+      dates = mainData.allDates;
+    } else if (typeof mainData.allDates === "string") {
+      // C'est une chaîne JSON à parser
+      try {
+        dates = superjson.parse(mainData.allDates) as string[];
+      } catch (parseError) {
+        console.warn(
+          `[Appwrite Interactions] Erreur parsing allDates pour mainId ${mainId}, traitement comme chaîne simple:`,
+          parseError,
+        );
+        dates = [mainData.allDates];
+      }
+    } else {
+      console.warn(
+        `[Appwrite Interactions] Format allDates invalide pour mainId ${mainId}:`,
+        typeof mainData.allDates,
+      );
+      dates = [];
+    }
     console.log(
       `[Appwrite Interactions] ${dates.length} dates chargées pour mainId: ${mainId}`,
     );
@@ -1015,6 +1027,9 @@ export async function loadAllDates(mainId: string): Promise<string[]> {
 export default {
   // Services produits - lecture
   loadProducts: loadProductsWithPurchases,
+
+  // Services dates - lecture
+  loadAllDates,
 
   // Services realtime
   subscribeToRealtime,
