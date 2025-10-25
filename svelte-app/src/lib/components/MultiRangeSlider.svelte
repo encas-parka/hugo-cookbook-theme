@@ -305,26 +305,4 @@
 </div>
 
 <style>
-  :global(.cursor-grab) {
-    cursor: grab;
-  }
-
-  :global(.cursor-grabbing) {
-    cursor: grabbing;
-  }
-
-  :global(.btn-circle) {
-    transition:
-      transform 0.2s ease,
-      box-shadow 0.2s ease;
-  }
-
-  :global(.btn-circle:hover) {
-    transform: translate(-50%, -50%) scale(1.15);
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
-  }
-
-  :global(.btn-circle:active) {
-    transform: translate(-50%, -50%) scale(0.95);
-  }
 </style>

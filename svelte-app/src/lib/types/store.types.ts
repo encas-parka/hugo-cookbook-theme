@@ -28,17 +28,6 @@ export interface QuantityInfo {
 }
 
 /**
- * Types pour les occurrences de recettes
- */
-export interface RecipeOccurrence {
-  recipeName: string;
-  dateTimeService: string;
-  assiettes: number;
-  quantity: string;
-  unit: string;
-}
-
-/**
  * Types pour le besoin consolidé par date
  */
 export interface NeededConsolidated {
@@ -92,6 +81,14 @@ export interface EnrichedProduct extends Products {
   displayTotalNeeded: string;
   displayTotalPurchases: string;
   displayMissingQuantity: string;
+
+  // ✅ NOUVEAUX : Données parsées depuis byDate pour performance
+  byDateParsed?: Record<string, ByDateEntry>; // parsé depuis JSON string
+  totalNeededRawArray?: NumericQuantity[]; // depuis totalNeededRaw (si conversions)
+
+  // ✅ NOUVEAUX : Champs pour overrides (avec valeurs par défaut)
+  totalNeededIsManualOverride: boolean; // false par défaut
+  totalNeededOverrideReason: string | null; // null par défaut (compatible avec Products)
 }
 
 /**
@@ -189,9 +186,56 @@ export interface ProductModalStateType {
   formatDisplayQuantity(quantity: number, unit: string): string;
 }
 
-// Alias pour compatibilité (gardés pour la transition)
-export type StoreDisplay = StoreInfo | null;
-export type QuantityDisplay = QuantityInfo[] | null;
-export type RecipeOccurrencesDisplay = RecipeOccurrence[] | null;
-export type NeededConsolidatedDisplay = NeededConsolidated[] | null;
-export type StockDisplay = StockEntry[] | null;
+// Types pour les données brutes venant de Appwrite (non enrichies)
+export interface ProductData {
+  $productType: string;
+  assiettes: number; // Assiettes de cet ingredient dans la recette
+  ingredient: string; // Nom de l'ingredient
+  name: string;
+  poids: string; // Poids en gr. ou ml
+  quantite: string;
+  recette: string; // Nom de la recette
+  team: string; // Nom de l'équipe (si applicable)
+  unit: string;
+  uuid: string;
+}
+
+// ✅ NOUVEAUX : Types pour la structure byDate
+export interface RecipeOccurrence {
+  r: string; // recipeName
+  q?: number; // quantité brute (optionnel, si différent de qEq)
+  u?: string; // unité brute (optionnel, si différent de uEq)
+  qEq: number; // quantité équivalente (convertie)
+  uEq: string; // unité équivalente
+  a: number; // assiettes
+  cRule?: string; // conversion rule (optionnel)
+}
+
+export interface ByDateEntry {
+  totalConsolidated: NumericQuantity[];
+  recipes: RecipeOccurrence[];
+  totalAssiettes: number;
+  recipeCount: number;
+  // totalRaw est optionnel, seulement si conversions
+  totalRaw?: NumericQuantity[];
+}
+
+export interface HugoIngredient {
+  ingredientHugoUuid: string;
+  ingredientName: string;
+  ingType: string;
+  totalAssiettes: number;
+  nbRecipes: number;
+  pFrais?: boolean;
+  pSurgel?: boolean;
+
+  // ✅ NOUVEAU : Structure groupée par date
+  byDate: Record<string, ByDateEntry>;
+
+  // ✅ NOUVEAU : Optionnel (seulement si conversions)
+  totalNeededRaw?: NumericQuantity[];
+  conversionRules?: string[];
+
+  // Les totaux globaux consolidés sont calculés depuis byDate
+  // Pas besoin de les stocker séparément
+}

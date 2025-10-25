@@ -37,13 +37,13 @@
           </tr>
         </thead>
         <tbody>
-          {#each recipes as recipe (recipe.recipeName + recipe.dateTimeService)}
+          {#each recipes as recipe (recipe.r)}
             <tr>
-              <td class="font-medium">{recipe.recipeName}</td>
-              <td>{recipe.quantity} {recipe.unit}</td>
-              <td>{formatDate(recipe.dateTimeService)}</td>
-              <td>{recipe.typePlat}</td>
-              <td>{recipe.assiettes || "-"} </td>
+              <td class="font-medium">{recipe.r}</td>
+              <td>{recipe.q || recipe.qEq} {recipe.u || recipe.uEq}</td>
+              <td>-</td>
+              <td>-</td>
+              <td>{recipe.a || "-"} </td>
             </tr>
           {/each}
         </tbody>

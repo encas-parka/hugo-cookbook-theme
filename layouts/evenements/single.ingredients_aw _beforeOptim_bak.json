@@ -10,7 +10,6 @@
 {{- $ingredient_by_date := $eventData.ingredient_by_date -}}
 {{- $ingredient_date_counts := $eventData.ingredient_date_counts -}}
 {{- $multi_date_ingredients := $eventData.multi_date_ingredients -}}
-{{- $recipe_occurrences_by_ingredient := $eventData.recipe_occurrences_by_ingredient -}}
 {{- $totalAssiettesByIngredient := $eventData.totalAssiettesByIngredient -}}
 {{- $recipesByIngredient := $eventData.recipesByIngredient -}}
 

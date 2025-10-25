@@ -6,16 +6,16 @@
   toutes les structures de données nécessaires pour les différents formats de sortie JSON.
 
   Input:
-  - Contexte de la page (.)
+    - Contexte de la page (.)
 
   Output: (dict)
-  - ingredient_totals: Map pour single.ingredients_aw.json
-  - ingredient_by_date: Map pour single.ingredients_aw.json
-  - ingByTypeList: Slice pour single.ingredientsjson.json
-  - datesRepas, datesTimeRepas, startDate, endDate
-  - types: Slice des types d'ingrédients
-  - recettesLength, nbDate, uniqueIngCount
-  - missingRecipes
+    - ingredient_totals: Map pour single.ingredients_aw.json
+    - ingredient_by_date: Map pour single.ingredients_aw.json
+    - ingByTypeList: Slice pour single.ingredientsjson.json
+    - datesRepas, datesTimeRepas, startDate, endDate
+    - types: Slice des types d'ingrédients
+    - recettesLength, nbDate, uniqueIngCount
+    - missingRecipes
 */}}
 
 {{- $pageContext := . -}}
@@ -35,18 +35,19 @@
 {{- $totalAssiettesByIngredient := dict -}}
 {{- $recipesByIngredient := dict -}}
 
+{{- /* Pour recipe_occurrences.json */}}
+{{- $recipe_occurrences_by_ingredient := dict -}}
+
 {{- /* Pour ingredientsjson.json */}}
 {{- $IngTypeListGrouped := dict -}}
 {{- $typesSet := dict -}}
 {{- $uniqueIngSet := dict -}}
 {{- $datesRepas := slice -}}
 {{- $datesTimeRepas := slice -}}
+{{- $allDates := slice -}}
 {{- $recettesLength := 0 -}}
 {{- $nbDate := 0 -}}
 {{- $missingRecipes := slice -}}
-
-{{- /* Pour ingredients_aw.json */}}
-{{- $allDates := slice -}}
 
 {{- /* Pour neededConsolidatedByDate - optimisation en deux phases */}}
 {{- $ingredient_date_counts := dict -}}
@@ -60,22 +61,14 @@
   {{- $repasBaseAssiettes := (int .assiettes) -}}
 
   {{- /* Normalisation du datetime */}}
-  {{- if not (findRE "T" $dateService) }}
-    {{ $dateTimeService = printf "%sT12:00:00" $dateService }}
-  {{ end -}}
-  {{- if eq $horaire "matin" }}
-    {{ $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T08:00:00" }}
-  {{- else if eq $horaire "midi" }}
-    {{ $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T12:00:00" }}
-  {{- else if eq $horaire "soir" }}
-    {{ $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T20:00:00" }}
-  {{ end -}}
+  {{- if not (findRE "T" $dateService) }}{{ $dateTimeService = printf "%sT12:00:00" $dateService }}{{ end -}}
+  {{- if eq $horaire "matin" }}{{ $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T08:00:00" }}
+  {{- else if eq $horaire "midi" }}{{ $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T12:00:00" }}
+  {{- else if eq $horaire "soir" }}{{ $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T20:00:00" }}{{ end -}}
 
   {{- range .recettes_du_repas -}}
     {{- $assiettesPourCalcul := $repasBaseAssiettes -}}
-    {{- if .altAssiettes }}
-      {{ $assiettesPourCalcul = (int .altAssiettes) }}
-    {{ end -}}
+    {{- if .altAssiettes }}{{ $assiettesPourCalcul = (int .altAssiettes) }}{{ end -}}
 
     {{- $uuid := partialCached "functions/extract-uuid-from-slug.html" .recette .recette -}}
     {{- $recetteMeta := cond (and $uuid (ne $uuid "")) (index $byUUIDRecette $uuid) nil -}}
@@ -90,8 +83,7 @@
         "assiettes" $assiettesPourCalcul
         "assiettesRecettes" $recetteMeta.plate
         "splitLegumes" true
-        )
-      -}}
+      ) -}}
       {{- $groupedForRecette := (partial "functions/ingredients-group-builder" $builderContext).ingredients -}}
 
       {{- if and $groupedForRecette (reflect.IsMap $groupedForRecette) -}}
@@ -136,16 +128,10 @@
   {{- $repasBaseAssiettes := (int .assiettes) -}}
 
   {{- /* Normalisation du datetime */}}
-  {{- if not (findRE "T" $dateService) }}
-    {{ $dateTimeService = printf "%sT12:00:00" $dateService }}
-  {{ end -}}
-  {{- if eq $horaire "matin" }}
-    {{ $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T08:00:00" }}
-  {{- else if eq $horaire "midi" }}
-    {{ $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T12:00:00" }}
-  {{- else if eq $horaire "soir" }}
-    {{ $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T20:00:00" }}
-  {{ end -}}
+  {{- if not (findRE "T" $dateService) }}{{ $dateTimeService = printf "%sT12:00:00" $dateService }}{{ end -}}
+  {{- if eq $horaire "matin" }}{{ $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T08:00:00" }}
+  {{- else if eq $horaire "midi" }}{{ $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T12:00:00" }}
+  {{- else if eq $horaire "soir" }}{{ $dateTimeService = $dateTimeService | replaceRE "T\\d{2}:\\d{2}:\\d{2}" "T20:00:00" }}{{ end -}}
 
   {{- $datesRepas = $datesRepas | append $dateService -}}
   {{- $datesTimeRepas = $datesTimeRepas | append $dateTimeService -}}
@@ -155,9 +141,7 @@
     {{- $recettesLength = add $recettesLength 1 -}}
     {{- $assiettesPourCalcul := $repasBaseAssiettes -}}
     {{- $typePlat := .type_plat -}}
-    {{- if .altAssiettes }}
-      {{ $assiettesPourCalcul = (int .altAssiettes) }}
-    {{ end -}}
+    {{- if .altAssiettes }}{{ $assiettesPourCalcul = (int .altAssiettes) }}{{ end -}}
 
     {{- $uuid := partialCached "functions/extract-uuid-from-slug.html" .recette .recette -}}
     {{- $recetteMeta := cond (and $uuid (ne $uuid "")) (index $byUUIDRecette $uuid) nil -}}
@@ -178,8 +162,7 @@
         "assiettes" $assiettesPourCalcul
         "assiettesRecettes" $assiettesRecettes
         "splitLegumes" true
-        )
-      -}}
+      ) -}}
       {{- $groupedForRecette := (partial "functions/ingredients-group-builder" $builderContext).ingredients -}}
 
       {{- if and $groupedForRecette (reflect.IsMap $groupedForRecette) -}}
@@ -192,14 +175,13 @@
             {{- $enrichedList := slice -}}
             {{- range $item := $list -}}
               {{- if and $item (reflect.IsMap $item) -}}
-                {{- if .uuid }}
-                  {{ $uniqueIngSet = merge $uniqueIngSet (dict .uuid true) }}
-                {{ end -}}
+                {{- if .uuid }}{{ $uniqueIngSet = merge $uniqueIngSet (dict .uuid true) }}{{ end -}}
                 {{- $enrichedItem := merge $item (dict "recette" $recetteName "dateService" $dateService "dateTimeService" $dateTimeService "horaire" $horaire "typePlat" $typePlat "assiettesRecettes" $assiettesRecettes "assiettes" $assiettesPourCalcul) -}}
                 {{- $enrichedList = $enrichedList | append $enrichedItem -}}
               {{- end -}}
             {{- end -}}
             {{- $IngTypeListGrouped = merge $IngTypeListGrouped (dict $type ($currentList | append $enrichedList)) -}}
+
 
             {{- /* --- Agrégation pour ingredients_aw.json --- */}}
             {{- range $item := $list -}}
@@ -235,96 +217,125 @@
                     {{- $unitEq = "recette·s" -}}
                   {{- end -}}
 
-                  {{- /* 1️⃣ Initialiser la structure pour cet ingrédient si nécessaire */ -}}
-                  {{- $ingDatesCheck := index $ingredient_by_date $name -}}
-                  {{- if not $ingDatesCheck -}}
-                    {{- $ingredient_by_date = merge $ingredient_by_date (dict $name (dict)) -}}
-                  {{- end -}}
+              {{- /* ═══════════════════════════════════════════════════════════
+     NOUVEAU : Construction de la structure byDate
+    ═══════════════════════════════════════════════════════════ */ -}}
 
-                  {{- $ingDates := index $ingredient_by_date $name -}}
+{{- /* 1️⃣ Initialiser la structure pour cet ingrédient si nécessaire */ -}}
+{{- $ingDatesCheck := index $ingredient_by_date $name -}}
+{{- if not $ingDatesCheck -}}
+  {{- $ingredient_by_date = merge $ingredient_by_date (dict $name (dict)) -}}
+{{- end -}}
 
-                  {{- /* 2️⃣ Initialiser la structure pour cette date si nécessaire */ -}}
-                  {{- $dateDataCheck := index $ingDates $dateTimeService -}}
-                  {{- if not $dateDataCheck -}}
-                    {{- $ingDates = merge $ingDates (dict $dateTimeService (dict
-                      "totalConsolidatedWeight" 0.0
-                      "totalConsolidatedVolume" 0.0
-                      "totalConsolidatedOther" (dict)
-                      "recipes" (slice)
-                      "totalAssiettes" 0
-                      "recipeCount" 0
-                      "conversionRules" (slice)
-                      ))
-                    -}}
-                  {{- end -}}
+{{- $ingDates := index $ingredient_by_date $name -}}
 
-                  {{- $dateData := index $ingDates $dateTimeService -}}
+{{- /* 2️⃣ Initialiser la structure pour cette date si nécessaire */ -}}
+{{- $dateDataCheck := index $ingDates $dateTimeService -}}
+{{- if not $dateDataCheck -}}
+  {{- $ingDates = merge $ingDates (dict $dateTimeService (dict
+      "totalConsolidatedWeight" 0.0
+      "totalConsolidatedVolume" 0.0
+      "totalConsolidatedOther" (dict)
+      "totalRawWeight" 0.0
+      "totalRawVolume" 0.0
+      "totalRawOther" (dict)
+      "recipes" (slice)
+      "totalAssiettes" 0
+      "recipeCount" 0
+      "conversionRules" (slice)
+    ))
+  -}}
+{{- end -}}
 
-                  {{- /* 3️⃣ Appeler le converter pour obtenir qEq et uEq */ -}}
-                  {{- $conversionResult := partial "functions/quantite-converter.html" (dict
-                    "quantite" $quantite
-                    "unit" $unit
-                    "ingredient" $name
-                    "fetch" "dict"
-                    )
-                  -}}
+{{- $dateData := index $ingDates $dateTimeService -}}
 
-                  {{- /* 4️⃣ Créer l'entrée de recette optimisée */ -}}
-                  {{- $recipeEntry := dict
-                    "r" $recetteName
-                    "q" $quantite
-                    "u" $unit
-                    "qEq" $conversionResult.quantiteEq
-                    "uEq" $conversionResult.unitEq
-                    "a" $assiettesPourCalcul
-                  -}}
-                  {{- /* Pas de cRule dans les recettes individuelles - seulement au niveau global */ -}}
+{{- /* 3️⃣ Appeler le converter pour obtenir qEq et uEq */ -}}
+{{- $conversionResult := partial "functions/quantite-converter.html" (dict
+    "quantite" $quantite
+    "unit" $unit
+    "ingredient" $name
+    "fetch" "dict"
+  )
+-}}
 
-                  {{- /* 5️⃣ Ajouter la recette au tableau recipes */ -}}
-                  {{- $dateData = merge $dateData (dict
-                    "recipes" ($dateData.recipes | append $recipeEntry)
-                    "totalAssiettes" (add $dateData.totalAssiettes $assiettesPourCalcul)
-                    "recipeCount" (add $dateData.recipeCount 1)
-                    )
-                  -}}
+{{- /* 4️⃣ Créer l'entrée de recette avec les données converties */ -}}
+{{- $recipeEntry := dict
+    "r" $recetteName
+    "q" $quantite
+    "u" $unit
+    "qEq" $conversionResult.quantiteEq
+    "uEq" $conversionResult.unitEq
+    "a" $assiettesPourCalcul
+    "cRule" $conversionResult.conversionRule
+  -}}
 
-                  {{- /* 6️⃣ Accumuler dans totalConsolidated UNIQUEMENT (utilise qEq et uEq) */ -}}
-                  {{- $unitEqLower := $conversionResult.unitEq | lower -}}
-                  {{- $qtyEq := float $conversionResult.quantiteEq -}}
+{{- /* 5️⃣ Ajouter la recette au tableau recipes */ -}}
+{{- $dateData = merge $dateData (dict
+    "recipes" ($dateData.recipes | append $recipeEntry)
+    "totalAssiettes" (add $dateData.totalAssiettes $assiettesPourCalcul)
+    "recipeCount" (add $dateData.recipeCount 1)
+  ) -}}
 
-                  {{- if or (eq $unitEqLower "gr.") (eq $unitEqLower "g") -}}
-                    {{- $dateData = merge $dateData (dict
-                      "totalConsolidatedWeight" (add $dateData.totalConsolidatedWeight $qtyEq)
-                      )
-                    -}}
-                  {{- else if eq $unitEqLower "ml" -}}
-                    {{- $dateData = merge $dateData (dict
-                      "totalConsolidatedVolume" (add $dateData.totalConsolidatedVolume $qtyEq)
-                      )
-                    -}}
-                  {{- else -}}
-                    {{- $currentOther := $dateData.totalConsolidatedOther -}}
-                    {{- $currentQty := index $currentOther $conversionResult.unitEq | default 0.0 -}}
-                    {{- $currentOther = merge $currentOther (dict
-                      $conversionResult.unitEq (add $currentQty $qtyEq)
-                      )
-                    -}}
-                    {{- $dateData = merge $dateData (dict "totalConsolidatedOther" $currentOther) -}}
-                  {{- end -}}
+{{- /* 6️⃣ Accumuler dans totalConsolidated (en utilisant qEq et uEq) */ -}}
+{{- $unitEqLower := $conversionResult.unitEq | lower -}}
+{{- $qtyEq := float $conversionResult.quantiteEq -}}
 
-                  {{- /* 7️⃣ Garder trace des règles de conversion si présentes */ -}}
-                  {{- if and $conversionResult.hasConversion (ne $conversionResult.conversionRule "") -}}
-                    {{- if not (in $dateData.conversionRules $conversionResult.conversionRule) -}}
-                      {{- $dateData = merge $dateData (dict
-                        "conversionRules" ($dateData.conversionRules | append $conversionResult.conversionRule)
-                        )
-                      -}}
-                    {{- end -}}
-                  {{- end -}}
+{{- if or (eq $unitEqLower "gr.") (eq $unitEqLower "g") -}}
+  {{- $dateData = merge $dateData (dict
+      "totalConsolidatedWeight" (add $dateData.totalConsolidatedWeight $qtyEq)
+    ) -}}
+{{- else if eq $unitEqLower "ml" -}}
+  {{- $dateData = merge $dateData (dict
+      "totalConsolidatedVolume" (add $dateData.totalConsolidatedVolume $qtyEq)
+    ) -}}
+{{- else -}}
+  {{- $currentOther := $dateData.totalConsolidatedOther -}}
+  {{- $currentQty := index $currentOther $conversionResult.unitEq | default 0.0 -}}
+  {{- $currentOther = merge $currentOther (dict
+      $conversionResult.unitEq (add $currentQty $qtyEq)
+    ) -}}
+  {{- $dateData = merge $dateData (dict "totalConsolidatedOther" $currentOther) -}}
+{{- end -}}
 
-                  {{- /* 9️⃣ Sauvegarder la dateData mise à jour */ -}}
-                  {{- $ingDates = merge $ingDates (dict $dateTimeService $dateData) -}}
-                  {{- $ingredient_by_date = merge $ingredient_by_date (dict $name $ingDates) -}}
+{{- /* 7️⃣ Accumuler dans totalRaw (quantités originales) */ -}}
+{{- $unitLower := $unit | lower -}}
+{{- $qty := float $quantite -}}
+
+{{- if or (eq $unitLower "kg") (eq $unitLower "gr.") (eq $unitLower "g") -}}
+  {{- $rawWeight := cond (eq $unitLower "kg") (mul $qty 1000) $qty -}}
+  {{- $dateData = merge $dateData (dict
+      "totalRawWeight" (add $dateData.totalRawWeight $rawWeight)
+    ) -}}
+{{- else if or (eq $unitLower "l.") (eq $unitLower "ml") -}}
+  {{- $rawVolume := cond (eq $unitLower "l.") (mul $qty 1000) $qty -}}
+  {{- $dateData = merge $dateData (dict
+      "totalRawVolume" (add $dateData.totalRawVolume $rawVolume)
+    ) -}}
+{{- else -}}
+  {{- $currentRawOther := $dateData.totalRawOther -}}
+  {{- $currentRawQty := index $currentRawOther $unit | default 0.0 -}}
+  {{- $currentRawOther = merge $currentRawOther (dict
+      $unit (add $currentRawQty $qty)
+    ) -}}
+  {{- $dateData = merge $dateData (dict "totalRawOther" $currentRawOther) -}}
+{{- end -}}
+
+{{- /* 8️⃣ Ajouter la règle de conversion si pas déjà présente */ -}}
+{{- if and $conversionResult.hasConversion
+           (ne $conversionResult.conversionRule "")
+           (not (in $dateData.conversionRules $conversionResult.conversionRule)) -}}
+  {{- $dateData = merge $dateData (dict
+      "conversionRules" ($dateData.conversionRules | append $conversionResult.conversionRule)
+    ) -}}
+{{- end -}}
+
+{{- /* 9️⃣ Sauvegarder la dateData mise à jour */ -}}
+{{- $ingDates = merge $ingDates (dict $dateTimeService $dateData) -}}
+{{- $ingredient_by_date = merge $ingredient_by_date (dict $name $ingDates) -}}
+
+{{- /* ═══════════════════════════════════════════════════════════
+     FIN DU NOUVEAU CODE byDate
+    ═══════════════════════════════════════════════════════════ */ -}}
 
                   {{- /* Mise à jour des totaux par ingrédient */}}
                   {{- $totalAssiettesByIngredient = merge $totalAssiettesByIngredient (dict $name (add (index $totalAssiettesByIngredient $name) $assiettesPourCalcul)) -}}
@@ -332,6 +343,8 @@
                   {{- $recipeKey := $recetteID | default $recetteName -}}
                   {{- $ingredientRecipes = merge $ingredientRecipes (dict $recipeKey true) -}}
                   {{- $recipesByIngredient = merge $recipesByIngredient (dict $name $ingredientRecipes) -}}
+
+
 
                   {{- /* Optimisation: pré-calcul des conversions et regroupement des mises à jour */}}
                   {{- $unitLower := $unit | lower -}}
@@ -394,80 +407,78 @@
                     "consolidated_other" $newConsolidatedOther
                     "has_equivalence" $hasEquivalenceNew
                     "conversion_rules" $newConversionRules
-                    )
-                  -}}
+                  ) -}}
 
                   {{- /* --- Calculs byDate pour TOUS les ingrédients --- */}}
-                  {{- $dateKey := $dateTimeService -}}
-                  {{- if not (isset $ingredient_by_date $dateKey) -}}
-                    {{- $ingredient_by_date = merge $ingredient_by_date (dict $dateKey (dict)) -}}
-                  {{- end -}}
-                  {{- $dateData := index $ingredient_by_date $dateKey -}}
-
-                  {{- if not (isset $dateData $name) -}}
-                    {{- $dateData = merge $dateData (dict $name (dict "weight" 0.0 "volume" 0.0 "other" (dict) "recipeNames" (slice) "totalAssiettes" 0 "raw_weight" 0.0 "raw_volume" 0.0 "raw_other" (dict) "has_equivalence" false "conversion_rules" (slice))) -}}
-                  {{- end -}}
-                  {{- $ingByDate := index $dateData $name -}}
-
-                  {{- /* Optimisation: mise à jour groupée en utilisant les valeurs déjà calculées */}}
-                  {{- $newWeight := $ingByDate.weight -}}
-                  {{- $newVolume := $ingByDate.volume -}}
-                  {{- $newOther := $ingByDate.other -}}
-                  {{- $newRawWeight := $ingByDate.raw_weight -}}
-                  {{- $newRawVolume := $ingByDate.raw_volume -}}
-                  {{- $newRawOther := $ingByDate.raw_other -}}
-                  {{- $newRecipeNames := $ingByDate.recipeNames -}}
-                  {{- $newTotalAssiettes := $ingByDate.totalAssiettes -}}
-                  {{- $newHasEquivalence := $ingByDate.has_equivalence -}}
-                  {{- $newConversionRules := $ingByDate.conversion_rules -}}
-
-                  {{- /* Utiliser les valeurs déjà calculées */}}
-                  {{- if $isWeight -}}
-                    {{- $newRawWeight = add $newRawWeight $weightVal -}}
-                    {{- if eq $unitEq "gr." -}}
-                      {{- $newWeight = add $newWeight $quantiteEq -}}
+                    {{- $dateKey := $dateTimeService -}}
+                    {{- if not (isset $ingredient_by_date $dateKey) -}}
+                      {{- $ingredient_by_date = merge $ingredient_by_date (dict $dateKey (dict)) -}}
                     {{- end -}}
-                  {{- else if $isVolume -}}
-                    {{- $newRawVolume = add $newRawVolume $volumeVal -}}
-                    {{- if eq $unitEq "ml" -}}
-                      {{- $newVolume = add $newVolume $quantiteEq -}}
+                    {{- $dateData := index $ingredient_by_date $dateKey -}}
+
+                    {{- if not (isset $dateData $name) -}}
+                      {{- $dateData = merge $dateData (dict $name (dict "weight" 0.0 "volume" 0.0 "other" (dict) "recipeNames" (slice) "totalAssiettes" 0 "raw_weight" 0.0 "raw_volume" 0.0 "raw_other" (dict) "has_equivalence" false "conversion_rules" (slice))) -}}
                     {{- end -}}
-                  {{- else -}}
-                    {{- $newRawOther = merge $newRawOther (dict $unit (add (index $newRawOther $unit | default 0.0) $quantite)) -}}
-                    {{- $newOther = merge $newOther (dict $unitEq (add (index $newOther $unitEq | default 0.0) $quantiteEq)) -}}
-                  {{- end -}}
+                    {{- $ingByDate := index $dateData $name -}}
 
-                  {{- /* Mise à jour des flags et règles de conversion */}}
-                  {{- if $hasEquivalence -}}
-                    {{- $newHasEquivalence = true -}}
-                    {{- if and (ne $conversionRule "") (not (in $newConversionRules $conversionRule)) -}}
-                      {{- $newConversionRules = $newConversionRules | append $conversionRule -}}
+                    {{- /* Optimisation: mise à jour groupée en utilisant les valeurs déjà calculées */}}
+                    {{- $newWeight := $ingByDate.weight -}}
+                    {{- $newVolume := $ingByDate.volume -}}
+                    {{- $newOther := $ingByDate.other -}}
+                    {{- $newRawWeight := $ingByDate.raw_weight -}}
+                    {{- $newRawVolume := $ingByDate.raw_volume -}}
+                    {{- $newRawOther := $ingByDate.raw_other -}}
+                    {{- $newRecipeNames := $ingByDate.recipeNames -}}
+                    {{- $newTotalAssiettes := $ingByDate.totalAssiettes -}}
+                    {{- $newHasEquivalence := $ingByDate.has_equivalence -}}
+                    {{- $newConversionRules := $ingByDate.conversion_rules -}}
+
+                    {{- /* Utiliser les valeurs déjà calculées */}}
+                    {{- if $isWeight -}}
+                      {{- $newRawWeight = add $newRawWeight $weightVal -}}
+                      {{- if eq $unitEq "gr." -}}
+                        {{- $newWeight = add $newWeight $quantiteEq -}}
+                      {{- end -}}
+                    {{- else if $isVolume -}}
+                      {{- $newRawVolume = add $newRawVolume $volumeVal -}}
+                      {{- if eq $unitEq "ml" -}}
+                        {{- $newVolume = add $newVolume $quantiteEq -}}
+                      {{- end -}}
+                    {{- else -}}
+                      {{- $newRawOther = merge $newRawOther (dict $unit (add (index $newRawOther $unit | default 0.0) $quantite)) -}}
+                      {{- $newOther = merge $newOther (dict $unitEq (add (index $newOther $unitEq | default 0.0) $quantiteEq)) -}}
                     {{- end -}}
-                  {{- end -}}
 
-                  {{- /* Ajout des recettes et assiettes */}}
-                  {{- if not (in $newRecipeNames $recetteName) -}}
-                    {{- $newRecipeNames = $newRecipeNames | append $recetteName -}}
-                  {{- end -}}
-                  {{- $newTotalAssiettes = add $newTotalAssiettes $assiettesPourCalcul -}}
+                    {{- /* Mise à jour des flags et règles de conversion */}}
+                    {{- if $hasEquivalence -}}
+                      {{- $newHasEquivalence = true -}}
+                      {{- if and (ne $conversionRule "") (not (in $newConversionRules $conversionRule)) -}}
+                        {{- $newConversionRules = $newConversionRules | append $conversionRule -}}
+                      {{- end -}}
+                    {{- end -}}
 
-                  {{- /* Merge unique pour toutes les mises à jour */}}
-                  {{- $ingByDate = merge $ingByDate (dict
-                    "weight" $newWeight
-                    "volume" $newVolume
-                    "other" $newOther
-                    "raw_weight" $newRawWeight
-                    "raw_volume" $newRawVolume
-                    "raw_other" $newRawOther
-                    "recipeNames" $newRecipeNames
-                    "totalAssiettes" $newTotalAssiettes
-                    "has_equivalence" $newHasEquivalence
-                    "conversion_rules" $newConversionRules
-                    )
-                  -}}
+                    {{- /* Ajout des recettes et assiettes */}}
+                    {{- if not (in $newRecipeNames $recetteName) -}}
+                      {{- $newRecipeNames = $newRecipeNames | append $recetteName -}}
+                    {{- end -}}
+                    {{- $newTotalAssiettes = add $newTotalAssiettes $assiettesPourCalcul -}}
 
-                  {{- $dateData = merge $dateData (dict $name $ingByDate) -}}
-                  {{- $ingredient_by_date = merge $ingredient_by_date (dict $dateKey $dateData) -}}
+                    {{- /* Merge unique pour toutes les mises à jour */}}
+                    {{- $ingByDate = merge $ingByDate (dict
+                      "weight" $newWeight
+                      "volume" $newVolume
+                      "other" $newOther
+                      "raw_weight" $newRawWeight
+                      "raw_volume" $newRawVolume
+                      "raw_other" $newRawOther
+                      "recipeNames" $newRecipeNames
+                      "totalAssiettes" $newTotalAssiettes
+                      "has_equivalence" $newHasEquivalence
+                      "conversion_rules" $newConversionRules
+                    ) -}}
+
+                    {{- $dateData = merge $dateData (dict $name $ingByDate) -}}
+                    {{- $ingredient_by_date = merge $ingredient_by_date (dict $dateKey $dateData) -}}
 
                   {{- $ingredient_totals = merge $ingredient_totals (dict $name $current) -}}
                 {{- end -}}
@@ -502,18 +513,9 @@
   "ingredient_by_date" $ingredient_by_date
   "totalAssiettesByIngredient" $totalAssiettesByIngredient
   "recipesByIngredient" $recipesByIngredient
-  "ingByTypeList" $ingByTypeList
   "datesRepas" $datesRepas
   "datesTimeRepas" $datesTimeRepas
   "allDates" $allDates
-  "startDate" (cond (gt (len $datesRepas) 0) (index $datesRepas 0) "")
-  "endDate" (cond (gt (len $datesRepas) 0) (index $datesRepas (sub (len $datesRepas) 1)) "")
-  "types" $types
-  "recettesLength" $recettesLength
-  "nbDate" $nbDate
-  "uniqueIngCount" (len $uniqueIngSet)
-  "missingRecipes" $missingRecipes
   "ingredient_date_counts" $ingredient_date_counts
   "multi_date_ingredients" $multi_date_ingredients
-  )
--}}
+) -}}

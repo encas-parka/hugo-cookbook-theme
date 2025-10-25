@@ -75,10 +75,11 @@
             {currentProduct.displayTotalNeeded}
           </div>
 
-          <div class="text-sm opacity-75">
+          <!-- Stock : temporairement masqué pendant la migration -->
+          <!-- <div class="text-sm opacity-75">
             <span class="font-medium">Stock:</span>
             {currentProduct.displayTotalStock}
-          </div>
+          </div> -->
         </div>
         <button
           class="btn btn-circle btn-ghost btn-sm absolute top-2 right-2"

@@ -509,7 +509,9 @@ export async function updateProductStore(
   // Sérialiser l'objet StoreInfo en string JSON pour Appwrite
   const serializedStore = store ? JSON.stringify(store) : null;
 
-  const result = await updateProduct(productId, { store: serializedStore });
+  const result = await updateProduct(productId, {
+    store: serializedStore || undefined,
+  });
   console.log(
     `[Appwrite Interactions] Magasin mis à jour pour produit ${productId}, nouvelle valeur:`,
     result.store,

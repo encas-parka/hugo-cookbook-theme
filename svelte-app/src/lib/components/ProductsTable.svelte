@@ -156,7 +156,7 @@
     </div>
     <!-- Filtres desktop -->
     <div class="hidden md:block">
-      <MultiRangeSlider class="mb-6" />
+      <!-- <MultiRangeSlider class="mb-6" /> -->
 
       <!-- Filtres par type, température, magasin et qui -->
       <div class="mt-4 flex">
@@ -479,7 +479,7 @@
                 onclick={() => handleOpenProductModal("recettes", product.$id)}
               >
                 <div class="pb-1 text-center font-semibold">
-                  {formattedTotalNeededByDateRange.get(product.$id) ?? "-"}
+                  {product.displayTotalNeeded ?? "-"}
                 </div>
                 {#if product.nbRecipes || product.totalAssiettes}
                   <div
