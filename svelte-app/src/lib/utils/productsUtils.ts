@@ -47,6 +47,31 @@ export function safeJsonParse<T>(jsonString: string | null): T | null {
 }
 
 /**
+ * Transforme un tableau de Purchases en NumericQuantity
+ * @param purchases - Tableau de Purchases avec {quantity: number, unit: string}
+ * @returns Tableau de NumericQuantity avec {q: number, u: string}
+ *
+ * NOTE IMPORTANTE : Cette fonction est temporaire car le format Purchases est incohérent.
+ * À terme, il faudrait :
+ * 1. Standardiser Purchases sur le format {q: number, u: string} pour cohérence
+ * 2. Ou créer les transformations inverses NumericQuantity → Purchases
+ * 3. Mettre à jour les services Appwrite pour envoyer/recevoir le bon format
+ */
+export function transformPurchasesToNumericQuantity(
+  purchases: any[],
+): NumericQuantity[] {
+  if (!purchases?.length) return [];
+
+  return purchases
+    .filter((p) => p.quantity != null && p.unit)
+    .map((p) => ({
+      q: typeof p.quantity === "number" ? p.quantity : parseFloat(p.quantity),
+      u: p.unit,
+    }))
+    .filter((item) => !isNaN(item.q));
+}
+
+/**
  * Calcule le total d'un tableau de NumericQuantity (format standard)
  * @param items - Tableau de NumericQuantity avec {q: number, u: string}
  * @returns Tableau agrégé par unité en NumericQuantity[]
@@ -299,8 +324,8 @@ export function buildNeededConsolidatedByDateArray(
   return Object.entries(byDate).map(([dateTimeService, entry]) => ({
     dateTimeService,
     neededConsolidatedForDate: entry.totalConsolidated.map((q) => ({
-      quantity: q.q.toString(),
-      unit: q.u,
+      q: q.q,
+      u: q.u,
     })),
     recipeNames: entry.recipes?.map((r) => r.r) || [],
     totalAssiettes: entry.totalAssiettes || 0,

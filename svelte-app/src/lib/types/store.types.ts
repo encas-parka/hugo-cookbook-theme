@@ -44,7 +44,7 @@ export interface NeededConsolidated {
  */
 export interface NeededConsolidatedByDate {
   dateTimeService: string;
-  neededConsolidatedForDate: QuantityInfo[];
+  neededConsolidatedForDate: NumericQuantity[];
   recipeNames: string[];
   totalAssiettes: number;
 }

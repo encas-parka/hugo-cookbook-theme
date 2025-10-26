@@ -10,6 +10,7 @@ import {
   calculateAndFormatMissing,
   formatSingleQuantity,
   formatTotalQuantity,
+  transformPurchasesToNumericQuantity,
   calculateTotalQuantityArray,
   // ✅ NOUVEAUX : Utilitaires pour byDate
   parseByDateData,
@@ -597,7 +598,7 @@ class ProductsStore {
   #enrichProduct(product: Products): EnrichedProduct {
     // Utilitaires existants
     const totalPurchasesArray = calculateTotalQuantityArray(
-      product.purchases ?? [],
+      transformPurchasesToNumericQuantity(product.purchases ?? []),
     );
 
     // ✅ NOUVEAU : Parser la structure byDate
@@ -620,9 +621,9 @@ class ProductsStore {
         product.totalNeededConsolidated &&
         product.totalNeededIsManualOverride
       ) {
-        totalNeededRawArray = safeJsonParse<NumericQuantity[]>(
-          product.totalNeededConsolidated,
-        );
+        totalNeededRawArray =
+          safeJsonParse<NumericQuantity[]>(product.totalNeededConsolidated) ||
+          undefined;
       }
     } else {
       // ❌ Erreur : structure byDate manquante

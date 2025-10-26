@@ -77,12 +77,12 @@ export function createProductModalState(productId: string) {
   $effect(() => {
     if (!product) return;
 
-    forms.purchase.quantity = product.missingQuantityArray[0]?.quantity ?? null;
-    forms.purchase.unit = product.totalNeededArray[0]?.unit ?? "";
+    forms.purchase.quantity = product.missingQuantityArray[0]?.q ?? null;
+    forms.purchase.unit = product.totalNeededArray[0]?.u ?? "";
     forms.purchase.store = product.storeInfo?.storeName ?? "";
     forms.purchase.who = userName() ?? "";
 
-    forms.stock.unit = product.totalNeededArray[0]?.unit ?? "";
+    forms.stock.unit = product.totalNeededArray[0]?.u ?? "";
 
     forms.store.name = product.storeInfo?.storeName ?? null;
     forms.store.comment = product.storeInfo?.storeComment ?? null;
@@ -169,8 +169,8 @@ export function createProductModalState(productId: string) {
 
       // ✅ Reset local form, les données du produit se mettront à jour via le store
       forms.purchase = {
-        quantity: product.missingQuantityArray[0]?.quantity ?? null,
-        unit: product.totalNeededArray[0]?.unit ?? "",
+        quantity: product.missingQuantityArray[0]?.q ?? null,
+        unit: product.totalNeededArray[0]?.u ?? "",
         store: forms.purchase.store,
         who: forms.purchase.who,
         price: null,
