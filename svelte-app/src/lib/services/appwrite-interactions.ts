@@ -23,7 +23,6 @@
  * • loadProducts() : Chargement initial des produits avec achats associés
  * • syncProducts() : Synchronisation incrémentielle (delta depuis lastSync)
  * • loadMainEventData() : Chargement des données principales de l'événement
- * • loadAllDates() : Extraction et parsing des dates depuis la collection main
  *
  * Écriture :
  * • updateProduct() : Mise à jour d'un produit
@@ -90,7 +89,7 @@ export interface LoadProductsOptions {
 }
 
 export interface SyncOptions {
-  lastSync?: string;
+  lastSync: string | null;
   limit?: number;
 }
 
@@ -261,7 +260,6 @@ export async function loadProductsListByIds(
  * @param mainId - ID du main pour filtrer les produits
  * @param options - Options de synchronisation (dernière sync, limite)
  * @returns Promise<ProductWithPurchases[]> - Produits modifiés/créés avec leurs purchases depuis lastSync
- * @deprecated use syncProductsAndPurchases
  *
  * Flux :
  * 1. Vérifie la présence de lastSync (sinon retourne vide)
@@ -275,15 +273,25 @@ export async function syncProductsWithPurchases(
 ): Promise<ProductWithPurchases[]> {
   const { lastSync, limit = 100 } = options;
 
-  if (!lastSync) {
-    console.log(
-      "[Appwrite Interactions] Aucune dernière sync fournie, retour vide",
-    );
-    return [];
-  }
-
   try {
     const { databases, config } = await getAppwriteInstances();
+
+    if (!lastSync) {
+      // === CHARGEMENT COMPLET ===
+      console.log("[Appwrite Interactions] Chargement complet des produits");
+
+      const response = await databases.listDocuments(
+        config.APPWRITE_CONFIG.databaseId,
+        config.APPWRITE_CONFIG.collections.products,
+        [
+          Query.equal("mainId", mainId),
+          Query.select(["*", "purchases.*"]),
+          Query.limit(limit),
+        ],
+      );
+
+      return response.documents as ProductWithPurchases[];
+    }
 
     const response = await databases.listDocuments(
       config.APPWRITE_CONFIG.databaseId,
@@ -306,144 +314,6 @@ export async function syncProductsWithPurchases(
   } catch (error) {
     console.error(
       `[Appwrite Interactions] Erreur sync produits avec purchases pour mainId ${mainId}:`,
-      error,
-    );
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Erreur lors de la synchronisation";
-    throw new Error(`Échec de la synchronisation: ${errorMessage}`);
-  }
-}
-
-/**
- * Synchronise les produits avec leurs relations purchases depuis Appwrite (uniquement les mises à jour)
- *
- * Service de synchronisation pour ProductsStore.
- * Récupère les modifications des produits avec leurs relations purchases depuis la dernière synchronisation.
- *
- * @param mainId - ID du main pour filtrer les données
- * @param options - Options de synchronisation (dernière sync, limite)
- * @returns Promise<{products: Products[], purchases: Purchases[]}> - Produits modifiés avec leurs relations
- *
- * Flux :
- * 1. Vérifie la présence de lastSync (sinon retourne vide)
- * 2. Charge les produits modifiés avec leurs relations purchases
- * 3. Extrait les purchases des produits pour compatibilité avec le code existant
- * 4. ProductsStore utilisera applyProductUpdates pour fusionner
- */
-export async function syncProductsAndPurchases(
-  mainId: string,
-  options: SyncOptions,
-): Promise<{ allProducts: Products[] }> {
-  const { lastSync, limit = 100 } = options;
-
-  if (!lastSync) {
-    console.log(
-      "[Appwrite Interactions] Aucune dernière sync fournie, retour vide pour sync hybride",
-    );
-    return { allProducts: [] };
-  }
-
-  try {
-    const { databases, config } = await getAppwriteInstances();
-
-    // Paralléliser les deux requêtes pour optimiser la performance
-    const [productsResponse, purchasesResponse] = await Promise.all([
-      databases.listDocuments(
-        config.APPWRITE_CONFIG.databaseId,
-        config.APPWRITE_CONFIG.collections.products,
-        [
-          Query.greaterThan("$updatedAt", lastSync),
-          Query.equal("mainId", mainId),
-          Query.select(["*", "purchases.*"]),
-          Query.limit(limit),
-        ],
-      ),
-      databases.listDocuments(
-        config.APPWRITE_CONFIG.databaseId,
-        config.APPWRITE_CONFIG.collections.purchases,
-        [
-          Query.greaterThan("$updatedAt", lastSync),
-          Query.equal("mainId", mainId),
-          Query.select(["products.$id"]),
-          Query.limit(limit),
-        ],
-      ),
-    ]);
-    // ===== DEBUG =====
-    // console.log('[Appwrite Interactions] Sync Response - Products:', JSON.stringify(productsResponse.documents, null, 2));
-    // console.log('[Appwrite Interactions] Sync Response - Purchases:', JSON.stringify(purchasesResponse.documents, null, 2));
-
-    // // Inspecter la structure réelle de p.products
-    // if (purchasesResponse.documents.length > 0) {
-    //     const firstPurchase = purchasesResponse.documents[0];
-    //     console.log('[Appwrite Interactions] Type de purchases[0].products:', typeof firstPurchase.products);
-    //     console.log('[Appwrite Interactions] Valeur de purchases[0].products:', firstPurchase.products);
-    //     if (Array.isArray(firstPurchase.products) && firstPurchase.products.length > 0) {
-    //         console.log('[Appwrite Interactions] Type du premier élément:', typeof firstPurchase.products[0]);
-    //         console.log('[Appwrite Interactions] Valeur du premier élément:', firstPurchase.products[0]);
-    //     }
-    // }
-    // ===== FIN DEBUG =====
-
-    let allProducts = productsResponse.documents as Products[];
-    const existingProductIds = new Set(allProducts.map((p) => p.$id));
-
-    if (purchasesResponse.documents.length > 0) {
-      // Extraire les IDs des products
-      const affectedProductIds = purchasesResponse.documents
-        .flatMap((p) => {
-          if (!Array.isArray(p.products)) return [];
-          // p.products contient des objets avec $id
-          return p.products.map((prod: any) => prod.$id);
-        })
-        .filter((id, index, arr) => arr.indexOf(id) === index) // unique
-        .filter((id) => !existingProductIds.has(id)); // ✅ Exclure les IDs déjà dans productsResponse
-
-      console.log(
-        `[Appwrite Interactions] Affected products from purchases: ${affectedProductIds.length}`,
-      );
-      console.log(
-        "[Appwrite Interactions] Affected product IDs:",
-        affectedProductIds,
-      );
-
-      // Recharger les products affectés
-      if (affectedProductIds.length > 0) {
-        try {
-          console.log(
-            "[Appwrite Interactions] Appel loadProductsListByIds avec IDs:",
-            affectedProductIds,
-          );
-          const updatedProducts =
-            await loadProductsListByIds(affectedProductIds);
-          console.log(
-            `[Appwrite Interactions] Reloaded ${updatedProducts.length} products:`,
-            JSON.stringify(updatedProducts, null, 2),
-          );
-
-          allProducts = [...allProducts, ...updatedProducts];
-        } catch (error) {
-          console.error(
-            "[Appwrite Interactions] Erreur lors du rechargement des products:",
-            error,
-          );
-          throw error;
-        }
-      }
-    }
-
-    if (allProducts.length > 0) {
-      console.log(
-        `[Appwrite Interactions] Sync total: ${allProducts.length} produits synchronisés`,
-      );
-    }
-
-    return { allProducts };
-  } catch (error) {
-    console.error(
-      `[Appwrite Interactions] Erreur sync pour mainId ${mainId}:`,
       error,
     );
     const errorMessage =
@@ -967,62 +837,6 @@ export async function loadMainEventData(
 }
 
 /**
- * Extrait et parse le tableau des dates depuis la collection main
- * @param mainId - ID de l'événement principal
- * @returns Promise<string[]> - Tableau des dates ou tableau vide si non trouvé
- */
-export async function loadAllDates(mainId: string): Promise<string[]> {
-  try {
-    console.log(
-      `[Appwrite Interactions] Chargement des dates pour mainId: ${mainId}`,
-    );
-
-    const mainData = await loadMainEventData(mainId);
-
-    if (!mainData || !mainData.allDates) {
-      console.warn(
-        `[Appwrite Interactions] Aucune date trouvée pour mainId: ${mainId}`,
-      );
-      return [];
-    }
-
-    // Le champ allDates peut être directement un tableau ou une chaîne JSON
-    let dates: string[];
-    if (Array.isArray(mainData.allDates)) {
-      // C'est déjà un tableau
-      dates = mainData.allDates;
-    } else if (typeof mainData.allDates === "string") {
-      // C'est une chaîne JSON à parser
-      try {
-        dates = superjson.parse(mainData.allDates) as string[];
-      } catch (parseError) {
-        console.warn(
-          `[Appwrite Interactions] Erreur parsing allDates pour mainId ${mainId}, traitement comme chaîne simple:`,
-          parseError,
-        );
-        dates = [mainData.allDates];
-      }
-    } else {
-      console.warn(
-        `[Appwrite Interactions] Format allDates invalide pour mainId ${mainId}:`,
-        typeof mainData.allDates,
-      );
-      dates = [];
-    }
-    console.log(
-      `[Appwrite Interactions] ${dates.length} dates chargées pour mainId: ${mainId}`,
-    );
-    return dates;
-  } catch (error) {
-    console.error(
-      `[Appwrite Interactions] Erreur chargement des dates pour mainId ${mainId}:`,
-      error,
-    );
-    return [];
-  }
-}
-
-/**
  * Crée un document Main dans Appwrite
  */
 export async function createMainDocument(
@@ -1072,9 +886,6 @@ export async function createMainDocument(
 export default {
   // Services produits - lecture
   loadProducts: loadProductsWithPurchases,
-
-  // Services dates - lecture
-  loadAllDates,
 
   // Services main
   createMainDocument,

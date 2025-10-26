@@ -5,17 +5,14 @@ import { useDebounce } from "runed";
 import type { Products, Purchases } from "../types/appwrite.d";
 
 import {
-  calculateTotalNeededInRange,
   safeJsonParse,
   calculateAndFormatMissing,
-  formatSingleQuantity,
   formatTotalQuantity,
   transformPurchasesToNumericQuantity,
   calculateTotalQuantityArray,
   // ✅ NOUVEAUX : Utilitaires pour byDate
   parseByDateData,
   calculateTotalFromByDate,
-  aggregateByUnit,
   extractAllRecipes,
   buildNeededConsolidatedByDateArray,
   calculateGlobalTotal,
@@ -27,27 +24,23 @@ import type {
   EnrichedProduct,
   NeededConsolidatedByDate,
   NumericQuantity,
-  RecipeOccurrence,
-  ByDateEntry,
-  HugoIngredient, // ✅ NOUVEAU : Import pour byDate
+  RecipeOccurrence, // ✅ NOUVEAU : Import pour byDate
 } from "../types/store.types";
 
 import {
   loadProductsWithPurchases,
-  syncProductsAndPurchases,
   subscribeToRealtime,
-  loadMainEventData,
-  loadAllDates,
   createMainDocument,
   type LoadProductsOptions,
   loadProductsListByIds,
   loadPurchasesListByIds,
   type SyncOptions,
+  syncProductsWithPurchases,
+  loadMainEventData,
 } from "../services/appwrite-interactions";
 import {
   loadHugoEventData,
-  createVirginProductFromHugo,
-  type HugoEventData,
+  createProductsFromHugo,
 } from "../services/hugo-loader";
 
 /**
@@ -218,9 +211,7 @@ class ProductsStore {
   get realtimeConnected() {
     return this.#realtimeConnected;
   }
-  get lastSync() {
-    return this.#lastSync;
-  }
+
   get hugoContentChanged() {
     return this.#hugoContentChanged;
   }
@@ -387,45 +378,52 @@ class ProductsStore {
 
     this.#currentMainId = mainId;
     this.#cacheKey = createStorageKey("products-enriched", mainId);
-
     this.#error = null;
 
     try {
-      // Charger le JSON Hugo (source de vérité initiale)
-      const hugoData = await loadHugoEventData(mainId);
-      console.log(
-        `[ProductsStore] Données Hugo chargées: ${hugoData.ingredients.length} ingredients`,
-      );
-
-      // Charger depuis cache local (si disponible)
+      // 1. Charger cache local si existe
       await this.#loadFromCache();
 
-      // Vérifier l'état dans Appwrite
-      const [mainDoc, appwriteProducts] = await Promise.all([
-        loadMainEventData(mainId),
-        this.#enrichedProducts.size === 0
-          ? loadProductsWithPurchases(mainId, { limit: 100 })
-          : Promise.resolve([]),
-      ]);
+      // 2. Si cache vide → initialiser depuis Hugo → créer le document main dans Appwrite s'il n'existe pas →
+      if (this.#enrichedProducts.size === 0) {
+        const hugoData = await loadHugoEventData(mainId);
+        console.log(
+          `[ProductsStore] Données Hugo chargées: ${hugoData.ingredients.length} ingredients`,
+        );
 
-      // Déterminer la stratégie d'initialisation
-      const eventState = this.#determineEventState(
-        mainDoc,
-        appwriteProducts,
-        hugoData,
-      );
+        // Créer les produits depuis Hugo
+        hugoData.ingredients.forEach((ingredient) => {
+          const partialProduct = createProductsFromHugo(
+            ingredient,
+            mainId,
+            hugoData.hugoContentHash,
+          );
+          const enriched = this.#enrichProduct(partialProduct as Products);
+          this.#enrichedProducts.set(enriched.$id, enriched);
+        });
 
-      // Initialiser selon l'état
-      await this.#initializeByState(
-        eventState,
-        hugoData,
-        mainDoc,
-        appwriteProducts,
-      );
+        // Initialiser la plage de dates
+        this.#allDates = hugoData.allDates;
+        this.initializeDateRange();
 
-      // Initialiser la plage de dates
-      this.#allDates = hugoData.allDates;
-      this.initializeDateRange();
+        const mainDocument = await loadMainEventData(mainId);
+
+        if (!mainDocument) {
+          //Créer le document main dans Appwrite
+          await createMainDocument(
+            hugoData.mainGroup_id,
+            hugoData.hugoContentHash,
+            hugoData.allDates,
+            hugoData.name,
+          );
+        }
+
+        // Persister le cache (sans lastSync pour l'instant)
+        this.#persistToCache();
+      }
+
+      // 3. Sync en arrière-plan
+      this.#syncFromAppwrite();
 
       // Marquer comme initialisé
       this.#isInitialized = true;
@@ -480,6 +478,31 @@ class ProductsStore {
     }
   }
 
+  async #syncFromAppwrite() {
+    if (!this.#currentMainId) return;
+    this.#syncing = true;
+
+    try {
+      // Utiliser la même fonction pour les deux cas
+      const allProducts = await syncProductsWithPurchases(this.#currentMainId, {
+        lastSync: this.#lastSync,
+        limit: BATCH_LIMIT,
+      });
+
+      // Appliquer les produits
+      this.#batchUpsertEnrichedProducts(allProducts);
+
+      this.#updateLastSync();
+      this.#debouncedPersist();
+    } catch (error) {
+      console.error("[ProductsStore] Erreur lors du sync:", error);
+      throw error;
+    } finally {
+      this.#syncing = false;
+    }
+  }
+
+  // === UTILS ===
   /**
    * Persiste les produits enrichis dans localStorage
    */
@@ -498,93 +521,18 @@ class ProductsStore {
   }
 
   /**
-   * Charge les produits initialement depuis Appwrite
+   * Débouncer la persistence pour éviter les écritures excessives
    */
-  async #loadProductsFromService(mainId: string) {
-    this.#loading = true;
-    this.#error = null;
-
-    try {
-      const options: LoadProductsOptions = {
-        limit: BATCH_LIMIT,
-        orderBy: "productName",
-        orderDirection: "asc",
-      };
-
-      const [products, allDates] = await Promise.all([
-        loadProductsWithPurchases(mainId, options),
-        loadAllDates(mainId),
-      ]);
-
-      // Enrichir et ajouter à la SvelteMap
-      products.forEach((product) => {
-        const enriched = this.#enrichProduct(product);
-        this.#enrichedProducts.set(product.$id, enriched);
-      });
-
-      // Mettre à jour allDates
-      this.#allDates = allDates;
-
-      this.#updateLastSync();
+  #debouncedPersist() {
+    if (this.#syncDebounceTimer) clearTimeout(this.#syncDebounceTimer);
+    this.#syncDebounceTimer = setTimeout(() => {
       this.#persistToCache();
-
-      console.log(
-        `[ProductsStore] ${products.length} produits chargés et enrichis, ${allDates.length} dates récupérées`,
-      );
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Erreur lors du chargement";
-      this.#error = message;
-      console.error("[ProductsStore]", message, err);
-      throw err;
-    } finally {
-      this.#loading = false;
-    }
+      this.#syncDebounceTimer = null;
+    }, SYNC_DEBOUNCE_MS);
   }
 
-  /**
-   * Synchronisation incrémentielle en arrière-plan
-   */
-  async #syncInBackground() {
-    if (!this.#lastSync || !this.#currentMainId) return;
-    this.#syncing = true;
-
-    try {
-      const options: SyncOptions = {
-        lastSync: this.#lastSync,
-        limit: BATCH_LIMIT,
-      };
-
-      // ✅ FIX: syncProductsAndPurchases retourne { allProducts }
-      const { allProducts } = await syncProductsAndPurchases(
-        this.#currentMainId,
-        options,
-      );
-
-      // 1️⃣ Appliquer tous les produits synchronisés
-      if (allProducts.length > 0) {
-        allProducts.forEach((product) => {
-          const enriched = this.#enrichProduct(product);
-          this.#enrichedProducts.set(product.$id, enriched);
-        });
-        console.log(
-          `[ProductsStore] ${allProducts.length} produits appliqués du sync`,
-        );
-      }
-
-      // Persister les changements
-      if (allProducts.length > 0) {
-        this.#updateLastSync();
-        this.#persistToCache();
-        console.log(
-          `[ProductsStore] Sync complétée: ${allProducts.length} produits`,
-        );
-      }
-    } catch (err) {
-      console.error("[ProductsStore] Erreur sync:", err);
-    } finally {
-      this.#syncing = false;
-    }
+  #updateLastSync() {
+    this.#lastSync = new Date().toISOString();
   }
 
   // =========================================================================
@@ -671,6 +619,16 @@ class ProductsStore {
   }
 
   /**
+   * Batch upsert multiple products
+   */
+  #batchUpsertEnrichedProducts(products: Products[]) {
+    if (!products.length) return;
+
+    products.forEach((product) => this.#upsertEnrichedProduct(product));
+    console.log(`[ProductsStore] ${products.length} produits upserted`);
+  }
+
+  /**
    * Upsert dans la SvelteMap (mutation directe = réactive)
    */
   #upsertEnrichedProduct(product: Products) {
@@ -689,168 +647,117 @@ class ProductsStore {
   // GESTION DES PURCHASES
   // =========================================================================
 
-  /**
-   * Applique les mises à jour de purchases aux produits concernés
-   * ✅ Récupère les produits frais depuis Appwrite pour être sûr d'avoir les purchases à jour
-   * @legacy : on utilise la methode optimiste #applyPurchaseUpdatesOptimistic
-   */
-  async #applyPurchaseUpdates(updatedPurchases: Purchases[]) {
-    if (!updatedPurchases?.length) return;
-
-    // 1️⃣ Identifier tous les produits affectés
-    const affectedProductIds = new Set(
-      updatedPurchases
-        .filter((purchase) => purchase.products?.length > 0)
-        .flatMap((purchase) => purchase.products)
-        .map((prod: any) => (typeof prod === "string" ? prod : prod.$id))
-        .filter(Boolean),
-    );
-
-    if (affectedProductIds.size === 0) {
-      console.log("[ProductsStore] Aucun produit affecté par ces purchases");
+  async #applyPurchaseCreated(purchase: Purchases) {
+    if (!purchase.products?.length) {
+      console.warn(
+        "[ProductsStore] Purchase créé sans products:",
+        purchase.$id,
+      );
       return;
     }
-
-    try {
-      // 2️⃣ Récupérer les produits frais depuis Appwrite
-      const refreshedProducts = await loadProductsListByIds(
-        Array.from(affectedProductIds),
-      );
-
-      if (refreshedProducts.length === 0) {
-        console.warn(
-          "[ProductsStore] Impossible de charger les produits affectés",
-        );
-        return;
-      }
-
-      // 3️⃣ Enrichir et mettre à jour la SvelteMap
-      refreshedProducts.forEach((product) => {
-        const enriched = this.#enrichProduct(product);
-        this.#enrichedProducts.set(product.$id, enriched);
-      });
-
-      console.log(
-        `[ProductsStore] ${updatedPurchases.length} purchases appliqués à ${refreshedProducts.length} produit(s)`,
-      );
-    } catch (err) {
-      console.error("[ProductsStore] Erreur application purchases:", err);
-    }
-  }
-
-  // =========================================================================
-  // VARIANTE OPTIMISTE : Mettre à jour localement ET re-charger en async
-  // =========================================================================
-
-  /**
-   * Version optimiste : update local + rechargement async en arrière-plan
-   */
-  async #applyPurchaseUpdatesOptimistic(updatedPurchases: Purchases[]) {
-    if (!updatedPurchases?.length) return;
-
-    const affectedProductIds = new Set<string>();
-    const purchasesNeedingReload: Purchases[] = [];
-
-    // Séparer les purchases avec et sans relations products
-    const purchasesWithProducts = updatedPurchases.filter(
-      (p) => p.products?.length > 0,
-    );
-    purchasesNeedingReload.push(
-      ...updatedPurchases.filter((p) => !p.products?.length),
-    );
-
-    // Extraire tous les IDs de produits des purchases valides
-    const allProductIds = purchasesWithProducts
-      .flatMap((purchase) => purchase.products)
+    // Extraire les product IDs
+    const productIds = purchase.products
       .map((prod: any) => (typeof prod === "string" ? prod : prod.$id))
       .filter(Boolean);
 
-    // Ajouter les IDs au Set
-    allProductIds.forEach((id) => affectedProductIds.add(id));
+    // Mise à jour locale immédiate
+    this.#addPurchaseToProducts(productIds, purchase);
+  }
 
-    // Recharger uniquement les champs nécessaires pour les purchases sans relations
-    if (purchasesNeedingReload.length > 0) {
-      console.log(
-        `[ProductsStore] ${purchasesNeedingReload.length} purchases sans relation products, rechargement ciblé depuis Appwrite...`,
-      );
-      try {
-        const reloadedPurchases = await loadPurchasesListByIds(
-          purchasesNeedingReload.map((p) => p.$id),
-        );
+  /**
+   * Gère la mise à jour d'un purchase (payload partiel possible)
+   */
+  async #applyPurchaseUpdated(purchase: Purchases) {
+    // Si products[] est dans le payload, on peut procéder directement
+    // TOCHECK : normalement n'y ait jamais, sauf peut etre lorsque l'on mergera des products ??
+    if (purchase.products?.length) {
+      const productIds = purchase.products
+        .map((prod: any) => (typeof prod === "string" ? prod : prod.$id))
+        .filter(Boolean);
 
-        // Ajouter les purchases rechargés à la liste des purchases mis à jour
-        reloadedPurchases.forEach((reloadedPurchase) => {
-          if (reloadedPurchase.products?.length > 0) {
-            // Extraire les IDs de produits et les ajouter au Set
-            const productIds = reloadedPurchase.products
-              .map((prod: any) => (typeof prod === "string" ? prod : prod.$id))
-              .filter(Boolean);
-
-            productIds.forEach((id) => affectedProductIds.add(id));
-
-            // Remplacer le purchase incomplet par le purchase complet
-            const incompleteIndex = updatedPurchases.findIndex(
-              (p) => p.$id === reloadedPurchase.$id,
-            );
-            if (incompleteIndex >= 0) {
-              updatedPurchases[incompleteIndex] = reloadedPurchase;
-            }
-          }
-        });
-      } catch (err) {
-        console.error(
-          "[ProductsStore] Erreur rechargement ciblé des purchases:",
-          err,
-        );
-      }
+      this.#updatePurchaseInProducts(productIds, purchase);
+      return;
     }
 
-    if (affectedProductIds.size === 0) return;
+    // ⚠️ Sinon, on doit recharger le purchase complet
+    console.log(
+      "[ProductsStore] Purchase update sans products[], rechargement...",
+    );
 
-    // 1️⃣ UPDATE LOCAL IMMÉDIAT (optimiste)
-    for (const productId of affectedProductIds) {
-      const currentProduct = this.#enrichedProducts.get(productId);
-      if (currentProduct) {
-        // Mettre à jour les purchases (ajout ET modification)
-        let updatedPurchases_ = currentProduct.purchases || [];
-
-        updatedPurchases.forEach((purchase) => {
-          const existingIndex = updatedPurchases_.findIndex(
-            (p) => p.$id === purchase.$id,
-          );
-
-          if (existingIndex >= 0) {
-            // Remplacer le purchase existant (modification)
-            updatedPurchases_[existingIndex] = purchase;
-          } else {
-            // Ajouter le nouveau purchase
-            updatedPurchases_.push(purchase);
-          }
-        });
-
-        // Re-enrichir avec les purchases mis à jour
-        const enriched = this.#enrichProduct({
-          ...currentProduct,
-          purchases: updatedPurchases_,
-        } as any);
-
-        this.#enrichedProducts.set(productId, enriched);
-      }
-    }
-
-    // 2️⃣ RECHARGER EN ARRIÈRE-PLAN (pour corriger les erreurs)
     try {
-      const refreshedProducts = await loadProductsListByIds(
-        Array.from(affectedProductIds),
-      );
-      refreshedProducts.forEach((product) => {
-        const enriched = this.#enrichProduct(product);
-        this.#enrichedProducts.set(product.$id, enriched);
-      });
+      const [fullPurchase] = await loadPurchasesListByIds([purchase.$id]);
+
+      if (fullPurchase?.products?.length) {
+        const productIds = fullPurchase.products
+          .map((prod: any) => (typeof prod === "string" ? prod : prod.$id))
+          .filter(Boolean);
+
+        this.#updatePurchaseInProducts(productIds, fullPurchase);
+      }
     } catch (err) {
-      console.warn("[ProductsStore] Erreur rechargement async:", err);
+      console.error("[ProductsStore] Erreur rechargement purchase:", err);
     }
   }
+
+  /**
+   * Ajoute un purchase à ses products (pour CREATE)
+   */
+  #addPurchaseToProducts(productIds: string[], purchase: Purchases) {
+    const productsToUpdate: Products[] = [];
+
+    productIds.forEach((productId) => {
+      const product = this.#enrichedProducts.get(productId);
+      if (product) {
+        const purchases = product.purchases || [];
+        // Éviter les doublons (au cas où)
+        if (!purchases.some((p) => p.$id === purchase.$id)) {
+          productsToUpdate.push({
+            ...product,
+            purchases: [...purchases, purchase],
+          } as Products);
+        }
+      }
+    });
+
+    this.#batchUpsertEnrichedProducts(productsToUpdate);
+  }
+
+  /**
+   * Met à jour un purchase dans ses products (pour UPDATE)
+   */
+  #updatePurchaseInProducts(productIds: string[], purchase: Purchases) {
+    const productsToUpdate: Products[] = [];
+
+    // TOCHECK : le fait qu'il y ait potentiellement products est correct du point de vue de la façon dont nous avons défini la relation products ←→ purchases comme "many to many", en vue des products mergés, mais dans les fait, est ce qu'on attribura plusieurs products à un purchases ???
+
+    productIds.forEach((productId) => {
+      const product = this.#enrichedProducts.get(productId);
+      if (product) {
+        const purchases = product.purchases || [];
+        const index = purchases.findIndex((p) => p.$id === purchase.$id);
+
+        if (index >= 0) {
+          // Remplacer le purchase existant
+          const updatedPurchases = [...purchases];
+          updatedPurchases[index] = purchase;
+          productsToUpdate.push({
+            ...product,
+            purchases: updatedPurchases,
+          } as Products);
+        } else {
+          // Ajouter si pas trouvé (edge case)
+          // Sécurité si il y a eu desync entre appwrite et les données locales ?
+          productsToUpdate.push({
+            ...product,
+            purchases: [...purchases, purchase],
+          } as Products);
+        }
+      }
+    });
+
+    this.#batchUpsertEnrichedProducts(productsToUpdate);
+  }
+
 
   // =========================================================================
   // REALTIME
@@ -874,15 +781,17 @@ class ProductsStore {
         this.#debouncedPersist();
       },
       onPurchaseCreate: (purchase: Purchases) => {
-        this.#applyPurchaseUpdatesOptimistic([purchase]);
+        this.#applyPurchaseCreated(purchase);
         this.#updateLastSync();
         this.#debouncedPersist();
       },
       onPurchaseUpdate: (purchase: Purchases) => {
-        this.#applyPurchaseUpdatesOptimistic([purchase]);
+        this.#applyPurchaseUpdated(purchase);
         this.#updateLastSync();
         this.#debouncedPersist();
       },
+
+      // TODO: on ne delete pas les purchase, on les marque deleted = true
       onPurchaseDelete: (purchaseId: string) => {
         // Trouver et re-enrichir les produits affectés
         const affectedProducts = Array.from(
@@ -906,21 +815,6 @@ class ProductsStore {
         console.error("[ProductsStore] Erreur realtime:", error);
       },
     };
-  }
-
-  /**
-   * Débouncer la persistence pour éviter les écritures excessives
-   */
-  #debouncedPersist() {
-    if (this.#syncDebounceTimer) clearTimeout(this.#syncDebounceTimer);
-    this.#syncDebounceTimer = setTimeout(() => {
-      this.#persistToCache();
-      this.#syncDebounceTimer = null;
-    }, SYNC_DEBOUNCE_MS);
-  }
-
-  #updateLastSync() {
-    this.#lastSync = new Date().toISOString();
   }
 
   // =========================================================================
@@ -1258,261 +1152,7 @@ class ProductsStore {
 
   async forceReload(mainId: string) {
     this.clearCache();
-    await this.#loadProductsFromService(mainId);
-  }
-
-  /**
-   * Détermine l'état de l'événement (fresh/partial/synced)
-   */
-  #determineEventState(
-    mainDoc: any,
-    appwriteProducts: Products[],
-    hugoData: HugoEventData,
-  ) {
-    // Main n'existe pas → Event jamais ouvert
-    if (!mainDoc) {
-      return {
-        type: "fresh" as const,
-        hugoData,
-      };
-    }
-
-    // Main existe mais aucun product → Users ont ouvert mais pas interagi
-    if (appwriteProducts.length === 0) {
-      return {
-        type: "partial" as const,
-        hugoData,
-        mainDoc,
-        hugoContentChanged:
-          mainDoc.originalDataHash !== hugoData.hugoContentHash,
-      };
-    }
-
-    // Main + products existent → Event actif
-    return {
-      type: "synced" as const,
-      hugoData,
-      mainDoc,
-      appwriteProducts,
-      hugoContentChanged: mainDoc.originalDataHash !== hugoData.hugoContentHash,
-    };
-  }
-
-  /**
-   * Initialise selon l'état détecté
-   */
-  async #initializeByState(
-    eventState: {
-      type: "fresh" | "partial" | "synced";
-      hugoData: HugoEventData;
-      mainDoc?: any;
-      appwriteProducts?: Products[];
-      hugoContentChanged?: boolean;
-    },
-    hugoData: HugoEventData,
-    mainDoc: any,
-    appwriteProducts: Products[],
-  ) {
-    switch (eventState.type) {
-      case "fresh":
-        await this.#initializeFresh(hugoData);
-        break;
-
-      case "partial":
-        await this.#initializePartial(hugoData, mainDoc);
-        break;
-
-      case "synced":
-        await this.#initializeSynced(hugoData, mainDoc, appwriteProducts);
-        break;
-    }
-  }
-
-  /**
-   * Initialisation fresh : Créer Main + products virgin locaux
-   */
-  async #initializeFresh(hugoData: HugoEventData) {
-    console.log("[ProductsStore] État FRESH - Création du Main");
-
-    // Créer le Main document dans Appwrite
-    await this.#createMainDocument(
-      hugoData.mainGroup_id,
-      hugoData.hugoContentHash,
-      hugoData.allDates,
-      hugoData.name,
-    );
-
-    // Créer tous les products en "virgin" (LOCAL UNIQUEMENT)
-    hugoData.ingredients.forEach((ingredient) => {
-      const virgin = this.#createVirginFromHugo(
-        ingredient,
-        hugoData.hugoContentHash,
-      );
-      this.#enrichedProducts.set(ingredient.ingredientHugoUuid, virgin);
-    });
-
-    // Persister le cache
-    this.#updateLastSync();
-    this.#persistToCache();
-
-    console.log(
-      `[ProductsStore] ${hugoData.ingredients.length} produits virgin créés`,
-    );
-  }
-
-  /**
-   * Initialisation partial : Main existe, aucun product Appwrite
-   */
-  async #initializePartial(hugoData: HugoEventData, mainDoc: any) {
-    console.log("[ProductsStore] État PARTIAL - Main existe, products virgin");
-
-    // Vérifier divergence Hugo
-    if (mainDoc.originalDataHash !== hugoData.hugoContentHash) {
-      console.warn("[ProductsStore] Divergence Hugo détectée");
-      this.#hugoContentChanged = true;
-    }
-
-    // Créer tous les products en "virgin" depuis Hugo
-    hugoData.ingredients.forEach((ingredient) => {
-      try {
-        const virgin = this.#createVirginFromHugo(
-          ingredient,
-          hugoData.hugoContentHash,
-        );
-        const enriched = this.#enrichProduct(virgin);
-
-        this.#enrichedProducts.set(ingredient.ingredientHugoUuid, enriched);
-      } catch (error) {
-        console.error(
-          `[ProductsStore] Erreur création virgin pour ${ingredient.ingredientName}:`,
-          error,
-        );
-        console.error(`[ProductsStore] Ingredient data:`, ingredient);
-        throw error;
-      }
-    });
-
-    this.#updateLastSync();
-    this.#persistToCache();
-  }
-
-  /**
-   * Initialisation synced : Merger Hugo + Appwrite
-   */
-  async #initializeSynced(
-    hugoData: HugoEventData,
-    mainDoc: any,
-    appwriteProducts: Products[],
-  ) {
-    console.log(
-      `[ProductsStore] État SYNCED - ${appwriteProducts.length} products Appwrite`,
-    );
-
-    // Vérifier divergence Hugo
-    if (mainDoc.originalDataHash !== hugoData.hugoContentHash) {
-      console.warn("[ProductsStore] Divergence Hugo détectée");
-      this.#hugoContentChanged = true;
-    }
-
-    // Map des products Appwrite pour lookup O(1)
-    const appwriteMap = new Map(
-      appwriteProducts.map((p) => [p.productHugoUuid, p]),
-    );
-
-    // Pour chaque ingredient Hugo
-    hugoData.ingredients.forEach((ingredient) => {
-      const appwriteProduct = appwriteMap.get(ingredient.ingredientHugoUuid);
-
-      if (appwriteProduct) {
-        // Product existe dans Appwrite → PRIORITÉ APPWRITE
-        const enriched = this.#enrichProduct(appwriteProduct);
-        this.#enrichedProducts.set(appwriteProduct.$id, enriched);
-        appwriteMap.delete(ingredient.ingredientHugoUuid);
-      } else {
-        // Product n'existe pas dans Appwrite → Virgin depuis Hugo
-        const virgin = this.#createVirginFromHugo(
-          ingredient,
-          hugoData.hugoContentHash,
-        );
-        this.#enrichedProducts.set(ingredient.ingredientHugoUuid, virgin);
-      }
-    });
-
-    // Traiter les products Appwrite orphelins (mergés ou supprimés du build)
-    appwriteMap.forEach((orphan) => {
-      console.log(`[ProductsStore] Product orphelin: ${orphan.productName}`);
-      const enriched = this.#enrichProduct(orphan);
-      this.#enrichedProducts.set(orphan.$id, enriched);
-    });
-
-    this.#updateLastSync();
-    this.#persistToCache();
-  }
-
-  /**
-   * Crée un Main document dans Appwrite
-   */
-  async #createMainDocument(
-    mainId: string,
-    hugoContentHash: string,
-    allDates: string[],
-    name: string,
-  ) {
-    await createMainDocument(mainId, hugoContentHash, allDates, name);
-  }
-
-  /**
-   * Crée un product virgin depuis un ingredient Hugo
-   */
-  #createVirginFromHugo(
-    ingredient: HugoIngredient,
-    hugoContentHash: string,
-  ): EnrichedProduct {
-    const virginProduct = {
-      $id: ingredient.ingredientHugoUuid,
-      productHugoUuid: ingredient.ingredientHugoUuid,
-      productName: ingredient.ingredientName,
-      productType: ingredient.ingType,
-      pFrais: ingredient.pFrais || false,
-      pSurgel: ingredient.pSurgel || false,
-
-      // Données Hugo (garder l'objet tel quel ou le convertir en JSON string)
-      byDate:
-        typeof ingredient.byDate === "string"
-          ? ingredient.byDate
-          : JSON.stringify(ingredient.byDate),
-
-      // Metadata
-      nbRecipes: ingredient.nbRecipes || 0,
-      totalAssiettes: ingredient.totalAssiettes || 0,
-
-      // État virgin
-      status: "virgin",
-      isHugoSynced: true,
-      hugoContentHash: hugoContentHash,
-
-      // Pas de données collaboratives
-      purchases: [],
-      store: "",
-      who: null,
-      stockReel: null,
-
-      // Pas de merge
-      isMerged: false,
-      mergedInto: null,
-      mergedFrom: null,
-
-      // Pas d'override
-      totalNeededConsolidated: null,
-      totalNeededIsManualOverride: false,
-      totalNeededOverrideReason: null,
-
-      // Relations (sera rempli lors de l'hydration)
-      mainId: this.#currentMainId as any,
-    } as unknown as Products;
-
-    // Enrichir pour obtenir un EnrichedProduct
-    return this.#enrichProduct(virginProduct);
+    await this.initialize(mainId);
   }
 
   clearCache() {

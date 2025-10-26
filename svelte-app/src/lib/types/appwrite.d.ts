@@ -37,6 +37,8 @@ export type Main = Models.Row & {
   status: Status | null;
   error: string | null;
   allDates: string[] | null;
+  productsId: Products[];
+  purchasesId: Purchases[];
 };
 
 export type Products = Models.Row & {
@@ -46,7 +48,6 @@ export type Products = Models.Row & {
   pFrais: boolean;
   pSurgel: boolean;
   stockReel: string | null;
-  mainId: Main;
   status: string;
   who: string[] | null;
   store: string;
@@ -65,10 +66,10 @@ export type Products = Models.Row & {
   totalNeededConsolidated: string | null;
   totalNeededIsManualOverride: boolean | null;
   totalNeededOverrideReason: string | null;
+  mainId: Main;
 };
 
 export type Purchases = Models.Row & {
-  mainId: Main;
   unit: string;
   store: string | null;
   status: string | null;
@@ -78,4 +79,5 @@ export type Purchases = Models.Row & {
   who: string | null;
   createdBy: string | null;
   products: Products[];
+  mainId: Main;
 };

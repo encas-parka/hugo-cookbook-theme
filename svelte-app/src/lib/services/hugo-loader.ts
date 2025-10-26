@@ -42,13 +42,13 @@ export async function loadHugoEventData(
 /**
  * Transforme un HugoIngredient en product "virgin" local
  */
-export function createVirginProductFromHugo(
+export function createProductsFromHugo(
   ingredient: HugoIngredient,
   mainId: string,
   hugoContentHash: string,
 ): Partial<Products> {
   return {
-    $id: ingredient.ingredientHugoUuid,
+    $id: `${mainId}_${ingredient.ingredientHugoUuid}`, // ID composite pour éviter les conflits
     productHugoUuid: ingredient.ingredientHugoUuid,
     productName: ingredient.ingredientName,
     productType: ingredient.ingType,
@@ -65,7 +65,6 @@ export function createVirginProductFromHugo(
     // État virgin
     status: "virgin",
     isHugoSynced: true,
-    hugoContentHash: hugoContentHash,
 
     // Pas de données collaboratives
     purchases: [],
