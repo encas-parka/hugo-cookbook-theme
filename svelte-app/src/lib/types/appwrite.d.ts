@@ -61,7 +61,7 @@ export type Products = Models.Row & {
   byDate: string | null;
   isHugoSynced: boolean | null;
   hugoContentHash: string | null;
-  mergeInto: string | null;
+  mergedInto: string | null;
   totalNeededConsolidated: string | null;
   totalNeededIsManualOverride: boolean | null;
   totalNeededOverrideReason: string | null;

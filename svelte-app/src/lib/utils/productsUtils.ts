@@ -1,9 +1,8 @@
 import type {
   NumericQuantity,
-  QuantityInfo,
   NeededConsolidatedByDate,
   RecipeOccurrence,
-  ByDateEntry, // ✅ NOUVEAU : Import pour byDate
+  ByDateEntry,
 } from "../types/store.types";
 
 /**
@@ -47,55 +46,30 @@ export function safeJsonParse<T>(jsonString: string | null): T | null {
   }
 }
 
-export function parseToNumericQuantity(jsonString: string): NumericQuantity[] {
-  try {
-    const quantityInfoArray = JSON.parse(jsonString) as QuantityInfo[];
-    return quantityInfoArray
-      .map((q) => ({
-        quantity: parseFloat(q.quantity),
-        unit: q.unit,
-      }))
-      .filter((q) => !isNaN(q.quantity));
-  } catch (err) {
-    console.error("[ProductsStore] Erreur parsing NumericQuantity:", err);
-    return [];
-  }
-}
-
 /**
- * Calcule le total d'un tableau d'objets avec quantity/unit (générique)
- * @param items - Tableau d'objets avec les propriétés quantity et unit
+ * Calcule le total d'un tableau de NumericQuantity (format standard)
+ * @param items - Tableau de NumericQuantity avec {q: number, u: string}
  * @returns Tableau agrégé par unité en NumericQuantity[]
  */
 export function calculateTotalQuantityArray(
-  items: { quantity: string | number; unit: string }[],
+  items: NumericQuantity[],
 ): NumericQuantity[] {
   if (!items?.length) return [];
 
   const quantityMap = new Map<string, number>();
 
   items.forEach((item) => {
-    if (!item.quantity || !item.unit) return;
-    const quantity = parseFloat(item.quantity.toString());
-    if (isNaN(quantity)) return;
+    if (!item.q || !item.u) return;
+    if (typeof item.q !== "number" || isNaN(item.q)) return;
 
-    const existing = quantityMap.get(item.unit) || 0;
-    quantityMap.set(item.unit, existing + quantity);
+    const existing = quantityMap.get(item.u) || 0;
+    quantityMap.set(item.u, existing + item.q);
   });
 
-  return Array.from(quantityMap.entries()).map(([unit, quantity]) => ({
-    quantity,
-    unit,
+  return Array.from(quantityMap.entries()).map(([u, q]) => ({
+    q,
+    u,
   }));
-}
-
-/**
- * @deprecated Utiliser calculateTotalQuantityArray à la place
- */
-export function calculateTotalPurchasesArray(
-  purchases: any[],
-): NumericQuantity[] {
-  return calculateTotalQuantityArray(purchases);
 }
 
 export function calculateAndFormatMissing(
@@ -108,7 +82,7 @@ export function calculateAndFormatMissing(
 
   if (!purchasesArray?.length) {
     const display = neededArray
-      .map((n) => formatSingleQuantity(n.quantity.toString(), n.unit))
+      .map((n) => formatSingleQuantity(n.q.toString(), n.u))
       .join(" et ");
     return { numeric: neededArray as any, display };
   }
@@ -117,14 +91,14 @@ export function calculateAndFormatMissing(
   const purchasesMap = new Map<string, number>();
 
   neededArray.forEach((n) => {
-    const qty = parseFloat(n.quantity as any);
+    const qty = parseFloat(n.q as any);
     if (!isNaN(qty)) {
-      neededMap.set(n.unit, (neededMap.get(n.unit) || 0) + qty);
+      neededMap.set(n.u, (neededMap.get(n.u) || 0) + qty);
     }
   });
 
   purchasesArray.forEach((p) => {
-    purchasesMap.set(p.unit, (purchasesMap.get(p.unit) || 0) + p.quantity);
+    purchasesMap.set(p.u, (purchasesMap.get(p.u) || 0) + p.q);
   });
 
   const numeric: NumericQuantity[] = [];
@@ -134,7 +108,7 @@ export function calculateAndFormatMissing(
     const purchased = purchasesMap.get(unit) || 0;
     const missing = needed - purchased;
     if (missing > 0) {
-      numeric.push({ quantity: missing, unit });
+      numeric.push({ q: missing, u: unit });
       formatted.push(formatSingleQuantity(missing.toString(), unit));
     }
   });
@@ -146,7 +120,7 @@ export function calculateAndFormatMissing(
 export function formatTotalQuantity(total: NumericQuantity[]): string {
   if (!total?.length) return "-";
   return total
-    .map((p) => formatSingleQuantity(p.quantity.toString(), p.unit))
+    .map((p) => formatSingleQuantity(p.q.toString(), p.u))
     .join(" et ");
 }
 
@@ -231,16 +205,16 @@ export function aggregateByUnit(
 
   const unitMap = new Map<string, number>();
 
-  quantities.forEach(({ quantity, unit }) => {
-    if (typeof quantity === "number" && !isNaN(quantity)) {
-      const existing = unitMap.get(unit) || 0;
-      unitMap.set(unit, existing + quantity);
+  quantities.forEach(({ q, u }) => {
+    if (typeof q === "number" && !isNaN(q)) {
+      const existing = unitMap.get(u) || 0;
+      unitMap.set(u, existing + q);
     }
   });
 
-  return Array.from(unitMap.entries()).map(([unit, quantity]) => ({
-    quantity,
-    unit,
+  return Array.from(unitMap.entries()).map(([u, q]) => ({
+    q,
+    u,
   }));
 }
 
@@ -325,8 +299,8 @@ export function buildNeededConsolidatedByDateArray(
   return Object.entries(byDate).map(([dateTimeService, entry]) => ({
     dateTimeService,
     neededConsolidatedForDate: entry.totalConsolidated.map((q) => ({
-      quantity: q.quantity.toString(),
-      unit: q.unit,
+      quantity: q.q.toString(),
+      unit: q.u,
     })),
     recipeNames: entry.recipes?.map((r) => r.r) || [],
     totalAssiettes: entry.totalAssiettes || 0,

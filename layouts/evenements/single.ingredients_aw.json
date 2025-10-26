@@ -13,8 +13,47 @@
 {{- $totalAssiettesByIngredient := $eventData.totalAssiettesByIngredient -}}
 {{- $recipesByIngredient := $eventData.recipesByIngredient -}}
 
+
+{{- /* Générer une chaîne stable pour le hash basée UNIQUEMENT sur les données byDate */ -}}
+{{- $hashInput := "" -}}
+{{- $hashInput = printf "%s|%s" $hashInput (.Title | string) -}}
+{{- $hashInput = printf "%s|%s" $hashInput ($eventData.allDates | jsonify) -}}
+
+{{- /* Parcourir tous les ingrédients dans un ordre stable (trié) */ -}}
+{{- range $name, $data := sort $ingredient_totals "name" -}}
+  {{- $hashInput = printf "%s|%s|%s" $hashInput $data.uuid $data.name -}}
+
+  {{- /* Inclure UNIQUEMENT les données par date (qui contiennent tout) */ -}}
+  {{- $ingByDate := index $eventData.ingredient_by_date $data.name | default (dict) -}}
+  {{- range $dateTime, $dateData := $ingByDate -}}
+    {{- $hashInput = printf "%s|%s" $hashInput $dateTime -}}
+
+    {{- /* totalConsolidated */ -}}
+    {{- if gt $dateData.totalConsolidatedWeight 0 -}}
+      {{- $hashInput = printf "%s|%.0f|gr." $hashInput $dateData.totalConsolidatedWeight -}}
+    {{- end -}}
+    {{- if gt $dateData.totalConsolidatedVolume 0 -}}
+      {{- $hashInput = printf "%s|%.0f|ml" $hashInput $dateData.totalConsolidatedVolume -}}
+    {{- end -}}
+    {{- range $unit, $qty := $dateData.totalConsolidatedOther -}}
+      {{- $hashInput = printf "%s|%.1f|%s" $hashInput $qty $unit -}}
+    {{- end -}}
+
+    {{- /* recipes (contient toutes les infos q, u, qEq, uEq, a) */ -}}
+    {{- range $recipe := $dateData.recipes -}}
+      {{- $hashInput = printf "%s|%s|%.1f|%s|%.1f|%s|%d" $hashInput $recipe.r $recipe.q $recipe.u $recipe.qEq $recipe.uEq $recipe.a -}}
+    {{- end -}}
+
+    {{- $hashInput = printf "%s|%d|%d" $hashInput $dateData.totalAssiettes $dateData.recipeCount -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* Calculer le hash MD5 de la chaîne */ -}}
+{{- $contentHash := md5 $hashInput -}}
+
 {
   "mainGroup_id": "{{ .File.ContentBaseName | default .File.UniqueID }}",
+  "hugoContentHash": {{ $contentHash | jsonify }},
   "name": {{ .Title | jsonify }},
   "allDates": {{ $eventData.allDates | jsonify }},
   "ingredients": [
@@ -29,17 +68,17 @@
         "nbRecipes": {{ (len (index $recipesByIngredient $data.name | default dict)) | jsonify }},
         {{- if $data.pFrais }}"pFrais": true,{{ end -}}
         {{- if $data.pSurgel }}"pSurgel": true,{{ end -}}
-        {{- if and $data.has_equivalence (gt (len $data.conversion_rules) 0) -}}
+        {{- if and $data.has_equivalence (gt (len $data.conversion_rules) 0) }}
           "conversionRules": {{ $data.conversion_rules | jsonify }},
         {{- end -}}
-        {{- if $data.has_equivalence  -}}
+        {{- if $data.has_equivalence  }}
         "totalNeededRaw": [
           {{- $firstCategory := true -}}
           {{- if gt $data.category_weight 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "q": {{- printf "%.0f" $data.category_weight | float | jsonify -}}, "u": "gr." }{{- end -}}
           {{- if gt $data.category_volume 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "q": {{- printf "%.0f" $data.category_volume | float | jsonify -}}, "u": "ml" }{{- end -}}
           {{- range $unit, $quantity := $data.category_other -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "q": {{- if eq $unit "recette·s" }}{{ printf "%.0f" $quantity | float | jsonify }}{{ else }}{{- printf "%.1f" $quantity | float | jsonify }}{{ end -}}, "u": {{ $unit | jsonify }} }{{- end -}}
         ],
-        {{- end -}}
+        {{- end }}
 
         "byDate": {
   {{- $ingByDate := index $eventData.ingredient_by_date $data.name | default (dict) -}}
@@ -70,7 +109,7 @@
             "r": {{ $recipe.r | jsonify }},
             {{- $showQ := not (and (eq $recipe.q $recipe.qEq) (eq $recipe.u $recipe.uEq)) -}}
             {{- if $showQ }}
-            "q": {{- if or (eq ($recipe.u | lower) "gr.") (eq ($recipe.u | lower) "ml") (eq ($recipe.u | lower) "recette·s") }}{{- math.Round $recipe.q | jsonify }}{{ else }}{{ printf "%.1f" $recipe.q | jsonify }}{{ end -}},
+            "q": {{- if or (eq ($recipe.u | lower) "gr.") (eq ($recipe.u | lower) "ml") (eq ($recipe.u | lower) "recette·s") }}{{- math.Round $recipe.q  }}{{ else }}{{ printf "%.1f" $recipe.q  }}{{ end -}},
             "u": {{ $recipe.u | jsonify }},
             {{- end -}}
             "qEq": {{- if eq ($recipe.uEq | lower) "recette·s" }}{{ printf "%.0f" $recipe.qEq | float | jsonify }}{{ else if or (eq ($recipe.uEq | lower) "gr.") (eq ($recipe.uEq | lower) "ml") }}{{ printf "%.0f" $recipe.qEq | float | jsonify }}{{ else }}{{ printf "%.1f" $recipe.qEq | float | jsonify }}{{ end -}},

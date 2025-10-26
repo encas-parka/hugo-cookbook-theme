@@ -1022,6 +1022,49 @@ export async function loadAllDates(mainId: string): Promise<string[]> {
   }
 }
 
+/**
+ * Crée un document Main dans Appwrite
+ */
+export async function createMainDocument(
+  mainId: string,
+  hugoContentHash: string,
+  allDates: string[],
+  name: string,
+): Promise<void> {
+  try {
+    console.log(`[Appwrite Interactions] Création du Main document: ${mainId}`);
+
+    const { databases } = await getAppwriteInstances();
+    const config = (window as any).AppwriteClient.getConfig();
+    const account = await (window as any).AppwriteClient.getAccount();
+    const user = await account.get();
+
+    await databases.createDocument(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.main,
+      mainId,
+      {
+        name: name,
+        createdBy: user.$id,
+        isActive: true,
+        originalDataHash: hugoContentHash,
+        allDates: allDates,
+        status: "active",
+        dateStart: allDates[0] || null,
+        dateEnd: allDates[allDates.length - 1] || null,
+      },
+    );
+
+    console.log(`[Appwrite Interactions] Main document créé: ${mainId}`);
+  } catch (error) {
+    console.error(
+      `[Appwrite Interactions] Erreur création Main document:`,
+      error,
+    );
+    throw error;
+  }
+}
+
 // =============================================================================
 // EXPORTS
 // =============================================================================
@@ -1032,6 +1075,9 @@ export default {
 
   // Services dates - lecture
   loadAllDates,
+
+  // Services main
+  createMainDocument,
 
   // Services realtime
   subscribeToRealtime,

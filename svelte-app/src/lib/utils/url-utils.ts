@@ -7,15 +7,23 @@
  * @param fallbackId - ID par défaut si aucun paramètre trouvé
  * @returns Le mainId extrait de l'URL ou l'ID par défaut
  */
-export function getMainIdFromUrl(fallbackId: string = 'your-main-id'): string {
-  if (typeof window === 'undefined') {
-    return fallbackId; // SSR fallback
+export function getMainIdFromUrl(): string {
+  if (typeof window === "undefined") {
+    throw new Error(
+      "getMainIdFromUrl() appelé côté serveur - SSR non supporté",
+    );
   }
 
   const urlParams = new URLSearchParams(window.location.search);
-  const listIdFromUrl = urlParams.get('listId');
+  const listIdFromUrl = urlParams.get("listId");
 
-  return listIdFromUrl || fallbackId;
+  if (!listIdFromUrl || !listIdFromUrl.trim()) {
+    throw new Error(
+      "Paramètre 'listId' manquant ou vide dans l'URL. Format attendu : ?listId=votre-event-id",
+    );
+  }
+
+  return listIdFromUrl.trim();
 }
 
 /**

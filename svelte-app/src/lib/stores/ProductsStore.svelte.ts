@@ -7,9 +7,7 @@ import type { Products, Purchases } from "../types/appwrite.d";
 import {
   calculateTotalNeededInRange,
   safeJsonParse,
-  parseToNumericQuantity,
   calculateAndFormatMissing,
-  calculateTotalPurchasesArray,
   formatSingleQuantity,
   formatTotalQuantity,
   calculateTotalQuantityArray,
@@ -29,7 +27,8 @@ import type {
   NeededConsolidatedByDate,
   NumericQuantity,
   RecipeOccurrence,
-  ByDateEntry, // ✅ NOUVEAU : Import pour byDate
+  ByDateEntry,
+  HugoIngredient, // ✅ NOUVEAU : Import pour byDate
 } from "../types/store.types";
 
 import {
@@ -38,11 +37,17 @@ import {
   subscribeToRealtime,
   loadMainEventData,
   loadAllDates,
+  createMainDocument,
   type LoadProductsOptions,
   loadProductsListByIds,
   loadPurchasesListByIds,
   type SyncOptions,
 } from "../services/appwrite-interactions";
+import {
+  loadHugoEventData,
+  createVirginProductFromHugo,
+  type HugoEventData,
+} from "../services/hugo-loader";
 
 /**
  * ProductsStore - Architecture SvelteMap pure + persistence manuelle
@@ -128,6 +133,9 @@ class ProductsStore {
   #unsubscribe: (() => void) | null = null;
   #syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // État Hugo
+  #hugoContentChanged = $state(false);
+
   // Filtres
   #filters = $state<FiltersState>({
     searchQuery: "",
@@ -212,6 +220,9 @@ class ProductsStore {
   get lastSync() {
     return this.#lastSync;
   }
+  get hugoContentChanged() {
+    return this.#hugoContentChanged;
+  }
 
   // =========================================================================
   // DÉRIVES RÉACTIFS - Consommés par les templates
@@ -237,7 +248,9 @@ class ProductsStore {
         product.totalNeededIsManualOverride &&
         product.totalNeededConsolidated
       ) {
-        const manual = parseToNumericQuantity(product.totalNeededConsolidated);
+        const manual = safeJsonParse<NumericQuantity[]>(
+          product.totalNeededConsolidated,
+        );
         if (manual && manual.length > 0) {
           totalMap.set(product.$id, manual);
         }
@@ -374,26 +387,55 @@ class ProductsStore {
     this.#currentMainId = mainId;
     this.#cacheKey = createStorageKey("products-enriched", mainId);
 
+    this.#error = null;
+
     try {
-      // Charger depuis cache
+      // Charger le JSON Hugo (source de vérité initiale)
+      const hugoData = await loadHugoEventData(mainId);
+      console.log(
+        `[ProductsStore] Données Hugo chargées: ${hugoData.ingredients.length} ingredients`,
+      );
+
+      // Charger depuis cache local (si disponible)
       await this.#loadFromCache();
 
-      // Charger ou synchroniser depuis Appwrite
-      if (this.#enrichedProducts.size === 0) {
-        await this.#loadProductsFromService(mainId);
-      } else {
-        await this.#syncInBackground();
-      }
+      // Vérifier l'état dans Appwrite
+      const [mainDoc, appwriteProducts] = await Promise.all([
+        loadMainEventData(mainId),
+        this.#enrichedProducts.size === 0
+          ? loadProductsWithPurchases(mainId, { limit: 100 })
+          : Promise.resolve([]),
+      ]);
 
-      // Initialiser la plage de dates (que ce soit depuis cache ou API)
+      // Déterminer la stratégie d'initialisation
+      const eventState = this.#determineEventState(
+        mainDoc,
+        appwriteProducts,
+        hugoData,
+      );
+
+      // Initialiser selon l'état
+      await this.#initializeByState(
+        eventState,
+        hugoData,
+        mainDoc,
+        appwriteProducts,
+      );
+
+      // Initialiser la plage de dates
+      this.#allDates = hugoData.allDates;
       this.initializeDateRange();
 
       // Marquer comme initialisé
       this.#isInitialized = true;
 
-      // 4️⃣ Setup realtime
+      // Setup realtime
       const callbacks = this.#setupRealtimeCallbacks();
       this.#unsubscribe = subscribeToRealtime(mainId, callbacks);
+
+      console.log(
+        `[ProductsStore] Initialisation complétée: ${this.#enrichedProducts.size} produits`,
+      );
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Erreur lors de l'initialisation";
@@ -578,7 +620,7 @@ class ProductsStore {
         product.totalNeededConsolidated &&
         product.totalNeededIsManualOverride
       ) {
-        totalNeededRawArray = parseToNumericQuantity(
+        totalNeededRawArray = safeJsonParse<NumericQuantity[]>(
           product.totalNeededConsolidated,
         );
       }
@@ -1216,6 +1258,260 @@ class ProductsStore {
   async forceReload(mainId: string) {
     this.clearCache();
     await this.#loadProductsFromService(mainId);
+  }
+
+  /**
+   * Détermine l'état de l'événement (fresh/partial/synced)
+   */
+  #determineEventState(
+    mainDoc: any,
+    appwriteProducts: Products[],
+    hugoData: HugoEventData,
+  ) {
+    // Main n'existe pas → Event jamais ouvert
+    if (!mainDoc) {
+      return {
+        type: "fresh" as const,
+        hugoData,
+      };
+    }
+
+    // Main existe mais aucun product → Users ont ouvert mais pas interagi
+    if (appwriteProducts.length === 0) {
+      return {
+        type: "partial" as const,
+        hugoData,
+        mainDoc,
+        hugoContentChanged:
+          mainDoc.originalDataHash !== hugoData.hugoContentHash,
+      };
+    }
+
+    // Main + products existent → Event actif
+    return {
+      type: "synced" as const,
+      hugoData,
+      mainDoc,
+      appwriteProducts,
+      hugoContentChanged: mainDoc.originalDataHash !== hugoData.hugoContentHash,
+    };
+  }
+
+  /**
+   * Initialise selon l'état détecté
+   */
+  async #initializeByState(
+    eventState: {
+      type: "fresh" | "partial" | "synced";
+      hugoData: HugoEventData;
+      mainDoc?: any;
+      appwriteProducts?: Products[];
+      hugoContentChanged?: boolean;
+    },
+    hugoData: HugoEventData,
+    mainDoc: any,
+    appwriteProducts: Products[],
+  ) {
+    switch (eventState.type) {
+      case "fresh":
+        await this.#initializeFresh(hugoData);
+        break;
+
+      case "partial":
+        await this.#initializePartial(hugoData, mainDoc);
+        break;
+
+      case "synced":
+        await this.#initializeSynced(hugoData, mainDoc, appwriteProducts);
+        break;
+    }
+  }
+
+  /**
+   * Initialisation fresh : Créer Main + products virgin locaux
+   */
+  async #initializeFresh(hugoData: HugoEventData) {
+    console.log("[ProductsStore] État FRESH - Création du Main");
+
+    // Créer le Main document dans Appwrite
+    await this.#createMainDocument(
+      hugoData.mainGroup_id,
+      hugoData.hugoContentHash,
+      hugoData.allDates,
+      hugoData.name,
+    );
+
+    // Créer tous les products en "virgin" (LOCAL UNIQUEMENT)
+    hugoData.ingredients.forEach((ingredient) => {
+      const virgin = this.#createVirginFromHugo(
+        ingredient,
+        hugoData.hugoContentHash,
+      );
+      this.#enrichedProducts.set(ingredient.ingredientHugoUuid, virgin);
+    });
+
+    // Persister le cache
+    this.#updateLastSync();
+    this.#persistToCache();
+
+    console.log(
+      `[ProductsStore] ${hugoData.ingredients.length} produits virgin créés`,
+    );
+  }
+
+  /**
+   * Initialisation partial : Main existe, aucun product Appwrite
+   */
+  async #initializePartial(hugoData: HugoEventData, mainDoc: any) {
+    console.log("[ProductsStore] État PARTIAL - Main existe, products virgin");
+
+    // Vérifier divergence Hugo
+    if (mainDoc.originalDataHash !== hugoData.hugoContentHash) {
+      console.warn("[ProductsStore] Divergence Hugo détectée");
+      this.#hugoContentChanged = true;
+    }
+
+    // Créer tous les products en "virgin" depuis Hugo
+    hugoData.ingredients.forEach((ingredient) => {
+      try {
+        const virgin = this.#createVirginFromHugo(
+          ingredient,
+          hugoData.hugoContentHash,
+        );
+        const enriched = this.#enrichProduct(virgin);
+
+        this.#enrichedProducts.set(ingredient.ingredientHugoUuid, enriched);
+      } catch (error) {
+        console.error(
+          `[ProductsStore] Erreur création virgin pour ${ingredient.ingredientName}:`,
+          error,
+        );
+        console.error(`[ProductsStore] Ingredient data:`, ingredient);
+        throw error;
+      }
+    });
+
+    this.#updateLastSync();
+    this.#persistToCache();
+  }
+
+  /**
+   * Initialisation synced : Merger Hugo + Appwrite
+   */
+  async #initializeSynced(
+    hugoData: HugoEventData,
+    mainDoc: any,
+    appwriteProducts: Products[],
+  ) {
+    console.log(
+      `[ProductsStore] État SYNCED - ${appwriteProducts.length} products Appwrite`,
+    );
+
+    // Vérifier divergence Hugo
+    if (mainDoc.originalDataHash !== hugoData.hugoContentHash) {
+      console.warn("[ProductsStore] Divergence Hugo détectée");
+      this.#hugoContentChanged = true;
+    }
+
+    // Map des products Appwrite pour lookup O(1)
+    const appwriteMap = new Map(
+      appwriteProducts.map((p) => [p.productHugoUuid, p]),
+    );
+
+    // Pour chaque ingredient Hugo
+    hugoData.ingredients.forEach((ingredient) => {
+      const appwriteProduct = appwriteMap.get(ingredient.ingredientHugoUuid);
+
+      if (appwriteProduct) {
+        // Product existe dans Appwrite → PRIORITÉ APPWRITE
+        const enriched = this.#enrichProduct(appwriteProduct);
+        this.#enrichedProducts.set(appwriteProduct.$id, enriched);
+        appwriteMap.delete(ingredient.ingredientHugoUuid);
+      } else {
+        // Product n'existe pas dans Appwrite → Virgin depuis Hugo
+        const virgin = this.#createVirginFromHugo(
+          ingredient,
+          hugoData.hugoContentHash,
+        );
+        this.#enrichedProducts.set(ingredient.ingredientHugoUuid, virgin);
+      }
+    });
+
+    // Traiter les products Appwrite orphelins (mergés ou supprimés du build)
+    appwriteMap.forEach((orphan) => {
+      console.log(`[ProductsStore] Product orphelin: ${orphan.productName}`);
+      const enriched = this.#enrichProduct(orphan);
+      this.#enrichedProducts.set(orphan.$id, enriched);
+    });
+
+    this.#updateLastSync();
+    this.#persistToCache();
+  }
+
+  /**
+   * Crée un Main document dans Appwrite
+   */
+  async #createMainDocument(
+    mainId: string,
+    hugoContentHash: string,
+    allDates: string[],
+    name: string,
+  ) {
+    await createMainDocument(mainId, hugoContentHash, allDates, name);
+  }
+
+  /**
+   * Crée un product virgin depuis un ingredient Hugo
+   */
+  #createVirginFromHugo(
+    ingredient: HugoIngredient,
+    hugoContentHash: string,
+  ): EnrichedProduct {
+    const virginProduct = {
+      $id: ingredient.ingredientHugoUuid,
+      productHugoUuid: ingredient.ingredientHugoUuid,
+      productName: ingredient.ingredientName,
+      productType: ingredient.ingType,
+      pFrais: ingredient.pFrais || false,
+      pSurgel: ingredient.pSurgel || false,
+
+      // Données Hugo (garder l'objet tel quel ou le convertir en JSON string)
+      byDate:
+        typeof ingredient.byDate === "string"
+          ? ingredient.byDate
+          : JSON.stringify(ingredient.byDate),
+
+      // Metadata
+      nbRecipes: ingredient.nbRecipes || 0,
+      totalAssiettes: ingredient.totalAssiettes || 0,
+
+      // État virgin
+      status: "virgin",
+      isHugoSynced: true,
+      hugoContentHash: hugoContentHash,
+
+      // Pas de données collaboratives
+      purchases: [],
+      store: "",
+      who: null,
+      stockReel: null,
+
+      // Pas de merge
+      isMerged: false,
+      mergedInto: null,
+      mergedFrom: null,
+
+      // Pas d'override
+      totalNeededConsolidated: null,
+      totalNeededIsManualOverride: false,
+      totalNeededOverrideReason: null,
+
+      // Relations (sera rempli lors de l'hydration)
+      mainId: this.#currentMainId as any,
+    } as unknown as Products;
+
+    // Enrichir pour obtenir un EnrichedProduct
+    return this.#enrichProduct(virginProduct);
   }
 
   clearCache() {

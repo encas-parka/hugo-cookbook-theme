@@ -63,8 +63,8 @@ export interface StockEntry {
  * Types pour les quantités avec valeur numérique (pour les calculs)
  */
 export interface NumericQuantity {
-  quantity: number;
-  unit: string;
+  q: number;
+  u: string;
 }
 
 // Type enrichi pour les produits utilisés dans les composants
