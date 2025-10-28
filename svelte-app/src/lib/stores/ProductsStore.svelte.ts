@@ -42,29 +42,45 @@ import {
 } from "../services/hugo-loader";
 
 /**
- * ProductsStore - Architecture SvelteMap pure + persistence manuelle
+ * ProductsStore - Store principal de gestion des produits avec Svelte 5
  *
- * 🎯 Architecture finale :
- * ┌─────────────────────────────────────────────────────────┐
- * │            SvelteMap<id, EnrichedProduct>              │
- * │  • Mutations directes = réactivité immédiate          │
- * │  • Accès O(1) par ID                                  │
- * │  • Dérives réactifs automatiquement                   │
- * └─────────────────────────────────────────────────────────┘
- *         ↓ Consommé par les templates
- *    enrichedProducts (derived)
- *         ↓ Persiste manuellement quand nécessaire
- * ┌─────────────────────────────────────────────────────────┐
- * │            localStorage (superjson)                     │
- * │  • Cache à la lecture (initialize)                    │
- * │  • Cache à chaque realtime event                      │
- * │  • Cache après syncInBackground                       │
- * └─────────────────────────────────────────────────────────┘
+ * Architecture du système :
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │                  ProductsStore                              │
+ * │  • SvelteMap<id, EnrichedProduct> (réactivité O(1))        │
+ * │  • Cache localStorage (SuperJSON)                          │
+ * │  • Filtrage et dérivés réactifs                            │
+ * │  • Abonnement realtime Appwrite                            │
+ * └─────────────────▲───────────────────────────────────────────┘
+ *                   │ Fournit les données brutes
+ *                   │
+ * ┌─────────────────▼───────────────────────────────────────────┐
+ * │              ProductModalState                              │
+ * │  • Factory par produit: createProductModalState(productId) │
+ * │  • États locaux des formulaires (purchase, stock, etc.)    │
+ * │  • Données dérivées du ProductsStore                       │
+ * │  • Orchestration des appels Appwrite                       │
+ * └─────────────────▲───────────────────────────────────────────┘
+ *                   │ Consommé par les composants
+ *                   │
+ * ┌─────────────────▼───────────────────────────────────────────┐
+ * │                Composants Svelte                            │
+ * │  • UI réactive via $state/$derived                         │
+ * │  • Actions utilisateur → ProductModalState                │
+ * │  • Mises à jour automatiques                               │
+ * └─────────────────────────────────────────────────────────────┘
+ *
+ * Flux de données :
+ * 1. Initialize : Hugo → Cache → Appwrite → Realtime
+ * 2. Filtres : $derived.by() pour performance
+ * 3. Persistence : localStorage + debounce
+ * 4. Sync : lastSync + delta updates
  *
  * @usage
  * await productsStore.initialize('mainId');
  * productsStore.setSearchQuery('pâtes');
  * const product = productsStore.getEnrichedProductById('abc');
+ * const modalState = createProductModalState('abc');
  */
 
 // =============================================================================

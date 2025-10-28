@@ -1,44 +1,56 @@
 /**
- * Services d'interaction avec Appwrite pour la gestion des produits et achats
+ * Services d'interaction avec Appwrite - Couche d'accès aux données pure
  *
- * Architecture moderne avec séparation des responsabilités :
+ * Architecture du système :
  * ┌─────────────────────────────────────────────────────────────┐
  * │              appwrite-interactions                         │
- * │  • Accès aux données Appwrite pur                          │
- * │  • Transformations de données sans état                   │
- * │  • Logique de chargement, synchro, realtime               │
+ * │  • CRUD Appwrite pur                                        │
+ * │  • Transformations sans état                               │
+ * │  • Gestion realtime                                        │
+ * │  • Sync incrémentielle                                     │
  * └─────────────────▲───────────────────────────────────────────┘
- *                   │ Fournit les services
+ *                   │ Fournit les services bruts
  *                   │
  * ┌─────────────────▼───────────────────────────────────────────┐
- * │                    ProductsStore                           │
- * │  • Gestion d'état réactif (Svelte 5)                       │
- * │  • Logique métier (filtres, formatage, groupement)        │
- * │  • UI réactive (loading, error, syncing)                  │
+ * │                  ProductsStore                              │
+ * │  • SvelteMap réactive                                      │
+ * │  • Cache localStorage                                      │
+ * │  • Filtrage et dérivés                                     │
+ * │  • Logique métier                                          │
+ * └─────────────────▲───────────────────────────────────────────┘
+ *                   │ Consommé par ProductModalState
+ *                   │
+ * ┌─────────────────▼───────────────────────────────────────────┐
+ * │              ProductModalState                              │
+ * │  • Factory par produit                                     │
+ * │  • Formulaires locaux                                      │
+ * │  • Orchestration des appels                                │
  * └─────────────────────────────────────────────────────────────┘
  *
  * Services principaux :
  * ─────────────────────────────────────────────────────────────
- * Lecture :
- * • loadProducts() : Chargement initial des produits avec achats associés
- * • syncProducts() : Synchronisation incrémentielle (delta depuis lastSync)
- * • loadMainEventData() : Chargement des données principales de l'événement
+ * Lecture/Chargement :
+ * • loadMainEventData() : Données principales de l'événement
+ * • syncProductsWithPurchases() : Sync incrémentielle delta
+ * • loadPurchasesListByIds() : Chargement par IDs
  *
- * Écriture :
- * • updateProduct() : Mise à jour d'un produit
- * • createPurchase() : Création d'un purchase
- * • updatePurchase() : Mise à jour d'un purchase
- * • deletePurchase() : Suppression d'un purchase
+ * Écriture CRUD :
+ * • createMainDocument() : Création document main
+ * • upsertProduct() : Création/Mise à jour produit (avec sync logic)
+ * • updateProduct() : Mise à jour produit direct
+ * • createPurchase/updatePurchase/deletePurchase() : CRUD achats
+ *
+ * Gestion spécifique :
+ * • updateProductStock() : Mise à jour stock
+ * • updateProductStore() : Mise à jour magasin
+ * • updateProductWho() : Mise à jour volontaires
  *
  * Realtime :
- * • subscribeToRealtime() : Abonnement aux événements produits/achats
+ * • subscribeToRealtime() : Abonnement événements produits/achats
  *
- * Utilitaires :
- * • mergeProductsWithPurchases() : Enrichit les produits avec leurs achats
- * • applyProductUpdates() : Applique les mises à jour incrémentielles
- *
- * Ce fichier encapsule les opérations CRUD en utilisant le client Appwrite existant
- * et fournit une API propre pour les stores Svelte 5.
+ * Ce fichier est une couche sans état qui expose des fonctions pures
+ * pour les stores Svelte 5. Toute la logique de réactivité est gérée
+ * par ProductsStore et ProductModalState.
  */
 
 import { ID, Query, type Models } from "appwrite";
