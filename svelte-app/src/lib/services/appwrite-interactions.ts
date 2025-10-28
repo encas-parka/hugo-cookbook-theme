@@ -44,7 +44,11 @@
 import { ID, Query, type Models } from "appwrite";
 import superjson from "superjson";
 import type { Products, Purchases } from "../types/appwrite.d";
-import type { StoreInfo, MainEventData } from "../types/store.types";
+import type {
+  StoreInfo,
+  MainEventData,
+  EnrichedProduct,
+} from "../types/store.types";
 
 // =============================================================================
 // TYPES INTERNE (utilise les types générés automatiquement ??)
@@ -80,6 +84,38 @@ export type PurchaseUpdate = Partial<
 
 export interface ProductWithPurchases extends Products {
   purchases: Purchases[];
+}
+
+// =============================================================================
+// UTILITAIRES DE TRANSFORMATION SYNC
+// =============================================================================
+
+/**
+ * Transforme un EnrichedProduct en données Products pour Appwrite
+ * @param enrichedProduct - Produit enrichi localement
+ * @param userUpdates - Modifications utilisateur à appliquer
+ * @returns Données formatées pour Appwrite avec $id prédéfini
+ */
+export function enrichedProductToAppwriteProduct(
+  enrichedProduct: EnrichedProduct,
+  userUpdates: ProductUpdate,
+): any {
+  return {
+    $id: enrichedProduct.$id,
+    mainId: enrichedProduct.mainId,
+    // Données de base depuis EnrichedProduct (champs brutes Products)
+    productHugoUuid: enrichedProduct.productHugoUuid,
+    productName: enrichedProduct.productName,
+    productType: enrichedProduct.productType,
+    pFrais: enrichedProduct.pFrais,
+    pSurgel: enrichedProduct.pSurgel,
+    nbRecipes: enrichedProduct.nbRecipes,
+    totalAssiettes: enrichedProduct.totalAssiettes,
+    byDate: enrichedProduct.byDate,
+
+    // Données utilisateur (écrasent/étendent les valeurs par défaut)
+    ...userUpdates,
+  };
 }
 
 export interface LoadProductsOptions {
@@ -137,6 +173,8 @@ async function getAppwriteInstances() {
  * @param mainId - ID du main pour filtrer les produits
  * @param options - Options de chargement (pagination, tri, inclusion des achats)
  * @returns Promise<ProductWithPurchases[]> - Produits enrichis avec leurs achats si demandé
+ * @deprecated Utiliser plutôt syncProductsWithPurchases
+ *
  *
  * Flux :
  * 1. Charge les produits depuis la collection products
@@ -201,6 +239,7 @@ export async function loadProductsWithPurchases(
  *
  * @param productId - L'ID du produit à récupérer.
  * @returns Promise<Products | null> - Le produit trouvé, ou null si une erreur survient ou si le produit n'existe pas.
+ * @legacy : inutilisé ?
  *
  * Flux :
  * 1. Récupère les instances Appwrite nécessaires (databases, config).
@@ -240,7 +279,19 @@ export async function loadProductsListByIds(
       config.APPWRITE_CONFIG.collections.products,
       [
         Query.equal("$id", productIds), // ← Filtre par IDs
-        Query.select(["*", "purchases.*"]),
+        Query.select([
+          "*",
+          "purchases.$id",
+          "purchases.unit",
+          "purchases.quantity",
+          "purchases.store",
+          "purchases.who",
+          "purchases.notes",
+          "purchases.price",
+          "purchases.status",
+          "purchases.createdBy",
+          "purchases.products.$id",
+        ]),
       ],
     );
 
@@ -285,7 +336,19 @@ export async function syncProductsWithPurchases(
         config.APPWRITE_CONFIG.collections.products,
         [
           Query.equal("mainId", mainId),
-          Query.select(["*", "purchases.*"]),
+          Query.select([
+            "*",
+            "purchases.$id",
+            "purchases.unit",
+            "purchases.quantity",
+            "purchases.store",
+            "purchases.who",
+            "purchases.notes",
+            "purchases.price",
+            "purchases.status",
+            "purchases.createdBy",
+            "purchases.products.$id",
+          ]),
           Query.limit(limit),
         ],
       );
@@ -300,7 +363,19 @@ export async function syncProductsWithPurchases(
         Query.updatedAfter(lastSync),
         Query.equal("mainId", mainId),
         Query.limit(limit),
-        Query.select(["*", "purchases.*"]), // Récupérer la relation purchases
+        Query.select([
+          "*",
+          "purchases.$id",
+          "purchases.unit",
+          "purchases.quantity",
+          "purchases.store",
+          "purchases.who",
+          "purchases.notes",
+          "purchases.price",
+          "purchases.status",
+          "purchases.createdBy",
+          "purchases.products.$id",
+        ]), // Récupérer la relation purchases sans récursion
       ],
     );
 
@@ -357,6 +432,62 @@ export async function updateProduct(
     const errorMessage =
       error instanceof Error ? error.message : "Erreur inconnue";
     throw new Error(`Échec de la mise à jour du produit: ${errorMessage}`);
+  }
+}
+
+/**
+ * Met à jour ou crée un produit sur Appwrite (pattern upsert)
+ * @param productId - ID du produit à mettre à jour/créer
+ * @param updates - Champs à mettre à jour
+ * @param getEnrichedProduct - Fonction pour récupérer le produit enrichi localement
+ * @returns Promise<Products>
+ */
+export async function upsertProduct(
+  productId: string,
+  updates: ProductUpdate,
+  getEnrichedProduct: (productId: string) => any, // EnrichedProduct | null
+): Promise<Products> {
+  try {
+    // Récupérer le produit enrichi localement
+    const enrichedProduct = getEnrichedProduct(productId);
+    if (!enrichedProduct) {
+      throw new Error(
+        `Produit ${productId} non trouvé localement pour création`,
+      );
+    }
+
+    console.log(
+      `[Appwrite Interactions] Création produit ${productId} sur Appwrite...`,
+    );
+
+    // Transformer en données Appwrite avec les updates utilisateur
+    const appwriteData = enrichedProductToAppwriteProduct(
+      enrichedProduct,
+      updates,
+    );
+
+    const { databases, config } = await getAppwriteInstances();
+    const response = await databases.createDocument(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.products,
+      productId, // $id prédéfini
+      appwriteData,
+    );
+
+    console.log(
+      `[Appwrite Interactions] Produit ${productId} créé avec succès`,
+    );
+
+    // Note : le ProductsStore mettra à jour isSynced via le realtime
+    return response as Products;
+  } catch (error) {
+    console.error(
+      `[Appwrite Interactions] Erreur création produit ${productId}:`,
+      error,
+    );
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
+    throw new Error(`Échec de la création du produit: ${errorMessage}`);
   }
 }
 
@@ -558,7 +689,7 @@ export async function loadPurchasesListByIds(
     const response = await databases.listDocuments(
       config.APPWRITE_CONFIG.databaseId,
       config.APPWRITE_CONFIG.collections.purchases,
-      [Query.equal("$id", purchaseIds), Query.select(["*", "products"])],
+      [Query.equal("$id", purchaseIds), Query.select(["*", "products.$id"])],
     );
 
     console.log(
@@ -884,9 +1015,6 @@ export async function createMainDocument(
 // =============================================================================
 
 export default {
-  // Services produits - lecture
-  loadProducts: loadProductsWithPurchases,
-
   // Services main
   createMainDocument,
 

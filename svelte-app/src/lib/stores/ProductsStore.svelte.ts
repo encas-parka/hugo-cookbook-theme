@@ -28,11 +28,9 @@ import type {
 } from "../types/store.types";
 
 import {
-  loadProductsWithPurchases,
   subscribeToRealtime,
   createMainDocument,
   type LoadProductsOptions,
-  loadProductsListByIds,
   loadPurchasesListByIds,
   type SyncOptions,
   syncProductsWithPurchases,
@@ -489,8 +487,12 @@ class ProductsStore {
         limit: BATCH_LIMIT,
       });
 
-      // Appliquer les produits
-      this.#batchUpsertEnrichedProducts(allProducts);
+      // Appliquer les produits venant d'Appwrite (isSynced: true)
+      allProducts.forEach((product) => {
+        const enriched = this.#enrichProduct(product);
+        enriched.isSynced = true; // ✅ SYNC : Les produits venant d'Appwrite sont sync
+        this.#enrichedProducts.set(product.$id, enriched);
+      });
 
       this.#updateLastSync();
       this.#debouncedPersist();
@@ -615,6 +617,9 @@ class ProductsStore {
       totalNeededRawArray,
       totalNeededIsManualOverride: product.totalNeededIsManualOverride ?? false,
       totalNeededOverrideReason: product.totalNeededOverrideReason,
+
+      // ✅ SYNC : Par défaut, les produits chargés depuis cache/Hugo sont non-sync
+      // isSynced: false,
     };
   }
 
@@ -700,9 +705,32 @@ class ProductsStore {
   }
 
   /**
+   * Nettoie un purchase pour éviter la récursion dans le cache local
+   * Transforme les relations objets en IDs simples
+   * @param purchase - Purchase potentiellement "sale" avec des objets complets
+   * @returns Purchase "propre" avec seulement des IDs dans les relations
+   */
+  #sanitizePurchase(purchase: Purchases): Purchases {
+    return {
+      ...purchase,
+      products:
+        purchase.products?.map((prod: any) =>
+          typeof prod === "string" ? prod : prod.$id,
+        ) || [],
+      mainId:
+        typeof purchase.mainId === "string"
+          ? purchase.mainId
+          : purchase.mainId.$id,
+    };
+  }
+
+  /**
    * Ajoute un purchase à ses products (pour CREATE)
    */
   #addPurchaseToProducts(productIds: string[], purchase: Purchases) {
+    // Nettoyer les relations du purchase pour éviter la récursion dans le cache
+    const sanitizedPurchase = this.#sanitizePurchase(purchase);
+
     const productsToUpdate: Products[] = [];
 
     productIds.forEach((productId) => {
@@ -710,10 +738,10 @@ class ProductsStore {
       if (product) {
         const purchases = product.purchases || [];
         // Éviter les doublons (au cas où)
-        if (!purchases.some((p) => p.$id === purchase.$id)) {
+        if (!purchases.some((p) => p.$id === sanitizedPurchase.$id)) {
           productsToUpdate.push({
             ...product,
-            purchases: [...purchases, purchase],
+            purchases: [...purchases, sanitizedPurchase],
           } as Products);
         }
       }
@@ -726,6 +754,9 @@ class ProductsStore {
    * Met à jour un purchase dans ses products (pour UPDATE)
    */
   #updatePurchaseInProducts(productIds: string[], purchase: Purchases) {
+    // Nettoyer les relations du purchase pour éviter la récursion dans le cache
+    const sanitizedPurchase = this.#sanitizePurchase(purchase);
+
     const productsToUpdate: Products[] = [];
 
     // TOCHECK : le fait qu'il y ait potentiellement products est correct du point de vue de la façon dont nous avons défini la relation products ←→ purchases comme "many to many", en vue des products mergés, mais dans les fait, est ce qu'on attribura plusieurs products à un purchases ???
@@ -734,12 +765,14 @@ class ProductsStore {
       const product = this.#enrichedProducts.get(productId);
       if (product) {
         const purchases = product.purchases || [];
-        const index = purchases.findIndex((p) => p.$id === purchase.$id);
+        const index = purchases.findIndex(
+          (p) => p.$id === sanitizedPurchase.$id,
+        );
 
         if (index >= 0) {
           // Remplacer le purchase existant
           const updatedPurchases = [...purchases];
-          updatedPurchases[index] = purchase;
+          updatedPurchases[index] = sanitizedPurchase;
           productsToUpdate.push({
             ...product,
             purchases: updatedPurchases,
@@ -757,7 +790,6 @@ class ProductsStore {
 
     this.#batchUpsertEnrichedProducts(productsToUpdate);
   }
-
 
   // =========================================================================
   // REALTIME

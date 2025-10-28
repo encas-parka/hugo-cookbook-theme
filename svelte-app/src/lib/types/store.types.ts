@@ -69,6 +69,7 @@ export interface NumericQuantity {
 
 // Type enrichi pour les produits utilisés dans les composants
 export interface EnrichedProduct extends Products {
+  mainId: any;
   // Propriétés enrichies ajoutées par le store
   storeInfo: StoreInfo | null;
   totalNeededArray: NumericQuantity[];
@@ -89,6 +90,9 @@ export interface EnrichedProduct extends Products {
   // ✅ NOUVEAUX : Champs pour overrides (avec valeurs par défaut)
   totalNeededIsManualOverride: boolean; // false par défaut
   totalNeededOverrideReason: string | null; // null par défaut (compatible avec Products)
+
+  // ✅ SYNC : État de synchronisation avec Appwrite
+  isSynced: boolean; // false = local only, true = sync avec Appwrite
 }
 
 /**

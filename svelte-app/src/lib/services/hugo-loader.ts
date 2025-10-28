@@ -62,9 +62,7 @@ export function createProductsFromHugo(
     nbRecipes: ingredient.nbRecipes || 0,
     totalAssiettes: ingredient.totalAssiettes || 0,
 
-    // État virgin
-    status: "virgin",
-    isHugoSynced: true,
+    status: "",
 
     // Pas de données collaboratives
     purchases: [],

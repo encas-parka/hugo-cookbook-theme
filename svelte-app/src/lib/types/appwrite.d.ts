@@ -60,7 +60,7 @@ export type Products = Models.Row & {
   totalAssiettes: number | null;
   purchases: Purchases[];
   byDate: string | null;
-  isHugoSynced: boolean | null;
+  isSynced: boolean;
   hugoContentHash: string | null;
   mergedInto: string | null;
   totalNeededConsolidated: string | null;

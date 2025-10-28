@@ -5,6 +5,7 @@ import {
   updateProductStore,
   updateProductWho,
   updatePurchase,
+  upsertProduct,
 } from "../services/appwrite-interactions";
 import type { Purchases } from "../types/appwrite";
 import type { StoreInfo } from "../types/store.types";
@@ -156,6 +157,20 @@ export function createProductModalState(productId: string) {
         forms.purchase.unit,
       );
 
+      // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit avant création du purchase
+      if (!product.isSynced) {
+        // Produit local : créer sur Appwrite d'abord
+        console.log(
+          `[ProductModalState] Produit ${product.$id} local, création pour purchase...`,
+        );
+        await upsertProduct(
+          product.$id,
+          {}, // Pas de modifications spécifiques au produit lui-même
+          (id) => productsStore.getEnrichedProductById(id),
+        );
+      }
+
+      // Ensuite créer le purchase normalement
       await createPurchase({
         products: [product.$id],
         mainId: productsStore.currentMainId,
@@ -244,7 +259,25 @@ export function createProductModalState(productId: string) {
       };
 
       const updated = [...stockEntries, newEntry];
-      await updateProductStock(product.$id, JSON.stringify(updated));
+
+      // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit
+      if (!product.isSynced) {
+        // Produit local : utiliser upsertProduct pour créer sur Appwrite
+        console.log(
+          `[ProductModalState] Produit ${product.$id} local, création stock avec upsert...`,
+        );
+        await upsertProduct(
+          product.$id,
+          { stockReel: JSON.stringify(updated) },
+          (id) => productsStore.getEnrichedProductById(id),
+        );
+      } else {
+        // Produit déjà sync : utiliser updateProductStock normal
+        console.log(
+          `[ProductModalState] Produit ${product.$id} déjà sync, update stock normal...`,
+        );
+        await updateProductStock(product.$id, JSON.stringify(updated));
+      }
 
       forms.stock.quantity = null;
       forms.stock.notes = "";
@@ -275,7 +308,24 @@ export function createProductModalState(productId: string) {
         throw new Error("Ce volontaire est déjà ajouté");
       }
 
-      await updateProductWho(product.$id, [...whoList, name.trim()]);
+      const updatedWho = [...whoList, name.trim()];
+
+      // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit
+      if (!product.isSynced) {
+        // Produit local : utiliser upsertProduct pour créer sur Appwrite
+        console.log(
+          `[ProductModalState] Produit ${product.$id} local, création avec upsert...`,
+        );
+        await upsertProduct(product.$id, { who: updatedWho }, (id) =>
+          productsStore.getEnrichedProductById(id),
+        );
+      } else {
+        // Produit déjà sync : utiliser updateProductWho normal
+        console.log(
+          `[ProductModalState] Produit ${product.$id} déjà sync, update normal...`,
+        );
+        await updateProductWho(product.$id, updatedWho);
+      }
     }, "Volontaire ajouté");
   }
 
@@ -296,7 +346,24 @@ export function createProductModalState(productId: string) {
     if (!product) return;
 
     await withLoading(async () => {
-      await updateProductStore(product.$id, storeInfo);
+      // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit
+      if (!product.isSynced) {
+        // Produit local : utiliser upsertProduct pour créer sur Appwrite
+        console.log(
+          `[ProductModalState] Produit ${product.$id} local, création store avec upsert...`,
+        );
+        await upsertProduct(
+          product.$id,
+          { store: JSON.stringify(storeInfo) },
+          (id) => productsStore.getEnrichedProductById(id),
+        );
+      } else {
+        // Produit déjà sync : utiliser updateProductStore normal
+        console.log(
+          `[ProductModalState] Produit ${product.$id} déjà sync, update store normal...`,
+        );
+        await updateProductStore(product.$id, storeInfo);
+      }
     }, "Magasin mis à jour");
   }
 
