@@ -66,7 +66,7 @@ export type Products = Models.Row & {
   totalNeededConsolidated: string | null;
   totalNeededIsManualOverride: boolean | null;
   totalNeededOverrideReason: string | null;
-  mainId: Main;
+  mainId: Main | any;
 };
 
 export type Purchases = Models.Row & {
@@ -79,5 +79,5 @@ export type Purchases = Models.Row & {
   who: string | null;
   createdBy: string | null;
   products: Products[];
-  mainId: Main;
+  mainId: Main | any; // workaround for id only
 };

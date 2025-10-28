@@ -265,6 +265,45 @@ export async function loadProductById(
 }
 
 /**
+ * Charge les purchases modifiés depuis le dernier sync
+ * @param mainId - ID du main
+ * @param lastSync - Date du dernier sync
+ * @param limit - Limite de résultats (default: 100)
+ * @returns Promise<Purchases[]>
+ */
+export async function loadUpdatedPurchases(
+  mainId: string,
+  lastSync: string,
+  limit = 100,
+): Promise<Purchases[]> {
+  try {
+    const { databases, config } = await getAppwriteInstances();
+
+    const response = await databases.listDocuments(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.purchases,
+      [
+        Query.greaterThan("$updatedAt", lastSync),
+        Query.equal("mainId", mainId),
+        Query.limit(limit),
+        Query.select(["*", "products.$id"]), // Uniquement les IDs des produits
+      ],
+    );
+
+    console.log(
+      `[Appwrite Interactions] ${response.documents.length} purchases modifiés chargés`,
+    );
+    return response.documents as Purchases[];
+  } catch (error) {
+    console.error(
+      "[Appwrite Interactions] Erreur chargement purchases modifiés:",
+      error,
+    );
+    return [];
+  }
+}
+
+/**
  * Charge plusieurs produits par leurs IDs
  */
 export async function loadProductsListByIds(
@@ -360,7 +399,7 @@ export async function syncProductsWithPurchases(
       config.APPWRITE_CONFIG.databaseId,
       config.APPWRITE_CONFIG.collections.products,
       [
-        Query.updatedAfter(lastSync),
+        Query.greaterThan("$updatedAt", lastSync),
         Query.equal("mainId", mainId),
         Query.limit(limit),
         Query.select([

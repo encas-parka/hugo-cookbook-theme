@@ -481,13 +481,35 @@ class ProductsStore {
     this.#syncing = true;
 
     try {
-      // Utiliser la même fonction pour les deux cas
+      // 1. Synchroniser les produits modifiés
       const allProducts = await syncProductsWithPurchases(this.#currentMainId, {
         lastSync: this.#lastSync,
         limit: BATCH_LIMIT,
       });
 
-      // Appliquer les produits venant d'Appwrite (isSynced: true)
+      // 2. Synchroniser les purchases modifiés (pour les produits non-modifiés)
+      if (this.#lastSync) {
+        const { loadUpdatedPurchases } = await import(
+          "../services/appwrite-interactions"
+        );
+        const updatedPurchases = await loadUpdatedPurchases(
+          this.#currentMainId,
+          this.#lastSync,
+          BATCH_LIMIT,
+        );
+
+        // Appliquer les purchases modifiés aux produits existants
+        updatedPurchases.forEach((purchase) => {
+          if (purchase.products?.length) {
+            const productIds = purchase.products.map((prod: any) =>
+              typeof prod === "string" ? prod : prod.$id,
+            );
+            this.#updatePurchaseInProducts(productIds, purchase);
+          }
+        });
+      }
+
+      // 3. Appliquer les produits venant d'Appwrite (isSynced: true)
       allProducts.forEach((product) => {
         const enriched = this.#enrichProduct(product);
         enriched.isSynced = true; // ✅ SYNC : Les produits venant d'Appwrite sont sync
