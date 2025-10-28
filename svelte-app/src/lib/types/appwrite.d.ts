@@ -80,4 +80,8 @@ export type Purchases = Models.Row & {
   createdBy: string | null;
   products: Products[];
   mainId: Main | any; // workaround for id only
+
+  // Nouveaux champs pour la gestion des commandes
+  deliveryDate: string | null; // ISO date string pour la date de livraison
+  orderDate: string | null; // ISO date string pour la date de commande
 };

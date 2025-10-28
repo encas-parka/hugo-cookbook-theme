@@ -183,6 +183,10 @@ class ProductsStore {
     return this.#syncing;
   }
 
+  get lastSync() {
+    return this.#lastSync;
+  }
+
   // Gestion de la plage de dates
   get startDate() {
     return this.#startDate;

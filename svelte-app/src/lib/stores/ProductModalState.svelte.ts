@@ -58,6 +58,9 @@ export function createProductModalState(productId: string) {
       who: userName() ?? "",
       price: null as number | null,
       notes: "",
+      status: null as string | null,
+      orderDate: null as string | null,
+      deliveryDate: null as string | null,
     },
     stock: {
       quantity: null as number | null,
@@ -180,6 +183,9 @@ export function createProductModalState(productId: string) {
         who: forms.purchase.who || null,
         notes: forms.purchase.notes || "",
         price: forms.purchase.price || null,
+        status: forms.purchase.status || null,
+        orderDate: forms.purchase.orderDate || null,
+        deliveryDate: forms.purchase.deliveryDate || null,
       });
 
       // ✅ Reset local form, les données du produit se mettront à jour via le store
@@ -190,6 +196,9 @@ export function createProductModalState(productId: string) {
         who: forms.purchase.who,
         price: null,
         notes: "",
+        status: null,
+        orderDate: null,
+        deliveryDate: null,
       };
     }, "Achat ajouté avec succès");
   }
@@ -218,6 +227,9 @@ export function createProductModalState(productId: string) {
         who: updatedPurchase.who || null,
         notes: updatedPurchase.notes || "",
         price: updatedPurchase.price || null,
+        status: updatedPurchase.status || null,
+        orderDate: updatedPurchase.orderDate || null,
+        deliveryDate: updatedPurchase.deliveryDate || null,
       });
 
       editingPurchaseId = null;

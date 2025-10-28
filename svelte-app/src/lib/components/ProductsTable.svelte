@@ -31,6 +31,7 @@
   import {
     getProductTypeInfo,
     sortEnrichedProducts,
+    formatPurchasesWithStatus,
   } from "../utils/products-display";
 
   // Accès réactif aux valeurs dérivées du store
@@ -398,6 +399,9 @@
           <!-- Produits du groupe -->
           {#each sortEnrichedProducts(groupProducts!, filters) as product (product.$id)}
             {@const typeInfo = getProductTypeInfo(product.productType)}
+            {@const purchasesDisplay = formatPurchasesWithStatus(
+              product.purchases || [],
+            )}
 
             <tr class="hover:bg-base-200/20 transition-colors">
               <td
@@ -501,7 +505,9 @@
                 class="group relative cursor-pointer rounded text-center font-medium hover:inset-ring-2 hover:inset-ring-amber-400/50"
                 onclick={() => handleOpenProductModal("achats", product.$id)}
               >
-                {product.displayTotalPurchases || "-"}
+                <div class="text-sm">
+                  {purchasesDisplay}
+                </div>
                 {@render editPenIcon()}
               </td>
               <td class="group relative text-center">

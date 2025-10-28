@@ -1,6 +1,17 @@
 import type { Products, Purchases } from "./appwrite.d";
 
 /**
+ * Types pour les statuts d'achat
+ */
+export type PurchaseStatus =
+  | "requested" // Contacté fournisseur, attente confirmation
+  | "ordered" // Confirmé par fournisseur
+  | "pending" // Date livraison atteinte, attente réception
+  | "delivered" // Reçu confirmé
+  | "cancelled" // Annulé
+  | null; // Compatibilité (achat direct)
+
+/**
  * Types pour la gestion des événements principaux
  */
 export interface MainEventData {
@@ -105,6 +116,9 @@ export interface PurchaseFormData {
   who: string;
   price: number | null;
   notes: string;
+  status: string | null;
+  orderDate: string | null;
+  deliveryDate: string | null;
 }
 
 /**

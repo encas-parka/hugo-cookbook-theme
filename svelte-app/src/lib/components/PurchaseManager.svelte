@@ -9,10 +9,17 @@
     User,
     MessageCircle,
     WeightIcon,
+    Calendar,
+    PackageCheck,
   } from "@lucide/svelte";
   import type { Purchases } from "../types/appwrite.d.ts";
   import type { ProductModalStateType } from "../types/store.types.js";
-  import { formatDate, formatQuantity } from "../utils/products-display.js";
+  import {
+    formatDate,
+    formatQuantity,
+    getStatusBadge,
+    formatDateOrNull,
+  } from "../utils/products-display.js";
   import { productsStore } from "../stores/ProductsStore.svelte";
 
   interface Props {
@@ -147,6 +154,32 @@
               maxlength="250"
             />
           </label>
+          <label class="select w-36">
+            <PackageCheck class="h-4 w-4 opacity-50" />
+            <select bind:value={modalState.forms.purchase.status}>
+              <option value="">Type d'achat</option>
+              <option value="requested">Demandé</option>
+              <option value="ordered">Commandé</option>
+              <option value="delivered">Livré</option>
+              <option value="cancelled">Annulé</option>
+            </select>
+          </label>
+          <label class="input w-40">
+            <Calendar class="h-4 w-4 opacity-50" />
+            <input
+              type="date"
+              bind:value={modalState.forms.purchase.orderDate}
+              placeholder="Date commande"
+            />
+          </label>
+          <label class="input w-40">
+            <Calendar class="h-4 w-4 opacity-50" />
+            <input
+              type="date"
+              bind:value={modalState.forms.purchase.deliveryDate}
+              placeholder="Date livraison"
+            />
+          </label>
         </div>
         <div class="card-actions mt-4 justify-end">
           <button
@@ -178,7 +211,9 @@
               <th>Quantité</th>
               <th>Magasin</th>
               <th>Qui</th>
-              <th>Date</th>
+              <th>Statut</th>
+              <th>Date commande</th>
+              <th>Date livraison</th>
               <th>Prix</th>
               <th>Notes</th>
               <th>Actions</th>
@@ -235,8 +270,32 @@
                       list="users"
                     />
                   </td>
-                  <td class="text-xs opacity-75">
-                    {formatDate(purchase.$createdAt)}
+                  <td>
+                    <select
+                      class="select select-bordered w-24"
+                      bind:value={purchase.status}
+                    >
+                      <option value="">Achat direct</option>
+                      <option value="requested">Demandé</option>
+                      <option value="ordered">Commandé</option>
+                      <option value="pending">En attente</option>
+                      <option value="delivered">Livré</option>
+                      <option value="cancelled">Annulé</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="date"
+                      class="input w-28"
+                      bind:value={purchase.orderDate}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="date"
+                      class="input w-28"
+                      bind:value={purchase.deliveryDate}
+                    />
                   </td>
                   <td>
                     <input
@@ -289,9 +348,20 @@
                   </td>
                   <td>{purchase.store || "-"}</td>
                   <td>{purchase.who || "-"}</td>
-                  <td class="text-xs opacity-75"
-                    >{formatDate(purchase.$createdAt)}</td
-                  >
+                  <td>
+                    <div
+                      class="badge badge-sm {getStatusBadge(purchase.status)
+                        .class}"
+                    >
+                      {getStatusBadge(purchase.status).text}
+                    </div>
+                  </td>
+                  <td class="text-xs">
+                    {formatDateOrNull(purchase.orderDate)}
+                  </td>
+                  <td class="text-xs">
+                    {formatDateOrNull(purchase.deliveryDate)}
+                  </td>
                   <td>{purchase.price ? `${purchase.price}€` : "-"}</td>
                   <td>{purchase.notes || "-"}</td>
                   <td>

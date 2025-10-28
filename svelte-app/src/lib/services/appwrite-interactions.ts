@@ -72,20 +72,14 @@ export type ProductUpdate = Partial<
 
 export type PurchaseCreate = Omit<
   Purchases,
-  | "$id"
-  | keyof Models.Row
-  | "purchases"
-  | "createdBy"
-  | "status"
-  | "products"
-  | "mainId"
+  "$id" | keyof Models.Row | "purchases" | "createdBy" | "products" | "mainId"
 > & {
   products: string[]; // IDs des produits pour la relation
   mainId: string; // ID du main pour la relation
 };
 
 export type PurchaseUpdate = Partial<
-  Omit<Purchases, "$id" | keyof Models.Row | "mainId" | "createdBy" | "status">
+  Omit<Purchases, "$id" | keyof Models.Row | "mainId" | "createdBy">
 > & {
   products?: Products[];
 };
@@ -340,6 +334,8 @@ export async function loadProductsListByIds(
           "purchases.notes",
           "purchases.price",
           "purchases.status",
+          "purchases.deliveryDate",
+          "purchases.orderDate",
           "purchases.createdBy",
           "purchases.products.$id",
         ]),
@@ -397,6 +393,8 @@ export async function syncProductsWithPurchases(
             "purchases.notes",
             "purchases.price",
             "purchases.status",
+            "purchases.deliveryDate",
+            "purchases.orderDate",
             "purchases.createdBy",
             "purchases.products.$id",
           ]),
@@ -424,6 +422,8 @@ export async function syncProductsWithPurchases(
           "purchases.notes",
           "purchases.price",
           "purchases.status",
+          "purchases.deliveryDate",
+          "purchases.orderDate",
           "purchases.createdBy",
           "purchases.products.$id",
         ]), // Récupérer la relation purchases sans récursion
@@ -619,7 +619,6 @@ export async function createPurchase(
     const completePurchaseData = {
       ...purchaseData,
       createdBy: user.$id,
-      status: "active", // FIXIT : status devrait être utilisé pour distinguer les commandes effectué et les achats effectués. Trouver le bon pattern (date ?)
     };
 
     const response = await databases.createDocument(
