@@ -16,11 +16,15 @@
     ShoppingBasket,
     CircleCheckBig,
     CookingPot,
+    Package,
+    MessageCircleQuestionMark,
+    Clock,
+    CircleCheck,
+    CircleX,
   } from "@lucide/svelte";
 
   // Store and global state
   import { productsStore } from "../stores/ProductsStore.svelte";
-  import { openProductModal } from "../stores/GlobalState.svelte";
 
   // Components
   import ProductModal from "./ProductModal.svelte";
@@ -31,8 +35,19 @@
   import {
     getProductTypeInfo,
     sortEnrichedProducts,
-    formatPurchasesWithStatus,
+    formatPurchasesWithBadges,
+    formatQuantity,
   } from "../utils/products-display";
+
+  // Mapping des icônes pour les statuts d'achat
+  const statusIcons = {
+    Package,
+    MessageCircleQuestionMark,
+    ShoppingCart,
+    Clock,
+    CircleCheck,
+    CircleX,
+  };
 
   // Accès réactif aux valeurs dérivées du store
   const filteredProducts = $derived(productsStore.filteredProducts);
@@ -48,10 +63,18 @@
   const formattedTotalNeededByDateRange = $derived(
     productsStore.formattedTotalNeededByDateRange,
   );
+  // État local : quel produit a son modal ouvert, et sur quel onglet
+  let openModalProductId = $state<string | null>(null);
+  let openModalTab = $state<string>("recettes");
 
-  // Gestionnaire de clics sur les cellules pour le ProductModal
-  function handleOpenProductModal(tab: string, productId: string) {
-    openProductModal(tab, productId);
+  // Fonctions pour contrôler l'ouverture/fermeture
+  function openModal(productId: string, tab: string = "recettes") {
+    openModalTab = tab;
+    openModalProductId = productId;
+  }
+
+  function closeModal() {
+    openModalProductId = null;
   }
 </script>
 
@@ -70,21 +93,6 @@
     <div class="badge badge-neutral badge-lg">
       <LayoutList class="mr-1 h-4 w-4" />
       {stats.total}
-    </div>
-    <div class="badge badge-info badge-lg">
-      <ShoppingBasket class="mr-1 h-4 w-4" />
-      frais:
-      {stats.frais}
-    </div>
-    <div class="badge badge-success badge-lg">
-      <Snowflake class="mr-1 h-4 w-4" />
-      surgelés:
-      {stats.surgel}
-    </div>
-    <div class="badge badge-warning badge-lg">
-      <Combine class="mr-1 h-4 w-4" />
-      fusionnés:
-      {stats.merged}
     </div>
   </div>
 
@@ -397,16 +405,16 @@
           {/if}
 
           <!-- Produits du groupe -->
-          {#each sortEnrichedProducts(groupProducts!, filters) as product (product.$id)}
+          {#each sortEnrichedProducts(groupProducts, filters) as product (product.$id)}
             {@const typeInfo = getProductTypeInfo(product.productType)}
-            {@const purchasesDisplay = formatPurchasesWithStatus(
+            {@const purchasesBadges = formatPurchasesWithBadges(
               product.purchases || [],
             )}
 
             <tr class="hover:bg-base-200/20 transition-colors">
               <td
                 class="group relative cursor-pointer rounded hover:inset-ring-2 hover:inset-ring-amber-400/50"
-                onclick={() => handleOpenProductModal("recettes", product.$id)}
+                onclick={() => openModal(product.$id, "recettes")}
               >
                 <div class="flex items-center justify-between pr-8">
                   <div>
@@ -440,7 +448,7 @@
                 class="{filters.groupBy === 'store'
                   ? 'hidden'
                   : ''} group relative cursor-pointer rounded font-medium hover:inset-ring-2 hover:inset-ring-amber-400/50"
-                onclick={() => handleOpenProductModal("magasins", product.$id)}
+                onclick={() => openModal(product.$id, "magasins")}
               >
                 {#if product.storeInfo?.storeComment}
                   <div
@@ -456,8 +464,7 @@
               </td>
               <td
                 class="group relative cursor-pointer rounded hover:inset-ring-2 hover:inset-ring-amber-400/50"
-                onclick={() =>
-                  handleOpenProductModal("volontaires", product.$id)}
+                onclick={() => openModal(product.$id, "volontaires")}
               >
                 {#if product.who && product.who.length > 0}
                   <div class="flex flex-wrap gap-1 pr-8">
@@ -480,7 +487,7 @@
               </td>
               <td
                 class="group relative cursor-pointer rounded hover:inset-ring-2 hover:inset-ring-amber-400/50"
-                onclick={() => handleOpenProductModal("recettes", product.$id)}
+                onclick={() => openModal(product.$id, "recettes")}
               >
                 <div class="pb-1 text-center font-semibold">
                   {product.displayTotalNeeded ?? "-"}
@@ -503,10 +510,26 @@
 
               <td
                 class="group relative cursor-pointer rounded text-center font-medium hover:inset-ring-2 hover:inset-ring-amber-400/50"
-                onclick={() => handleOpenProductModal("achats", product.$id)}
+                onclick={() => openModal(product.$id, "achats")}
               >
-                <div class="text-sm">
-                  {purchasesDisplay}
+                <div class="flex flex-wrap gap-1 py-1">
+                  {#each purchasesBadges as purchase (purchase.status)}
+                    {@const IconComponent = statusIcons[purchase.icon]}
+                    <div
+                      class="badge badge-soft flex items-center gap-2 {purchase.badgeClass}"
+                    >
+                      <IconComponent class="h-4 w-4" />
+                      <span
+                        >{formatQuantity(
+                          purchase.quantity,
+                          purchase.unit,
+                        )}</span
+                      >
+                    </div>
+                  {/each}
+                  {#if purchasesBadges.length === 0}
+                    <span class="text-sm">-</span>
+                  {/if}
                 </div>
                 {@render editPenIcon()}
               </td>
@@ -556,6 +579,12 @@
   <!-- Vue Mobile Cards -->
 </div>
 
-<ProductModal />
+{#if openModalProductId}
+  <ProductModal
+    productId={openModalProductId}
+    initialTab={openModalTab}
+    onClose={closeModal}
+  />
+{/if}
 
 <ProductDrawerFilters />

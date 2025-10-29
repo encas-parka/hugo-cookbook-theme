@@ -164,7 +164,6 @@ export interface ProductModalStateType {
   // État UI
   readonly loading: boolean;
   readonly error: string | null;
-  readonly currentTab: string;
 
   // Données du produit (dérivées du store)
   readonly product: EnrichedProduct | null;
@@ -201,7 +200,6 @@ export interface ProductModalStateType {
   // Utilitaires
   formatQuantity(quantity: number, unit: string): string;
   formatDate(dateString: string): string;
-  formatDisplayQuantity(quantity: number, unit: string): string;
 }
 
 // Types pour les données brutes venant de Appwrite (non enrichies)

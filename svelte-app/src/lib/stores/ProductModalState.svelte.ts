@@ -31,15 +31,17 @@ import { productsStore } from "./ProductsStore.svelte";
 export function createProductModalState(productId: string) {
   let loading = $state(false);
   let error = $state<string | null>(null);
-  let currentTab = $state("recettes");
 
   // ─────────────────────────────────────────────────────────────
   // DONNÉES DÉRIVÉES - Toujours fraîches du store
   // ─────────────────────────────────────────────────────────────
 
-  // ✅ Le produit est maintenant TOUJOURS lu du store
-  const product = $derived(productsStore.getEnrichedProductById(productId));
-
+  // const product = $derived(productsStore.getEnrichedProductById(productId));
+  // DEBUG
+  const product = $derived.by(() => {
+    console.log(`[ProductModalState] Recalculating product ${productId}`);
+    return productsStore.getEnrichedProductById(productId);
+  });
   // ✅ Ces dérivés dépendent du produit du store, donc auto-update
   const recipes = $derived(product?.recipesArray ?? []);
   const whoList = $derived(product?.who ?? []);
@@ -77,19 +79,29 @@ export function createProductModalState(productId: string) {
     },
   });
 
-  // Initialiser les formulaires une fois que le produit est dispo
-  $effect(() => {
-    if (!product) return;
+  // Initialiser les formulaires une seule fois que le produit est dispo
+  let initialized = $state(false);
 
+  $effect(() => {
+    // S'assurer que le produit est disponible ET que ce n'est pas déjà initialisé
+    if (!product || initialized) return;
+
+    console.log(`[ProductModalState] Initializing forms for ${productId}`);
+
+    // Initialisation UNIQUEMENT au premier chargement
     forms.purchase.quantity = product.missingQuantityArray[0]?.q ?? null;
     forms.purchase.unit = product.totalNeededArray[0]?.u ?? "";
     forms.purchase.store = product.storeInfo?.storeName ?? "";
     forms.purchase.who = userName() ?? "";
+    forms.purchase.status = forms.purchase.status || "delivered";
 
     forms.stock.unit = product.totalNeededArray[0]?.u ?? "";
 
     forms.store.name = product.storeInfo?.storeName ?? null;
     forms.store.comment = product.storeInfo?.storeComment ?? null;
+
+    // Marquer comme initialisé pour ne plus jamais ré-exécuter
+    initialized = true;
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -183,7 +195,7 @@ export function createProductModalState(productId: string) {
         who: forms.purchase.who || null,
         notes: forms.purchase.notes || "",
         price: forms.purchase.price || null,
-        status: forms.purchase.status || null,
+        status: forms.purchase.status || "delivered",
         orderDate: forms.purchase.orderDate || null,
         deliveryDate: forms.purchase.deliveryDate || null,
       });
@@ -386,12 +398,6 @@ export function createProductModalState(productId: string) {
     },
     get error() {
       return error;
-    },
-    get currentTab() {
-      return currentTab;
-    },
-    set currentTab(value: string) {
-      currentTab = value;
     },
 
     // Données du produit (toujours fraîches du store)

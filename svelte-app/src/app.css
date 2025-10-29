@@ -1,13 +1,11 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
-@theme{
+@theme {
   --color-lavender: oklch(0.8051 0.0952 298.69);
   --color-lavender-content: oklch(0.415 0.1018 298.69)
-  --color-peach: oklch(88% 0.055 45.47);
-  --color-cream: oklch(94% 0.035 85.43);        /* Cream plus intense - jaune clair */
-
-
+    --color-peach: oklch(88% 0.055 45.47);
+  --color-cream: oklch(94% 0.035 85.43); /* Cream plus intense - jaune clair */
 }
 
 @plugin "daisyui/theme" {
@@ -49,4 +47,13 @@
 :root {
   --color-lavender: oklch(85% 0.06 298.69);
   --color-lavender-content: oklch(20% 0.02 298.69);
+}
+
+.custom-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
 }

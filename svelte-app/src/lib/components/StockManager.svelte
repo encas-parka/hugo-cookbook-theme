@@ -1,15 +1,7 @@
 <script lang="ts">
-  import {
-    Archive,
-    Calendar,
-    MessageCircle,
-    Package,
-    User,
-    WeightIcon,
-  } from "@lucide/svelte";
+  import { Archive, Package, WeightIcon } from "@lucide/svelte";
   import type { ProductModalStateType } from "../types/store.types.js";
-  import { formatDate, formatQuantity } from "../utils/products-display.js";
-  import "cally";
+  import { formatDate } from "../utils/products-display.js";
 
   interface Props {
     modalState: ProductModalStateType;
@@ -18,10 +10,12 @@
   let { modalState }: Props = $props();
 
   // Données dérivées du store
-  const stockForm = $derived(modalState.forms.stock);
 
   let isFormValid = $derived(
-    stockForm && stockForm.quantity && stockForm.quantity > 0 && stockForm.unit,
+    modalState &&
+      modalState.forms.stock.quantity &&
+      modalState.forms.stock.quantity > 0 &&
+      modalState.forms.stock.unit,
   );
 
   async function handleAddStock() {
@@ -43,13 +37,13 @@
     <div class="card-body">
       <h4 class="card-title text-base">Ajouter au stock</h4>
       <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-        <label class="input validator">
+        <label class="input">
           <Package class="h-4 w-4 opacity-50" />
           <input
             placeholder="Quantité"
             type="number"
-            step="0.01"
-            bind:value={stockForm.quantity}
+            step="1"
+            bind:value={modalState.forms.stock.quantity}
             minlength="0.01"
             title="La quantité doit être supérieure à 0"
             required
@@ -57,13 +51,11 @@
         </label>
 
         <select
-          class="select select-bordered"
-          bind:value={stockForm.unit}
+          class="custom-select input w-32"
+          bind:value={modalState.forms.stock.unit}
           required
         >
-          <option disabled selected value=""
-            ><WeightIcon class="h-4 w-4 opacity-50" />Selectionné l'unité</option
-          >
+          <option disabled value="">Selectionné l'unité</option>
           <option value="kg">kg</option>
           <option value="gr.">gr.</option>
           <option value="l.">l.</option>
@@ -75,11 +67,11 @@
 
       <div>
         <textarea
-          class="textarea"
-          bind:value={stockForm.notes}
-          placeholder="remarques..."
+          class="textarea flex w-full"
+          bind:value={modalState.forms.stock.notes}
+          placeholder="Commentaire (optionnel)"
         >
-          {stockForm.notes}
+          {modalState.forms.stock.notes}
         </textarea>
       </div>
       <div class="card-actions mt-4 justify-end">
@@ -143,3 +135,6 @@
     </div>
   {/if}
 </div>
+
+<style>
+</style>

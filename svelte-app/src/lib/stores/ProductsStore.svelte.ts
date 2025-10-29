@@ -183,10 +183,6 @@ class ProductsStore {
     return this.#syncing;
   }
 
-  get lastSync() {
-    return this.#lastSync;
-  }
-
   // Gestion de la plage de dates
   get startDate() {
     return this.#startDate;
@@ -242,17 +238,49 @@ class ProductsStore {
    * Conversion SvelteMap → Array pour les templates
    */
   enrichedProducts = $derived.by(() => {
-    return Array.from(this.#enrichedProducts.values());
+    console.time("[ProductsStore] enrichedProducts conversion time");
+    const result = Array.from(this.#enrichedProducts.values());
+    console.timeEnd("[ProductsStore] enrichedProducts conversion time");
+    console.log(
+      `[ProductsStore] enrichedProducts recalculated: ${result.length} products`,
+    );
+    return result;
   });
+
+  // Cache pour la mémorisation des calculs
+  #totalNeededCache = new Map<string, NumericQuantity[]>();
+  #lastDateRange = { start: "", end: "" };
 
   /**
    * Total des besoins par plage de dates sélectionnée
-   * ✅ NOUVEAU : Utilise la structure byDate pour des performances optimales
+   * ✅ OPTIMISÉ : Utilise la structure byDate + mémorisation pour des performances optimales
    */
   totalNeededByDateRange = $derived.by(() => {
+    // Vérifier si la plage de dates a changé
+    const currentRange = {
+      start: this.#startDate || "",
+      end: this.#endDate || "",
+    };
+
+    const rangeChanged =
+      currentRange.start !== this.#lastDateRange.start ||
+      currentRange.end !== this.#lastDateRange.end;
+
+    // Si la plage de dates n'a pas changé, retourner le cache
+    if (!rangeChanged && this.#totalNeededCache.size > 0) {
+      return this.#totalNeededCache;
+    }
+
+    // Mettre à jour la plage de dates et vider le cache si nécessaire
+    this.#lastDateRange = currentRange;
+    this.#totalNeededCache.clear();
+
     const totalMap = new Map<string, NumericQuantity[]>();
 
-    this.enrichedProducts.forEach((product) => {
+    // Traiter les produits par lots pour éviter de bloquer le thread
+    const products = this.enrichedProducts;
+
+    for (const product of products) {
       // Si override manuel global, utiliser la valeur stockée
       if (
         product.totalNeededIsManualOverride &&
@@ -263,14 +291,16 @@ class ProductsStore {
         );
         if (manual && manual.length > 0) {
           totalMap.set(product.$id, manual);
+          this.#totalNeededCache.set(product.$id, manual);
         }
-        return;
+        continue;
       }
 
       // ✅ Utiliser la structure byDate si disponible
       if (!product.byDateParsed || !this.#startDate || !this.#endDate) {
-        return;
+        continue;
       }
+
       const total = calculateTotalFromByDate(
         product.byDateParsed,
         this.#startDate,
@@ -279,8 +309,9 @@ class ProductsStore {
 
       if (total && total.length > 0) {
         totalMap.set(product.$id, total);
+        this.#totalNeededCache.set(product.$id, total);
       }
-    });
+    }
 
     return totalMap;
   });
@@ -311,10 +342,10 @@ class ProductsStore {
    * Statistiques des produits filtrés
    */
   stats = $derived.by(() => ({
-    total: this.filteredProducts.length,
-    frais: this.filteredProducts.filter((p) => p.pFrais).length,
-    surgel: this.filteredProducts.filter((p) => p.pSurgel).length,
-    merged: this.filteredProducts.filter((p) => p.isMerged).length,
+    total: this.enrichedProducts.length,
+    frais: this.enrichedProducts.filter((p) => p.pFrais).length,
+    surgel: this.enrichedProducts.filter((p) => p.pSurgel).length,
+    merged: this.enrichedProducts.filter((p) => p.isMerged).length,
   }));
 
   /**

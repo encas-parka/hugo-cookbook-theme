@@ -125,6 +125,60 @@ export function formatDateOrNull(dateString: string | null): string {
   return formatDate(dateString);
 }
 
+// Fonction pour formater les achats avec badges structurés
+export function formatPurchasesWithBadges(purchases: any[]): Array<{
+  quantity: number;
+  unit: string;
+  status: string | null;
+  badgeClass: string;
+  badgeText: string;
+  icon: string;
+}> {
+  if (!purchases?.length) return [];
+
+  // Grouper par statut et unité
+  const grouped = purchases.reduce((acc, purchase) => {
+    const status = purchase.status || "direct";
+    const unit = purchase.unit || "unit";
+    const key = `${status}_${unit}`;
+
+    if (!acc[key]) {
+      const badgeInfo = getStatusBadge(status);
+      acc[key] = {
+        status,
+        unit,
+        quantity: 0,
+        badgeClass: badgeInfo.class,
+        badgeText: badgeInfo.text,
+        icon: getStatusIcon(status),
+      };
+    }
+
+    acc[key].quantity += purchase.quantity || 0;
+    return acc;
+  }, {});
+
+  return Object.values(grouped);
+}
+
+// Fonction pour obtenir l'icône correspondant au statut
+function getStatusIcon(status: string | null): string {
+  switch (status) {
+    case "requested":
+      return "MessageCircleQuestionMark";
+    case "ordered":
+      return "ShoppingCart";
+    case "pending":
+      return "Clock";
+    case "delivered":
+      return "CircleCheck";
+    case "cancelled":
+      return "CircleX";
+    default:
+      return "Package";
+  }
+}
+
 // Fonction pour afficher les achats avec statuts à partir des purchases bruts
 export function formatPurchasesWithStatus(purchases: any[]): string {
   if (!purchases?.length) return "-";
