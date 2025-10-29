@@ -130,8 +130,8 @@ class ProductsStore {
   #lastSync = $state<string | null>(null);
 
   // Gestion de la plage de dates
-  #startDate = $state<string | null>(null);
-  #endDate = $state<string | null>(null);
+  startDate = $state<string | null>(null);
+  endDate = $state<string | null>(null);
 
   // Cache keys
   #cacheKey: string | null = null;
@@ -184,31 +184,25 @@ class ProductsStore {
   }
 
   // Gestion de la plage de dates
-  get startDate() {
-    return this.#startDate;
-  }
-  get endDate() {
-    return this.#endDate;
-  }
   setStartDate(date: string | null) {
-    this.#startDate = date;
+    this.startDate = date;
   }
   setEndDate(date: string | null) {
-    this.#endDate = date;
+    this.endDate = date;
   }
   setDateRange(start: string | null, end: string | null) {
-    this.#startDate = start;
-    this.#endDate = end;
+    this.startDate = start;
+    this.endDate = end;
   }
 
   /**
    * Initialise automatiquement la plage de dates si elle est vide
    */
   private initializeDateRange() {
-    if ((!this.#startDate || !this.#endDate) && this.#allDates.length > 0) {
+    if ((!this.startDate || !this.endDate) && this.#allDates.length > 0) {
       const sortedDates = [...this.#allDates].sort();
-      this.#startDate = sortedDates[0];
-      this.#endDate = sortedDates[sortedDates.length - 1];
+      this.startDate = sortedDates[0];
+      this.endDate = sortedDates[sortedDates.length - 1];
     }
   }
 
@@ -238,9 +232,7 @@ class ProductsStore {
    * Conversion SvelteMap → Array pour les templates
    */
   enrichedProducts = $derived.by(() => {
-    console.time("[ProductsStore] enrichedProducts conversion time");
     const result = Array.from(this.#enrichedProducts.values());
-    console.timeEnd("[ProductsStore] enrichedProducts conversion time");
     console.log(
       `[ProductsStore] enrichedProducts recalculated: ${result.length} products`,
     );
@@ -258,8 +250,8 @@ class ProductsStore {
   totalNeededByDateRange = $derived.by(() => {
     // Vérifier si la plage de dates a changé
     const currentRange = {
-      start: this.#startDate || "",
-      end: this.#endDate || "",
+      start: this.startDate || "",
+      end: this.endDate || "",
     };
 
     const rangeChanged =
@@ -297,14 +289,14 @@ class ProductsStore {
       }
 
       // ✅ Utiliser la structure byDate si disponible
-      if (!product.byDateParsed || !this.#startDate || !this.#endDate) {
+      if (!product.byDateParsed || !this.startDate || !this.endDate) {
         continue;
       }
 
       const total = calculateTotalFromByDate(
         product.byDateParsed,
-        this.#startDate,
-        this.#endDate,
+        this.startDate,
+        this.endDate,
       );
 
       if (total && total.length > 0) {
@@ -1223,12 +1215,12 @@ class ProductsStore {
    */
   getTotalAssiettesInRange(productId: string): number {
     const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDateParsed || !this.#startDate || !this.#endDate) return 0;
+    if (!product?.byDateParsed || !this.startDate || !this.endDate) return 0;
 
     return calculateTotalAssiettesInRange(
       product.byDateParsed,
-      this.#startDate,
-      this.#endDate,
+      this.startDate,
+      this.endDate,
     );
   }
 
@@ -1237,12 +1229,12 @@ class ProductsStore {
    */
   getRecipesInRange(productId: string): RecipeOccurrence[] {
     const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDateParsed || !this.#startDate || !this.#endDate) return [];
+    if (!product?.byDateParsed || !this.startDate || !this.endDate) return [];
 
     const datesInRange = Object.keys(product.byDateParsed).filter((dateStr) => {
       const date = new Date(dateStr);
-      const startDate = this.#startDate ? new Date(this.#startDate) : null;
-      const endDate = this.#endDate ? new Date(this.#endDate) : null;
+      const startDate = this.startDate ? new Date(this.startDate) : null;
+      const endDate = this.endDate ? new Date(this.endDate) : null;
       return startDate && endDate && date >= startDate && date <= endDate;
     });
 

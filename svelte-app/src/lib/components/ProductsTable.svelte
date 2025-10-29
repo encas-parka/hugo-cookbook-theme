@@ -30,6 +30,7 @@
   import ProductModal from "./ProductModal.svelte";
   import ProductDrawerFilters from "./ProductDrawerFilters.svelte";
   import MultiRangeSlider from "./MultiRangeSlider.svelte";
+  import TimelineRange from "./ui/TimelineRange.svelte";
 
   // utils
   import {
@@ -95,6 +96,11 @@
       {stats.total}
     </div>
   </div>
+
+  <TimelineRange
+    allDates={productsStore.allDates}
+    setDateRange={productsStore.setDateRange}
+  />
 
   <!-- Recherche persistante en haut -->
   <div class="bg-base-200 rounded-lg p-4">

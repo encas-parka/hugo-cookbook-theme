@@ -8,7 +8,7 @@ import {
   upsertProduct,
 } from "../services/appwrite-interactions";
 import type { Purchases } from "../types/appwrite";
-import type { StoreInfo } from "../types/store.types";
+import type { EnrichedProduct, StoreInfo } from "../types/store.types";
 import {
   formatDate,
   formatDisplayQuantity,
@@ -85,8 +85,6 @@ export function createProductModalState(productId: string) {
   $effect(() => {
     // S'assurer que le produit est disponible ET que ce n'est pas déjà initialisé
     if (!product || initialized) return;
-
-    console.log(`[ProductModalState] Initializing forms for ${productId}`);
 
     // Initialisation UNIQUEMENT au premier chargement
     forms.purchase.quantity = product.missingQuantityArray[0]?.q ?? null;
