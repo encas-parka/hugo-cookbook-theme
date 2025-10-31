@@ -204,6 +204,9 @@ class ProductsStore {
       this.startDate = sortedDates[0];
       this.endDate = sortedDates[sortedDates.length - 1];
     }
+    console.log(
+      `[ProductsStore] Date range initialized: ${this.startDate} - ${this.endDate}`,
+    );
   }
 
   // Bornes calculées (dérivées)
@@ -248,6 +251,7 @@ class ProductsStore {
    * ✅ OPTIMISÉ : Utilise la structure byDate + mémorisation pour des performances optimales
    */
   totalNeededByDateRange = $derived.by(() => {
+    console.log("[ProductsStore] totalNeededByDateRange recalculated");
     // Vérifier si la plage de dates a changé
     const currentRange = {
       start: this.startDate || "",
@@ -262,7 +266,10 @@ class ProductsStore {
     if (!rangeChanged && this.#totalNeededCache.size > 0) {
       return this.#totalNeededCache;
     }
-
+    console.log("Range Changed:", rangeChanged);
+    console.log("Current Range:", currentRange);
+    console.log("Last Range:", this.#lastDateRange);
+    console.log("date", currentRange.start, currentRange.end);
     // Mettre à jour la plage de dates et vider le cache si nécessaire
     this.#lastDateRange = currentRange;
     this.#totalNeededCache.clear();
@@ -304,7 +311,6 @@ class ProductsStore {
         this.#totalNeededCache.set(product.$id, total);
       }
     }
-
     return totalMap;
   });
 
@@ -362,37 +368,27 @@ class ProductsStore {
     return [...new Set(types)] as string[];
   });
 
-  /**
-   * Filtrage des produits
-   */
-  filteredProducts = $derived.by(() => {
-    return this.enrichedProducts.filter((p) => this.#matchesFilters(p));
-  });
+  // Un seul dérivé qui fait tout : filtrage + pertinence + groupement
+  displayProducts = $derived.by(() => {
+    // Étape 1 : Filtrer par critères utilisateur ET pertinence temporelle
+    const relevantProducts = this.enrichedProducts.filter(
+      (product) =>
+        this.#matchesFilters(product) &&
+        this.totalNeededByDateRange.has(product.$id),
+    );
 
-  /**
-   * Groupement optionnel
-   */
-  filteredGroupedProducts = $derived.by(() => {
-    const filtered = this.filteredProducts;
-
+    // Étape 2 : Grouper directement
     if (this.#filters.groupBy === "none") {
-      return { "": filtered };
+      return { "": relevantProducts };
     }
 
-    return Object.groupBy(filtered, (product) => {
+    return Object.groupBy(relevantProducts, (product) => {
       if (this.#filters.groupBy === "store") {
         return product.storeInfo?.storeName || "Non défini";
       } else {
         return product.productType || "Non défini";
       }
     });
-  });
-
-  /**
-   * Groupement formaté pour compatibilité avec l'UI existante
-   */
-  groupedFormattedProducts = $derived.by(() => {
-    return this.filteredGroupedProducts;
   });
 
   // =========================================================================
@@ -445,7 +441,6 @@ class ProductsStore {
 
         // Initialiser la plage de dates
         this.#allDates = hugoData.allDates;
-        this.initializeDateRange();
 
         const mainDocument = await loadMainEventData(mainId);
 
@@ -462,6 +457,8 @@ class ProductsStore {
         // Persister le cache (sans lastSync pour l'instant)
         this.#persistToCache();
       }
+
+      this.initializeDateRange();
 
       // 3. Sync en arrière-plan
       this.#syncFromAppwrite();

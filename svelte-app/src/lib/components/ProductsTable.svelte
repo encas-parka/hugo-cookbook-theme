@@ -51,10 +51,7 @@
   };
 
   // Accès réactif aux valeurs dérivées du store
-  const filteredProducts = $derived(productsStore.filteredProducts);
-  const groupedFormattedProducts = $derived(
-    productsStore.filteredGroupedProducts,
-  );
+  const displayProducts = $derived(productsStore.displayProducts);
   const stats = $derived(productsStore.stats);
   const uniqueStores = $derived(productsStore.uniqueStores);
   const uniqueWho = $derived(productsStore.uniqueWho);
@@ -385,7 +382,7 @@
         </tr>
       </thead>
       <tbody>
-        {#each Object.entries(groupedFormattedProducts) as [groupKey, groupProducts] (groupKey)}
+        {#each Object.entries(displayProducts) as [groupKey, groupProducts] (groupKey)}
           {#if groupKey !== ""}
             <!-- Header de groupe -->
             {@const groupTypeInfo = getProductTypeInfo(groupKey)}
@@ -558,7 +555,7 @@
       </tbody>
     </table>
 
-    {#if filteredProducts.length === 0}
+    {#if Object.values(displayProducts).flat().length === 0}
       <div class="py-8 text-center">
         <div class="alert alert-info">
           <div>
