@@ -12,13 +12,13 @@ import {
   calculateTotalQuantityArray,
   // ✅ NOUVEAUX : Utilitaires pour byDate
   parseByDateData,
-  calculateTotalFromByDate,
   extractAllRecipes,
   buildNeededConsolidatedByDateArray,
   calculateGlobalTotal,
   extractRecipesByDate,
   hasConversions,
   calculateTotalAssiettesInRange,
+  calculateTotalNeededInRange,
 } from "../utils/productsUtils";
 import type {
   EnrichedProduct,
@@ -258,8 +258,14 @@ class ProductsStore {
   totalNeededByDateRange = $derived.by(() => {
     console.log("[Store] Recalcul totalNeededByDateRange");
 
-    if (!this.startDate || !this.endDate) {
-      // Pas de plage définie = totaux globaux
+    // 🎯 Si les dates couvrent toute la période disponible → utilisation normale
+    const isFullRange =
+      this.startDate === this.firstDate && this.endDate === this.lastDate;
+
+    if (isFullRange) {
+      console.log(
+        "[Store] Full date range - using totalNeededArray (no calculation)",
+      );
       return new Map(
         this.enrichedProducts.map((p) => [p.$id, p.totalNeededArray]),
       );
@@ -268,24 +274,13 @@ class ProductsStore {
     const totalMap = new Map<string, NumericQuantity[]>();
 
     for (const product of this.enrichedProducts) {
-      // Override manuel prioritaire
-      // if (
-      //   product.totalNeededIsManualOverride &&
-      //   product.totalNeededConsolidated
-      // ) {
-      //   const manual = safeJsonParse<NumericQuantity[]>(
-      //     product.totalNeededConsolidated,
-      //   );
-      //   if (manual?.length > 0) {
-      //     totalMap.set(product.$id, manual);
-      //     continue;
-      //   }
-      // }
-
-      // Calcul depuis byDate
       if (product.byDateParsed) {
-        const total = calculateTotalFromByDate(
+        // Calcul juste pour les produits affichés
+        const neededConsolidated = buildNeededConsolidatedByDateArray(
           product.byDateParsed,
+        );
+        const total = calculateTotalNeededInRange(
+          neededConsolidated,
           this.startDate,
           this.endDate,
         );
@@ -294,7 +289,6 @@ class ProductsStore {
         }
       }
     }
-    console.log(totalMap);
     return totalMap;
   });
 
@@ -608,16 +602,11 @@ class ProductsStore {
     const byDateParsed = parseByDateData(product.byDate);
 
     let totalNeededArray: NumericQuantity[];
-    let neededConsolidatedByDateArray: NeededConsolidatedByDate[];
-    let recipesArray: RecipeOccurrence[];
     let totalNeededRawArray: NumericQuantity[] | undefined;
 
     if (byDateParsed) {
       // ✅ Cas avec structure byDate (nouveau format)
       totalNeededArray = calculateGlobalTotal(byDateParsed);
-      neededConsolidatedByDateArray =
-        buildNeededConsolidatedByDateArray(byDateParsed);
-      recipesArray = extractAllRecipes(byDateParsed);
 
       // Parser totalNeededRaw si disponible (pour les conversions)
       if (
@@ -634,11 +623,14 @@ class ProductsStore {
         `[ProductsStore] Product ${product.productName} n'a pas de structure byDate - migration requise`,
       );
       totalNeededArray = [];
-      neededConsolidatedByDateArray = [];
-      recipesArray = [];
     }
+    const recipesCount = byDateParsed
+      ? Object.values(byDateParsed).reduce(
+          (total, entry) => total + (entry.recipes?.length || 0),
+          0,
+        )
+      : 0;
 
-    // Calculs manquants (utilise fonction existante)
     const { numeric: missingQuantityArray, display: displayMissingQuantity } =
       calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
 
@@ -652,27 +644,39 @@ class ProductsStore {
         : displayTotalPurchases;
 
     return {
-      ...product,
+      // Métadonnées minimales
+      $id: product.$id,
+      $updatedAt: product.$updatedAt,
+
+      // Données de base
+      productName: product.productName,
+      productType: product.productType,
+      pFrais: product.pFrais,
+      pSurgel: product.pSurgel,
+      who: product.who,
+      store: product.store,
+      nbRecipes: product.nbRecipes,
+      totalAssiettes: product.totalAssiettes,
+      isSynced: product.isSynced,
+      purchases: product.purchases,
+
       storeInfo: product.store ? safeJsonParse(product.store) : null,
       totalNeededArray,
       totalPurchasesArray,
-      recipesArray,
       stockArray,
       stockOrTotalPurchases,
       missingQuantityArray,
-      neededConsolidatedByDateArray,
+      // neededConsolidatedByDateArray,
       displayTotalNeeded: formatTotalQuantity(totalNeededArray),
       displayTotalPurchases,
       displayMissingQuantity,
 
-      // ✅ NOUVEAUX : Champs parsés et overrides
+      // Source de vérité
       byDateParsed: byDateParsed || undefined,
+
       totalNeededRawArray,
       totalNeededIsManualOverride: product.totalNeededIsManualOverride ?? false,
       totalNeededOverrideReason: product.totalNeededOverrideReason,
-
-      // ✅ SYNC : Par défaut, les produits chargés depuis cache/Hugo sont non-sync
-      // isSynced: false,
     };
   }
 

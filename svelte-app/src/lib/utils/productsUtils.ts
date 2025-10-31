@@ -3,6 +3,7 @@ import type {
   NeededConsolidatedByDate,
   RecipeOccurrence,
   ByDateEntry,
+  RecipeWithDate,
 } from "../types/store.types";
 
 /**
@@ -189,36 +190,6 @@ export function parseByDateData(
 }
 
 /**
- * Calcule le total needed depuis la structure byDate pour une plage de dates
- * @param byDate - Structure byDate parsée
- * @param startDate - Date de début (format ISO)
- * @param endDate - Date de fin (format ISO)
- * @returns Tableau de NumericQuantity agrégé
- */
-export function calculateTotalFromByDate(
-  byDate: Record<string, ByDateEntry>,
-  startDate: string | Date,
-  endDate: string | Date,
-): NumericQuantity[] {
-  if (!byDate || Object.keys(byDate).length === 0) return [];
-
-  // Convertir en Dates si nécessaire
-  const start = typeof startDate === "string" ? new Date(startDate) : startDate;
-  const end = typeof endDate === "string" ? new Date(endDate) : endDate;
-
-  // Filtrer les dates dans la plage et extraire les totaux consolidés
-  const totalsInRange = Object.entries(byDate)
-    .filter(([dateStr]) => {
-      const date = new Date(dateStr);
-      return date >= start && date <= end;
-    })
-    .flatMap(([_, entry]) => entry.totalConsolidated);
-
-  // Agréger par unité
-  return aggregateByUnit(totalsInRange);
-}
-
-/**
  * Agrège un tableau de NumericQuantity par unité
  * @param quantities - Tableau de NumericQuantity
  * @returns Tableau agrégé par unité
@@ -330,6 +301,27 @@ export function buildNeededConsolidatedByDateArray(
     recipeNames: entry.recipes?.map((r) => r.r) || [],
     totalAssiettes: entry.totalAssiettes || 0,
   }));
+}
+
+export function generateRecipesWithDates(
+  byDateParsed: Record<string, ByDateEntry>,
+): RecipeWithDate[] {
+  if (!byDateParsed) return [];
+
+  const recipesWithDates: RecipeWithDate[] = [];
+
+  // Pour chaque date, ajouter les recettes avec leur date
+  Object.entries(byDateParsed).forEach(([dateTimeService, entry]) => {
+    entry.recipes?.forEach((recipe) => {
+      recipesWithDates.push({
+        ...recipe,
+        date: dateTimeService, // ✅ Ajouter la date
+        dateTimeService: dateTimeService, // ✅ Ajouter la date complète
+      });
+    });
+  });
+
+  return recipesWithDates;
 }
 
 /**

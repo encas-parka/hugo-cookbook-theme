@@ -7,6 +7,7 @@ import {
   updatePurchase,
   upsertProduct,
 } from "../services/appwrite-interactions";
+import { generateRecipesWithDates } from "../utils/productsUtils";
 import type { Purchases } from "../types/appwrite";
 import type { EnrichedProduct, StoreInfo } from "../types/store.types";
 import {
@@ -43,10 +44,19 @@ export function createProductModalState(productId: string) {
     return productsStore.getEnrichedProductById(productId);
   });
   // ✅ Ces dérivés dépendent du produit du store, donc auto-update
-  const recipes = $derived(product?.recipesArray ?? []);
+
   const whoList = $derived(product?.who ?? []);
   const stockEntries = $derived(product?.stockArray ?? []);
   const purchasesList = $derived(product?.purchases ?? []);
+
+  const recipes = $derived.by(() => {
+    if (!product?.byDateParsed) return [];
+
+    console.log(
+      `[ProductModalState] Génération des recettes pour ${productId}`,
+    );
+    return generateRecipesWithDates(product.byDateParsed);
+  });
 
   // ─────────────────────────────────────────────────────────────
   // FORMULAIRES LOCAUX - État du modal uniquement

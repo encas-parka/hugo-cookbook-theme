@@ -255,3 +255,8 @@ export interface HugoIngredient {
   // Les totaux globaux consolidés sont calculés depuis byDate
   // Pas besoin de les stocker séparément
 }
+
+export interface RecipeWithDate extends RecipeOccurrence {
+  date: string; // ✅ Date du service
+  dateTimeService: string; // ✅ Date ISO complète
+}
