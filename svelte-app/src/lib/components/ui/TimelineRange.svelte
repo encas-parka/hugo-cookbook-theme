@@ -1,21 +1,20 @@
 <script>
   import { Cloud, Sun, Moon } from "@lucide/svelte";
 
-  let { allDates = [], setDateRange } = $props();
+  import { productsStore } from "../../stores/ProductsStore.svelte";
+
+  let { allDates = [] } = $props();
 
   const sortedDates = [...allDates].sort();
 
-  let mode = $state("all");
   let firstAllDate = sortedDates[0];
   let lastAllDate = sortedDates[sortedDates.length - 1];
   let startDate = $state(firstAllDate);
   let endDate = $state(lastAllDate);
-  let showModal = $state(false);
 
   function handleDateClick(clickedDate) {
     if (startDate === clickedDate && endDate === clickedDate) {
-      startDate = sortedDates[0];
-      endDate = sortedDates[sortedDates.length - 1];
+      selectAllDates();
     } else if (new Date(clickedDate) < new Date(startDate)) {
       startDate = clickedDate;
     } else if (new Date(clickedDate) > new Date(endDate)) {
@@ -26,11 +25,14 @@
     }
   }
 
-  function isInRange(date) {
-    return (
+  function getDateButtonClass(date) {
+    // En mode "select", les dates dans la sélection courante sont btn-soft + btn-primary
+    const isInCurrentSelection =
       new Date(date) >= new Date(startDate) &&
-      new Date(date) <= new Date(endDate)
-    );
+      new Date(date) <= new Date(endDate);
+    return isInCurrentSelection
+      ? "btn-soft btn-primary"
+      : "btn-dash btn-primary opacity-80";
   }
 
   function formatDate(dateStr) {
@@ -51,98 +53,46 @@
   }
 
   function selectAllDates() {
-    startDate = sortedDates[0];
-    endDate = sortedDates[sortedDates.length - 1];
+    startDate = firstAllDate;
+    endDate = lastAllDate;
   }
 
-  function handleModeChange(newMode) {
-    mode = newMode;
-    if (newMode === "all") {
-      setDateRange(firstAllDate, lastAllDate);
-      selectAllDates();
-      showModal = false;
-    } else {
-      showModal = true;
-    }
-  }
-
-  function confirmSelection() {
-    setDateRange(startDate, endDate);
-    showModal = false;
-  }
+  $effect(() => {
+    productsStore.setDateRange(startDate, endDate);
+  });
 </script>
 
 <div class="space-y-4">
-  <!-- Join buttons -->
-  <div class="join w-full">
-    <input
-      class="join-item btn flex-1"
-      type="radio"
-      name="date-mode"
-      aria-label="Toutes les dates"
-      checked={mode === "all"}
-      onchange={() => handleModeChange("all")}
-    />
-    <input
-      class="join-item btn flex-1"
-      type="radio"
-      name="date-mode"
-      aria-label="Sélectionner dates"
-      checked={mode === "select"}
-      onchange={() => handleModeChange("select")}
-    />
-  </div>
-
-  <!-- Modal -->
-  {#if showModal}
-    <div class="modal modal-open">
-      <div class="modal-box w-full">
-        <h3 class="mb-4 text-lg font-bold">Sélectionner une plage de dates</h3>
-
-        <div class="mb-6 space-y-2">
+  <!-- Date selection for desktop (appears below join inputs in select mode) -->
+  <div class="space-y-2">
+    <fieldset>
+      <legend class="label">
+        <span class="label-text">Dates incluses</span>
+      </legend>
+      <div class="flex flex-wrap gap-1">
+        {#each sortedDates as date, index (date)}
           <button
-            class="btn btn-sm btn-outline w-full"
-            onclick={selectAllDates}
+            class="btn btn-sm {getDateButtonClass(date)}"
+            onclick={() => handleDateClick(date)}
           >
-            Toutes les dates
+            <span>{formatDate(date)}</span>
+            {#if getTimeIcon(date) === "sun"}
+              <Sun size={16} />
+            {:else if getTimeIcon(date) === "moon"}
+              <Moon size={16} />
+            {:else if getTimeIcon(date) === "cloud"}
+              <Cloud size={16} />
+            {/if}
           </button>
-
-          <div class="flex flex-wrap gap-1">
-            {#each sortedDates as date, index}
-              <button
-                class="btn btn-sm {isInRange(date)
-                  ? 'btn-primary'
-                  : 'btn-ghost'}"
-                onclick={() => handleDateClick(date)}
-              >
-                <span>{formatDate(date)}</span>
-                {#if getTimeIcon(date) === "sun"}
-                  <Sun size={16} />
-                {:else if getTimeIcon(date) === "moon"}
-                  <Moon size={16} />
-                {:else if getTimeIcon(date) === "cloud"}
-                  <Cloud size={16} />
-                {/if}
-              </button>
-            {/each}
-          </div>
-        </div>
-
-        <div class="modal-action">
-          <button
-            class="btn"
-            onclick={() => {
-              showModal = false;
-              mode = "all";
-            }}
-          >
-            Annuler
-          </button>
-          <button class="btn btn-primary" onclick={confirmSelection}>
-            Confirmer
-          </button>
-        </div>
+        {/each}
+        <button
+          class="btn btn-sm btn-primary btn-outline ms-4"
+          type="button"
+          onclick={() => selectAllDates()}
+        >
+          <span>Toutes les dates</span>
+        </button>
       </div>
-    </div>
-  {/if}
+    </fieldset>
+  </div>
 </div>

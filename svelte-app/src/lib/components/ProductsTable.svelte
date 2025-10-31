@@ -58,9 +58,6 @@
   const uniqueProductTypes = $derived(productsStore.uniqueProductTypes);
   const filters = $derived(productsStore.filters);
 
-  const formattedTotalNeededByDateRange = $derived(
-    productsStore.formattedTotalNeededByDateRange,
-  );
   // État local : quel produit a son modal ouvert, et sur quel onglet
   let openModalProductId = $state<string | null>(null);
   let openModalTab = $state<string>("recettes");
@@ -93,11 +90,6 @@
       {stats.total}
     </div>
   </div>
-
-  <TimelineRange
-    allDates={productsStore.allDates}
-    setDateRange={productsStore.setDateRange}
-  />
 
   <!-- Recherche persistante en haut -->
   <div class="bg-base-200 rounded-lg p-4">
@@ -168,7 +160,7 @@
     </div>
     <!-- Filtres desktop -->
     <div class="hidden md:block">
-      <!-- <MultiRangeSlider class="mb-6" /> -->
+      <TimelineRange allDates={productsStore.allDates} />
 
       <!-- Filtres par type, température, magasin et qui -->
       <div class="mt-4 flex">
@@ -409,6 +401,9 @@
 
           <!-- Produits du groupe -->
           {#each sortEnrichedProducts(groupProducts, filters) as product (product.$id)}
+            {@const totalNeeded = productsStore.getFormattedTotalNeeded(
+              product.$id,
+            )}
             {@const typeInfo = getProductTypeInfo(product.productType)}
             {@const purchasesBadges = formatPurchasesWithBadges(
               product.purchases || [],
@@ -493,7 +488,7 @@
                 onclick={() => openModal(product.$id, "recettes")}
               >
                 <div class="pb-1 text-center font-semibold">
-                  {product.displayTotalNeeded ?? "-"}
+                  {totalNeeded}
                 </div>
                 {#if product.nbRecipes || product.totalAssiettes}
                   <div

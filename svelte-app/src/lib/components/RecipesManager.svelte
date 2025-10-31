@@ -31,19 +31,15 @@
           <tr>
             <th>Recette</th>
             <th>Quantité</th>
-            <th>Date service</th>
-            <th>Type plat</th>
-            <th>Assiettes</th>
+            <th>Date</th>
           </tr>
         </thead>
         <tbody>
           {#each recipes as recipe (recipe.r)}
             <tr>
-              <td class="font-medium">{recipe.r}</td>
+              <td class="font-medium">{recipe.r} ({recipe.a || "-"} c.)</td>
               <td>{recipe.q || recipe.qEq} {recipe.u || recipe.uEq}</td>
-              <td>-</td>
-              <td>-</td>
-              <td>{recipe.a || "-"} </td>
+              <td>{formatDate(recipe.date)}</td>
             </tr>
           {/each}
         </tbody>

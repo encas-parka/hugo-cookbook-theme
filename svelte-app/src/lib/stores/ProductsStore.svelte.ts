@@ -183,13 +183,6 @@ class ProductsStore {
     return this.#syncing;
   }
 
-  // Gestion de la plage de dates
-  setStartDate(date: string | null) {
-    this.startDate = date;
-  }
-  setEndDate(date: string | null) {
-    this.endDate = date;
-  }
   setDateRange(start: string | null, end: string | null) {
     this.startDate = start;
     this.endDate = end;
@@ -227,6 +220,23 @@ class ProductsStore {
     return this.#hugoContentChanged;
   }
 
+  /**
+   * Récupère le total needed pour un produit dans la plage courante
+   * ⚡ Lecture directe du cache - O(1)
+   */
+  getTotalNeededInRange(productId: string): NumericQuantity[] {
+    return this.totalNeededByDateRange.get(productId) ?? [];
+  }
+
+  /**
+   * Version formatée pour l'affichage
+   * 💡 Utilisée dans le template
+   */
+  getFormattedTotalNeeded(productId: string): string {
+    const total = this.getTotalNeededInRange(productId);
+    return total.length > 0 ? formatTotalQuantity(total) : "-";
+  }
+
   // =========================================================================
   // DÉRIVES RÉACTIFS - Consommés par les templates
   // =========================================================================
@@ -242,75 +252,49 @@ class ProductsStore {
     return result;
   });
 
-  // Cache pour la mémorisation des calculs
-  #totalNeededCache = new Map<string, NumericQuantity[]>();
-  #lastDateRange = { start: "", end: "" };
+  // === Cache des totaux par plage de dates ===
+  // Ce cache se recalcule automatiquement quand startDate/endDate changent
 
-  /**
-   * Total des besoins par plage de dates sélectionnée
-   * ✅ OPTIMISÉ : Utilise la structure byDate + mémorisation pour des performances optimales
-   */
   totalNeededByDateRange = $derived.by(() => {
-    console.log("[ProductsStore] totalNeededByDateRange recalculated");
-    // Vérifier si la plage de dates a changé
-    const currentRange = {
-      start: this.startDate || "",
-      end: this.endDate || "",
-    };
+    console.log("[Store] Recalcul totalNeededByDateRange");
 
-    const rangeChanged =
-      currentRange.start !== this.#lastDateRange.start ||
-      currentRange.end !== this.#lastDateRange.end;
-
-    // Si la plage de dates n'a pas changé, retourner le cache
-    if (!rangeChanged && this.#totalNeededCache.size > 0) {
-      return this.#totalNeededCache;
+    if (!this.startDate || !this.endDate) {
+      // Pas de plage définie = totaux globaux
+      return new Map(
+        this.enrichedProducts.map((p) => [p.$id, p.totalNeededArray]),
+      );
     }
-    console.log("Range Changed:", rangeChanged);
-    console.log("Current Range:", currentRange);
-    console.log("Last Range:", this.#lastDateRange);
-    console.log("date", currentRange.start, currentRange.end);
-    // Mettre à jour la plage de dates et vider le cache si nécessaire
-    this.#lastDateRange = currentRange;
-    this.#totalNeededCache.clear();
 
     const totalMap = new Map<string, NumericQuantity[]>();
 
-    // Traiter les produits par lots pour éviter de bloquer le thread
-    const products = this.enrichedProducts;
+    for (const product of this.enrichedProducts) {
+      // Override manuel prioritaire
+      // if (
+      //   product.totalNeededIsManualOverride &&
+      //   product.totalNeededConsolidated
+      // ) {
+      //   const manual = safeJsonParse<NumericQuantity[]>(
+      //     product.totalNeededConsolidated,
+      //   );
+      //   if (manual?.length > 0) {
+      //     totalMap.set(product.$id, manual);
+      //     continue;
+      //   }
+      // }
 
-    for (const product of products) {
-      // Si override manuel global, utiliser la valeur stockée
-      if (
-        product.totalNeededIsManualOverride &&
-        product.totalNeededConsolidated
-      ) {
-        const manual = safeJsonParse<NumericQuantity[]>(
-          product.totalNeededConsolidated,
+      // Calcul depuis byDate
+      if (product.byDateParsed) {
+        const total = calculateTotalFromByDate(
+          product.byDateParsed,
+          this.startDate,
+          this.endDate,
         );
-        if (manual && manual.length > 0) {
-          totalMap.set(product.$id, manual);
-          this.#totalNeededCache.set(product.$id, manual);
+        if (total.length > 0) {
+          totalMap.set(product.$id, total);
         }
-        continue;
-      }
-
-      // ✅ Utiliser la structure byDate si disponible
-      if (!product.byDateParsed || !this.startDate || !this.endDate) {
-        continue;
-      }
-
-      const total = calculateTotalFromByDate(
-        product.byDateParsed,
-        this.startDate,
-        this.endDate,
-      );
-
-      if (total && total.length > 0) {
-        totalMap.set(product.$id, total);
-        this.#totalNeededCache.set(product.$id, total);
       }
     }
+    console.log(totalMap);
     return totalMap;
   });
 
@@ -368,13 +352,20 @@ class ProductsStore {
     return [...new Set(types)] as string[];
   });
 
+  // === ÉTAPE 2 : IDs des produits pertinents ===
+  // Dérivé léger qui dépend de totalNeededByDateRange
+
+  relevantProductIds = $derived.by(() => {
+    return new Set(this.totalNeededByDateRange.keys());
+  });
+
   // Un seul dérivé qui fait tout : filtrage + pertinence + groupement
   displayProducts = $derived.by(() => {
     // Étape 1 : Filtrer par critères utilisateur ET pertinence temporelle
     const relevantProducts = this.enrichedProducts.filter(
       (product) =>
         this.#matchesFilters(product) &&
-        this.totalNeededByDateRange.has(product.$id),
+        this.relevantProductIds.has(product.$id),
     );
 
     // Étape 2 : Grouper directement
@@ -1080,14 +1071,6 @@ class ProductsStore {
 
   getEnrichedProductById(productId: string): EnrichedProduct | null {
     return this.#enrichedProducts.get(productId) ?? null;
-  }
-
-  /**
-   * Récupère le total des besoins pour un produit sur la plage de dates définie
-   */
-  // FIXIT
-  getNeededForProduct(productId: string): NumericQuantity[] {
-    return this.totalNeededByDateRange.get(productId) ?? [];
   }
 
   // ✅ NOUVEAUX : Méthodes de gestion des overrides manuels
