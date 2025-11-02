@@ -669,10 +669,10 @@ class ProductsStore {
       $id: product.$id,
       $createdAt: product.$createdAt,
       $updatedAt: product.$updatedAt,
-      $permissions: product.$permissions,
-      $databaseId: product.$databaseId,
-      $sequence: product.$sequence,
-      $tableId: product.$tableId,
+      // $permissions: product.$permissions,
+      // $databaseId: product.$databaseId,
+      // $sequence: product.$sequence,
+      // $tableId: product.$tableId,
 
       // Données métier
       productHugoUuid: product.productHugoUuid,
@@ -730,79 +730,87 @@ class ProductsStore {
     product: Products | EnrichedProduct,
     existing: EnrichedProduct,
   ): EnrichedProduct {
-    // Recalculer si purchases ou totalNeededOverride changés
-    const recalcNeeded =
-      product.purchases !== existing.purchases ||
-      product.totalNeededOverride !== existing.totalNeededOverride;
+    // Utiliser les nouvelles valeurs si présentes, sinon garder les anciennes
+    // Cela protège contre l'écrasement par les payloads partiels du realtime
 
-    // Calculer totalPurchasesArray
+    // Fusion intelligente des purchases
+    const mergedPurchases = product.purchases ?? existing.purchases;
+
+    // Calculer totalPurchasesArray depuis les purchases fusionnées
     const totalPurchasesArray = calculateTotalQuantityArray(
-      transformPurchasesToNumericQuantity(product.purchases ?? []),
+      transformPurchasesToNumericQuantity(mergedPurchases ?? []),
     );
-
-    // Recalculer totalNeededArray si byDate existe
-    let totalNeededArray = existing.totalNeededArray;
-    if (existing.byDate) {
-      totalNeededArray = calculateGlobalTotal(existing.byDate);
-    }
+    const displayTotalPurchases = formatTotalQuantity(totalPurchasesArray);
 
     // Recalculer missing
     const { numeric: missingQuantityArray, display: displayMissingQuantity } =
-      calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
+      calculateAndFormatMissing(existing.totalNeededArray, totalPurchasesArray);
 
-    // Parser le stock si changé
-    const stockArray = product.stockReel
-      ? (safeJsonParse<any[]>(product.stockReel) ?? [])
+    // Fusion intelligente du stock
+    const mergedStockReel = product.stockReel ?? existing.stockReel;
+    const stockArray = mergedStockReel
+      ? (safeJsonParse<any[]>(mergedStockReel) ?? [])
       : [];
 
-    const displayTotalPurchases = formatTotalQuantity(totalPurchasesArray);
-    const storeInfo = product.store
-      ? safeJsonParse<StoreInfo>(product.store)
-      : null;
+    // Fusion intelligente du store
+    const mergedStore = product.store ?? existing.store;
+    const storeInfo = mergedStore
+      ? safeJsonParse<StoreInfo>(mergedStore)
+      : existing.storeInfo;
 
     const stockOrTotalPurchases =
       stockArray.length > 0
         ? `${stockArray[stockArray.length - 1].quantity} ${stockArray[stockArray.length - 1].unit}`
         : displayTotalPurchases;
 
+    // 📝 Log de debug pour tracer les fusions importantes
+    if (product.purchases === undefined && existing.purchases?.length) {
+      console.log(
+        `[ProductsStore] Fusion intelligente : préservation de ${existing.purchases.length} purchases pour ${existing.productName}`,
+      );
+    }
+
     return {
-      // ✅ GARDER : byDate et byDate (statiques Hugo)
+      // ✅ GARDER : toujours garder les données statiques Hugo
       ...existing,
 
-      // ✅ REMPLACER : tous les champs Appwrite bruts
+      // ✅ FUSION SÉLECTIVE : seulement si présent dans le payload
       $updatedAt: product.$updatedAt,
 
-      // Métier Appwrite (rare que ça change)
-      productName: product.productName,
-      isSynced: product.isSynced,
-      mainId: product.mainId,
+      // Champs métier - fusionner seulement si définis
+      productName: product.productName ?? existing.productName,
+      isSynced: product.isSynced ?? existing.isSynced,
+      mainId: product.mainId ?? existing.mainId,
 
-      // Collaboratif (brutes)
-      status: product.status,
-      who: product.who,
-      store: product.store,
-      stockReel: product.stockReel,
-      previousNames: product.previousNames,
-      isMerged: product.isMerged,
-      mergedFrom: product.mergedFrom,
-      mergeDate: product.mergeDate,
-      mergeReason: product.mergeReason,
-      mergedInto: product.mergedInto,
-      totalNeededOverride: product.totalNeededOverride,
-      purchases: product.purchases,
+      // 🛡️ CHAMPS CRITIQUES : PROTECTION CONTRE L'ÉCRASEMENT
+      status: product.status ?? existing.status,
+      who: product.who ?? existing.who,
+      store: mergedStore,
+      stockReel: mergedStockReel,
 
-      // ✅ RECALCULER : les dérivés
+      // 🚨 PROTECTION SPÉCIALE pour purchases (le bug principal)
+      purchases: mergedPurchases,
+
+      // Autres champs avec protection contre les payloads partiels
+      previousNames: product.previousNames ?? existing.previousNames,
+      isMerged: product.isMerged ?? existing.isMerged,
+      mergedFrom: product.mergedFrom ?? existing.mergedFrom,
+      mergeDate: product.mergeDate ?? existing.mergeDate,
+      mergeReason: product.mergeReason ?? existing.mergeReason,
+      mergedInto: product.mergedInto ?? existing.mergedInto,
+      totalNeededOverride:
+        product.totalNeededOverride ?? existing.totalNeededOverride,
+
+      // ✅ RECALCULER : les dérivés basés sur les données fusionnées
       storeInfo,
       stockArray,
-      totalNeededArray,
       totalPurchasesArray,
       missingQuantityArray,
       stockOrTotalPurchases,
-      displayTotalNeeded: formatTotalQuantity(totalNeededArray),
       displayTotalPurchases,
       displayMissingQuantity,
       totalNeededOverrideParsed: parseTotalNeededOverride(
-        product.totalNeededOverride,
+        product.totalNeededOverride ?? existing.totalNeededOverride,
       ),
     };
   }
