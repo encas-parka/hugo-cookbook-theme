@@ -92,7 +92,6 @@ export interface EnrichedProduct {
   $updatedAt?: string;
   $permissions?: string[];
   $databaseId?: string;
-  $collectionId?: string;
   $sequence?: number;
   $tableId?: string;
 
@@ -124,7 +123,7 @@ export interface EnrichedProduct {
   purchases: Purchases[];
 
   // DONNÉES STATIQUES HUGO (jamais modifiées, locales)
-  byDate: Record<string, ByDateEntry>;
+  byDate: Record<string, ByDateEntry> | null;
   // DONNÉES CALCULÉES/PARSÉES (pour l'UI, dérivées des brutes)
   storeInfo: StoreInfo | null; // Parsé de store
   stockArray: StockEntry[]; // Parsé de stockReel
@@ -285,45 +284,6 @@ export interface HugoIngredient {
   byDate: Record<string, ByDateEntry>;
   totalNeededRaw?: NumericQuantity[];
   conversionRules?: string[];
-}
-
-/**
- * Type intermédiaire pour les produits créés depuis Hugo
- * Combine les champs Appwrite nécessaires avec les données statiques extraites de HugoIngredient
- */
-export interface HugoProductData {
-  // Champs Appwrite nécessaires
-  $id: string;
-  productHugoUuid: string;
-  productName: string;
-  mainId: string;
-
-  // Champs Appwrite avec valeurs par défaut
-  status: string;
-  who: string[] | null;
-  store: string;
-  stockReel: string | null;
-  purchases: Purchases[];
-  isSynced: boolean;
-  totalNeededOverride: string | null;
-
-  // Métadonnées Appwrite (non stockées mais utilisées pour la logique)
-  isMerged: boolean;
-  mergedInto: string | null;
-  mergedFrom: string[] | null;
-  mergeDate: string | null;
-  mergeReason: string | null;
-  previousNames: string[] | null;
-
-  // Données Hugo sérialisées
-  byDate: string;
-
-  // autre donnée hugo
-  productType: string;
-  totalAssiettes: number;
-  nbRecipes: number;
-  pFrais?: boolean;
-  pSurgel?: boolean;
 }
 
 export interface RecipeWithDate extends RecipeOccurrence {

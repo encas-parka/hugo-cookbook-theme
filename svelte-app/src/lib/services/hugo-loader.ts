@@ -5,12 +5,7 @@
  * Tous les champs Appwrite sont initialisés avec leurs valeurs par défaut
  */
 
-import type { Products } from "../types/appwrite";
-import type {
-  HugoIngredient,
-  HugoProductData,
-  EnrichedProduct,
-} from "../types/store.types";
+import type { HugoIngredient, EnrichedProduct } from "../types/store.types";
 import {
   calculateAndFormatMissing,
   calculateGlobalTotal,
@@ -82,7 +77,7 @@ export function createEnrichedProductFromHugo(
     $id: `${mainId}_${ingredient.ingredientHugoUuid}`,
     $createdAt: undefined, // Sera rempli au sync Appwrite
     $updatedAt: undefined,
-    $permissions: undefined,
+    // $permissions: undefined,
 
     // Données métier
     productHugoUuid: ingredient.ingredientHugoUuid,
@@ -139,54 +134,4 @@ export function createEnrichedProductsFromHugo(
   return ingredients.map((ingredient) =>
     createEnrichedProductFromHugo(ingredient, mainId),
   );
-}
-
-/**
- * Transforme directement en Products (Appwrite)
- *
- * @param ingredient - Données Hugo brutes
- * @param mainId - ID de l'événement
- * @returns Products - Compatible 100% avec Appwrite, mais local (isSynced=false)
- */
-export function createProductsFromHugo(
-  ingredient: HugoIngredient,
-  mainId: string,
-): HugoProductData {
-  return {
-    // Champs Appwrite nécessaires
-    $id: `${mainId}_${ingredient.ingredientHugoUuid}`, // ID composite pour éviter les conflits
-    productHugoUuid: ingredient.ingredientHugoUuid,
-    productName: ingredient.ingredientName,
-    mainId: mainId,
-
-    productType: ingredient.ingType,
-    pFrais: ingredient.pFrais || false,
-    pSurgel: ingredient.pSurgel || false,
-
-    // Metadata
-    nbRecipes: ingredient.nbRecipes || 0,
-    totalAssiettes: ingredient.totalAssiettes || 0,
-
-    // Champs Appwrite avec valeurs par défaut
-    status: "",
-
-    // Pas de données collaboratives
-    who: null,
-    store: "",
-    stockReel: null,
-    purchases: [],
-    isSynced: false,
-    totalNeededOverride: null,
-
-    // Métadonnées Appwrite
-    isMerged: false,
-    mergedInto: null,
-    mergedFrom: null,
-    mergeDate: null,
-    mergeReason: null,
-    previousNames: null,
-
-    // Données Hugo sérialisées
-    byDate: JSON.stringify(ingredient.byDate),
-  };
 }

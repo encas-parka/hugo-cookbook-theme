@@ -24,6 +24,7 @@ import type {
   NeededConsolidatedByDate,
   NumericQuantity,
   RecipeOccurrence,
+  StoreInfo,
 } from "../types/store.types";
 
 import {
@@ -37,10 +38,8 @@ import {
 } from "../services/appwrite-interactions";
 import {
   loadHugoEventData,
-  createProductsFromHugo,
   createEnrichedProductsFromHugo,
 } from "../services/hugo-loader";
-import type { HugoProductData } from "../types/store.types.js";
 
 /**
  * ProductsStore - Store principal de gestion des produits avec Svelte 5
@@ -656,7 +655,9 @@ class ProductsStore {
 
     const stockArray = safeJsonParse<any[]>(product.stockReel) ?? [];
     const displayTotalPurchases = formatTotalQuantity(totalPurchasesArray);
-    const storeInfo = product.store ? safeJsonParse(product.store) : null;
+    const storeInfo = product.store
+      ? safeJsonParse<StoreInfo>(product.store)
+      : null;
 
     const stockOrTotalPurchases =
       stockArray.length > 0
@@ -670,14 +671,13 @@ class ProductsStore {
       $updatedAt: product.$updatedAt,
       $permissions: product.$permissions,
       $databaseId: product.$databaseId,
-      $collectionId: product.$collectionId,
       $sequence: product.$sequence,
       $tableId: product.$tableId,
 
       // Données métier
       productHugoUuid: product.productHugoUuid,
       productName: product.productName,
-      productType: product.productType,
+      productType: "none",
       pFrais: false, // ← Appwrite n'a pas ces champs (viennent de Hugo)
       pSurgel: false,
       nbRecipes: 0,
@@ -700,7 +700,7 @@ class ProductsStore {
       purchases: product.purchases,
 
       // Hugo (⚠️ manquant, sera vide)
-      byDate: "",
+      byDate: null,
 
       // Calculées
       storeInfo,
@@ -727,7 +727,7 @@ class ProductsStore {
    * - Recalculer les dérivés
    */
   #updateExistingProduct(
-    product: Products,
+    product: Products | EnrichedProduct,
     existing: EnrichedProduct,
   ): EnrichedProduct {
     // Recalculer si purchases ou totalNeededOverride changés
@@ -756,7 +756,9 @@ class ProductsStore {
       : [];
 
     const displayTotalPurchases = formatTotalQuantity(totalPurchasesArray);
-    const storeInfo = product.store ? safeJsonParse(product.store) : null;
+    const storeInfo = product.store
+      ? safeJsonParse<StoreInfo>(product.store)
+      : null;
 
     const stockOrTotalPurchases =
       stockArray.length > 0
