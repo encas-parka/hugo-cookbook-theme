@@ -79,7 +79,6 @@
           rows="1"
           maxlength="250"
         >
-          {storeComment}
         </textarea>
       </div>
 

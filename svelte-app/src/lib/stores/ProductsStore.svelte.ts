@@ -2,7 +2,7 @@ import { SvelteMap } from "svelte/reactivity";
 import superjson from "superjson";
 import { createStorageKey } from "../utils/url-utils";
 import { useDebounce } from "runed";
-import type { Products, Purchases } from "../types/appwrite.d";
+import type { Products, Purchases, Main } from "../types/appwrite.d";
 
 import {
   safeJsonParse,
@@ -10,12 +10,8 @@ import {
   formatTotalQuantity,
   transformPurchasesToNumericQuantity,
   calculateTotalQuantityArray,
-  // ✅ NOUVEAUX : Utilitaires pour byDate
-  parseByDateData,
-  extractAllRecipes,
   buildNeededConsolidatedByDateArray,
   calculateGlobalTotal,
-  // ✅ NOUVEAU : Utilitaire pour totalNeededOverride
   parseTotalNeededOverride,
   extractRecipesByDate,
   hasConversions,
@@ -24,9 +20,10 @@ import {
 } from "../utils/productsUtils";
 import type {
   EnrichedProduct,
+  HugoIngredient,
   NeededConsolidatedByDate,
   NumericQuantity,
-  RecipeOccurrence, // ✅ NOUVEAU : Import pour byDate
+  RecipeOccurrence,
 } from "../types/store.types";
 
 import {
@@ -41,7 +38,9 @@ import {
 import {
   loadHugoEventData,
   createProductsFromHugo,
+  createEnrichedProductsFromHugo,
 } from "../services/hugo-loader";
+import type { HugoProductData } from "../types/store.types.js";
 
 /**
  * ProductsStore - Store principal de gestion des produits avec Svelte 5
@@ -408,22 +407,23 @@ class ProductsStore {
       // 1. Charger cache local si existe
       await this.#loadFromCache();
 
-      // 2. Si cache vide → initialiser depuis Hugo → créer le document main dans Appwrite s'il n'existe pas →
+      // 2. Si cache vide → initialiser depuis Hugo
       if (this.#enrichedProducts.size === 0) {
+        console.log("[ProductsStore] Cache vide, chargement depuis Hugo...");
+
         const hugoData = await loadHugoEventData(mainId);
         console.log(
-          `[ProductsStore] Données Hugo chargées: ${hugoData.ingredients.length} ingredients`,
+          `[ProductsStore] Hugo chargé: ${hugoData.ingredients.length} ingrédients`,
         );
 
-        // Créer les produits depuis Hugo
-        hugoData.ingredients.forEach((ingredient) => {
-          const partialProduct = createProductsFromHugo(
-            ingredient,
-            mainId,
-            hugoData.hugoContentHash,
-          );
-          const enriched = this.#enrichProduct(partialProduct as Products);
-          enriched.isSynced = false; // ✅ LOCAL SEULEMENT au départ
+        // ✅ Créer directement des EnrichedProducts (avec byDate, calculées, etc.)
+        const enrichedProducts = createEnrichedProductsFromHugo(
+          hugoData.ingredients,
+          mainId,
+        );
+
+        // Ajouter à la SvelteMap
+        enrichedProducts.forEach((enriched) => {
           this.#enrichedProducts.set(enriched.$id, enriched);
         });
 
@@ -614,8 +614,16 @@ class ProductsStore {
   // =========================================================================
 
   /**
-   * Enrichit un produit Appwrite avec des données calculées
-   * Version intelligente : initialise ou met à jour selon la présence d'un produit existant
+   * 🎯 #enrichProduct : Prend un Products d'Appwrite et fusionne avec existant
+   *
+   * Cas 1 : Nouveau produit Appwrite (sync)
+   *   - Récupérer l'existant local, garder byDate
+   *   - Fusionner les données Appwrite fraîches
+   *   - Recalculer les dérivés
+   *
+   * Cas 2 : Mise à jour existant
+   *   - Remplacer les champs bruts modifiés
+   *   - Recalculer les dérivés concernés
    */
   #enrichProduct(
     product: Products,
@@ -626,42 +634,29 @@ class ProductsStore {
       return this.#updateExistingProduct(product, existing);
     } else {
       // Initialisation complète d'un nouveau produit
-      return this.#createNewEnrichedProduct(product);
+      return this.#createEnrichedProductFromAppwrite(product);
     }
   }
 
   /**
-   * Crée un nouveau produit enrichi (initialisation complète)
+   * Crée un EnrichedProduct depuis un Products Appwrite seul
+   * ⚠️ Utilisé au sync si le produit n'existe pas localement (cas rare)
    */
-  #createNewEnrichedProduct(product: Products): EnrichedProduct {
-    // Utilitaires existants
+  #createEnrichedProductFromAppwrite(product: Products): EnrichedProduct {
+    // Calculer depuis purchases
     const totalPurchasesArray = calculateTotalQuantityArray(
       transformPurchasesToNumericQuantity(product.purchases ?? []),
     );
 
-    // ✅ NOUVEAU : Parser la structure byDate
-    const byDate = parseByDateData(product.byDate);
-
-    let totalNeededArray: NumericQuantity[];
-    let totalNeededRawArray: NumericQuantity[] | undefined;
-
-    if (byDate) {
-      // ✅ Cas avec structure byDate (nouveau format)
-      totalNeededArray = calculateGlobalTotal(byDate);
-    } else {
-      // ❌ Erreur : structure byDate manquante
-      console.error(
-        `[ProductsStore] Product ${product.productName} n'a pas de structure byDate - migration requise`,
-      );
-      totalNeededArray = [];
-    }
+    // byDate manquant = pas de totalNeededArray
+    const totalNeededArray: NumericQuantity[] = [];
 
     const { numeric: missingQuantityArray, display: displayMissingQuantity } =
       calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
 
-    // Stock et achats
     const stockArray = safeJsonParse<any[]>(product.stockReel) ?? [];
     const displayTotalPurchases = formatTotalQuantity(totalPurchasesArray);
+    const storeInfo = product.store ? safeJsonParse(product.store) : null;
 
     const stockOrTotalPurchases =
       stockArray.length > 0
@@ -669,94 +664,145 @@ class ProductsStore {
         : displayTotalPurchases;
 
     return {
-      // Métadonnées minimales
+      // Métadonnées Appwrite
       $id: product.$id,
+      $createdAt: product.$createdAt,
       $updatedAt: product.$updatedAt,
+      $permissions: product.$permissions,
+      $databaseId: product.$databaseId,
+      $collectionId: product.$collectionId,
+      $sequence: product.$sequence,
+      $tableId: product.$tableId,
 
-      // Données de base
-      productName: product.productName,
+      // Données métier
       productHugoUuid: product.productHugoUuid,
+      productName: product.productName,
       productType: product.productType,
-      pFrais: product.pFrais,
-      pSurgel: product.pSurgel,
-      who: product.who,
-      nbRecipes: product.nbRecipes,
-      totalAssiettes: product.totalAssiettes,
+      pFrais: false, // ← Appwrite n'a pas ces champs (viennent de Hugo)
+      pSurgel: false,
+      nbRecipes: 0,
+      totalAssiettes: 0,
       isSynced: product.isSynced,
-      purchases: product.purchases,
       mainId: product.mainId,
-      storeInfo: product.store ? safeJsonParse(product.store) : null,
+
+      // Données collaboratives (brutes Appwrite)
+      status: product.status,
+      who: product.who,
+      store: product.store,
+      stockReel: product.stockReel,
+      previousNames: product.previousNames,
+      isMerged: product.isMerged,
+      mergedFrom: product.mergedFrom,
+      mergeDate: product.mergeDate,
+      mergeReason: product.mergeReason,
+      mergedInto: product.mergedInto,
+      totalNeededOverride: product.totalNeededOverride,
+      purchases: product.purchases,
+
+      // Hugo (⚠️ manquant, sera vide)
+      byDate: "",
+
+      // Calculées
+      storeInfo,
+      stockArray,
       totalNeededArray,
       totalPurchasesArray,
-      stockArray,
-      stockOrTotalPurchases,
       missingQuantityArray,
-      displayTotalNeeded: formatTotalQuantity(totalNeededArray),
+      stockOrTotalPurchases,
+      displayTotalNeeded: "-",
       displayTotalPurchases,
       displayMissingQuantity,
-
-      // Source de vérité
-      byDate: byDate || undefined,
-
-      totalNeededOverride: parseTotalNeededOverride(
+      totalNeededOverrideParsed: parseTotalNeededOverride(
         product.totalNeededOverride,
       ),
-
-      totalNeededRawArray,
     };
   }
 
   /**
-   * Met à jour un produit existant (mises à jour minimales, préservation des données statiques)
+   * Met à jour un EnrichedProduct existant avec données Appwrite fraîches
+   *
+   * 🎯 Stratégie :
+   * - Remplacer TOUS les champs bruts Appwrite
+   * - Garder byDate (statique, de Hugo)
+   * - Recalculer les dérivés
    */
   #updateExistingProduct(
     product: Products,
     existing: EnrichedProduct,
   ): EnrichedProduct {
-    const updated = { ...existing };
+    // Recalculer si purchases ou totalNeededOverride changés
+    const recalcNeeded =
+      product.purchases !== existing.purchases ||
+      product.totalNeededOverride !== existing.totalNeededOverride;
 
-    // Métadonnées Appwrite
-    updated.$id = product.$id;
-    updated.$updatedAt = product.$updatedAt;
-    updated.isSynced = true; // Si vient d'Appwrite, alors sync
-    updated.mainId = product.mainId;
+    // Calculer totalPurchasesArray
+    const totalPurchasesArray = calculateTotalQuantityArray(
+      transformPurchasesToNumericQuantity(product.purchases ?? []),
+    );
 
-    // Champs directs Appwrite (uniquement les données collaboratives)
-    if (product.who !== undefined) updated.who = product.who;
-    if (product.purchases !== undefined) {
-      updated.purchases = product.purchases;
-      this.#recalculatePurchaseDependents(updated);
+    // Recalculer totalNeededArray si byDate existe
+    let totalNeededArray = existing.totalNeededArray;
+    if (existing.byDate) {
+      totalNeededArray = calculateGlobalTotal(existing.byDate);
     }
 
-    // Champs parsés depuis JSON (uniquement si présents dans le payload)
-    if (product.store !== undefined) {
-      updated.storeInfo = product.store ? safeJsonParse(product.store) : null;
-    }
-    if (product.stockReel !== undefined) {
-      const stockArray = safeJsonParse<any[]>(product.stockReel) ?? [];
-      updated.stockArray = stockArray;
-      updated.stockOrTotalPurchases =
-        stockArray.length > 0
-          ? `${stockArray[stockArray.length - 1].quantity} ${stockArray[stockArray.length - 1].unit}`
-          : updated.displayTotalPurchases;
-    }
+    // Recalculer missing
+    const { numeric: missingQuantityArray, display: displayMissingQuantity } =
+      calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
 
-    // Champs d'override (uniquement si présents)
-    if (product.totalNeededConsolidated !== undefined) {
-      updated.totalNeededConsolidated = product.totalNeededConsolidated;
-    }
-    if (product.totalNeededOverride !== undefined) {
-      updated.totalNeededOverride = parseTotalNeededOverride(
+    // Parser le stock si changé
+    const stockArray = product.stockReel
+      ? (safeJsonParse<any[]>(product.stockReel) ?? [])
+      : [];
+
+    const displayTotalPurchases = formatTotalQuantity(totalPurchasesArray);
+    const storeInfo = product.store ? safeJsonParse(product.store) : null;
+
+    const stockOrTotalPurchases =
+      stockArray.length > 0
+        ? `${stockArray[stockArray.length - 1].quantity} ${stockArray[stockArray.length - 1].unit}`
+        : displayTotalPurchases;
+
+    return {
+      // ✅ GARDER : byDate et byDate (statiques Hugo)
+      ...existing,
+
+      // ✅ REMPLACER : tous les champs Appwrite bruts
+      $updatedAt: product.$updatedAt,
+
+      // Métier Appwrite (rare que ça change)
+      productName: product.productName,
+      isSynced: product.isSynced,
+      mainId: product.mainId,
+
+      // Collaboratif (brutes)
+      status: product.status,
+      who: product.who,
+      store: product.store,
+      stockReel: product.stockReel,
+      previousNames: product.previousNames,
+      isMerged: product.isMerged,
+      mergedFrom: product.mergedFrom,
+      mergeDate: product.mergeDate,
+      mergeReason: product.mergeReason,
+      mergedInto: product.mergedInto,
+      totalNeededOverride: product.totalNeededOverride,
+      purchases: product.purchases,
+
+      // ✅ RECALCULER : les dérivés
+      storeInfo,
+      stockArray,
+      totalNeededArray,
+      totalPurchasesArray,
+      missingQuantityArray,
+      stockOrTotalPurchases,
+      displayTotalNeeded: formatTotalQuantity(totalNeededArray),
+      displayTotalPurchases,
+      displayMissingQuantity,
+      totalNeededOverrideParsed: parseTotalNeededOverride(
         product.totalNeededOverride,
-      );
-    }
-
-    // ✅ DONNÉES STATIQUES AUTOMATIQUEMENT PRÉSERVÉES (non modifiées) :
-    // - updated.byDate (préservé)
-    // - updated.totalNeededArray (préservé)
-    // - updated.totalNeededRawArray (préservé)
-
-    return updated;
+      ),
+    };
   }
 
   /**
@@ -879,10 +925,7 @@ class ProductsStore {
         purchase.products?.map((prod: any) =>
           typeof prod === "string" ? prod : prod.$id,
         ) || [],
-      mainId:
-        typeof purchase.mainId === "string"
-          ? purchase.mainId
-          : purchase.mainId.$id,
+      mainId: purchase.mainId, // Garder le type original (Main ou string selon ce qu'Appwrite envoie)
     };
   }
 
@@ -893,7 +936,7 @@ class ProductsStore {
     // Nettoyer les relations du purchase pour éviter la récursion dans le cache
     const sanitizedPurchase = this.#sanitizePurchase(purchase);
 
-    const productsToUpdate: Products[] = [];
+    const productsToUpdate: EnrichedProduct[] = [];
 
     productIds.forEach((productId) => {
       const product = this.#enrichedProducts.get(productId);
@@ -906,7 +949,7 @@ class ProductsStore {
             {
               ...product,
               purchases: [...purchases, sanitizedPurchase],
-            } as Products,
+            },
             product,
           );
           productsToUpdate.push(updatedProduct);
@@ -927,7 +970,7 @@ class ProductsStore {
     // Nettoyer les relations du purchase pour éviter la récursion dans le cache
     const sanitizedPurchase = this.#sanitizePurchase(purchase);
 
-    const productsToUpdate: Products[] = [];
+    const productsToUpdate: EnrichedProduct[] = [];
 
     // TOCHECK : le fait qu'il y ait potentiellement products est correct du point de vue de la façon dont nous avons défini la relation products ←→ purchases comme "many to many", en vue des products mergés, mais dans les fait, est ce qu'on attribura plusieurs products à un purchases ???
 
@@ -944,7 +987,7 @@ class ProductsStore {
           const updatedPurchases = [...purchases];
           updatedPurchases[index] = sanitizedPurchase;
           const updatedProduct = this.#updateExistingProduct(
-            { ...product, purchases: updatedPurchases } as Products,
+            { ...product, purchases: updatedPurchases },
             product,
           );
           productsToUpdate.push(updatedProduct);
@@ -952,7 +995,10 @@ class ProductsStore {
           // Ajouter si pas trouvé (edge case)
           // Sécurité si il y a eu desync entre appwrite et les données locales ?
           const updatedProduct = this.#updateExistingProduct(
-            { ...product, purchases: [...purchases, purchase] } as Products,
+            {
+              ...product,
+              purchases: [...purchases, purchase],
+            },
             product,
           );
           productsToUpdate.push(updatedProduct);
@@ -1194,7 +1240,6 @@ class ProductsStore {
   getEnrichedProductById(productId: string): EnrichedProduct | null {
     return this.#enrichedProducts.get(productId) ?? null;
   }
-
 
   /**
    * Récupère les recettes pour un produit et une date spécifique

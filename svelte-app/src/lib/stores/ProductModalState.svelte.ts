@@ -10,7 +10,11 @@ import {
 } from "../services/appwrite-interactions";
 import { generateRecipesWithDates } from "../utils/productsUtils";
 import type { Purchases } from "../types/appwrite";
-import type { EnrichedProduct, StoreInfo } from "../types/store.types";
+import type {
+  EnrichedProduct,
+  StoreInfo,
+  TotalNeededOverrideData,
+} from "../types/store.types";
 import {
   formatDate,
   formatDisplayQuantity,

@@ -44,9 +44,6 @@ export type Main = Models.Row & {
 export type Products = Models.Row & {
   productHugoUuid: string;
   productName: string;
-  productType: string;
-  pFrais: boolean;
-  pSurgel: boolean;
   stockReel: string | null;
   status: string;
   who: string[] | null;
@@ -56,12 +53,10 @@ export type Products = Models.Row & {
   mergedFrom: string[] | null;
   mergeDate: string | null;
   mergeReason: string | null;
-  nbRecipes: number | null;
-  totalAssiettes: number | null;
   purchases: Purchases[];
   isSynced: boolean;
   mergedInto: string | null;
-  mainId: Main;
+  mainId: Main | string; // workarround
   totalNeededOverride: string | null;
 };
 

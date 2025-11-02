@@ -71,7 +71,6 @@
           bind:value={modalState.forms.stock.notes}
           placeholder="Commentaire (optionnel)"
         >
-          {modalState.forms.stock.notes}
         </textarea>
       </div>
       <div class="card-actions mt-4 justify-end">

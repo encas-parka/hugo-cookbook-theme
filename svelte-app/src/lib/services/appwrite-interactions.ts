@@ -109,16 +109,8 @@ export function enrichedProductToAppwriteProduct(
   return {
     $id: enrichedProduct.$id,
     mainId: enrichedProduct.mainId,
-    // Données de base depuis EnrichedProduct (champs brutes Products)
     productHugoUuid: enrichedProduct.productHugoUuid,
-    productName: enrichedProduct.productName,
-    productType: enrichedProduct.productType,
-    pFrais: enrichedProduct.pFrais,
-    pSurgel: enrichedProduct.pSurgel,
-    nbRecipes: enrichedProduct.nbRecipes,
-    totalAssiettes: enrichedProduct.totalAssiettes,
-    // byDate: JSON.stringify(enrichedProduct.byDate),
-
+    productName: enrichedProduct.productName, // pour renommage futur
     // Données utilisateur (écrasent/étendent les valeurs par défaut)
     ...userUpdates,
   };
@@ -840,33 +832,6 @@ export function parseStockData(stockJson: string | null): Array<{
   }
 }
 
-/**
- * Parse les occurrences de recettes depuis Appwrite
- * @param recipesJson - Chaîne JSON des recettes
- * @returns Array d'occurrences de recettes
- */
-export function parseRecipesOccurrences(recipesJson: string | null): Array<{
-  recipeName: string;
-  quantity: string;
-  unit: string;
-  dateTimeService: string;
-  horaire?: string;
-  typePlat?: string;
-  assiettes?: number;
-}> {
-  if (!recipesJson) return [];
-
-  try {
-    return JSON.parse(recipesJson);
-  } catch (error) {
-    console.error(
-      "[Appwrite Interactions] Erreur parsing recipes occurrences:",
-      error,
-    );
-    return [];
-  }
-}
-
 // =============================================================================
 // SERVICES REALTIME
 // =============================================================================
@@ -1089,5 +1054,4 @@ export default {
   // Utilitaires de parsing
   formatStockData,
   parseStockData,
-  parseRecipesOccurrences,
 };

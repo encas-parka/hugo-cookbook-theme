@@ -1,4 +1,4 @@
-import type { Products, Purchases } from "./appwrite.d";
+import type { Main, Products, Purchases } from "./appwrite.d";
 
 /**
  * Types pour les statuts d'achat
@@ -84,49 +84,59 @@ export interface TotalNeededOverrideData {
   comment: string;
 }
 
-// Type enrichi pour les produits utilisés dans les composants
+// ✅ EnrichedProduct = Données BRUTES Appwrite + Hugo statiques + Calculées
 export interface EnrichedProduct {
-  // Métadonnées de base (compatible avec Products mais types corrects)
+  // MÉTADONNÉES APPWRITE (brutes)
   $id: string;
-  $updatedAt: string;
+  $createdAt?: string;
+  $updatedAt?: string;
+  $permissions?: string[];
+  $databaseId?: string;
+  $collectionId?: string;
+  $sequence?: number;
+  $tableId?: string;
 
-  // Données de base du produit
-  productName: string;
+  // DONNÉES MÉTIER DE BASE (brutes Appwrite / Hugo)
   productHugoUuid: string;
+  productName: string;
   productType: string;
   pFrais: boolean;
   pSurgel: boolean;
-  who: string[] | null;
   nbRecipes: number;
   totalAssiettes: number;
   isSynced: boolean;
+  mainId: Main | string; // ou Main (géré au sync)
+
+  // DONNÉES INTERACTIVES / COLLABORATIVES (brutes Appwrite)
+  status: string;
+  who: string[] | null;
+  store: string; // ← Brut JSON
+  stockReel: string | null; // ← Brut JSON
+  previousNames: string[] | null;
+  isMerged: boolean;
+  mergedFrom: string[] | null;
+  mergeDate: string | null;
+  mergeReason: string | null;
+  mergedInto: string | null;
+  totalNeededOverride: string | null; // ← Brut JSON
+
+  // RELATIONS (brutes Appwrite)
   purchases: Purchases[];
-  mainId: string; // ← AJOUT mainId manquant
 
-  // Champs JSON parsés (types corrects)
-  storeInfo: StoreInfo | null;
-  stockArray: StockEntry[];
-
-  // ✅ DONNÉES CALCULÉES/STATIQUES
-  byDate?: Record<string, ByDateEntry>; // parsé depuis JSON string
-  totalNeededArray: NumericQuantity[];
-  totalNeededRawArray?: NumericQuantity[]; // depuis totalNeededRaw (si conversions)
-
-  // Propriétés calculées
-  recipesArray: RecipeOccurrence[];
-  stockOrTotalPurchases: string;
-  missingQuantityArray: NumericQuantity[];
-  totalPurchasesArray: NumericQuantity[];
-  neededConsolidatedByDateArray: NeededConsolidatedByDate[];
-  displayTotalNeeded: string;
-  displayTotalPurchases: string;
-  displayMissingQuantity: string;
-
-  // ✅ NOUVEAU : totalNeededOverride (format JSON depuis Appwrite)
-  totalNeededOverride: TotalNeededOverrideData | null; // parsé depuis la string Appwrite
-
-  // Autres champs Appwrite
-  totalNeededConsolidated?: string | null;
+  // DONNÉES STATIQUES HUGO (jamais modifiées, locales)
+  byDate: Record<string, ByDateEntry>;
+  // DONNÉES CALCULÉES/PARSÉES (pour l'UI, dérivées des brutes)
+  storeInfo: StoreInfo | null; // Parsé de store
+  stockArray: StockEntry[]; // Parsé de stockReel
+  totalNeededArray: NumericQuantity[]; // Calculé de byDateParsed
+  totalNeededRawArray?: NumericQuantity[];
+  totalPurchasesArray: NumericQuantity[]; // Calculé de purchases
+  missingQuantityArray: NumericQuantity[]; // Calculé
+  stockOrTotalPurchases: string; // Calculé
+  displayTotalNeeded: string; // Formaté pour UI
+  displayTotalPurchases: string; // Formaté pour UI
+  displayMissingQuantity: string; // Formaté pour UI
+  totalNeededOverrideParsed: TotalNeededOverrideData | null; // Parsé de totalNeededOverride
 }
 
 /**
@@ -272,15 +282,48 @@ export interface HugoIngredient {
   pFrais?: boolean;
   pSurgel?: boolean;
 
-  // ✅ NOUVEAU : Structure groupée par date
   byDate: Record<string, ByDateEntry>;
-
-  // ✅ NOUVEAU : Optionnel (seulement si conversions)
   totalNeededRaw?: NumericQuantity[];
   conversionRules?: string[];
+}
 
-  // Les totaux globaux consolidés sont calculés depuis byDate
-  // Pas besoin de les stocker séparément
+/**
+ * Type intermédiaire pour les produits créés depuis Hugo
+ * Combine les champs Appwrite nécessaires avec les données statiques extraites de HugoIngredient
+ */
+export interface HugoProductData {
+  // Champs Appwrite nécessaires
+  $id: string;
+  productHugoUuid: string;
+  productName: string;
+  mainId: string;
+
+  // Champs Appwrite avec valeurs par défaut
+  status: string;
+  who: string[] | null;
+  store: string;
+  stockReel: string | null;
+  purchases: Purchases[];
+  isSynced: boolean;
+  totalNeededOverride: string | null;
+
+  // Métadonnées Appwrite (non stockées mais utilisées pour la logique)
+  isMerged: boolean;
+  mergedInto: string | null;
+  mergedFrom: string[] | null;
+  mergeDate: string | null;
+  mergeReason: string | null;
+  previousNames: string[] | null;
+
+  // Données Hugo sérialisées
+  byDate: string;
+
+  // autre donnée hugo
+  productType: string;
+  totalAssiettes: number;
+  nbRecipes: number;
+  pFrais?: boolean;
+  pSurgel?: boolean;
 }
 
 export interface RecipeWithDate extends RecipeOccurrence {
