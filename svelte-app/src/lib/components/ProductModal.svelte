@@ -85,7 +85,7 @@
         >
           <CookingPot class="mr-1 h-5 w-5" />
           Recettes
-          {#if modalState.product?.nbRecipes > 0}
+          {#if modalState.product?.nbRecipes && modalState.product?.nbRecipes > 0}
             <span class="badge badge-sm badge-secondary ml-1">
               {modalState.product?.nbRecipes}
             </span>

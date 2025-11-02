@@ -304,14 +304,14 @@ export function buildNeededConsolidatedByDateArray(
 }
 
 export function generateRecipesWithDates(
-  byDateParsed: Record<string, ByDateEntry>,
+  byDate: Record<string, ByDateEntry>,
 ): RecipeWithDate[] {
-  if (!byDateParsed) return [];
+  if (!byDate) return [];
 
   const recipesWithDates: RecipeWithDate[] = [];
 
   // Pour chaque date, ajouter les recettes avec leur date
-  Object.entries(byDateParsed).forEach(([dateTimeService, entry]) => {
+  Object.entries(byDate).forEach(([dateTimeService, entry]) => {
     entry.recipes?.forEach((recipe) => {
       recipesWithDates.push({
         ...recipe,

@@ -274,10 +274,10 @@ class ProductsStore {
     const totalMap = new Map<string, NumericQuantity[]>();
 
     for (const product of this.enrichedProducts) {
-      if (product.byDateParsed) {
+      if (product.byDate) {
         // Calcul juste pour les produits affichés
         const neededConsolidated = buildNeededConsolidatedByDateArray(
-          product.byDateParsed,
+          product.byDate,
         );
         const total = calculateTotalNeededInRange(
           neededConsolidated,
@@ -421,6 +421,7 @@ class ProductsStore {
             hugoData.hugoContentHash,
           );
           const enriched = this.#enrichProduct(partialProduct as Products);
+          enriched.isSynced = false; // ✅ LOCAL SEULEMENT au départ
           this.#enrichedProducts.set(enriched.$id, enriched);
         });
 
@@ -446,7 +447,7 @@ class ProductsStore {
       this.initializeDateRange();
 
       // 3. Sync en arrière-plan
-      this.#syncFromAppwrite();
+      await this.#syncFromAppwrite();
 
       // Marquer comme initialisé
       this.#isInitialized = true;
@@ -504,16 +505,41 @@ class ProductsStore {
   async #syncFromAppwrite() {
     if (!this.#currentMainId) return;
     this.#syncing = true;
+    console.log(
+      `[ProductsStore] Début syncFromAppwrite pour mainId: ${this.#currentMainId}`,
+    );
 
     try {
-      // 1. Synchroniser les produits modifiés
+      // 1. Synchroniser les produits modifiés depuis Appwrite
+      console.log(
+        `[ProductsStore] Récupération des produits modifiés depuis lastSync: ${this.#lastSync}`,
+      );
       const allProducts = await syncProductsWithPurchases(this.#currentMainId, {
         lastSync: this.#lastSync,
         limit: BATCH_LIMIT,
       });
+      console.log(
+        `[ProductsStore] ${allProducts.length} produits récupérés depuis Appwrite`,
+      );
 
-      // 2. Synchroniser les purchases modifiés (pour les produits non-modifiés)
+      // 2. Appliquer les produits venant d'Appwrite (isSynced: true)
+      // IMPORTANT : Faire cela en premier pour établir la base de données
+      allProducts.forEach((product) => {
+        const existing = this.#enrichedProducts.get(product.$id);
+        console.log(
+          `[ProductsStore] Sync produit ${product.$id}: existing=${!!existing}, who=${product.who}, store=${product.store}`,
+        );
+        const enriched = this.#enrichProduct(product, existing); // ← Préserve les données locales
+        enriched.isSynced = true; // ✅ SYNC : Les produits venant d'Appwrite sont sync
+        this.#enrichedProducts.set(product.$id, enriched);
+      });
+
+      // 3. Synchroniser les purchases modifiés (pour les produits non-modifiés)
+      // Appliquer PAR-DESSUS les produits fraîchement synchronisés
       if (this.#lastSync) {
+        console.log(
+          `[ProductsStore] Récupération des purchases modifiés depuis lastSync: ${this.#lastSync}`,
+        );
         const { loadUpdatedPurchases } = await import(
           "../services/appwrite-interactions"
         );
@@ -521,6 +547,9 @@ class ProductsStore {
           this.#currentMainId,
           this.#lastSync,
           BATCH_LIMIT,
+        );
+        console.log(
+          `[ProductsStore] ${updatedPurchases.length} purchases modifiés récupérés`,
         );
 
         // Appliquer les purchases modifiés aux produits existants
@@ -534,15 +563,9 @@ class ProductsStore {
         });
       }
 
-      // 3. Appliquer les produits venant d'Appwrite (isSynced: true)
-      allProducts.forEach((product) => {
-        const enriched = this.#enrichProduct(product);
-        enriched.isSynced = true; // ✅ SYNC : Les produits venant d'Appwrite sont sync
-        this.#enrichedProducts.set(product.$id, enriched);
-      });
-
       this.#updateLastSync();
       this.#debouncedPersist();
+      console.log(`[ProductsStore] SyncFromAppwrite terminé avec succès`);
     } catch (error) {
       console.error("[ProductsStore] Erreur lors du sync:", error);
       throw error;
@@ -589,34 +612,40 @@ class ProductsStore {
   // =========================================================================
 
   /**
-   * Enrichit un produit brut avec tous les calculs
-   * ✅ NOUVEAU : Utilise la structure byDate pour de meilleures performances
+   * Enrichit un produit Appwrite avec des données calculées
+   * Version intelligente : initialise ou met à jour selon la présence d'un produit existant
    */
-  #enrichProduct(product: Products): EnrichedProduct {
+  #enrichProduct(
+    product: Products,
+    existing?: EnrichedProduct,
+  ): EnrichedProduct {
+    if (existing) {
+      // Mise à jour d'un produit existant
+      return this.#updateExistingProduct(product, existing);
+    } else {
+      // Initialisation complète d'un nouveau produit
+      return this.#createNewEnrichedProduct(product);
+    }
+  }
+
+  /**
+   * Crée un nouveau produit enrichi (initialisation complète)
+   */
+  #createNewEnrichedProduct(product: Products): EnrichedProduct {
     // Utilitaires existants
     const totalPurchasesArray = calculateTotalQuantityArray(
       transformPurchasesToNumericQuantity(product.purchases ?? []),
     );
 
     // ✅ NOUVEAU : Parser la structure byDate
-    const byDateParsed = parseByDateData(product.byDate);
+    const byDate = parseByDateData(product.byDate);
 
     let totalNeededArray: NumericQuantity[];
     let totalNeededRawArray: NumericQuantity[] | undefined;
 
-    if (byDateParsed) {
+    if (byDate) {
       // ✅ Cas avec structure byDate (nouveau format)
-      totalNeededArray = calculateGlobalTotal(byDateParsed);
-
-      // Parser totalNeededRaw si disponible (pour les conversions)
-      if (
-        product.totalNeededConsolidated &&
-        product.totalNeededIsManualOverride
-      ) {
-        totalNeededRawArray =
-          safeJsonParse<NumericQuantity[]>(product.totalNeededConsolidated) ||
-          undefined;
-      }
+      totalNeededArray = calculateGlobalTotal(byDate);
     } else {
       // ❌ Erreur : structure byDate manquante
       console.error(
@@ -624,12 +653,6 @@ class ProductsStore {
       );
       totalNeededArray = [];
     }
-    const recipesCount = byDateParsed
-      ? Object.values(byDateParsed).reduce(
-          (total, entry) => total + (entry.recipes?.length || 0),
-          0,
-        )
-      : 0;
 
     const { numeric: missingQuantityArray, display: displayMissingQuantity } =
       calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
@@ -650,34 +673,110 @@ class ProductsStore {
 
       // Données de base
       productName: product.productName,
+      productHugoUuid: product.productHugoUuid,
       productType: product.productType,
       pFrais: product.pFrais,
       pSurgel: product.pSurgel,
       who: product.who,
-      store: product.store,
       nbRecipes: product.nbRecipes,
       totalAssiettes: product.totalAssiettes,
       isSynced: product.isSynced,
       purchases: product.purchases,
-
+      mainId: product.mainId,
       storeInfo: product.store ? safeJsonParse(product.store) : null,
       totalNeededArray,
       totalPurchasesArray,
       stockArray,
       stockOrTotalPurchases,
       missingQuantityArray,
-      // neededConsolidatedByDateArray,
       displayTotalNeeded: formatTotalQuantity(totalNeededArray),
       displayTotalPurchases,
       displayMissingQuantity,
 
       // Source de vérité
-      byDateParsed: byDateParsed || undefined,
+      byDate: byDate || undefined,
 
       totalNeededRawArray,
       totalNeededIsManualOverride: product.totalNeededIsManualOverride ?? false,
-      totalNeededOverrideReason: product.totalNeededOverrideReason,
+      totalNeededOverrideReason: product.totalNeededOverrideReason || null,
     };
+  }
+
+  /**
+   * Met à jour un produit existant (mises à jour minimales, préservation des données statiques)
+   */
+  #updateExistingProduct(
+    product: Products,
+    existing: EnrichedProduct,
+  ): EnrichedProduct {
+    const updated = { ...existing };
+
+    // Métadonnées Appwrite
+    updated.$id = product.$id;
+    updated.$updatedAt = product.$updatedAt;
+    updated.isSynced = true; // Si vient d'Appwrite, alors sync
+    updated.mainId = product.mainId;
+
+    // Champs directs Appwrite (uniquement les données collaboratives)
+    if (product.who !== undefined) updated.who = product.who;
+    if (product.purchases !== undefined) {
+      updated.purchases = product.purchases;
+      this.#recalculatePurchaseDependents(updated);
+    }
+
+    // Champs parsés depuis JSON (uniquement si présents dans le payload)
+    if (product.store !== undefined) {
+      updated.storeInfo = product.store ? safeJsonParse(product.store) : null;
+    }
+    if (product.stockReel !== undefined) {
+      const stockArray = safeJsonParse<any[]>(product.stockReel) ?? [];
+      updated.stockArray = stockArray;
+      updated.stockOrTotalPurchases =
+        stockArray.length > 0
+          ? `${stockArray[stockArray.length - 1].quantity} ${stockArray[stockArray.length - 1].unit}`
+          : updated.displayTotalPurchases;
+    }
+
+    // Champs d'override (uniquement si présents)
+    if (product.totalNeededConsolidated !== undefined) {
+      updated.totalNeededConsolidated = product.totalNeededConsolidated;
+    }
+    if (product.totalNeededIsManualOverride !== undefined) {
+      updated.totalNeededIsManualOverride = product.totalNeededIsManualOverride;
+    }
+    if (product.totalNeededOverrideReason !== undefined) {
+      updated.totalNeededOverrideReason = product.totalNeededOverrideReason;
+    }
+
+    // ✅ DONNÉES STATIQUES AUTOMATIQUEMENT PRÉSERVÉES (non modifiées) :
+    // - updated.byDate (préservé)
+    // - updated.totalNeededArray (préservé)
+    // - updated.totalNeededRawArray (préservé)
+
+    return updated;
+  }
+
+  /**
+   * Recalcule les dépendances liées aux purchases
+   */
+  #recalculatePurchaseDependents(product: EnrichedProduct): void {
+    // Recalculer totalPurchasesArray
+    product.totalPurchasesArray = calculateTotalQuantityArray(
+      transformPurchasesToNumericQuantity(product.purchases ?? []),
+    );
+
+    // Recalculer missingQuantity et display
+    const { numeric: missingQuantityArray, display: displayMissingQuantity } =
+      calculateAndFormatMissing(
+        product.totalNeededArray,
+        product.totalPurchasesArray,
+      );
+
+    product.missingQuantityArray = missingQuantityArray;
+    product.displayMissingQuantity = displayMissingQuantity;
+    product.displayTotalPurchases = formatTotalQuantity(
+      product.totalPurchasesArray,
+    );
   }
 
   /**
@@ -692,9 +791,12 @@ class ProductsStore {
 
   /**
    * Upsert dans la SvelteMap (mutation directe = réactive)
+   * Version optimisée avec enrichProduct intelligent
    */
   #upsertEnrichedProduct(product: Products) {
-    const enriched = this.#enrichProduct(product);
+    const existing = this.#enrichedProducts.get(product.$id);
+    const enriched = this.#enrichProduct(product, existing);
+
     this.#enrichedProducts.set(product.$id, enriched);
   }
 
@@ -796,15 +898,23 @@ class ProductsStore {
         const purchases = product.purchases || [];
         // Éviter les doublons (au cas où)
         if (!purchases.some((p) => p.$id === sanitizedPurchase.$id)) {
-          productsToUpdate.push({
-            ...product,
-            purchases: [...purchases, sanitizedPurchase],
-          } as Products);
+          // Créer un nouveau produit enrichi avec le purchase ajouté
+          const updatedProduct = this.#updateExistingProduct(
+            {
+              ...product,
+              purchases: [...purchases, sanitizedPurchase],
+            } as Products,
+            product,
+          );
+          productsToUpdate.push(updatedProduct);
         }
       }
     });
 
-    this.#batchUpsertEnrichedProducts(productsToUpdate);
+    // Mettre à jour directement les produits dans la map
+    productsToUpdate.forEach((product) => {
+      this.#enrichedProducts.set(product.$id, product);
+    });
   }
 
   /**
@@ -830,22 +940,27 @@ class ProductsStore {
           // Remplacer le purchase existant
           const updatedPurchases = [...purchases];
           updatedPurchases[index] = sanitizedPurchase;
-          productsToUpdate.push({
-            ...product,
-            purchases: updatedPurchases,
-          } as Products);
+          const updatedProduct = this.#updateExistingProduct(
+            { ...product, purchases: updatedPurchases } as Products,
+            product,
+          );
+          productsToUpdate.push(updatedProduct);
         } else {
           // Ajouter si pas trouvé (edge case)
           // Sécurité si il y a eu desync entre appwrite et les données locales ?
-          productsToUpdate.push({
-            ...product,
-            purchases: [...purchases, purchase],
-          } as Products);
+          const updatedProduct = this.#updateExistingProduct(
+            { ...product, purchases: [...purchases, purchase] } as Products,
+            product,
+          );
+          productsToUpdate.push(updatedProduct);
         }
       }
     });
 
-    this.#batchUpsertEnrichedProducts(productsToUpdate);
+    // Mettre à jour directement les produits dans la map
+    productsToUpdate.forEach((product) => {
+      this.#enrichedProducts.set(product.$id, product);
+    });
   }
 
   // =========================================================================
@@ -1127,9 +1242,7 @@ class ProductsStore {
     });
 
     // Recalculer depuis byDate
-    const newTotal = product.byDateParsed
-      ? calculateGlobalTotal(product.byDateParsed)
-      : [];
+    const newTotal = product.byDate ? calculateGlobalTotal(product.byDate) : [];
 
     // Mettre à jour le store local
     this.#enrichedProducts.set(productId, {
@@ -1159,9 +1272,9 @@ class ProductsStore {
    */
   getRecipesForDate(productId: string, date: string): RecipeOccurrence[] {
     const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDateParsed) return [];
+    if (!product?.byDate) return [];
 
-    return extractRecipesByDate(product.byDateParsed, date);
+    return extractRecipesByDate(product.byDate, date);
   }
 
   /**
@@ -1169,9 +1282,9 @@ class ProductsStore {
    */
   getTotalAssiettesForDate(productId: string, date: string): number {
     const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDateParsed) return 0;
+    if (!product?.byDate) return 0;
 
-    return product.byDateParsed[date]?.totalAssiettes || 0;
+    return product.byDate[date]?.totalAssiettes || 0;
   }
 
   /**
@@ -1179,9 +1292,9 @@ class ProductsStore {
    */
   hasConversions(productId: string): boolean {
     const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDateParsed) return false;
+    if (!product?.byDate) return false;
 
-    return hasConversions(product.byDateParsed);
+    return hasConversions(product.byDate);
   }
 
   /**
@@ -1189,9 +1302,9 @@ class ProductsStore {
    */
   getProductDates(productId: string): string[] {
     const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDateParsed) return [];
+    if (!product?.byDate) return [];
 
-    return Object.keys(product.byDateParsed).sort();
+    return Object.keys(product.byDate).sort();
   }
 
   /**
@@ -1199,10 +1312,10 @@ class ProductsStore {
    */
   getTotalAssiettesInRange(productId: string): number {
     const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDateParsed || !this.startDate || !this.endDate) return 0;
+    if (!product?.byDate || !this.startDate || !this.endDate) return 0;
 
     return calculateTotalAssiettesInRange(
-      product.byDateParsed,
+      product.byDate,
       this.startDate,
       this.endDate,
     );
@@ -1213,18 +1326,16 @@ class ProductsStore {
    */
   getRecipesInRange(productId: string): RecipeOccurrence[] {
     const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDateParsed || !this.startDate || !this.endDate) return [];
+    if (!product?.byDate || !this.startDate || !this.endDate) return [];
 
-    const datesInRange = Object.keys(product.byDateParsed).filter((dateStr) => {
+    const datesInRange = Object.keys(product.byDate).filter((dateStr) => {
       const date = new Date(dateStr);
       const startDate = this.startDate ? new Date(this.startDate) : null;
       const endDate = this.endDate ? new Date(this.endDate) : null;
       return startDate && endDate && date >= startDate && date <= endDate;
     });
 
-    return datesInRange.flatMap(
-      (date) => product.byDateParsed![date]?.recipes || [],
-    );
+    return datesInRange.flatMap((date) => product.byDate![date]?.recipes || []);
   }
 
   get enrichedProductsCount(): number {

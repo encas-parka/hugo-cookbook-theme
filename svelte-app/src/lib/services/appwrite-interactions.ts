@@ -117,7 +117,7 @@ export function enrichedProductToAppwriteProduct(
     pSurgel: enrichedProduct.pSurgel,
     nbRecipes: enrichedProduct.nbRecipes,
     totalAssiettes: enrichedProduct.totalAssiettes,
-    byDate: enrichedProduct.byDate,
+    // byDate: JSON.stringify(enrichedProduct.byDate),
 
     // Données utilisateur (écrasent/étendent les valeurs par défaut)
     ...userUpdates,

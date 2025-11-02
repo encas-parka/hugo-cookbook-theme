@@ -79,13 +79,35 @@ export interface NumericQuantity {
 }
 
 // Type enrichi pour les produits utilisés dans les composants
-export interface EnrichedProduct extends Products {
-  mainId: any;
-  // Propriétés enrichies ajoutées par le store
+export interface EnrichedProduct {
+  // Métadonnées de base (compatible avec Products mais types corrects)
+  $id: string;
+  $updatedAt: string;
+
+  // Données de base du produit
+  productName: string;
+  productHugoUuid: string;
+  productType: string;
+  pFrais: boolean;
+  pSurgel: boolean;
+  who: string[] | null;
+  nbRecipes: number;
+  totalAssiettes: number;
+  isSynced: boolean;
+  purchases: Purchases[];
+  mainId: string; // ← AJOUT mainId manquant
+
+  // Champs JSON parsés (types corrects)
   storeInfo: StoreInfo | null;
-  totalNeededArray: NumericQuantity[];
-  recipesArray: RecipeOccurrence[];
   stockArray: StockEntry[];
+
+  // ✅ DONNÉES CALCULÉES/STATIQUES
+  byDate?: Record<string, ByDateEntry>; // parsé depuis JSON string
+  totalNeededArray: NumericQuantity[];
+  totalNeededRawArray?: NumericQuantity[]; // depuis totalNeededRaw (si conversions)
+
+  // Propriétés calculées
+  recipesArray: RecipeOccurrence[];
   stockOrTotalPurchases: string;
   missingQuantityArray: NumericQuantity[];
   totalPurchasesArray: NumericQuantity[];
@@ -94,16 +116,12 @@ export interface EnrichedProduct extends Products {
   displayTotalPurchases: string;
   displayMissingQuantity: string;
 
-  // ✅ NOUVEAUX : Données parsées depuis byDate pour performance
-  byDateParsed?: Record<string, ByDateEntry>; // parsé depuis JSON string
-  totalNeededRawArray?: NumericQuantity[]; // depuis totalNeededRaw (si conversions)
-
   // ✅ NOUVEAUX : Champs pour overrides (avec valeurs par défaut)
   totalNeededIsManualOverride: boolean; // false par défaut
-  totalNeededOverrideReason: string | null; // null par défaut (compatible avec Products)
+  totalNeededOverrideReason: string | null; // null par défaut
 
-  // ✅ SYNC : État de synchronisation avec Appwrite
-  isSynced: boolean; // false = local only, true = sync avec Appwrite
+  // Autres champs Appwrite
+  totalNeededConsolidated?: string | null;
 }
 
 /**
@@ -167,7 +185,7 @@ export interface ProductModalStateType {
 
   // Données du produit (dérivées du store)
   readonly product: EnrichedProduct | null;
-  readonly recipes: RecipeOccurrence[];
+  readonly recipes: RecipeWithDate[];
   readonly whoList: string[];
   readonly stockEntries: StockEntry[];
   readonly purchasesList: Purchases[];

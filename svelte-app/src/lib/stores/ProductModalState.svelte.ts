@@ -50,12 +50,12 @@ export function createProductModalState(productId: string) {
   const purchasesList = $derived(product?.purchases ?? []);
 
   const recipes = $derived.by(() => {
-    if (!product?.byDateParsed) return [];
+    if (!product?.byDate) return [];
 
-    console.log(
-      `[ProductModalState] Génération des recettes pour ${productId}`,
-    );
-    return generateRecipesWithDates(product.byDateParsed);
+    // console.log(
+    //   `[ProductModalState] Génération des recettes pour ${productId}`,
+    // );
+    return generateRecipesWithDates(product.byDate);
   });
 
   // ─────────────────────────────────────────────────────────────
