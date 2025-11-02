@@ -1,5 +1,6 @@
 <script lang="ts">
   import { CookingPot, Package } from "@lucide/svelte";
+  import OverrideManager from "./OverrideManager.svelte";
   import type { ProductModalStateType } from "../types/store.types.js";
   import { formatDate } from "../utils/products-display.js";
 
@@ -13,7 +14,9 @@
   const recipes = $derived(modalState.recipes);
 </script>
 
-<div class="space-y-4">
+<!-- Section Override Manager -->
+<OverrideManager {modalState} />
+<div class="space-y-6">
   <h3 class="flex items-center gap-2 text-lg font-semibold">
     <CookingPot class="h-5 w-5" />
     Recettes utilisant ce produit

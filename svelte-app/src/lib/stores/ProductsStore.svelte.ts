@@ -15,6 +15,8 @@ import {
   extractAllRecipes,
   buildNeededConsolidatedByDateArray,
   calculateGlobalTotal,
+  // ✅ NOUVEAU : Utilitaire pour totalNeededOverride
+  parseTotalNeededOverride,
   extractRecipesByDate,
   hasConversions,
   calculateTotalAssiettesInRange,
@@ -696,9 +698,11 @@ class ProductsStore {
       // Source de vérité
       byDate: byDate || undefined,
 
+      totalNeededOverride: parseTotalNeededOverride(
+        product.totalNeededOverride,
+      ),
+
       totalNeededRawArray,
-      totalNeededIsManualOverride: product.totalNeededIsManualOverride ?? false,
-      totalNeededOverrideReason: product.totalNeededOverrideReason || null,
     };
   }
 
@@ -741,11 +745,10 @@ class ProductsStore {
     if (product.totalNeededConsolidated !== undefined) {
       updated.totalNeededConsolidated = product.totalNeededConsolidated;
     }
-    if (product.totalNeededIsManualOverride !== undefined) {
-      updated.totalNeededIsManualOverride = product.totalNeededIsManualOverride;
-    }
-    if (product.totalNeededOverrideReason !== undefined) {
-      updated.totalNeededOverrideReason = product.totalNeededOverrideReason;
+    if (product.totalNeededOverride !== undefined) {
+      updated.totalNeededOverride = parseTotalNeededOverride(
+        product.totalNeededOverride,
+      );
     }
 
     // ✅ DONNÉES STATIQUES AUTOMATIQUEMENT PRÉSERVÉES (non modifiées) :
@@ -1192,80 +1195,6 @@ class ProductsStore {
     return this.#enrichedProducts.get(productId) ?? null;
   }
 
-  // ✅ NOUVEAUX : Méthodes de gestion des overrides manuels
-
-  /**
-   * Applique un override manuel sur le total needed d'un produit
-   */
-  async applyManualOverride(
-    productId: string,
-    newTotal: NumericQuantity[],
-    reason: string | null = null,
-  ): Promise<void> {
-    const product = this.#enrichedProducts.get(productId);
-    if (!product) throw new Error(`Product ${productId} not found`);
-
-    // Mettre à jour Appwrite
-    const { updateProduct } = await import("../services/appwrite-interactions");
-    await updateProduct(productId, {
-      totalNeededConsolidated: JSON.stringify(newTotal),
-      totalNeededIsManualOverride: true,
-      totalNeededOverrideReason: reason,
-    });
-
-    // Mettre à jour le store local
-    this.#enrichedProducts.set(productId, {
-      ...product,
-      totalNeededConsolidated: JSON.stringify(newTotal),
-      totalNeededIsManualOverride: true,
-      totalNeededOverrideReason: reason,
-      totalNeededArray: newTotal,
-      displayTotalNeeded: formatTotalQuantity(newTotal),
-    });
-
-    this.#persistToCache();
-  }
-
-  /**
-   * Supprime un override manuel et revient au calcul automatique
-   */
-  async removeManualOverride(productId: string): Promise<void> {
-    const product = this.#enrichedProducts.get(productId);
-    if (!product) throw new Error(`Product ${productId} not found`);
-
-    // Mettre à jour Appwrite
-    const { updateProduct } = await import("../services/appwrite-interactions");
-    await updateProduct(productId, {
-      totalNeededConsolidated: null,
-      totalNeededIsManualOverride: false,
-      totalNeededOverrideReason: null,
-    });
-
-    // Recalculer depuis byDate
-    const newTotal = product.byDate ? calculateGlobalTotal(product.byDate) : [];
-
-    // Mettre à jour le store local
-    this.#enrichedProducts.set(productId, {
-      ...product,
-      totalNeededConsolidated: null,
-      totalNeededIsManualOverride: false,
-      totalNeededOverrideReason: null,
-      totalNeededArray: newTotal,
-      displayTotalNeeded: formatTotalQuantity(newTotal),
-    });
-
-    this.#persistToCache();
-  }
-
-  /**
-   * Vérifie si un produit a un override manuel actif
-   */
-  hasManualOverride(productId: string): boolean {
-    const product = this.#enrichedProducts.get(productId);
-    return product?.totalNeededIsManualOverride ?? false;
-  }
-
-  // ✅ NOUVEAUX : Méthodes de service utilisant les utilitaires productsUtils
 
   /**
    * Récupère les recettes pour un produit et une date spécifique

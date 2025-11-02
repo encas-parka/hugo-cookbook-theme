@@ -4,6 +4,7 @@ import type {
   RecipeOccurrence,
   ByDateEntry,
   RecipeWithDate,
+  TotalNeededOverrideData,
 } from "../types/store.types";
 
 /**
@@ -187,6 +188,17 @@ export function parseByDateData(
   byDateJson: string | null,
 ): Record<string, ByDateEntry> | null {
   return safeJsonParse<Record<string, ByDateEntry>>(byDateJson);
+}
+
+/**
+ * Parse totalNeededOverride depuis le format JSON d'Appwrite
+ * @param overrideJson - JSON stringifié de TotalNeededOverrideData
+ * @returns Objet TotalNeededOverrideData parsé ou null
+ */
+export function parseTotalNeededOverride(
+  overrideJson: string | null,
+): TotalNeededOverrideData | null {
+  return safeJsonParse<TotalNeededOverrideData>(overrideJson);
 }
 
 /**

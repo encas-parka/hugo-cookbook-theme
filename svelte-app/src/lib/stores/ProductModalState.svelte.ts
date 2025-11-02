@@ -6,6 +6,7 @@ import {
   updateProductWho,
   updatePurchase,
   upsertProduct,
+  updateProduct,
 } from "../services/appwrite-interactions";
 import { generateRecipesWithDates } from "../utils/productsUtils";
 import type { Purchases } from "../types/appwrite";
@@ -399,6 +400,37 @@ export function createProductModalState(productId: string) {
     }, "Magasin mis à jour");
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // ACTIONS - OVERRIDE MANUEL
+  // ─────────────────────────────────────────────────────────────
+
+  async function setOverride(overrideData: TotalNeededOverrideData) {
+    if (!product) return;
+
+    await withLoading(async () => {
+      // ✅ LOGIQUE DE SYNC : Utiliser updateProduct directement
+      await updateProduct(product.$id, {
+        totalNeededOverride: JSON.stringify(overrideData),
+      });
+    }, "Override appliqué");
+  }
+
+  async function removeOverride() {
+    if (!product) return;
+
+    if (
+      !confirm("Supprimer l'override manuel et revenir au calcul automatique ?")
+    )
+      return;
+
+    await withLoading(async () => {
+      // ✅ LOGIQUE DE SYNC : Utiliser updateProduct directement
+      await updateProduct(product.$id, {
+        totalNeededOverride: null,
+      });
+    }, "Override supprimé");
+  }
+
   return {
     // État UI
     get loading() {
@@ -447,6 +479,8 @@ export function createProductModalState(productId: string) {
     addVolunteer,
     removeVolunteer,
     updateStore,
+    setOverride,
+    removeOverride,
 
     // Utilitaires
     formatQuantity,

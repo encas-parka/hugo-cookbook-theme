@@ -78,6 +78,12 @@ export interface NumericQuantity {
   u: string;
 }
 
+// ✅ NOUVEAU : Type pour totalNeededOverride (stocké dans Appwrite)
+export interface TotalNeededOverrideData {
+  totalOverride: NumericQuantity;
+  comment: string;
+}
+
 // Type enrichi pour les produits utilisés dans les composants
 export interface EnrichedProduct {
   // Métadonnées de base (compatible avec Products mais types corrects)
@@ -116,9 +122,8 @@ export interface EnrichedProduct {
   displayTotalPurchases: string;
   displayMissingQuantity: string;
 
-  // ✅ NOUVEAUX : Champs pour overrides (avec valeurs par défaut)
-  totalNeededIsManualOverride: boolean; // false par défaut
-  totalNeededOverrideReason: string | null; // null par défaut
+  // ✅ NOUVEAU : totalNeededOverride (format JSON depuis Appwrite)
+  totalNeededOverride: TotalNeededOverrideData | null; // parsé depuis la string Appwrite
 
   // Autres champs Appwrite
   totalNeededConsolidated?: string | null;
@@ -214,6 +219,10 @@ export interface ProductModalStateType {
 
   // Actions - Store
   updateStore(storeInfo: StoreInfo): Promise<void>;
+
+  // Actions - Override
+  setOverride(overrideData: TotalNeededOverrideData): Promise<void>;
+  removeOverride(): Promise<void>;
 
   // Utilitaires
   formatQuantity(quantity: number, unit: string): string;

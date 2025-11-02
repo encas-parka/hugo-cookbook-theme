@@ -59,14 +59,10 @@ export type Products = Models.Row & {
   nbRecipes: number | null;
   totalAssiettes: number | null;
   purchases: Purchases[];
-  byDate: string | null;
   isSynced: boolean;
-  hugoContentHash: string | null;
   mergedInto: string | null;
-  totalNeededConsolidated: string | null;
-  totalNeededIsManualOverride: boolean | null;
-  totalNeededOverrideReason: string | null;
-  mainId: Main | any;
+  mainId: Main;
+  totalNeededOverride: string | null;
 };
 
 export type Purchases = Models.Row & {
@@ -79,9 +75,7 @@ export type Purchases = Models.Row & {
   who: string | null;
   createdBy: string | null;
   products: Products[];
-  mainId: Main | any; // workaround for id only
-
-  // Nouveaux champs pour la gestion des commandes
-  deliveryDate: string | null; // ISO date string pour la date de livraison
-  orderDate: string | null; // ISO date string pour la date de commande
+  mainId: Main;
+  orderDate: string | null;
+  deliveryDate: string | null;
 };
