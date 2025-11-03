@@ -2,7 +2,6 @@
   import { User, Users, X } from "@lucide/svelte";
   import type { ProductModalStateType } from "../types/store.types.js";
 
-  import { createProductModalState } from "../stores/ProductModalState.svelte";
   import { productsStore } from "../stores/ProductsStore.svelte.js";
 
   interface Props {

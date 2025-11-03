@@ -73,4 +73,6 @@ export type Purchases = Models.Row & {
   mainId: Main;
   orderDate: string | null;
   deliveryDate: string | null;
+  invoiceId?: string | null; // Référence facture pour expenses/batch
+  invoiceTotal?: number | null; // Montant total de la facture
 };

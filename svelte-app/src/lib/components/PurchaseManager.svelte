@@ -174,7 +174,7 @@
           <input
             type="text"
             bind:value={modalState.forms.purchase.notes}
-            placeholder="Notes"
+            placeholder="Commentaires..."
             maxlength="250"
           />
         </label>
@@ -188,13 +188,13 @@
               bind:value={modalState.forms.purchase.status}
             >
               <option value="delivered" selected>Acheté</option>
+              <option value="ordered" title="La commande à été passée"
+                >Commandé</option
+              >
               <option
                 value="requested"
                 title="Le fournisseur doit confirmer la disponibilité du produit"
                 >Demandé</option
-              >
-              <option value="ordered" title="La commande à été passée"
-                >Commandé</option
               >
             </select>
           </label>

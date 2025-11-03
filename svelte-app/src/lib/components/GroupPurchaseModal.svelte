@@ -4,18 +4,14 @@
     Store,
     User,
     MessageCircle,
-    CreditCard,
-    Package,
     X,
     Check,
-    AlertTriangle,
-    UserPlus,
+    AlertCircle,
     Euro,
   } from "@lucide/svelte";
   import BadgeManager from "./ui/BadgeManager.svelte";
   import {
     createGroupQuickValidation,
-    createExpensePurchase,
     upsertProduct,
   } from "../services/appwrite-interactions";
   import { productsStore } from "../stores/ProductsStore.svelte";
@@ -66,8 +62,6 @@
 
   const isFormValid = $derived.by(() => {
     if (activeProducts.length === 0) return false;
-    if (!formData.store.trim()) return false;
-    if (!formData.who.trim()) return false;
     return true;
   });
 
@@ -88,7 +82,10 @@
       const invoiceId = `FACTURE_${Date.now()}`;
 
       // ✅ LOGIQUE DE SYNC : S'assurer que tous les produits sont synchronisés
-      const productsForValidation = [];
+      const productsForValidation: Array<{
+        productId: string;
+        missingQuantities: any[];
+      }> = [];
       for (const product of activeProducts) {
         let finalProductId = product.$id;
 
@@ -118,7 +115,7 @@
             formData.notes ||
             `Achat groupé pour ${activeProducts.length} produits`,
           store: formData.store.trim(),
-          invoiceTotal: formData.expense,
+          invoiceTotal: formData.expense || undefined,
         },
       );
 
@@ -163,12 +160,6 @@
       newActiveIds.add(productId);
     }
     activeProductIds = newActiveIds;
-  }
-
-  function handleAddUser(name: string) {
-    if (name.trim() && !formData.who.includes(name.trim())) {
-      formData.who = name.trim();
-    }
   }
 
   // Préparer les données pour BadgeManager
