@@ -61,7 +61,7 @@ export interface NeededConsolidatedByDate {
 }
 
 /**
- * Types pour les entrées de stock
+ * Type pour l'entrée de stock (uniquement)
  */
 export interface StockEntry {
   quantity: string;
@@ -126,7 +126,7 @@ export interface EnrichedProduct {
   byDate: Record<string, ByDateEntry> | null;
   // DONNÉES CALCULÉES/PARSÉES (pour l'UI, dérivées des brutes)
   storeInfo: StoreInfo | null; // Parsé de store
-  stockArray: StockEntry[]; // Parsé de stockReel
+  stockParsed: StockEntry | null; // Parsé de stockReel
   totalNeededArray: NumericQuantity[]; // Calculé de byDateParsed
   totalNeededRawArray?: NumericQuantity[];
   totalPurchasesArray: NumericQuantity[]; // Calculé de purchases
@@ -201,7 +201,7 @@ export interface ProductModalStateType {
   readonly product: EnrichedProduct | null;
   readonly recipes: RecipeWithDate[];
   readonly whoList: string[];
-  readonly stockEntries: StockEntry[];
+  readonly stockParsed: StockEntry | null;
   readonly purchasesList: Purchases[];
 
   // État d'édition
@@ -219,8 +219,8 @@ export interface ProductModalStateType {
   removePurchase(purchaseId: string): Promise<void>;
 
   // Actions - Stock
-  addStock(): Promise<void>;
-  removeStock(index: number): Promise<void>;
+  setStock(): Promise<void>;
+  removeStock(): Promise<void>;
 
   // Actions - Volunteers
   addVolunteer(name: string): Promise<void>;

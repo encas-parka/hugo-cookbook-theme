@@ -109,7 +109,7 @@ export function createEnrichedProductFromHugo(
 
     // Calculées
     storeInfo: null,
-    stockArray: [],
+    stockParsed: null,
     totalNeededArray,
     totalNeededRawArray: ingredient.totalNeededRaw,
     totalPurchasesArray,

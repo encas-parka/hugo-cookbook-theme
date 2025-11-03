@@ -51,7 +51,7 @@ export function createProductModalState(productId: string) {
   // ✅ Ces dérivés dépendent du produit du store, donc auto-update
 
   const whoList = $derived(product?.who ?? []);
-  const stockEntries = $derived(product?.stockArray ?? []);
+  const stockParsed = $derived(product?.stockParsed ?? null);
   const purchasesList = $derived(product?.purchases ?? []);
 
   const recipes = $derived.by(() => {
@@ -280,7 +280,7 @@ export function createProductModalState(productId: string) {
   // ACTIONS - STOCK (simplifié - même pattern)
   // ─────────────────────────────────────────────────────────────
 
-  async function addStock() {
+  async function setStock() {
     if (!product) return;
 
     await withLoading(async () => {
@@ -295,8 +295,6 @@ export function createProductModalState(productId: string) {
         dateTime: forms.stock.dateTime,
       };
 
-      const updated = [...stockEntries, newEntry];
-
       // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit
       if (!product.isSynced) {
         // Produit local : utiliser upsertProduct pour créer sur Appwrite
@@ -305,7 +303,7 @@ export function createProductModalState(productId: string) {
         );
         await upsertProduct(
           product.$id,
-          { stockReel: JSON.stringify(updated) },
+          { stockReel: JSON.stringify(newEntry) },
           (id) => productsStore.getEnrichedProductById(id),
         );
       } else {
@@ -313,24 +311,39 @@ export function createProductModalState(productId: string) {
         console.log(
           `[ProductModalState] Produit ${product.$id} déjà sync, update stock normal...`,
         );
-        await updateProductStock(product.$id, JSON.stringify(updated));
+        await updateProductStock(product.$id, JSON.stringify(newEntry));
       }
 
+      // Reset formulaire
       forms.stock.quantity = null;
       forms.stock.notes = "";
       forms.stock.dateTime = new Date().toISOString();
-    }, "Relevé de stock ajouté");
+    }, "Stock mis à jour");
   }
 
-  async function removeStock(index: number) {
+  async function removeStock() {
     if (!product) return;
 
-    if (!confirm("Supprimer ce relevé de stock ?")) return;
+    if (!confirm("Supprimer le stock actuel ?")) return;
 
     await withLoading(async () => {
-      const updated = stockEntries.filter((_, i) => i !== index);
-      await updateProductStock(product.$id, JSON.stringify(updated));
-    }, "Relevé de stock supprimé");
+      // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit
+      if (!product.isSynced) {
+        // Produit local : utiliser upsertProduct
+        console.log(
+          `[ProductModalState] Produit ${product.$id} local, suppression stock avec upsert...`,
+        );
+        await upsertProduct(product.$id, { stockReel: null }, (id) =>
+          productsStore.getEnrichedProductById(id),
+        );
+      } else {
+        // Produit déjà sync : utiliser updateProductStock normal
+        console.log(
+          `[ProductModalState] Produit ${product.$id} déjà sync, suppression stock normal...`,
+        );
+        await updateProductStock(product.$id, null);
+      }
+    }, "Stock supprimé");
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -454,8 +467,8 @@ export function createProductModalState(productId: string) {
     get whoList() {
       return whoList;
     },
-    get stockEntries() {
-      return stockEntries;
+    get stockParsed() {
+      return stockParsed;
     },
     get purchasesList() {
       return purchasesList;
@@ -478,7 +491,7 @@ export function createProductModalState(productId: string) {
     cancelEditPurchase,
     updateEditedPurchase,
     removePurchase,
-    addStock,
+    setStock,
     removeStock,
     addVolunteer,
     removeVolunteer,

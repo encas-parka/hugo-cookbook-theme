@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Archive, Package, WeightIcon } from "@lucide/svelte";
+  import { Archive, Package } from "@lucide/svelte";
   import type { ProductModalStateType } from "../types/store.types.js";
   import { formatDate } from "../utils/products-display.js";
 
@@ -13,17 +13,18 @@
 
   let isFormValid = $derived(
     modalState &&
+      modalState.forms &&
       modalState.forms.stock.quantity &&
       modalState.forms.stock.quantity > 0 &&
       modalState.forms.stock.unit,
   );
 
-  async function handleAddStock() {
-    await modalState?.addStock();
+  async function handleSetStock() {
+    await modalState?.setStock();
   }
 
-  async function handleDeleteStock(index: number) {
-    await modalState?.removeStock(index);
+  async function handleDeleteStock() {
+    await modalState?.removeStock();
   }
 </script>
 
@@ -35,7 +36,9 @@
 
   <div class="card bg-base-200">
     <div class="card-body">
-      <h4 class="card-title text-base">Ajouter au stock</h4>
+      <h4 class="card-title text-base">
+        {modalState.stockParsed ? "Modifier le stock" : "Ajouter un stock"}
+      </h4>
       <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         <label class="input">
           <Package class="h-4 w-4 opacity-50" />
@@ -76,61 +79,63 @@
       <div class="card-actions mt-4 justify-end">
         <button
           class="btn btn-primary btn-sm"
-          onclick={handleAddStock}
+          onclick={handleSetStock}
           disabled={modalState.loading || !isFormValid}
         >
           {#if modalState.loading}
             <span class="loading loading-spinner loading-sm"></span>
           {:else}
-            Ajouter au stock
+            {modalState.stockParsed ? "Mettre à jour" : "Ajouter au stock"}
           {/if}
         </button>
       </div>
     </div>
   </div>
 
-  {#if modalState.stockEntries.length === 0}
+  {#if !modalState.stockParsed}
     <div class="py-8 text-center opacity-50">
       <Archive class="mx-auto mb-2 h-12 w-12" />
       <p>Aucun stock enregistré pour ce produit</p>
     </div>
   {:else}
-    <div class="overflow-x-auto">
-      <table class="table-zebra table-sm table">
-        <thead>
-          <tr>
-            <th>Quantité</th>
-            <th>Date</th>
-            <th>Notes</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each modalState.stockEntries as entry, index (entry.dateTime)}
-            <tr>
-              <td class="font-medium">
-                {entry.quantity}
-                {entry.unit}
-              </td>
-              <td>{formatDate(entry.dateTime)}</td>
-              <td>{entry.notes || "-"}</td>
-              <td>
-                <button
-                  class="btn btn-ghost btn-xs text-error"
-                  onclick={() => handleDeleteStock(index)}
-                  disabled={modalState.loading}
-                >
-                  {#if modalState.loading}
-                    <span class="loading loading-spinner loading-xs"></span>
-                  {:else}
-                    Supprimer
-                  {/if}
-                </button>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
+    <div class="card bg-base-100">
+      <div class="card-body">
+        <h4 class="card-title mb-4 text-base">Stock actuel</h4>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <span class="font-semibold">Quantité:</span>
+            <span class="badge badge-primary badge-lg ml-2">
+              {modalState.stockParsed.quantity}
+              {modalState.stockParsed.unit}
+            </span>
+          </div>
+          <div>
+            <span class="font-semibold">Date:</span>
+            <span class="ml-2"
+              >{formatDate(modalState.stockParsed.dateTime)}</span
+            >
+          </div>
+          {#if modalState.stockParsed.notes}
+            <div class="md:col-span-2">
+              <span class="font-semibold">Notes:</span>
+              <span class="ml-2">{modalState.stockParsed.notes}</span>
+            </div>
+          {/if}
+        </div>
+        <div class="card-actions mt-4 justify-end">
+          <button
+            class="btn btn-error btn-sm"
+            onclick={handleDeleteStock}
+            disabled={modalState.loading}
+          >
+            {#if modalState.loading}
+              <span class="loading loading-spinner loading-xs"></span>
+            {:else}
+              Supprimer le stock
+            {/if}
+          </button>
+        </div>
+      </div>
     </div>
   {/if}
 </div>

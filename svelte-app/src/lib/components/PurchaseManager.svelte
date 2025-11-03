@@ -31,6 +31,8 @@
   // ✅ Validation inline - pas de $derived inutiles
   function isAddFormValid(): boolean {
     return (
+      modalState &&
+      modalState.forms &&
       modalState.forms.purchase.quantity !== null &&
       modalState.forms.purchase.quantity !== 0 &&
       modalState.forms.purchase.unit?.trim() !== ""

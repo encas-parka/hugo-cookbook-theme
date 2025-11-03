@@ -808,27 +808,27 @@ export function formatStockData(
     dateTime: dateTime || new Date().toISOString(),
   };
 
-  return JSON.stringify([stockEntry]);
+  return JSON.stringify(stockEntry);
 }
 
 /**
  * Parse les données de stock depuis Appwrite
  * @param stockJson - Chaîne JSON des stocks
- * @returns Array d'entrées de stock
+ * @returns StockEntry | null
  */
-export function parseStockData(stockJson: string | null): Array<{
+export function parseStockData(stockJson: string | null): {
   quantity: string;
   unit: string;
   notes: string;
   dateTime: string;
-}> {
-  if (!stockJson) return [];
+} | null {
+  if (!stockJson) return null;
 
   try {
     return JSON.parse(stockJson);
   } catch (error) {
     console.error("[Appwrite Interactions] Erreur parsing stock data:", error);
-    return [];
+    return null;
   }
 }
 

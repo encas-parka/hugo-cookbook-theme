@@ -10,7 +10,9 @@
 
   let { modalState }: Props = $props();
 
-  const storeForm = $derived(modalState.forms.store);
+  const storeForm = $derived(
+    modalState?.forms?.store || { name: null, comment: null },
+  );
   // Données initiales du produit
   const initialStoreName = $derived(storeForm.name || "");
   const initialStoreComment = $derived(storeForm.comment || "");

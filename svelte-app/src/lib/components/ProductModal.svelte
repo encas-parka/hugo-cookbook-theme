@@ -117,10 +117,8 @@
         >
           <Archive class="mr-1 h-5 w-5" />
           Stock
-          {#if modalState.stockEntries.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1"
-              >{modalState.stockEntries.length}</span
-            >
+          {#if modalState.stockParsed}
+            <span class="badge badge-sm badge-secondary ml-1">1</span>
           {:else}
             <span class="badge badge-sm badge-ghost ml-1">0</span>
           {/if}

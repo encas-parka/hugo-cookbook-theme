@@ -653,16 +653,15 @@ class ProductsStore {
     const { numeric: missingQuantityArray, display: displayMissingQuantity } =
       calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
 
-    const stockArray = safeJsonParse<any[]>(product.stockReel) ?? [];
+    const stockParsed = safeJsonParse<any>(product.stockReel) ?? null;
     const displayTotalPurchases = formatTotalQuantity(totalPurchasesArray);
     const storeInfo = product.store
       ? safeJsonParse<StoreInfo>(product.store)
       : null;
 
-    const stockOrTotalPurchases =
-      stockArray.length > 0
-        ? `${stockArray[stockArray.length - 1].quantity} ${stockArray[stockArray.length - 1].unit}`
-        : displayTotalPurchases;
+    const stockOrTotalPurchases = stockParsed
+      ? `${stockParsed.quantity} ${stockParsed.unit}`
+      : displayTotalPurchases;
 
     return {
       // Métadonnées Appwrite
@@ -704,7 +703,7 @@ class ProductsStore {
 
       // Calculées
       storeInfo,
-      stockArray,
+      stockParsed,
       totalNeededArray,
       totalPurchasesArray,
       missingQuantityArray,
@@ -748,9 +747,9 @@ class ProductsStore {
 
     // Fusion intelligente du stock
     const mergedStockReel = product.stockReel ?? existing.stockReel;
-    const stockArray = mergedStockReel
-      ? (safeJsonParse<any[]>(mergedStockReel) ?? [])
-      : [];
+    const stockParsed = mergedStockReel
+      ? safeJsonParse<any>(mergedStockReel)
+      : existing.stockParsed;
 
     // Fusion intelligente du store
     const mergedStore = product.store ?? existing.store;
@@ -758,10 +757,9 @@ class ProductsStore {
       ? safeJsonParse<StoreInfo>(mergedStore)
       : existing.storeInfo;
 
-    const stockOrTotalPurchases =
-      stockArray.length > 0
-        ? `${stockArray[stockArray.length - 1].quantity} ${stockArray[stockArray.length - 1].unit}`
-        : displayTotalPurchases;
+    const stockOrTotalPurchases = stockParsed
+      ? `${stockParsed.quantity} ${stockParsed.unit}`
+      : displayTotalPurchases;
 
     // 📝 Log de debug pour tracer les fusions importantes
     if (product.purchases === undefined && existing.purchases?.length) {
@@ -803,7 +801,7 @@ class ProductsStore {
 
       // ✅ RECALCULER : les dérivés basés sur les données fusionnées
       storeInfo,
-      stockArray,
+      stockParsed,
       totalPurchasesArray,
       missingQuantityArray,
       stockOrTotalPurchases,

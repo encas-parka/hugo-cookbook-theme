@@ -9,6 +9,7 @@ import {
   Refrigerator,
   Package,
 } from "@lucide/svelte";
+import type { EnrichedProduct } from "../types/store.types";
 
 // Fonction pour obtenir le nom d'affichage et l'icône d'un type de produit
 export function getProductTypeInfo(type: string) {
@@ -86,7 +87,10 @@ export function formatDisplayQuantity(quantity: string | null): string {
   return quantity;
 }
 
-export function sortEnrichedProducts(products: any[], filters: any): any[] {
+export function sortEnrichedProducts(
+  products: EnrichedProduct[],
+  filters: any,
+): any[] {
   if (!filters.sortColumn) return products;
 
   return [...products].sort((a, b) => {

@@ -518,12 +518,16 @@
                 {#if product.storeInfo?.storeComment}
                   <div
                     class="tooltip tooltip-info"
-                    data-tip={product.storeInfo.storeComment}
+                    data-tip={product.storeInfo?.storeComment}
                   >
-                    {product.storeInfo.storeName || "-"}
+                    <div class="text-center">
+                      {product.storeInfo?.storeName || "-"}
+                    </div>
                   </div>
                 {:else}
-                  {product.storeInfo?.storeName || "-"}
+                  <div class="text-center">
+                    {product.storeInfo?.storeName || "-"}
+                  </div>
                 {/if}
                 {@render editPenIcon()}
               </td>
@@ -532,20 +536,18 @@
                 onclick={() => openModal(product.$id, "volontaires")}
               >
                 {#if product.who && product.who.length > 0}
-                  <div class="flex flex-wrap gap-1 pr-8">
+                  <div class="flex flex-wrap justify-center gap-2 pr-8">
                     {#each product.who as person (person)}
                       <span class="badge badge-soft badge-info badge-sm"
                         >{person}</span
                       >
                     {/each}
                   </div>
-                {:else}
-                  -
                 {/if}
                 {@render editPenIcon()}
               </td>
               <td class={filters.groupBy === "productType" ? "hidden" : ""}>
-                <span class="flex items-center gap-1 text-sm">
+                <span class="flex items-center gap-2 text-center text-sm">
                   <typeInfo.icon class="h-3 w-3" />
                   {typeInfo.displayName}
                 </span>
@@ -577,7 +579,7 @@
                 class="group relative cursor-pointer rounded text-center font-medium hover:inset-ring-2 hover:inset-ring-amber-400/50"
                 onclick={() => openModal(product.$id, "achats")}
               >
-                <div class="flex flex-wrap gap-1 py-1">
+                <div class="flex flex-wrap justify-center gap-1 py-1">
                   {#each purchasesBadges as purchase (purchase.status)}
                     {@const IconComponent = statusIcons[purchase.icon]}
                     <div
@@ -593,7 +595,7 @@
                     </div>
                   {/each}
                   {#if purchasesBadges.length === 0}
-                    <span class="text-sm">-</span>
+                    <span class="text-center">-</span>
                   {/if}
                 </div>
                 {@render editPenIcon()}
