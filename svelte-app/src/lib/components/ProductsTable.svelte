@@ -28,6 +28,7 @@
 
   // Components
   import ProductModal from "./ProductModal.svelte";
+  import GroupEditModal from "./GroupEditModal.svelte";
   import ProductDrawerFilters from "./ProductDrawerFilters.svelte";
   import MultiRangeSlider from "./MultiRangeSlider.svelte";
   import TimelineRange from "./ui/TimelineRange.svelte";
@@ -62,6 +63,12 @@
   let openModalProductId = $state<string | null>(null);
   let openModalTab = $state<string>("recettes");
 
+  // État local pour les modaux groupés
+  let groupEditModalOpen = $state(false);
+  let groupEditType = $state<"store" | "who">("store");
+  let groupEditProductIds = $state<string[]>([]);
+  let groupEditProducts = $state<any[]>([]);
+
   // Fonctions pour contrôler l'ouverture/fermeture
   function openModal(productId: string, tab: string = "recettes") {
     openModalTab = tab;
@@ -70,6 +77,32 @@
 
   function closeModal() {
     openModalProductId = null;
+  }
+
+  // Fonctions pour les modaux groupés
+  function openGroupEditModal(
+    type: "store" | "who",
+    productIds: string[],
+    products: any[],
+  ) {
+    groupEditType = type;
+    groupEditProductIds = productIds;
+    groupEditProducts = products;
+    groupEditModalOpen = true;
+  }
+
+  function closeGroupEditModal() {
+    groupEditModalOpen = false;
+    groupEditType = "store";
+    groupEditProductIds = [];
+    groupEditProducts = [];
+  }
+
+  function handleGroupEditSuccess(result: any) {
+    // Le ProductsStore va automatiquement se mettre à jour via le realtime
+    console.log(
+      `[ProductsTable] Modification groupée réussie: ${result.updatedCount} produits`,
+    );
   }
 </script>
 
@@ -378,22 +411,56 @@
           {#if groupKey !== ""}
             <!-- Header de groupe -->
             {@const groupTypeInfo = getProductTypeInfo(groupKey)}
-            <tr class="bg-base-200 sticky top-10 z-10 font-semibold">
-              <td colspan="7" class="py-2">
-                <div class="flex items-center justify-center gap-2">
-                  {#if filters.groupBy === "store"}
-                    🏪 {groupKey} ({groupProducts!.length})
-                  {:else if filters.groupBy === "productType"}
-                    <div class="flex items-center gap-2">
-                      <groupTypeInfo.icon class="h-4 w-4" />
-                      <span>{groupTypeInfo.displayName}</span>
-                      <span class="text-sm opacity-70"
-                        >({groupProducts!.length})</span
-                      >
-                    </div>
-                  {:else}
-                    📦 {groupKey} ({groupProducts!.length})
-                  {/if}
+            <tr class="bg-base-200 sticky top-11 z-10 font-semibold">
+              <td colspan="7" class="py-3">
+                <div class="flex items-center justify-between">
+                  <!-- Nom du groupe -->
+                  <div class="flex items-center gap-2">
+                    {#if filters.groupBy === "store"}
+                      🏪 {groupKey} ({groupProducts!.length})
+                    {:else if filters.groupBy === "productType"}
+                      <div class="flex items-center gap-2">
+                        <groupTypeInfo.icon class="h-4 w-4" />
+                        <span>{groupTypeInfo.displayName}</span>
+                        <span class="text-sm opacity-70"
+                          >({groupProducts!.length})</span
+                        >
+                      </div>
+                    {:else}
+                      📦 {groupKey} ({groupProducts!.length})
+                    {/if}
+                  </div>
+
+                  <!-- Actions groupées -->
+                  <div class="flex items-center gap-2">
+                    <button
+                      class="btn btn-sm btn-primary btn-soft"
+                      onclick={() =>
+                        openGroupEditModal(
+                          "store",
+                          groupProducts!.map((p) => p.$id),
+                          groupProducts!,
+                        )}
+                      title="Attribuer un magasin à tous les produits de ce groupe"
+                    >
+                      <Store class="h-3 w-3" />
+                      Magasin
+                    </button>
+
+                    <button
+                      class="btn btn-sm btn-info btn-soft"
+                      onclick={() =>
+                        openGroupEditModal(
+                          "who",
+                          groupProducts!.map((p) => p.$id),
+                          groupProducts!,
+                        )}
+                      title="Gérer les volontaires pour tous les produits de ce groupe"
+                    >
+                      <Users class="h-3 w-3" />
+                      Volontaires
+                    </button>
+                  </div>
                 </div>
               </td>
             </tr>
@@ -582,6 +649,16 @@
     productId={openModalProductId}
     initialTab={openModalTab}
     onClose={closeModal}
+  />
+{/if}
+
+{#if groupEditModalOpen}
+  <GroupEditModal
+    productIds={groupEditProductIds}
+    products={groupEditProducts}
+    editType={groupEditType}
+    onClose={closeGroupEditModal}
+    onSuccess={handleGroupEditSuccess}
   />
 {/if}
 

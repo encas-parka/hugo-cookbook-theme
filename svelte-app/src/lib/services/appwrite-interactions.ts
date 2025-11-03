@@ -1026,6 +1026,199 @@ export async function createMainDocument(
 }
 
 // =============================================================================
+// SERVICES DE MODIFICATION GROUPÉE
+// =============================================================================
+
+export interface BatchUpdateOptions {
+  mode?: "replace" | "add"; // Pour les champs de type tableau (who, etc.)
+  dryRun?: boolean; // Simuler l'opération sans appliquer
+}
+
+export interface BatchUpdateData {
+  productIds: string[];
+  products: any[]; // Produits complets pour créer ceux qui n'existent pas
+  updateType: "store" | "who" | "stock";
+  updateData: any;
+  options?: BatchUpdateOptions;
+}
+
+export interface BatchUpdateResult {
+  success: boolean;
+  transactionId?: string;
+  updatedCount: number;
+  updateType: string;
+  error?: string;
+  timestamp: string;
+}
+
+/**
+ * Met à jour plusieurs produits en utilisant une transaction Appwrite
+ * @param data - Données de la mise à jour groupée
+ * @returns Promise<BatchUpdateResult> - Résultat de l'opération
+ */
+export async function batchUpdateProducts(
+  data: BatchUpdateData,
+): Promise<BatchUpdateResult> {
+  try {
+    if (!(window as any).AppwriteClient) {
+      throw new Error("AppwriteClient non disponible");
+    }
+
+    const functions = await (window as any).AppwriteClient.getFunctions();
+    const config = (window as any).AppwriteClient.getConfig();
+
+    const payload = {
+      operation: "batchUpdateProducts",
+      data: data,
+    };
+
+    console.log(
+      `[Appwrite Interactions] Lancement mise à jour groupée: ${data.productIds.length} produits, type: ${data.updateType}`,
+    );
+
+    const execution = await functions.createExecution(
+      config.APPWRITE_CONFIG.functions.batchUpdate,
+      JSON.stringify(payload),
+      false, // async = false pour attendre le résultat
+      "/",
+      "POST",
+    );
+
+    if (execution.status !== "completed") {
+      throw new Error(
+        `Exécution échouée avec statut: ${execution.status}. Erreur: ${execution.stderr}`,
+      );
+    }
+
+    const result = JSON.parse(execution.responseBody) as BatchUpdateResult;
+
+    if (result.success) {
+      console.log(
+        `[Appwrite Interactions] Mise à jour groupée réussie: ${result.updatedCount} produits mis à jour`,
+      );
+    } else {
+      console.error(
+        `[Appwrite Interactions] Mise à jour groupée échouée:`,
+        result.error,
+      );
+    }
+
+    return result;
+  } catch (error) {
+    console.error("[Appwrite Interactions] Erreur mise à jour groupée:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
+
+    return {
+      success: false,
+      updatedCount: data.productIds.length,
+      updateType: data.updateType,
+      error: errorMessage,
+      timestamp: new Date().toISOString(),
+    };
+  }
+}
+
+/**
+ * Applique un store à plusieurs produits
+ * @param productIds - Liste des IDs des produits à modifier
+ * @param products - Liste complète des produits pour gérer les créations
+ * @param storeInfo - Informations du magasin
+ * @param options - Options de la mise à jour
+ * @returns Promise<BatchUpdateResult>
+ */
+export async function batchUpdateStore(
+  productIds: string[],
+  products: any[],
+  storeInfo: StoreInfo,
+  options?: BatchUpdateOptions,
+): Promise<BatchUpdateResult> {
+  return batchUpdateProducts({
+    productIds,
+    products,
+    updateType: "store",
+    updateData: storeInfo,
+    options,
+  });
+}
+
+/**
+ * Applique des volontaires à plusieurs produits
+ * @param productIds - Liste des IDs des produits à modifier
+ * @param products - Liste complète des produits pour gérer les créations
+ * @param names - Liste des noms de volontaires
+ * @param mode - Mode d'application ('replace' ou 'add')
+ * @returns Promise<BatchUpdateResult>
+ */
+export async function batchUpdateWho(
+  productIds: string[],
+  products: any[],
+  names: string[],
+  mode: "replace" | "add" = "replace",
+): Promise<BatchUpdateResult> {
+  return batchUpdateProducts({
+    productIds,
+    products,
+    updateType: "who",
+    updateData: { names },
+    options: { mode },
+  });
+}
+
+/**
+ * Valide les données avant une mise à jour groupée
+ * @param data - Données à valider
+ * @returns true si valide, lève une erreur sinon
+ */
+function validateBatchUpdateData(data: BatchUpdateData): boolean {
+  if (!data.productIds?.length) {
+    throw new Error("La liste des produits est vide");
+  }
+
+  if (data.productIds.length > 100) {
+    throw new Error("Trop de produits. Maximum 100 opérations par transaction");
+  }
+
+  if (
+    !data.updateType ||
+    !["store", "who", "stock"].includes(data.updateType)
+  ) {
+    throw new Error("Type de mise à jour invalide");
+  }
+
+  if (!data.updateData) {
+    throw new Error("Données de mise à jour manquantes");
+  }
+
+  // Validation spécifique par type
+  switch (data.updateType) {
+    case "store":
+      if (!data.updateData.storeName?.trim()) {
+        throw new Error("Le nom du magasin est requis");
+      }
+      break;
+    case "who":
+      if (
+        !Array.isArray(data.updateData.names) ||
+        !data.updateData.names.length
+      ) {
+        throw new Error("La liste des volontaires est vide");
+      }
+      break;
+    case "stock":
+      if (
+        typeof data.updateData.quantity !== "number" ||
+        !data.updateData.unit?.trim()
+      ) {
+        throw new Error("La quantité et l'unité sont requises pour le stock");
+      }
+      break;
+  }
+
+  return true;
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -1041,6 +1234,11 @@ export default {
   updateProductStore,
   updateProductWho,
   updateProductStock,
+
+  // Services produits - modification groupée
+  batchUpdateProducts,
+  batchUpdateStore,
+  batchUpdateWho,
 
   // Services achats
   createPurchase,

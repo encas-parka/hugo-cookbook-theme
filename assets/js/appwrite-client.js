@@ -10,7 +10,8 @@ const APPWRITE_CONFIG = {
   functions: {
     cmsAuth: "68976500002eb5c6ee4f",
     accessRequest: "689cdea5001a4d74549d",
-    createProductList: "68f00487000c624533a3",
+    // createProductList: "68f00487000c624533a3",
+    batchUpdate: "68f00487000c624533a3",
   },
   collections: {
     main: "main",

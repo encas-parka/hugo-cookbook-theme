@@ -75,9 +75,7 @@ export function createEnrichedProductFromHugo(
   return {
     // Métadonnées
     $id: `${mainId}_${ingredient.ingredientHugoUuid}`,
-    $createdAt: undefined, // Sera rempli au sync Appwrite
     $updatedAt: undefined,
-    // $permissions: undefined,
 
     // Données métier
     productHugoUuid: ingredient.ingredientHugoUuid,

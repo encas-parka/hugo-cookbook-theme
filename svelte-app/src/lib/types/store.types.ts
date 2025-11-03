@@ -290,3 +290,57 @@ export interface RecipeWithDate extends RecipeOccurrence {
   date: string; // ✅ Date du service
   dateTimeService: string; // ✅ Date ISO complète
 }
+
+// =============================================================================
+// TYPES POUR LA MODIFICATION GROUPÉE
+// =============================================================================
+
+export type GroupEditType = "store" | "who";
+
+export interface GroupEditOptions {
+  mode?: "replace" | "add"; // Mode d'application pour les champs de type tableau
+}
+
+export interface GroupEditFormData {
+  // Store data
+  storeName: string;
+  storeComment: string;
+
+  // Who data
+  whoNames: string[];
+  whoMode: "replace" | "add";
+}
+
+export interface GroupEditState {
+  readonly productIds: string[];
+  readonly products: EnrichedProduct[];
+  readonly editType: GroupEditType;
+  readonly loading: boolean;
+  readonly error: string | null;
+  readonly result: BatchUpdateResult | null;
+
+  // Form data
+  formData: GroupEditFormData;
+
+  // Actions
+  updateFormData(data: Partial<GroupEditFormData>): void;
+  submitUpdate(): Promise<BatchUpdateResult>;
+  reset(): void;
+}
+
+export interface BatchUpdateResult {
+  success: boolean;
+  transactionId?: string;
+  updatedCount: number;
+  updateType: string;
+  error?: string;
+  timestamp: string;
+}
+
+export interface GroupEditModalProps {
+  productIds: string[];
+  products: EnrichedProduct[];
+  editType: GroupEditType;
+  onClose: () => void;
+  onSuccess?: (result: BatchUpdateResult) => void;
+}
