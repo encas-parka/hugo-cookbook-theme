@@ -583,9 +583,9 @@ class ProductsStore {
     if (!this.#cacheKey) return;
     try {
       const cacheData: CacheData = {
-        lastSync: this.#lastSync,
         products: Array.from(this.#enrichedProducts.entries()),
         allDates: this.#allDates,
+        lastSync: this.#lastSync,
       };
       localStorage.setItem(this.#cacheKey, superjson.stringify(cacheData));
     } catch (err) {
@@ -599,6 +599,7 @@ class ProductsStore {
   #debouncedPersist() {
     if (this.#syncDebounceTimer) clearTimeout(this.#syncDebounceTimer);
     this.#syncDebounceTimer = setTimeout(() => {
+      this.#updateLastSync();
       this.#persistToCache();
       this.#syncDebounceTimer = null;
     }, SYNC_DEBOUNCE_MS);
@@ -953,10 +954,12 @@ class ProductsStore {
         // Éviter les doublons (au cas où)
         if (!purchases.some((p) => p.$id === sanitizedPurchase.$id)) {
           // Créer un nouveau produit enrichi avec le purchase ajouté
+          // 🔥 RESTAURER LE STATUT À "active" car le purchase a été créé avec succès
           const updatedProduct = this.#updateExistingProduct(
             {
               ...product,
               purchases: [...purchases, sanitizedPurchase],
+              status: "active", // Retour au statut normal après sync réussie
             },
             product,
           );
@@ -994,8 +997,13 @@ class ProductsStore {
           // Remplacer le purchase existant
           const updatedPurchases = [...purchases];
           updatedPurchases[index] = sanitizedPurchase;
+          // 🔥 RESTAURER LE STATUT À "active" car le purchase a été mis à jour avec succès
           const updatedProduct = this.#updateExistingProduct(
-            { ...product, purchases: updatedPurchases },
+            {
+              ...product,
+              purchases: updatedPurchases,
+              status: "active", // Retour au statut normal après sync réussie
+            },
             product,
           );
           productsToUpdate.push(updatedProduct);
@@ -1006,6 +1014,7 @@ class ProductsStore {
             {
               ...product,
               purchases: [...purchases, purchase],
+              status: "active", // Retour au statut normal après sync réussie
             },
             product,
           );
@@ -1028,27 +1037,22 @@ class ProductsStore {
     return {
       onProductCreate: (product: Products) => {
         this.#upsertEnrichedProduct(product);
-        this.#updateLastSync();
         this.#debouncedPersist();
       },
       onProductUpdate: (product: Products) => {
         this.#upsertEnrichedProduct(product);
-        this.#updateLastSync();
         this.#debouncedPersist();
       },
       onProductDelete: (productId: string) => {
         this.#removeEnrichedProduct(productId);
-        this.#updateLastSync();
         this.#debouncedPersist();
       },
       onPurchaseCreate: (purchase: Purchases) => {
         this.#applyPurchaseCreated(purchase);
-        this.#updateLastSync();
         this.#debouncedPersist();
       },
       onPurchaseUpdate: (purchase: Purchases) => {
         this.#applyPurchaseUpdated(purchase);
-        this.#updateLastSync();
         this.#debouncedPersist();
       },
 
@@ -1063,7 +1067,6 @@ class ProductsStore {
           this.#upsertEnrichedProduct(product as any);
         });
 
-        this.#updateLastSync();
         this.#debouncedPersist();
       },
       onConnect: () => {
@@ -1336,6 +1339,55 @@ class ProductsStore {
     if (this.#cacheKey) localStorage.removeItem(this.#cacheKey);
     if (this.#metadataKey) localStorage.removeItem(this.#metadataKey);
     console.log("[ProductsStore] Cache vidé");
+  }
+
+  // =============================================================================
+  // GESTION DU STATUT DE SYNCHRONISATION
+  // =============================================================================
+
+  /**
+   * Définit le statut de synchronisation pour plusieurs produits
+   * @param productIds - Liste des IDs des produits concernés
+   * @param syncing - true pour "isSyncing", false pour "active"
+   */
+  setSyncStatus(productIds: string[], syncing: boolean) {
+    const status = syncing ? "isSyncing" : "active";
+
+    productIds.forEach((productId) => {
+      const product = this.#enrichedProducts.get(productId);
+      if (product) {
+        const updatedProduct = {
+          ...product,
+          status,
+        };
+        this.#enrichedProducts.set(productId, updatedProduct);
+      }
+    });
+
+    console.log(
+      `[ProductsStore] Statut de synchronisation mis à jour: ${productIds.length} produits → ${status}`,
+    );
+  }
+
+  /**
+   * Nettoie tous les statuts "isSyncing" (retour à "active")
+   * Utile en cas d'erreur ou timeout
+   */
+  clearSyncStatus() {
+    const productsToReset: string[] = [];
+
+    for (const [productId, product] of this.#enrichedProducts) {
+      if (product.status === "isSyncing") {
+        productsToReset.push(productId);
+      }
+    }
+
+    if (productsToReset.length > 0) {
+      this.setSyncStatus(productsToReset, false);
+      console.log(
+        `[ProductsStore] Nettoyage de ${productsToReset.length} produits en statut "isSyncing"`,
+      );
+    }
   }
 
   destroy() {

@@ -1,21 +1,18 @@
 <script lang="ts">
   import {
+    TriangleAlert,
+    Check,
+    Euro,
+    MessageCircle,
     ShoppingCart,
     Store,
     User,
-    MessageCircle,
     X,
-    Check,
-    AlertCircle,
-    Euro,
   } from "@lucide/svelte";
-  import BadgeManager from "./ui/BadgeManager.svelte";
-  import {
-    createGroupQuickValidation,
-    upsertProduct,
-  } from "../services/appwrite-interactions";
+  import { createGroupPurchaseWithSync } from "../services/appwrite-transaction";
   import { productsStore } from "../stores/ProductsStore.svelte";
   import type { EnrichedProduct } from "../types/store.types";
+  import BadgeManager from "./ui/BadgeManager.svelte";
   import InfoCollapse from "./ui/InfoCollapse.svelte";
 
   interface Props {
@@ -81,67 +78,78 @@
       // Générer un ID de facture
       const invoiceId = `FACTURE_${Date.now()}`;
 
-      // ✅ LOGIQUE DE SYNC : S'assurer que tous les produits sont synchronisés
-      const productsForValidation: Array<{
+      // 🚀 UX IMMÉDIAT : Marquer les produits comme "isSyncing"
+      const productIds = activeProducts.map((p) => p.$id);
+      productsStore.setSyncStatus(productIds, true);
+
+      // ✅ NOUVELLE LOGIQUE : Utiliser le service avec gestion de lots et sync automatique
+      const productsData: Array<{
         productId: string;
-        missingQuantities: any[];
+        isSynced: boolean;
+        productData: any;
+        missingQuantities: Array<{ q: number; u: string }>;
       }> = [];
+
       for (const product of activeProducts) {
-        let finalProductId = product.$id;
-
-        if (!product.isSynced) {
-          console.log(
-            `[GroupPurchaseModal] Produit ${product.$id} local, création pour achat groupé...`,
-          );
-          const syncedProduct = await upsertProduct(product.$id, {}, (id) =>
-            productsStore.getEnrichedProductById(id),
-          );
-          finalProductId = syncedProduct.$id;
-        }
-
-        productsForValidation.push({
-          productId: finalProductId,
+        productsData.push({
+          productId: product.$id,
+          isSynced: product.isSynced,
+          productData: product, // Envoyer les données complètes du produit
           missingQuantities: product.missingQuantityArray || [],
         });
       }
 
-      // Créer les achats groupés
-      const groupResult = await createGroupQuickValidation(
-        productsStore.currentMainId!,
-        productsForValidation,
-        {
-          invoiceId,
-          notes:
-            formData.notes ||
-            `Achat groupé pour ${activeProducts.length} produits`,
-          store: formData.store.trim(),
-          invoiceTotal: formData.expense || undefined,
-        },
-      );
-
-      // S'il y a une dépense globale, elle est déjà créée dans createGroupQuickValidation
-
-      result = {
-        purchases: groupResult.purchases.length,
-        expense: !!groupResult.expense,
+      // Préparer les données de facture
+      const invoiceData = {
+        invoiceId,
+        invoiceTotal: formData.expense || undefined,
+        store: formData.store.trim() || undefined,
+        notes:
+          formData.notes ||
+          `Achat groupé pour ${activeProducts.length} produits`,
+        who: formData.who.trim() || undefined,
       };
 
       console.log(
-        `[GroupPurchaseModal] Achat groupé créé: ${groupResult.purchases.length} achats`,
+        `[GroupPurchaseModal] Création achat groupé avec sync pour ${productsData.length} produits...`,
       );
 
-      // Notifier le succès
-      onSuccess?.();
+      // ⚡ FERMER LE MODAL IMMÉDIATEMENT POUR UX
+      onClose();
 
-      // Fermer le modal après un court délai
-      setTimeout(() => {
-        onClose();
-      }, 1500);
+      // Utiliser le nouveau service qui gère les lots et la synchronisation
+      const batchResult = await createGroupPurchaseWithSync(
+        productsStore.currentMainId!,
+        productsData,
+        invoiceData,
+      );
+
+      if (batchResult.success) {
+        result = {
+          purchases: batchResult.totalPurchasesCreated,
+          expense: batchResult.totalExpensesCreated > 0,
+          batches: batchResult.results.length,
+        };
+
+        console.log(
+          `[GroupPurchaseModal] Achat groupé créé avec succès: ${batchResult.totalProductsCreated} produits synchronisés, ${batchResult.totalPurchasesCreated} achats créés, ${batchResult.totalExpensesCreated} dépenses globales`,
+        );
+
+        // Notifier le succès
+        onSuccess?.();
+      } else {
+        throw new Error(
+          batchResult.error || "Erreur lors de la création de l'achat groupé",
+        );
+      }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Erreur inconnue";
       error = errorMessage;
       console.error("[GroupPurchaseModal] Erreur création achat groupé:", err);
+
+      // 🔧 NETTOYAGE : Retirer le statut "isSyncing" en cas d'erreur
+      productsStore.clearSyncStatus();
     } finally {
       loading = false;
     }
@@ -194,7 +202,7 @@
       <!-- Erreur -->
       {#if error}
         <div class="alert alert-error">
-          <AlertTriangle class="h-4 w-4" />
+          <TriangleAlert class="h-4 w-4" />
           <span>{error}</span>
         </div>
       {/if}
@@ -207,6 +215,9 @@
             Achat groupé créé avec succès ! {result.purchases} produit(s) validés
             {#if result.expense}
               + 1 dépense globale
+            {/if}
+            {#if result.batches && result.batches > 1}
+              (traité en {result.batches} lots)
             {/if}
           </span>
         </div>

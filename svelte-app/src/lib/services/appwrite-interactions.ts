@@ -1218,10 +1218,6 @@ function validateBatchUpdateData(data: BatchUpdateData): boolean {
   return true;
 }
 
-// =============================================================================
-// SERVICES DE VALIDATION RAPIDE
-// =============================================================================
-
 /**
  * Crée un purchase de validation rapide pour un produit
  * @param productId - ID du produit à valider
@@ -1357,70 +1353,6 @@ export async function createExpensePurchase(
     const errorMessage =
       error instanceof Error ? error.message : "Erreur inconnue";
     throw new Error(`Échec de la création de la dépense: ${errorMessage}`);
-  }
-}
-
-/**
- * Crée des validations rapides groupées avec une facture commune
- * @param mainId - ID de l'événement principal
- * @param productsData - Tableau des produits à valider avec leurs quantités manquantes
- * @param invoiceData - Données de la facture commune
- * @returns Promise<{ purchases: Purchases[], expense: Purchases }>
- */
-export async function createGroupQuickValidation(
-  mainId: string,
-  productsData: Array<{
-    productId: string;
-    missingQuantities: Array<{ q: number; u: string }>;
-  }>,
-  invoiceData: {
-    invoiceId: string;
-    invoiceTotal?: number;
-    store?: string;
-    notes?: string;
-  },
-): Promise<{ purchases: Purchases[]; expense?: Purchases }> {
-  try {
-    const purchases: Purchases[] = [];
-
-    // Créer les validations rapides pour chaque produit
-    for (const productData of productsData) {
-      const productPurchases = await createQuickValidationPurchases(
-        mainId,
-        productData.productId,
-        productData.missingQuantities,
-        {
-          invoiceId: invoiceData.invoiceId,
-          notes: invoiceData.notes,
-          store: invoiceData.store,
-        },
-      );
-      purchases.push(...productPurchases);
-    }
-
-    let expense: Purchases | undefined;
-
-    // Créer une dépense globale si un montant total est fourni
-    if (invoiceData.invoiceTotal) {
-      expense = await createExpensePurchase(
-        mainId,
-        invoiceData.invoiceId,
-        invoiceData.invoiceTotal,
-        invoiceData.store,
-        `${invoiceData.notes || "(Facture globale pour ${productsData.length} produits)"} `,
-      );
-    }
-
-    console.log(
-      `[Appwrite Interactions] Validation groupée créée: ${purchases.length} purchases + ${expense ? "1 expense" : "0 expense"}`,
-    );
-
-    return { purchases, expense };
-  } catch (error) {
-    console.error("[Appwrite Interactions] Erreur validation groupée:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Erreur inconnue";
-    throw new Error(`Échec de la validation groupée: ${errorMessage}`);
   }
 }
 

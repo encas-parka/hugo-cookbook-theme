@@ -13,6 +13,7 @@
     LayoutList,
     ListTodo,
     Combine,
+    LoaderCircle,
     ShoppingBasket,
     CircleCheckBig,
     CookingPot,
@@ -34,13 +35,11 @@
   import GroupEditModal from "./GroupEditModal.svelte";
   import GroupPurchaseModal from "./GroupPurchaseModal.svelte";
   import ProductDrawerFilters from "./ProductDrawerFilters.svelte";
-  import MultiRangeSlider from "./MultiRangeSlider.svelte";
   import TimelineRange from "./ui/TimelineRange.svelte";
 
   // Services
   import {
     createQuickValidationPurchases,
-    createGroupQuickValidation,
     createExpensePurchase,
     upsertProduct,
   } from "../services/appwrite-interactions";
@@ -123,7 +122,19 @@
 
   // Fonctions pour le modal d'achat groupé
   function openGroupPurchaseModal(products: any[]) {
-    groupPurchaseProducts = products;
+    // 🚨 FILTRER SEULEMENT LES PRODUITS AVEC QUANTITÉS MANQUANTES
+    const productsWithMissingQuantities = products.filter(
+      (product) =>
+        product.displayMissingQuantity !== "✅ Complet" &&
+        product.missingQuantityArray &&
+        product.missingQuantityArray.length > 0,
+    );
+
+    console.log(
+      `[ProductsTable] openGroupPurchaseModal: ${products.length} produits reçus → ${productsWithMissingQuantities.length} produits avec quantités manquantes`,
+    );
+
+    groupPurchaseProducts = productsWithMissingQuantities;
     groupPurchaseModalOpen = true;
   }
 
@@ -185,79 +196,6 @@
     } catch (error) {
       console.error("[ProductsTable] Erreur validation rapide:", error);
       alert("Erreur lors de la validation rapide: " + (error as Error).message);
-    }
-  }
-
-  // Validation rapide groupée
-  async function handleGroupValidation(products: any[]) {
-    try {
-      if (!productsStore.currentMainId) {
-        throw new Error("mainId non disponible");
-      }
-
-      // Filtrer les produits qui ont des quantités manquantes
-      const productsWithMissing = products.filter(
-        (p) =>
-          p.displayMissingQuantity !== "✅ Complet" &&
-          p.totalNeededArray &&
-          p.totalNeededArray.length > 0,
-      );
-
-      if (productsWithMissing.length === 0) {
-        console.log("Aucun produit avec quantités manquantes dans ce groupe");
-        return;
-      }
-
-      const invoiceId = `FACTURE_${Date.now()}`;
-
-      // ✅ LOGIQUE DE SYNC : S'assurer que tous les produits sont synchronisés avant validation groupée
-      const productsForValidation: Array<{
-        productId: string;
-        missingQuantities: Array<{ q: number; u: string }>;
-      }> = [];
-      for (const p of productsWithMissing) {
-        let finalProductId = p.$id;
-
-        if (!p.isSynced) {
-          // Produit local : créer sur Appwrite d'abord
-          console.log(
-            `[ProductsTable] Produit ${p.$id} local, création pour validation groupée...`,
-          );
-          const syncedProduct = await upsertProduct(
-            p.$id,
-            {}, // Pas de modifications spécifiques au produit lui-même
-            (id) => productsStore.getEnrichedProductById(id),
-          );
-          finalProductId = syncedProduct.$id;
-          console.log(`[ProductsTable] Produit sync créé: ${finalProductId}`);
-        }
-
-        productsForValidation.push({
-          productId: finalProductId,
-          missingQuantities: p.missingQuantityArray,
-        });
-      }
-
-      await createGroupQuickValidation(
-        productsStore.currentMainId!,
-        productsForValidation,
-        {
-          invoiceId,
-          notes: `Validation groupée pour ${productsWithMissing.length} produits`,
-        },
-      );
-
-      console.log(
-        `[ProductsTable] Validation groupée créée: ${productsWithMissing.length} produits`,
-      );
-      alert(
-        `Validation groupée réussie pour ${productsWithMissing.length} produits`,
-      );
-    } catch (error) {
-      console.error("[ProductsTable] Erreur validation groupée:", error);
-      alert(
-        "Erreur lors de la validation groupée: " + (error as Error).message,
-      );
     }
   }
 
@@ -662,19 +600,37 @@
               product.purchases || [],
             )}
 
-            <tr class="hover:bg-base-200/20 transition-colors">
+            <tr
+              class="hover:bg-base-200/20 transition-colors {product.status ===
+              'isSyncing'
+                ? 'animate-pulse border-l-4 border-l-blue-400 bg-blue-50/30'
+                : ''}"
+            >
               <td
                 class="group relative cursor-pointer rounded hover:inset-ring-2 hover:inset-ring-amber-400/50"
                 onclick={() => openModal(product.$id, "recettes")}
               >
                 <div class="flex items-center justify-between pr-8">
-                  <div>
-                    <div class="font-medium">{product.productName}</div>
-                    {#if product.previousNames && product.previousNames.length > 0}
-                      <div class="text-base-content/60 text-xs">
-                        Ancien: {product.previousNames[0]}
+                  <div class="flex items-center gap-2">
+                    <!-- 🚀 Indicateur de statut de synchronisation -->
+                    {#if product.status === "isSyncing"}
+                      <div
+                        class="flex items-center gap-1 text-blue-600"
+                        title="Synchronisation en cours..."
+                      >
+                        <LoaderCircle class="h-4 w-4 animate-spin" />
                       </div>
                     {/if}
+                    <div>
+                      <div class="font-medium">
+                        {product.productName}
+                      </div>
+                      {#if product.previousNames && product.previousNames.length > 0}
+                        <div class="text-base-content/60 text-xs">
+                          Ancien: {product.previousNames[0]}
+                        </div>
+                      {/if}
+                    </div>
                   </div>
                   <div class="flex gap-1">
                     {#if product.pFrais}
@@ -791,16 +747,15 @@
                   <div class="flex items-center justify-center gap-2">
                     <div class="bg-warning m-auto rounded px-2 py-1">
                       {product.displayMissingQuantity}
+                      <!-- Bouton validation rapide -->
+                      <button
+                        class="btn btn-xs btn-ghost text-base-content/70 btn-circle btn-outline hover:btn-success hover:text-success-content ms-3 transition-all hover:scale-105"
+                        onclick={() => handleQuickValidation(product)}
+                        title="Déclarer comme acheté"
+                      >
+                        <Check size={16} />
+                      </button>
                     </div>
-
-                    <!-- Bouton validation rapide -->
-                    <button
-                      class="btn btn-success btn-xs opacity-0 transition-all group-hover:opacity-100 hover:scale-105"
-                      onclick={() => handleQuickValidation(product)}
-                      title="Valider comme reçu"
-                    >
-                      <Check class="h-3 w-3" />
-                    </button>
                   </div>
                 {:else}
                   <CircleCheckBig
