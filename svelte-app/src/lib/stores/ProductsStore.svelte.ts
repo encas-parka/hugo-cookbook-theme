@@ -40,6 +40,11 @@ import {
   loadHugoEventData,
   createEnrichedProductsFromHugo,
 } from "../services/hugo-loader";
+import {
+  createIDBCache,
+  deleteIDBCache,
+  type IDBCache,
+} from "../services/indexeddb-cache.ts";
 
 /**
  * ProductsStore - Store principal de gestion des produits avec Svelte 5
@@ -134,12 +139,12 @@ class ProductsStore {
   endDate = $state<string | null>(null);
 
   // Cache keys
-  #cacheKey: string | null = null;
-  #metadataKey: string | null = null;
+  // #cacheKey: string | null = null;
+  // #metadataKey: string | null = null;
+  #idbCache: IDBCache | null = null;
 
   // Gestion des mises à jour
   #unsubscribe: (() => void) | null = null;
-  #syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   // État Hugo
   #hugoContentChanged = $state(false);
@@ -399,7 +404,14 @@ class ProductsStore {
     console.log(`[ProductsStore] Initialisation avec mainId: ${mainId}`);
 
     this.#currentMainId = mainId;
-    this.#cacheKey = createStorageKey("products-enriched", mainId);
+
+    try {
+      this.#idbCache = await createIDBCache(mainId);
+    } catch (err) {
+      console.error("[ProductsStore] Erreur ouverture IndexedDB:", err);
+      throw new Error("Impossible d'initialiser le cache IndexedDB");
+    }
+
     this.#error = null;
 
     try {
@@ -427,7 +439,7 @@ class ProductsStore {
         });
 
         // Initialiser la plage de dates
-        this.#allDates = hugoData.allDates;
+        this.#allDates = [...hugoData.allDates]; // Copie pour éviter les références croisées
 
         const mainDocument = await loadMainEventData(mainId);
 
@@ -442,7 +454,7 @@ class ProductsStore {
         }
 
         // Persister le cache (sans lastSync pour l'instant)
-        this.#persistToCache();
+        await this.#persistToCache();
       }
 
       this.initializeDateRange();
@@ -474,32 +486,29 @@ class ProductsStore {
   // =========================================================================
 
   /**
-   * Charge les produits depuis le cache localStorage
+   * Charge les produits depuis IndexedDB
    */
   async #loadFromCache() {
-    if (!this.#cacheKey) return;
+    if (!this.#idbCache) return;
 
     try {
-      const cached = localStorage.getItem(this.#cacheKey);
-      if (!cached) {
-        console.log("[ProductsStore] Aucun cache trouvé");
-        return;
-      }
+      // Charger les produits
+      const productsMap = await this.#idbCache.loadProducts();
 
-      const { products, lastSync, allDates } = superjson.parse(
-        cached,
-      ) as CacheData;
-      products.forEach(([id, product]) =>
-        this.#enrichedProducts.set(id, product),
-      );
-      this.#lastSync = lastSync;
-      this.#allDates = allDates || [];
+      productsMap.forEach((product, id) => {
+        this.#enrichedProducts.set(id, product);
+      });
+
+      // Charger les métadonnées
+      const metadata = await this.#idbCache.loadMetadata();
+      this.#lastSync = metadata.lastSync;
+      this.#allDates = [...metadata.allDates]; // Copie pour éviter les références croisées
 
       console.log(
-        `[ProductsStore] ${products.length} produits chargés du cache, lastSync: ${lastSync}, allDates: ${allDates?.length || 0} dates`,
+        `[ProductsStore] ${productsMap.size} produits chargés du cache IDB, lastSync: ${metadata.lastSync}`,
       );
     } catch (err) {
-      console.warn("[ProductsStore] Erreur lecture cache, ignoré:", err);
+      console.warn("[ProductsStore] Erreur lecture cache IDB, ignoré:", err);
     }
   }
 
@@ -565,7 +574,7 @@ class ProductsStore {
       }
 
       this.#updateLastSync();
-      this.#debouncedPersist();
+      await this.#persistToCache(); // Sync complet = persistence complète
       console.log(`[ProductsStore] SyncFromAppwrite terminé avec succès`);
     } catch (error) {
       console.error("[ProductsStore] Erreur lors du sync:", error);
@@ -577,32 +586,53 @@ class ProductsStore {
 
   // === UTILS ===
   /**
-   * Persiste les produits enrichis dans localStorage
+   * Persiste les produits enrichis dans IndexedDB
    */
-  #persistToCache() {
-    if (!this.#cacheKey) return;
+  async #persistToCache() {
+    if (!this.#idbCache) return;
+
     try {
-      const cacheData: CacheData = {
-        products: Array.from(this.#enrichedProducts.entries()),
-        allDates: this.#allDates,
+      // Sauvegarder les produits
+      await this.#idbCache.saveProducts(this.#enrichedProducts);
+
+      // Sauvegarder les métadonnées
+      await this.#idbCache.saveMetadata({
         lastSync: this.#lastSync,
-      };
-      localStorage.setItem(this.#cacheKey, superjson.stringify(cacheData));
+        allDates: [...this.#allDates], // Copie simple pour éviter les problèmes de clonage
+      });
+
+      console.log("[ProductsStore] Cache IDB persisté");
     } catch (err) {
-      console.error("[ProductsStore] Erreur persist cache:", err);
+      console.error("[ProductsStore] Erreur persist cache IDB:", err);
     }
   }
 
   /**
-   * Débouncer la persistence pour éviter les écritures excessives
+   * Persiste uniquement les produits spécifiés dans IndexedDB
+   * 🎯 Optimisé : pas de sauvegarde complète, uniquement les produits affectés
    */
-  #debouncedPersist() {
-    if (this.#syncDebounceTimer) clearTimeout(this.#syncDebounceTimer);
-    this.#syncDebounceTimer = setTimeout(() => {
-      this.#updateLastSync();
-      this.#persistToCache();
-      this.#syncDebounceTimer = null;
-    }, SYNC_DEBOUNCE_MS);
+  async #persistAffectedProducts(productIds: string[]): Promise<void> {
+    if (!this.#idbCache || productIds.length === 0) return;
+
+    try {
+      // Persister chaque produit affecté
+      const persistPromises = productIds
+        .map((id) => this.#enrichedProducts.get(id))
+        .filter((product) => product != null)
+        .map((product) => this.#idbCache!.upsertProduct(product!));
+
+      if (persistPromises.length > 0) {
+        await Promise.all(persistPromises);
+        console.log(
+          `[ProductsStore] ${persistPromises.length} produits affectés persistés`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        "[ProductsStore] Erreur persistence produits affectés:",
+        err,
+      );
+    }
   }
 
   #updateLastSync() {
@@ -869,13 +899,13 @@ class ProductsStore {
   // GESTION DES PURCHASES
   // =========================================================================
 
-  async #applyPurchaseCreated(purchase: Purchases) {
+  async #applyPurchaseCreated(purchase: Purchases): Promise<string[]> {
     if (!purchase.products?.length) {
       console.warn(
         "[ProductsStore] Purchase créé sans products:",
         purchase.$id,
       );
-      return;
+      return [];
     }
     // Extraire les product IDs
     const productIds = purchase.products
@@ -884,12 +914,14 @@ class ProductsStore {
 
     // Mise à jour locale immédiate
     this.#addPurchaseToProducts(productIds, purchase);
+
+    return productIds; // Retourner les produits affectés pour persistence
   }
 
   /**
    * Gère la mise à jour d'un purchase (payload partiel possible)
    */
-  async #applyPurchaseUpdated(purchase: Purchases) {
+  async #applyPurchaseUpdated(purchase: Purchases): Promise<string[]> {
     // Si products[] est dans le payload, on peut procéder directement
     // TOCHECK : normalement n'y ait jamais, sauf peut etre lorsque l'on mergera des products ??
     if (purchase.products?.length) {
@@ -898,7 +930,7 @@ class ProductsStore {
         .filter(Boolean);
 
       this.#updatePurchaseInProducts(productIds, purchase);
-      return;
+      return productIds;
     }
 
     // ⚠️ Sinon, on doit recharger le purchase complet
@@ -915,10 +947,31 @@ class ProductsStore {
           .filter(Boolean);
 
         this.#updatePurchaseInProducts(productIds, fullPurchase);
+        return productIds;
       }
+
+      return [];
     } catch (err) {
       console.error("[ProductsStore] Erreur rechargement purchase:", err);
+      return [];
     }
+  }
+
+  /**
+   * Gère la suppression d'un purchase (marqué deleted = true)
+   */
+  async #applyPurchaseDeleted(purchaseId: string): Promise<string[]> {
+    // Trouver et re-enrichir les produits affectés
+    const affectedProducts = Array.from(this.#enrichedProducts.values()).filter(
+      (p) => p.purchases?.some((pur) => pur.$id === purchaseId),
+    );
+
+    affectedProducts.forEach((product) => {
+      this.#upsertEnrichedProduct(product as any);
+    });
+
+    // Retourner les IDs des produits affectés pour persistence
+    return affectedProducts.map((p) => p.$id);
   }
 
   /**
@@ -1037,37 +1090,62 @@ class ProductsStore {
     return {
       onProductCreate: (product: Products) => {
         this.#upsertEnrichedProduct(product);
-        this.#debouncedPersist();
+        // Persistence immédiate du produit modifié
+        if (this.#idbCache) {
+          const enriched = this.#enrichedProducts.get(product.$id);
+          if (enriched) {
+            this.#idbCache
+              .upsertProduct(enriched)
+              .catch((err) =>
+                console.error(
+                  "[ProductsStore] Erreur persistence produit:",
+                  err,
+                ),
+              );
+          }
+        }
       },
       onProductUpdate: (product: Products) => {
         this.#upsertEnrichedProduct(product);
-        this.#debouncedPersist();
+        // Persistence immédiate du produit modifié
+        if (this.#idbCache) {
+          const enriched = this.#enrichedProducts.get(product.$id);
+          if (enriched) {
+            this.#idbCache
+              .upsertProduct(enriched)
+              .catch((err) =>
+                console.error(
+                  "[ProductsStore] Erreur persistence produit:",
+                  err,
+                ),
+              );
+          }
+        }
       },
       onProductDelete: (productId: string) => {
         this.#removeEnrichedProduct(productId);
-        this.#debouncedPersist();
+        // Persistence immédiate de la suppression
+        if (this.#idbCache) {
+          this.#idbCache
+            .deleteProduct(productId)
+            .catch((err) =>
+              console.error("[ProductsStore] Erreur suppression produit:", err),
+            );
+        }
       },
-      onPurchaseCreate: (purchase: Purchases) => {
-        this.#applyPurchaseCreated(purchase);
-        this.#debouncedPersist();
+      onPurchaseCreate: async (purchase: Purchases) => {
+        const affectedIds = await this.#applyPurchaseCreated(purchase);
+        await this.#persistAffectedProducts(affectedIds);
       },
-      onPurchaseUpdate: (purchase: Purchases) => {
-        this.#applyPurchaseUpdated(purchase);
-        this.#debouncedPersist();
+      onPurchaseUpdate: async (purchase: Purchases) => {
+        const affectedIds = await this.#applyPurchaseUpdated(purchase);
+        await this.#persistAffectedProducts(affectedIds);
       },
 
       // TODO: on ne delete pas les purchase, on les marque deleted = true
-      onPurchaseDelete: (purchaseId: string) => {
-        // Trouver et re-enrichir les produits affectés
-        const affectedProducts = Array.from(
-          this.#enrichedProducts.values(),
-        ).filter((p) => p.purchases?.some((pur) => pur.$id === purchaseId));
-
-        affectedProducts.forEach((product) => {
-          this.#upsertEnrichedProduct(product as any);
-        });
-
-        this.#debouncedPersist();
+      onPurchaseDelete: async (purchaseId: string) => {
+        const affectedIds = await this.#applyPurchaseDeleted(purchaseId);
+        await this.#persistAffectedProducts(affectedIds);
       },
       onConnect: () => {
         this.#realtimeConnected = true;
@@ -1328,16 +1406,17 @@ class ProductsStore {
   }
 
   async forceReload(mainId: string) {
-    this.clearCache();
+    await this.clearCache();
     await this.initialize(mainId);
   }
 
-  clearCache() {
+  async clearCache() {
     this.#enrichedProducts.clear();
     this.#allDates = [];
     this.#lastSync = null;
-    if (this.#cacheKey) localStorage.removeItem(this.#cacheKey);
-    if (this.#metadataKey) localStorage.removeItem(this.#metadataKey);
+    if (this.#idbCache) {
+      await this.#idbCache.clear();
+    }
     console.log("[ProductsStore] Cache vidé");
   }
 
@@ -1394,12 +1473,10 @@ class ProductsStore {
     this.#unsubscribe?.();
     this.#unsubscribe = null;
 
-    // 🔧 Ajouter le cleanup du debounce timeout ?
-    if (this.#syncDebounceTimer) {
-      clearTimeout(this.#syncDebounceTimer);
-      this.#syncDebounceTimer = null;
+    if (this.#idbCache) {
+      this.#idbCache.close();
+      this.#idbCache = null;
     }
-
     console.log("[ProductsStore] Ressources nettoyées");
   }
 }
