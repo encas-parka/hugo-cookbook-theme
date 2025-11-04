@@ -1,8 +1,6 @@
 import { SvelteMap } from "svelte/reactivity";
-import superjson from "superjson";
-import { createStorageKey } from "../utils/url-utils";
 import { useDebounce } from "runed";
-import type { Products, Purchases, Main } from "../types/appwrite.d";
+import type { Products, Purchases } from "../types/appwrite.d";
 
 import {
   safeJsonParse,
@@ -11,7 +9,6 @@ import {
   transformPurchasesToNumericQuantity,
   calculateTotalQuantityArray,
   buildNeededConsolidatedByDateArray,
-  calculateGlobalTotal,
   parseTotalNeededOverride,
   extractRecipesByDate,
   hasConversions,
@@ -20,8 +17,6 @@ import {
 } from "../utils/productsUtils";
 import type {
   EnrichedProduct,
-  HugoIngredient,
-  NeededConsolidatedByDate,
   NumericQuantity,
   RecipeOccurrence,
   StoreInfo,
@@ -30,9 +25,7 @@ import type {
 import {
   subscribeToRealtime,
   createMainDocument,
-  type LoadProductsOptions,
   loadPurchasesListByIds,
-  type SyncOptions,
   syncProductsWithPurchases,
   loadMainEventData,
 } from "../services/appwrite-interactions";
@@ -40,11 +33,7 @@ import {
   loadHugoEventData,
   createEnrichedProductsFromHugo,
 } from "../services/hugo-loader";
-import {
-  createIDBCache,
-  deleteIDBCache,
-  type IDBCache,
-} from "../services/indexeddb-cache.ts";
+import { createIDBCache, type IDBCache } from "../services/indexeddb-cache.ts";
 
 /**
  * ProductsStore - Store principal de gestion des produits avec Svelte 5
