@@ -32,7 +32,8 @@
 
   // Components
   import ProductModal from "./ProductModal.svelte";
-  import GroupEditModal from "./GroupEditModal.svelte";
+  import WhoBatchEditModal from "./WhoBatchEditModal.svelte";
+  import StoreBatchEditModal from "./StoreBatchEditModal.svelte";
   import GroupPurchaseModal from "./GroupPurchaseModal.svelte";
   import ProductDrawerFilters from "./ProductDrawerFilters.svelte";
   import TimelineRange from "./ui/TimelineRange.svelte";
@@ -75,8 +76,8 @@
   let openModalTab = $state<string>("recettes");
 
   // État local pour les modaux groupés
-  let groupEditModalOpen = $state(false);
-  let groupEditType = $state<"store" | "who">("store");
+  let whoEditModalOpen = $state(false);
+  let storeEditModalOpen = $state(false);
   let groupEditProductIds = $state<string[]>([]);
   let groupEditProducts = $state<any[]>([]);
 
@@ -100,15 +101,23 @@
     productIds: string[],
     products: any[],
   ) {
-    groupEditType = type;
     groupEditProductIds = productIds;
     groupEditProducts = products;
-    groupEditModalOpen = true;
+
+    if (type === "who") {
+      whoEditModalOpen = true;
+    } else {
+      storeEditModalOpen = true;
+    }
   }
 
-  function closeGroupEditModal() {
-    groupEditModalOpen = false;
-    groupEditType = "store";
+  function closeGroupEditModal(type?: "store" | "who") {
+    if (!type || type === "who") {
+      whoEditModalOpen = false;
+    }
+    if (!type || type === "store") {
+      storeEditModalOpen = false;
+    }
     groupEditProductIds = [];
     groupEditProducts = [];
   }
@@ -806,12 +815,20 @@
   />
 {/if}
 
-{#if groupEditModalOpen}
-  <GroupEditModal
+{#if whoEditModalOpen}
+  <WhoBatchEditModal
     productIds={groupEditProductIds}
     products={groupEditProducts}
-    editType={groupEditType}
-    onClose={closeGroupEditModal}
+    onClose={() => closeGroupEditModal("who")}
+    onSuccess={handleGroupEditSuccess}
+  />
+{/if}
+
+{#if storeEditModalOpen}
+  <StoreBatchEditModal
+    productIds={groupEditProductIds}
+    products={groupEditProducts}
+    onClose={() => closeGroupEditModal("store")}
     onSuccess={handleGroupEditSuccess}
   />
 {/if}

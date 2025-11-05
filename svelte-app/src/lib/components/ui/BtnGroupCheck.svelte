@@ -33,25 +33,16 @@
   // État local pour gérer les items actifs/inactifs
   let itemStates = $state<Record<string, boolean>>({});
 
-  // Initialiser l'état sans créer de boucle
+  // Initialiser l'état en fonction des items
   $effect(() => {
     const newStates: Record<string, boolean> = {};
     items.forEach((item) => {
-      // Conserver l'état existant ou utiliser la valeur de selected
-      if (itemStates[item.id] !== undefined) {
-        newStates[item.id] = itemStates[item.id];
-      } else {
-        newStates[item.id] = item.selected ?? true; // Utiliser la propriété selected, défaut à true
-      }
+      // Utiliser la valeur de selected pour déterminer l'état
+      newStates[item.id] = item.selected ?? true;
     });
 
-    // Mettre à jour l'état seulement si nécessaire
-    if (
-      JSON.stringify(Object.keys(newStates).sort()) !==
-      JSON.stringify(Object.keys(itemStates).sort())
-    ) {
-      itemStates = newStates;
-    }
+    // Toujours synchroniser avec les props items.selected
+    itemStates = newStates;
   });
 
   function handleToggleItem(itemId: string) {
