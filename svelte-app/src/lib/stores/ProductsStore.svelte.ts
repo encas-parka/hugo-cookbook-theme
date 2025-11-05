@@ -287,6 +287,35 @@ class ProductsStore {
   // === Cache des totaux par plage de dates ===
   // Ce cache se recalcule automatiquement quand dateRange.start/dateRange.end changent
 
+  /**
+   * Produits filtrés qui ont des données dans la plage de dates courante
+   * Ce dérivé principal optimise tous les calculs suivants en évitant les itérations multiples
+   */
+  filteredProductsByDateRange = $derived.by(() => {
+    console.log("[Store] Filtering products by date range");
+
+    if (!this.dateRange.start || !this.dateRange.end) {
+      return [];
+    }
+
+    const startDate = new Date(this.dateRange.start);
+    const endDate = new Date(this.dateRange.end);
+
+    return this.enrichedProducts.filter((product) => {
+      if (!product.byDate) return false;
+
+      // Application des filtres utilisateur
+      const matchesFilters = this.#matchesFilters(product);
+      if (!matchesFilters) return false;
+
+      // Vérifier si le produit a des données dans la plage de dates
+      return Object.keys(product.byDate).some((dateStr) => {
+        const date = new Date(dateStr);
+        return date >= startDate && date <= endDate;
+      });
+    });
+  });
+
   totalNeededByDateRange = $derived.by(() => {
     console.log("[Store] Recalcul totalNeededByDateRange");
 
@@ -306,9 +335,10 @@ class ProductsStore {
 
     const totalMap = new Map<string, NumericQuantity[]>();
 
-    for (const product of this.enrichedProducts) {
+    // Itération optimisée sur les produits déjà filtrés
+    for (const product of this.filteredProductsByDateRange) {
       if (product.byDate) {
-        // Calcul juste pour les produits affichés
+        // Calcul juste pour les produits pertinents
         const neededConsolidated = buildNeededConsolidatedByDateArray(
           product.byDate,
         );
@@ -348,6 +378,38 @@ class ProductsStore {
   });
 
   /**
+   * Nombre total de recettes par produit sur la plage de dates courante
+   * Map<productId, nombre de recettes>
+   */
+  totalRecipesByDateRange = $derived.by(() => {
+    const recipesMap = new Map<string, number>();
+
+    // Itération optimisée sur les produits déjà filtrés
+    for (const product of this.filteredProductsByDateRange) {
+      const recipesInRange = this.getRecipesInRange(product.$id);
+      recipesMap.set(product.$id, recipesInRange.length);
+    }
+
+    return recipesMap;
+  });
+
+  /**
+   * Total d'assiettes par produit sur la plage de dates courante
+   * Map<productId, total d'assiettes>
+   */
+  totalAssiettesByDateRange = $derived.by(() => {
+    const assiettesMap = new Map<string, number>();
+
+    // Itération optimisée sur les produits déjà filtrés
+    for (const product of this.filteredProductsByDateRange) {
+      const totalInRange = this.getTotalAssiettesInRange(product.$id);
+      assiettesMap.set(product.$id, totalInRange);
+    }
+
+    return assiettesMap;
+  });
+
+  /**
    * Statistiques des produits filtrés
    */
   stats = $derived.by(() => ({
@@ -382,20 +444,12 @@ class ProductsStore {
   // === ÉTAPE 2 : IDs des produits pertinents ===
   // Dérivé léger qui dépend de totalNeededByDateRange
 
-  relevantProductIds = $derived.by(() => {
-    return new Set(this.totalNeededByDateRange.keys());
-  });
+  // Un seul dérivé qui fait tout : groupement basé sur les produits filtrés par date
+  groupedFilteredProducts = $derived.by(() => {
+    // Utiliser les produits déjà filtrés par plage de dates
+    const relevantProducts = this.filteredProductsByDateRange;
 
-  // Un seul dérivé qui fait tout : filtrage + pertinence + groupement
-  displayProducts = $derived.by(() => {
-    // Étape 1 : Filtrer par critères utilisateur ET pertinence temporelle
-    const relevantProducts = this.enrichedProducts.filter(
-      (product) =>
-        this.#matchesFilters(product) &&
-        this.relevantProductIds.has(product.$id),
-    );
-
-    // Étape 2 : Grouper directement
+    // Grouper les produits
     if (this.#filters.groupBy === "none") {
       return { "": relevantProducts };
     }

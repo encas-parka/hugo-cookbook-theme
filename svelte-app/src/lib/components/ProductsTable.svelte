@@ -68,7 +68,9 @@
   };
 
   // Accès réactif aux valeurs dérivées du store
-  const displayProducts = $derived(productsStore.displayProducts);
+  const groupedFilteredProducts = $derived(
+    productsStore.groupedFilteredProducts,
+  );
   const stats = $derived(productsStore.stats);
   const uniqueStores = $derived(productsStore.uniqueStores);
   const uniqueWho = $derived(productsStore.uniqueWho);
@@ -533,7 +535,7 @@
         </tr>
       </thead>
       <tbody>
-        {#each Object.entries(displayProducts) as [groupKey, groupProducts] (groupKey)}
+        {#each Object.entries(groupedFilteredProducts) as [groupKey, groupProducts] (groupKey)}
           {#if groupKey !== ""}
             <!-- Header de groupe -->
             {@const groupTypeInfo = getProductTypeInfo(groupKey)}
@@ -610,9 +612,13 @@
           <!-- Produits du groupe -->
 
           {#each sortEnrichedProducts(groupProducts, filters) as product (product.$id)}
-            {@const totalNeeded = productsStore.getFormattedTotalNeeded(
-              product.$id,
-            )}
+            {@const totalNeeded =
+              productsStore.formattedTotalNeededByDateRange.get(product.$id) ||
+              ""}
+            {@const nbRecipesInRange =
+              productsStore.totalRecipesByDateRange.get(product.$id) || 0}
+            {@const totalAssiettesInRange =
+              productsStore.totalAssiettesByDateRange.get(product.$id) || 0}
             {@const typeInfo = getProductTypeInfo(product.productType)}
             {@const purchasesBadges = formatPurchasesWithBadges(
               product.purchases || [],
@@ -724,15 +730,15 @@
                 <div class="pb-1 text-center font-semibold">
                   {totalNeeded}
                 </div>
-                {#if product.nbRecipes || product.totalAssiettes}
+                {#if nbRecipesInRange || totalAssiettesInRange}
                   <div
                     class="text-base-content/70 flex items-center justify-center gap-2 text-xs"
                   >
                     <span class="flex items-center gap-1 text-center"
-                      >{product?.nbRecipes} <CookingPot class="h-3 w-3" /></span
+                      >{nbRecipesInRange} <CookingPot class="h-3 w-3" /></span
                     >
                     <span class="flex items-center gap-1 text-center"
-                      >{product?.totalAssiettes}
+                      >{totalAssiettesInRange}
                       <Utensils class="h-3 w-3" /></span
                     >
                   </div>
@@ -796,7 +802,7 @@
       </tbody>
     </table>
 
-    {#if Object.values(displayProducts).flat().length === 0}
+    {#if Object.values(groupedFilteredProducts).flat().length === 0}
       <div class="py-8 text-center">
         <div class="alert alert-info">
           <div>
