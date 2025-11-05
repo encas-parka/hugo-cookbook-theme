@@ -102,17 +102,13 @@
 
         <button
           role="tab"
-          class="tab {currentTab === 'achats' ? 'tab-active' : ''}"
-          onclick={() => handleTabClick("achats")}
+          class="tab {currentTab === 'magasins' ? 'tab-active' : ''}"
+          onclick={() => handleTabClick("magasins")}
         >
-          <ShoppingCart class="mr-1 h-5 w-5" />
-          Achats
-          {#if modalState.purchasesList.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1"
-              >{modalState.purchasesList.length}</span
-            >
-          {:else}
-            <span class="badge badge-sm badge-ghost ml-1">0</span>
+          <Store class="mr-1 h-5 w-5" />
+          Magasin
+          {#if modalState.hasChanges?.store}
+            <div class="bg-warning ml-1 h-2 w-2 rounded-full"></div>
           {/if}
         </button>
 
@@ -152,13 +148,17 @@
 
         <button
           role="tab"
-          class="tab {currentTab === 'magasins' ? 'tab-active' : ''}"
-          onclick={() => handleTabClick("magasins")}
+          class="tab {currentTab === 'achats' ? 'tab-active' : ''}"
+          onclick={() => handleTabClick("achats")}
         >
-          <Store class="mr-1 h-5 w-5" />
-          Magasin
-          {#if modalState.hasChanges?.store}
-            <div class="bg-warning ml-1 h-2 w-2 rounded-full"></div>
+          <ShoppingCart class="mr-1 h-5 w-5" />
+          Achats
+          {#if modalState.purchasesList.length > 0}
+            <span class="badge badge-sm badge-secondary ml-1"
+              >{modalState.purchasesList.length}</span
+            >
+          {:else}
+            <span class="badge badge-sm badge-ghost ml-1">0</span>
           {/if}
         </button>
       </div>
@@ -191,28 +191,18 @@
 
       <!-- Footer -->
       <div class="modal-action">
-        {#if modalState?.hasAnyChanges}
-          <div class="text-warning flex items-center gap-2 text-sm">
-            <div class="bg-warning h-2 w-2 animate-pulse rounded-full"></div>
-            Modifications non sauvegardées
-          </div>
-          <button
-            class="btn btn-primary"
-            onclick={saveAllAndClose}
-            disabled={modalState.loading}
-          >
-            {#if modalState.loading}
-              <span class="loading loading-spinner loading-sm"></span>
-            {:else}
-              Tout enregistrer
-            {/if}
-          </button>
-        {/if}
         <button class="btn btn-ghost" onclick={onClose}>
-          {#if modalState?.hasAnyChanges}
-            Annuler
+          {modalState?.hasAnyChanges ? "Annuler" : "Fermer"}
+        </button>
+        <button
+          class="btn btn-primary"
+          onclick={saveAllAndClose}
+          disabled={modalState.loading || !modalState.hasAnyChanges}
+        >
+          {#if modalState.loading}
+            <span class="loading loading-spinner loading-sm"></span>
           {:else}
-            Fermer
+            Tout enregistrer
           {/if}
         </button>
       </div>

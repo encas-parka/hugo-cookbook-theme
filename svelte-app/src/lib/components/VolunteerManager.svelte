@@ -132,17 +132,6 @@
         >
           Annuler
         </button>
-        <button
-          class="btn btn-primary btn-sm"
-          onclick={handleValidate}
-          disabled={modalState.loading || !isFormValid}
-        >
-          {#if modalState.loading}
-            <span class="loading loading-spinner loading-sm"></span>
-          {:else}
-            Valider
-          {/if}
-        </button>
       </div>
     </div>
   </div>

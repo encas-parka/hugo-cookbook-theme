@@ -174,9 +174,7 @@ export interface StoreFormData {
 /**
  * Type pour le formulaire de volontaire
  */
-export interface WhoFormData {
-  name: string;
-}
+export type WhoFormData = string[];
 
 /**
  * Type pour tous les formulaires
@@ -231,6 +229,15 @@ export interface ProductModalStateType {
   // Actions - Override
   setOverride(overrideData: TotalNeededOverrideData): Promise<void>;
   removeOverride(): Promise<void>;
+
+  // Sauvegarde globale et suivi des changements
+  saveAllChanges(): Promise<void>;
+  readonly hasChanges: {
+    store: boolean;
+    stock: boolean;
+    who: boolean;
+  };
+  readonly hasAnyChanges: boolean;
 
   // Utilitaires
   formatQuantity(quantity: number, unit: string): string;

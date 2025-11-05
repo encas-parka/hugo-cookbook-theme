@@ -24,7 +24,7 @@
 
     const storeInfo: StoreInfo = {
       storeName: modalState.forms.store.name?.trim() || "",
-      storeComment: modalState.forms.store.comment?.trim() || null,
+      storeComment: modalState.forms.store.comment?.trim() || undefined,
     };
 
     await modalState.updateStore(storeInfo);
@@ -84,17 +84,6 @@
       </div>
 
       <div class="card-actions mt-4 justify-end">
-        <button
-          class="btn btn-primary btn-sm"
-          onclick={handleUpdateStore}
-          disabled={modalState.loading || !isFormValid}
-        >
-          {#if modalState.loading}
-            <span class="loading loading-spinner loading-sm"></span>
-          {:else}
-            Mettre à jour
-          {/if}
-        </button>
         <button
           class="btn btn-ghost btn-sm"
           onclick={() => {

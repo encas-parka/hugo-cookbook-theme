@@ -78,15 +78,14 @@
       </div>
       <div class="card-actions mt-4 justify-end">
         <button
-          class="btn btn-primary btn-sm"
-          onclick={handleSetStock}
-          disabled={modalState.loading || !isFormValid}
+          class="btn btn-ghost btn-sm"
+          onclick={() => {
+            modalState.forms.stock.quantity = null;
+            modalState.forms.store.comment = "";
+          }}
+          disabled={modalState.loading}
         >
-          {#if modalState.loading}
-            <span class="loading loading-spinner loading-sm"></span>
-          {:else}
-            {modalState.stockParsed ? "Mettre à jour" : "Ajouter au stock"}
-          {/if}
+          Effacer
         </button>
       </div>
     </div>

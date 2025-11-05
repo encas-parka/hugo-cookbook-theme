@@ -130,7 +130,7 @@ export function createProductModalState(productId: string) {
       purchase: { ...forms.purchase },
       stock: { ...forms.stock },
       store: { ...forms.store },
-      who: [...forms.who],
+      whoList: [...forms.who],
     };
 
     // Marquer comme initialisé pour ne plus jamais ré-exécuter
@@ -149,7 +149,7 @@ export function createProductModalState(productId: string) {
           stock: hasStockChanges(),
           who:
             JSON.stringify(forms.who) !==
-            JSON.stringify(originalFormsSnapshot.who),
+            JSON.stringify(originalFormsSnapshot.whoList),
         }
       : { store: false, stock: false, who: false },
   );
@@ -171,15 +171,17 @@ export function createProductModalState(productId: string) {
 
     // Comparer avec le stock existant
     return (
-      forms.stock.quantity.toString() !== stockParsed.quantity ||
+      forms.stock.quantity!.toString() !== stockParsed.quantity ||
       forms.stock.unit !== stockParsed.unit ||
       (forms.stock.notes || "") !== (stockParsed.notes || "")
     );
   }
 
   const hasAnyChanges = $derived(
-    originalFormsSnapshot &&
-      (hasChanges.store || hasChanges.stock || hasChanges.who),
+    Boolean(
+      originalFormsSnapshot &&
+        (hasChanges.store || hasChanges.stock || hasChanges.who),
+    ),
   );
 
   // ─────────────────────────────────────────────────────────────
@@ -521,7 +523,7 @@ export function createProductModalState(productId: string) {
       if (hasChanges.store) {
         const storeInfo: StoreInfo = {
           storeName: forms.store.name || "",
-          storeComment: forms.store.comment || null,
+          storeComment: forms.store.comment || undefined,
         };
         batchUpdates.storeInfo = storeInfo;
       }
@@ -537,7 +539,7 @@ export function createProductModalState(productId: string) {
           purchase: { ...forms.purchase },
           stock: { ...forms.stock },
           store: { ...forms.store },
-          who: [...forms.who],
+          whoList: [...forms.who],
         };
       }
     }, "Modifications enregistrées");

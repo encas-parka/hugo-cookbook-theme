@@ -12,7 +12,7 @@
   let { modalState }: Props = $props();
 
   // Données dérivées du store
-  const overrideData = $derived(modalState.product?.totalNeededOverride);
+  const overrideData = $derived(modalState.product?.totalNeededOverrideParsed);
   const totalNeededArray = $derived(modalState.product?.totalNeededArray || []);
   const displayTotalNeeded = $derived(
     modalState.product?.displayTotalNeeded || [],
@@ -21,16 +21,18 @@
   // État du formulaire
   let editMode = $state(false);
   let quantity = $state(
-    modalState.product?.totalNeededOverride?.totalOverride.q ||
+    modalState.product?.totalNeededOverrideParsed?.totalOverride.q ||
       modalState.product?.totalNeededArray[0]?.q ||
       0,
   );
   let unit = $state(
-    modalState.product?.totalNeededOverride?.totalOverride.u ||
+    modalState.product?.totalNeededOverrideParsed?.totalOverride.u ||
       modalState.product?.totalNeededArray[0]?.u ||
       "",
   );
-  let comment = $state(modalState.product?.totalNeededOverride?.comment || "");
+  let comment = $state(
+    modalState.product?.totalNeededOverrideParsed?.comment || "",
+  );
 
   let isFormValid = $derived(quantity > 0 && unit.trim() !== "");
 
