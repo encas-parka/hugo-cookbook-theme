@@ -2,6 +2,7 @@
   import { Archive, Package } from "@lucide/svelte";
   import type { ProductModalStateType } from "../types/store.types.js";
   import { formatDate } from "../utils/products-display.js";
+  import InfoCollapse from "./ui/InfoCollapse.svelte";
 
   interface Props {
     modalState: ProductModalStateType;
@@ -37,8 +38,28 @@
   <div class="card bg-base-200">
     <div class="card-body">
       <h4 class="card-title text-base">
-        {modalState.stockParsed ? "Modifier le stock" : "Ajouter un stock"}
+        Déclarer le stock réel du {new Date().toLocaleDateString("fr-FR", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })}
       </h4>
+      <div class="mb-4">
+        <InfoCollapse
+          initiallyOpen={true}
+          contentVisible="Cette section permet de gérer le stock réel de l'ingrédient.
+          "
+        >
+          Le stock réel est la quantité réelle du produit constaté dans le
+          stock: <strong
+            >il sera utilisé pour le calcul des quantité manquantes à se fournir
+            à la place des achats / réccup déclarés antérieurement</strong
+          >
+          au stock. Les achats / réccup déclarés <strong>ultérieurement</strong>
+          seront pris en compte dans le calcul des quantité manquantes à se fournir.
+        </InfoCollapse>
+      </div>
       <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         <label class="input">
           <Package class="h-4 w-4 opacity-50" />
