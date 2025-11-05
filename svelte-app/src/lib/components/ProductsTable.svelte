@@ -612,13 +612,14 @@
           <!-- Produits du groupe -->
 
           {#each sortEnrichedProducts(groupProducts, filters) as product (product.$id)}
-            {@const totalNeeded =
-              productsStore.formattedTotalNeededByDateRange.get(product.$id) ||
-              ""}
-            {@const nbRecipesInRange =
-              productsStore.totalRecipesByDateRange.get(product.$id) || 0}
-            {@const totalAssiettesInRange =
-              productsStore.totalAssiettesByDateRange.get(product.$id) || 0}
+            {@const stats = productsStore.productsStatsByDateRange.get(
+              product.$id,
+            ) || {
+              quantities: [],
+              formattedQuantities: "",
+              nbRecipes: 0,
+              totalAssiettes: 0,
+            }}
             {@const typeInfo = getProductTypeInfo(product.productType)}
             {@const purchasesBadges = formatPurchasesWithBadges(
               product.purchases || [],
@@ -728,17 +729,17 @@
                 onclick={() => openModal(product.$id, "recettes")}
               >
                 <div class="pb-1 text-center font-semibold">
-                  {totalNeeded}
+                  {stats.formattedQuantities}
                 </div>
-                {#if nbRecipesInRange || totalAssiettesInRange}
+                {#if stats.nbRecipes || stats.totalAssiettes}
                   <div
                     class="text-base-content/70 flex items-center justify-center gap-2 text-xs"
                   >
                     <span class="flex items-center gap-1 text-center"
-                      >{nbRecipesInRange} <CookingPot class="h-3 w-3" /></span
+                      >{stats.nbRecipes} <CookingPot class="h-3 w-3" /></span
                     >
                     <span class="flex items-center gap-1 text-center"
-                      >{totalAssiettesInRange}
+                      >{stats.totalAssiettes}
                       <Utensils class="h-3 w-3" /></span
                     >
                   </div>

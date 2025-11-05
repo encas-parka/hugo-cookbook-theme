@@ -12,6 +12,27 @@ export type PurchaseStatus =
   | null; // Compatibilité (achat direct)
 
 /**
+ * Statistiques unifiées par produit pour une plage de dates
+ * Optimisation : 1 seule itération pour calculer toutes les données
+ */
+export interface ProductRangeStats {
+  /** Quantités nécessaires (calculées) */
+  quantities: NumericQuantity[];
+  /** Quantités formatées pour affichage */
+  formattedQuantities: string;
+  /** Nombre de recettes dans la plage */
+  nbRecipes: number;
+  /** Total d'assiettes dans la plage */
+  totalAssiettes: number;
+}
+
+/** Importé depuis appwrite.d.ts pour compléter */
+export type NumericQuantity = {
+  quantity: number;
+  unit: string;
+};
+
+/**
  * Types pour la gestion des événements principaux
  */
 export interface MainEventData {

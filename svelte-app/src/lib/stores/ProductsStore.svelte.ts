@@ -1,6 +1,7 @@
 import { SvelteMap } from "svelte/reactivity";
 import { useDebounce } from "runed";
 import type { Products, Purchases } from "../types/appwrite.d";
+import type { ProductRangeStats } from "../types/store.types";
 
 import {
   safeJsonParse,
@@ -252,23 +253,6 @@ class ProductsStore {
     return this.#hugoContentChanged;
   }
 
-  /**
-   * Récupère le total needed pour un produit dans la plage courante
-   * ⚡ Lecture directe du cache - O(1)
-   */
-  getTotalNeededInRange(productId: string): NumericQuantity[] {
-    return this.totalNeededByDateRange.get(productId) ?? [];
-  }
-
-  /**
-   * Version formatée pour l'affichage
-   * 💡 Utilisée dans le template
-   */
-  getFormattedTotalNeeded(productId: string): string {
-    const total = this.getTotalNeededInRange(productId);
-    return total.length > 0 ? formatTotalQuantity(total) : "-";
-  }
-
   // =========================================================================
   // DÉRIVES RÉACTIFS - Consommés par les templates
   // =========================================================================
@@ -289,35 +273,43 @@ class ProductsStore {
 
   /**
    * Produits filtrés qui ont des données dans la plage de dates courante
-   * Ce dérivé principal optimise tous les calculs suivants en évitant les itérations multiples
+   * Version Map pour les calculs optimisés (O(1) par ID)
    */
-  filteredProductsByDateRange = $derived.by(() => {
-    console.log("[Store] Filtering products by date range");
+  filteredProductsMap = $derived.by(() => {
+    console.log("[Store] Filtering products by date range (Map)");
 
     if (!this.dateRange.start || !this.dateRange.end) {
-      return [];
+      return new Map();
     }
 
     const startDate = new Date(this.dateRange.start);
     const endDate = new Date(this.dateRange.end);
+    const filteredMap = new Map<string, EnrichedProduct>();
 
-    return this.enrichedProducts.filter((product) => {
-      if (!product.byDate) return false;
+    // Itération directe sur la Map interne (plus performant)
+    for (const [id, product] of this.#enrichedProducts) {
+      if (!product.byDate) continue;
 
       // Application des filtres utilisateur
       const matchesFilters = this.#matchesFilters(product);
-      if (!matchesFilters) return false;
+      if (!matchesFilters) continue;
 
       // Vérifier si le produit a des données dans la plage de dates
-      return Object.keys(product.byDate).some((dateStr) => {
+      const hasDataInRange = Object.keys(product.byDate).some((dateStr) => {
         const date = new Date(dateStr);
         return date >= startDate && date <= endDate;
       });
-    });
+
+      if (hasDataInRange) {
+        filteredMap.set(id, product);
+      }
+    }
+
+    return filteredMap;
   });
 
   totalNeededByDateRange = $derived.by(() => {
-    console.log("[Store] Recalcul totalNeededByDateRange");
+    console.log("[Store] Recalcul totalNeededByDateRange (Map-optimized)");
 
     // 🎯 Si les dates couvrent toute la période disponible → utilisation normale
     const isFullRange =
@@ -328,15 +320,18 @@ class ProductsStore {
       console.log(
         "[Store] Full date range - using totalNeededArray (no calculation)",
       );
-      return new Map(
-        this.enrichedProducts.map((p) => [p.$id, p.totalNeededArray]),
-      );
+      // Itération sur la Map optimisée
+      const resultMap = new Map<string, NumericQuantity[]>();
+      for (const [id, product] of this.#enrichedProducts) {
+        resultMap.set(id, product.totalNeededArray);
+      }
+      return resultMap;
     }
 
     const totalMap = new Map<string, NumericQuantity[]>();
 
-    // Itération optimisée sur les produits déjà filtrés
-    for (const product of this.filteredProductsByDateRange) {
+    // Itération optimisée sur les produits déjà filtrés (Map → Map)
+    for (const [productId, product] of this.filteredProductsMap) {
       if (product.byDate) {
         // Calcul juste pour les produits pertinents
         const neededConsolidated = buildNeededConsolidatedByDateArray(
@@ -348,7 +343,7 @@ class ProductsStore {
           this.dateRange.end,
         );
         if (total.length > 0) {
-          totalMap.set(product.$id, total);
+          totalMap.set(productId, total);
         }
       }
     }
@@ -356,57 +351,82 @@ class ProductsStore {
   });
 
   /**
-   * Même données que totalNeededByDateRange, mais formatées comme string
-   * Map<productId, "100kg et 50L">
+   * 🚀 OPTIMISATION UNIFIÉE - 1 itération pour tous les calculs
+   * Statistiques complètes par produit pour la plage de dates courante
+   * Map<productId, ProductRangeStats>
+   *
+   * Performance : O(n) au lieu de O(4n) (75% de gain théorique)
    */
-  formattedTotalNeededByDateRange = $derived.by(() => {
-    const formatted = new Map<string, string>();
+  productsStatsByDateRange = $derived.by(() => {
+    console.log("[Store] Calcul unifié des stats par produit (1 itération)");
 
-    // Pour chaque entrée du dérivé précédent
-    this.totalNeededByDateRange.forEach((quantities, productId) => {
-      // quantities est NumericQuantity[]
-      // Ex: [{quantity: 100, unit: "kg"}, {quantity: 50, unit: "L"}]
+    const statsMap = new Map<string, ProductRangeStats>();
 
-      // Le formater en string
-      const displayString = formatTotalQuantity(quantities);
-      // Ex: "100kg et 50L"
+    // Cas spécial : plage complète → utilisation des données précalculées
+    const isFullRange =
+      this.dateRange.start === this.firstAvailableDate &&
+      this.dateRange.end === this.lastAvailableDate;
 
-      formatted.set(productId, displayString);
-    });
-
-    return formatted;
-  });
-
-  /**
-   * Nombre total de recettes par produit sur la plage de dates courante
-   * Map<productId, nombre de recettes>
-   */
-  totalRecipesByDateRange = $derived.by(() => {
-    const recipesMap = new Map<string, number>();
-
-    // Itération optimisée sur les produits déjà filtrés
-    for (const product of this.filteredProductsByDateRange) {
-      const recipesInRange = this.getRecipesInRange(product.$id);
-      recipesMap.set(product.$id, recipesInRange.length);
+    if (isFullRange) {
+      console.log("[Store] Full date range - using precomputed data");
+      for (const [id, product] of this.#enrichedProducts) {
+        statsMap.set(id, {
+          quantities: product.totalNeededArray,
+          formattedQuantities: formatTotalQuantity(product.totalNeededArray),
+          nbRecipes: product.nbRecipes || 0,
+          totalAssiettes: product.totalAssiettes || 0,
+        });
+      }
+      return statsMap;
     }
 
-    return recipesMap;
-  });
+    // 🎯 UNE SEULE ITÉRATION pour tout calculer
+    for (const [productId, product] of this.filteredProductsMap) {
+      if (!product.byDate) continue;
 
-  /**
-   * Total d'assiettes par produit sur la plage de dates courante
-   * Map<productId, total d'assiettes>
-   */
-  totalAssiettesByDateRange = $derived.by(() => {
-    const assiettesMap = new Map<string, number>();
+      // 1. Calcul des quantités
+      const neededConsolidated = buildNeededConsolidatedByDateArray(
+        product.byDate,
+      );
+      const quantities = calculateTotalNeededInRange(
+        neededConsolidated,
+        this.dateRange.start,
+        this.dateRange.end,
+      );
 
-    // Itération optimisée sur les produits déjà filtrés
-    for (const product of this.filteredProductsByDateRange) {
-      const totalInRange = this.getTotalAssiettesInRange(product.$id);
-      assiettesMap.set(product.$id, totalInRange);
+      // 2. Formatage des quantités
+      const formattedQuantities =
+        quantities.length > 0 ? formatTotalQuantity(quantities) : "";
+
+      // 3. Calcul DIRECT des assiettes (pas d'appel à getTotalAssiettesInRange)
+      const totalAssiettes = calculateTotalAssiettesInRange(
+        product.byDate,
+        this.dateRange.start,
+        this.dateRange.end,
+      );
+
+      // 4. Calcul DIRECT des recettes (pas d'appel à getRecipesInRange)
+      const datesInRange = Object.keys(product.byDate).filter((dateStr) => {
+        const date = new Date(dateStr);
+        const startDate = new Date(this.dateRange.start);
+        const endDate = new Date(this.dateRange.end);
+        return date >= startDate && date <= endDate;
+      });
+
+      const recipes = datesInRange.flatMap(
+        (date) => product.byDate![date]?.recipes || [],
+      );
+
+      // 5. Stockage dans l'objet unifié
+      statsMap.set(productId, {
+        quantities,
+        formattedQuantities,
+        nbRecipes: recipes.length,
+        totalAssiettes,
+      });
     }
 
-    return assiettesMap;
+    return statsMap;
   });
 
   /**
@@ -445,9 +465,10 @@ class ProductsStore {
   // Dérivé léger qui dépend de totalNeededByDateRange
 
   // Un seul dérivé qui fait tout : groupement basé sur les produits filtrés par date
+  // Optimisé pour utiliser la Map directement
   groupedFilteredProducts = $derived.by(() => {
-    // Utiliser les produits déjà filtrés par plage de dates
-    const relevantProducts = this.filteredProductsByDateRange;
+    // Utiliser les produits déjà filtrés (conversion unique Map → tableau)
+    const relevantProducts = Array.from(this.filteredProductsMap.values());
 
     // Grouper les produits
     if (this.#filters.groupBy === "none") {
@@ -1413,26 +1434,6 @@ class ProductsStore {
   }
 
   /**
-   * Récupère les recettes pour un produit et une date spécifique
-   */
-  getRecipesForDate(productId: string, date: string): RecipeOccurrence[] {
-    const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDate) return [];
-
-    return extractRecipesByDate(product.byDate, date);
-  }
-
-  /**
-   * Récupère le total d'assiettes pour un produit et une date spécifique
-   */
-  getTotalAssiettesForDate(productId: string, date: string): number {
-    const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDate) return 0;
-
-    return product.byDate[date]?.totalAssiettes || 0;
-  }
-
-  /**
    * Détecte si un produit a des conversions (q/u différent de qEq/uEq)
    */
   hasConversions(productId: string): boolean {
@@ -1440,51 +1441,6 @@ class ProductsStore {
     if (!product?.byDate) return false;
 
     return hasConversions(product.byDate);
-  }
-
-  /**
-   * Récupère toutes les dates où un produit est utilisé
-   */
-  getProductDates(productId: string): string[] {
-    const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDate) return [];
-
-    return Object.keys(product.byDate).sort();
-  }
-
-  /**
-   * Calcule le total d'assiettes pour un produit sur la plage de dates courante
-   */
-  getTotalAssiettesInRange(productId: string): number {
-    const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDate || !this.dateRange.start || !this.dateRange.end)
-      return 0;
-
-    return calculateTotalAssiettesInRange(
-      product.byDate,
-      this.dateRange.start,
-      this.dateRange.end,
-    );
-  }
-
-  /**
-   * Récupère le détail des recettes pour un produit sur la plage de dates courante
-   */
-  getRecipesInRange(productId: string): RecipeOccurrence[] {
-    const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDate || !this.dateRange.start || !this.dateRange.end)
-      return [];
-
-    const datesInRange = Object.keys(product.byDate).filter((dateStr) => {
-      const date = new Date(dateStr);
-      const startDate = this.dateRange.start
-        ? new Date(this.dateRange.start)
-        : null;
-      const endDate = this.dateRange.end ? new Date(this.dateRange.end) : null;
-      return startDate && endDate && date >= startDate && date <= endDate;
-    });
-
-    return datesInRange.flatMap((date) => product.byDate![date]?.recipes || []);
   }
 
   get enrichedProductsCount(): number {
