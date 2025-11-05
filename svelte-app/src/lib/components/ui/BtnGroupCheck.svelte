@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, RotateCcw, Check } from "@lucide/svelte";
+  import { X, RotateCcw, Check, PlusIcon } from "@lucide/svelte";
 
   // Interface générique pour les items
   interface BadgeItem {
@@ -7,24 +7,27 @@
     label: string;
     icon?: any; // Composant d'icône optionnel
     title?: string; // Tooltip optionnel
+    selected?: boolean; // État initial de sélection (true/undefined = actif, false = inactif)
   }
 
   interface Props {
     items: BadgeItem[];
     badgeSize?: string;
-    badgeColor?: string;
+    color?: string;
     badgeStyle?: string;
     onToggleItem?: (itemId: string) => void;
     showStats?: boolean;
+    showIcon?: boolean;
   }
 
   let {
     items,
     badgeSize = "badge-lg",
-    badgeColor = "badge-success",
-    badgeStyle = "badge-soft",
+    color = "primary",
+    badgeStyle = "",
     onToggleItem = () => {},
-    showStats = true,
+    showStats = false,
+    showIcon = true,
   }: Props = $props();
 
   // État local pour gérer les items actifs/inactifs
@@ -34,11 +37,11 @@
   $effect(() => {
     const newStates: Record<string, boolean> = {};
     items.forEach((item) => {
-      // Conserver l'état existant ou initialiser à true
+      // Conserver l'état existant ou utiliser la valeur de selected
       if (itemStates[item.id] !== undefined) {
         newStates[item.id] = itemStates[item.id];
       } else {
-        newStates[item.id] = true; // Tous actifs par défaut
+        newStates[item.id] = item.selected ?? true; // Utiliser la propriété selected, défaut à true
       }
     });
 
@@ -68,9 +71,13 @@
 <div class="flex flex-wrap gap-2">
   {#each items as item (item.id)}
     {@const isActive = itemStates[item.id]}
-    <div
-      class="badge {badgeSize} {badgeColor} flex items-center gap-2 transition-all duration-200
-        {isActive ? `${badgeStyle}` : 'badge-dash opacity-70 hover:opacity-90'}"
+    <button
+      class="badge {badgeSize} badge-{color} flex cursor-pointer items-center gap-2 transition-all duration-200
+        {isActive
+        ? `${badgeStyle} hover:opacity-70 `
+        : 'badge-dash hover:border-solid '}"
+      onclick={() => handleToggleItem(item.id)}
+      title={isActive ? "Retirer de la liste" : "Réajouter à la liste"}
     >
       <!-- Icône optionnelle -->
       {#if item.icon}
@@ -81,18 +88,14 @@
       <span class="max-w-32 truncate">{item.label}</span>
 
       <!-- Bouton d'action -->
-      <button
-        class="btn btn-xs btn-circle btn-ghost ml-1 flex-shrink-0 p-0"
-        onclick={() => handleToggleItem(item.id)}
-        title={isActive ? "Retirer de la liste" : "Réajouter à la liste"}
-      >
+      {#if showIcon}
         {#if isActive}
-          <X />
+          <Check size={16} />
         {:else}
-          <RotateCcw />
+          <PlusIcon size={16} />
         {/if}
-      </button>
-    </div>
+      {/if}
+    </button>
   {/each}
 </div>
 

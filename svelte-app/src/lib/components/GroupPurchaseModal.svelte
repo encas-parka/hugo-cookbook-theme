@@ -12,7 +12,7 @@
   import { createGroupPurchaseWithSync } from "../services/appwrite-transaction";
   import { productsStore } from "../stores/ProductsStore.svelte";
   import type { EnrichedProduct } from "../types/store.types";
-  import BadgeManager from "./ui/BadgeManager.svelte";
+  import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
   import InfoCollapse from "./ui/InfoCollapse.svelte";
 
   interface Props {
@@ -170,7 +170,7 @@
     activeProductIds = newActiveIds;
   }
 
-  // Préparer les données pour BadgeManager
+  // Préparer les données pour BtnGroupCheck
   const badgeItems = $derived(
     products.map((product) => ({
       id: product.$id,
@@ -363,10 +363,12 @@
       <!-- Liste des produits -->
       <div>
         <h4 class="mb-3 font-medium">Produits concernés</h4>
-        <BadgeManager
+        <BtnGroupCheck
           items={badgeItems}
           onToggleItem={handleToggleProduct}
           badgeSize="badge-md"
+          badgeStyle="badge-soft"
+          color="success"
         />
       </div>
 

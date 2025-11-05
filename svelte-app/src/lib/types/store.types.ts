@@ -223,8 +223,7 @@ export interface ProductModalStateType {
   removeStock(): Promise<void>;
 
   // Actions - Volunteers
-  addVolunteer(name: string): Promise<void>;
-  removeVolunteer(name: string): Promise<void>;
+  setWho(newWhoList: string[]): Promise<void>;
 
   // Actions - Store
   updateStore(storeInfo: StoreInfo): Promise<void>;
@@ -308,7 +307,6 @@ export interface GroupEditFormData {
 
   // Who data
   whoNames: string[];
-  whoMode: "replace" | "add";
 }
 
 export interface GroupEditState {

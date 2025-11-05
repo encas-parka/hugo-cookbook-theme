@@ -3,6 +3,7 @@
   import type { StoreInfo, ProductModalStateType } from "../types/store.types";
   import { createProductModalState } from "../stores/ProductModalState.svelte";
   import { productsStore } from "../stores/ProductsStore.svelte";
+  import Suggestions from "./ui/Suggestions.svelte";
 
   interface Props {
     modalState: ProductModalStateType;
@@ -13,15 +14,15 @@
   const storeForm = $derived(
     modalState?.forms?.store || { name: null, comment: null },
   );
-  // Données initiales du produit
-  const initialStoreName = $derived(storeForm.name || "");
-  const initialStoreComment = $derived(storeForm.comment || "");
-
   // État local pour le formulaire
-  // svelte-ignore  state_referenced_locally
-  let storeName = $state(initialStoreName);
-  // svelte-ignore  state_referenced_locally
-  let storeComment = $state(initialStoreComment);
+  let storeName = $state(storeForm.name || "");
+  let storeComment = $state(storeForm.comment || "");
+
+  // Initialiser avec les les valeur de modalState.forms.store
+  $effect(() => {
+    storeName = storeForm.name || "";
+    storeComment = storeForm.comment || "";
+  });
 
   // Validation : formulaire valide si au moins une valeur a changé
   const isFormValid = $derived(
@@ -39,10 +40,6 @@
 
     await modalState.updateStore(storeInfo);
   }
-
-  function handleQuickSelectStore(store: string) {
-    storeName = store;
-  }
 </script>
 
 <div class="space-y-4">
@@ -54,26 +51,39 @@
       </p>
 
       <div class="grid-col-1 grid gap-4">
-        <label class="input">
-          <Store class="h-4 w-4 opacity-50" />
-          <input
-            type="text"
-            bind:value={storeName}
-            placeholder="Nom du magasin"
-            list="stores"
-            maxlength="50"
-            onkeydown={(e) => {
-              if (e.key === "Enter") {
-                handleUpdateStore();
-              }
-            }}
-          />
-          <datalist id="stores">
-            {#each productsStore.uniqueStores as store}
-              <option value={store}>{store}</option>
-            {/each}
-          </datalist>
-        </label>
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <label class="input">
+            <Store class="h-4 w-4 opacity-50" />
+            <input
+              type="text"
+              bind:value={storeName}
+              placeholder="Nom du magasin"
+              list="stores"
+              maxlength="50"
+              onkeydown={(e) => {
+                if (e.key === "Enter") {
+                  handleUpdateStore();
+                }
+              }}
+            />
+          </label>
+
+          <!-- Suggestions de magasins -->
+          {#if productsStore.uniqueStores.length > 0}
+            <Suggestions
+              suggestions={productsStore.uniqueStores.map((store) => ({
+                id: store,
+                label: store,
+                disabled: store === storeName,
+              }))}
+              onSuggestionClick={(suggestion) => {
+                storeName = suggestion.label;
+              }}
+              buttonVariant="btn-outline"
+            />
+          {/if}
+        </div>
+
         <textarea
           class="textarea flex w-full"
           bind:value={storeComment}

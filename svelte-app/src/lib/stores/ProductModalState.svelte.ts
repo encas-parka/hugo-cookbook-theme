@@ -110,7 +110,7 @@ export function createProductModalState(productId: string) {
 
     forms.stock.unit = product.totalNeededArray[0]?.u ?? "";
 
-    forms.store.name = product.storeInfo?.storeName ?? null;
+    forms.store.name = product.storeInfo?.storeName ?? "";
     forms.store.comment = product.storeInfo?.storeComment ?? null;
 
     // Marquer comme initialisé pour ne plus jamais ré-exécuter
@@ -350,46 +350,27 @@ export function createProductModalState(productId: string) {
   // ACTIONS - VOLUNTEERS & STORE (même pattern)
   // ─────────────────────────────────────────────────────────────
 
-  async function addVolunteer(name: string) {
-    if (!product || !name.trim()) return;
+  async function setWho(newWhoList: string[]) {
+    if (!product) return;
 
     await withLoading(async () => {
-      if (whoList.includes(name)) {
-        throw new Error("Ce volontaire est déjà ajouté");
-      }
-
-      const updatedWho = [...whoList, name.trim()];
-
       // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit
       if (!product.isSynced) {
         // Produit local : utiliser upsertProduct pour créer sur Appwrite
         console.log(
-          `[ProductModalState] Produit ${product.$id} local, création avec upsert...`,
+          `[ProductModalState] Produit ${product.$id} local, création who avec upsert...`,
         );
-        await upsertProduct(product.$id, { who: updatedWho }, (id) =>
+        await upsertProduct(product.$id, { who: newWhoList }, (id) =>
           productsStore.getEnrichedProductById(id),
         );
       } else {
         // Produit déjà sync : utiliser updateProductWho normal
         console.log(
-          `[ProductModalState] Produit ${product.$id} déjà sync, update normal...`,
+          `[ProductModalState] Produit ${product.$id} déjà sync, setWho normal...`,
         );
-        await updateProductWho(product.$id, updatedWho);
+        await updateProductWho(product.$id, newWhoList);
       }
-    }, "Volontaire ajouté");
-  }
-
-  async function removeVolunteer(name: string) {
-    if (!product) return;
-
-    if (!confirm(`Retirer ${name} ?`)) return;
-
-    await withLoading(async () => {
-      await updateProductWho(
-        product.$id,
-        whoList.filter((v) => v !== name),
-      );
-    }, "Volontaire retiré");
+    }, "Volontaires mis à jour");
   }
 
   async function updateStore(storeInfo: StoreInfo) {
@@ -493,8 +474,7 @@ export function createProductModalState(productId: string) {
     removePurchase,
     setStock,
     removeStock,
-    addVolunteer,
-    removeVolunteer,
+    setWho,
     updateStore,
     setOverride,
     removeOverride,

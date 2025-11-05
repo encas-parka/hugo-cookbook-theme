@@ -33,7 +33,7 @@ import {
   loadHugoEventData,
   createEnrichedProductsFromHugo,
 } from "../services/hugo-loader";
-import { createIDBCache, type IDBCache } from "../services/indexeddb-cache.ts";
+import { createIDBCache, type IDBCache } from "../services/indexeddb-cache";
 
 /**
  * ProductsStore - Store principal de gestion des produits avec Svelte 5

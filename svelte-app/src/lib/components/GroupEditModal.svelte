@@ -5,13 +5,16 @@
     UserPlus,
     X,
     Check,
-    AlertTriangle,
+    TriangleAlert,
+    Package,
   } from "@lucide/svelte";
   import {
     batchUpdateStore,
     batchUpdateWho,
   } from "../services/appwrite-interactions";
   import { productsStore } from "../stores/ProductsStore.svelte";
+  import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
+  import Suggestions from "./ui/Suggestions.svelte";
   import type {
     GroupEditModalProps,
     GroupEditFormData,
@@ -46,20 +49,36 @@
       products.length > 0 && editType === "who" && products[0].who
         ? [...products[0].who]
         : [],
-    whoMode: "replace",
   });
 
   // Computed properties
   const isStoreEdit = $derived(editType === "store");
   const isWhoEdit = $derived(editType === "who");
 
+  // Préparer les données pour BtnGroupCheck avec état de sélection
+  const badgeItems = $derived(
+    products.map((product) => ({
+      id: product.$id,
+      label: product.productName,
+      title: product.productName,
+      selected: currentSelection[product.$id],
+    })),
+  );
+
+  // Items actuellement sélectionnés (source de vérité unique)
+  const selectedBadgeItems = $derived(
+    badgeItems.filter((item) => item.selected),
+  );
+
   const title = $derived(
     isStoreEdit
-      ? `Attribuer un magasin (${products.length} produits)`
-      : `Gérer les volontaires (${products.length} produits)`,
+      ? `Attribuer un magasin (${selectedBadgeItems.length} produits sélectionnés)`
+      : `Gérer les volontaires (${selectedBadgeItems.length} produits sélectionnés)`,
   );
 
   const isFormValid = $derived.by(() => {
+    if (selectedBadgeItems.length === 0) return false;
+
     if (isStoreEdit) {
       return formData.storeName.trim().length > 0;
     }
@@ -75,11 +94,22 @@
   async function handleSubmit() {
     if (!isFormValid || loading) return;
 
-    loading = true;
+    // loading = true; // USELESS
     error = null;
     result = null;
 
     try {
+      // Extraire les données depuis selectedBadgeItems
+      const selectedProductIds = selectedBadgeItems.map((item) => item.id);
+      const selectedProducts = products.filter((p) =>
+        selectedProductIds.includes(p.$id),
+      );
+
+      // 🚀 UX IMMÉDIAT : Marquer les produits comme "isSyncing"
+      productsStore.setSyncStatus(selectedProductIds, true);
+      // ⚡ FERMER LE MODAL IMMÉDIATEMENT POUR UX
+      onClose();
+
       let updateResult: BatchUpdateResult;
 
       if (isStoreEdit) {
@@ -88,13 +118,17 @@
           storeComment: formData.storeComment.trim(),
         };
 
-        updateResult = await batchUpdateStore(productIds, products, storeInfo);
+        updateResult = await batchUpdateStore(
+          selectedProductIds,
+          selectedProducts,
+          storeInfo,
+        );
       } else if (isWhoEdit) {
         updateResult = await batchUpdateWho(
-          productIds,
-          products,
+          selectedProductIds,
+          selectedProducts,
           formData.whoNames,
-          formData.whoMode,
+          "replace", // Mode fixe à "replace"
         );
       } else {
         throw new Error("Type d'édition non supporté");
@@ -103,21 +137,23 @@
       result = updateResult;
 
       if (updateResult.success) {
+        console.log(
+          `[GroupEditModal] Mise à jour groupée réussie: ${updateResult.updatedCount} produits modifiés`,
+        );
+
         // Notifier le succès
         onSuccess?.(updateResult);
-
-        // Fermer le modal après un court délai pour montrer le succès
-        setTimeout(() => {
-          onClose();
-        }, 1500);
       } else {
-        error = updateResult.error || "Erreur lors de la mise à jour";
+        throw new Error(updateResult.error || "Erreur lors de la mise à jour");
       }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Erreur inconnue";
       error = errorMessage;
       console.error("[GroupEditModal] Erreur mise à jour:", err);
+
+      // 🔧 NETTOYAGE : Retirer le statut "isSyncing" en cas d'erreur
+      productsStore.clearSyncStatus();
     } finally {
       loading = false;
     }
@@ -126,10 +162,6 @@
   function handleClose() {
     if (loading) return; // Empêcher la fermeture pendant le chargement
     onClose();
-  }
-
-  function handleQuickSelectStore(store: string) {
-    formData.storeName = store;
   }
 
   function addWhoName(name: string) {
@@ -142,18 +174,21 @@
     formData.whoNames = formData.whoNames.filter((n) => n !== name);
   }
 
-  // Calculer les statistiques pour l'affichage
-  const currentStores = $derived.by(() => {
-    const stores = new Set(
-      products.map((p) => p.storeInfo?.storeName).filter(Boolean),
-    );
-    return Array.from(stores);
+  // État local pour suivre les sélections actuelles (synchronisé avec BtnGroupCheck)
+  let currentSelection = $state<Record<string, boolean>>({});
+
+  // Initialiser la sélection avec les productIds fournis
+  $effect(() => {
+    const newSelection: Record<string, boolean> = {};
+    products.forEach((product) => {
+      newSelection[product.$id] = productIds.includes(product.$id);
+    });
+    currentSelection = newSelection;
   });
 
-  const currentWhoCount = $derived.by(() => {
-    const allWho = products.flatMap((p) => p.who || []);
-    return new Set(allWho).size;
-  });
+  function handleToggleProduct(productId: string) {
+    currentSelection[productId] = !currentSelection[productId];
+  }
 </script>
 
 <div class="modal modal-open">
@@ -172,63 +207,22 @@
 
     <!-- Contenu -->
     <div class="py-6">
-      <!-- État actuel -->
-      <div class="bg-base-200 mb-6 rounded-lg p-4">
-        <h4 class="mb-2 font-medium">État actuel de ce groupe :</h4>
-        <div class="flex flex-wrap gap-4 text-sm">
-          {#if isStoreEdit}
-            <div class="flex items-center gap-2">
-              <Store class="h-4 w-4" />
-              <span>
-                {currentStores.length > 0
-                  ? `Magasins: ${currentStores.join(", ")}`
-                  : "Aucun magasin défini"}
-              </span>
-            </div>
-          {/if}
-
-          {#if isWhoEdit}
-            <div class="flex items-center gap-2">
-              <Users class="h-4 w-4" />
-              <span>Volontaires: {currentWhoCount} personne(s)</span>
-            </div>
-          {/if}
-
-          <div class="flex items-center gap-2">
-            <div class="bg-primary h-4 w-4 rounded-full" />
-            <span>{products.length} produit(s) concerné(s)</span>
-          </div>
-        </div>
-      </div>
-
       <!-- Erreur -->
       {#if error}
         <div class="alert alert-error mb-4">
-          <AlertTriangle class="h-4 w-4" />
+          <TriangleAlert class="h-4 w-4" />
           <span>{error}</span>
-        </div>
-      {/if}
-
-      <!-- Succès -->
-      {#if result?.success}
-        <div class="alert alert-success mb-4">
-          <Check class="h-4 w-4" />
-          <span>
-            {result.updatedCount} produit(s) mis à jour avec succès !
-          </span>
         </div>
       {/if}
 
       <!-- Formulaire Store -->
       {#if isStoreEdit}
         <div class="space-y-4">
-          <div>
-            <label class="label">
-              <span class="label-text">Nom du magasin</span>
-            </label>
+          <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
             <label class="input">
               <Store class="h-4 w-4 opacity-50" />
               <input
+                id="store-name-input"
                 type="text"
                 bind:value={formData.storeName}
                 placeholder="Nom du magasin"
@@ -237,25 +231,30 @@
                 disabled={loading}
               />
             </label>
-            <datalist id="stores">
-              {#each productsStore.uniqueStores as store}
-                <option value={store}>{store}</option>
-              {/each}
-            </datalist>
+            <!-- Suggestions de magasins -->
+            <Suggestions
+              suggestions={productsStore.uniqueStores.map((store) => ({
+                id: store,
+                label: store,
+                disabled: store === formData.storeName,
+              }))}
+              onSuggestionClick={(suggestion) => {
+                formData.storeName = suggestion.label;
+              }}
+              title="Suggestions de magasins :"
+            />
           </div>
 
           <div>
-            <label class="label">
-              <span class="label-text">Commentaire (optionnel)</span>
-            </label>
             <textarea
+              id="store-comment-textarea"
               class="textarea w-full"
               bind:value={formData.storeComment}
               placeholder="Commentaire sur le magasin..."
               rows="2"
               maxlength="250"
               disabled={loading}
-            />
+            ></textarea>
           </div>
         </div>
       {/if}
@@ -263,49 +262,13 @@
       <!-- Formulaire Who -->
       {#if isWhoEdit}
         <div class="space-y-4">
-          <!-- Mode d'application -->
-          <div>
-            <label class="label">
-              <span class="label-text">Mode d'application</span>
-            </label>
-            <div class="join">
-              <input
-                class="join-item btn btn-sm"
-                type="radio"
-                name="who-mode"
-                aria-label="Remplacer"
-                bind:group={formData.whoMode}
-                value="replace"
-                disabled={loading}
-              />
-              <input
-                class="join-item btn btn-sm"
-                type="radio"
-                name="who-mode"
-                aria-label="Ajouter"
-                bind:group={formData.whoMode}
-                value="add"
-                disabled={loading}
-              />
-            </div>
-            <div class="mt-1 text-xs opacity-70">
-              {formData.whoMode === "replace"
-                ? "Remplacera tous les volontaires existants"
-                : "Ajoutera aux volontaires existants"}
-            </div>
-          </div>
-
           <!-- Liste des volontaires -->
           <div>
-            <label class="label">
-              <span class="label-text">Volontaires</span>
-            </label>
-
             <!-- Ajout rapide -->
             <div class="flex gap-2">
               <input
                 type="text"
-                class="input input-sm flex-1"
+                class="input flex-1"
                 placeholder="Ajouter un volontaire..."
                 onkeydown={(e) => {
                   if (e.key === "Enter") {
@@ -317,7 +280,7 @@
                 disabled={loading}
               />
               <button
-                class="btn btn-sm btn-primary"
+                class="btn btn-square btn-primary"
                 onclick={(e) => {
                   const input = e.currentTarget
                     .previousElementSibling as HTMLInputElement;
@@ -335,7 +298,7 @@
               <div class="mt-2 flex flex-wrap gap-2">
                 {#each formData.whoNames as name (name)}
                   <div
-                    class="badge badge-primary badge-lg flex items-center gap-1"
+                    class="badge badge-primary badge-lg flex items-center gap-2"
                   >
                     <span>{name}</span>
                     <button
@@ -352,24 +315,31 @@
 
             <!-- Suggestions depuis les volontaires existants -->
             {#if productsStore.uniqueWho.length > 0}
-              <div class="mt-3">
-                <div class="mb-1 text-xs opacity-70">Suggestions :</div>
-                <div class="flex flex-wrap gap-1">
-                  {#each productsStore.uniqueWho.slice(0, 8) as who (who)}
-                    <button
-                      class="btn btn-xs btn-soft btn-outline"
-                      onclick={() => addWhoName(who)}
-                      disabled={loading || formData.whoNames.includes(who)}
-                    >
-                      {who}
-                    </button>
-                  {/each}
-                </div>
-              </div>
+              <Suggestions
+                suggestions={productsStore.uniqueWho.slice(0, 8).map((who) => ({
+                  id: who,
+                  label: who,
+                  disabled: formData.whoNames.includes(who),
+                }))}
+                onSuggestionClick={(suggestion) => addWhoName(suggestion.label)}
+                title="Suggestions :"
+              />
             {/if}
           </div>
         </div>
       {/if}
+
+      <!-- Liste des produits -->
+      <div class="my-4">
+        <h4 class="mb-3 font-medium">Produits concernés</h4>
+        <BtnGroupCheck
+          items={badgeItems}
+          onToggleItem={handleToggleProduct}
+          badgeSize="badge-md"
+          badgeStyle="badge-soft"
+          color="success"
+        />
+      </div>
     </div>
 
     <!-- Actions -->
@@ -388,7 +358,7 @@
           En cours...
         {:else}
           <Check class="h-4 w-4" />
-          Appliquer à {products.length} produit(s)
+          Appliquer à {selectedBadgeItems.length} produit(s)
         {/if}
       </button>
     </div>
