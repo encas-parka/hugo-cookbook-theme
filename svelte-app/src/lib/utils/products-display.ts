@@ -171,47 +171,16 @@ function getStatusIcon(status: string | null): string {
     case "requested":
       return "MessageCircleQuestionMark";
     case "ordered":
-      return "ShoppingCart";
+      return "ClipboardCheck";
     case "pending":
       return "Clock";
     case "delivered":
-      return "CircleCheck";
+      return "ShoppingCart";
     case "cancelled":
       return "CircleX";
+    case "inStock":
+      return "PackageCheck";
     default:
       return "Package";
   }
-}
-
-// Fonction pour afficher les achats avec statuts à partir des purchases bruts
-export function formatPurchasesWithStatus(purchases: any[]): string {
-  if (!purchases?.length) return "-";
-
-  // Grouper par statut
-  const totalByStatus = purchases.reduce((acc, purchase) => {
-    const status = purchase.status || "direct";
-    const key = `${status}_${purchase.unit || "unit"}`;
-
-    if (!acc[key]) {
-      const badge = getStatusBadge(status);
-      acc[key] = {
-        status,
-        unit: purchase.unit || "unit",
-        quantity: 0,
-        badge,
-      };
-    }
-
-    acc[key].quantity += purchase.quantity || 0;
-    return acc;
-  }, {});
-
-  // Formater l'affichage
-  return Object.values(totalByStatus)
-    .map((group: any) => {
-      const { quantity, unit, badge } = group;
-      const formattedQty = formatQuantity(quantity, unit);
-      return `${formattedQty} (${badge.text})`;
-    })
-    .join(" + ");
 }

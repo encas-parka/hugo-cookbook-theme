@@ -25,6 +25,8 @@
     Check,
     Receipt,
     PencilLine,
+    ClipboardCheck,
+    PackageCheck,
   } from "@lucide/svelte";
 
   // Store and global state
@@ -61,6 +63,8 @@
     Clock,
     CircleCheck,
     CircleX,
+    ClipboardCheck,
+    PackageCheck,
   };
 
   // Accès réactif aux valeurs dérivées du store
@@ -311,7 +315,11 @@
     </div>
     <!-- Filtres desktop -->
     <div class="hidden md:block">
-      <TimelineRange allDates={productsStore.allDates} />
+      <TimelineRange
+        availableDates={productsStore.availableDates}
+        currentRange={productsStore.dateRange}
+        onRangeChange={(start, end) => productsStore.setDateRange(start, end)}
+      />
 
       <!-- Filtres par type, température, magasin et qui -->
       <div class="mt-4 flex">
@@ -600,6 +608,7 @@
           {/if}
 
           <!-- Produits du groupe -->
+
           {#each sortEnrichedProducts(groupProducts, filters) as product (product.$id)}
             {@const totalNeeded = productsStore.getFormattedTotalNeeded(
               product.$id,
@@ -612,9 +621,10 @@
             <tr
               class="hover:bg-base-200/20 transition-colors {product.status ===
               'isSyncing'
-                ? 'animate-pulse border-l-4 border-l-blue-400 bg-blue-50/30'
+                ? 'animate-pulse border-l-4 border-l-blue-400 bg-blue-50/40'
                 : ''}"
             >
+              <!-- ======== Product Name ======== -->
               <td
                 class="group relative cursor-pointer rounded hover:inset-ring-2 hover:inset-ring-amber-400/50"
                 onclick={() => openModal(product.$id, "recettes")}
@@ -660,6 +670,7 @@
                 </div>
                 {@render editPenIcon()}
               </td>
+              <!-- ======== Store ======== -->
               <td
                 class="{filters.groupBy === 'store'
                   ? 'hidden'
@@ -682,6 +693,7 @@
                 {/if}
                 {@render editPenIcon()}
               </td>
+              <!-- ======== Who ======== -->
               <td
                 class="group relative cursor-pointer rounded hover:inset-ring-2 hover:inset-ring-amber-400/50"
                 onclick={() => openModal(product.$id, "volontaires")}
@@ -697,12 +709,14 @@
                 {/if}
                 {@render editPenIcon()}
               </td>
+              <!-- ======== Type ======== -->
               <td class={filters.groupBy === "productType" ? "hidden" : ""}>
                 <span class="flex items-center gap-2 text-center text-sm">
                   <typeInfo.icon class="h-3 w-3" />
                   {typeInfo.displayName}
                 </span>
               </td>
+              <!-- ======== Needs ======== -->
               <td
                 class="group relative cursor-pointer rounded hover:inset-ring-2 hover:inset-ring-amber-400/50"
                 onclick={() => openModal(product.$id, "recettes")}
@@ -726,6 +740,7 @@
                 {@render editPenIcon()}
               </td>
 
+              <!-- ======== Purchases ======== -->
               <td
                 class="group relative cursor-pointer rounded text-center font-medium hover:inset-ring-2 hover:inset-ring-amber-400/50"
                 onclick={() => openModal(product.$id, "achats")}
@@ -751,6 +766,7 @@
                 </div>
                 {@render editPenIcon()}
               </td>
+              <!-- ======== Missing ======== -->
               <td class="group relative text-center">
                 {#if product.displayMissingQuantity !== "✅ Complet"}
                   <div class="flex items-center justify-center gap-2">

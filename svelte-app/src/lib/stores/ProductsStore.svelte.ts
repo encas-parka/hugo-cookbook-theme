@@ -120,12 +120,14 @@ class ProductsStore {
   #error = $state<string | null>(null);
   #syncing = $state(false);
   #realtimeConnected = $state(false);
-  #allDates = $state<string[]>([]);
   #lastSync = $state<string | null>(null);
 
-  // Gestion de la plage de dates
-  startDate = $state<string | null>(null);
-  endDate = $state<string | null>(null);
+  // Gestion des dates
+  #availableDates = $state<string[]>([]);
+  dateRange = $state<{ start: string | null; end: string | null }>({
+    start: null,
+    end: null,
+  });
 
   // Cache keys
   // #cacheKey: string | null = null;
@@ -170,41 +172,77 @@ class ProductsStore {
     return this.#error;
   }
 
-  get allDates() {
-    return this.#allDates;
-  }
   get syncing() {
     return this.#syncing;
   }
 
-  setDateRange(start: string | null, end: string | null) {
-    this.startDate = start;
-    this.endDate = end;
+  // ====== Gestion des dates ======
+  //
+  get availableDates() {
+    return this.#availableDates;
+  }
+
+  /**
+   * Définit la plage de dates avec validation intelligente
+   * Détermine automatiquement quelle date est start/end en fonction de leur ordre chronologique
+   */
+  setDateRange(date1: string | null, date2: string | null) {
+    if (!date1 && !date2) {
+      this.dateRange = { start: null, end: null };
+      return;
+    }
+
+    if (!date1 || !date2) {
+      // Un seul cas, on l'utilise pour les deux
+      this.dateRange = { start: date1 || date2, end: date1 || date2 };
+      return;
+    }
+
+    // Déterminer automatiquement start/end selon l'ordre chronologique
+    const start = new Date(date1) <= new Date(date2) ? date1 : date2;
+    const end = new Date(date1) >= new Date(date2) ? date1 : date2;
+
+    this.dateRange = { start, end };
+  }
+
+  /**
+   * Vérifie si la plage de dates couvre toutes les dates disponibles
+   */
+  isFullRange() {
+    return (
+      this.dateRange.start === this.firstAvailableDate &&
+      this.dateRange.end === this.lastAvailableDate
+    );
   }
 
   /**
    * Initialise automatiquement la plage de dates si elle est vide
    */
   private initializeDateRange() {
-    if ((!this.startDate || !this.endDate) && this.#allDates.length > 0) {
-      const sortedDates = [...this.#allDates].sort();
-      this.startDate = sortedDates[0];
-      this.endDate = sortedDates[sortedDates.length - 1];
+    if (
+      (!this.dateRange.start || !this.dateRange.end) &&
+      this.#availableDates.length > 0
+    ) {
+      const sortedDates = [...this.#availableDates].sort();
+      this.dateRange = {
+        start: sortedDates[0],
+        end: sortedDates[sortedDates.length - 1],
+      };
     }
     console.log(
-      `[ProductsStore] Date range initialized: ${this.startDate} - ${this.endDate}`,
+      `[ProductsStore] Date range initialized: ${this.dateRange.start} - ${this.dateRange.end}`,
     );
   }
 
   // Bornes calculées (dérivées)
-  get firstDate() {
-    if (this.#allDates.length === 0) return null;
-    return [...this.#allDates].sort()[0];
+  get firstAvailableDate() {
+    if (this.#availableDates.length === 0) return null;
+    return [...this.#availableDates].sort()[0];
   }
 
-  get lastDate() {
-    if (this.#allDates.length === 0) return null;
-    return [...this.#allDates].sort().pop();
+  get lastAvailableDate() {
+    if (this.#availableDates.length === 0) return null;
+    return [...this.#availableDates].sort().pop();
   }
   get realtimeConnected() {
     return this.#realtimeConnected;
@@ -247,14 +285,15 @@ class ProductsStore {
   });
 
   // === Cache des totaux par plage de dates ===
-  // Ce cache se recalcule automatiquement quand startDate/endDate changent
+  // Ce cache se recalcule automatiquement quand dateRange.start/dateRange.end changent
 
   totalNeededByDateRange = $derived.by(() => {
     console.log("[Store] Recalcul totalNeededByDateRange");
 
     // 🎯 Si les dates couvrent toute la période disponible → utilisation normale
     const isFullRange =
-      this.startDate === this.firstDate && this.endDate === this.lastDate;
+      this.dateRange.start === this.firstAvailableDate &&
+      this.dateRange.end === this.lastAvailableDate;
 
     if (isFullRange) {
       console.log(
@@ -275,8 +314,8 @@ class ProductsStore {
         );
         const total = calculateTotalNeededInRange(
           neededConsolidated,
-          this.startDate,
-          this.endDate,
+          this.dateRange.start,
+          this.dateRange.end,
         );
         if (total.length > 0) {
           totalMap.set(product.$id, total);
@@ -428,7 +467,7 @@ class ProductsStore {
         });
 
         // Initialiser la plage de dates
-        this.#allDates = [...hugoData.allDates]; // Copie pour éviter les références croisées
+        this.#availableDates = [...hugoData.allDates]; // Copie pour éviter les références croisées
 
         const mainDocument = await loadMainEventData(mainId);
 
@@ -491,7 +530,7 @@ class ProductsStore {
       // Charger les métadonnées
       const metadata = await this.#idbCache.loadMetadata();
       this.#lastSync = metadata.lastSync;
-      this.#allDates = [...metadata.allDates]; // Copie pour éviter les références croisées
+      this.#availableDates = [...metadata.allDates]; // Copie pour éviter les références croisées
 
       console.log(
         `[ProductsStore] ${productsMap.size} produits chargés du cache IDB, lastSync: ${metadata.lastSync}`,
@@ -587,7 +626,7 @@ class ProductsStore {
       // Sauvegarder les métadonnées
       await this.#idbCache.saveMetadata({
         lastSync: this.#lastSync,
-        allDates: [...this.#allDates], // Copie simple pour éviter les problèmes de clonage
+        allDates: [...this.#availableDates], // Copie simple pour éviter les problèmes de clonage
       });
 
       console.log("[ProductsStore] Cache IDB persisté");
@@ -1364,12 +1403,13 @@ class ProductsStore {
    */
   getTotalAssiettesInRange(productId: string): number {
     const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDate || !this.startDate || !this.endDate) return 0;
+    if (!product?.byDate || !this.dateRange.start || !this.dateRange.end)
+      return 0;
 
     return calculateTotalAssiettesInRange(
       product.byDate,
-      this.startDate,
-      this.endDate,
+      this.dateRange.start,
+      this.dateRange.end,
     );
   }
 
@@ -1378,12 +1418,15 @@ class ProductsStore {
    */
   getRecipesInRange(productId: string): RecipeOccurrence[] {
     const product = this.#enrichedProducts.get(productId);
-    if (!product?.byDate || !this.startDate || !this.endDate) return [];
+    if (!product?.byDate || !this.dateRange.start || !this.dateRange.end)
+      return [];
 
     const datesInRange = Object.keys(product.byDate).filter((dateStr) => {
       const date = new Date(dateStr);
-      const startDate = this.startDate ? new Date(this.startDate) : null;
-      const endDate = this.endDate ? new Date(this.endDate) : null;
+      const startDate = this.dateRange.start
+        ? new Date(this.dateRange.start)
+        : null;
+      const endDate = this.dateRange.end ? new Date(this.dateRange.end) : null;
       return startDate && endDate && date >= startDate && date <= endDate;
     });
 
@@ -1401,7 +1444,7 @@ class ProductsStore {
 
   async clearCache() {
     this.#enrichedProducts.clear();
-    this.#allDates = [];
+    this.#availableDates = [];
     this.#lastSync = null;
     if (this.#idbCache) {
       await this.#idbCache.clear();

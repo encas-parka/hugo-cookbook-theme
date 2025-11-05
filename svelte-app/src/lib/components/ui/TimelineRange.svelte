@@ -1,35 +1,46 @@
 <script>
   import { Cloud, Sun, Moon } from "@lucide/svelte";
 
-  import { productsStore } from "../../stores/ProductsStore.svelte";
+  let {
+    availableDates = [],
+    currentRange = { start: null, end: null },
+    onRangeChange,
+  } = $props();
 
-  let { allDates = [] } = $props();
+  // availableDates est déjà trié (vient des données Hugo)
+  // Pas besoin d'un derived sortedDates redondant
 
-  const sortedDates = [...allDates].sort();
+  // État local pour interaction immédiate
+  let localStart = $state(currentRange.start);
+  let localEnd = $state(currentRange.end);
 
-  let firstAllDate = sortedDates[0];
-  let lastAllDate = sortedDates[sortedDates.length - 1];
-  let startDate = $state(firstAllDate);
-  let endDate = $state(lastAllDate);
+  // Synchronisation avec les props
+  $effect(() => {
+    localStart = currentRange.start;
+    localEnd = currentRange.end;
+  });
 
   function handleDateClick(clickedDate) {
-    if (startDate === clickedDate && endDate === clickedDate) {
+    if (localStart === clickedDate && localEnd === clickedDate) {
       selectAllDates();
-    } else if (new Date(clickedDate) < new Date(startDate)) {
-      startDate = clickedDate;
-    } else if (new Date(clickedDate) > new Date(endDate)) {
-      endDate = clickedDate;
+    } else if (new Date(clickedDate) < new Date(localStart)) {
+      localStart = clickedDate;
+    } else if (new Date(clickedDate) > new Date(localEnd)) {
+      localEnd = clickedDate;
     } else {
-      startDate = clickedDate;
-      endDate = clickedDate;
+      localStart = clickedDate;
+      localEnd = clickedDate;
     }
+
+    // Notifier le parent via le callback
+    onRangeChange(localStart, localEnd);
   }
 
   function getDateButtonClass(date) {
     // En mode "select", les dates dans la sélection courante sont btn-soft + btn-primary
     const isInCurrentSelection =
-      new Date(date) >= new Date(startDate) &&
-      new Date(date) <= new Date(endDate);
+      new Date(date) >= new Date(localStart) &&
+      new Date(date) <= new Date(localEnd);
     return isInCurrentSelection
       ? "btn-soft btn-primary"
       : "btn-dash btn-primary opacity-80";
@@ -53,13 +64,12 @@
   }
 
   function selectAllDates() {
-    startDate = firstAllDate;
-    endDate = lastAllDate;
-  }
+    if (availableDates.length === 0) return;
 
-  $effect(() => {
-    productsStore.setDateRange(startDate, endDate);
-  });
+    localStart = availableDates[0];
+    localEnd = availableDates[availableDates.length - 1];
+    onRangeChange(localStart, localEnd);
+  }
 </script>
 
 <div class="space-y-4">
@@ -70,7 +80,7 @@
         <span class="label-text">Dates incluses</span>
       </legend>
       <div class="flex flex-wrap gap-1">
-        {#each sortedDates as date, index (date)}
+        {#each availableDates as date, index (date)}
           <button
             class="btn btn-sm {getDateButtonClass(date)}"
             onclick={() => handleDateClick(date)}
