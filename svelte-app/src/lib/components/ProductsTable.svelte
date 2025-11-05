@@ -611,7 +611,7 @@
 
           <!-- Produits du groupe -->
 
-          {#each sortEnrichedProducts(groupProducts, filters) as product (product.$id)}
+          {#each sortEnrichedProducts(groupProducts || [], filters) as product (product.$id)}
             {@const stats = productsStore.productsStatsByDateRange.get(
               product.$id,
             ) || {

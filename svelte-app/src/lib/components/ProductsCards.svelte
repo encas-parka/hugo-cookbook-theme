@@ -15,11 +15,8 @@
   // utils
   import { sortEnrichedProducts } from "../utils/products-display";
 
-  const groupedFormattedProducts = $derived(
-    productsStore.groupedFormattedProducts,
-  );
+  const groupedProducts = $derived(productsStore.groupedFilteredProducts);
   const filters = $derived(productsStore.filters);
-  const filteredProducts = $derived(productsStore.filteredProducts);
 
   // Fonctions pour gérer les modaux
   function handleOpenProductModal(tab: string, productId: string) {

@@ -16,7 +16,7 @@ export type PurchaseStatus =
  * Optimisation : 1 seule itération pour calculer toutes les données
  */
 export interface ProductRangeStats {
-  /** Quantités nécessaires (calculées) */
+  /** Quantités nécessaires (calculées) - format court */
   quantities: NumericQuantity[];
   /** Quantités formatées pour affichage */
   formattedQuantities: string;
@@ -26,8 +26,8 @@ export interface ProductRangeStats {
   totalAssiettes: number;
 }
 
-/** Importé depuis appwrite.d.ts pour compléter */
-export type NumericQuantity = {
+/** Format long pour les formulaires et états */
+export type FormQuantity = {
   quantity: number;
   unit: string;
 };

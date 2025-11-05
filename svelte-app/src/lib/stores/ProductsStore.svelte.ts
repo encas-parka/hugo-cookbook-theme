@@ -401,15 +401,15 @@ class ProductsStore {
       // 3. Calcul DIRECT des assiettes (pas d'appel à getTotalAssiettesInRange)
       const totalAssiettes = calculateTotalAssiettesInRange(
         product.byDate,
-        this.dateRange.start,
-        this.dateRange.end,
+        this.dateRange.start!,
+        this.dateRange.end!,
       );
 
       // 4. Calcul DIRECT des recettes (pas d'appel à getRecipesInRange)
       const datesInRange = Object.keys(product.byDate).filter((dateStr) => {
         const date = new Date(dateStr);
-        const startDate = new Date(this.dateRange.start);
-        const endDate = new Date(this.dateRange.end);
+        const startDate = new Date(this.dateRange.start!); // Non-null assertion
+        const endDate = new Date(this.dateRange.end!); // Non-null assertion
         return date >= startDate && date <= endDate;
       });
 
