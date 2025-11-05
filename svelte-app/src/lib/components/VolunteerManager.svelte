@@ -10,46 +10,44 @@
 
   let { modalState }: Props = $props();
 
-  // État local pour le formulaire
-  let localVolunteerList = $state<string[]>([...modalState.whoList]);
+  // État local uniquement pour le nouveau volontaire
   let newVolunteerName = $state("");
+
+  // ✅ Utilisation directe de modalState.forms.who - état centralisé
 
   // Créer la liste des items pour BtnGroupCheck
   const volunteerItems = $derived.by(() => {
-    // Combiner uniqueWho et localVolunteerList, puis dédupliquer
+    // Combiner uniqueWho et forms.who, puis dédupliquer
     const allVolunteers = new Set([
       ...productsStore.uniqueWho,
-      ...localVolunteerList,
+      ...modalState.forms.who,
     ]);
 
     return Array.from(allVolunteers).map((who) => ({
       id: who,
       label: who,
-      selected: localVolunteerList.includes(who),
+      selected: modalState.forms.who.includes(who),
     }));
   });
 
-  // Validation : formulaire valide si la liste a changé
-  const isFormValid = $derived(
-    JSON.stringify([...localVolunteerList].sort()) !==
-      JSON.stringify([...modalState.whoList].sort()),
-  );
+  // Validation : utiliser le suivi des changements du modalState
+  const isFormValid = $derived(modalState?.hasChanges?.who || false);
 
   function handleAddVolunteer(name: string) {
     const trimmedName = name.trim();
-    if (trimmedName && !localVolunteerList.includes(trimmedName)) {
-      // Mutation sécurisée avec Svelte 5
-      localVolunteerList = [...localVolunteerList, trimmedName];
+    if (trimmedName && !modalState.forms.who.includes(trimmedName)) {
+      // Mutation sécurisée avec Svelte 5 - modification directe du state central
+      modalState.forms.who = [...modalState.forms.who, trimmedName];
     }
   }
 
   function handleRemoveVolunteer(volunteer: string) {
-    // Mutation sécurisée avec Svelte 5
-    localVolunteerList = localVolunteerList.filter((v) => v !== volunteer);
+    // Mutation sécurisée avec Svelte 5 - modification directe du state central
+    modalState.forms.who = modalState.forms.who.filter((v) => v !== volunteer);
   }
 
   function handleToggleVolunteer(volunteerId: string) {
-    if (localVolunteerList.includes(volunteerId)) {
+    if (modalState.forms.who.includes(volunteerId)) {
       handleRemoveVolunteer(volunteerId);
     } else {
       handleAddVolunteer(volunteerId);
@@ -60,12 +58,12 @@
   async function handleValidate() {
     if (!isFormValid || !modalState) return;
 
-    await modalState.setWho(localVolunteerList);
+    await modalState.setWho([...modalState.forms.who]);
   }
 
   // Annuler les modifications
   function handleCancel() {
-    localVolunteerList = [...modalState.whoList];
+    modalState.forms.who = [...modalState.whoList];
     newVolunteerName = "";
   }
 

@@ -38,6 +38,12 @@
   function handleTabClick(tab: string) {
     currentTab = tab;
   }
+
+  function saveAllAndClose() {
+    modalState.saveAllChanges().then(() => {
+      onClose();
+    });
+  }
 </script>
 
 <div class="modal modal-open">
@@ -112,13 +118,17 @@
 
         <button
           role="tab"
-          class="tab {currentTab === 'stock' ? 'tab-active' : ''}"
-          onclick={() => handleTabClick("stock")}
+          class="tab {currentTab === 'volontaires' ? 'tab-active' : ''}"
+          onclick={() => handleTabClick("volontaires")}
         >
-          <Archive class="mr-1 h-5 w-5" />
-          Stock
-          {#if modalState.stockParsed}
-            <span class="badge badge-sm badge-secondary ml-1">1</span>
+          <Users class="mr-1 h-5 w-5" />
+          Volontaires
+          {#if modalState.hasChanges?.who}
+            <div class="bg-warning ml-1 h-2 w-2 rounded-full"></div>
+          {:else if modalState.product?.who && modalState.product?.who.length > 0}
+            <span class="badge badge-sm badge-secondary ml-1"
+              >{modalState.product?.who.length}</span
+            >
           {:else}
             <span class="badge badge-sm badge-ghost ml-1">0</span>
           {/if}
@@ -126,15 +136,15 @@
 
         <button
           role="tab"
-          class="tab {currentTab === 'volontaires' ? 'tab-active' : ''}"
-          onclick={() => handleTabClick("volontaires")}
+          class="tab {currentTab === 'stock' ? 'tab-active' : ''}"
+          onclick={() => handleTabClick("stock")}
         >
-          <Users class="mr-1 h-5 w-5" />
-          Volontaires
-          {#if modalState.product?.who && modalState.product?.who.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1"
-              >{modalState.product?.who.length}</span
-            >
+          <Archive class="mr-1 h-5 w-5" />
+          Stock
+          {#if modalState.hasChanges?.stock}
+            <div class="bg-warning ml-1 h-2 w-2 rounded-full"></div>
+          {:else if modalState.stockParsed}
+            <span class="badge badge-sm badge-secondary ml-1">1</span>
           {:else}
             <span class="badge badge-sm badge-ghost ml-1">0</span>
           {/if}
@@ -147,6 +157,9 @@
         >
           <Store class="mr-1 h-5 w-5" />
           Magasin
+          {#if modalState.hasChanges?.store}
+            <div class="bg-warning ml-1 h-2 w-2 rounded-full"></div>
+          {/if}
         </button>
       </div>
 
@@ -178,7 +191,30 @@
 
       <!-- Footer -->
       <div class="modal-action">
-        <button class="btn btn-ghost" onclick={onClose}> Fermer </button>
+        {#if modalState?.hasAnyChanges}
+          <div class="text-warning flex items-center gap-2 text-sm">
+            <div class="bg-warning h-2 w-2 animate-pulse rounded-full"></div>
+            Modifications non sauvegardées
+          </div>
+          <button
+            class="btn btn-primary"
+            onclick={saveAllAndClose}
+            disabled={modalState.loading}
+          >
+            {#if modalState.loading}
+              <span class="loading loading-spinner loading-sm"></span>
+            {:else}
+              Tout enregistrer
+            {/if}
+          </button>
+        {/if}
+        <button class="btn btn-ghost" onclick={onClose}>
+          {#if modalState?.hasAnyChanges}
+            Annuler
+          {:else}
+            Fermer
+          {/if}
+        </button>
       </div>
     {/if}
   </div>

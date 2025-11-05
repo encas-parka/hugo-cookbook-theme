@@ -7,6 +7,7 @@ import {
   updatePurchase,
   upsertProduct,
   updateProduct,
+  updateProductBatch,
 } from "../services/appwrite-interactions";
 import { generateRecipesWithDates } from "../utils/productsUtils";
 import type { Purchases } from "../types/appwrite";
@@ -89,13 +90,21 @@ export function createProductModalState(productId: string) {
       name: null as string | null,
       comment: null as string | null,
     },
-    who: {
-      name: "",
-    },
+    who: [] as string[],
   });
 
   // Initialiser les formulaires une seule fois que le produit est dispo
   let initialized = $state(false);
+
+  // ─────────────────────────────────────────────────────────────
+  // SUIVI DES CHANGEMENTS - Snapshot des états originaux
+  // ─────────────────────────────────────────────────────────────
+  let originalFormsSnapshot = $state<{
+    purchase: typeof forms.purchase;
+    stock: typeof forms.stock;
+    store: typeof forms.store;
+    whoList: string[];
+  } | null>(null);
 
   $effect(() => {
     // S'assurer que le produit est disponible ET que ce n'est pas déjà initialisé
@@ -113,9 +122,65 @@ export function createProductModalState(productId: string) {
     forms.store.name = product.storeInfo?.storeName ?? "";
     forms.store.comment = product.storeInfo?.storeComment ?? null;
 
+    // Initialiser who avec les valeurs du produit
+    forms.who = product?.who ? [...product.who] : [];
+
+    // Faire un snapshot des états originaux APRÈS l'initialisation
+    originalFormsSnapshot = {
+      purchase: { ...forms.purchase },
+      stock: { ...forms.stock },
+      store: { ...forms.store },
+      who: [...forms.who],
+    };
+
     // Marquer comme initialisé pour ne plus jamais ré-exécuter
     initialized = true;
   });
+
+  // ─────────────────────────────────────────────────────────────
+  // DÉTECTION DES CHANGEMENTS
+  // ─────────────────────────────────────────────────────────────
+  const hasChanges = $derived(
+    originalFormsSnapshot
+      ? {
+          store:
+            JSON.stringify(forms.store) !==
+            JSON.stringify(originalFormsSnapshot.store),
+          stock: hasStockChanges(),
+          who:
+            JSON.stringify(forms.who) !==
+            JSON.stringify(originalFormsSnapshot.who),
+        }
+      : { store: false, stock: false, who: false },
+  );
+
+  // Fonction pour détecter si le stock a changé (logique réutilisée de StockManager)
+  function hasStockChanges(): boolean {
+    // Le formulaire doit être valide pour considérer les changements
+    const isFormValid =
+      forms.stock.quantity && forms.stock.quantity > 0 && forms.stock.unit;
+
+    if (!isFormValid) {
+      return false;
+    }
+
+    // S'il n'y a pas de stock existant, c'est un ajout
+    if (!stockParsed) {
+      return true;
+    }
+
+    // Comparer avec le stock existant
+    return (
+      forms.stock.quantity.toString() !== stockParsed.quantity ||
+      forms.stock.unit !== stockParsed.unit ||
+      (forms.stock.notes || "") !== (stockParsed.notes || "")
+    );
+  }
+
+  const hasAnyChanges = $derived(
+    originalFormsSnapshot &&
+      (hasChanges.store || hasChanges.stock || hasChanges.who),
+  );
 
   // ─────────────────────────────────────────────────────────────
   // ÉTAT D'ÉDITION - Tracking quel item est édité
@@ -429,6 +494,55 @@ export function createProductModalState(productId: string) {
     }, "Override supprimé");
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // SAUVEGARDE GLOBALE - Méthode batch
+  // ─────────────────────────────────────────────────────────────
+  async function saveAllChanges() {
+    if (!product || !hasAnyChanges) return;
+
+    await withLoading(async () => {
+      const batchUpdates: any = {};
+
+      // Collecter les changements
+      if (hasChanges.stock && forms.stock.quantity && forms.stock.unit) {
+        const newEntry = {
+          quantity: forms.stock.quantity.toString(),
+          unit: forms.stock.unit,
+          notes: forms.stock.notes,
+          dateTime: forms.stock.dateTime,
+        };
+        batchUpdates.stockReel = JSON.stringify(newEntry);
+      }
+
+      if (hasChanges.who) {
+        batchUpdates.who = forms.who;
+      }
+
+      if (hasChanges.store) {
+        const storeInfo: StoreInfo = {
+          storeName: forms.store.name || "",
+          storeComment: forms.store.comment || null,
+        };
+        batchUpdates.storeInfo = storeInfo;
+      }
+
+      // Utiliser la méthode batch pour tout mettre à jour en un appel
+      if (Object.keys(batchUpdates).length > 0) {
+        await updateProductBatch(product.$id, batchUpdates, (id) =>
+          productsStore.getEnrichedProductById(id),
+        );
+
+        // Mettre à jour le snapshot après sauvegarde
+        originalFormsSnapshot = {
+          purchase: { ...forms.purchase },
+          stock: { ...forms.stock },
+          store: { ...forms.store },
+          who: [...forms.who],
+        };
+      }
+    }, "Modifications enregistrées");
+  }
+
   return {
     // État UI
     get loading() {
@@ -478,6 +592,15 @@ export function createProductModalState(productId: string) {
     updateStore,
     setOverride,
     removeOverride,
+
+    // Sauvegarde globale et suivi des changements
+    saveAllChanges,
+    get hasChanges() {
+      return hasChanges;
+    },
+    get hasAnyChanges() {
+      return hasAnyChanges;
+    },
 
     // Utilitaires
     formatQuantity,

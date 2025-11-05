@@ -11,31 +11,20 @@
 
   let { modalState }: Props = $props();
 
+  // ✅ Utilisation directe de l'état centralisé - pas d'état local
   const storeForm = $derived(
     modalState?.forms?.store || { name: null, comment: null },
   );
-  // État local pour le formulaire
-  let storeName = $state(storeForm.name || "");
-  let storeComment = $state(storeForm.comment || "");
-
-  // Initialiser avec les les valeur de modalState.forms.store
-  $effect(() => {
-    storeName = storeForm.name || "";
-    storeComment = storeForm.comment || "";
-  });
 
   // Validation : formulaire valide si au moins une valeur a changé
-  const isFormValid = $derived(
-    storeName.trim() !== (storeForm.name || "") ||
-      storeComment.trim() !== (storeForm.comment || ""),
-  );
+  const isFormValid = $derived(modalState?.hasChanges?.store || false);
 
   async function handleUpdateStore() {
     if (!isFormValid) return;
 
     const storeInfo: StoreInfo = {
-      storeName: storeName.trim(),
-      storeComment: storeComment.trim(),
+      storeName: modalState.forms.store.name?.trim() || "",
+      storeComment: modalState.forms.store.comment?.trim() || null,
     };
 
     await modalState.updateStore(storeInfo);
@@ -56,7 +45,7 @@
             <Store class="h-4 w-4 opacity-50" />
             <input
               type="text"
-              bind:value={storeName}
+              bind:value={modalState.forms.store.name}
               placeholder="Nom du magasin"
               list="stores"
               maxlength="50"
@@ -74,10 +63,10 @@
               suggestions={productsStore.uniqueStores.map((store) => ({
                 id: store,
                 label: store,
-                disabled: store === storeName,
+                disabled: store === modalState.forms.store.name,
               }))}
               onSuggestionClick={(suggestion) => {
-                storeName = suggestion.label;
+                modalState.forms.store.name = suggestion.label;
               }}
               buttonVariant="btn-outline"
             />
@@ -86,7 +75,7 @@
 
         <textarea
           class="textarea flex w-full"
-          bind:value={storeComment}
+          bind:value={modalState.forms.store.comment}
           placeholder="Commentaire (optionnel)"
           rows="1"
           maxlength="250"
@@ -109,8 +98,8 @@
         <button
           class="btn btn-ghost btn-sm"
           onclick={() => {
-            storeName = "";
-            storeComment = "";
+            modalState.forms.store.name = "";
+            modalState.forms.store.comment = "";
           }}
           disabled={modalState.loading}
         >

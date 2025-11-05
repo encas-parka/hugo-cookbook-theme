@@ -589,6 +589,74 @@ export async function updateProductStock(
 }
 
 // =============================================================================
+// SERVICES BATCH UPDATE
+// =============================================================================
+
+interface ProductBatchUpdate {
+  stockReel?: string | null;
+  who?: string[] | null;
+  storeInfo?: StoreInfo | null;
+}
+
+/**
+ * Met à jour plusieurs champs d'un produit en un seul appel
+ * @param productId - ID du produit à mettre à jour
+ * @param updates - Champs à mettre à jour (stock, who, storeInfo)
+ * @param getEnrichedProduct - Fonction pour récupérer le produit enrichi localement
+ * @returns Promise<Products>
+ */
+export async function updateProductBatch(
+  productId: string,
+  updates: ProductBatchUpdate,
+  getEnrichedProduct: (productId: string) => any, // EnrichedProduct | null
+): Promise<Products> {
+  try {
+    // Récupérer le produit enrichi localement pour vérifier isSynced
+    const enrichedProduct = getEnrichedProduct(productId);
+    if (!enrichedProduct) {
+      throw new Error(
+        `Produit ${productId} non trouvé localement pour mise à jour batch`,
+      );
+    }
+
+    const productUpdates: ProductUpdate = {};
+
+    if (updates.stockReel !== undefined) {
+      productUpdates.stockReel = updates.stockReel;
+    }
+
+    if (updates.who !== undefined) {
+      productUpdates.who = updates.who;
+    }
+
+    if (updates.storeInfo !== undefined) {
+      productUpdates.store = JSON.stringify(updates.storeInfo);
+    }
+
+    // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit
+    if (!enrichedProduct.isSynced) {
+      // Produit local : utiliser upsertProduct pour créer sur Appwrite
+      console.log(
+        `[Appwrite Interactions] Produit ${productId} local, création batch avec upsert...`,
+      );
+      return await upsertProduct(productId, productUpdates, getEnrichedProduct);
+    } else {
+      // Produit déjà sync : utiliser updateProduct normal
+      console.log(
+        `[Appwrite Interactions] Produit ${productId} déjà sync, update batch normal...`,
+      );
+      return await updateProduct(productId, productUpdates);
+    }
+  } catch (error) {
+    console.error(
+      `[Appwrite Interactions] Erreur lors de la mise à jour batch du produit ${productId}:`,
+      error,
+    );
+    throw error;
+  }
+}
+
+// =============================================================================
 // SERVICES ACHATS
 // =============================================================================
 
