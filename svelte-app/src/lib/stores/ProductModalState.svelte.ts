@@ -22,7 +22,7 @@ import {
   formatQuantity,
   normalizeUnit,
 } from "../utils/products-display";
-import { userName } from "./GlobalState.svelte";
+import { globalState } from "./GlobalState.svelte";
 import { productsStore } from "./ProductsStore.svelte";
 
 /**
@@ -73,7 +73,7 @@ export function createProductModalState(productId: string) {
       quantity: null as number | null,
       unit: "",
       store: "",
-      who: userName() ?? "",
+      who: globalState.userName() ?? "",
       price: null as number | null,
       notes: "",
       status: null as string | null,
@@ -114,7 +114,7 @@ export function createProductModalState(productId: string) {
     forms.purchase.quantity = product.missingQuantityArray[0]?.q ?? null;
     forms.purchase.unit = product.totalNeededArray[0]?.u ?? "";
     forms.purchase.store = product.storeInfo?.storeName ?? "";
-    forms.purchase.who = userName() ?? "";
+    forms.purchase.who = globalState.userName() ?? "";
     forms.purchase.status = forms.purchase.status || "delivered";
 
     forms.stock.unit = product.totalNeededArray[0]?.u ?? "";
@@ -265,6 +265,15 @@ export function createProductModalState(productId: string) {
         );
       }
 
+      // Préparer les données du purchase avec gestion automatique de deliveryDate
+      const purchaseStatus = forms.purchase.status || "delivered";
+      let deliveryDate = forms.purchase.deliveryDate || null;
+
+      // 🎯 NOUVELLE LOGIQUE : Assigner automatiquement deliveryDate pour les achats livrés sans date
+      if (purchaseStatus === "delivered" && !deliveryDate) {
+        deliveryDate = new Date().toISOString(); // Conserve l'heure complète
+      }
+
       // Ensuite créer le purchase normalement
       await createPurchase({
         products: [product.$id],
@@ -275,9 +284,9 @@ export function createProductModalState(productId: string) {
         who: forms.purchase.who || null,
         notes: forms.purchase.notes || "",
         price: forms.purchase.price || null,
-        status: forms.purchase.status || "delivered",
+        status: purchaseStatus,
         orderDate: forms.purchase.orderDate || null,
-        deliveryDate: forms.purchase.deliveryDate || null,
+        deliveryDate,
       });
 
       // ✅ Reset local form, les données du produit se mettront à jour via le store
@@ -312,6 +321,15 @@ export function createProductModalState(productId: string) {
         updatedPurchase.unit,
       );
 
+      // Préparer les données avec gestion automatique de deliveryDate
+      const purchaseStatus = updatedPurchase.status || null;
+      let deliveryDate = updatedPurchase.deliveryDate || null;
+
+      // 🎯 NOUVELLE LOGIQUE : Assigner automatiquement deliveryDate pour les achats livrés sans date
+      if (purchaseStatus === "delivered" && !deliveryDate) {
+        deliveryDate = new Date().toISOString(); // Conserve l'heure complète
+      }
+
       await updatePurchase(updatedPurchase.$id, {
         unit,
         quantity,
@@ -319,9 +337,9 @@ export function createProductModalState(productId: string) {
         who: updatedPurchase.who || null,
         notes: updatedPurchase.notes || "",
         price: updatedPurchase.price || null,
-        status: updatedPurchase.status || null,
+        status: purchaseStatus,
         orderDate: updatedPurchase.orderDate || null,
-        deliveryDate: updatedPurchase.deliveryDate || null,
+        deliveryDate,
       });
 
       editingPurchaseId = null;

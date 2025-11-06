@@ -15,6 +15,8 @@ export interface GroupPurchaseInvoiceData {
   store?: string;
   notes?: string;
   who?: string;
+  purchaseStatus?: string | null; // Statut des achats groupés
+  purchaseDeliveryDate?: string | null; // Date de livraison pour les achats
 }
 
 export interface GroupPurchaseBatchData {
@@ -117,18 +119,27 @@ async function prepareBatchData(
     );
   }
 
+  // Préparer les données d'achat avec le statut et deliveryDate fournis
+  const purchaseStatus = invoiceData.purchaseStatus || "delivered";
+  let deliveryDate = invoiceData.purchaseDeliveryDate || null;
+
+  // 🎯 LOGIQUE : Assigner automatiquement deliveryDate pour les achats livrés sans date
+  if (purchaseStatus === "delivered" && !deliveryDate) {
+    deliveryDate = new Date().toISOString(); // Conserve l'heure complète
+  }
+
   const purchasesToCreate = productsBatch.flatMap((product) =>
     product.missingQuantities.map((quantity) => ({
       productId: product.productId,
       quantity: quantity.q,
       unit: quantity.u,
-      status: "delivered",
+      status: purchaseStatus,
       notes: invoiceData.notes || "",
       store: invoiceData.store || "",
       who: invoiceData.who || null,
       price: null,
       orderDate: null,
-      deliveryDate: null,
+      deliveryDate,
       createdBy: currentUserId,
     })),
   );
