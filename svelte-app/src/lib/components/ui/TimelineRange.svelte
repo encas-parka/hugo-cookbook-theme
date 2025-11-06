@@ -79,7 +79,7 @@
       <legend class="label">
         <span class="label-text">Dates incluses</span>
       </legend>
-      <div class="flex flex-wrap gap-1">
+      <div class="flex flex-wrap gap-1 mb-2">
         {#each availableDates as date, index (date)}
           <button
             class="btn btn-sm {getDateButtonClass(date)}"
@@ -95,14 +95,14 @@
             {/if}
           </button>
         {/each}
+      </div>
         <button
-          class="btn btn-sm btn-primary btn-outline ms-4"
+          class="btn btn-sm btn-primary btn-outline"
           type="button"
           onclick={() => selectAllDates()}
         >
           <span>Toutes les dates</span>
         </button>
-      </div>
     </fieldset>
   </div>
 </div>

@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from "svelte";
   import { productsStore } from "./lib/stores/ProductsStore.svelte";
   import { getMainIdFromUrl } from "./lib/utils/url-utils";
-  import ProductsTable from "./lib/components/ProductsTable.svelte";
+  import ProductsPage from "./lib/components/ProductsPage.svelte";
   import LoadingSpinner from "./lib/components/ui/LoadingSpinner.svelte";
   import ErrorAlert from "./lib/components/ui/ErrorAlert.svelte";
   import AuthErrorAlert from "./lib/components/ui/AuthErrorAlert.svelte";
@@ -143,7 +143,7 @@
 
     <!-- Liste des produits -->
     {#if productsStore.enrichedProducts.length > 0}
-      <ProductsTable />
+      <ProductsPage />
     {:else if !productsStore.loading && !initError}
       <div class="alert alert-info">
         <div>
