@@ -1,30 +1,29 @@
 <script lang="ts">
   import {
-    SquarePen,
-    ShoppingCart,
-    LayoutList,
-    Package,
-    MessageCircleQuestionMark,
-    Clock,
     CircleCheck,
     CircleX,
-    Receipt,
     ClipboardCheck,
+    Clock,
+    LayoutList,
+    MessageCircleQuestionMark,
+    Package,
     PackageCheck,
+    Receipt,
+    ShoppingCart,
+    SquarePen,
   } from "@lucide/svelte";
-
   // Store and global state
   import { productsStore } from "../stores/ProductsStore.svelte";
 
   // Components
-  import ProductModal from "./ProductModal.svelte";
-  import WhoBatchEditModal from "./WhoBatchEditModal.svelte";
-  import StoreBatchEditModal from "./StoreBatchEditModal.svelte";
-  import GroupPurchaseModal from "./GroupPurchaseModal.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
+  import GroupPurchaseModal from "./GroupPurchaseModal.svelte";
+  import ProductModal from "./ProductModal.svelte";
   import ProductsFilters from "./ProductsFilters.svelte";
   import ProductsTable from "./ProductsTable.svelte";
-
+  import ProductsCards from "./ProductsCards.svelte";
+  import StoreBatchEditModal from "./StoreBatchEditModal.svelte";
+  import WhoBatchEditModal from "./WhoBatchEditModal.svelte";
   // Services
   import {
     createQuickValidationPurchases,
@@ -50,10 +49,6 @@
     productsStore.groupedFilteredProducts,
   );
   const stats = $derived(productsStore.stats);
-  const uniqueStores = $derived(productsStore.uniqueStores);
-  const uniqueWho = $derived(productsStore.uniqueWho);
-  const uniqueProductTypes = $derived(productsStore.uniqueProductTypes);
-  const filters = $derived(productsStore.filters);
 
   // État local : quel produit a son modal ouvert, et sur quel onglet
   let openModalProductId = $state<string | null>(null);
@@ -199,15 +194,6 @@
   }
 </script>
 
-<!-- Snippet pour le bouton d'édition -->
-{#snippet editPenIcon()}
-  <div
-    class="absolute right-1 bottom-1 opacity-0 transition-opacity group-hover:opacity-100"
-  >
-    <SquarePen class="h-4 w-4 text-amber-600" />
-  </div>
-{/snippet}
-
 <div class="space-y-6 {globalState.isMobile ? '' : 'ml-80'}">
   <!-- Stats -->
   <div class="flex flex-wrap items-center gap-2">
@@ -230,7 +216,14 @@
     <ProductsFilters />
   </LeftPanel>
 
-  <ProductsTable
+  <!-- <ProductsTable
+    onOpenModal={openModal}
+    onOpenGroupEditModal={openGroupEditModal}
+    onOpenGroupPurchaseModal={openGroupPurchaseModal}
+    onQuickValidation={handleQuickValidation}
+  /> -->
+
+  <ProductsCards
     onOpenModal={openModal}
     onOpenGroupEditModal={openGroupEditModal}
     onOpenGroupPurchaseModal={openGroupPurchaseModal}
