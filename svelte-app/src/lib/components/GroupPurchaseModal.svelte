@@ -108,6 +108,9 @@
           formData.notes ||
           `Achat groupé pour ${activeProducts.length} produits`,
         who: formData.who.trim() || undefined,
+        // 🎯 NOUVEAUX : Passer le statut et la date de livraison des achats
+        purchaseStatus: formData.status || "delivered",
+        purchaseDeliveryDate: formData.deliveryDate || null,
       };
 
       console.log(
