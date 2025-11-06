@@ -15,6 +15,9 @@ import {
   hasConversions,
   calculateTotalAssiettesInRange,
   calculateTotalNeededInRange,
+  calculateAvailableAtDate,
+  subtractQuantities,
+  formatStockResult,
 } from "../utils/productsUtils";
 import type {
   EnrichedProduct,
@@ -173,6 +176,10 @@ class ProductsStore {
     return this.#error;
   }
 
+  get lastSync() {
+    return this.#lastSync;
+  }
+
   get syncing() {
     return this.#syncing;
   }
@@ -308,50 +315,8 @@ class ProductsStore {
     return filteredMap;
   });
 
-  totalNeededByDateRange = $derived.by(() => {
-    console.log("[Store] Recalcul totalNeededByDateRange (Map-optimized)");
-
-    // 🎯 Si les dates couvrent toute la période disponible → utilisation normale
-    const isFullRange =
-      this.dateRange.start === this.firstAvailableDate &&
-      this.dateRange.end === this.lastAvailableDate;
-
-    if (isFullRange) {
-      console.log(
-        "[Store] Full date range - using totalNeededArray (no calculation)",
-      );
-      // Itération sur la Map optimisée
-      const resultMap = new Map<string, NumericQuantity[]>();
-      for (const [id, product] of this.#enrichedProducts) {
-        resultMap.set(id, product.totalNeededArray);
-      }
-      return resultMap;
-    }
-
-    const totalMap = new Map<string, NumericQuantity[]>();
-
-    // Itération optimisée sur les produits déjà filtrés (Map → Map)
-    for (const [productId, product] of this.filteredProductsMap) {
-      if (product.byDate) {
-        // Calcul juste pour les produits pertinents
-        const neededConsolidated = buildNeededConsolidatedByDateArray(
-          product.byDate,
-        );
-        const total = calculateTotalNeededInRange(
-          neededConsolidated,
-          this.dateRange.start,
-          this.dateRange.end,
-        );
-        if (total.length > 0) {
-          totalMap.set(productId, total);
-        }
-      }
-    }
-    return totalMap;
-  });
-
   /**
-   * 🚀 OPTIMISATION UNIFIÉE - 1 itération pour tous les calculs
+   *
    * Statistiques complètes par produit pour la plage de dates courante
    * Map<productId, ProductRangeStats>
    *
@@ -370,11 +335,28 @@ class ProductsStore {
     if (isFullRange) {
       console.log("[Store] Full date range - using precomputed data");
       for (const [id, product] of this.#enrichedProducts) {
+        // 🎯 NOUVEAU : Calculer les disponibilités à la fin de la plage complète
+        const stockResult = calculateAvailableAtDate(
+          product,
+          this.dateRange.end!,
+        );
+        const availableQuantities = stockResult.filter((item) => item.q > 0);
+        const missingQuantities = stockResult
+          .filter((item) => item.q < 0)
+          .map((item) => ({ q: Math.abs(item.q), u: item.u }));
+
         statsMap.set(id, {
           quantities: product.totalNeededArray,
           formattedQuantities: formatTotalQuantity(product.totalNeededArray),
           nbRecipes: product.nbRecipes || 0,
           totalAssiettes: product.totalAssiettes || 0,
+          // NOUVEAUX
+          stockResult,
+          availableQuantities,
+          missingQuantities,
+          formattedAvailableQuantities: formatStockResult(stockResult),
+          hasAvailable: availableQuantities.length > 0,
+          hasMissing: missingQuantities.length > 0,
         });
       }
       return statsMap;
@@ -417,12 +399,29 @@ class ProductsStore {
         (date) => product.byDate![date]?.recipes || [],
       );
 
-      // 5. Stockage dans l'objet unifié
+      // 5. 🎯 NOUVEAU : Calculer les disponibilités à la fin de la plage
+      const stockResult = calculateAvailableAtDate(
+        product,
+        this.dateRange.end!,
+      );
+      const availableQuantities = stockResult.filter((item) => item.q > 0);
+      const missingQuantities = stockResult
+        .filter((item) => item.q < 0)
+        .map((item) => ({ q: Math.abs(item.q), u: item.u }));
+
+      // 6. Stockage dans l'objet unifié
       statsMap.set(productId, {
         quantities,
         formattedQuantities,
         nbRecipes: recipes.length,
         totalAssiettes,
+        // NOUVEAUX
+        stockResult,
+        availableQuantities,
+        missingQuantities,
+        formattedAvailableQuantities: formatStockResult(stockResult),
+        hasAvailable: availableQuantities.length > 0,
+        hasMissing: missingQuantities.length > 0,
       });
     }
 

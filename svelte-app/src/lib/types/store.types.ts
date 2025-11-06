@@ -24,6 +24,19 @@ export interface ProductRangeStats {
   nbRecipes: number;
   /** Total d'assiettes dans la plage */
   totalAssiettes: number;
+
+  /** Résultat brut du calcul de stock (positifs ET négatifs) */
+  stockResult: NumericQuantity[];
+  /** Quantités disponibles (uniquement positifs) */
+  availableQuantities: NumericQuantity[];
+  /** Quantités manquantes (valeurs absolues des négatifs) */
+  missingQuantities: NumericQuantity[];
+  /** Résultat formaté pour affichage */
+  formattedAvailableQuantities: string;
+  /** Indique si le produit a des quantités disponibles */
+  hasAvailable: boolean;
+  /** Indique si le produit a des quantités manquantes */
+  hasMissing: boolean;
 }
 
 /** Format long pour les formulaires et états */

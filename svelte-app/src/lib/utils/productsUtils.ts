@@ -352,3 +352,205 @@ export function calculateGlobalTotal(
   );
   return aggregateByUnit(allTotals);
 }
+
+// =============================================================================
+// ✅ NOUVEAUX : Utilitaires pour le calcul des disponibilités (endDate only)
+// =============================================================================
+
+/**
+ * Détermine si un achat est disponible à une date donnée selon les règles métier
+ * @param purchase - L'achat à évaluer
+ * @param targetDate - Date cible (format ISO)
+ * @param stockReferenceDate - Date de référence du stock (si applicable)
+ * @returns true si l'achat est disponible à cette date
+ */
+export function isPurchaseAvailable(
+  purchase: any,
+  targetDate: string,
+  stockReferenceDate: string = "",
+): boolean {
+  // Annulé = jamais compté
+  if (purchase.status === "cancelled") return false;
+
+  // Date de référence (deliveryDate ou $createdAt pour les delivered sans deliveryDate)
+  const referenceDate = purchase.deliveryDate || purchase.$createdAt;
+  if (!referenceDate) return false;
+
+  // Si la référence est après notre date = pas encore disponible
+  if (referenceDate > targetDate) return false;
+
+  // Si le stock est postérieur à l'achat = l'achat est inclus dans le stock
+  if (stockReferenceDate && purchase.$createdAt < stockReferenceDate) {
+    return false;
+  }
+
+  // Status rules
+  return (
+    purchase.status === "delivered" ||
+    purchase.status === "pending" ||
+    (purchase.status === "ordered" && referenceDate <= targetDate)
+  );
+}
+
+/**
+ * Calcule les quantités disponibles pour un produit à une date donnée
+ * @param product - Produit enrichi avec achats, besoins et stock
+ * @param targetDate - Date cible (format ISO)
+ * @returns NumericQuantity[] des quantités disponibles
+ */
+export function calculateAvailableAtDate(
+  product: any,
+  targetDate: string,
+): NumericQuantity[] {
+  // 1. Stock de base (si disponible et antérieur à la date)
+  let baseStock: NumericQuantity[] = [];
+  let stockReferenceDate = "";
+
+  if (
+    product.stockParsed?.dateTime &&
+    product.stockParsed.dateTime <= targetDate
+  ) {
+    baseStock = [
+      {
+        q: parseFloat(product.stockParsed.quantity),
+        u: product.stockParsed.unit,
+      },
+    ];
+    stockReferenceDate = product.stockParsed.dateTime;
+  }
+
+  // 2. Ajouter les achats disponibles (en tenant compte de la priorité du stock)
+  const additionalPurchases: NumericQuantity[] = [];
+
+  if (product.purchases) {
+    for (const purchase of product.purchases) {
+      if (isPurchaseAvailable(purchase, targetDate, stockReferenceDate)) {
+        additionalPurchases.push({
+          q: purchase.quantity,
+          u: purchase.unit,
+        });
+      }
+    }
+  }
+
+  // 3. Besoins cumulés jusqu'à cette date
+  const cumulativeNeeded = calculateCumulativeNeeds(product, targetDate);
+
+  // 4. Calcul final avec gestion des unités
+  const allResources = [...baseStock, ...additionalPurchases];
+  const totalResources = aggregateByUnit(allResources);
+
+  // Soustraction des besoins (unité par unité)
+  return subtractQuantities(totalResources, cumulativeNeeded);
+}
+
+/**
+ * Calcule les besoins cumulés d'un produit jusqu'à une date donnée
+ * @param product - Produit enrichi
+ * @param targetDate - Date cible (format ISO)
+ * @returns NumericQuantity[] des besoins cumulés
+ */
+export function calculateCumulativeNeeds(
+  product: any,
+  targetDate: string,
+): NumericQuantity[] {
+  if (!product.byDate) return [];
+
+  const cumulativeQuantities: NumericQuantity[] = [];
+
+  for (const [dateStr, entry] of Object.entries(product.byDate)) {
+    if (dateStr <= targetDate) {
+      const byDateEntry = entry as any;
+      const neededConsolidated =
+        byDateEntry.totalConsolidated as NumericQuantity[];
+      if (neededConsolidated) {
+        cumulativeQuantities.push(...neededConsolidated);
+      }
+    }
+  }
+
+  return aggregateByUnit(cumulativeQuantities);
+}
+
+/**
+ * Soustrait deux tableaux de NumericQuantity et retourne les résultats bruts
+ * @param resources - Quantités disponibles
+ * @param needs - Quantités nécessaires
+ * @returns NumericQuantity[] avec valeurs positives (surplus) et négatives (manquants)
+ */
+export function subtractQuantities(
+  resources: NumericQuantity[],
+  needs: NumericQuantity[],
+): NumericQuantity[] {
+  const resourceMap = new Map<string, number>();
+  const needMap = new Map<string, number>();
+
+  // Agréger les ressources par unité
+  resources.forEach(({ q, u }) => {
+    resourceMap.set(u, (resourceMap.get(u) || 0) + q);
+  });
+
+  // Agréger les besoins par unité
+  needs.forEach(({ q, u }) => {
+    needMap.set(u, (needMap.get(u) || 0) + q);
+  });
+
+  // Calculer la différence avec conservation du signe
+  const result: NumericQuantity[] = [];
+  const allUnits = new Set([...resourceMap.keys(), ...needMap.keys()]);
+
+  for (const unit of allUnits) {
+    const resourceQty = resourceMap.get(unit) || 0;
+    const needQty = needMap.get(unit) || 0;
+    const diff = resourceQty - needQty;
+
+    // Garder les valeurs non nulles (positives ET négatives)
+    if (Math.abs(diff) > 0.001) {
+      // Éviter les problèmes de flottants
+      result.push({ q: diff, u: unit });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Formate le résultat du calcul de stock pour l'affichage
+ * @param result - NumericQuantity[] avec valeurs positives et négatives
+ * @returns string formatée pour l'affichage
+ */
+export function formatStockResult(result: NumericQuantity[]): string {
+  if (!result?.length) return "Équilibré";
+
+  const positives = result.filter((item) => item.q > 0);
+  const negatives = result.filter((item) => item.q < 0);
+
+  if (positives.length > 0 && negatives.length > 0) {
+    // Cas unités différentes : "2kg disponibles, 1L manquant"
+    const surplusStr = positives
+      .map((item) => formatSingleQuantity(item.q.toString(), item.u))
+      .join(" et ");
+    const missingStr = negatives
+      .map((item) => formatSingleQuantity(Math.abs(item.q).toString(), item.u))
+      .join(" et ");
+    return `${surplusStr} disponibles, ${missingStr} manquant${negatives.length > 1 ? "s" : ""}`;
+  } else if (positives.length > 0) {
+    // Uniquement des surplus
+    return (
+      positives
+        .map((item) => formatSingleQuantity(item.q.toString(), item.u))
+        .join(" et ") + " disponibles"
+    );
+  } else if (negatives.length > 0) {
+    // Uniquement des manquants
+    return (
+      negatives
+        .map((item) =>
+          formatSingleQuantity(Math.abs(item.q).toString(), item.u),
+        )
+        .join(" et ") + ` manquant${negatives.length > 1 ? "s" : ""}`
+    );
+  } else {
+    return "Équilibré";
+  }
+}
