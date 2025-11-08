@@ -1,26 +1,28 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { MediaQuery } from 'svelte/reactivity';
-  import { FunnelIcon, X } from '@lucide/svelte';
+  import { MediaQuery } from "svelte/reactivity";
+  import { FunnelIcon, X } from "@lucide/svelte";
 
-  const isDesktop = new MediaQuery('min-width: 768px')
+  const isDesktop = new MediaQuery("min-width: 768px");
 
   let filtersDrawerOpen = $state(false);
 
   interface Props {
-    children?: Snippet
+    children?: Snippet;
+    bgClass?: string;
+    width?: string;
   }
-  let {children}: Props = $props();
+  let { children, width = "80", bgClass = "bg-base-300" }: Props = $props();
+</script>
 
-  </script>
-
-  {#if isDesktop.current}
+{#if isDesktop.current}
   <!-- Conteneur fixe à gauche avec overflow -->
-  <div class="fixed left-0 top-0 h-screen w-80 overflow-y-auto bg-base-200 border-r border-base-300 z-40 p-4">
-
+  <div
+    class="{bgClass} w-{width} fixed top-0 left-0 z-40 h-screen overflow-y-auto p-4"
+  >
     {@render children?.()}
   </div>
-  {:else}
+{:else}
   <div class="drawer">
     <input
       id="filters-drawer"
@@ -32,17 +34,19 @@
     <div class="drawer-side">
       <label for="filters-drawer" class="drawer-overlay"></label>
 
-      <div class="menu bg-base-200 min-h-full w-80 p-4">
+      <div class="menu bg-base-200 min-h-full w-screen p-4">
         {@render children?.()}
-
       </div>
     </div>
   </div>
 
   <!-- FAB flottant pour mobile -->
   <div class="fixed bottom-4 left-4 z-50">
-    <label for="filters-drawer" class="btn btn-primary btn-circle btn-lg shadow-lg">
-      <FunnelIcon class="w-6 h-6" />
+    <label
+      for="filters-drawer"
+      class="btn btn-primary btn-circle btn-lg shadow-lg"
+    >
+      <FunnelIcon class="h-6 w-6" />
     </label>
   </div>
-  {/if}
+{/if}

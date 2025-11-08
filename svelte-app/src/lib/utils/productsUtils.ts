@@ -538,7 +538,7 @@ export function formatStockResult(result: NumericQuantity[]): string {
     // Uniquement des surplus
     return (
       positives
-        .map((item) => formatSingleQuantity(item.q.toString(), item.u))
+        .map((item) => "+" + formatSingleQuantity(item.q.toString(), item.u))
         .join(" et ") + " disponibles"
     );
   } else if (negatives.length > 0) {

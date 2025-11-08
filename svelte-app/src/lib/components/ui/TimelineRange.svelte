@@ -14,6 +14,12 @@
   let localStart = $state(currentRange.start);
   let localEnd = $state(currentRange.end);
 
+  const isAllDatesSelected = $derived(
+    availableDates.length > 0 &&
+      localStart === availableDates[0] &&
+      localEnd === availableDates[availableDates.length - 1],
+  );
+
   // Synchronisation avec les props
   $effect(() => {
     localStart = currentRange.start;
@@ -42,8 +48,8 @@
       new Date(date) >= new Date(localStart) &&
       new Date(date) <= new Date(localEnd);
     return isInCurrentSelection
-      ? "btn-soft btn-primary"
-      : "btn-dash btn-primary opacity-80";
+      ? "btn-soft btn-secondary"
+      : "btn-dash btn-secondary opacity-80";
   }
 
   function formatDate(dateStr) {
@@ -72,37 +78,35 @@
   }
 </script>
 
-<div class="space-y-4">
-  <!-- Date selection for desktop (appears below join inputs in select mode) -->
-  <div class="space-y-2">
-    <fieldset>
-      <legend class="label">
-        <span class="label-text">Dates incluses</span>
-      </legend>
-      <div class="flex flex-wrap gap-1 mb-2">
-        {#each availableDates as date, index (date)}
-          <button
-            class="btn btn-sm {getDateButtonClass(date)}"
-            onclick={() => handleDateClick(date)}
-          >
-            <span>{formatDate(date)}</span>
-            {#if getTimeIcon(date) === "sun"}
-              <Sun size={16} />
-            {:else if getTimeIcon(date) === "moon"}
-              <Moon size={16} />
-            {:else if getTimeIcon(date) === "cloud"}
-              <Cloud size={16} />
-            {/if}
-          </button>
-        {/each}
-      </div>
-        <button
-          class="btn btn-sm btn-primary btn-outline"
-          type="button"
-          onclick={() => selectAllDates()}
-        >
-          <span>Toutes les dates</span>
-        </button>
-    </fieldset>
-  </div>
+<div class=" flex flex-wrap gap-1">
+  {#each availableDates as date, index (date)}
+    <button
+      class="btn btn-sm {getDateButtonClass(date)}"
+      onclick={() => handleDateClick(date)}
+    >
+      <span>{formatDate(date)}</span>
+      {#if getTimeIcon(date) === "sun"}
+        <Sun size={16} />
+      {:else if getTimeIcon(date) === "moon"}
+        <Moon size={16} />
+      {:else if getTimeIcon(date) === "cloud"}
+        <Cloud size={16} />
+      {/if}
+    </button>
+  {/each}
 </div>
+{#if !isAllDatesSelected}
+  <div class="flex justify-end">
+    <button
+      class="btn btn-xs btn-link text-primary/80"
+      type="button"
+      onclick={() => selectAllDates()}
+    >
+      Toutes les dates
+    </button>
+  </div>
+{:else}
+  <div class="text-base-content/60 p-1 text-end text-xs italic">
+    toutes les dates sont incluses
+  </div>
+{/if}

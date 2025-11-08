@@ -29,7 +29,14 @@
     CircleX,
     ClipboardCheck,
     PackageCheck,
+    Pencil,
+    Plus,
+    MessageCircle,
+    MessageCircleMore,
+    PlusCircle,
+    CirclePlus,
   } from "@lucide/svelte";
+  import Tooltip from "./ui/Tooltip.svelte";
 
   // Récupérer les icônes de statut depuis le parent pour éviter la duplication
   const statusIcons = {
@@ -68,83 +75,79 @@
 </script>
 
 <!-- Vue en cartes pour mobile et desktop -->
-<div class="bg-base-100 space-y-4 rounded-lg">
+<div class="space-y-4 rounded-lg">
   {#each Object.entries(groupedFilteredProducts) as [groupKey, groupProducts] (groupKey)}
     {#if groupKey !== ""}
       <!-- Header de groupe sticky -->
       {@const groupTypeInfo = getProductTypeInfo(groupKey)}
-      <div class="bg-base-200 sticky top-0 z-10 rounded-lg font-semibold">
-        <div class="p-4">
-          <div class="flex items-center justify-between">
-            <!-- Nom du groupe -->
-            <div class="flex items-center gap-2">
-              {#if filters.groupBy === "store"}
-                🏪 {groupKey} ({groupProducts!.length})
-              {:else if filters.groupBy === "productType"}
-                <div class="flex items-center gap-2">
-                  <groupTypeInfo.icon class="h-4 w-4" />
-                  <span>{groupTypeInfo.displayName}</span>
-                  <span class="text-sm opacity-70"
-                    >({groupProducts!.length})</span
-                  >
-                </div>
-              {:else}
-                📦 {groupKey} ({groupProducts!.length})
-              {/if}
+      <div
+        class="bg-neutral sticky top-0 z-10 flex items-center justify-between rounded-lg px-4 py-2 font-semibold shadow-lg"
+      >
+        <!-- Nom du groupe -->
+        <div class="flex min-w-48 items-center gap-2">
+          {#if filters.groupBy === "store"}
+            🏪 {groupKey} ({groupProducts!.length})
+          {:else if filters.groupBy === "productType"}
+            <div class="text-neutral-content flex items-center gap-2">
+              <groupTypeInfo.icon class="h-4 w-4" />
+              <span>{groupTypeInfo.displayName}</span>
+              <span class="text-sm opacity-70">({groupProducts!.length})</span>
             </div>
+          {:else}
+            📦 {groupKey} ({groupProducts!.length})
+          {/if}
+        </div>
 
-            <!-- Actions groupées -->
-            <div class="flex items-center gap-2">
-              <button
-                class="btn btn-sm btn-primary btn-soft"
-                onclick={() =>
-                  onOpenGroupEditModal(
-                    "store",
-                    groupProducts!.map((p) => p.$id),
-                    groupProducts!,
-                  )}
-                title="Attribuer un magasin à tous les produits de ce groupe"
-              >
-                <Store size={16} />
-                Magasin
-                <SquarePen size={16} />
-              </button>
+        <!-- Actions groupées -->
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <button
+            class="btn btn-sm btn-primary btn-soft"
+            onclick={() =>
+              onOpenGroupEditModal(
+                "store",
+                groupProducts!.map((p) => p.$id),
+                groupProducts!,
+              )}
+            title="Attribuer un magasin à tous les produits de ce groupe"
+          >
+            <Store size={16} />
+            Magasin
+            <SquarePen size={16} />
+          </button>
 
-              <button
-                class="btn btn-sm btn-info btn-soft"
-                onclick={() =>
-                  onOpenGroupEditModal(
-                    "who",
-                    groupProducts!.map((p) => p.$id),
-                    groupProducts!,
-                  )}
-                title="Gérer les volontaires pour tous les produits de ce groupe"
-              >
-                <Users size={16} />
-                Volontaires
-                <SquarePen size={16} />
-              </button>
+          <button
+            class="btn btn-sm btn-primary btn-soft"
+            onclick={() =>
+              onOpenGroupEditModal(
+                "who",
+                groupProducts!.map((p) => p.$id),
+                groupProducts!,
+              )}
+            title="Gérer les volontaires pour tous les produits de ce groupe"
+          >
+            <Users size={16} />
+            Volontaires
+            <SquarePen size={16} />
+          </button>
 
-              <!-- Bouton validation groupée -->
-              {#if groupProducts!.some((p) => p.displayMissingQuantity !== "✅ Complet")}
-                <button
-                  class="btn btn-sm btn-success btn-soft"
-                  onclick={() => onOpenGroupPurchaseModal(groupProducts!)}
-                  title="Ouvrir le modal d'achat groupé"
-                >
-                  <ShoppingCart size={16} />
-                  Achat groupé
-                  <CircleCheckBig size={16} />
-                </button>
-              {/if}
-            </div>
-          </div>
+          <!-- Bouton validation groupée -->
+          {#if groupProducts!.some((p) => p.displayMissingQuantity !== "✅ Complet")}
+            <button
+              class="btn btn-sm btn-primary btn-soft"
+              onclick={() => onOpenGroupPurchaseModal(groupProducts!)}
+              title="Ouvrir le modal d'achat groupé"
+            >
+              <ShoppingCart size={16} />
+              Achat groupé
+              <CircleCheckBig size={16} />
+            </button>
+          {/if}
         </div>
       </div>
     {/if}
 
     <!-- Cards des produits du groupe -->
-    <div class="space-y-3">
+    <div class="space-y-1">
       {#each sortEnrichedProducts(groupProducts || [], filters) as product (product.$id)}
         {@const stats = productsStore.productsStatsByDateRange.get(
           product.$id,
@@ -167,289 +170,258 @@
 
         <!-- Card du produit -->
         <div
-          class="card bg-base-100 border-base-300 border shadow-sm transition-shadow hover:shadow-md {product.status ===
+          class="card bg-base-100 border-base-300 {product.status ===
           'isSyncing'
-            ? 'animate-pulse border-l-4 border-l-blue-400 bg-blue-50/40'
+            ? 'animate-pulse border-l-4 border-l-blue-500 bg-blue-50/40'
             : ''}"
         >
-          <div class="card-body px-1 py-2">
-            <!-- Layout horizontal en 3 sections -->
-            <div class="flex flex-col gap-4 lg:flex-row">
-              <!-- Section gauche: Identité -->
-              <div class="flex-1 lg:w-64 lg:flex-initial">
+          <div class="card-body p-2">
+            <!-- Première ligne: Titre/Type à gauche, Store/Who à droite -->
+            <div class="flex items-center justify-between">
+              <!-- Section gauche: Titre & Type (prend la place disponible) -->
+              <div
+                class="jus flex flex-1 cursor-pointer gap-4"
+                role="button"
+                tabindex="0"
+                onclick={() => onOpenModal(product.$id, "recettes")}
+                onkeydown={(e) =>
+                  e.key === "Enter" && onOpenModal(product.$id, "recettes")}
+              >
+                <!-- Nom du produit & type -->
                 <div
-                  class="hover:bg-base-50 cursor-pointer rounded p-2 transition-colors"
-                  role="button"
-                  tabindex="0"
-                  onclick={() => onOpenModal(product.$id, "recettes")}
-                  onkeydown={(e) =>
-                    e.key === "Enter" && onOpenModal(product.$id, "recettes")}
+                  class="ms-4 flex items-center gap-2 text-base font-semibold"
                 >
-                  <!-- Header avec statut de synchronisation -->
-                  <div class="mb-2 flex items-center gap-2">
-                    {#if product.status === "isSyncing"}
-                      <div
-                        class="flex items-center gap-1 text-blue-600"
-                        title="Synchronisation en cours..."
-                      >
-                        <LoaderCircle class="h-4 w-4 animate-spin" />
-                      </div>
-                    {/if}
-
-                    <div class="flex gap-1">
-                      {#if product.pFrais}
-                        <div
-                          class="bg-success/20 flex h-6 w-6 items-center justify-center rounded-full"
-                          title="Produit frais"
-                        >
-                          <ShoppingBasket class="text-success h-3 w-3" />
-                        </div>
-                      {/if}
-                      {#if product.pSurgel}
-                        <div
-                          class="bg-info/20 flex h-6 w-6 items-center justify-center rounded-full"
-                          title="Produit surgelé"
-                        >
-                          <Snowflake class="text-info h-3 w-3" />
-                        </div>
-                      {/if}
+                  <typeInfo.icon
+                    class="text-base-content/80 h-4 w-4"
+                  />{product.productName}
+                  {#if product.previousNames && product.previousNames.length > 0}
+                    <div class="text-base-content/60 text-sm font-normal">
+                      Ancien: {product.previousNames[0]}
                     </div>
-                  </div>
-
-                  <!-- Nom du produit -->
-                  <h3 class="mb-1 text-lg font-semibold">
-                    {product.productName}
-                    {#if product.previousNames && product.previousNames.length > 0}
-                      <div class="text-base-content/60 text-sm font-normal">
-                        Ancien: {product.previousNames[0]}
-                      </div>
-                    {/if}
-                  </h3>
-
-                  <!-- Type de produit -->
-                  <div
-                    class="text-base-content/70 flex items-center gap-1 text-sm"
-                  >
-                    <typeInfo.icon class="h-3 w-3" />
-                    {typeInfo.displayName}
-                  </div>
+                  {/if}
                 </div>
+                <!-- icone and sync spinner -->
+
+                <div class="flex gap-1">
+                  {#if product.pFrais}
+                    <div
+                      class="bg-success/20 flex h-6 w-6 items-center justify-center rounded-full"
+                      title="Produit frais"
+                    >
+                      <ShoppingBasket class="text-success h-4 w-4" />
+                    </div>
+                  {/if}
+                  {#if product.pSurgel}
+                    <div
+                      class="bg-info/20 flex h-6 w-6 items-center justify-center rounded-full"
+                      title="Produit surgelé"
+                    >
+                      <Snowflake class="text-info h-4 w-4" />
+                    </div>
+                  {/if}
+                </div>
+                {#if product.status === "isSyncing"}
+                  <div
+                    class="flex items-center gap-1 text-blue-600"
+                    title="Synchronisation en cours..."
+                  >
+                    <LoaderCircle class="h-4 w-4 animate-spin" />
+                  </div>
+                {/if}
               </div>
 
-              <!-- Section centrale: Store + Who (verticalement) -->
-              <div class="flex-1 space-y-2 lg:w-48 lg:flex-initial">
+              <!-- Section droite: Store & Who (horizontal, wrap) -->
+              <div class="ml-4 flex gap-2">
                 <!-- Store -->
-                <div class="group relative">
-                  <div class="flex items-center gap-2">
-                    <div
-                      class="hover:bg-base-200 flex-1 cursor-pointer rounded p-2 transition-colors"
-                      role="button"
-                      tabindex="0"
-                      onclick={() => onOpenModal(product.$id, "magasins")}
-                      onkeydown={(e) =>
-                        e.key === "Enter" &&
-                        onOpenModal(product.$id, "magasins")}
-                    >
-                      <div class="flex items-center gap-2 text-sm">
-                        <Store class="text-base-content/50 h-4 w-4" />
-                        <span class="font-medium">Magasin:</span>
-                      </div>
-                      {#if product.storeInfo?.storeName}
-                        <div class="mt-1 text-sm font-medium">
-                          {product.storeInfo.storeName}
-                          {#if product.storeInfo.storeComment}
-                            <div
-                              class="tooltip tooltip-info"
-                              data-tip={product.storeInfo.storeComment}
-                            >
-                              <span class="text-base-content/50 text-xs"
-                                >💬</span
-                              >
-                            </div>
-                          {/if}
-                        </div>
-                      {:else}
-                        <div class="text-base-content/50 text-sm italic">
-                          Non défini
-                        </div>
-                      {/if}
+                <button
+                  title="Modifier le magasin"
+                  class="btn btn-soft btn-sm group relative {product.storeInfo
+                    ?.storeName
+                    ? 'btn-success'
+                    : ''}"
+                  onclick={() => onOpenModal(product.$id, "magasins")}
+                  onkeydown={(e) =>
+                    e.key === "Enter" && onOpenModal(product.$id, "magasins")}
+                >
+                  <Store size={18} />
+                  {#if product.storeInfo?.storeName}
+                    <div class="ml-1">
+                      {product.storeInfo.storeName}
                     </div>
-
-                    <!-- Btn-circle d'édition toujours visible -->
-                    <button
-                      class="btn btn-circle btn-ghost btn-sm opacity-0 transition-opacity group-hover:opacity-100"
-                      onclick={() => onOpenModal(product.$id, "magasins")}
-                      title="Modifier le magasin"
-                    >
-                      <SquarePen class="h-3 w-3 text-amber-600" />
-                    </button>
-                  </div>
-                </div>
+                    {#if product.storeInfo?.storeComment}
+                      <div class="ml-1">
+                        <Tooltip
+                          tip={product.storeInfo.storeComment}
+                          icon={MessageCircleMore}
+                          iconSize={14}
+                        />
+                      </div>
+                    {/if}
+                  {:else}
+                    <div class="ml-1 text-sm font-medium">?</div>
+                  {/if}
+                </button>
 
                 <!-- Who -->
-                <div class="group relative">
-                  <div class="flex items-center gap-2">
-                    <div
-                      class="hover:bg-base-200 flex-1 cursor-pointer rounded p-2 transition-colors"
-                      role="button"
-                      tabindex="0"
-                      onclick={() => onOpenModal(product.$id, "volontaires")}
-                      onkeydown={(e) =>
-                        e.key === "Enter" &&
-                        onOpenModal(product.$id, "volontaires")}
-                    >
-                      <div class="flex items-center gap-2 text-sm">
-                        <Users class="text-base-content/50 h-4 w-4" />
-                        <span class="font-medium">Volontaires:</span>
-                      </div>
-                      {#if product.who && product.who.length > 0}
-                        <div class="mt-1 flex flex-wrap gap-1">
-                          {#each product.who as person (person)}
-                            <span
-                              class="badge badge-soft badge-info badge-sm text-xs"
-                            >
-                              {person}
-                            </span>
-                          {/each}
-                        </div>
-                      {:else}
-                        <div class="text-base-content/50 text-sm italic">
-                          Non défini
-                        </div>
+                <button
+                  title="Modifier les volontaires"
+                  class="btn btn-sm btn-soft group relative {product.who
+                    ?.length > 0
+                    ? 'btn-success'
+                    : ''}"
+                  onclick={() => onOpenModal(product.$id, "volontaires")}
+                  onkeydown={(e) =>
+                    e.key === "Enter" &&
+                    onOpenModal(product.$id, "volontaires")}
+                >
+                  <Users size={18} />
+                  {#if product.who && product.who.length > 0}
+                    <div class="ml-1 flex gap-1">
+                      {product.who
+                        .slice(0, 2)
+                        .map((person) => person.slice(0, 3))
+                        .join(" | ")}
+                      {#if product.who.length > 2}
+                        <span class="text-base-content/50 text-xs"
+                          >+{product.who.length - 2}</span
+                        >
                       {/if}
                     </div>
-
-                    <!-- Btn-circle d'édition toujours visible -->
-                    <button
-                      class="btn btn-circle btn-ghost btn-sm opacity-0 transition-opacity group-hover:opacity-100"
-                      onclick={() => onOpenModal(product.$id, "volontaires")}
-                      title="Modifier les volontaires"
-                    >
-                      <SquarePen class="h-3 w-3 text-amber-600" />
-                    </button>
-                  </div>
-                </div>
+                  {:else}
+                    <div class="ml-1 text-sm font-medium">?</div>
+                  {/if}
+                </button>
               </div>
+            </div>
 
-              <!-- Section droite: Besoins + Achats + Manquants -->
-              <div class="flex-1 space-y-3 lg:w-80 lg:flex-initial">
-                <!-- Besoins -->
-                <div
-                  class="group bg-primary/5 border-primary/20 hover:bg-primary/10 relative cursor-pointer rounded border p-3 transition-colors"
-                  role="button"
-                  tabindex="0"
-                  onclick={() => onOpenModal(product.$id, "recettes")}
-                  onkeydown={(e) =>
-                    e.key === "Enter" && onOpenModal(product.$id, "recettes")}
-                >
+            <!-- Deuxième ligne: Groupe Besoins + Achats + Manquants (flex wrap) -->
+            <div class="flex flex-wrap gap-3">
+              <!-- Besoins -->
+              <div
+                class="bg-base-200/40 hover:bg-base-200/50 relative flex min-w-[200px] flex-1 cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg p-3 transition-colors hover:shadow-sm"
+                role="button"
+                tabindex="0"
+                onclick={() => onOpenModal(product.$id, "recettes")}
+                onkeydown={(e) =>
+                  e.key === "Enter" && onOpenModal(product.$id, "recettes")}
+              >
+                <div class="flex gap-4">
                   <div
-                    class="text-primary mb-2 flex items-center gap-2 text-sm font-medium"
+                    class="text-base-content/80 flex items-center gap-2 text-sm font-medium"
                   >
                     <ListTodo class="h-4 w-4" />
                     Besoins:
                   </div>
-                  <div class="text-primary text-lg font-bold">
-                    {stats.formattedQuantities}
-                  </div>
-                  {#if stats.nbRecipes || stats.totalAssiettes}
+                  <div class="flex items-center gap-4">
+                    <!-- Besoin total -->
                     <div
-                      class="text-base-content/70 mt-1 flex items-center gap-3 text-xs"
+                      class="font-bold {stats.hasMissing
+                        ? 'text-error'
+                        : 'text-success'}"
                     >
-                      <span class="flex items-center gap-1"
-                        >{stats.nbRecipes} <CookingPot class="h-3 w-3" /></span
-                      >
-                      <span class="flex items-center gap-1"
-                        >{stats.totalAssiettes}
-                        <Utensils class="h-3 w-3" /></span
-                      >
+                      {stats.formattedQuantities}
                     </div>
-                  {/if}
+                    {#if stats.nbRecipes || stats.totalAssiettes}
+                      <div
+                        class="text-base-content/70 flex items-center gap-2 text-sm"
+                      >
+                        <span class="flex items-center gap-1">
+                          {stats.nbRecipes}
+                          <CookingPot class="h-3 w-3" />
+                        </span>
+                        <span class="flex items-center gap-1">
+                          {stats.totalAssiettes}
+                          <Utensils class="h-3 w-3" />
+                        </span>
+                      </div>
+                    {/if}
+                  </div>
                 </div>
 
-                <!-- Achats -->
-                <div
-                  class="group bg-base-50 border-base-200 hover:bg-base-100 relative cursor-pointer rounded border p-3 transition-colors"
-                  role="button"
-                  tabindex="0"
-                  onclick={() => onOpenModal(product.$id, "achats")}
-                  onkeydown={(e) =>
-                    e.key === "Enter" && onOpenModal(product.$id, "achats")}
-                >
-                  <div class="mb-2 flex items-center gap-2 text-sm font-medium">
-                    <ShoppingCart class="h-4 w-4" />
-                    Achats / Récup:
+                <!-- Bouton d'achat rapide -->
+                {#if stats.hasMissing}
+                  <button
+                    class="btn btn-sm btn-soft btn-warning hover:bg-success/70 hover:border-success/70"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      onQuickValidation(product);
+                    }}
+                    title="Acheter le manquant ({stats.formattedAvailableQuantities})"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 14 14"
+                      ><path
+                        fill="currentColor"
+                        fill-rule="evenodd"
+                        d="M.625 0a.625.625 0 1 0 0 1.25h1.818l.205 1.94l.644 6.105a1.626 1.626 0 0 0 1.619 1.455h6.208c.746 0 1.397-.506 1.579-1.23l1.253-5a1.626 1.626 0 0 0-1.579-2.02h-8.54L3.627.56A.625.625 0 0 0 3.006 0zm3.91 9.164L3.964 3.75h8.408c.247 0 .425.23.366.466l-1.253 5a.38.38 0 0 1-.366.284H4.911a.376.376 0 0 1-.376-.336m5.72-3.134a.75.75 0 0 0-1.129-.988l-1.48 1.69l-.526-.395a.75.75 0 1 0-.9 1.2l1.083.813a.75.75 0 0 0 1.015-.106zm1.816 6.845a1.125 1.125 0 1 0-2.25 0a1.125 1.125 0 0 0 2.25 0M4.446 11.75a1.125 1.125 0 1 1 0 2.25a1.125 1.125 0 0 1 0-2.25"
+                        clip-rule="evenodd"
+                      /></svg
+                    >
+                    <span class="text-xs"
+                      >{stats.formattedAvailableQuantities}</span
+                    >
+                  </button>
+                {:else}
+                  <CircleCheckBig size={24} class="text-success" />
+                {/if}
+              </div>
+
+              <!-- Achats -->
+              <div
+                class="group bg-base-200/40 hover:bg-base-200/50 relative min-w-[200px] flex-1 cursor-pointer rounded-lg p-3 transition-colors hover:ring-2 hover:ring-amber-200"
+                role="button"
+                tabindex="0"
+                onclick={() => onOpenModal(product.$id, "achats")}
+                onkeydown={(e) =>
+                  e.key === "Enter" && onOpenModal(product.$id, "achats")}
+              >
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex flex-col gap-0">
+                    <div
+                      class="text-base-content/80 flex items-center justify-between gap-2 text-sm font-medium"
+                    >
+                      <ShoppingCart class="h-4 w-4" />
+                      Achats / Récup:
+                      <!-- Liste des achats -->
+                    </div>
+                    <div
+                      class="text-base-content/30 ms-4 text-xs italic opacity-100 transition-opacity group-hover:opacity-100 sm:opacity-0"
+                    >
+                      ajouter un achat
+                    </div>
                   </div>
-                  <div class="flex flex-wrap gap-1">
+                  <div class="flex flex-wrap gap-1.5">
                     {#each purchasesBadges as purchase (purchase.status)}
                       {@const IconComponent = statusIcons[purchase.icon]}
                       <div
-                        class="badge badge-soft flex items-center gap-1 {purchase.badgeClass}"
+                        class="badge badge-outline flex items-center gap-1 {purchase.badgeClass}"
                       >
-                        <IconComponent class="h-3 w-3" />
-                        <span class="text-xs">
+                        <IconComponent class="h-4 w-4" />
+                        <span class="text-sm font-medium">
                           {formatQuantity(purchase.quantity, purchase.unit)}
                         </span>
                       </div>
                     {/each}
                     {#if purchasesBadges.length === 0}
-                      <span class="text-base-content/50 text-sm">-</span>
+                      <span class="text-base-content/50 text-xs italic"
+                        >aucun</span
+                      >
                     {/if}
                   </div>
                 </div>
-
-                <!-- Manquants -->
-                <div class="bg-base-50 border-base-200 rounded border p-3">
-                  <div class="mb-2 flex items-center gap-2 text-sm font-medium">
-                    <ListTodo class="h-4 w-4" />
-                    Manquant:
-                  </div>
-                  {#if product.displayMissingQuantity !== "✅ Complet"}
-                    <div class="flex items-center justify-between">
-                      <div
-                        class="bg-warning rounded px-2 py-1 text-sm font-medium"
-                      >
-                        {product.displayMissingQuantity}
-                      </div>
-                      <!-- Bouton validation rapide -->
-                      <button
-                        class="btn btn-xs btn-ghost text-base-content/70 btn-circle btn-outline hover:btn-success hover:text-success-content transition-all hover:scale-105"
-                        onclick={() => onQuickValidation(product)}
-                        title="Déclarer comme acheté"
-                      >
-                        <Check size={14} />
-                      </button>
-                    </div>
-                  {:else}
-                    <div class="flex items-center justify-center">
-                      <CircleCheckBig
-                        size={24}
-                        strokeWidth={3}
-                        class="text-success"
-                      />
-                    </div>
-                  {/if}
-
-                  <!-- Affichage des disponibilités calculées -->
-                  {#if stats && stats.formattedAvailableQuantities && stats.formattedAvailableQuantities !== "Équilibré"}
-                    <div class="mt-2">
-                      <div
-                        class="rounded px-2 py-1 text-center text-xs {stats.hasAvailable &&
-                        stats.hasMissing
-                          ? 'border border-amber-300 bg-amber-100 text-amber-800'
-                          : stats.hasAvailable
-                            ? 'bg-success/10 text-success/80 border-success/30 border'
-                            : 'bg-info/10 text-info/80 border-info/30 border'}"
-                        title="Bilan à la fin de la période (achats cumulés - besoins cumulés)"
-                      >
-                        {stats.formattedAvailableQuantities}
-                      </div>
-                    </div>
-                  {/if}
-                </div>
+                <!-- <div
+                  class="text-base-content/30 absolute bottom-1 left-2 text-xs italic opacity-100 transition-opacity group-hover:opacity-100 sm:opacity-0"
+                >
+                  ajouter un achat
+                </div> -->
               </div>
             </div>
           </div>
         </div>
+        <!-- <div class="divider my-0.5 py-0"></div> -->
       {/each}
     </div>
   {/each}

@@ -110,17 +110,20 @@ export function getStatusBadge(status: string | null): {
 } {
   switch (status) {
     case "requested":
-      return { text: "Demandé", class: "badge-warning" };
+      return { text: "Demandé", class: "text-amber-600" };
     case "ordered":
       return { text: "Commandé", class: "badge-info" };
     case "pending":
-      return { text: "En attente", class: "badge-warning" };
+      return {
+        text: "En attente",
+        class: "badge-accent",
+      };
     case "delivered":
       return { text: "Livré", class: "badge-success" };
     case "cancelled":
       return { text: "Annulé", class: "badge-error" };
     default:
-      return { text: "Achat direct", class: "badge-neutral" };
+      return { text: "Livré", class: "badge-success" };
   }
 }
 

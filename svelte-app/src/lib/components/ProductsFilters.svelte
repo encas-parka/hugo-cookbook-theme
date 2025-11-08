@@ -6,12 +6,14 @@
     ShoppingBasket,
     Snowflake,
     Store,
+    Thermometer,
     User,
     X,
   } from "@lucide/svelte";
   import { productsStore } from "../stores/ProductsStore.svelte";
   import { getProductTypeInfo } from "../utils/products-display";
   import TimelineRange from "./ui/TimelineRange.svelte";
+  import Fieldset from "./ui/Fieldset.svelte";
 
   const filters = $derived(productsStore.filters);
   const uniqueStores = $derived(productsStore.uniqueStores);
@@ -33,8 +35,8 @@
   </button>
 </div>
 
-<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
-  <div class="form-control">
+<div class="mb-4 grid grid-cols-1 items-center justify-between gap-4">
+  <div class="">
     <label class="label" for="search-input">
       <span class="label-text">Recherche</span>
     </label>
@@ -51,7 +53,7 @@
     </div>
     <!-- Groupement -->
   </div>
-  <div class="form-control">
+  <div class="">
     <label class="label flex" for="grouping-select">
       <span class="label-text">Groupement</span>
     </label>
@@ -82,143 +84,123 @@
       />
     </div>
   </div>
-</div>
-<TimelineRange
-  availableDates={productsStore.availableDates}
-  currentRange={productsStore.dateRange}
-  onRangeChange={(start, end) => productsStore.setDateRange(start, end)}
-/>
+  <Fieldset legend="Date incluses" bgClass="bg-base-100">
+    <TimelineRange
+      availableDates={productsStore.availableDates}
+      currentRange={productsStore.dateRange}
+      onRangeChange={(start, end) => productsStore.setDateRange(start, end)}
+    />
+  </Fieldset>
 
-<!-- Filtres par type, température, magasin et qui -->
-<div class="mt-4 flex">
+  <!-- Filtres par type, température, magasin et qui -->
   {#if uniqueProductTypes.length > 0}
-    <div class="flex-1">
-      <fieldset>
-        <div class="flex items-center justify-between">
-          <legend class="label">
-            <div class="label-text">Types & Température</div>
-          </legend>
-          {#if filters.selectedProductTypes.length > 0 || filters.selectedTemperatures.length > 0}
-            <button
-              class="btn btn-sm btn-circle btn-outline text-error hover:bg-error/10"
-              onclick={() => productsStore.clearTypeAndTemperatureFilters()}
-              title="Effacer les filtres de types et température"
-            >
-              <FunnelX />
-            </button>
-          {/if}
-        </div>
-        <div class="mb-2 flex flex-wrap items-center gap-2" role="group">
-          {#each uniqueProductTypes as type (type)}
-            {@const typeInfo = getProductTypeInfo(type)}
-            <button
-              class="btn btn-sm {filters.selectedProductTypes.length === 0
-                ? 'btn-soft btn-accent'
-                : filters.selectedProductTypes.includes(type)
-                  ? 'btn-accent'
-                  : 'btn-dash btn-accent'}"
-              onclick={() => productsStore.toggleProductType(type)}
-            >
-              <typeInfo.icon class="mr-1 h-5 w-5" />
-              {typeInfo.displayName}
-            </button>
-          {/each}
-        </div>
-        <!-- Filtres température -->
-        <div class="flex flex-wrap items-center gap-2" role="group">
+    <Fieldset legend="Types & Température" iconComponent={Thermometer}>
+      {#if filters.selectedProductTypes.length > 0 || filters.selectedTemperatures.length > 0}
+        <button
+          class="btn btn-xs btn-link text-accent flex items-center text-end"
+          onclick={() => productsStore.clearTypeAndTemperatureFilters()}
+          title="Effacer les filtres de types et température"
+        >
+          <FunnelX size={14} />
+          Réinitialiser les filtres
+        </button>
+      {/if}
+      <div class="mb-2 flex flex-wrap items-center gap-2" role="group">
+        {#each uniqueProductTypes as type (type)}
+          {@const typeInfo = getProductTypeInfo(type)}
           <button
-            class="btn btn-sm {filters.selectedTemperatures.length === 0
-              ? 'btn-soft btn-success'
-              : filters.selectedTemperatures.includes('frais')
-                ? 'btn-success'
-                : 'btn-dash btn-success'}"
-            onclick={() => productsStore.toggleTemperature("frais")}
+            class="btn btn-sm {filters.selectedProductTypes.length === 0
+              ? 'btn-soft btn-secondary'
+              : filters.selectedProductTypes.includes(type)
+                ? 'btn-secondary'
+                : 'btn-dash btn-secondary'}"
+            onclick={() => productsStore.toggleProductType(type)}
           >
-            <ShoppingBasket class="h-5 w-5" />
-            Frais
+            <typeInfo.icon class="mr-1 h-5 w-5" />
+            {typeInfo.displayName}
           </button>
-          <button
-            class="btn btn-sm {filters.selectedTemperatures.length === 0
-              ? 'btn-soft btn-info'
-              : filters.selectedTemperatures.includes('surgele')
-                ? 'btn-info'
-                : 'btn-dash btn-info'}"
-            onclick={() => productsStore.toggleTemperature("surgele")}
-          >
-            <Snowflake class="h-5 w-5" />
-            Surgelés
-          </button>
-        </div>
-      </fieldset>
-    </div>
+        {/each}
+      </div>
+      <!-- Filtres température -->
+      <div class="flex flex-wrap items-center gap-2" role="group">
+        <button
+          class="btn btn-sm {filters.selectedTemperatures.length === 0
+            ? 'btn-soft btn-success'
+            : filters.selectedTemperatures.includes('frais')
+              ? 'btn-success'
+              : 'btn-dash btn-success'}"
+          onclick={() => productsStore.toggleTemperature("frais")}
+        >
+          <ShoppingBasket class="h-5 w-5" />
+          Frais
+        </button>
+        <button
+          class="btn btn-sm {filters.selectedTemperatures.length === 0
+            ? 'btn-soft btn-info'
+            : filters.selectedTemperatures.includes('surgele')
+              ? 'btn-info'
+              : 'btn-dash btn-info'}"
+          onclick={() => productsStore.toggleTemperature("surgele")}
+        >
+          <Snowflake class="h-5 w-5" />
+          Surgelés
+        </button>
+      </div>
+    </Fieldset>
   {/if}
-  <div class="mt-4 flex flex-col gap-6 lg:flex-row">
-    {#if uniqueStores.length > 0}
-      <div class="flex-1">
-        <fieldset>
-          <legend class="label">
-            <span class="label-text text-sm">Magasins</span>
-          </legend>
-          <div class="flex flex-wrap items-center gap-2" role="group">
-            {#each uniqueStores as store (store)}
-              <button
-                class="btn btn-xs {filters.selectedStores.length === 0
-                  ? 'btn-soft btn-accent'
-                  : filters.selectedStores.includes(store)
-                    ? 'btn-accent'
-                    : 'btn-dash btn-accent'}"
-                onclick={() => productsStore.toggleStore(store)}
-              >
-                <Store class="mr-1 h-3 w-3" />
-                {store}
-              </button>
-            {/each}
-            {#if filters.selectedStores.length > 0}
-              <button
-                class="btn btn-xs btn-circle btn-ghost text-error hover:bg-error/10"
-                onclick={() => productsStore.clearStoreFilters()}
-                title="Effacer les filtres de magasins"
-              >
-                <X class="h-3 w-3" />
-              </button>
-            {/if}
-          </div>
-        </fieldset>
+  {#if uniqueStores.length > 0}
+    <Fieldset legend="Magasins" iconComponent={Store}>
+      <div class="flex flex-wrap items-center gap-2" role="group">
+        {#each uniqueStores as store (store)}
+          <button
+            class="btn btn-xs {filters.selectedStores.length === 0
+              ? 'btn-soft btn-secondary'
+              : filters.selectedStores.includes(store)
+                ? 'btn-secondary'
+                : 'btn-dash btn-secondary'}"
+            onclick={() => productsStore.toggleStore(store)}
+          >
+            {store}
+          </button>
+        {/each}
+        {#if filters.selectedStores.length > 0}
+          <button
+            class="btn btn-xs btn-circle btn-ghost text-error hover:bg-error/10"
+            onclick={() => productsStore.clearStoreFilters()}
+            title="Effacer les filtres de magasins"
+          >
+            <X class="h-3 w-3" />
+          </button>
+        {/if}
       </div>
-    {/if}
+    </Fieldset>
+  {/if}
 
-    {#if uniqueWho.length > 0}
-      <div class="flex-1">
-        <fieldset>
-          <legend class="label">
-            <span class="label-text text-sm">Qui</span>
-          </legend>
-          <div class="flex flex-wrap items-center gap-2" role="group">
-            {#each uniqueWho as who (who)}
-              <button
-                class="btn btn-xs {filters.selectedWho.length === 0
-                  ? ' btn-soft btn-info'
-                  : filters.selectedWho.includes(who)
-                    ? ' btn-info'
-                    : 'btn-dash btn-info'}"
-                onclick={() => productsStore.toggleWho(who)}
-              >
-                <User class="mr-1 h-3 w-3" />
-                {who}
-              </button>
-            {/each}
-            {#if filters.selectedWho.length > 0}
-              <button
-                class="btn btn-xs btn-circle btn-ghost text-error hover:bg-error/10"
-                onclick={() => productsStore.clearWhoFilters()}
-                title="Effacer les filtres de qui"
-              >
-                <X class="h-3 w-3" />
-              </button>
-            {/if}
-          </div>
-        </fieldset>
+  {#if uniqueWho.length > 0}
+    <Fieldset legend="Qui" iconComponent={User}>
+      <div class="flex flex-wrap items-center gap-2" role="group">
+        {#each uniqueWho as who (who)}
+          <button
+            class="btn btn-xs {filters.selectedWho.length === 0
+              ? ' btn-soft btn-secondary'
+              : filters.selectedWho.includes(who)
+                ? ' btn-secondary'
+                : 'btn-dash btn-secondary'}"
+            onclick={() => productsStore.toggleWho(who)}
+          >
+            {who}
+          </button>
+        {/each}
+        {#if filters.selectedWho.length > 0}
+          <button
+            class="btn btn-xs btn-circle btn-ghost text-error hover:bg-error/10"
+            onclick={() => productsStore.clearWhoFilters()}
+            title="Effacer les filtres de qui"
+          >
+            <X class="h-3 w-3" />
+          </button>
+        {/if}
       </div>
-    {/if}
-  </div>
+    </Fieldset>
+  {/if}
 </div>

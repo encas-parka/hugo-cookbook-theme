@@ -32,6 +32,10 @@
 
   import LeftPanel from "./ui/LeftPanel.svelte";
 
+  const PANEL_WIDTH = "100";
+  const PANEL_SIDE = "ml";
+  const PANEL_SIDE_WIDTH = PANEL_SIDE + "-" + PANEL_WIDTH;
+  console.log("PANEL_SIDE_WIDTH →", PANEL_SIDE_WIDTH);
   // Mapping des icônes pour les statuts d'achat
   const statusIcons = {
     Package,
@@ -194,7 +198,7 @@
   }
 </script>
 
-<div class="space-y-6 {globalState.isMobile ? '' : 'ml-80'}">
+<div class="space-y-6 {globalState.isMobile ? '' : PANEL_SIDE_WIDTH}">
   <!-- Stats -->
   <div class="flex flex-wrap items-center gap-2">
     <div class="badge badge-neutral badge-lg">
@@ -212,7 +216,7 @@
     </button>
   </div>
 
-  <LeftPanel>
+  <LeftPanel width={PANEL_WIDTH}>
     <ProductsFilters />
   </LeftPanel>
 

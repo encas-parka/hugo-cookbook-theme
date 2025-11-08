@@ -68,9 +68,9 @@
   const loginUrl = `/login/?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
 </script>
 
-<div class="bg-base-100 min-h-screen">
+<div class="bg-base-200 min-h-screen">
   <!-- En-tête -->
-  <header class="bg-base-200 sticky top-0 z-10 shadow-sm">
+  <header class="bg-base-300 sticky top-0 z-10 shadow-sm">
     <div class="container mx-auto px-4 py-2">
       <div class="flex items-center justify-between">
         <div>

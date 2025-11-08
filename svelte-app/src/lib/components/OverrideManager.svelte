@@ -123,7 +123,7 @@
         </div>
 
         <div>
-          <div class="form-control">
+          <div class="">
             <div class="label">
               <span class="label-text">Commentaire (optionnel)</span>
             </div>
