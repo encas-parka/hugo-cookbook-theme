@@ -191,11 +191,11 @@
               <option value="ordered" title="La commande à été passée"
                 >Commandé</option
               >
-              <option
+              <!-- <option
                 value="requested"
                 title="Le fournisseur doit confirmer la disponibilité du produit"
                 >Demandé</option
-              >
+              > -->
             </select>
           </label>
           <div
@@ -203,7 +203,7 @@
               ? ''
               : 'hidden'}"
           >
-            Modifiez s'il s'agit d'une commande / pré-commande
+            Modifiez s'il s'agit d'une commande
           </div>
         </div>
         {#if modalState.forms.purchase.status === "ordered"}
@@ -310,10 +310,10 @@
                     class="custom-select input w-24"
                     bind:value={purchase.status}
                   >
-                    <option value="requested">Demandé</option>
+                    <!-- <option value="requested">Demandé</option> -->
                     <option value="ordered">Commandé</option>
                     <option value="delivered">Livré</option>
-                    <option value="cancelled">Annulé</option>
+                    <!-- <option value="cancelled">Annulé</option> -->
                   </select>
                 </td>
                 <td>

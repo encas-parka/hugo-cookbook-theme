@@ -317,19 +317,19 @@
               <option value="ordered" title="La commande à été passée"
                 >Commandé</option
               >
-              <option
+              <!-- <option
                 value="requested"
                 title="Le fournisseur doit confirmer la disponibilité du produit"
                 >Demandé</option
               >
-              <option value="cancelled">Annulé</option>
+              <option value="cancelled">Annulé</option> -->
             </select>
             <div
               class="label text-sm {formData.status === 'delivered'
                 ? ''
                 : 'hidden'}"
             >
-              Modifiez s'il s'agit d'une commande / pré-commande
+              Modifiez s'il s'agit d'une commande
             </div>
           </div>
 
