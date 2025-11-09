@@ -27,10 +27,11 @@
     Filtres
   </h3>
   <button
-    class="btn btn-sm btn-ghost"
+    class="btn btn-sm btn-error btn-outline"
     onclick={() => productsStore.clearFilters()}
+    disabled={!productsStore.hasFilters}
   >
-    <X class="h-4 w-4" />
+    <FunnelX class="h-4 w-4" />
     Tout effacer
   </button>
 </div>
@@ -50,10 +51,17 @@
         value={filters.searchQuery}
         oninput={(e) => productsStore.setSearchQuery(e.currentTarget.value)}
       />
+      <button
+        class="btn btn-xs btn-circle btn-error btn-outline opacity-60"
+        onclick={() => productsStore.setSearchQuery("")}
+        disabled={!filters.searchQuery}
+      >
+        <X class="h-4 w-4" />
+      </button>
     </div>
     <!-- Groupement -->
   </div>
-  <div class="">
+  <div class="mb-4">
     <label class="label flex" for="grouping-select">
       <span class="label-text">Groupement</span>
     </label>
@@ -84,27 +92,19 @@
       />
     </div>
   </div>
-  <Fieldset legend="Date incluses" bgClass="bg-base-100">
-    <TimelineRange
-      availableDates={productsStore.availableDates}
-      currentRange={productsStore.dateRange}
-      onRangeChange={(start, end) => productsStore.setDateRange(start, end)}
-    />
-  </Fieldset>
+  {#if !productsStore.hasSingleDate}
+    <Fieldset legend="Date incluses" bgClass="bg-base-100">
+      <TimelineRange
+        availableDates={productsStore.availableDates}
+        currentRange={productsStore.dateRange}
+        onRangeChange={(start, end) => productsStore.setDateRange(start, end)}
+      />
+    </Fieldset>
+  {/if}
 
   <!-- Filtres par type, température, magasin et qui -->
   {#if uniqueProductTypes.length > 0}
     <Fieldset legend="Types & Température" iconComponent={Thermometer}>
-      {#if filters.selectedProductTypes.length > 0 || filters.selectedTemperatures.length > 0}
-        <button
-          class="btn btn-xs btn-link text-accent flex items-center text-end"
-          onclick={() => productsStore.clearTypeAndTemperatureFilters()}
-          title="Effacer les filtres de types et température"
-        >
-          <FunnelX size={14} />
-          Réinitialiser les filtres
-        </button>
-      {/if}
       <div class="mb-2 flex flex-wrap items-center gap-2" role="group">
         {#each uniqueProductTypes as type (type)}
           {@const typeInfo = getProductTypeInfo(type)}
@@ -146,6 +146,19 @@
           Surgelés
         </button>
       </div>
+      {#if filters.selectedProductTypes.length > 0 || filters.selectedTemperatures.length > 0}
+        <button
+          class="btn btn-xs btn-circle btn-outline text-error ms-auto"
+          onclick={() => productsStore.clearTypeAndTemperatureFilters()}
+          title="Effacer les filtres de types et température"
+        >
+          <FunnelX size={16} />
+        </button>
+      {:else}
+        <div class="text-base-content/60 p-1 text-end text-xs italic">
+          aucun filtre sélectionné
+        </div>
+      {/if}
     </Fieldset>
   {/if}
   {#if uniqueStores.length > 0}
@@ -153,7 +166,7 @@
       <div class="flex flex-wrap items-center gap-2" role="group">
         {#each uniqueStores as store (store)}
           <button
-            class="btn btn-xs {filters.selectedStores.length === 0
+            class="btn btn-sm {filters.selectedStores.length === 0
               ? 'btn-soft btn-secondary'
               : filters.selectedStores.includes(store)
                 ? 'btn-secondary'
@@ -165,11 +178,11 @@
         {/each}
         {#if filters.selectedStores.length > 0}
           <button
-            class="btn btn-xs btn-circle btn-ghost text-error hover:bg-error/10"
+            class="btn btn-xs btn-circle btn-outline text-error ms-auto"
             onclick={() => productsStore.clearStoreFilters()}
             title="Effacer les filtres de magasins"
           >
-            <X class="h-3 w-3" />
+            <FunnelX size={16} />
           </button>
         {/if}
       </div>
@@ -181,7 +194,7 @@
       <div class="flex flex-wrap items-center gap-2" role="group">
         {#each uniqueWho as who (who)}
           <button
-            class="btn btn-xs {filters.selectedWho.length === 0
+            class="btn btn-sm {filters.selectedWho.length === 0
               ? ' btn-soft btn-secondary'
               : filters.selectedWho.includes(who)
                 ? ' btn-secondary'
@@ -193,11 +206,11 @@
         {/each}
         {#if filters.selectedWho.length > 0}
           <button
-            class="btn btn-xs btn-circle btn-ghost text-error hover:bg-error/10"
+            class="btn btn-xs btn-circle btn-outline btn-error ms-auto"
             onclick={() => productsStore.clearWhoFilters()}
             title="Effacer les filtres de qui"
           >
-            <X class="h-3 w-3" />
+            <FunnelX size={16} />
           </button>
         {/if}
       </div>

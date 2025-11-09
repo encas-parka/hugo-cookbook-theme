@@ -78,14 +78,13 @@
   const filters = $derived(productsStore.filters);
 </script>
 
-<!-- Vue en cartes pour mobile et desktop -->
 <div class="space-y-4 rounded-lg">
   {#each Object.entries(groupedFilteredProducts) as [groupKey, groupProducts] (groupKey)}
     {#if groupKey !== ""}
       <!-- Header de groupe sticky -->
       {@const groupTypeInfo = getProductTypeInfo(groupKey)}
       <div
-        class="bg-primary @container sticky top-0 z-10 flex flex-wrap items-center justify-between rounded-lg px-4 py-2 font-semibold shadow-lg brightness-100 drop-shadow-xl @md:flex-nowrap"
+        class="bg-primary @container sticky top-0 z-2 flex flex-wrap items-center justify-between rounded-lg px-4 py-2 font-semibold shadow-lg brightness-100 drop-shadow-xl @md:flex-nowrap"
       >
         <!-- Nom du groupe -->
         <div class="flex items-center gap-2 @md:min-w-48">
