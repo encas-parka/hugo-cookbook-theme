@@ -345,6 +345,22 @@ class ProductsStore {
           .filter((item) => item.q < 0)
           .map((item) => ({ q: Math.abs(item.q), u: item.u }));
 
+        // 📅 NOUVEAU : Calculer les dates concernées et recettes associées
+        const concernedDates = product.byDate
+          ? Object.keys(product.byDate).sort()
+          : [];
+        const recipesByDate = new Map<string, RecipeOccurrence[]>();
+        let totalRecipes = 0; // compteur total de recettes
+
+        if (product.byDate) {
+          for (const [date, dayData] of Object.entries(product.byDate)) {
+            if (dayData.recipes && dayData.recipes.length > 0) {
+              recipesByDate.set(date, dayData.recipes);
+              totalRecipes += dayData.recipes.length;
+            }
+          }
+        }
+
         statsMap.set(id, {
           quantities: product.totalNeededArray,
           formattedQuantities: formatTotalQuantity(product.totalNeededArray),
@@ -357,6 +373,9 @@ class ProductsStore {
           formattedAvailableQuantities: formatStockResult(stockResult),
           hasAvailable: availableQuantities.length > 0,
           hasMissing: missingQuantities.length > 0,
+          // 📅 NOUVEAUX
+          concernedDates,
+          recipesByDate,
         });
       }
       return statsMap;
@@ -387,17 +406,26 @@ class ProductsStore {
         this.dateRange.end!,
       );
 
-      // 4. Calcul DIRECT des recettes (pas d'appel à getRecipesInRange)
-      const datesInRange = Object.keys(product.byDate).filter((dateStr) => {
-        const date = new Date(dateStr);
-        const startDate = new Date(this.dateRange.start!); // Non-null assertion
-        const endDate = new Date(this.dateRange.end!); // Non-null assertion
-        return date >= startDate && date <= endDate;
-      });
+      // 4. 📅 NOUVEAU : Calcul des dates concernées et recettes associées
+      const datesInRange = Object.keys(product.byDate)
+        .filter((dateStr) => {
+          const date = new Date(dateStr);
+          const startDate = new Date(this.dateRange.start!);
+          const endDate = new Date(this.dateRange.end!);
+          return date >= startDate && date <= endDate;
+        })
+        .sort(); // trie chronologiquement
 
-      const recipes = datesInRange.flatMap(
-        (date) => product.byDate![date]?.recipes || [],
-      );
+      const recipesByDate = new Map<string, RecipeOccurrence[]>();
+      let totalRecipes = 0; // compteur total de recettes
+
+      datesInRange.forEach((date) => {
+        const recipes = product.byDate![date]?.recipes || [];
+        if (recipes.length > 0) {
+          recipesByDate.set(date, recipes);
+          totalRecipes += recipes.length; // ajoute le nombre de recettes pour cette date
+        }
+      });
 
       // 5. 🎯 NOUVEAU : Calculer les disponibilités à la fin de la plage
       const stockResult = calculateAvailableAtDate(
@@ -413,7 +441,7 @@ class ProductsStore {
       statsMap.set(productId, {
         quantities,
         formattedQuantities,
-        nbRecipes: recipes.length,
+        nbRecipes: totalRecipes, // nombre total de recettes sur toutes les dates
         totalAssiettes,
         // NOUVEAUX
         stockResult,
@@ -422,6 +450,9 @@ class ProductsStore {
         formattedAvailableQuantities: formatStockResult(stockResult),
         hasAvailable: availableQuantities.length > 0,
         hasMissing: missingQuantities.length > 0,
+        // 📅 NOUVEAUX
+        concernedDates: datesInRange,
+        recipesByDate,
       });
     }
 

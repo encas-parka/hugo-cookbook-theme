@@ -37,6 +37,11 @@ export interface ProductRangeStats {
   hasAvailable: boolean;
   /** Indique si le produit a des quantités manquantes */
   hasMissing: boolean;
+
+  /** Dates où le produit est utilisé dans la plage (triées chronologiquement) */
+  concernedDates: string[];
+  /** Recettes par date pour les dates dans la plage */
+  recipesByDate: Map<string, RecipeOccurrence[]>;
 }
 
 /** Format long pour les formulaires et états */

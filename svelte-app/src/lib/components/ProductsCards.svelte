@@ -166,6 +166,8 @@
           formattedAvailableQuantities: "Équilibré",
           hasAvailable: false,
           hasMissing: false,
+          concernedDates: [],
+          recipesByDate: new Map(),
         }}
         {@const typeInfo = getProductTypeInfo(product.productType)}
         {@const purchasesBadges = formatPurchasesWithBadges(
@@ -230,6 +232,42 @@
                     title="Synchronisation en cours..."
                   >
                     <LoaderCircle class="h-4 w-4 animate-spin" />
+                  </div>
+                {/if}
+
+                <!-- 📅 Dates concernées -->
+                {#if stats.concernedDates.length > 0}
+                  <div class="text-base-content/60 mt-2">
+                    <div class="flex flex-wrap gap-1">
+                      {#each stats.concernedDates as date (date)}
+                        {@const recipes = stats.recipesByDate.get(date) || []}
+                        <!-- Wrapper avec tooltip si des recettes sont présentes -->
+                        {#if recipes.length > 0}
+                          <div
+                            class="tooltip"
+                            data-tip={recipes.map((r) => r.r).join(", ")}
+                          >
+                            <div
+                              class="badge badge-outline badge-xs hover:badge-primary"
+                            >
+                              {new Date(date).toLocaleDateString("fr-FR", {
+                                weekday: "short",
+                                day: "numeric",
+                              })}
+                            </div>
+                          </div>
+                        {:else}
+                          <div
+                            class="badge badge-outline badge-xs hover:badge-primary"
+                          >
+                            {new Date(date).toLocaleDateString("fr-FR", {
+                              weekday: "short",
+                              day: "numeric",
+                            })}
+                          </div>
+                        {/if}
+                      {/each}
+                    </div>
                   </div>
                 {/if}
               </div>
