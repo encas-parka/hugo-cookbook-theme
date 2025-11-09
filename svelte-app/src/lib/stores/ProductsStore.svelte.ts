@@ -133,6 +133,14 @@ class ProductsStore {
     end: null,
   });
 
+  /**
+   * 🚀 OPTIMISATION : Indique si l'événement est sur une seule date
+   * Permet aux composants d'adapter leur affichage et d'optimiser les calculs
+   */
+  hasSingleDate = $derived<boolean>(
+    !!(this.dateRange.start && this.dateRange.start === this.dateRange.end),
+  );
+
   // Cache keys
   // #cacheKey: string | null = null;
   // #metadataKey: string | null = null;
@@ -163,6 +171,17 @@ class ProductsStore {
   get filters() {
     return this.#filters;
   }
+
+  get hasFilters() {
+    return (
+      this.filters.searchQuery !== "" ||
+      this.filters.selectedStores.length > 0 ||
+      this.filters.selectedWho.length > 0 ||
+      this.filters.selectedProductTypes.length > 0 ||
+      this.filters.selectedTemperatures.length > 0
+    );
+  }
+
   get currentMainId() {
     return this.#currentMainId;
   }
@@ -322,8 +341,70 @@ class ProductsStore {
    *
    * Performance : O(n) au lieu de O(4n) (75% de gain théorique)
    */
+  /**
+   * 🚀 OPTIMISATION : Cas spécial pour événement à date unique
+   * Évite tous les calculs de plage et accès direct aux données
+   */
+  #calculateSingleDateStats(): Map<string, ProductRangeStats> {
+    console.log("[Store] ⚡ Single date mode - optimized calculation");
+
+    const statsMap = new Map<string, ProductRangeStats>();
+    const singleDate = this.dateRange.start!; // start === end dans ce cas
+
+    for (const [id, product] of this.#enrichedProducts) {
+      if (!product.byDate?.[singleDate]) {
+        // Ce produit n'est pas utilisé à cette date
+        continue;
+      }
+
+      const dayData = product.byDate[singleDate];
+
+      // 🎯 Accès direct - pas de calculs nécessaires
+      const concernedDates = [singleDate];
+      const recipesByDate = new Map<string, RecipeOccurrence[]>();
+
+      if (dayData.recipes && dayData.recipes.length > 0) {
+        recipesByDate.set(singleDate, dayData.recipes);
+      }
+
+      // Calcul du stock (même logique que le cas général)
+      const stockResult = calculateAvailableAtDate(product, singleDate);
+      const availableQuantities = stockResult.filter((item) => item.q > 0);
+      const missingQuantities = stockResult
+        .filter((item) => item.q < 0)
+        .map((item) => ({ q: Math.abs(item.q), u: item.u }));
+
+      statsMap.set(id, {
+        quantities: dayData.totalConsolidated || [],
+        formattedQuantities: formatTotalQuantity(
+          dayData.totalConsolidated || [],
+        ),
+        nbRecipes: dayData.recipes?.length || 0,
+        totalAssiettes: dayData.totalAssiettes || 0,
+
+        stockResult,
+        availableQuantities,
+        missingQuantities,
+        formattedAvailableQuantities: formatStockResult(stockResult),
+        hasAvailable: availableQuantities.length > 0,
+        hasMissing: missingQuantities.length > 0,
+
+        // 📅 Données directes - pas de filtrage/tri nécessaire
+        concernedDates,
+        recipesByDate,
+      });
+    }
+
+    return statsMap;
+  }
+
   productsStatsByDateRange = $derived.by(() => {
     console.log("[Store] Calcul unifié des stats par produit (1 itération)");
+
+    // 🚀 OPTIMISATION : Cas date unique -> méthode optimisée
+    if (this.hasSingleDate) {
+      return this.#calculateSingleDateStats();
+    }
 
     const statsMap = new Map<string, ProductRangeStats>();
 
