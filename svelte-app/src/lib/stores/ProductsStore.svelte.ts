@@ -124,6 +124,7 @@ class ProductsStore {
   #error = $state<string | null>(null);
   #syncing = $state(false);
   #realtimeConnected = $state(false);
+  // FIXIT [AI] : Que vaut lastSync a la premier initialisation sur un device, alors que des products ont déjà été modifié / synchronisé sur appwrite ??? Il ne faut pas que ce soit today ! Mais la date de creation de mainId, ou que le premier sync SyncFromAppwrite ait lieu avant sa définition
   #lastSync = $state<string | null>(null);
 
   // Gestion des dates
@@ -137,9 +138,12 @@ class ProductsStore {
    * 🚀 OPTIMISATION : Indique si l'événement est sur une seule date
    * Permet aux composants d'adapter leur affichage et d'optimiser les calculs
    */
-  hasSingleDate = $derived<boolean>(
+
+  hasSingleDateInRange = $derived<boolean>(
     !!(this.dateRange.start && this.dateRange.start === this.dateRange.end),
   );
+
+  hasSingleDateEvent = $derived<boolean>(this.#availableDates.length === 1);
 
   // Cache keys
   // #cacheKey: string | null = null;
@@ -402,7 +406,7 @@ class ProductsStore {
     console.log("[Store] Calcul unifié des stats par produit (1 itération)");
 
     // 🚀 OPTIMISATION : Cas date unique -> méthode optimisée
-    if (this.hasSingleDate) {
+    if (this.hasSingleDateInRange) {
       return this.#calculateSingleDateStats();
     }
 
@@ -627,7 +631,7 @@ class ProductsStore {
    * 2. Charge/synchronise depuis Appwrite
    * 3. Configure l'abonnement realtime
    */
-  async initialize(mainId: string) {
+  async initialize(mainId: string, listId: string) {
     if (!mainId?.trim()) {
       throw new Error("mainId invalide fourni");
     }
@@ -658,7 +662,7 @@ class ProductsStore {
       if (this.#enrichedProducts.size === 0) {
         console.log("[ProductsStore] Cache vide, chargement depuis Hugo...");
 
-        const hugoData = await loadHugoEventData(mainId);
+        const hugoData = await loadHugoEventData(listId);
         console.log(
           `[ProductsStore] Hugo chargé: ${hugoData.ingredients.length} ingrédients`,
         );
@@ -1580,9 +1584,9 @@ class ProductsStore {
     return this.#enrichedProducts.size;
   }
 
-  async forceReload(mainId: string) {
+  async forceReload(mainId: string, listId: string) {
     await this.clearCache();
-    await this.initialize(mainId);
+    await this.initialize(mainId, listId);
   }
 
   async clearCache() {

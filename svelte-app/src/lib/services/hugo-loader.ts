@@ -26,10 +26,10 @@ export interface HugoEventData {
  * Charge le JSON Hugo pour un événement
  */
 export async function loadHugoEventData(
-  mainId: string,
+  listId: string,
 ): Promise<HugoEventData> {
   const response = await fetch(
-    `/evenements/${mainId}/ingredients_aw/index.json`,
+    `/evenements/${listId}/ingredients_aw/index.json`,
   );
 
   if (!response.ok) {
@@ -75,7 +75,7 @@ export function createEnrichedProductFromHugo(
   return {
     // Métadonnées
     $id:
-      ingredient.productSemanticKey ||
+      `${ingredient.productSemanticKey}` ||
       `${mainId}_${ingredient.ingredientHugoUuid}`,
     $updatedAt: undefined,
 

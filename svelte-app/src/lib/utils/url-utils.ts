@@ -27,6 +27,17 @@ export function getMainIdFromUrl(): string {
 }
 
 /**
+ * Transforme listId en mainId formaté (4 premiers + _ + 10 derniers)
+ * @param listId - Identifiant original depuis l'URL
+ * @returns mainId formaté pour Appwrite/IndexedDB
+ */
+export function transformListIdToMainId(listId: string): string {
+  const prefix = listId.substring(0, 4);
+  const suffix = listId.slice(-10);
+  return `${prefix}_${suffix}`;
+}
+
+/**
  * Génère une clé de stockage persistant avec le mainId inclus
  * @param baseKey - Clé de base
  * @param mainId - Identifiant principal

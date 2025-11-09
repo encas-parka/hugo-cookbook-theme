@@ -52,19 +52,33 @@
 {{- /* Calculer le hash MD5 de la chaîne */ -}}
 {{- $contentHash := md5 $hashInput -}}
 
+
+
+{{- /* Creation d'uuid max 36 pour appwrite  */ -}}
+
+{{- $baseName := .File.ContentBaseName | default .File.UniqueID -}}
+{{- $prefix := substr $baseName 0 4 -}}
+{{- $uuidPart := substr $baseName (sub (len $baseName) 10) 10 -}}
+{{- $mainGroupId := printf "%s_%s" $prefix $uuidPart -}}
 {
-  "mainGroup_id": "{{ .File.ContentBaseName | default .File.UniqueID }}",
+  "mainGroup_id": "{{ $mainGroupId }}",
   "hugoContentHash": {{ $contentHash | jsonify }},
   "name": {{ .Title | jsonify }},
   "allDates": {{ $eventData.allDates | jsonify }},
   "ingredients": [
     {{- $first := true -}}
     {{- range $name, $data := sort $ingredient_totals "name" -}}
+
+    {{ $nameSlug := $data.name | urlize | lower | replaceRE "%20" "-" }}
+    {{ $nameTrunc := $nameSlug | truncate 10 "" }}
+    {{ $uuidPart := $data.uuid | truncate 6 "" }}
+    {{ $semanticKey := printf "%s_%s_%s" $nameTrunc $uuidPart $mainGroupId }}
+
       {{- if not $first }},{{ end }}{{- $first = false -}}
       {
         "ingredientHugoUuid": {{ $data.uuid | jsonify }},
         "ingredientName": {{ $data.name | jsonify }},
-        "productSemanticKey": {{ printf "%s_%s" ($data.name | urlize | lower | replaceRE "%20" "-") $data.uuid | jsonify }},
+        "productSemanticKey": {{ $semanticKey | jsonify }},
         "ingType": {{ $data.type | jsonify }},
         "totalAssiettes": {{ (int (index $totalAssiettesByIngredient $data.name | default 0)) | jsonify }},
         "nbRecipes": {{ (int (index $totalRecipesByIngredient $data.name | default 0)) | jsonify }},

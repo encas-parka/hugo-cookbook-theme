@@ -206,7 +206,6 @@
                   {/if}
                 </div>
                 <!-- icone and sync spinner -->
-
                 <div class="flex gap-1">
                   {#if product.pFrais}
                     <div
@@ -227,7 +226,7 @@
                 </div>
                 {#if product.status === "isSyncing"}
                   <div
-                    class="flex items-center gap-1 text-blue-600"
+                    class="text-accent flex items-center gap-1"
                     title="Synchronisation en cours..."
                   >
                     <LoaderCircle class="h-4 w-4 animate-spin" />
@@ -236,7 +235,7 @@
 
                 <!-- 📅 Dates concernées -->
                 {#if stats.concernedDates.length > 0}
-                  <div class="text-base-content/60 mt-2">
+                  <div class="text-base-content/60">
                     <div class="flex flex-wrap gap-1">
                       {#each stats.concernedDates as date (date)}
                         {@const recipes = stats.recipesByDate.get(date) || []}
@@ -247,7 +246,7 @@
                             data-tip={recipes.map((r) => r.r).join(", ")}
                           >
                             <div
-                              class="badge badge-outline badge-xs hover:badge-primary"
+                              class="badge badge-outline badge-sm hover:badge-primary"
                             >
                               {new Date(date).toLocaleDateString("fr-FR", {
                                 weekday: "short",

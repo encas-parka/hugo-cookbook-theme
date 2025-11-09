@@ -92,7 +92,7 @@
       />
     </div>
   </div>
-  {#if !productsStore.hasSingleDate}
+  {#if !productsStore.hasSingleDateEvent}
     <Fieldset legend="Date incluses" bgClass="bg-base-100">
       <TimelineRange
         availableDates={productsStore.availableDates}

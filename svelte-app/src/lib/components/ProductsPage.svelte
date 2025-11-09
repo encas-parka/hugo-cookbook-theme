@@ -20,7 +20,6 @@
   import GroupPurchaseModal from "./GroupPurchaseModal.svelte";
   import ProductModal from "./ProductModal.svelte";
   import ProductsFilters from "./ProductsFilters.svelte";
-  import ProductsTable from "./ProductsTable.svelte";
   import ProductsCards from "./ProductsCards.svelte";
   import StoreBatchEditModal from "./StoreBatchEditModal.svelte";
   import WhoBatchEditModal from "./WhoBatchEditModal.svelte";
@@ -220,13 +219,6 @@
   <LeftPanel width={PANEL_WIDTH}>
     <ProductsFilters />
   </LeftPanel>
-
-  <!-- <ProductsTable
-    onOpenModal={openModal}
-    onOpenGroupEditModal={openGroupEditModal}
-    onOpenGroupPurchaseModal={openGroupPurchaseModal}
-    onQuickValidation={handleQuickValidation}
-  /> -->
 
   <ProductsCards
     onOpenModal={openModal}

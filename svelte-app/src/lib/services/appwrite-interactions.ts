@@ -56,6 +56,7 @@
 import { ID, Query, type Models } from "appwrite";
 import superjson from "superjson";
 import type { Products, Purchases } from "../types/appwrite.d";
+import { toastService } from "./toast.service.svelte";
 import type {
   StoreInfo,
   MainEventData,
@@ -158,9 +159,33 @@ async function getAppwriteInstances() {
   return { databases, config };
 }
 
+/**
+ * Enrichit les données produit avec le nom de l'utilisateur
+ * @param data - Données du produit à enrichir
+ * @returns Données enrichies avec updatedBy
+ */
+async function enrichProductWithUser(data: any) {
+  const client = (window as any).AppwriteClient!;
+  const account = await client.getAccount();
+  const user = await account.get();
+
+  return {
+    ...data,
+    updatedBy: user.name,
+  };
+}
+
 // =============================================================================
 // SERVICES PRODUITS - LECTURE
 // =============================================================================
+
+/**
+ * Récupère le nom de l'utilisateur courant
+ * @returns Nom de l'utilisateur ou chaîne vide si non disponible
+ */
+function getCurrentUserName(): string {
+  return localStorage.getItem("appwrite-user-name") || "";
+}
 
 /**
  * Charge les produits depuis Appwrite avec leurs achats associés
@@ -456,26 +481,28 @@ export async function updateProduct(
   productId: string,
   updates: ProductUpdate,
 ): Promise<Products> {
-  try {
-    const { databases, config } = await getAppwriteInstances();
+  return toastService.track(
+    (async () => {
+      const { databases, config } = await getAppwriteInstances();
 
-    const response = await databases.updateDocument(
-      config.APPWRITE_CONFIG.databaseId,
-      config.APPWRITE_CONFIG.collections.products,
-      productId,
-      updates,
-    );
+      // Enrichir les données avec updatedBy
+      const enrichedUpdates = await enrichProductWithUser(updates);
 
-    return response as Products;
-  } catch (error) {
-    console.error(
-      `[Appwrite Interactions] Erreur mise à jour produit ${productId}:`,
-      error,
-    );
-    const errorMessage =
-      error instanceof Error ? error.message : "Erreur inconnue";
-    throw new Error(`Échec de la mise à jour du produit: ${errorMessage}`);
-  }
+      const response = await databases.updateDocument(
+        config.APPWRITE_CONFIG.databaseId,
+        config.APPWRITE_CONFIG.collections.products,
+        productId,
+        enrichedUpdates,
+      );
+
+      return response as Products;
+    })(),
+    {
+      loading: `Mise à jour en cours...`,
+      success: "Produit mis à jour avec succès",
+      error: "Erreur lors de la mise à jour du produit",
+    },
+  );
 }
 
 /**
@@ -509,12 +536,15 @@ export async function upsertProduct(
       updates,
     );
 
+    // Enrichir les données avec updatedBy
+    const enrichedData = await enrichProductWithUser(appwriteData);
+
     const { databases, config } = await getAppwriteInstances();
     const response = await databases.createDocument(
       config.APPWRITE_CONFIG.databaseId,
       config.APPWRITE_CONFIG.collections.products,
       productId, // $id prédéfini
-      appwriteData,
+      enrichedData, // ← Utiliser les données enrichies
     );
 
     console.log(
@@ -668,34 +698,36 @@ export async function updateProductBatch(
 export async function createPurchase(
   purchaseData: PurchaseCreate,
 ): Promise<Purchases> {
-  try {
-    const { databases, config } = await getAppwriteInstances();
-    const client = (window as any).AppwriteClient!;
+  return toastService.track(
+    (async () => {
+      const { databases, config } = await getAppwriteInstances();
+      const client = (window as any).AppwriteClient!;
 
-    // Récupérer l'utilisateur courant
-    const account = await client.getAccount();
-    const user = await account.get();
+      // Récupérer l'utilisateur courant
+      const account = await client.getAccount();
+      const user = await account.get();
 
-    const completePurchaseData = {
-      ...purchaseData,
-      createdBy: user.$id,
-    };
+      const completePurchaseData = {
+        ...purchaseData,
+        createdBy: user.name, // Corrigé : utiliser user.name au lieu de user.$id
+      };
 
-    const response = await databases.createDocument(
-      config.APPWRITE_CONFIG.databaseId,
-      config.APPWRITE_CONFIG.collections.purchases,
-      ID.unique(),
-      completePurchaseData,
-    );
+      const response = await databases.createDocument(
+        config.APPWRITE_CONFIG.databaseId,
+        config.APPWRITE_CONFIG.collections.purchases,
+        ID.unique(),
+        completePurchaseData,
+      );
 
-    console.log("[Appwrite Interactions] Achat créé:", response);
-    return response as Purchases;
-  } catch (error) {
-    console.error("[Appwrite Interactions] Erreur création achat:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Erreur inconnue";
-    throw new Error(`Échec de la création de l'achat: ${errorMessage}`);
-  }
+      console.log("[Appwrite Interactions] Achat créé:", response);
+      return response as Purchases;
+    })(),
+    {
+      loading: "Création de l'achat en cours...",
+      success: "Achat créé avec succès",
+      error: "Erreur lors de la création de l'achat",
+    },
+  );
 }
 
 /**
@@ -949,6 +981,26 @@ export function subscribeToRealtime(
     if (isProductsCollection) {
       const product = payload as Products;
 
+      // 🔄 TOAST REALTIME : Notification pour les modifications d'autres utilisateurs
+      if (product.updatedBy && product.updatedBy !== getCurrentUserName()) {
+        if (isCreate) {
+          toastService.info(
+            `${product.updatedBy} a créé le produit "${product.productName}"`,
+            "realtime-other",
+          );
+        } else if (isUpdate) {
+          toastService.info(
+            `${product.updatedBy} a modifié "${product.productName}"`,
+            "realtime-other",
+          );
+        } else if (isDelete) {
+          toastService.info(
+            `${product.updatedBy} a supprimé un produit`,
+            "realtime-other",
+          );
+        }
+      }
+
       if (isCreate && callbacks.onProductCreate) {
         callbacks.onProductCreate(product);
       } else if (isUpdate && callbacks.onProductUpdate) {
@@ -958,6 +1010,28 @@ export function subscribeToRealtime(
       }
     } else if (isPurchasesCollection) {
       const purchase = payload as Purchases;
+
+      // 🔄 TOAST REALTIME : Notification pour les achats d'autres utilisateurs
+      if (purchase.createdBy && purchase.createdBy !== getCurrentUserName()) {
+        const productName = purchase.products?.[0]?.productName || "un produit";
+
+        if (isCreate) {
+          toastService.info(
+            `${purchase.createdBy} a ajouté un achat pour ${productName}`,
+            "realtime-other",
+          );
+        } else if (isUpdate) {
+          toastService.info(
+            `${purchase.createdBy} a modifié un achat pour ${productName}`,
+            "realtime-other",
+          );
+        } else if (isDelete) {
+          toastService.info(
+            `${purchase.createdBy} a supprimé un achat pour ${productName}`,
+            "realtime-other",
+          );
+        }
+      }
 
       if (isCreate && callbacks.onPurchaseCreate) {
         callbacks.onPurchaseCreate(purchase);

@@ -58,6 +58,7 @@ export type Products = Models.Row & {
   mergedInto: string | null;
   mainId: Main | string; // workarround
   totalNeededOverride: string | null;
+  updatedBy: string; // Nom de l'utilisateur ayant modifié le produit
 };
 
 export type Purchases = Models.Row & {
