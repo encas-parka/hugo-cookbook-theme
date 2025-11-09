@@ -464,23 +464,45 @@ class ProductsStore {
   // Dérivé léger qui dépend de totalNeededByDateRange
 
   // Un seul dérivé qui fait tout : groupement basé sur les produits filtrés par date
-  // Optimisé pour utiliser la Map directement
+  // Optimisé pour utiliser la Map directement avec tri alphabétique natif
   groupedFilteredProducts = $derived.by(() => {
     // Utiliser les produits déjà filtrés (conversion unique Map → tableau)
     const relevantProducts = Array.from(this.filteredProductsMap.values());
 
-    // Grouper les produits
+    // 🎯 TRI ALPHABÉTIQUE NATIF - grâce aux clés sémantiques !
+    // Les clés sémantiques sont de la forme "nom-produit_uuid" donc trier directement sur $id
+    const sortedProducts = relevantProducts.sort((a, b) =>
+      a.$id.localeCompare(b.$id),
+    );
+
+    // Grouper les produits triés
     if (this.#filters.groupBy === "none") {
-      return { "": relevantProducts };
+      return { "": sortedProducts };
     }
 
-    return Object.groupBy(relevantProducts, (product) => {
+    const groups = Object.groupBy(sortedProducts, (product) => {
       if (this.#filters.groupBy === "store") {
         return product.storeInfo?.storeName || "Non défini";
       } else {
         return product.productType || "Non défini";
       }
     });
+
+    // 🎯 TRI DES GROUPES par ordre alphabétique
+    const sortedGroupKeys = Object.keys(groups).sort((a, b) => {
+      // Le groupe vide (sans groupe) doit être à la fin
+      if (a === "") return 1;
+      if (b === "") return -1;
+      return a.localeCompare(b);
+    });
+
+    // Reconstruire l'objet dans l'ordre trié
+    const sortedGroups: Record<string, EnrichedProduct[]> = {};
+    sortedGroupKeys.forEach((key) => {
+      sortedGroups[key] = groups[key];
+    });
+
+    return sortedGroups;
   });
 
   // =========================================================================

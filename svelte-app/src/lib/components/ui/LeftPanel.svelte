@@ -1,9 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { MediaQuery } from "svelte/reactivity";
   import { FunnelIcon, X } from "@lucide/svelte";
-
-  const isDesktop = new MediaQuery("min-width: 768px");
+  import { globalState } from "../../stores/GlobalState.svelte";
 
   let filtersDrawerOpen = $state(false);
 
@@ -13,12 +11,16 @@
     width?: string;
   }
   let { children, width = "80", bgClass = "bg-base-300" }: Props = $props();
+
+  const panelWidth = $derived("w-" + width);
 </script>
 
-{#if isDesktop.current}
+{#if !globalState.isMobile}
   <!-- Conteneur fixe à gauche avec overflow -->
   <div
-    class="{bgClass} w-{width} fixed top-0 left-0 z-40 h-screen overflow-y-auto p-4"
+    class="{bgClass} {panelWidth
+      ? panelWidth
+      : 'w-100'} fixed top-0 left-0 z-40 h-screen overflow-y-auto p-4"
   >
     {@render children?.()}
   </div>

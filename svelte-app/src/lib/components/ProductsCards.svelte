@@ -3,7 +3,6 @@
   // utils
   import {
     getProductTypeInfo,
-    sortEnrichedProducts,
     formatPurchasesWithBadges,
     formatQuantity,
   } from "../utils/products-display";
@@ -35,8 +34,13 @@
     MessageCircleMore,
     PlusCircle,
     CirclePlus,
+    ArrowRightFromLine,
+    ArrowDownCircle,
+    CircleArrowDown,
+    CircleArrowRight,
   } from "@lucide/svelte";
   import Tooltip from "./ui/Tooltip.svelte";
+  import { globalState } from "../stores/GlobalState.svelte";
 
   // Récupérer les icônes de statut depuis le parent pour éviter la duplication
   const statusIcons = {
@@ -81,10 +85,10 @@
       <!-- Header de groupe sticky -->
       {@const groupTypeInfo = getProductTypeInfo(groupKey)}
       <div
-        class="bg-neutral sticky top-0 z-10 flex items-center justify-between rounded-lg px-4 py-2 font-semibold shadow-lg"
+        class="bg-primary @container sticky top-0 z-10 flex flex-wrap items-center justify-between rounded-lg px-4 py-2 font-semibold shadow-lg brightness-100 drop-shadow-xl @md:flex-nowrap"
       >
         <!-- Nom du groupe -->
-        <div class="flex min-w-48 items-center gap-2">
+        <div class="flex items-center gap-2 @md:min-w-48">
           {#if filters.groupBy === "store"}
             🏪 {groupKey} ({groupProducts!.length})
           {:else if filters.groupBy === "productType"}
@@ -111,7 +115,7 @@
             title="Attribuer un magasin à tous les produits de ce groupe"
           >
             <Store size={16} />
-            Magasin
+            <span class="hidden @md:block">Magasin</span>
             <SquarePen size={16} />
           </button>
 
@@ -126,7 +130,7 @@
             title="Gérer les volontaires pour tous les produits de ce groupe"
           >
             <Users size={16} />
-            Volontaires
+            <span class="hidden @md:block"> Volontaires </span>
             <SquarePen size={16} />
           </button>
 
@@ -138,7 +142,7 @@
               title="Ouvrir le modal d'achat groupé"
             >
               <ShoppingCart size={16} />
-              Achat groupé
+              <span class="hidden @md:block"> Achat groupé </span>
               <CircleCheckBig size={16} />
             </button>
           {/if}
@@ -148,7 +152,7 @@
 
     <!-- Cards des produits du groupe -->
     <div class="space-y-1">
-      {#each sortEnrichedProducts(groupProducts || [], filters) as product (product.$id)}
+      {#each groupProducts || [] as product (product.$id)}
         {@const stats = productsStore.productsStatsByDateRange.get(
           product.$id,
         ) || {
@@ -180,7 +184,7 @@
             <div class="flex items-center justify-between">
               <!-- Section gauche: Titre & Type (prend la place disponible) -->
               <div
-                class="jus flex flex-1 cursor-pointer gap-4"
+                class="flex flex-1 cursor-pointer gap-4"
                 role="button"
                 tabindex="0"
                 onclick={() => onOpenModal(product.$id, "recettes")}
@@ -341,7 +345,7 @@
                 <!-- Bouton d'achat rapide -->
                 {#if stats.hasMissing}
                   <button
-                    class="btn btn-sm btn-soft btn-warning hover:bg-success/70 hover:border-success/70"
+                    class="btn btn-sm btn-soft btn-warning hover:bg-success/70 hover:border-success/70 ms-auto"
                     onclick={(e) => {
                       e.stopPropagation();
                       onQuickValidation(product);
@@ -363,6 +367,11 @@
                     <span class="text-xs"
                       >{stats.formattedAvailableQuantities}</span
                     >
+                    {#if globalState.isMobile}
+                      <CircleArrowDown size={18} />
+                    {:else}
+                      <CircleArrowRight size={18} />
+                    {/if}
                   </button>
                 {:else}
                   <CircleCheckBig size={24} class="text-success" />
@@ -371,7 +380,7 @@
 
               <!-- Achats -->
               <div
-                class="group bg-base-200/40 hover:bg-base-200/50 relative min-w-[200px] flex-1 cursor-pointer rounded-lg p-3 transition-colors hover:ring-2 hover:ring-amber-200"
+                class="group bg-base-200/40 hover:bg-base-200/50 hover:ring-accent/60 relative min-w-[200px] flex-1 cursor-pointer rounded-lg p-3 transition-colors hover:ring-2"
                 role="button"
                 tabindex="0"
                 onclick={() => onOpenModal(product.$id, "achats")}

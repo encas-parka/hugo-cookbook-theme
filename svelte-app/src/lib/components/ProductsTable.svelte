@@ -3,7 +3,6 @@
   // utils
   import {
     getProductTypeInfo,
-    sortEnrichedProducts,
     formatPurchasesWithBadges,
     formatQuantity,
   } from "../utils/products-display";
@@ -226,7 +225,7 @@
 
         <!-- Produits du groupe -->
 
-        {#each sortEnrichedProducts(groupProducts || [], filters) as product (product.$id)}
+        {#each groupProducts || [] as product (product.$id)}
           {@const stats = productsStore.productsStatsByDateRange.get(
             product.$id,
           ) || {

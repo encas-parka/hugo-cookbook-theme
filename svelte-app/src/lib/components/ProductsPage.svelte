@@ -32,6 +32,7 @@
 
   import LeftPanel from "./ui/LeftPanel.svelte";
 
+  // Dont work properly
   const PANEL_WIDTH = "100";
   const PANEL_SIDE = "ml";
   const PANEL_SIDE_WIDTH = PANEL_SIDE + "-" + PANEL_WIDTH;
@@ -198,7 +199,7 @@
   }
 </script>
 
-<div class="space-y-6 {globalState.isMobile ? '' : PANEL_SIDE_WIDTH}">
+<div class="space-y-6 {globalState.isMobile ? '' : 'ml-100'}">
   <!-- Stats -->
   <div class="flex flex-wrap items-center gap-2">
     <div class="badge badge-neutral badge-lg">

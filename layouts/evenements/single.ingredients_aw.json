@@ -64,6 +64,7 @@
       {
         "ingredientHugoUuid": {{ $data.uuid | jsonify }},
         "ingredientName": {{ $data.name | jsonify }},
+        "productSemanticKey": {{ printf "%s_%s" ($data.name | urlize | lower | replaceRE "%20" "-") $data.uuid | jsonify }},
         "ingType": {{ $data.type | jsonify }},
         "totalAssiettes": {{ (int (index $totalAssiettesByIngredient $data.name | default 0)) | jsonify }},
         "nbRecipes": {{ (int (index $totalRecipesByIngredient $data.name | default 0)) | jsonify }},

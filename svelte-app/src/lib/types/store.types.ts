@@ -315,6 +315,7 @@ export interface ByDateEntry {
 export interface HugoIngredient {
   ingredientHugoUuid: string;
   ingredientName: string;
+  productSemanticKey?: string; // Clé sémantique générée par Hugo pour le tri alphabétique
   ingType: string;
   totalAssiettes: number;
   nbRecipes: number;

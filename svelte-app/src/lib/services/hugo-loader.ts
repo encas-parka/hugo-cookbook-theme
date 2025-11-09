@@ -74,7 +74,9 @@ export function createEnrichedProductFromHugo(
   // ✅ Défauts Appwrite (vides localement)
   return {
     // Métadonnées
-    $id: `${mainId}_${ingredient.ingredientHugoUuid}`,
+    $id:
+      ingredient.productSemanticKey ||
+      `${mainId}_${ingredient.ingredientHugoUuid}`,
     $updatedAt: undefined,
 
     // Données métier
