@@ -5,28 +5,26 @@
   Uses a structured data approach for better maintainability.
 
   Input (dict):
-    - quantite:       (number) The quantity.
-    - unit:           (string) The unit (e.g., "c. à soupe", "kg", "gr.").
-    - ingredient:     (string, optional) The ingredient name, for context-sensitive conversions.
-    - fetch:          (string, optional) Defines the output format.
-    - "dict" (default): Returns a structured dict.
-    - "QU", "Unit", "Quantite": Legacy modes for string output.
+  - quantite:       (number) The quantity.
+  - unit:           (string) The unit (e.g., "c. à soupe", "kg", "gr.").
+  - ingredient:     (string, optional) The ingredient name, for context-sensitive conversions.
 
-  Output (if fetch="dict"):
-    - A dict: {
-        "quantiteEq":    (float) The converted quantity in the base unit (gr. or ml).
-        "unitEq":        (string) The base unit ("gr." or "ml").
-        "hasConversion": (bool) True if a conversion was successfully performed.
-        "conversionRule": (string) The conversion rule for the ingredient.
-      }
+  Output:
+  - A dict: {
+  "quantiteEq":    (float) The converted quantity in the base unit (gr. or ml).
+  "unitEq":        (string) The base unit ("gr." or "ml").
+  "hasConversion": (bool) True if a conversion was successfully performed.
+  "conversionRule": (string) The conversion rule for the ingredient.
+  }
 */}}
 
 {{- $quantite := .quantite | default 0.0 -}}
 {{- $unit := .unit | default "" -}}
 {{- $ingredient := .ingredient | default "" -}}
-{{- $fetchMode := .fetch | default "dict" -}}
 
 {{- $qFloat := float $quantite -}}
+{{- /* Forcer quantiteEq en float dès le début */}}
+{{- $quantiteEq := $qFloat -}}
 {{- $unitLower := $unit | lower -}}
 {{- $ingLower := $ingredient | lower -}}
 
@@ -86,7 +84,6 @@
 -}}
 
 {{- /* Initialize result variables */}}
-{{- $quantiteEq := $qFloat -}}
 {{- $unitEq := $unit -}}
 {{- $hasConversion := false -}}
 {{- $conversionRule := "" -}}
@@ -143,19 +140,16 @@
   {{- $baseUnit = "gr." -}}
   {{- $quantiteEq = mul $qFloat (index $conversionRules "pincee") -}}
   {{- $conversionRule = "1 pincée = 0,4 gr." -}}
-
 {{- else if and (strings.Contains $unitLower "gousse") (eq $ingLower "ail") -}}
   {{- $hasConversion = true -}}
   {{- $baseUnit = "gr." -}}
   {{- $quantiteEq = mul $qFloat (index $conversionRules "gousse_ail") -}}
   {{- $conversionRule = "1 gousse = 6.5 gr." -}}
-
 {{- else if and (strings.Contains $unitLower "tête") (eq $ingLower "ail") -}}
   {{- $hasConversion = true -}}
   {{- $baseUnit = "gr." -}}
   {{- $quantiteEq = mul $qFloat (index $conversionRules "tete_ail") -}}
   {{- $conversionRule = "1 tête = 80 gr." -}}
-
 {{- else if strings.Contains $unitLower "unit" -}}
   {{- $baseUnit = "gr." -}}
   {{- $hasConversion = true -}}
@@ -223,25 +217,10 @@
 {{- end -}}
 
 {{- /* --- Génération de la sortie --- */}}
-{{- if eq $fetchMode "dict" -}}
-  {{- return (dict
-        "quantiteEq" $quantiteEq
-        "unitEq" $unitEq
-        "hasConversion" $hasConversion
-        "conversionRule" $conversionRule
-      )
-  -}}
-{{- else -}}
-  {{- $result := "" -}}
-  {{- if eq $fetchMode "fetchUnit" -}}
-    {{- $result = $unit -}}
-  {{- else if eq $fetchMode "fetchQuantite" -}}
-    {{- $result = $quantite -}}
-  {{- else if eq $fetchMode "fetchQU" -}}
-    {{- if $hasConversion -}}
-      {{- $displayQty := partial "functions/format-qty.html" (dict "qty" $quantiteEq "unit" $unitEq) -}}
-      {{- $result = printf "(~ %s)" $displayQty -}}
-    {{- end -}}
-  {{- end -}}
-  {{- return $result -}}
-{{- end -}}
+{{- return (dict
+  "quantiteEq" $quantiteEq
+  "unitEq" $unitEq
+  "hasConversion" $hasConversion
+  "conversionRule" $conversionRule
+  )
+-}}

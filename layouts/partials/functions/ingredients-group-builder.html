@@ -5,36 +5,36 @@
   point for processing ingredient data for both single recipes and events.
 
   Purpose:
-    - Resolve each ingredient from the global index (byUUID).
-    - Group ingredients by their `type` metadata.
-    - Scale quantities for events based on servings (`assiettes`).
-    - Normalize and convert quantities into standard base units (gr, ml)
-      by calling `functions/quantite-converter.html`.
-    - Optionally split legumes into "frais" and "non-frais" groups.
-    - Analyze dietary regimes based on ingredient types and allergens.
+  - Resolve each ingredient from the global index (byUUID).
+  - Group ingredients by their `type` metadata.
+  - Scale quantities for events based on servings (`assiettes`).
+  - Normalize and convert quantities into standard base units (gr, ml)
+  by calling `functions/quantite-converter.html`.
+  - Optionally split legumes into "frais" and "non-frais" groups.
+  - Analyze dietary regimes based on ingredient types and allergens.
 
   Input (dict):
-    - items:              (list) List of recipe ingredients { ingredient, quantite, unit, ... }.
-    - byUUID:             (map) Global ingredients index by UUID.
-    - mode:               (string) "recette" | "evenement".
-    - assiettes:          (int/float, optional) Event servings.
-    - assiettesRecettes:  (int/float, optional) Recipe base servings.
-    - splitLegumes:       (bool, optional) Whether to split legumes by `pFrais`.
+  - items:              (list) List of recipe ingredients { ingredient, quantite, unit, ... }.
+  - byUUID:             (map) Global ingredients index by UUID.
+  - mode:               (string) "recette" | "evenement".
+  - assiettes:          (int/float, optional) Event servings.
+  - assiettesRecettes:  (int/float, optional) Recipe base servings.
+  - splitLegumes:       (bool, optional) Whether to split legumes by `pFrais`.
 
   Output:
-    - dict {
-        "ingredients": { type -> [ entries ] },
-        "regimes": { ... }
-      }
-      where each entry is an enriched ingredient map containing:
-        - ingredient, type, allergenes, commentaire, pFrais, pSurgel, uuid
-        - quantite: The scaled quantity (for events).
-        - unit: The original unit.
-        - quantiteFormatted: A display-ready formatted quantity string.
-        - quantiteEq: (float) The quantity normalized to a base unit (gr/ml).
-        - unitEq: (string) The base unit ("gr." or "ml").
-        - hasConversion: (bool) True if a conversion was possible.
-        - conversionRule: (string) The conversion rule for the ingredient.
+  - dict {
+  "ingredients": { type -> [ entries ] },
+  "regimes": { ... }
+  }
+  where each entry is an enriched ingredient map containing:
+  - ingredient, type, allergenes, commentaire, pFrais, pSurgel, uuid
+  - quantite: The scaled quantity (for events).
+  - unit: The original unit.
+  - quantiteFormatted: A display-ready formatted quantity string.
+  - quantiteEq: (float) The quantity normalized to a base unit (gr/ml).
+  - unitEq: (string) The base unit ("gr." or "ml").
+  - hasConversion: (bool) True if a conversion was possible.
+  - conversionRule: (string) The conversion rule for the ingredient.
 */}}
 
 {{- $items := .items | default (slice) -}}
@@ -99,27 +99,27 @@
 
     {{- /* Call the converter to get standardized quantities */ -}}
     {{- $conversionResult := partial "functions/quantite-converter.html" (dict
-        "quantite" $scaledQty
-        "unit" $u
-        "ingredient" $title
-        "fetch" "dict"
+      "quantite" $scaledQty
+      "unit" $u
+      "ingredient" $title
       )
     -}}
 
     {{- $entryType := cond $splitLegumes $groupType $type -}}
     {{- $entry := dict
-        "ingredient" $title
-        "type" $entryType
-        "iType" $type
-        "allergenes" $allergenes
-        "quantite" $scaledQty
-        "quantiteFormatted" $formattedQty
-        "unit" $u
-        "commentaire" $c
-        "uuid" $uuid
-        "pFrais" $pFrais
-        "pSurgel" $pSurgel
-      | merge $conversionResult -}}
+      "ingredient" $title
+      "type" $entryType
+      "iType" $type
+      "allergenes" $allergenes
+      "quantite" $scaledQty
+      "quantiteFormatted" $formattedQty
+      "unit" $u
+      "commentaire" $c
+      "uuid" $uuid
+      "pFrais" $pFrais
+      "pSurgel" $pSurgel
+      | merge $conversionResult
+    -}}
 
     {{- $current := (index $grouped $groupType) | default (slice) -}}
     {{- $grouped = merge $grouped (dict $groupType ( $current | append $entry )) -}}
@@ -143,13 +143,13 @@
     {{- /* Unresolved ingredient (grouped under "absent") */}}
     {{- $fallback := cond (ne $ingId "") $ingId "inconnu" -}}
     {{- $entry := dict
-        "slug" $ingId
-        "ingredient" $fallback
-        "quantite" $q
-        "unit" $u
-        "commentaire" $c
-        "hasConversion" false
-      -}}
+      "slug" $ingId
+      "ingredient" $fallback
+      "quantite" $q
+      "unit" $u
+      "commentaire" $c
+      "hasConversion" false
+    -}}
     {{- $current := (index $grouped "absent") | default (slice) -}}
     {{- $grouped = merge $grouped (dict "absent" ( $current | append $entry )) -}}
   {{- end -}}
