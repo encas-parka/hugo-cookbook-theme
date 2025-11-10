@@ -12,45 +12,10 @@
 {{- $ingredient_totals := $eventData.ingredient_totals -}}
 {{- $totalAssiettesByIngredient := $eventData.totalAssiettesByIngredient -}}
 {{- $totalRecipesByIngredient := $eventData.totalRecipesByIngredient -}}
-{{- $recipesByIngredient := $eventData.recipesByIngredient -}}
 
 
-{{- /* Générer une chaîne stable pour le hash basée UNIQUEMENT sur les données byDate */ -}}
-{{- $hashInput := "" -}}
-{{- $hashInput = printf "%s|%s" $hashInput (.Title | string) -}}
-{{- $hashInput = printf "%s|%s" $hashInput ($eventData.allDates | jsonify) -}}
-
-{{- /* Parcourir tous les ingrédients dans un ordre stable (trié) */ -}}
-{{- range $name, $data := sort $ingredient_totals "name" -}}
-  {{- $hashInput = printf "%s|%s|%s" $hashInput $data.uuid $data.name -}}
-
-  {{- /* Inclure UNIQUEMENT les données par date (qui contiennent tout) */ -}}
-  {{- $ingByDate := index $eventData.ingredient_by_date $data.name | default (dict) -}}
-  {{- range $dateTime, $dateData := $ingByDate -}}
-    {{- $hashInput = printf "%s|%s" $hashInput $dateTime -}}
-
-    {{- /* totalConsolidated */ -}}
-    {{- if gt $dateData.totalConsolidatedWeight 0 -}}
-      {{- $hashInput = printf "%s|%.0f|gr." $hashInput $dateData.totalConsolidatedWeight -}}
-    {{- end -}}
-    {{- if gt $dateData.totalConsolidatedVolume 0 -}}
-      {{- $hashInput = printf "%s|%.0f|ml" $hashInput $dateData.totalConsolidatedVolume -}}
-    {{- end -}}
-    {{- range $unit, $qty := $dateData.totalConsolidatedOther -}}
-      {{- $hashInput = printf "%s|%.1f|%s" $hashInput $qty $unit -}}
-    {{- end -}}
-
-    {{- /* recipes (contient toutes les infos q, u, qEq, uEq, a) */ -}}
-    {{- range $recipe := $dateData.recipes -}}
-      {{- $hashInput = printf "%s|%s|%.1f|%s|%.1f|%s|%d" $hashInput $recipe.r $recipe.q $recipe.u $recipe.qEq $recipe.uEq $recipe.a -}}
-    {{- end -}}
-
-    {{- $hashInput = printf "%s|%d|%d" $hashInput $dateData.totalAssiettes $dateData.recipeCount -}}
-  {{- end -}}
-{{- end -}}
-
-{{- /* Calculer le hash MD5 de la chaîne */ -}}
-{{- $contentHash := md5 $hashInput -}}
+{{- /* Utiliser le hash optimisé avec partialCached pour garantir la cohérence */ -}}
+{{- $contentHash := partialCached "functions/hash-event-calculator.html" $eventData .File.UniqueID -}}
 
 
 
