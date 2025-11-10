@@ -14,7 +14,6 @@ public_folder: ""
 base_url: https://enka-cookbook.pages.dev
 logout_redirect_url: https://enka-cookbook.pages.dev/
 
-
 media_libraries:
   default:
     config:
@@ -66,19 +65,19 @@ collections:
 
     view_groups:
       groups:
-      - label: "Catégorie: "
-        field: type
-      - label: "Sous-catégories: "
-        field: categories
-      - label: "Auteur·es: "
-        field: auteur
-      - label: "Cuisson: "
-        field: cuisson
-      - label: "Sevice chaud/froid: "
-        field: temperature
-      - label: "Brouillons"
-        name: draft
-        field: draft
+        - label: "Catégorie: "
+          field: type
+        - label: "Sous-catégories: "
+          field: categories
+        - label: "Auteur·es: "
+          field: auteur
+        - label: "Cuisson: "
+          field: cuisson
+        - label: "Sevice chaud/froid: "
+          field: temperature
+        - label: "Brouillons"
+          name: draft
+          field: draft
 
     summary: "{{title}} ({{type}} - {{auteur}})"
 
@@ -91,14 +90,22 @@ collections:
           label: "Intitulé",
           name: "title",
           widget: "string",
-          hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-)",
+          hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-). 50 caractères maximum.",
+          maxlength: 50,
           pattern:
             [
               '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
               "Contient un caractère spécial interdit. Ne peut contenir que des lettres, des chiffres, des parenthèses ou des tirets (-), virgules et apostrophes.",
             ],
         }
-      - { label: "Brouillon", name: "draft", widget: "boolean", default: false, required: false, hint: "Les brouillons ne sont pas publiés." }
+      - {
+          label: "Brouillon",
+          name: "draft",
+          widget: "boolean",
+          default: false,
+          required: false,
+          hint: "Les brouillons ne sont pas publiés.",
+        }
       - {
           label: "Image",
           name: "img",
@@ -227,7 +234,20 @@ collections:
           - label: "Unité (quantité en...)"
             name: unit
             widget: select
-            options: ["Kg", "gr.", "unité", "l.", "ml", "c. à soupe", "c. à café", "pincées", "tête·s", "gousse·s", "bottes"]
+            options:
+              [
+                "Kg",
+                "gr.",
+                "unité",
+                "l.",
+                "ml",
+                "c. à soupe",
+                "c. à café",
+                "pincées",
+                "tête·s",
+                "gousse·s",
+                "bottes",
+              ]
             hint: "Les quantités en Kg/gr. l./ml sont fortement recommandées, pour eviter les approximations liées aux tailles variables des légumes, et faciliter la génération des listes de course"
           - label: "commentaire"
             name: commentaire
@@ -252,14 +272,12 @@ collections:
         widget: "markdown"
         editor_components: [""]
 
-
       - label: "Préparation - A Faire la veille"
         name: "preparation24h"
         widget: "markdown"
         editor_components: [""]
         required: false
         hint: "Si la recette implique de préparer des choses en avance, précisez-le ici pour que ce soit mis en avant lors de l'affichage des recettes (ce sera indiquer 'A prévoir a l'avance', à vous de préciser plus précisément quand)."
-
 
       ### ::: Astuces
       - label: "Astuces"
@@ -299,7 +317,6 @@ collections:
         widget: "hidden"
         default: "{{datetime}}"
 
-
   ###############################
   ################################
 
@@ -324,7 +341,8 @@ collections:
           label: "Nom de l'évènement",
           name: "title",
           widget: "string",
-          hint: " Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+          hint: " Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes. 50 caractères maximum.",
+          maxlength: 50,
           pattern:
             [
               '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
@@ -395,7 +413,6 @@ collections:
                   - { label: "Plat", value: "plat" }
                   - { label: "Dessert", value: "dessert" }
 
-
               - {
                   label: "Nombre d'assiettes pour cette recette",
                   name: "altAssiettes",
@@ -458,14 +475,32 @@ collections:
         widget: "select"
         required: true
         options:
-          - { label: "Ingrédients Frais (beurre, yaourt, fromage...)", value: "frais" }
-          - { label: "Fruits et Légumes (frais, secs, en conserves...)", value: "legumes" }
+          - {
+              label: "Ingrédients Frais (beurre, yaourt, fromage...)",
+              value: "frais",
+            }
+          - {
+              label: "Fruits et Légumes (frais, secs, en conserves...)",
+              value: "legumes",
+            }
           - { label: "LOF : Lait, oeuf, farines, huile...", value: "lof" }
-          - { label: "Sucrés (Miel, biscuits, jus de fruits, chocolats...)", value: "sucres" }
-          - { label: "Assaisonnements (Epices, aromatiques, vinaigres, sauces, coulis...)", value: "epices" }
+          - {
+              label: "Sucrés (Miel, biscuits, jus de fruits, chocolats...)",
+              value: "sucres",
+            }
+          - {
+              label: "Assaisonnements (Epices, aromatiques, vinaigres, sauces, coulis...)",
+              value: "epices",
+            }
           - { label: "Sec (Légumineuses, céréales)", value: "sec" }
-          - { label: "Viandes et Poissons (et crustacés, mollusques...)", value: "animaux" }
-          - { label: "Autres (ce qui ne se trouve pas ailleurs...)", value: "autres" }
+          - {
+              label: "Viandes et Poissons (et crustacés, mollusques...)",
+              value: "animaux",
+            }
+          - {
+              label: "Autres (ce qui ne se trouve pas ailleurs...)",
+              value: "autres",
+            }
       - label: "Allergènes"
         name: "allergenes"
         widget: "select"
@@ -473,30 +508,42 @@ collections:
         required: false
         hint: "Y compris 'alcool', 'porc', 'Non-Vegan', ou 'Vérifier l'emballage'... Permettra aussi de classer les recettes utilisant cet ingrédients comme 'vegan', 'sans-lacose', 'sans-gluten', etc."
         options:
-          [ "Non-Vegan",
-          "Produit Laitier",
-          "Gluten",
-          "Crustacé",
-          "Oeuf",
-          "Poisson",
-          "Porc",
-          "Arachides",
-          "Soja",
-          "Fruits à coque",
-          "Céleri",
-          "Moutarde",
-          "Sésame",
-          "Sulfites",
-          "Lupin",
-          "Mollusque",
-          "Alcool",
-          "Vérifiez l'emballage"]
+          [
+            "Non-Vegan",
+            "Produit Laitier",
+            "Gluten",
+            "Crustacé",
+            "Oeuf",
+            "Poisson",
+            "Porc",
+            "Arachides",
+            "Soja",
+            "Fruits à coque",
+            "Céleri",
+            "Moutarde",
+            "Sésame",
+            "Sulfites",
+            "Lupin",
+            "Mollusque",
+            "Alcool",
+            "Vérifiez l'emballage",
+          ]
 
+      - {
+          label: "Produit Frais ?",
+          name: "pFrais",
+          widget: "boolean",
+          required: false,
+          hint: "Fruits et légumes frais (ni surgelé, ni conserve, ni séché, etc.), ou ingrédients qui se conserve au frigo",
+        }
 
-      - { label: "Produit Frais ?", name: "pFrais", widget: "boolean", required: false, hint: "Fruits et légumes frais (ni surgelé, ni conserve, ni séché, etc.), ou ingrédients qui se conserve au frigo" }
-
-      - { label: "Produit Surgelé ?", name: "pSurgel", widget: "boolean", required: false, hint: "Ingrédients qui se conserve au congélateur" }
-
+      - {
+          label: "Produit Surgelé ?",
+          name: "pSurgel",
+          widget: "boolean",
+          required: false,
+          hint: "Ingrédients qui se conserve au congélateur",
+        }
 
   # ::: COLLECTION : Materiel
 
@@ -512,7 +559,8 @@ collections:
       - name: "title"
         label: "Nom"
         widget: "string"
-        hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes"
+        hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes. 25 caractères maximum."
+        maxlength: 25
         pattern:
           [
             '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
@@ -538,7 +586,8 @@ collections:
           label: "Nom",
           name: "title",
           widget: "string",
-          hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes",
+          maxlength: 25,
+          hint: "Ne peut contenir que des lettres, des chiffres, des parenthèses, des tirets (-), virgules et apostrophes. 25 caractères maximum.",
           pattern:
             [
               '^[a-zA-Z0-9 éèëïïùàâôêûç \u002C\u0027\u2018\u2019\u00C0-\u00FF()\-]+$',
