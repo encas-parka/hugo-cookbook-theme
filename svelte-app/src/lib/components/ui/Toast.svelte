@@ -26,13 +26,18 @@
 <!-- Conteneur de toasts DaisyUI CORRIGÉ -->
 <div class="toast {position} z-50">
   {#each toasts as toast (toast.id)}
-    <div class="alert alert-{toast.state} max-w-sm shadow-lg">
+    <div
+      class="alert alert-{toast.state} max-w-sm px-2 py-0.5 shadow-lg {toast.state ===
+      'error'
+        ? ''
+        : 'alert-soft'}"
+    >
       <div class="flex items-center gap-2">
         {#if toast.state === "loading"}
           <LoaderCircle class="h-5 w-5 animate-spin" />
         {/if}
 
-        <span class="text-sm font-medium">{toast.message}</span>
+        <span class="text-xs">{toast.message}</span>
       </div>
 
       <!-- Bouton de fermeture (erreurs uniquement) -->
@@ -43,7 +48,7 @@
           title="Fermer"
           aria-label="Fermer la notification"
         >
-          <X class="h-4 w-4" />
+          <X class="ms-1 h-4 w-4" />
         </button>
       {/if}
     </div>
