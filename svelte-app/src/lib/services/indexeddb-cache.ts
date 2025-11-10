@@ -24,6 +24,7 @@ import type { EnrichedProduct } from "../types/store.types";
 interface CacheMetadata {
   lastSync: string | null;
   allDates: string[];
+  hugoContentHash?: string | null;
 }
 
 export interface IDBCache {
@@ -32,6 +33,9 @@ export interface IDBCache {
   loadMetadata(): Promise<CacheMetadata>;
   saveProducts(products: Map<string, EnrichedProduct>): Promise<void>;
   saveMetadata(metadata: CacheMetadata): Promise<void>;
+  updateLastSync(lastSync: string | null): Promise<void>;
+  updateAllDates(allDates: string[]): Promise<void>;
+  updateHugoContentHash(hash: string | null): Promise<void>;
   upsertProduct(product: EnrichedProduct): Promise<void>;
   deleteProduct(productId: string): Promise<void>;
   clear(): Promise<void>;
@@ -50,7 +54,10 @@ class IndexedDBCache implements IDBCache {
   // Noms des object stores
   private readonly PRODUCTS_STORE = "products";
   private readonly METADATA_STORE = "metadata";
-  private readonly METADATA_KEY = "cache-metadata";
+  // Clés pour les métadonnées séparées
+  private readonly LAST_SYNC_KEY = "lastSync";
+  private readonly ALL_DATES_KEY = "allDates";
+  private readonly HUGO_HASH_KEY = "hugoContentHash";
 
   constructor(mainId: string) {
     this.dbName = `products-cache-${mainId}`;
@@ -84,10 +91,10 @@ class IndexedDBCache implements IDBCache {
           console.log("[IDBCache] Object store 'products' créé");
         }
 
-        // Store des métadonnées
+        // Store des métadonnées (avec keyPath pour objets {key, value})
         if (!db.objectStoreNames.contains(this.METADATA_STORE)) {
-          db.createObjectStore(this.METADATA_STORE);
-          console.log("[IDBCache] Object store 'metadata' créé");
+          db.createObjectStore(this.METADATA_STORE, { keyPath: "key" });
+          console.log("[IDBCache] Object store 'metadata' créé avec keyPath");
         }
       };
     });
@@ -118,7 +125,7 @@ class IndexedDBCache implements IDBCache {
   }
 
   /**
-   * Charge les métadonnées (lastSync, allDates)
+   * Charge les métadonnées (lastSync, allDates, hugoContentHash)
    */
   async loadMetadata(): Promise<CacheMetadata> {
     if (!this.db) throw new Error("DB non ouverte");
@@ -126,15 +133,28 @@ class IndexedDBCache implements IDBCache {
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction(this.METADATA_STORE, "readonly");
       const store = tx.objectStore(this.METADATA_STORE);
-      const request = store.get(this.METADATA_KEY);
+      const request = store.getAll();
 
       request.onsuccess = () => {
-        const metadata = request.result || {
+        const allEntries = request.result;
+
+        // Reconstruire l'objet depuis les entrées {key, value}
+        const metadata: CacheMetadata = {
           lastSync: null,
           allDates: [],
+          hugoContentHash: null,
         };
+
+        allEntries.forEach((entry) => {
+          if (entry.key === this.LAST_SYNC_KEY) metadata.lastSync = entry.value;
+          else if (entry.key === this.ALL_DATES_KEY)
+            metadata.allDates = entry.value || [];
+          else if (entry.key === this.HUGO_HASH_KEY)
+            metadata.hugoContentHash = entry.value;
+        });
+
         console.log(
-          `[IDBCache] Metadata chargée: lastSync=${metadata.lastSync}, dates=${metadata.allDates?.length || 0}`,
+          `[IDBCache] Metadata chargées: lastSync=${metadata.lastSync}, dates=${metadata.allDates?.length || 0}, hash=${metadata.hugoContentHash}`,
         );
         resolve(metadata);
       };
@@ -171,7 +191,7 @@ class IndexedDBCache implements IDBCache {
   }
 
   /**
-   * Sauvegarde les métadonnées
+   * Sauvegarde les métadonnées (legacy - pour compatibilité)
    */
   async saveMetadata(metadata: CacheMetadata): Promise<void> {
     if (!this.db) throw new Error("DB non ouverte");
@@ -179,10 +199,79 @@ class IndexedDBCache implements IDBCache {
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction(this.METADATA_STORE, "readwrite");
       const store = tx.objectStore(this.METADATA_STORE);
-      const request = store.put(metadata, this.METADATA_KEY);
+
+      // Sauvegarder chaque métadonnée comme objet {key, value}
+      store.put({ key: this.LAST_SYNC_KEY, value: metadata.lastSync });
+      store.put({ key: this.ALL_DATES_KEY, value: metadata.allDates });
+      if (metadata.hugoContentHash !== undefined) {
+        store.put({ key: this.HUGO_HASH_KEY, value: metadata.hugoContentHash });
+      }
+
+      tx.oncomplete = () => {
+        console.log(`[IDBCache] Metadata sauvegardées (objets {key, value})`);
+        resolve();
+      };
+
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  /**
+   * Met à jour uniquement lastSync (optimisé pour les syncs fréquents)
+   * 🎯 Utilisé lors des synchronisations incrémentielles
+   */
+  async updateLastSync(lastSync: string | null): Promise<void> {
+    if (!this.db) throw new Error("DB non ouverte");
+
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(this.METADATA_STORE, "readwrite");
+      const store = tx.objectStore(this.METADATA_STORE);
+      const request = store.put({ key: this.LAST_SYNC_KEY, value: lastSync });
 
       request.onsuccess = () => {
-        console.log(`[IDBCache] Metadata sauvegardée`);
+        console.log(`[IDBCache] lastSync mis à jour: ${lastSync}`);
+        resolve();
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Met à jour uniquement allDates (optimisé pour l'initialisation)
+   * 🎯 Utilisé lors du premier chargement depuis Hugo
+   */
+  async updateAllDates(allDates: string[]): Promise<void> {
+    if (!this.db) throw new Error("DB non ouverte");
+
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(this.METADATA_STORE, "readwrite");
+      const store = tx.objectStore(this.METADATA_STORE);
+      const request = store.put({ key: this.ALL_DATES_KEY, value: allDates });
+
+      request.onsuccess = () => {
+        console.log(`[IDBCache] allDates mis à jour: ${allDates.length} dates`);
+        resolve();
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Met à jour uniquement hugoContentHash (optimisé pour le suivi de contenu)
+   * 🎯 Utilisé lors du chargement depuis Hugo
+   */
+  async updateHugoContentHash(hash: string | null): Promise<void> {
+    if (!this.db) throw new Error("DB non ouverte");
+
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(this.METADATA_STORE, "readwrite");
+      const store = tx.objectStore(this.METADATA_STORE);
+      const request = store.put({ key: this.HUGO_HASH_KEY, value: hash });
+
+      request.onsuccess = () => {
+        console.log(`[IDBCache] hugoContentHash mis à jour: ${hash}`);
         resolve();
       };
 

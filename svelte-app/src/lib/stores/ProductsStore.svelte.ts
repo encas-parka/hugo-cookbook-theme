@@ -126,6 +126,7 @@ class ProductsStore {
   #realtimeConnected = $state(false);
   // FIXIT [AI] : Que vaut lastSync a la premier initialisation sur un device, alors que des products ont déjà été modifié / synchronisé sur appwrite ??? Il ne faut pas que ce soit today ! Mais la date de creation de mainId, ou que le premier sync SyncFromAppwrite ait lieu avant sa définition
   #lastSync = $state<string | null>(null);
+  #hugoContentHash = $state<string | null>(null);
 
   // Gestion des dates
   #availableDates = $state<string[]>([]);
@@ -201,6 +202,10 @@ class ProductsStore {
 
   get lastSync() {
     return this.#lastSync;
+  }
+
+  get hugoContentHash() {
+    return this.#hugoContentHash;
   }
 
   get syncing() {
@@ -667,6 +672,9 @@ class ProductsStore {
           `[ProductsStore] Hugo chargé: ${hugoData.ingredients.length} ingrédients`,
         );
 
+        // Stocker le hash de contenu Hugo
+        this.#hugoContentHash = hugoData.hugoContentHash;
+
         // ✅ Créer directement des EnrichedProducts (avec byDate, calculées, etc.)
         const enrichedProducts = createEnrichedProductsFromHugo(
           hugoData.ingredients,
@@ -743,6 +751,7 @@ class ProductsStore {
       const metadata = await this.#idbCache.loadMetadata();
       this.#lastSync = metadata.lastSync;
       this.#availableDates = [...metadata.allDates]; // Copie pour éviter les références croisées
+      this.#hugoContentHash = metadata.hugoContentHash || null;
 
       console.log(
         `[ProductsStore] ${productsMap.size} produits chargés du cache IDB, lastSync: ${metadata.lastSync}`,
@@ -814,7 +823,7 @@ class ProductsStore {
       }
 
       this.#updateLastSync();
-      await this.#persistToCache(); // Sync complet = persistence complète
+      await this.#createCache(); // Sync complet = persistence complète
       console.log(`[ProductsStore] SyncFromAppwrite terminé avec succès`);
     } catch (error) {
       console.error("[ProductsStore] Erreur lors du sync:", error);
@@ -828,7 +837,7 @@ class ProductsStore {
   /**
    * Persiste les produits enrichis dans IndexedDB
    */
-  async #persistToCache() {
+  async #createCache() {
     if (!this.#idbCache) return;
 
     try {
@@ -839,7 +848,26 @@ class ProductsStore {
       await this.#idbCache.saveMetadata({
         lastSync: this.#lastSync,
         allDates: [...this.#availableDates], // Copie simple pour éviter les problèmes de clonage
+        hugoContentHash: this.#hugoContentHash,
       });
+
+      console.log("[ProductsStore] Cache IDB persisté");
+    } catch (err) {
+      console.error("[ProductsStore] Erreur persist cache IDB:", err);
+    }
+  }
+  /**
+   * Persiste les produits enrichis dans IndexedDB
+   */
+  async #persistToCache() {
+    if (!this.#idbCache) return;
+
+    try {
+      // Sauvegarder les produits
+      await this.#idbCache.saveProducts(this.#enrichedProducts);
+
+      // Sauvegarder les métadonnées
+      await this.#idbCache.updateLastSync(this.#lastSync);
 
       console.log("[ProductsStore] Cache IDB persisté");
     } catch (err) {
