@@ -360,7 +360,8 @@ collections:
               name: "date_service",
               widget: "datetime",
               hint: "Jour ou le repas sera servis..",
-              date_format: l,
+              date_format: YYYY-MM-DD,
+              default: "{{now}}",
             }
 
           - {
