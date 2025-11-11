@@ -107,12 +107,10 @@ collections:
           hint: "Les brouillons ne sont pas publiés.",
         }
       - {
-          label: "Image",
-          name: "img",
-          widget: "image",
           required: false,
-          allow_multiple: false,
+          hint: "Les brouillons ne sont pas publiés.",
         }
+      - { label: "Image", name: "img", widget: "image", required: false }
       - {
           label: "Description",
           name: "description",
@@ -368,7 +366,7 @@ collections:
               name: "date_service",
               widget: "datetime",
               hint: "Jour ou le repas sera servis..",
-              dateFormat: YYYY-MM-DD,
+              date_format: YYYY-MM-DD,
             }
 
           - {
@@ -383,7 +381,7 @@ collections:
               name: "assiettes",
               widget: "number",
               default: 100,
-              valueType: "int",
+              value_type: "int",
               min: 1,
               max: 10000,
             }
