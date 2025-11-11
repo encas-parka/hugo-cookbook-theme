@@ -360,7 +360,7 @@ collections:
               name: "date_service",
               widget: "datetime",
               hint: "Jour ou le repas sera servis..",
-              date_format: YYYY-MM-DD,
+              date_format: l,
             }
 
           - {
