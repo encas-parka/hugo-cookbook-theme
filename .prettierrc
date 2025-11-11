@@ -4,7 +4,7 @@
     {
       "files": ["*.html"],
       "options": {
-        "parser": "go-template"
+        "parser": "gohtml"
       }
     },
     { "files": ["*.svelte"], "options": { "parser": "svelte" } }
