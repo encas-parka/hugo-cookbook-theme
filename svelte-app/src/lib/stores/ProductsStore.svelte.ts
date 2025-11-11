@@ -36,6 +36,7 @@ import {
 import {
   loadHugoEventData,
   createEnrichedProductsFromHugo,
+  hasHugoContentChanged,
 } from "../services/hugo-loader";
 import { createIDBCache, type IDBCache } from "../services/indexeddb-cache";
 
@@ -119,6 +120,7 @@ class ProductsStore {
 
   // Métadonnées
   #currentMainId = $state<string | null>(null);
+  #hugoMetadata = $state<string | null>(null);
   #isInitialized = $state(false);
   #loading = $state(false);
   #error = $state<string | null>(null);
@@ -153,6 +155,10 @@ class ProductsStore {
 
   // Gestion des mises à jour
   #unsubscribe: (() => void) | null = null;
+
+  // Gestion des changements Hugo
+  #hugoChangeDetected = $state(false);
+  #hugoCheckInterval: number | null = null;
 
   // État Hugo
   #hugoContentChanged = $state(false);
@@ -649,7 +655,7 @@ class ProductsStore {
     console.log(`[ProductsStore] Initialisation avec mainId: ${mainId}`);
 
     this.#currentMainId = mainId;
-
+    this.#hugoMetadata = listId;
     try {
       this.#idbCache = await createIDBCache(mainId);
     } catch (err) {
@@ -672,7 +678,7 @@ class ProductsStore {
           `[ProductsStore] Hugo chargé: ${hugoData.ingredients.length} ingrédients`,
         );
 
-        // Stocker le hash de contenu Hugo
+        // Assigné le hash hugo de idb à la state
         this.#hugoContentHash = hugoData.hugoContentHash;
 
         // ✅ Créer directement des EnrichedProducts (avec byDate, calculées, etc.)
@@ -716,6 +722,9 @@ class ProductsStore {
       // Setup realtime
       const callbacks = this.#setupRealtimeCallbacks();
       this.#unsubscribe = subscribeToRealtime(mainId, callbacks);
+
+      // Démarrer la surveillance des changements Hugo
+      this.#startHugoChangeMonitoring();
 
       console.log(
         `[ProductsStore] Initialisation complétée: ${this.#enrichedProducts.size} produits`,
@@ -905,6 +914,65 @@ class ProductsStore {
 
   #updateLastSync() {
     this.#lastSync = new Date().toISOString();
+  }
+
+  // =========================================================================
+  // GESTION DES CHANGEMENTS HUGO
+  // =========================================================================
+
+  /**
+   * Vérifie si le contenu Hugo a changé en utilisant le fichier de métadonnées léger
+   */
+  async #checkHugoContentChanges(): Promise<boolean> {
+    if (!this.#hugoMetadata || this.#loading) {
+      return false;
+    }
+
+    try {
+      const hasChanged = await hasHugoContentChanged(
+        this.#hugoContentHash,
+        this.#hugoMetadata,
+      );
+
+      if (hasChanged && !this.#hugoChangeDetected) {
+        console.log(
+          `[ProductsStore] Changement Hugo détecté pour ${this.#hugoMetadata}`,
+        );
+        this.#hugoChangeDetected = true;
+      }
+
+      return hasChanged;
+    } catch (error) {
+      console.warn(
+        "[ProductsStore] Erreur lors de la vérification du contenu Hugo:",
+        error,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Démarre la vérification périodique des changements Hugo
+   */
+  #startHugoChangeMonitoring() {
+    if (this.#hugoCheckInterval) {
+      clearInterval(this.#hugoCheckInterval);
+    }
+
+    // Vérifier toutes les 60 secondes
+    this.#hugoCheckInterval = setInterval(async () => {
+      await this.#checkHugoContentChanges();
+    }, 60000) as unknown as number;
+  }
+
+  /**
+   * Arrête la surveillance des changements Hugo
+   */
+  #stopHugoChangeMonitoring() {
+    if (this.#hugoCheckInterval) {
+      clearInterval(this.#hugoCheckInterval);
+      this.#hugoCheckInterval = null;
+    }
   }
 
   // =========================================================================
@@ -1679,6 +1747,9 @@ class ProductsStore {
   destroy() {
     this.#unsubscribe?.();
     this.#unsubscribe = null;
+
+    // Arrêter la surveillance des changements Hugo
+    this.#stopHugoChangeMonitoring();
 
     if (this.#idbCache) {
       this.#idbCache.close();

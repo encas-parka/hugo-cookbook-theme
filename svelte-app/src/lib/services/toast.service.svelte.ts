@@ -216,7 +216,7 @@ export class ToastService {
       return;
     }
 
-    const delay = toast.source === "realtime-other" ? 4000 : 3000;
+    const delay = toast.source === "realtime-other" ? 24000 : 23000;
 
     toast.timeoutId = setTimeout(() => {
       this.dismiss(toast.id);

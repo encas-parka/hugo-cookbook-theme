@@ -481,28 +481,19 @@ export async function updateProduct(
   productId: string,
   updates: ProductUpdate,
 ): Promise<Products> {
-  return toastService.track(
-    (async () => {
-      const { databases, config } = await getAppwriteInstances();
+  const { databases, config } = await getAppwriteInstances();
 
-      // Enrichir les données avec updatedBy
-      const enrichedUpdates = await enrichProductWithUser(updates);
+  // Enrichir les données avec updatedBy
+  const enrichedUpdates = await enrichProductWithUser(updates);
 
-      const response = await databases.updateDocument(
-        config.APPWRITE_CONFIG.databaseId,
-        config.APPWRITE_CONFIG.collections.products,
-        productId,
-        enrichedUpdates,
-      );
-
-      return response as Products;
-    })(),
-    {
-      loading: `Mise à jour en cours...`,
-      success: "Produit mis à jour avec succès",
-      error: "Erreur lors de la mise à jour du produit",
-    },
+  const response = await databases.updateDocument(
+    config.APPWRITE_CONFIG.databaseId,
+    config.APPWRITE_CONFIG.collections.products,
+    productId,
+    enrichedUpdates,
   );
+
+  return response as Products;
 }
 
 /**
@@ -698,36 +689,22 @@ export async function updateProductBatch(
 export async function createPurchase(
   purchaseData: PurchaseCreate,
 ): Promise<Purchases> {
-  return toastService.track(
-    (async () => {
-      const { databases, config } = await getAppwriteInstances();
-      const client = (window as any).AppwriteClient!;
+  const { databases, config } = await getAppwriteInstances();
 
-      // Récupérer l'utilisateur courant
-      const account = await client.getAccount();
-      const user = await account.get();
+  const completePurchaseData = {
+    ...purchaseData,
+    createdBy: getCurrentUserName(),
+  };
 
-      const completePurchaseData = {
-        ...purchaseData,
-        createdBy: user.name, // Corrigé : utiliser user.name au lieu de user.$id
-      };
-
-      const response = await databases.createDocument(
-        config.APPWRITE_CONFIG.databaseId,
-        config.APPWRITE_CONFIG.collections.purchases,
-        ID.unique(),
-        completePurchaseData,
-      );
-
-      console.log("[Appwrite Interactions] Achat créé:", response);
-      return response as Purchases;
-    })(),
-    {
-      loading: "Création de l'achat en cours...",
-      success: "Achat créé avec succès",
-      error: "Erreur lors de la création de l'achat",
-    },
+  const response = await databases.createDocument(
+    config.APPWRITE_CONFIG.databaseId,
+    config.APPWRITE_CONFIG.collections.purchases,
+    ID.unique(),
+    completePurchaseData,
   );
+
+  console.log("[Appwrite Interactions] Achat créé:", response);
+  return response as Purchases;
 }
 
 /**
@@ -983,14 +960,9 @@ export function subscribeToRealtime(
 
       // 🔄 TOAST REALTIME : Notification pour les modifications d'autres utilisateurs
       if (product.updatedBy && product.updatedBy !== getCurrentUserName()) {
-        if (isCreate) {
+        if (isCreate || isUpdate) {
           toastService.info(
-            `${product.updatedBy} a créé le produit "${product.productName}"`,
-            "realtime-other",
-          );
-        } else if (isUpdate) {
-          toastService.info(
-            `${product.updatedBy} a modifié "${product.productName}"`,
+            `${product.updatedBy} a modifié le produit "${product.productName}"`,
             "realtime-other",
           );
         } else if (isDelete) {
@@ -1015,19 +987,19 @@ export function subscribeToRealtime(
       if (purchase.createdBy && purchase.createdBy !== getCurrentUserName()) {
         const productName = purchase.products?.[0]?.productName || "un produit";
 
-        if (isCreate) {
+        if (isCreate && purchase.who !== getCurrentUserName()) {
           toastService.info(
-            `${purchase.createdBy} a ajouté un achat pour ${productName}`,
+            `${purchase.who} a ajouté un achat pour ${productName}`,
             "realtime-other",
           );
-        } else if (isUpdate) {
+        } else if (isUpdate && purchase.who !== getCurrentUserName()) {
           toastService.info(
-            `${purchase.createdBy} a modifié un achat pour ${productName}`,
+            `${purchase.who} a modifié un achat pour ${productName}`,
             "realtime-other",
           );
         } else if (isDelete) {
           toastService.info(
-            `${purchase.createdBy} a supprimé un achat pour ${productName}`,
+            `${purchase.who} a supprimé un achat pour ${productName}`,
             "realtime-other",
           );
         }

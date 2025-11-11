@@ -2,10 +2,14 @@ import { MediaQuery } from "svelte/reactivity";
 import { toastService } from "../services/toast.service.svelte";
 
 class GlobalState {
-  private isMobileQuery = new MediaQuery("max-width: 767px");
+  private isMobileQuery = new MediaQuery("max-width: 1024px");
 
   get isMobile() {
     return this.isMobileQuery.current;
+  }
+
+  get isDesktop() {
+    return !this.isMobile;
   }
 
   userName() {
