@@ -7,3 +7,4 @@ public/
 *_BAK
 **/jsconfig.json
 node_modules/
+.directory
