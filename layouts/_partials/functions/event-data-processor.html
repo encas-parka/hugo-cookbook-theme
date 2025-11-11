@@ -30,7 +30,8 @@
 {{- $missingRecipes := slice -}}
 {{- /* Pour ingredients_aw.json */}}
 {{- $allDates := slice -}}
-{{- /* Pour neededConsolidatedByDate - optimisation en deux phases */}}
+{{- $conversionCache := dict -}}
+
 
 {{- /* PHASE 1.5: Identifier les ingrédients qui nécessitent un traitement byDate complet */}}
 
@@ -132,7 +133,6 @@
                   {{- $uniqueIngSet = merge $uniqueIngSet (dict .uuid true) -}}
                 {{- end -}}
 
-                {{- /* ✅ OPTIMISATION : Un seul merge au lieu de créer un dict temporaire */}}
                 {{- $enrichedItem := merge $item $commonMetadata -}}
                 {{- $enrichedList = $enrichedList | append $enrichedItem -}}
               {{- end -}}
@@ -212,11 +212,25 @@
                   {{- end -}}
 
                   {{- /* Appeler le converter pour obtenir qEq et uEq */}}
-                  {{- $conversionResult := partial "functions/quantite-converter.html"
-                    (dict "quantite" $quantite "unit" $unit "ingredient" $name)
+
+                  {{- /* ✅ OPTIMISATION : Cache de conversion */}}
+                  {{- $cacheKey := printf "%s|%s" $unit $name -}}
+                  {{- $cachedConversion := index $conversionCache $cacheKey -}}
+                  {{- if not $cachedConversion -}}
+                    {{- $cachedConversion = partial "functions/quantite-converter.html"
+                      (dict "quantite" 1 "unit" $unit "ingredient" $name)
+                    -}}
+                    {{- $conversionCache = merge $conversionCache (dict $cacheKey $cachedConversion) -}}
+                  {{- end -}}
+
+                  {{- /* Calculer la quantité réelle en appliquant le facteur de conversion */}}
+                  {{- $conversionResult := dict
+                    "quantiteEq" (mul $quantite (float $cachedConversion.quantiteEq))
+                    "unitEq" $cachedConversion.unitEq
+                    "hasConversion" $cachedConversion.hasConversion
+                    "conversionRule" $cachedConversion.conversionRule
                   -}}
 
-                  {{- /* ✅ OPTIMISATION : Construire recipeEntry directement */}}
                   {{- $recipeEntry := dict
                     "r" $recetteName
                     "q" $quantite
