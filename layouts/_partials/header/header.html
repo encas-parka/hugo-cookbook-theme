@@ -4,225 +4,425 @@
 
 <header>
   {{/*  ::: import svg icon  */}}
-  {{/*  TODO : importer sprite svg comme ressource externe pour mise en cache  */}}
   {{ $sprite := resources.Get "fonticons/sprite-icons.svg" }}
   {{ if $sprite }}
     <div style="height: 0; overflow: hidden;">{{ $sprite.Content | safeHTML }}</div>
   {{ end }}
-  <div>
 
-    <nav class="navbar navbar-dark navbar-expand bg-dark no-print py-1 fixed-top" id="main-navbar">
-      <div class="container-fluid" >
-        <a class="navbar-brand monospace" href="{{ .Site.BaseURL }}">
-          <img src="/favicon-96x96.png" alt="logo" class="d-inline-block align-text-center" style=" width: 32px;">
-        </a>
+  <nav class="main-nav-enka no-print-enka" id="main-navbar">
+    <div class="nav-container-enka">
+      <a class="nav-brand-enka" href="{{ .Site.BaseURL }}">
+        <img src="/favicon-96x96.png" alt="logo" class="brand-logo-enka">
+      </a>
 
+      <ul class="nav-menu-enka">
+        <li class="">
+          <a class="nav-link-enka" href="/recettes">Recettes</a>
+        </li>
+        <li class="">
+          <a class="nav-link-enka" href="/evenements">Evenements</a>
+        </li>
+      </ul>
 
-          <ul class="navbar-nav text-secondary me-auto">
-            <li class="nav-item">
+      <ul class="nav-actions-enka">
+        <!-- État déconnecté -->
+        <li class="" id="header-logged-out" style="display: none;">
+          <a href="/login" id="btnLoggedOut" class="btn-user-enka" aria-label="Se connecter">
+            <i class="fas fa-user-circle"></i>
+          </a>
+        </li>
 
+        <!-- État connecté -->
+        <li class=" user-dropdown-enka" id="header-logged-in" style="display: none;">
+          <button class="btn-user-enka dropdown-toggle-enka"
+                  id="navbarUserDropdown"
+                  type="button"
+                  aria-expanded="false"
+                  aria-label="Menu utilisateur">
+            <i class="fas fa-user-circle"></i>
+          </button>
+
+          <ul class="dropdown-menu-enka" aria-labelledby="navbarUserDropdown">
+            <li>
+              <div class="dropdown-header-enka" id="header-user-email-display">Utilisateur</div>
             </li>
-            <li class="nav-item">
-              <a class="nav-link px-3" href="/recettes">Recettes</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/evenements">Evenements</a>
-            </li>
-          </ul>
-
-          <ul class="navbar-nav text-secondary ms-auto">
-            <!-- État pour les utilisateurs déconnectés -->
-            <li class="nav-item " id="header-logged-out" style="display: none;">
-              <a href="/login" id="btnLoggedOut" class="btn btn-outline-primary btn-sm d-flex align-items-center" aria-label="Se connecter">
-                <i class="fas fa-user-circle"></i>
+            <li>
+              <a class="dropdown-item-enka" href="/sveltia/" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-pencil-alt"></i>
+                <span>Administration</span>
               </a>
             </li>
-
-            <!-- État pour les utilisateurs connectés (masqué par défaut) -->
-            <li class="nav-item dropdown" id="header-logged-in" style="display: none;">
-              <button class="btn btn-primary btn-sm dropdown-toggle d-flex align-items-center"
-                      id="navbarUserDropdown"
-                      type="button"
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false"
-                      aria-label="Menu utilisateur">
-                <i class="fas fa-user-circle"></i>
-              </button>
-
-              <ul class="dropdown-menu dropdown-menu-end " aria-labelledby="navbarUserDropdown">
-                <li><div class="dropdown-header small text-muted " id="header-user-email-display">Utilisateur</div></li>
-                <li><a class="dropdown-item d-flex align-items-center" href="/sveltia/" target="_blank" rel="noopener noreferrer">
-                  <i class="fas fa-pencil-alt me-2"></i>
-                  Administration
-                </a></li>
-                <li >
-                    <a href="/sveltia/#/collections/recettes/new" target="_blank" rel="noopener noreferrer" class="dropdown-item d-flex align-items-center ms-2" title="Créer une recette">
-                      <i class="fas fa-plus me-1"></i>Recette
-                    </a>
-                </li>
-                <li >
-                    <a href="/sveltia/#/collections/evenements/new" target="_blank" rel="noopener noreferrer" class="dropdown-item d-flex align-items-center ms-2" title="Créer un événement">
-                      <i class="fas fa-plus me-1"></i>Événement
-                    </a>
-                </li>
-                <li><a class="dropdown-item d-flex align-items-center" href="/invitation/">
-                  <i class="fas fa-user-plus me-2"></i>
-                  Inviter
-                </a></li>
-
-                <li><hr class="dropdown-divider"></li>
-                <li><button class="dropdown-item d-flex align-items-center" id="header-logout-button">
-                  <i class="fas fa-sign-out-alt me-2"></i>
-                  Se déconnecter
-                </button></li>
-              </ul>
+            <li>
+              <a href="/sveltia/#/collections/recettes/new" target="_blank" rel="noopener noreferrer"
+                 class="dropdown-item-enka dropdown-subitem-enka" title="Créer une recette">
+                <i class="fas fa-plus"></i>
+                <span>Recette</span>
+              </a>
             </li>
-
+            <li>
+              <a href="/sveltia/#/collections/evenements/new" target="_blank" rel="noopener noreferrer"
+                 class="dropdown-item-enka dropdown-subitem-enka" title="Créer un événement">
+                <i class="fas fa-plus"></i>
+                <span>Événement</span>
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item-enka" href="/invitation/">
+                <i class="fas fa-user-plus"></i>
+                <span>Inviter</span>
+              </a>
+            </li>
+            <li><hr class="dropdown-divider-enka"></li>
+            <li>
+              <button class="dropdown-item-enka" id="header-logout-button">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Se déconnecter</span>
+              </button>
+            </li>
           </ul>
-        </div>
-
-    </nav>
-  </div>
-
+        </li>
+      </ul>
+    </div>
+  </nav>
 </header>
 
-
-
-<!-- CSS pour l'animation de scroll -->
 <style>
-/* Animation fluide pour le comportement de scroll de la navbar */
-#main-navbar {
-  transition: transform 0.3s ease-in-out;
+
+/* ========================================
+   RESET & BASE
+   ======================================== */
+.main-nav-enka {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.navbar-hidden {
+.main-nav-enka ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*.main-nav-enka a,
+.main-nav-enka button {
+  text-decoration: none;
+  color: inherit;
+}*/
+
+/* ========================================
+   NAVBAR PRINCIPALE
+   ======================================== */
+.main-nav-enka {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: #212529;
+  z-index: 1000;
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Classe appliquée par JS pour masquer la navbar */
+.main-nav-enka.hidden {
   transform: translateY(-100%);
 }
 
-/* Amélioration visuelle des boutons du header */
-.navbar .btn {
+.nav-container-enka {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  justify-content: space-between;
+}
+
+/* ========================================
+   BRAND / LOGO
+   ======================================== */
+.nav-brand-enka {
+  display: flex;
+  align-items: center;
+  color: whitesmoke;
+  font-family: monospace;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.brand-logo-enka {
+  width: 32px;
+  height: 32px;
+  vertical-align: middle;
+}
+
+/* ========================================
+   MENU NAVIGATION
+   ======================================== */
+.nav-menu-enka {
+  display: flex;
+  gap: 0.5rem;
+  justify-self: start;
+}
+
+.nav-link-enka {
+  background:  rgba(255, 255, 255, 0.1) ;
+  display: block;
+  padding: 0.2rem 0.75rem;
+  color: whitesmoke;
+  transition: all 0.2s ease;
   border-radius: 6px;
-  min-width: 38px;
-  min-height: 38px;
+  font-size: 1rem;
+}
+
+.nav-link-enka:hover {
+  color: whitesmoke;
+  background: #8c0327;
+}
+
+/* ========================================
+   ACTIONS UTILISATEUR
+   ======================================== */
+.nav-actions-enka {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-user-enka {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 38px;
+  min-height: 32px;
+  padding: 0.2rem 1rem;
+  background: #8c0327;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 300ms ease;
+  font-size: 0.875rem;
 }
 
-.navbar .btn svg {
+.btn-user-enka:hover {
+  background: #730014;
+}
+
+.btn-user-enka i {
+  font-size: 1rem;
+}
+
+/* ========================================
+   DROPDOWN
+   ======================================== */
+.user-dropdown-enka {
+  position: relative;
+}
+
+.dropdown-toggle-enka {
+  position: relative;
+}
+
+.dropdown-toggle-enka::after {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+  border-top: 4px solid;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  z-index: 1000;
+}
+
+.dropdown-menu-enka {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 220px;
+  background: #343a40;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  display: none;
+  transform: translateY(-10px);
+  transition: all 0.2s ease;
+  padding: 0.5rem 0;
+  z-index: 1000;
+}
+
+/* Affichage du dropdown */
+.dropdown-toggle-enka[aria-expanded="true"] ~ .dropdown-menu-enka {
+  opacity: 1;
+  display: block;
+  transform: translateY(0);
+}
+
+.dropdown-header-enka {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: var(--nav-text-0);
+  font-weight: 600;
+}
+
+.dropdown-item-enka {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  color: whitesmoke;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.dropdown-item-enka:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: whitesmoke;
+
+}
+
+.dropdown-item-enka i {
   width: 16px;
-  height: 16px;
-}
-
-/* Style pour le dropdown menu */
-.dropdown-menu-dark .dropdown-item {
-  transition: background-color 0.15s ease-in-out;
-}
-
-.dropdown-menu-dark .dropdown-item:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-}
-
-/* Espacement pour les icônes dans le menu */
-.dropdown-item svg {
-  width: 14px;
-  height: 14px;
   opacity: 0.8;
+  font-size: 0.875rem;
+}
+
+.dropdown-subitem-enka {
+  padding-left: 2rem;
+}
+
+.dropdown-divider-enka {
+  height: 1px;
+  margin: 0.5rem 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+}
+
+/* ========================================
+   IMPRESSION
+   ======================================== */
+@media print {
+  .no-print-enka {
+    display: none !important;
+  }
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+@media (max-width: 768px) {
+  .nav-container-enka {
+    gap: 1rem;
+  }
+
+  .nav-menu-enka {
+    gap: 0.25rem;
+  }
+
+  .nav-link-enka {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .dropdown-menu-enka {
+    min-width: 200px;
+  }
+}
+
+/* Ajustement du body pour compenser la navbar fixe */
+body {
+  padding-top: var(--nav-height);
 }
 </style>
 
-{{/* Modal des modules de recherche vuejs */}}
-
-
-
-
 <script>
-
-// Gestion du comportement de scroll de la navbar en JavaScript vanilla
 (function() {
+  'use strict';
+
   const navbar = document.getElementById('main-navbar');
   if (!navbar) return;
 
-  // --- 1. Calculer et exposer la hauteur de la navbar ---
-  const updateNavbarHeight = () => {
-    const navbarHeight = navbar.offsetHeight;
-    document.documentElement.style.setProperty('--main-navbar-height', `${navbarHeight}px`);
+  // ============================================
+  // 1. GESTION DU SCROLL (JS minimal)
+  // ============================================
+  let lastScroll = 0;
+  let ticking = false;
 
-    // Appliquer la classe visible immédiatement
-    const eventNavbar = document.getElementById('navbarEvent');
-    if (eventNavbar) {
-      eventNavbar.classList.add('visible');
+  function handleScroll() {
+    const currentScroll = window.pageYOffset;
+
+    // En haut de page : toujours visible
+    if (currentScroll <= 0) {
+      navbar.classList.remove('hidden');
     }
-  };
+    // Scroll vers le haut : afficher
+    else if (currentScroll < lastScroll) {
+      navbar.classList.remove('hidden');
+    }
+    // Scroll vers le bas : masquer (seulement après avoir dépassé la hauteur de la navbar)
+    else if (currentScroll > lastScroll && currentScroll > navbar.offsetHeight) {
+      navbar.classList.add('hidden');
+    }
 
-  // Exécuter AU CHARGEMENT (pas après)
-  document.addEventListener('DOMContentLoaded', updateNavbarHeight);
-
-  // Mettre à jour en cas de redimensionnement
-  window.addEventListener('resize', updateNavbarHeight);
-
-  // Écouter l'ouverture/fermeture du menu burger
-  const navbarCollapse = document.getElementById('navbarHeader');
-  if (navbarCollapse) {
-    navbarCollapse.addEventListener('shown.bs.collapse', updateNavbarHeight);
-    navbarCollapse.addEventListener('hidden.bs.collapse', updateNavbarHeight);
+    lastScroll = currentScroll;
+    ticking = false;
   }
 
-
-  // --- 2. Gérer le masquage de la navbar au scroll ---
-  let lastScrollTop = 0;
-  function handleScroll() {
-    const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
-    const eventNavbar = document.getElementById('navbarEvent');
-    if (currentScroll <= 0) {
-       navbar.classList.remove('navbar-hidden');
-       if (eventNavbar) {
-         eventNavbar.style.top = 'var(--main-navbar-height)';
-       }
-     } else if (currentScroll < lastScrollTop) {
-       navbar.classList.remove('navbar-hidden');
-       if (eventNavbar) {
-         eventNavbar.style.top = 'var(--main-navbar-height)';
-       }
-     } else if (currentScroll > lastScrollTop && currentScroll > navbar.offsetHeight) {
-       navbar.classList.add('navbar-hidden');
-       if (eventNavbar) {
-         eventNavbar.style.top = '0';
-       }
-     }
-     lastScrollTop = currentScroll <= 0 ? 0 : currentScroll;
-   }
-
-    // Observer pour détecter quand la navbar principale est masquée/affichée
-    const navbarObserver = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'class') {
-          const eventNavbar = document.getElementById('navbarEvent');
-          if (eventNavbar && navbar.classList.contains('navbar-hidden')) {
-            eventNavbar.style.top = '0';
-          }
-        }
-      });
-    });
-
-    // Observer la navbar principale
-    navbarObserver.observe(navbar, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
-
-  // Optimisation de l'événement scroll
-  let ticking = false;
-  function requestTick() {
+  // Optimisation avec requestAnimationFrame
+  window.addEventListener('scroll', function() {
     if (!ticking) {
-      requestAnimationFrame(() => {
-        handleScroll();
-        ticking = false;
-      });
+      requestAnimationFrame(handleScroll);
       ticking = true;
     }
+  }, { passive: true });
+
+  // ============================================
+  // 2. GESTION DU DROPDOWN
+  // ============================================
+  const dropdownToggle = document.getElementById('navbarUserDropdown');
+
+  if (dropdownToggle) {
+    // Toggle au clic
+    dropdownToggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const isExpanded = this.getAttribute('aria-expanded') === 'true';
+      this.setAttribute('aria-expanded', String(!isExpanded));
+    });
+
+    // Fermer au clic extérieur
+    document.addEventListener('click', function(e) {
+      if (!dropdownToggle.contains(e.target) && !e.target.closest('.dropdown-menu')) {
+        dropdownToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    // Empêcher la fermeture lors du clic dans le menu
+    const dropdownMenu = dropdownToggle.nextElementSibling;
+    if (dropdownMenu) {
+      dropdownMenu.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    }
   }
 
-  window.addEventListener('scroll', requestTick, { passive: true });
+  // ============================================
+  // 3. HAUTEUR DYNAMIQUE DE LA NAVBAR
+  // ============================================
+  function updateNavbarHeight() {
+    const height = navbar.offsetHeight;
+    document.documentElement.style.setProperty('--nav-height', `${height}px`);
+  }
+
+  window.addEventListener('load', updateNavbarHeight);
+  window.addEventListener('resize', updateNavbarHeight);
+
 })();
 </script>
