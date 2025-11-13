@@ -11,6 +11,9 @@
   import AuthErrorAlert from "./lib/components/ui/AuthErrorAlert.svelte";
   import { LogInIcon, RefreshCwIcon } from "@lucide/svelte";
   import Toast from "./lib/components/ui/Toast.svelte";
+  import ThemeSwitcher from "./lib/components/ThemeSwitcher.svelte";
+  import OverrideConflictModal from "./lib/components/OverrideConflictModal.svelte";
+  import {globalState} from "./lib/stores/GlobalState.svelte";
 
   let mainId: string;
   let initError: string | null = $state(null);
@@ -76,12 +79,17 @@
 
 <div class="bg-base-200 min-h-screen">
   <Toast />
+
+  <!-- {#if globalState.modalOverride.isOpen}
+    <OverrideConflictModal />
+  {/if} -->
+
   <!-- Chargement initial -->
   {#if isLoading}
     <LoadingSpinner />
   {:else}
     <!-- En-tête -->
-    <header class="bg-base-300 top-0 z-10 shadow-sm">
+    <header class="bg-base-300 top-10 z-10 shadow-sm">
       <div class="container mx-auto px-4 py-2">
         <div class="flex items-center justify-between">
           <div>
@@ -112,6 +120,8 @@
                 Maj: {new Date(productsStore.lastSync).toLocaleTimeString()}
               </div>
             {/if}
+
+            <ThemeSwitcher />
 
             <!-- Bouton de rechargement forcé -->
             {#if !initError}
