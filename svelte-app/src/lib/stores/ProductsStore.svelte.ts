@@ -1,7 +1,7 @@
 import { SvelteMap } from "svelte/reactivity";
 import { useDebounce } from "runed";
 import type { Products, Purchases } from "../types/appwrite.d";
-import type { ProductRangeStats } from "../types/store.types";
+import type { ProductRangeStats, TotalNeededOverrideData } from "../types/store.types";
 
 import {
   safeJsonParse,
@@ -10,15 +10,15 @@ import {
   transformPurchasesToNumericQuantity,
   calculateTotalQuantityArray,
   buildNeededConsolidatedByDateArray,
-  parseTotalNeededOverride,
-  extractRecipesByDate,
   hasConversions,
   calculateTotalAssiettesInRange,
   calculateTotalNeededInRange,
   calculateAvailableAtDate,
-  subtractQuantities,
+
   formatStockResult,
+  formatToastMessage,
 } from "../utils/productsUtils";
+import { toastService } from "../services/toast.service.svelte";
 import type {
   EnrichedProduct,
   NumericQuantity,
@@ -38,8 +38,16 @@ import {
   createEnrichedProductsFromHugo,
   hasHugoContentChanged,
 } from "../services/hugo-loader";
-import { createIDBCache, type IDBCache } from "../services/indexeddb-cache";
+//LEGACY
 
+
+import { createIDBCache, type IDBCache } from "../services/indexeddb-cache";
+// new
+import {
+  syncHugoData,
+  type OverrideConflict,
+} from "../services/hugo-sync-json";
+import { globalState } from "./GlobalState.svelte";
 /**
  * ProductsStore - Store principal de gestion des produits avec Svelte 5
  *
@@ -162,6 +170,22 @@ class ProductsStore {
 
   // État Hugo
   #hugoContentChanged = $state(false);
+  #hugoLastCheck: Date | undefined = $state();
+
+  // État pour gérer les conflits d'override
+   #pendingOverrideConflicts = $state<OverrideConflict[]>([]);
+
+   get hasPendingConflicts() {
+     return this.#pendingOverrideConflicts.length > 0;
+   }
+
+   get pendingConflicts() {
+     return this.#pendingOverrideConflicts;
+   }
+
+  // =========================================================================
+  // INITIALISATION
+  // =========================================================================
 
   // Filtres
   #filters = $state<FiltersState>({
@@ -261,10 +285,7 @@ class ProductsStore {
    * Initialise automatiquement la plage de dates si elle est vide
    */
   private initializeDateRange() {
-    if (
-      (!this.dateRange.start || !this.dateRange.end) &&
-      this.#availableDates.length > 0
-    ) {
+    if ( this.#availableDates.length > 0 ) {
       const sortedDates = [...this.#availableDates].sort();
       this.dateRange = {
         start: sortedDates[0],
@@ -673,7 +694,23 @@ class ProductsStore {
       if (this.#enrichedProducts.size === 0) {
         console.log("[ProductsStore] Cache vide, chargement depuis Hugo...");
 
-        const hugoData = await loadHugoEventData(listId);
+        // Charger les données HUGO (ou données de dev en environnement local)
+        let hugoData;
+        if (import.meta.env.DEV) {
+          // En développement, essayer de charger les données locales d'abord
+          const { hasDevData, loadDevEventData } = await import('../services/dev-data');
+
+          if (await hasDevData(listId)) {
+            console.log(`[ProductsStore] Chargement des données de dev pour ${listId}`);
+            hugoData = await loadDevEventData(listId);
+          } else {
+            console.log(`[ProductsStore] Pas de données de dev pour ${listId}, utilisation des données HUGO`);
+            hugoData = await loadHugoEventData(listId);
+          }
+        } else {
+          // En production, toujours utiliser les données HUGO
+          hugoData = await loadHugoEventData(listId);
+        }
         console.log(
           `[ProductsStore] Hugo chargé: ${hugoData.ingredients.length} ingrédients`,
         );
@@ -707,8 +744,8 @@ class ProductsStore {
           );
         }
 
-        // Persister le cache (sans lastSync pour l'instant)
-        await this.#persistToCache();
+        // Persister le cache avec toutes les métadonnées Hugo
+        await this.#persistToCacheWithMetadata();
       }
 
       this.initializeDateRange();
@@ -725,6 +762,12 @@ class ProductsStore {
 
       // Démarrer la surveillance des changements Hugo
       this.#startHugoChangeMonitoring();
+
+      // Vérification initiale immédiate des changements Hugo
+      console.log(
+        "[ProductsStore] Vérification initiale des changements Hugo...",
+      );
+      await this.#checkHugoContentChanges();
 
       console.log(
         `[ProductsStore] Initialisation complétée: ${this.#enrichedProducts.size} produits`,
@@ -885,6 +928,25 @@ class ProductsStore {
   }
 
   /**
+   * Persiste les produits et TOUTES les métadonnées (y compris Hugo)
+   */
+  async #persistToCacheWithMetadata() {
+    if (!this.#idbCache) return;
+    try {
+      // Sauvegarder les produits
+      await this.#idbCache.saveProducts(this.#enrichedProducts);
+      // Sauvegarder toutes les métadonnées
+      await this.#idbCache.updateLastSync(this.#lastSync);
+      // Créer une copie simple du tableau pour éviter l'erreur Proxy
+      await this.#idbCache.updateAllDates([...this.#availableDates]);
+      await this.#idbCache.updateHugoContentHash(this.#hugoContentHash);
+      console.log("[ProductsStore] Cache IDB persisté avec métadonnées complètes");
+    } catch (error) {
+      console.error("[ProductsStore] Erreur persistance cache complet:", error);
+    }
+  }
+
+  /**
    * Persiste uniquement les produits spécifiés dans IndexedDB
    * 🎯 Optimisé : pas de sauvegarde complète, uniquement les produits affectés
    */
@@ -921,7 +983,7 @@ class ProductsStore {
   // =========================================================================
 
   /**
-   * Vérifie si le contenu Hugo a changé en utilisant le fichier de métadonnées léger
+   * Vérifie si le contenu Hugo a changé et effectue une analyse complète
    */
   async #checkHugoContentChanges(): Promise<boolean> {
     if (!this.#hugoMetadata || this.#loading) {
@@ -929,6 +991,7 @@ class ProductsStore {
     }
 
     try {
+      // 1. Vérification rapide avec le hash
       const hasChanged = await hasHugoContentChanged(
         this.#hugoContentHash,
         this.#hugoMetadata,
@@ -936,11 +999,15 @@ class ProductsStore {
 
       if (hasChanged && !this.#hugoChangeDetected) {
         console.log(
-          `[ProductsStore] Changement Hugo détecté pour ${this.#hugoMetadata}`,
+          `[ProductsStore] Changement Hugo détecté pour ${this.#hugoMetadata}, analyse approfondie en cours...`,
         );
         this.#hugoChangeDetected = true;
+
+        // 2. Analyse approfondie des changements
+        await this.#analyzeAndApplyHugoChanges();
       }
 
+      this.#hugoLastCheck = new Date();
       return hasChanged;
     } catch (error) {
       console.warn(
@@ -950,6 +1017,84 @@ class ProductsStore {
       return false;
     }
   }
+
+  async #analyzeAndApplyHugoChanges(): Promise<void> {
+      if (!this.#hugoMetadata) {
+        console.warn('[ProductsStore] Impossible d\'analyser: #hugoMetadata non défini');
+        return;
+      }
+
+      try {
+        console.log('[ProductsStore] Chargement nouveau JSON Hugo...');
+        const newHugoData = await loadHugoEventData(this.#hugoMetadata);
+
+        // ✅ Synchronisation simplifiée
+        const result = await syncHugoData(this.#enrichedProducts, newHugoData);
+
+        console.log(`[ProductsStore  - hugo change] ${result.summary}`);
+
+        // Gérer les conflits d'override
+        if (result.overrideConflicts.length > 0) {
+          this.#pendingOverrideConflicts = result.overrideConflicts;
+
+          // Afficher une notification pour alerter l'utilisateur
+          toastService.error(
+            `${result.overrideConflicts.length} quantité(s) personnalisée(s) nécessitent votre attention`,
+            {
+              action: {
+                label: 'Réviser',
+                onClick: () => globalState.modalOverride.isOpen = true
+              }
+            }
+          );
+        }
+
+        // Gérer les produits isMerged modifiés
+        if (result.mergedProductsUpdated.length > 0) {
+          console.log(
+            `[ProductsStore] ⚠️ ${result.mergedProductsUpdated.length} produits fusionnés modifiés`
+          );
+          // Option : afficher une notification spéciale
+        }
+
+        // Gérer les suppressions avec données
+        if (result.removed.length > 0) {
+          const withData = result.removed.filter(p =>
+            p.purchases?.length || p.stockReel || p.who?.length
+          );
+
+          if (withData.length > 0) {
+            console.log(
+              `[ProductsStore] ℹ️ ${withData.length} ingrédients supprimés conservés (données utilisateur)`
+            );
+            // Ces produits restent dans la Map mais ne sont plus dans Hugo
+            // Vous pouvez les marquer visuellement dans l'UI
+          }
+        }
+
+        // Mettre à jour les dates et le hash
+        this.#availableDates = [...newHugoData.allDates];
+        this.#hugoContentHash = newHugoData.hugoContentHash;
+
+        // Réinitialiser la plage de dates si nécessaire
+        this.initializeDateRange();
+
+        await this.#persistToCacheWithMetadata();
+
+        // Notification utilisateur
+        if (result.added.length || result.updated.length || result.removed.length) {
+          toastService.success(result.summary);
+        }
+
+        // Marquer le changement comme traité
+        this.#hugoChangeDetected = false;
+
+      } catch (error) {
+        console.error('[ProductsStore] Erreur sync Hugo:', error);
+        toastService.error('Erreur lors de la mise à jour Hugo');
+      }
+    }
+
 
   /**
    * Démarre la vérification périodique des changements Hugo
@@ -1078,9 +1223,13 @@ class ProductsStore {
       displayTotalNeeded: "-",
       displayTotalPurchases,
       displayMissingQuantity,
-      totalNeededOverrideParsed: parseTotalNeededOverride(
+      totalNeededOverrideParsed: safeJsonParse<TotalNeededOverrideData>(
         product.totalNeededOverride,
       ),
+      displayTotalOverride: (() => {
+        const override = safeJsonParse<TotalNeededOverrideData>(product.totalNeededOverride);
+        return override ? formatTotalQuantity([override.totalOverride]) : "";
+      })(),
     };
   }
 
@@ -1174,9 +1323,15 @@ class ProductsStore {
       stockOrTotalPurchases,
       displayTotalPurchases,
       displayMissingQuantity,
-      totalNeededOverrideParsed: parseTotalNeededOverride(
+      totalNeededOverrideParsed: safeJsonParse<TotalNeededOverrideData>(
         product.totalNeededOverride ?? existing.totalNeededOverride,
       ),
+      displayTotalOverride: (() => {
+        const override = safeJsonParse<TotalNeededOverrideData>(
+          product.totalNeededOverride ?? existing.totalNeededOverride
+        );
+        return override ? formatTotalQuantity([override.totalOverride]) : "";
+      })(),
     };
   }
 
@@ -1750,6 +1905,7 @@ class ProductsStore {
 
     // Arrêter la surveillance des changements Hugo
     this.#stopHugoChangeMonitoring();
+
 
     if (this.#idbCache) {
       this.#idbCache.close();

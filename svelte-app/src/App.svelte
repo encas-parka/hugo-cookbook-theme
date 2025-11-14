@@ -9,6 +9,7 @@
   import LoadingSpinner from "./lib/components/ui/LoadingSpinner.svelte";
   import ErrorAlert from "./lib/components/ui/ErrorAlert.svelte";
   import AuthErrorAlert from "./lib/components/ui/AuthErrorAlert.svelte";
+  import AuthModal from "./lib/components/AuthModal.svelte";
   import { LogInIcon, RefreshCwIcon } from "@lucide/svelte";
   import Toast from "./lib/components/ui/Toast.svelte";
   import ThemeSwitcher from "./lib/components/ThemeSwitcher.svelte";
@@ -19,13 +20,32 @@
   let initError: string | null = $state(null);
   let isCheckingAuth = $state(true);
   let isReloading = $state(false);
+  let showAuthModal = $state(false);
 
-  onMount(async () => {
+  // Fonction pour gérer les données utilisateur (équivalent de setAuthData)
+  function setAuthData(email: string, name: string, cmsAuth?: any) {
+    localStorage.setItem("appwrite-user-email", email);
+    localStorage.setItem("appwrite-user-name", name);
+    if (cmsAuth) {
+      localStorage.setItem("sveltia-cms.user", JSON.stringify(cmsAuth));
+    }
+  }
+
+  // Fonction d'initialisation de l'application
+  async function initializeApp() {
     const listId = getMainIdFromUrl();
     mainId = transformListIdToMainId(listId);
 
     try {
-      // 1️⃣ Vérifier l'authentification AVANT d'initialiser le store
+      // 1️⃣ En développement, charger Appwrite si nécessaire
+      if (import.meta.env.DEV && !window.AppwriteClient) {
+        console.log("[App] Chargement du module Appwrite pour le développement...");
+        await import('./lib/appwrite-dev');
+        // Attendre un cycle que le global soit défini
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      // 2️⃣ Vérifier l'authentification AVANT d'initialiser le store
       if (!window.AppwriteClient) {
         throw new Error("AppwriteClient non disponible");
       }
@@ -39,7 +59,13 @@
 
       console.log("[App] Utilisateur connecté, initialisation du store...");
 
-      // 2️⃣ Initialiser le store seulement si l'utilisateur est connecté
+      // 2️⃣ Récupérer et stocker les données utilisateur
+      const account = await window.AppwriteClient.getAccount();
+      const user = await account.get();
+
+      setAuthData(user.email, user.name);
+
+      // 3️⃣ Initialiser le store seulement si l'utilisateur est connecté
       await productsStore.initialize(mainId, listId);
     } catch (err) {
       const errorMessage =
@@ -49,7 +75,24 @@
     } finally {
       isCheckingAuth = false;
     }
+  }
+
+  onMount(async () => {
+    await initializeApp();
   });
+
+  // Gestion du succès de l'authentification
+  async function handleAuthSuccess() {
+    showAuthModal = false;
+    isCheckingAuth = true;
+    initError = null;
+    await initializeApp();
+  }
+
+  // Gestion de l'ouverture de la modal
+  function openAuthModal() {
+    showAuthModal = true;
+  }
 
   onDestroy(() => {
     productsStore.destroy();
@@ -138,10 +181,13 @@
 
             {#if initError}
               <div class="">
-                <a href={loginUrl} class="btn btn-primary btn-sm">
+                <button
+                  class="btn btn-primary btn-sm"
+                  onclick={openAuthModal}
+                >
                   <LogInIcon class="mr-2 h-4 w-4" />
                   Se connecter
-                </a>
+                </button>
               </div>
             {/if}
           </div>
@@ -184,6 +230,14 @@
     </main>
   {/if}
 </div>
+
+<!-- Modal d'authentification -->
+{#if showAuthModal}
+  <AuthModal
+    onClose={() => showAuthModal = false}
+    onAuthSuccess={handleAuthSuccess}
+  />
+{/if}
 
 <style>
 </style>

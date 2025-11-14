@@ -5,7 +5,27 @@
  * Tous les champs Appwrite sont initialisés avec leurs valeurs par défaut
  */
 
-import type { HugoIngredient, EnrichedProduct } from "../types/store.types";
+import type {
+  ByDateEntry,
+  EnrichedProduct,
+  NumericQuantity,
+} from "../types/store.types";
+
+export interface HugoIngredient {
+  ingredientHugoUuid: string;
+  ingredientName: string;
+  productSemanticKey?: string; // Clé sémantique générée par Hugo pour le tri alphabétique
+  ingType: string;
+  totalAssiettes: number;
+  nbRecipes: number;
+  pFrais?: boolean;
+  pSurgel?: boolean;
+
+  byDate: Record<string, ByDateEntry>;
+  totalNeededRaw: NumericQuantity[];
+  conversionRules?: string[];
+}
+
 import {
   calculateAndFormatMissing,
   calculateGlobalTotal,
@@ -44,7 +64,21 @@ export interface HugoEventMetadata {
 export async function fetchHugoMetadata(
   listId: string,
 ): Promise<HugoEventMetadata> {
-  const response = await fetch(`/evenements/${listId}/metadata.json`);
+  // En développement, essayer de charger depuis dev-data d'abord
+  let response: Response;
+
+  if (import.meta.env.DEV) {
+    // Essayer depuis dev-data
+    response = await fetch(`/dev-data/${listId}_metadata.json`);
+
+    if (!response.ok) {
+      console.log(`[HugoLoader] Metadata non trouvé dans dev-data, tentative depuis HUGO...`);
+      response = await fetch(`/evenements/${listId}/metadata.json`);
+    }
+  } else {
+    // En production, toujours depuis HUGO
+    response = await fetch(`/evenements/${listId}/metadata.json`);
+  }
 
   if (!response.ok) {
     throw new Error(
@@ -141,8 +175,7 @@ export function createEnrichedProductFromHugo(
   return {
     // Métadonnées
     $id:
-      `${ingredient.productSemanticKey}` ||
-      `${mainId}_${ingredient.ingredientHugoUuid}`,
+      `${ingredient.productSemanticKey}`,
     $updatedAt: undefined,
 
     // Données métier
@@ -152,6 +185,7 @@ export function createEnrichedProductFromHugo(
     pFrais: ingredient.pFrais || false,
     pSurgel: ingredient.pSurgel || false,
     nbRecipes: ingredient.nbRecipes,
+    totalNeededRaw: ingredient.totalNeededRaw,
     totalAssiettes: ingredient.totalAssiettes,
     isSynced: false, // ← Local, non-synced
 
@@ -179,7 +213,6 @@ export function createEnrichedProductFromHugo(
     storeInfo: null,
     stockParsed: null,
     totalNeededArray,
-    totalNeededRawArray: ingredient.totalNeededRaw,
     totalPurchasesArray,
     missingQuantityArray,
     stockOrTotalPurchases: "-",
