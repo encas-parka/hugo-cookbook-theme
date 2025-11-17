@@ -8,7 +8,7 @@
         "@revolist/revogrid": "^4.19.1",
         "@revolist/svelte-datagrid": "^4.17.3",
         "@tailwindcss/vite": "^4.1.14",
-        "appwrite": "^21.2.1",
+        "appwrite": "^21.4.0",
         "cally": "^0.8.0",
         "daisyui": "^5.2.3",
         "runed": "^0.34.0",
@@ -188,7 +188,7 @@
 
     "acorn": ["acorn@8.15.0", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg=="],
 
-    "appwrite": ["appwrite@21.2.1", "", {}, "sha512-OKC95Obw/VuruLf/XqURXHe/6uyQ8/ORpu/GEJC3MrPmwevElFFkE890LmYaolelKYYDPslFnHwgwAn+K3YgqA=="],
+    "appwrite": ["appwrite@21.4.0", "", {}, "sha512-xlLYTRj6jYKZrZhpmSlDRa8PARdn6wjXY1EWr1Fv5mbnbHDt8Jse+NCqNC6GRVVcVZgNorpjLgP5Xn/N3yph0w=="],
 
     "aria-query": ["aria-query@5.3.2", "", {}, "sha512-COROpnaoap1E2F000S62r6A60uHZnmlvomhfyT2DlTcrY1OrBKn2UhH7qn5wTC9zMvD0AY7csdPSNwKP+7WiQw=="],
 

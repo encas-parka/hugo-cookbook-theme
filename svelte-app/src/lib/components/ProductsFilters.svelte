@@ -21,7 +21,7 @@
   const uniqueProductTypes = $derived(productsStore.uniqueProductTypes);
 </script>
 
-<div class="mb-4 flex items-center justify-between">
+<div class="mb-4 flex items-center justify-between pt-10">
   <h3 class="flex items-center gap-2 text-lg font-semibold">
     <FunnelIcon class="h-5 w-5" />
     Filtres

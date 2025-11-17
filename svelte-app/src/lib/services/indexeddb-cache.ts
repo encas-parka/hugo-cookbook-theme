@@ -36,6 +36,7 @@ export interface IDBCache {
   updateLastSync(lastSync: string | null): Promise<void>;
   updateAllDates(allDates: string[]): Promise<void>;
   updateHugoContentHash(hash: string | null): Promise<void>;
+  updateLastHugoMenuUpdate(data: any): Promise<void>;
   upsertProduct(product: EnrichedProduct): Promise<void>;
   deleteProduct(productId: string): Promise<void>;
   clear(): Promise<void>;
@@ -272,6 +273,26 @@ class IndexedDBCache implements IDBCache {
 
       request.onsuccess = () => {
         console.log(`[IDBCache] hugoContentHash mis à jour: ${hash}`);
+        resolve();
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Met à jour le rapport de la dernière mise à jour Hugo
+   */
+  async updateLastHugoMenuUpdate(data: any): Promise<void> {
+    if (!this.db) throw new Error("DB non ouverte");
+
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(this.METADATA_STORE, "readwrite");
+      const store = tx.objectStore(this.METADATA_STORE);
+      const request = store.put({ key: "lastHugoMenuUpdate", value: data });
+
+      request.onsuccess = () => {
+        console.log(`[IDBCache] lastHugoMenuUpdate sauvegardé`);
         resolve();
       };
 

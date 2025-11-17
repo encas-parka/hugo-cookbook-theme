@@ -46,9 +46,9 @@
   }
 </script>
 
-<div class="modal modal-open">
+<div id="product_modal" class="modal {productId && 'modal-open'}">
   <div
-    class="modal-box flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden"
+    class="modal-box flex fixed top-0 overflow-auto h-lvh w-lvw flex-col md:top-10 md:h-full md:max-h-11/12 md:w-full md:max-w-6xl"
   >
     <!-- Header -->
     <div class="flex items-center justify-between border-b p-4 pt-0">
@@ -164,7 +164,7 @@
       </div>
 
       <!-- Contenu -->
-      <div class="min-h-96 flex-1 overflow-y-auto p-4">
+      <div class="flex-1 overflow-y-auto p-4">
         {#if modalState.error}
           <div class="alert alert-error mb-4">
             <X class="h-4 w-4" />

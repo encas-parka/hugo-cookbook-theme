@@ -38,7 +38,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each recipes as recipe (recipe.r)}
+          {#each recipes as recipe, index (index)}
             <tr>
               <td class="font-medium">{recipe.r} ({recipe.a || "-"} c.)</td>
               <td>{recipe.q || recipe.qEq} {recipe.u || recipe.uEq}</td>

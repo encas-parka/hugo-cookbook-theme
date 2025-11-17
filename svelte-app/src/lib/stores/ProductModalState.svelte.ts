@@ -1,3 +1,4 @@
+
 import {
   createPurchase,
   deletePurchase,
@@ -6,8 +7,9 @@ import {
   updateProductWho,
   updatePurchase,
   upsertProduct,
-  updateProduct,
   updateProductBatch,
+  updateTotalOverride,
+  removeTotalOverride,
 } from "../services/appwrite-interactions";
 import { generateRecipesWithDates } from "../utils/productsUtils";
 import type { Purchases } from "../types/appwrite";
@@ -491,10 +493,19 @@ export function createProductModalState(productId: string) {
     if (!product) return;
 
     await withLoading(async () => {
-      // ✅ LOGIQUE DE SYNC : Utiliser updateProduct directement
-      await updateProduct(product.$id, {
-        totalNeededOverride: JSON.stringify(overrideData),
-      });
+
+
+      if (!product.isSynced) {
+        // Produit local : utiliser upsertProduct pour créer sur Appwrite
+        console.log(
+          `[ProductModalState] Produit ${product.$id} local, création who avec upsert...`,
+        );
+        await upsertProduct(product.$id, { totalNeededOverride: JSON.stringify(overrideData) }, (id) =>
+          productsStore.getEnrichedProductById(id),
+        );
+      } else {
+      await updateTotalOverride(product.$id, overrideData, true);
+      }
     }, "Override appliqué");
   }
 
@@ -507,10 +518,7 @@ export function createProductModalState(productId: string) {
       return;
 
     await withLoading(async () => {
-      // ✅ LOGIQUE DE SYNC : Utiliser updateProduct directement
-      await updateProduct(product.$id, {
-        totalNeededOverride: null,
-      });
+      await removeTotalOverride(product.$id, true);
     }, "Override supprimé");
   }
 

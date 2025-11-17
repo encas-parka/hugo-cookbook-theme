@@ -35,7 +35,7 @@
   const PANEL_WIDTH = "100";
   const PANEL_SIDE = "ml";
   const PANEL_SIDE_WIDTH = PANEL_SIDE + "-" + PANEL_WIDTH;
-  console.log("PANEL_SIDE_WIDTH →", PANEL_SIDE_WIDTH);
+  // console.log("PANEL_SIDE_WIDTH →", PANEL_SIDE_WIDTH);
   // Mapping des icônes pour les statuts d'achat
   const statusIcons = {
     Package,
@@ -230,13 +230,11 @@
   <!-- Vue Mobile Cards -->
 </div>
 
-{#if openModalProductId}
   <ProductModal
     productId={openModalProductId}
     initialTab={openModalTab}
     onClose={closeModal}
   />
-{/if}
 
 {#if whoEditModalOpen}
   <WhoBatchEditModal

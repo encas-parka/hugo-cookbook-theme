@@ -1,103 +1,134 @@
 <script lang="ts">
-  import { PencilLine, MessageCircle } from "@lucide/svelte";
-  import type {
-    ProductModalStateType,
-    TotalNeededOverrideData,
-  } from "../types/store.types.js";
-  import { formatQuantity } from "../utils/products-display.js";
-  interface Props {
-    modalState: ProductModalStateType;
-  }
+import { PencilLine, MessageCircle } from "@lucide/svelte";
+import type {
+ProductModalStateType,
+TotalNeededOverrideData,
+} from "../types/store.types.js";
+import { formatQuantity } from "../utils/products-display.js";
+import Fieldset from "./ui/Fieldset.svelte";
+interface Props {
+modalState: ProductModalStateType;
+}
 
-  let { modalState }: Props = $props();
+let { modalState }: Props = $props();
 
-  // Données dérivées du store
-  const overrideData = $derived(modalState.product?.totalNeededOverrideParsed);
-  const totalNeededArray = $derived(modalState.product?.totalNeededArray || []);
-  const displayTotalNeeded = $derived(
-    modalState.product?.displayTotalNeeded || [],
-  );
+// Données dérivées du store
+const overrideData = $derived(modalState.product?.totalNeededOverrideParsed);
+const overrideDisplay = $derived(modalState.product?.displayTotalOverride);
+const totalNeededArray = $derived(modalState.product?.totalNeededArray);
+let hasUnresolvedChangedSinceOverride = $derived(overrideData?.hasUnresolvedChangedSinceOverride)
 
-  // État du formulaire
-  let editMode = $state(false);
-  let quantity = $state(
-    modalState.product?.totalNeededOverrideParsed?.totalOverride.q ||
-      modalState.product?.totalNeededArray[0]?.q ||
-      0,
-  );
-  let unit = $state(
-    modalState.product?.totalNeededOverrideParsed?.totalOverride.u ||
-      modalState.product?.totalNeededArray[0]?.u ||
-      "",
-  );
-  let comment = $state(
-    modalState.product?.totalNeededOverrideParsed?.comment || "",
-  );
 
-  let isFormValid = $derived(quantity > 0 && unit.trim() !== "");
+// État du formulaire
+let editMode = $state(false);
+let quantity = $state(
+modalState.product?.totalNeededOverrideParsed?.totalOverride.q ||
+modalState.product?.totalNeededArray[0]?.q ||
+0,
+);
+let unit = $state(
+modalState.product?.totalNeededOverrideParsed?.totalOverride.u ||
+modalState.product?.totalNeededArray[0]?.u ||
+"",
+);
+let comment = $state(
+modalState.product?.totalNeededOverrideParsed?.comment || "",
+);
 
-  async function handleSetOverride() {
-    if (!modalState) return;
 
-    const overrideData: TotalNeededOverrideData = {
-      totalOverride: { q: quantity, u: unit },
-      comment,
-    };
 
-    await modalState.setOverride(overrideData);
-    editMode = false;
-  }
 
-  async function handleRemoveOverride() {
-    if (!modalState) return;
-    await modalState.removeOverride();
-    editMode = false;
-  }
+let isFormValid = $derived(quantity > 0 && unit.trim() !== "");
+
+async function handleSetOverride() {
+if (!modalState) return;
+
+const overrideData: TotalNeededOverrideData = {
+totalOverride: { q: quantity, u: unit },
+comment,
+};
+
+await modalState.setOverride(overrideData);
+editMode = false;
+}
+
+async function handleRemoveOverride() {
+if (!modalState) return;
+await modalState.removeOverride();
+editMode = false;
+}
 </script>
 
+{#snippet quantityLabeled (label: string, value: string, className?: string, statDesc?: string)}
+  <div class="stat">
+    <div class="stat-title">
+      {label}
+    </div>
+    <div class="stat-value text-lg {className}">
+      {value}
+    </div>
+    <div class="stat-desc">{statDesc}</div>
+
+  </div>
+{/snippet}
+
+{#if modalState.product}
 <div class="mb-2 space-y-4">
   <!-- Quantité calculée affichée en référence -->
+
+  <Fieldset legend="Besoin total">
+  <div class="stats not-md:stats-vertical shadow">
+    {#if modalState.product.totalNeededOverrideParsed?.oldTotalDisplay && hasUnresolvedChangedSinceOverride}
+      <div class="stat ">
+        <div class="stat-title text-sm">
+          Ancienne quantité calculée
+        </div>
+        <div class="stat-value text-base text-content-base/70">
+          {modalState.product.totalNeededOverrideParsed?.oldTotalDisplay}
+        </div>
+        <div class="stat-desc italic">avant la mise a jour des recettes ou menus</div>
+      </div>
+    {/if}
+
+    <div class="stat">
+      <div class="stat-title text-sm">
+        Quantité calculée
+      </div>
+      <div class="stat-value text-base text-content-base/70">
+        { modalState.product.displayTotalNeeded}
+      </div>
+      <div class="stat-desc italic">Recettes actuelles</div>
+    </div>
+
+    {#if overrideDisplay && overrideData}
+      <div class="stat">
+        <div class="stat-title text-sm">
+          "Quantité redéfinie manuellement"
+        </div>
+        <div class="stat-value text-base text-content-base/70">
+          {overrideDisplay}
+        </div>
+        <div class="stat-desc italic"></div>
+      </div>
+    {/if}
+  </div>
+  <div class="flex justify-end gap-2">
+
+    <button
+      class="btn btn-sm btn-primary btn-outline ms-auto w-fit"
+      onclick={() => (editMode = true)}
+      disabled={editMode}
+    >Modifier</button
+    >
+  </div>
+  {#if editMode}
   <div
     class="card border-base-300 border {editMode
       ? 'bg-base-200'
       : 'bg-base-100'}"
   >
     <div class="card-body p-4">
-      {#if !editMode}
-        <div class="flex items-center justify-between">
-          <div>
-            <span class="text-base-content/80">Besoin total</span>
-            {#if overrideData}
-              <span class="badge badge-warning badge-sm ms-2"
-                >Modifié manuellement</span
-              >
-            {/if}
-            <div class="text-lg font-medium">
-              {#if overrideData}
-                {formatQuantity(
-                  overrideData.totalOverride.q,
-                  overrideData.totalOverride.u,
-                )}
-                {#if overrideData.comment}
-                  <div
-                    class="bg-base-200 flex gap-2 rounded p-2 text-sm font-normal"
-                  >
-                    <MessageCircle />
-                    {overrideData.comment}
-                  </div>
-                {/if}
-              {:else}
-                {displayTotalNeeded}
-              {/if}
-            </div>
-          </div>
-        </div>
-        <button
-          class="btn btn-sm btn-primary btn-outline ms-auto w-fit"
-          onclick={() => (editMode = true)}>Modifier</button
-        >
-      {:else}
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           <label class="input">
             <PencilLine class="h-4 w-4 opacity-50" />
             <input
@@ -142,16 +173,20 @@
           </div>
         </div>
 
-        <div class="card-actions mt-4 justify-between">
+        <div class="card-actions mt-4 justify-end gap-2">
+
+          <button class="btn btn-ghost btn-sm" onclick={() => editMode = false}>
+            Annuler
+          </button>
           <button
-            class="btn btn-ghost btn-sm text-error"
+            class="btn btn-soft btn-primary btn-sm"
             onclick={handleRemoveOverride}
             disabled={modalState.loading}
           >
             {#if modalState.loading}
               <span class="loading loading-spinner loading-sm"></span>
             {:else}
-              Réinitialiser le total calculé ({displayTotalNeeded}).
+              Réinitialiser le total calculé ({modalState.product.displayTotalNeeded}).
             {/if}
           </button>
 
@@ -167,10 +202,13 @@
             {/if}
           </button>
         </div>
-      {/if}
     </div>
   </div>
-</div>
+      {/if}
+  </Fieldset>
 
+
+</div>
+{/if}
 <style>
 </style>

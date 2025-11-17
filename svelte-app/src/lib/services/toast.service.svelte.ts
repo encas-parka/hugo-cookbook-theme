@@ -24,6 +24,8 @@ export interface Toast {
   source: ToastSource;
   /** Délai d'auto-fermeture */
   timeoutId?: number;
+  /** Détails optionnels pour affichage dans un modal */
+  details?: any;
 }
 
 /**
@@ -40,6 +42,8 @@ export interface ToastOptions {
   source?: ToastSource;
   /** Délai d'auto-fermeture personnalisé */
   autoCloseDelay?: number;
+  /** Détails optionnels pour affichage dans un modal */
+  details?: any;
 }
 
 /**
@@ -82,6 +86,7 @@ export class ToastService {
       timestamp: Date.now(),
       source: options.source || "user",
       timeoutId: undefined,
+      details: options.details,
     };
 
     // Stratégie simple : 1 toast utilisateur + toasts secondaires
@@ -226,20 +231,28 @@ export class ToastService {
   /**
    * Méthodes utilitaires simples
    */
-  success(message: string): string {
-    return this.create({ state: "success", message });
+  success(message: string, details?: any): string {
+    return this.create({ state: "success", message, details });
   }
 
-  error(message: string): string {
-    return this.create({ state: "error", message });
+  error(message: string, details?: any): string {
+    return this.create({ state: "error", message, details });
   }
 
-  info(message: string, source: ToastSource = "system"): string {
-    return this.create({ state: "info", message, source });
+  info(
+    message: string,
+    options?: { source?: ToastSource; details?: any },
+  ): string {
+    return this.create({
+      state: "info",
+      message,
+      source: options?.source || "system",
+      details: options?.details,
+    });
   }
 
-  loading(message: string): string {
-    return this.create({ state: "loading", message });
+  loading(message: string, details?: any): string {
+    return this.create({ state: "loading", message, details });
   }
 }
 

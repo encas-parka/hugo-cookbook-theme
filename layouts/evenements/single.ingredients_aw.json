@@ -52,14 +52,13 @@
         {{- if and $data.has_equivalence (gt (len $data.conversion_rules) 0) }}
           "conversionRules": {{ $data.conversion_rules | jsonify }},
         {{- end -}}
-        {{- if $data.has_equivalence  }}
+
         "totalNeededRaw": [
           {{- $firstCategory := true -}}
           {{- if gt $data.category_weight 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "q": {{- printf "%.0f" $data.category_weight | float | jsonify -}}, "u": "gr." }{{- end -}}
           {{- if gt $data.category_volume 0 -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "q": {{- printf "%.0f" $data.category_volume | float | jsonify -}}, "u": "ml" }{{- end -}}
           {{- range $unit, $quantity := $data.category_other -}}{{- if not $firstCategory }},{{ end }}{{- $firstCategory = false -}}{ "q": {{- if eq $unit "recette·s" }}{{ printf "%.0f" $quantity | float | jsonify }}{{ else }}{{- printf "%.1f" $quantity | float | jsonify }}{{ end -}}, "u": {{ $unit | jsonify }} }{{- end -}}
         ],
-        {{- end }}
         "byDate": {
           {{- $ingByDate := index $eventData.ingredient_by_date $data.name | default (dict) -}}
           {{- $firstDate := true -}}

@@ -7,6 +7,10 @@
     formatQuantity,
   } from "../utils/products-display";
 
+  // Types
+  import type { EnrichedProduct } from "../types/store.types";
+  import type { ProductRangeStats } from "../types/store.types";
+
   import {
     LayoutList,
     Store,
@@ -38,6 +42,8 @@
     ArrowDownCircle,
     CircleArrowDown,
     CircleArrowRight,
+    ClipboardPenLine,
+    CircleAlert,
   } from "@lucide/svelte";
   import Tooltip from "./ui/Tooltip.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
@@ -52,6 +58,21 @@
     CircleX,
     ClipboardCheck,
     PackageCheck,
+  };
+
+  const defaultStats: ProductRangeStats = {
+    quantities: [],
+    formattedQuantities: "",
+    nbRecipes: 0,
+    totalAssiettes: 0,
+    stockResult: [],
+    availableQuantities: [],
+    missingQuantities: [],
+    formattedAvailableQuantities: "Équilibré",
+    hasAvailable: false,
+    hasMissing: false,
+    concernedDates: [],
+    recipesByDate: new Map(),
   };
 
   interface Props {
@@ -79,7 +100,8 @@
 </script>
 
 <div class="space-y-4 rounded-lg">
-  {#each Object.entries(groupedFilteredProducts) as [groupKey, groupProducts] (groupKey)}
+  {#each Object.entries(groupedFilteredProducts) as [groupKey, gProducts] (groupKey)}
+  {@const groupProducts : EnrichedProduct[] = gProducts}
     {#if groupKey !== ""}
       <!-- Header de groupe sticky -->
       {@const groupTypeInfo = getProductTypeInfo(groupKey)}
@@ -151,28 +173,15 @@
 
     <!-- Cards des produits du groupe -->
     <div class="space-y-1">
-      {#each groupProducts || [] as product (product.$id)}
+      {#each groupProducts as product (product.$id)}
         {@const stats = productsStore.productsStatsByDateRange.get(
-          product.$id,
-        ) || {
-          quantities: [],
-          formattedQuantities: "",
-          nbRecipes: 0,
-          totalAssiettes: 0,
-          stockResult: [],
-          availableQuantities: [],
-          missingQuantities: [],
-          formattedAvailableQuantities: "Équilibré",
-          hasAvailable: false,
-          hasMissing: false,
-          concernedDates: [],
-          recipesByDate: new Map(),
-        }}
+          product.$id) || defaultStats
+        }
         {@const typeInfo = getProductTypeInfo(product.productType)}
         {@const purchasesBadges = formatPurchasesWithBadges(
           product.purchases || [],
         )}
-
+        {@const totalNeededOverride = product.totalNeededOverrideParsed}
         <!-- Card du produit -->
         <div
           class="card bg-base-100 border-base-300 {product.status ===
@@ -305,7 +314,7 @@
                 <!-- Who -->
                 <button
                   title="Modifier les volontaires"
-                  class="btn btn-sm btn-soft group relative {product.who
+                  class="btn btn-sm btn-soft group relative {product.who && product.who
                     ?.length > 0
                     ? 'btn-success'
                     : ''}"
@@ -335,31 +344,41 @@
             </div>
 
             <!-- Deuxième ligne: Groupe Besoins + Achats + Manquants (flex wrap) -->
-            <div class="flex flex-wrap gap-3">
+            <div class="flex flex-wrap gap-3 min-h-14" id="card-needs-missing">
               <!-- Besoins -->
               <div
+                id="needs-card"
                 class="bg-base-200/40 hover:bg-base-200/50 relative flex min-w-[200px] flex-1 cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg p-3 transition-colors hover:shadow-sm"
                 role="button"
                 tabindex="0"
                 onclick={() => onOpenModal(product.$id, "recettes")}
                 onkeydown={(e) =>
                   e.key === "Enter" && onOpenModal(product.$id, "recettes")}
+
               >
-                <div class="flex gap-4">
+                <div class="flex gap-x-4 gap-y-0 flex-wrap">
                   <div
                     class="text-base-content/80 flex items-center gap-2 text-sm font-medium"
                   >
                     <ListTodo class="h-4 w-4" />
-                    Besoins:
+                    Besoins
                   </div>
-                  <div class="flex items-center gap-4">
-                    <!-- Besoin total -->
+                  <div class="flex items-center gap-4 self-end ms-auto">
                     <div
-                      class="font-bold {stats.hasMissing
+                      class="font-bold text-base {stats.hasMissing
                         ? 'text-error'
                         : 'text-success'}"
                     >
-                      {stats.formattedQuantities}
+                      <!-- affichage override -->
+                      {#if totalNeededOverride?.totalOverride}
+                        <div class="flex items-center gap-2 tooltip" data-tip="Besoin total modifié manuellement">
+                        <span class="text-base-content/70 line-through">{stats.formattedQuantities}</span>
+                          <ClipboardPenLine class="h-4 w-4" />
+                          {totalNeededOverride.totalOverride.q} {totalNeededOverride.totalOverride.u}
+                        </div>
+                      {:else}
+                        <span > {stats.formattedQuantities}</span>
+                      {/if}
                     </div>
                     {#if stats.nbRecipes || stats.totalAssiettes}
                       <div
@@ -376,12 +395,13 @@
                       </div>
                     {/if}
                   </div>
+
                 </div>
 
                 <!-- Bouton d'achat rapide -->
                 {#if stats.hasMissing}
                   <button
-                    class="btn btn-sm btn-soft btn-warning hover:bg-success/70 hover:border-success/70 ms-auto"
+                    class="btn btn-sm btn-soft btn-accent hover:bg-success/70 hover:border-success/70 ms-auto"
                     onclick={(e) => {
                       e.stopPropagation();
                       onQuickValidation(product);
@@ -410,23 +430,28 @@
                     {/if}
                   </button>
                 {:else}
-                  <CircleCheckBig size={24} class="text-success" />
+                  <CircleCheckBig size={24} class="text-success ms-auto" />
+                {/if}
+                {#if totalNeededOverride?.hasUnresolvedChangedSinceOverride}
+                <div id="override_alert" class="alert alert-warning px-1 py-0.5 alert-soft mt-1">
+                  <CircleAlert size={18} />
+                  <span>Les quantités des menus ont été modifiées depuis l'attribution manuelle des "besoins"</span>
+                </div>
                 {/if}
               </div>
 
               <!-- Achats -->
               <div
-                class="group bg-base-200/40 hover:bg-base-200/50 hover:ring-accent/60 relative min-w-[200px] flex-1 cursor-pointer rounded-lg p-3 transition-colors hover:ring-2"
+                class="group bg-base-200/40 hover:bg-base-200/50 hover:ring-accent/60 relative flex-1 min-w-[200px] items-center justify-between gap-2 flex cursor-pointer rounded-lg p-3 transition-colors hover:ring-2"
                 role="button"
                 tabindex="0"
                 onclick={() => onOpenModal(product.$id, "achats")}
                 onkeydown={(e) =>
                   e.key === "Enter" && onOpenModal(product.$id, "achats")}
               >
-                <div class="flex items-center justify-between gap-2">
-                  <div class="flex flex-col gap-0">
+                  <div class="flex flex-wrap gap-0 items-start self-start">
                     <div
-                      class="text-base-content/80 flex items-center justify-between gap-2 text-sm font-medium"
+                      class="text-base-content/80 flex items-center gap-2 text-sm font-medium"
                     >
                       <ShoppingCart class="h-4 w-4" />
                       Achats / Récup:
@@ -439,13 +464,13 @@
                     </div>
                   </div>
                   <div class="flex flex-wrap gap-1.5">
-                    {#each purchasesBadges as purchase (purchase.status)}
+                    {#each purchasesBadges as purchase, index (index)}
                       {@const IconComponent = statusIcons[purchase.icon]}
                       <div
                         class="badge badge-outline flex items-center gap-1 {purchase.badgeClass}"
                       >
                         <IconComponent class="h-4 w-4" />
-                        <span class="text-sm font-medium">
+                        <span class="text-sm font-medium text-nowrap">
                           {formatQuantity(purchase.quantity, purchase.unit)}
                         </span>
                       </div>
@@ -456,12 +481,7 @@
                       >
                     {/if}
                   </div>
-                </div>
-                <!-- <div
-                  class="text-base-content/30 absolute bottom-1 left-2 text-xs italic opacity-100 transition-opacity group-hover:opacity-100 sm:opacity-0"
-                >
-                  ajouter un achat
-                </div> -->
+
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { MediaQuery } from "svelte/reactivity";
 import { toastService } from "../services/toast.service.svelte";
+import type { OverrideConflict } from "../services/hugo-sync-json";
 
 class GlobalState {
   private isMobileQuery = new MediaQuery("max-width: 1024px");
@@ -25,6 +26,12 @@ class GlobalState {
   get toast() {
     return toastService;
   }
+
+  modalOverride = $state({
+    isOpen: false,
+    conflicts: [] as OverrideConflict[]
+  });
 }
+
 
 export const globalState = new GlobalState();

@@ -54,14 +54,14 @@
  */
 
 import { ID, Query, type Models } from "appwrite";
-import superjson from "superjson";
 import type { Products, Purchases } from "../types/appwrite.d";
-import { toastService } from "./toast.service.svelte";
 import type {
-  StoreInfo,
-  MainEventData,
-  EnrichedProduct,
+    EnrichedProduct,
+    MainEventData,
+    StoreInfo,
+    TotalNeededOverrideData,
 } from "../types/store.types";
+import { toastService } from "./toast.service.svelte";
 
 // =============================================================================
 // TYPES INTERNE (utilise les types générés automatiquement ??)
@@ -480,17 +480,20 @@ export async function syncProductsWithPurchases(
 export async function updateProduct(
   productId: string,
   updates: ProductUpdate,
+  putUpdatedBy: boolean = true
 ): Promise<Products> {
   const { databases, config } = await getAppwriteInstances();
 
   // Enrichir les données avec updatedBy
-  const enrichedUpdates = await enrichProductWithUser(updates);
+  if (putUpdatedBy) {
+    updates.updatedBy = getCurrentUserName();
+  }
 
   const response = await databases.updateDocument(
     config.APPWRITE_CONFIG.databaseId,
     config.APPWRITE_CONFIG.collections.products,
     productId,
-    enrichedUpdates,
+    updates,
   );
 
   return response as Products;
@@ -607,6 +610,66 @@ export async function updateProductStock(
   stockReel: string | null,
 ): Promise<Products> {
   return updateProduct(productId, { stockReel });
+}
+
+/**
+ * Met à jour le totalNeededOverride d'un produit
+ * @param productId - ID du produit à mettre à jour
+ * @param overrideData - Données de l'override
+ * @param putUpdatedBy - Si true, ajoute le champ updatedBy (défaut: false pour les updates automatiques)
+ * @returns Promise<Products>
+ */
+export async function updateTotalOverride(
+  productId: string,
+  overrideData: TotalNeededOverrideData,
+  putUpdatedBy: boolean = false
+): Promise<Products> {
+  if (!productId) {
+    throw new Error("ID du produit requis pour la mise à jour de l'override");
+  }
+
+  // Sérialiser l'objet TotalNeededOverrideData en string JSON pour Appwrite
+  const serializedOverride = JSON.stringify(overrideData);
+
+  const result = await updateProduct(
+    productId,
+    { totalNeededOverride: serializedOverride },
+    putUpdatedBy
+  );
+
+  console.log(
+    `[Appwrite Interactions] Total override mis à jour pour le produit ${productId}:`,
+    overrideData
+  );
+
+  return result;
+}
+
+/**
+ * Supprime le totalNeededOverride d'un produit (remet à null)
+ * @param productId - ID du produit à mettre à jour
+ * @param putUpdatedBy - Si true, ajoute le champ updatedBy (défaut: false)
+ * @returns Promise<Products>
+ */
+export async function removeTotalOverride(
+  productId: string,
+  putUpdatedBy: boolean = true
+): Promise<Products> {
+  if (!productId) {
+    throw new Error("ID du produit requis pour la suppression de l'override");
+  }
+
+  const result = await updateProduct(
+    productId,
+    { totalNeededOverride: null },
+    putUpdatedBy
+  );
+
+  console.log(
+    `[Appwrite Interactions] Total override supprimé pour le produit ${productId}`
+  );
+
+  return result;
 }
 
 // =============================================================================
@@ -1486,6 +1549,8 @@ export default {
   updateProductStore,
   updateProductWho,
   updateProductStock,
+  updateTotalOverride,
+  removeTotalOverride,
 
   // Services produits - modification groupée
   batchUpdateProducts,

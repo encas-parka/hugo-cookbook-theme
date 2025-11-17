@@ -179,27 +179,6 @@ export function formatSingleQuantity(value: string, unit: string): string {
 // ✅ NOUVEAUX : Utilitaires pour la structure byDate
 // =============================================================================
 
-/**
- * Parse les données byDate depuis le JSON stringifié
- * @param byDateJson - JSON stringifié de la structure byDate
- * @returns Objet byDate parsé ou null
- */
-export function parseByDateData(
-  byDateJson: string | null,
-): Record<string, ByDateEntry> | null {
-  return safeJsonParse<Record<string, ByDateEntry>>(byDateJson);
-}
-
-/**
- * Parse totalNeededOverride depuis le format JSON d'Appwrite
- * @param overrideJson - JSON stringifié de TotalNeededOverrideData
- * @returns Objet TotalNeededOverrideData parsé ou null
- */
-export function parseTotalNeededOverride(
-  overrideJson: string | null,
-): TotalNeededOverrideData | null {
-  return safeJsonParse<TotalNeededOverrideData>(overrideJson);
-}
 
 /**
  * Agrège un tableau de NumericQuantity par unité
@@ -225,21 +204,6 @@ export function aggregateByUnit(
     u,
   }));
 }
-
-/**
- * Extrait les recettes pour une date spécifique depuis byDate
- * @param byDate - Structure byDate parsée
- * @param targetDate - Date cible (format ISO)
- * @returns Tableau de RecipeOccurrence pour cette date
- */
-export function extractRecipesByDate(
-  byDate: Record<string, ByDateEntry>,
-  targetDate: string,
-): RecipeOccurrence[] {
-  const entry = byDate[targetDate];
-  return entry?.recipes || [];
-}
-
 /**
  * Extrait toutes les recettes depuis la structure byDate
  * @param byDate - Structure byDate parsée
@@ -553,4 +517,27 @@ export function formatStockResult(result: NumericQuantity[]): string {
   } else {
     return "Équilibré";
   }
+}
+
+/**
+ * Formate le message pour la notification toast
+ */
+export function formatToastMessage(analysis: any): string {
+  const parts: string[] = [];
+
+  if (analysis.newIngredients.length > 0) {
+    parts.push(`${analysis.newIngredients.length} produits ajoutés`);
+  }
+
+  if (analysis.updatedIngredients.length > 0) {
+    parts.push(`${analysis.updatedIngredients.length} produits mis à jour`);
+  }
+
+  if (analysis.removedIngredients.length > 0) {
+    parts.push(`${analysis.removedIngredients.length} produits supprimés`);
+  }
+
+  return parts.length > 0
+    ? `Mise à jour du menu: ${parts.join(", ")}`
+    : "Menu mis à jour";
 }

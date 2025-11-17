@@ -1,5 +1,7 @@
 import type { Main, Products, Purchases } from "./appwrite.d";
 
+export type { HugoIngredient } from "../services/hugo-loader";
+
 /**
  * Types pour les statuts d'achat
  */
@@ -117,10 +119,15 @@ export interface NumericQuantity {
   u: string;
 }
 
-// ✅ NOUVEAU : Type pour totalNeededOverride (stocké dans Appwrite)
+/**
+ * Type pour le total nécessaire Manuellement redéfini par l'utilisateur (stocké dans Appwrite)
+ */
 export interface TotalNeededOverrideData {
   totalOverride: NumericQuantity;
   comment: string;
+  hasUnresolvedChangedSinceOverride?: boolean;
+  oldTotalDisplay?: string;
+  newTotalDisplay?: string;
 }
 
 // ✅ EnrichedProduct = Données BRUTES Appwrite + Hugo statiques + Calculées
@@ -144,6 +151,8 @@ export interface EnrichedProduct {
   totalAssiettes: number;
   isSynced: boolean;
   mainId: Main | string; // ou Main (géré au sync)
+  totalNeededRaw: NumericQuantity[];
+
 
   // DONNÉES INTERACTIVES / COLLABORATIVES (brutes Appwrite)
   status: string;
@@ -162,18 +171,18 @@ export interface EnrichedProduct {
   purchases: Purchases[];
 
   // DONNÉES STATIQUES HUGO (jamais modifiées, locales)
-  byDate: Record<string, ByDateEntry> | null;
+  byDate: Record<string, ByDateEntry>;
   // DONNÉES CALCULÉES/PARSÉES (pour l'UI, dérivées des brutes)
   storeInfo: StoreInfo | null; // Parsé de store
   stockParsed: StockEntry | null; // Parsé de stockReel
   totalNeededArray: NumericQuantity[]; // Calculé de byDateParsed
-  totalNeededRawArray?: NumericQuantity[];
   totalPurchasesArray: NumericQuantity[]; // Calculé de purchases
   missingQuantityArray: NumericQuantity[]; // Calculé
   stockOrTotalPurchases: string; // Calculé
   displayTotalNeeded: string; // Formaté pour UI
   displayTotalPurchases: string; // Formaté pour UI
   displayMissingQuantity: string; // Formaté pour UI
+  displayTotalOverride: string; // Formaté pour UI depuis totalNeededOverride
   totalNeededOverrideParsed: TotalNeededOverrideData | null; // Parsé de totalNeededOverride
 }
 
@@ -315,21 +324,6 @@ export interface ByDateEntry {
   recipeCount: number;
   // totalRaw est optionnel, seulement si conversions
   totalRaw?: NumericQuantity[];
-}
-
-export interface HugoIngredient {
-  ingredientHugoUuid: string;
-  ingredientName: string;
-  productSemanticKey?: string; // Clé sémantique générée par Hugo pour le tri alphabétique
-  ingType: string;
-  totalAssiettes: number;
-  nbRecipes: number;
-  pFrais?: boolean;
-  pSurgel?: boolean;
-
-  byDate: Record<string, ByDateEntry>;
-  totalNeededRaw?: NumericQuantity[];
-  conversionRules?: string[];
 }
 
 export interface RecipeWithDate extends RecipeOccurrence {
