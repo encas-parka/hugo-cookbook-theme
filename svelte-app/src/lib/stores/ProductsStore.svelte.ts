@@ -19,6 +19,18 @@ import {
   formatToastMessage,
 } from "../utils/productsUtils";
 import { toastService } from "../services/toast.service.svelte";
+import {
+  initializeDateRange,
+  createUpcomingDateRange,
+  createFullDateRange,
+  getFirstAvailableDate,
+  getLastAvailableDate,
+  isEventPassed,
+  isFullRange,
+  isUpcomingRange,
+  hasSingleDateEvent,
+  type DateRange
+} from "../utils/dateRange";
 import type {
   EnrichedProduct,
   NumericQuantity,
@@ -38,7 +50,6 @@ import {
   createEnrichedProductsFromHugo,
   hasHugoContentChanged,
 } from "../services/hugo-loader";
-//LEGACY
 
 
 import { createIDBCache, type IDBCache } from "../services/indexeddb-cache";
@@ -140,7 +151,7 @@ class ProductsStore {
 
   // Gestion des dates
   #availableDates = $state<string[]>([]);
-  dateRange = $state<{ start: string | null; end: string | null }>({
+  dateRange = $state<DateRange>({
     start: null,
     end: null,
   });
@@ -155,6 +166,14 @@ class ProductsStore {
   );
 
   hasSingleDateEvent = $derived<boolean>(this.#availableDates.length === 1);
+
+  // État de l'événement
+  isEventPassed = $derived.by<boolean>(() => {
+    if (this.#availableDates.length === 0) return true;
+    const lastDate = new Date(this.lastAvailableDate!);
+    lastDate.setHours(23, 59, 59, 999); // Fin de journée
+    return lastDate < new Date();
+  });
 
   // Cache keys
   // #cacheKey: string | null = null;
@@ -220,9 +239,6 @@ class ProductsStore {
   get currentMainId() {
     return this.#currentMainId;
   }
-  get isInitialized() {
-    return this.#isInitialized;
-  }
   get loading() {
     return this.#loading;
   }
@@ -232,10 +248,6 @@ class ProductsStore {
 
   get lastSync() {
     return this.#lastSync;
-  }
-
-  get hugoContentHash() {
-    return this.#hugoContentHash;
   }
 
   get syncing() {
@@ -275,44 +287,49 @@ class ProductsStore {
    * Vérifie si la plage de dates couvre toutes les dates disponibles
    */
   isFullRange() {
-    return (
-      this.dateRange.start === this.firstAvailableDate &&
-      this.dateRange.end === this.lastAvailableDate
-    );
+    return isFullRange(this.dateRange, this.#availableDates);
   }
 
   /**
    * Initialise automatiquement la plage de dates si elle est vide
    */
   private initializeDateRange() {
-    if ( this.#availableDates.length > 0 ) {
-      const sortedDates = [...this.#availableDates].sort();
-      this.dateRange = {
-        start: sortedDates[0],
-        end: sortedDates[sortedDates.length - 1],
-      };
+    const range = initializeDateRange(this.#availableDates);
+    if (range) {
+      this.dateRange = range;
     }
     console.log(
       `[ProductsStore] Date range initialized: ${this.dateRange.start} - ${this.dateRange.end}`,
     );
   }
 
+  /**
+   * Sélectionne toutes les dates à partir d'aujourd'hui
+   */
+  selectUpcomingDates() {
+    const range = createUpcomingDateRange(this.#availableDates);
+    if (range) {
+      this.dateRange = range;
+    }
+  }
+
+  /**
+   * Vérifie si la plage de dates actuelle correspond aux dates à venir
+   */
+  isUpcomingRange() {
+    return isUpcomingRange(this.dateRange, this.#availableDates);
+  }
+
   // Bornes calculées (dérivées)
   get firstAvailableDate() {
-    if (this.#availableDates.length === 0) return null;
-    return [...this.#availableDates].sort()[0];
+    return getFirstAvailableDate(this.#availableDates);
   }
 
   get lastAvailableDate() {
-    if (this.#availableDates.length === 0) return null;
-    return [...this.#availableDates].sort().pop();
+    return getLastAvailableDate(this.#availableDates);
   }
   get realtimeConnected() {
     return this.#realtimeConnected;
-  }
-
-  get hugoContentChanged() {
-    return this.#hugoContentChanged;
   }
 
   // =========================================================================
@@ -435,7 +452,7 @@ class ProductsStore {
   }
 
   productsStatsByDateRange = $derived.by(() => {
-    console.log("[Store] Calcul unifié des stats par produit (1 itération)");
+    console.log("[Store] Calcul unifié des stats par produit");
 
     // 🚀 OPTIMISATION : Cas date unique -> méthode optimisée
     if (this.hasSingleDateInRange) {
@@ -450,9 +467,9 @@ class ProductsStore {
       this.dateRange.end === this.lastAvailableDate;
 
     if (isFullRange) {
-      console.log("[Store] Full date range - using precomputed data");
+      console.log("[Store] Full date range - using precomputed data", this.dateRange);
       for (const [id, product] of this.#enrichedProducts) {
-        // 🎯 NOUVEAU : Calculer les disponibilités à la fin de la plage complète
+        // Calculer les disponibilités à la fin de la plage complète
         const stockResult = calculateAvailableAtDate(
           product,
           this.dateRange.end!,
@@ -462,7 +479,7 @@ class ProductsStore {
           .filter((item) => item.q < 0)
           .map((item) => ({ q: Math.abs(item.q), u: item.u }));
 
-        // 📅 NOUVEAU : Calculer les dates concernées et recettes associées
+        // Calculer les dates concernées et recettes associées
         const concernedDates = product.byDate
           ? Object.keys(product.byDate).sort()
           : [];
@@ -523,7 +540,7 @@ class ProductsStore {
         this.dateRange.end!,
       );
 
-      // 4. 📅 NOUVEAU : Calcul des dates concernées et recettes associées
+      // 4. Calcul des dates concernées et recettes associées
       const datesInRange = Object.keys(product.byDate)
         .filter((dateStr) => {
           const date = new Date(dateStr);
@@ -544,7 +561,7 @@ class ProductsStore {
         }
       });
 
-      // 5. 🎯 NOUVEAU : Calculer les disponibilités à la fin de la plage
+      // 5. Calculer les disponibilités à la fin de la plage
       const stockResult = calculateAvailableAtDate(
         product,
         this.dateRange.end!,
@@ -1831,9 +1848,7 @@ class ProductsStore {
     return hasConversions(product.byDate);
   }
 
-  get enrichedProductsCount(): number {
-    return this.#enrichedProducts.size;
-  }
+
 
   async forceReload(mainId: string, listId: string) {
     await this.clearCache();

@@ -1,5 +1,6 @@
 <script>
   import { Cloud, Sun, Moon } from "@lucide/svelte";
+  import { formatDate, getTimeIcon } from "../../utils/dateRange";
 
   let {
     availableDates = [],
@@ -19,6 +20,40 @@
       localStart === availableDates[0] &&
       localEnd === availableDates[availableDates.length - 1],
   );
+
+  // Vérifie si toutes les dates à venir sont sélectionnées
+  const isAllUpcomingDatesSelected = $derived.by(() => {
+    if (availableDates.length === 0) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Trouver la première date aujourd'hui ou dans le futur
+    const sortedDates = [...availableDates].sort();
+    const firstUpcoming = sortedDates.find(date => new Date(date) >= today);
+
+    return firstUpcoming &&
+           localStart === firstUpcoming &&
+           localEnd === availableDates[availableDates.length - 1];
+  });
+
+  // Vérifie si l'événement est terminé
+  const isEventPassed = $derived.by(() => {
+    if (availableDates.length === 0) return true;
+    const lastDate = new Date(availableDates[availableDates.length - 1]);
+    lastDate.setHours(23, 59, 59, 999); // Fin de journée
+    return lastDate < new Date();
+  });
+
+  // Vérifie s'il existe des dates à venir
+  const hasUpcomingDates = $derived.by(() => {
+    if (availableDates.length === 0) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return [...availableDates].some(date => new Date(date) >= today);
+  });
 
   // Synchronisation avec les props
   $effect(() => {
@@ -52,29 +87,29 @@
       : "btn-dash btn-secondary opacity-80";
   }
 
-  function formatDate(dateStr) {
-    return new Date(dateStr).toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "short",
-    });
-  }
-
-  function getTimeIcon(dateStr) {
-    const date = new Date(dateStr);
-    const hour = date.getUTCHours();
-
-    if (hour === 12) return "sun";
-    if (hour === 20) return "moon";
-    if (hour === 8) return "cloud";
-    return null;
-  }
-
   function selectAllDates() {
     if (availableDates.length === 0) return;
 
     localStart = availableDates[0];
     localEnd = availableDates[availableDates.length - 1];
     onRangeChange(localStart, localEnd);
+  }
+
+  function selectUpcomingDates() {
+    if (availableDates.length === 0) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Trouver la première date aujourd'hui ou dans le futur
+    const sortedDates = [...availableDates].sort();
+    const firstUpcoming = sortedDates.find(date => new Date(date) >= today);
+
+    if (firstUpcoming) {
+      localStart = firstUpcoming;
+      localEnd = availableDates[availableDates.length - 1];
+      onRangeChange(localStart, localEnd);
+    }
   }
 </script>
 
@@ -95,18 +130,39 @@
     </button>
   {/each}
 </div>
-{#if !isAllDatesSelected}
-  <div class="flex justify-end">
-    <button
-      class="btn btn-xs btn-link text-primary/80"
-      type="button"
-      onclick={() => selectAllDates()}
-    >
-      Toutes les dates
-    </button>
+{#if isEventPassed}
+  <!-- Événement terminé : afficher le message -->
+  <div class="text-base-content/60 p-1 text-end text-xs italic">
+    événement terminé
   </div>
 {:else}
-  <div class="text-base-content/60 p-1 text-end text-xs italic">
-    toutes les dates sont incluses
+  <!-- Événement en cours : afficher les boutons -->
+  <div class="flex justify-end gap-2 flex-wrap">
+    <!-- Bouton "Dates à venir" : s'affiche seulement s'il existe des dates à venir
+         et que le range ne correspond pas aux dates à venir -->
+    {#if hasUpcomingDates && !isAllUpcomingDatesSelected}
+      <button
+        class="btn btn-xs btn-link text-primary/80"
+        type="button"
+        onclick={() => selectUpcomingDates()}
+      >
+        Dates à venir
+      </button>
+    {/if}
+
+    <!-- Bouton "Toutes les dates" : s'affiche seulement si toutes les dates ne sont pas sélectionnées -->
+    {#if !isAllDatesSelected}
+      <button
+        class="btn btn-xs btn-link text-primary/80"
+        type="button"
+        onclick={() => selectAllDates()}
+      >
+        Toutes les dates
+      </button>
+    {:else}
+      <div class="text-base-content/60 p-1 text-end text-xs italic">
+        toutes les dates sont incluses
+      </div>
+    {/if}
   </div>
 {/if}
