@@ -5,7 +5,22 @@ import type {
   ByDateEntry,
   RecipeWithDate,
   TotalNeededOverrideData,
+  EnrichedProduct,
 } from "../types/store.types";
+
+/**
+ * Interface pour l'état des filtres
+ */
+export interface FiltersState {
+  searchQuery: string;
+  selectedStores: string[];
+  selectedWho: string[];
+  selectedProductTypes: string[];
+  selectedTemperatures: string[];
+  groupBy: "store" | "productType" | "none";
+  sortColumn: string;
+  sortDirection: "asc" | "desc";
+}
 
 /**
  * Calcule la quantité totale nécessaire sur une plage de dates
@@ -540,4 +555,63 @@ export function formatToastMessage(analysis: any): string {
   return parts.length > 0
     ? `Mise à jour du menu: ${parts.join(", ")}`
     : "Menu mis à jour";
+}
+
+/**
+ * Vérifie si un produit correspond aux filtres appliqués
+ * @param product - Produit enrichi à tester
+ * @param filters - État des filtres à appliquer
+ * @returns true si le produit correspond à tous les filtres actifs
+ */
+export function matchesFilters(
+  product: EnrichedProduct,
+  filters: FiltersState
+): boolean {
+  // Recherche textuelle
+  if (filters.searchQuery.trim()) {
+    const query = filters.searchQuery.toLowerCase();
+    if (!product.productName.toLowerCase().includes(query)) {
+      return false;
+    }
+  }
+
+  // Filtre par store
+  if (filters.selectedStores.length > 0) {
+    if (
+      !product.storeInfo?.storeName ||
+      !filters.selectedStores.includes(product.storeInfo.storeName)
+    ) {
+      return false;
+    }
+  }
+
+  // Filtre par who
+  if (filters.selectedWho.length > 0) {
+    if (
+      !product.who ||
+      !product.who.some((w) => filters.selectedWho.includes(w))
+    ) {
+      return false;
+    }
+  }
+
+  // Filtre par productType
+  if (filters.selectedProductTypes.length > 0) {
+    if (
+      !product.productType ||
+      !filters.selectedProductTypes.includes(product.productType)
+    ) {
+      return false;
+    }
+  }
+
+  // Filtres température
+  if (filters.selectedTemperatures.length > 0) {
+    const hasValidTemp =
+      (filters.selectedTemperatures.includes("frais") && product.pFrais) ||
+      (filters.selectedTemperatures.includes("surgele") && product.pSurgel);
+    if (!hasValidTemp) return false;
+  }
+
+  return true;
 }

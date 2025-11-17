@@ -14,10 +14,18 @@ import {
   calculateTotalAssiettesInRange,
   calculateTotalNeededInRange,
   calculateAvailableAtDate,
+  matchesFilters,
+  type FiltersState,
 
   formatStockResult,
   formatToastMessage,
 } from "../utils/productsUtils";
+import { sanitizePurchase } from "../utils/dataSanitization";
+import {
+  createEnrichedProductFromAppwrite,
+  updateExistingProduct,
+  recalculatePurchaseDependents
+} from "../utils/productEnrichment";
 import { toastService } from "../services/toast.service.svelte";
 import {
   initializeDateRange,
@@ -105,16 +113,7 @@ import { globalState } from "./GlobalState.svelte";
 // INTERFACES & TYPES
 // =============================================================================
 
-interface FiltersState {
-  searchQuery: string;
-  selectedStores: string[];
-  selectedWho: string[];
-  selectedProductTypes: string[];
-  selectedTemperatures: string[];
-  groupBy: "store" | "productType" | "none";
-  sortColumn: string;
-  sortDirection: "asc" | "desc";
-}
+
 
 interface CacheData {
   lastSync: string | null;
@@ -370,8 +369,8 @@ class ProductsStore {
       if (!product.byDate) continue;
 
       // Application des filtres utilisateur
-      const matchesFilters = this.#matchesFilters(product);
-      if (!matchesFilters) continue;
+      const matchesFiltersResult = matchesFilters(product, this.#filters);
+      if (!matchesFiltersResult) continue;
 
       // Vérifier si le produit a des données dans la plage de dates
       const hasDataInRange = Object.keys(product.byDate).some((dateStr) => {
@@ -387,13 +386,7 @@ class ProductsStore {
     return filteredMap;
   });
 
-  /**
-   *
-   * Statistiques complètes par produit pour la plage de dates courante
-   * Map<productId, ProductRangeStats>
-   *
-   * Performance : O(n) au lieu de O(4n) (75% de gain théorique)
-   */
+
   /**
    * 🚀 OPTIMISATION : Cas spécial pour événement à date unique
    * Évite tous les calculs de plage et accès direct aux données
@@ -451,6 +444,13 @@ class ProductsStore {
     return statsMap;
   }
 
+  /**
+   *
+   * Statistiques complètes par produit pour la plage de dates courante
+   * Map<productId, ProductRangeStats>
+   *
+   * Performance : O(n) au lieu de O(4n) (75% de gain théorique)
+   */
   productsStatsByDateRange = $derived.by(() => {
     console.log("[Store] Calcul unifié des stats par produit");
 
@@ -500,14 +500,12 @@ class ProductsStore {
           formattedQuantities: formatTotalQuantity(product.totalNeededArray),
           nbRecipes: product.nbRecipes || 0,
           totalAssiettes: product.totalAssiettes || 0,
-          // NOUVEAUX
           stockResult,
           availableQuantities,
           missingQuantities,
           formattedAvailableQuantities: formatStockResult(stockResult),
           hasAvailable: availableQuantities.length > 0,
           hasMissing: missingQuantities.length > 0,
-          // 📅 NOUVEAUX
           concernedDates,
           recipesByDate,
         });
@@ -1159,221 +1157,15 @@ class ProductsStore {
   ): EnrichedProduct {
     if (existing) {
       // Mise à jour d'un produit existant
-      return this.#updateExistingProduct(product, existing);
+      return updateExistingProduct(product, existing);
     } else {
       // Initialisation complète d'un nouveau produit
-      return this.#createEnrichedProductFromAppwrite(product);
+      return createEnrichedProductFromAppwrite(product);
     }
   }
 
-  /**
-   * Crée un EnrichedProduct depuis un Products Appwrite seul
-   * ⚠️ Utilisé au sync si le produit n'existe pas localement (cas rare)
-   */
-  #createEnrichedProductFromAppwrite(product: Products): EnrichedProduct {
-    // Calculer depuis purchases
-    const totalPurchasesArray = calculateTotalQuantityArray(
-      transformPurchasesToNumericQuantity(product.purchases ?? []),
-    );
 
-    // byDate manquant = pas de totalNeededArray
-    const totalNeededArray: NumericQuantity[] = [];
 
-    const { numeric: missingQuantityArray, display: displayMissingQuantity } =
-      calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
-
-    const stockParsed = safeJsonParse<any>(product.stockReel) ?? null;
-    const displayTotalPurchases = formatTotalQuantity(totalPurchasesArray);
-    const storeInfo = product.store
-      ? safeJsonParse<StoreInfo>(product.store)
-      : null;
-
-    const stockOrTotalPurchases = stockParsed
-      ? `${stockParsed.quantity} ${stockParsed.unit}`
-      : displayTotalPurchases;
-
-    return {
-      // Métadonnées Appwrite
-      $id: product.$id,
-      $createdAt: product.$createdAt,
-      $updatedAt: product.$updatedAt,
-      // $permissions: product.$permissions,
-      // $databaseId: product.$databaseId,
-      // $sequence: product.$sequence,
-      // $tableId: product.$tableId,
-
-      // Données métier
-      productHugoUuid: product.productHugoUuid,
-      productName: product.productName,
-      productType: "none",
-      pFrais: false, // ← Appwrite n'a pas ces champs (viennent de Hugo)
-      pSurgel: false,
-      nbRecipes: 0,
-      totalAssiettes: 0,
-      isSynced: product.isSynced,
-      mainId: product.mainId,
-
-      // Données collaboratives (brutes Appwrite)
-      status: product.status,
-      who: product.who,
-      store: product.store,
-      stockReel: product.stockReel,
-      previousNames: product.previousNames,
-      isMerged: product.isMerged,
-      mergedFrom: product.mergedFrom,
-      mergeDate: product.mergeDate,
-      mergeReason: product.mergeReason,
-      mergedInto: product.mergedInto,
-      totalNeededOverride: product.totalNeededOverride,
-      purchases: product.purchases,
-
-      // Hugo (⚠️ manquant, sera vide)
-      byDate: null,
-
-      // Calculées
-      storeInfo,
-      stockParsed,
-      totalNeededArray,
-      totalPurchasesArray,
-      missingQuantityArray,
-      stockOrTotalPurchases,
-      displayTotalNeeded: "-",
-      displayTotalPurchases,
-      displayMissingQuantity,
-      totalNeededOverrideParsed: safeJsonParse<TotalNeededOverrideData>(
-        product.totalNeededOverride,
-      ),
-      displayTotalOverride: (() => {
-        const override = safeJsonParse<TotalNeededOverrideData>(product.totalNeededOverride);
-        return override ? formatTotalQuantity([override.totalOverride]) : "";
-      })(),
-    };
-  }
-
-  /**
-   * Met à jour un EnrichedProduct existant avec données Appwrite fraîches
-   *
-   * 🎯 Stratégie :
-   * - Remplacer TOUS les champs bruts Appwrite
-   * - Garder byDate (statique, de Hugo)
-   * - Recalculer les dérivés
-   */
-  #updateExistingProduct(
-    product: Products | EnrichedProduct,
-    existing: EnrichedProduct,
-  ): EnrichedProduct {
-    // Utiliser les nouvelles valeurs si présentes, sinon garder les anciennes
-    // Cela protège contre l'écrasement par les payloads partiels du realtime
-
-    // Fusion intelligente des purchases
-    const mergedPurchases = product.purchases ?? existing.purchases;
-
-    // Calculer totalPurchasesArray depuis les purchases fusionnées
-    const totalPurchasesArray = calculateTotalQuantityArray(
-      transformPurchasesToNumericQuantity(mergedPurchases ?? []),
-    );
-    const displayTotalPurchases = formatTotalQuantity(totalPurchasesArray);
-
-    // Recalculer missing
-    const { numeric: missingQuantityArray, display: displayMissingQuantity } =
-      calculateAndFormatMissing(existing.totalNeededArray, totalPurchasesArray);
-
-    // Fusion intelligente du stock
-    const mergedStockReel = product.stockReel ?? existing.stockReel;
-    const stockParsed = mergedStockReel
-      ? safeJsonParse<any>(mergedStockReel)
-      : existing.stockParsed;
-
-    // Fusion intelligente du store
-    const mergedStore = product.store ?? existing.store;
-    const storeInfo = mergedStore
-      ? safeJsonParse<StoreInfo>(mergedStore)
-      : existing.storeInfo;
-
-    const stockOrTotalPurchases = stockParsed
-      ? `${stockParsed.quantity} ${stockParsed.unit}`
-      : displayTotalPurchases;
-
-    // 📝 Log de debug pour tracer les fusions importantes
-    if (product.purchases === undefined && existing.purchases?.length) {
-      console.log(
-        `[ProductsStore] Fusion intelligente : préservation de ${existing.purchases.length} purchases pour ${existing.productName}`,
-      );
-    }
-
-    return {
-      // ✅ GARDER : toujours garder les données statiques Hugo
-      ...existing,
-
-      // ✅ FUSION SÉLECTIVE : seulement si présent dans le payload
-      $updatedAt: product.$updatedAt,
-
-      // Champs métier - fusionner seulement si définis
-      productName: product.productName ?? existing.productName,
-      isSynced: product.isSynced ?? existing.isSynced,
-      mainId: product.mainId ?? existing.mainId,
-
-      // 🛡️ CHAMPS CRITIQUES : PROTECTION CONTRE L'ÉCRASEMENT
-      status: product.status ?? existing.status,
-      who: product.who ?? existing.who,
-      store: mergedStore,
-      stockReel: mergedStockReel,
-
-      // 🚨 PROTECTION SPÉCIALE pour purchases (le bug principal)
-      purchases: mergedPurchases,
-
-      // Autres champs avec protection contre les payloads partiels
-      previousNames: product.previousNames ?? existing.previousNames,
-      isMerged: product.isMerged ?? existing.isMerged,
-      mergedFrom: product.mergedFrom ?? existing.mergedFrom,
-      mergeDate: product.mergeDate ?? existing.mergeDate,
-      mergeReason: product.mergeReason ?? existing.mergeReason,
-      mergedInto: product.mergedInto ?? existing.mergedInto,
-      totalNeededOverride:
-        product.totalNeededOverride ?? existing.totalNeededOverride,
-
-      // ✅ RECALCULER : les dérivés basés sur les données fusionnées
-      storeInfo,
-      stockParsed,
-      totalPurchasesArray,
-      missingQuantityArray,
-      stockOrTotalPurchases,
-      displayTotalPurchases,
-      displayMissingQuantity,
-      totalNeededOverrideParsed: safeJsonParse<TotalNeededOverrideData>(
-        product.totalNeededOverride ?? existing.totalNeededOverride,
-      ),
-      displayTotalOverride: (() => {
-        const override = safeJsonParse<TotalNeededOverrideData>(
-          product.totalNeededOverride ?? existing.totalNeededOverride
-        );
-        return override ? formatTotalQuantity([override.totalOverride]) : "";
-      })(),
-    };
-  }
-
-  /**
-   * Recalcule les dépendances liées aux purchases
-   */
-  #recalculatePurchaseDependents(product: EnrichedProduct): void {
-    // Recalculer totalPurchasesArray
-    product.totalPurchasesArray = calculateTotalQuantityArray(
-      transformPurchasesToNumericQuantity(product.purchases ?? []),
-    );
-
-    // Recalculer missingQuantity et display
-    const { numeric: missingQuantityArray, display: displayMissingQuantity } =
-      calculateAndFormatMissing(
-        product.totalNeededArray,
-        product.totalPurchasesArray,
-      );
-
-    product.missingQuantityArray = missingQuantityArray;
-    product.displayMissingQuantity = displayMissingQuantity;
-    product.displayTotalPurchases = formatTotalQuantity(
-      product.totalPurchasesArray,
-    );
-  }
 
   /**
    * Batch upsert multiple products
@@ -1482,29 +1274,14 @@ class ProductsStore {
     return affectedProducts.map((p) => p.$id);
   }
 
-  /**
-   * Nettoie un purchase pour éviter la récursion dans le cache local
-   * Transforme les relations objets en IDs simples
-   * @param purchase - Purchase potentiellement "sale" avec des objets complets
-   * @returns Purchase "propre" avec seulement des IDs dans les relations
-   */
-  #sanitizePurchase(purchase: Purchases): Purchases {
-    return {
-      ...purchase,
-      products:
-        purchase.products?.map((prod: any) =>
-          typeof prod === "string" ? prod : prod.$id,
-        ) || [],
-      mainId: purchase.mainId, // Garder le type original (Main ou string selon ce qu'Appwrite envoie)
-    };
-  }
+
 
   /**
    * Ajoute un purchase à ses products (pour CREATE)
    */
   #addPurchaseToProducts(productIds: string[], purchase: Purchases) {
     // Nettoyer les relations du purchase pour éviter la récursion dans le cache
-    const sanitizedPurchase = this.#sanitizePurchase(purchase);
+    const sanitizedPurchase = sanitizePurchase(purchase);
 
     const productsToUpdate: EnrichedProduct[] = [];
 
@@ -1516,7 +1293,7 @@ class ProductsStore {
         if (!purchases.some((p) => p.$id === sanitizedPurchase.$id)) {
           // Créer un nouveau produit enrichi avec le purchase ajouté
           // 🔥 RESTAURER LE STATUT À "active" car le purchase a été créé avec succès
-          const updatedProduct = this.#updateExistingProduct(
+          const updatedProduct = updateExistingProduct(
             {
               ...product,
               purchases: [...purchases, sanitizedPurchase],
@@ -1540,7 +1317,7 @@ class ProductsStore {
    */
   #updatePurchaseInProducts(productIds: string[], purchase: Purchases) {
     // Nettoyer les relations du purchase pour éviter la récursion dans le cache
-    const sanitizedPurchase = this.#sanitizePurchase(purchase);
+    const sanitizedPurchase = sanitizePurchase(purchase);
 
     const productsToUpdate: EnrichedProduct[] = [];
 
@@ -1559,7 +1336,7 @@ class ProductsStore {
           const updatedPurchases = [...purchases];
           updatedPurchases[index] = sanitizedPurchase;
           // 🔥 RESTAURER LE STATUT À "active" car le purchase a été mis à jour avec succès
-          const updatedProduct = this.#updateExistingProduct(
+          const updatedProduct = updateExistingProduct(
             {
               ...product,
               purchases: updatedPurchases,
@@ -1571,7 +1348,7 @@ class ProductsStore {
         } else {
           // Ajouter si pas trouvé (edge case)
           // Sécurité si il y a eu desync entre appwrite et les données locales ?
-          const updatedProduct = this.#updateExistingProduct(
+          const updatedProduct = updateExistingProduct(
             {
               ...product,
               purchases: [...purchases, purchase],
@@ -1670,58 +1447,6 @@ class ProductsStore {
   // =========================================================================
   // FILTRAGE
   // =========================================================================
-
-  #matchesFilters(product: EnrichedProduct): boolean {
-    // Recherche textuelle
-    if (this.#filters.searchQuery.trim()) {
-      const query = this.#filters.searchQuery.toLowerCase();
-      if (!product.productName.toLowerCase().includes(query)) {
-        return false;
-      }
-    }
-
-    // Filtre par store
-    if (this.#filters.selectedStores.length > 0) {
-      if (
-        !product.storeInfo?.storeName ||
-        !this.#filters.selectedStores.includes(product.storeInfo.storeName)
-      ) {
-        return false;
-      }
-    }
-
-    // Filtre par who
-    if (this.#filters.selectedWho.length > 0) {
-      if (
-        !product.who ||
-        !product.who.some((w) => this.#filters.selectedWho.includes(w))
-      ) {
-        return false;
-      }
-    }
-
-    // Filtre par productType
-    if (this.#filters.selectedProductTypes.length > 0) {
-      if (
-        !product.productType ||
-        !this.#filters.selectedProductTypes.includes(product.productType)
-      ) {
-        return false;
-      }
-    }
-
-    // Filtres température
-    if (this.#filters.selectedTemperatures.length > 0) {
-      const hasValidTemp =
-        (this.#filters.selectedTemperatures.includes("frais") &&
-          product.pFrais) ||
-        (this.#filters.selectedTemperatures.includes("surgele") &&
-          product.pSurgel);
-      if (!hasValidTemp) return false;
-    }
-
-    return true;
-  }
 
   // Setters publics pour les filtres
 
