@@ -4,22 +4,22 @@
  */
 
 // Importer Appwrite SDK
-import { Client, Account, Functions, Databases, Teams } from 'appwrite';
+import { Client, Account, Functions, Databases, Teams } from "appwrite";
 
 const APPWRITE_CONFIG = {
-  endpoint: 'https://cloud.appwrite.io/v1',
-  projectId: '689725820024e81781b7',
-  databaseId: '689d15b10003a5a13636',
+  endpoint: "https://cloud.appwrite.io/v1",
+  projectId: "689725820024e81781b7",
+  databaseId: "689d15b10003a5a13636",
   functions: {
-    cmsAuth: '68976500002eb5c6ee4f',
-    accessRequest: '689cdea5001a4d74549d',
-    batchUpdate: '68f00487000c624533a3'
+    cmsAuth: "68976500002eb5c6ee4f",
+    accessRequest: "689cdea5001a4d74549d",
+    batchUpdate: "68f00487000c624533a3",
   },
   collections: {
-    main: 'main',
-    purchases: 'purchases',
-    products: 'products'
-  }
+    main: "main",
+    purchases: "purchases",
+    products: "products",
+  },
 };
 
 let client: Client;
@@ -48,9 +48,9 @@ async function initializeAppwrite(): Promise<void> {
       databases = new Databases(client);
       teams = new Teams(client);
 
-      console.log('[AppwriteDev] Initialisation Appwrite réussie');
+      console.log("[AppwriteDev] Initialisation Appwrite réussie");
     } catch (error) {
-      console.error('[AppwriteDev] Erreur initialisation Appwrite:', error);
+      console.error("[AppwriteDev] Erreur initialisation Appwrite:", error);
       throw error;
     }
   })();
@@ -94,7 +94,7 @@ export const AppwriteClient = {
       APPWRITE_PROJECT_ID: APPWRITE_CONFIG.projectId,
       APPWRITE_FUNCTION_ID: APPWRITE_CONFIG.functions.cmsAuth,
       ACCESS_REQUEST_FUNCTION_ID: APPWRITE_CONFIG.functions.accessRequest,
-      APPWRITE_CONFIG
+      APPWRITE_CONFIG,
     };
   },
 
@@ -110,7 +110,7 @@ export const AppwriteClient = {
   async isConnectedAppwrite(): Promise<boolean> {
     try {
       await initializeAppwrite();
-      const session = await account.getSession('current');
+      const session = await account.getSession("current");
       return !!(session && session.userId);
     } catch {
       return false;
@@ -120,7 +120,7 @@ export const AppwriteClient = {
   async isAuthenticatedAppwrite(): Promise<boolean> {
     try {
       await initializeAppwrite();
-      const session = await account.getSession('current');
+      const session = await account.getSession("current");
       return !!session;
     } catch {
       return false;
@@ -144,7 +144,7 @@ export const AppwriteClient = {
       const verificationURL = `${window.location.origin}/verify-email`;
       return await account.createVerification(verificationURL);
     } catch (error) {
-      console.error('[AppwriteDev] Erreur envoi email vérification:', error);
+      console.error("[AppwriteDev] Erreur envoi email vérification:", error);
       throw error;
     }
   },
@@ -154,7 +154,7 @@ export const AppwriteClient = {
       await initializeAppwrite();
       return await account.updateVerification(userId, secret);
     } catch (error) {
-      console.error('[AppwriteDev] Erreur vérification email:', error);
+      console.error("[AppwriteDev] Erreur vérification email:", error);
       throw error;
     }
   },
@@ -168,13 +168,13 @@ export const AppwriteClient = {
         isEmailVerified: true,
         email: cmsUser.email,
         name: cmsUser.name,
-        requiresAction: false
+        requiresAction: false,
       };
     }
 
     try {
       await initializeAppwrite();
-      const session = await account.getSession('current');
+      const session = await account.getSession("current");
       const isAuthenticated = !!session;
 
       if (isAuthenticated) {
@@ -186,11 +186,11 @@ export const AppwriteClient = {
           isEmailVerified: emailVerified,
           email: user.email,
           name: user.name,
-          requiresAction: !emailVerified
+          requiresAction: !emailVerified,
         };
       }
     } catch (error) {
-      console.warn('[AppwriteDev] Erreur état authentification:', error);
+      console.warn("[AppwriteDev] Erreur état authentification:", error);
     }
 
     return {
@@ -198,14 +198,14 @@ export const AppwriteClient = {
       isEmailVerified: false,
       email: null,
       name: null,
-      requiresAction: false
+      requiresAction: false,
     };
   },
 
   // Fonctions utilitaires du fichier original
   getLocalCmsUser() {
     try {
-      const cmsUser = localStorage.getItem('cmsUser');
+      const cmsUser = localStorage.getItem("cmsUser");
       return cmsUser ? JSON.parse(cmsUser) : null;
     } catch {
       return null;
@@ -214,7 +214,7 @@ export const AppwriteClient = {
 
   getLocalEmailVerificationStatus() {
     try {
-      const status = localStorage.getItem('emailVerificationStatus');
+      const status = localStorage.getItem("emailVerificationStatus");
       return status ? JSON.parse(status) : null;
     } catch {
       return null;
@@ -236,73 +236,97 @@ export const AppwriteClient = {
   },
 
   clearAuthData() {
-    localStorage.removeItem('cmsUser');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('emailVerificationStatus');
+    localStorage.removeItem("cmsUser");
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("emailVerificationStatus");
   },
 
   setAuthData(email: string, name: string, cmsAuth?: any) {
     const userData = { email, name };
-    localStorage.setItem('cmsUser', JSON.stringify(userData));
+    localStorage.setItem("cmsUser", JSON.stringify(userData));
     if (cmsAuth) {
-      localStorage.setItem('sveltia-cms.user', JSON.stringify(cmsAuth));
+      localStorage.setItem("sveltia-cms.user", JSON.stringify(cmsAuth));
     }
   },
 
   async logoutGlobal() {
     try {
       await initializeAppwrite();
-      await account.deleteSession('current');
+      await account.deleteSession("current");
     } catch (error) {
-      console.warn('[AppwriteDev] Erreur lors de la déconnexion Appwrite:', error);
+      console.warn(
+        "[AppwriteDev] Erreur lors de la déconnexion Appwrite:",
+        error,
+      );
     }
     this.clearAuthData();
   },
 
   // Fonction de souscription aux collections (realtime)
   subscribeToCollections(
-    channels: string[],
-    callbacks: {
-      onConnect?: () => void;
-      onDisconnect?: () => void;
-      onError?: (error: any) => void;
-    } = {}
+    collectionNames,
+    listId,
+    onMessage,
+    connectionCallbacks = {},
   ) {
-    let unsubscribe: (() => void) | null = null;
+    const { onConnect, onDisconnect, onError } = connectionCallbacks;
 
-    const setupSubscription = async () => {
-      try {
-        await initializeAppwrite();
+    if (!client) {
+      console.error(
+        "Impossible de s'abonner : le client Appwrite n'est pas encore initialisé.",
+      );
+      onError?.({ message: "Client Appwrite non initialisé" });
+      return () => {};
+    }
 
-        // Utiliser client.subscribe() directement comme dans le code original
-        const unsubscribe = client.subscribe(channels, (response: any) => {
-          console.log('[AppwriteDev] Event reçu:', response);
-        });
-
-        callbacks.onConnect?.();
-        console.log('[AppwriteDev] Abonnement temps réel configuré avec succès');
-
-      } catch (error) {
-        console.error('[AppwriteDev] Erreur lors de la configuration realtime:', error);
-        callbacks.onError?.(error);
-      }
-    };
-
-    setupSubscription();
-
-    // Retourner la fonction de désabonnement comme dans le code original
-    return {
-      unsubscribe: () => {
-        if (unsubscribe) {
-          unsubscribe();
-          console.log('[AppwriteDev] Désabonné des canaux:', channels);
+    const channels = collectionNames
+      .map((name) => {
+        const collectionId = APPWRITE_CONFIG.collections[name];
+        if (!collectionId) {
+          console.warn(
+            `[Appwrite Client] Nom de collection inconnu dans la configuration: ${name}`,
+          );
+          return null;
         }
+        return `databases.${APPWRITE_CONFIG.databaseId}.collections.${collectionId}.documents`;
+      })
+      .filter(Boolean);
+
+    console.log(
+      "[Appwrite Client] Abonnement aux canaux en cours...",
+      channels,
+    );
+
+    try {
+      // La méthode client.subscribe() gère automatiquement la connexion WebSocket
+      // selon la documentation officielle Appwrite
+      const unsubscribe = client.subscribe(channels, (response) => {
+        console.log("[Appwrite Client] Réception temps réel:", response);
+        onMessage(response);
+      });
+
+      // Selon la documentation Appwrite, la subscription est automatiquement active
+      // On peut considérer la connexion comme établie immédiatement
+      if (onConnect) {
+        setTimeout(() => {
+          console.log("[Appwrite Client] Connexion temps réel établie");
+          onConnect();
+        }, 50);
       }
-    };
-  }
+
+      return unsubscribe;
+    } catch (error) {
+      console.error(
+        "[Appwrite Client] Erreur lors de la souscription temps réel:",
+        error,
+      );
+      onError?.(error);
+      return () => {}; // Retourner une fonction vide en cas d'erreur
+    }
+  },
 };
 
 // Exposer globalement pour compatibilité avec le code existant
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   (window as any).AppwriteClient = AppwriteClient;
 }

@@ -1,4 +1,3 @@
-
 import {
   createPurchase,
   deletePurchase,
@@ -20,7 +19,6 @@ import type {
 } from "../types/store.types";
 import {
   formatDate,
-  formatDisplayQuantity,
   formatQuantity,
   normalizeUnit,
 } from "../utils/products-display";
@@ -493,18 +491,18 @@ export function createProductModalState(productId: string) {
     if (!product) return;
 
     await withLoading(async () => {
-
-
       if (!product.isSynced) {
         // Produit local : utiliser upsertProduct pour créer sur Appwrite
         console.log(
           `[ProductModalState] Produit ${product.$id} local, création who avec upsert...`,
         );
-        await upsertProduct(product.$id, { totalNeededOverride: JSON.stringify(overrideData) }, (id) =>
-          productsStore.getEnrichedProductById(id),
+        await upsertProduct(
+          product.$id,
+          { totalNeededOverride: JSON.stringify(overrideData) },
+          (id) => productsStore.getEnrichedProductById(id),
         );
       } else {
-      await updateTotalOverride(product.$id, overrideData, true);
+        await updateTotalOverride(product.$id, overrideData, true);
       }
     }, "Override appliqué");
   }
@@ -633,6 +631,5 @@ export function createProductModalState(productId: string) {
     // Utilitaires
     formatQuantity,
     formatDate,
-    formatDisplayQuantity,
   };
 }

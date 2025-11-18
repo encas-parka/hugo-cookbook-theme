@@ -28,6 +28,7 @@
     createQuickValidationPurchases,
     upsertProduct,
   } from "../services/appwrite-interactions";
+  import { normalizeUnit } from "../utils/products-display";
 
   import LeftPanel from "./ui/LeftPanel.svelte";
 
@@ -142,17 +143,30 @@
   }
 
   // Validation rapide individuelle
-  async function handleQuickValidation(product: any) {
+  async function handleQuickValidation(product: any, productInDateRange: any) {
     try {
       if (!productsStore.currentMainId) {
         throw new Error("mainId non disponible");
       }
 
-      const missingQuantities = product.missingQuantityArray || [];
+      // ✅ Utilisation directe des données contextuelles de la plage de dates
+      const missingQuantities = productInDateRange.missingQuantities || [];
       if (missingQuantities.length === 0) {
-        console.log("Aucune quantité manquante à valider pour ce produit");
+        console.log(
+          "Aucune quantité manquante à valider pour ce produit dans cette période",
+        );
         return;
       }
+
+      // ✅ CONVERSIONS : Filtrer uniquement les vrais manquants (q < 0) (sécurité ?)
+      // et convertir en positif + normaliser les unités (kg→gr., l.→ml)
+      const normalizedQuantities = missingQuantities
+        .filter((qty) => qty.q < 0) // Uniquement les manquants
+        .map((qty) => ({ ...qty, q: Math.abs(qty.q) })) // Convertir en positif
+        .map((qty) => {
+          const { quantity, unit } = normalizeUnit(qty.q, qty.u);
+          return { q: quantity, u: unit };
+        });
 
       let finalProductId = product.$id;
 
@@ -174,7 +188,7 @@
       await createQuickValidationPurchases(
         productsStore.currentMainId!,
         finalProductId,
-        missingQuantities,
+        normalizedQuantities,
         {
           store: product.storeInfo?.storeName ?? null,
           notes: "",
@@ -230,11 +244,11 @@
   <!-- Vue Mobile Cards -->
 </div>
 
-  <ProductModal
-    productId={openModalProductId}
-    initialTab={openModalTab}
-    onClose={closeModal}
-  />
+<ProductModal
+  productId={openModalProductId}
+  initialTab={openModalTab}
+  onClose={closeModal}
+/>
 
 {#if whoEditModalOpen}
   <WhoBatchEditModal

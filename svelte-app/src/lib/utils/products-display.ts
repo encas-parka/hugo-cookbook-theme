@@ -90,17 +90,18 @@ export function formatDate(dateString: string): string {
   }
 }
 
-export function formatDisplayQuantity(quantity: string | null): string {
-  if (!quantity) return "-";
+export function formatDateShort(dateString: string): string {
+  if (!dateString) return "";
   try {
-    const parsed = JSON.parse(quantity);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map((q) => `${q.value} ${q.unit}`).join(" et ");
-    }
+    const date = new Date(dateString);
+    return date.toLocaleDateString("fr-FR", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
   } catch {
-    return quantity;
+    return dateString;
   }
-  return quantity;
 }
 
 export function sortEnrichedProducts(
@@ -156,6 +157,7 @@ export function formatPurchasesWithBadges(purchases: any[]): Array<{
   badgeClass: string;
   badgeText: string;
   icon: string;
+  deliveryDate?: string;
 }> {
   if (!purchases?.length) return [];
 
@@ -174,6 +176,10 @@ export function formatPurchasesWithBadges(purchases: any[]): Array<{
         badgeClass: badgeInfo.class,
         badgeText: badgeInfo.text,
         icon: getStatusIcon(status),
+        deliveryDate:
+          status === "ordered" && purchase.deliveryDate
+            ? formatDateShort(purchase.deliveryDate)
+            : undefined,
       };
     }
 
@@ -201,7 +207,7 @@ function getStatusIcon(status: string | null): string {
     case "pending":
       return "Clock";
     case "delivered":
-      return "ShoppingCart";
+      return "Check";
     case "cancelled":
       return "CircleX";
     case "inStock":

@@ -1,6 +1,5 @@
 import type {
   NumericQuantity,
-  NeededConsolidatedByDate,
   RecipeOccurrence,
   ByDateEntry,
   RecipeWithDate,
@@ -20,37 +19,6 @@ export interface FiltersState {
   groupBy: "store" | "productType" | "none";
   sortColumn: string;
   sortDirection: "asc" | "desc";
-}
-
-/**
- * Calcule la quantité totale nécessaire sur une plage de dates
- * @param neededConsolidatedByDate - Tableau des besoins consolidés par date
- * @param startDate - Date de début (format ISO)
- * @param endDate - Date de fin (format ISO)
- * @returns La quantité totale pour la plage de dates
- */
-export function calculateTotalNeededInRange(
-  neededConsolidatedByDate: NeededConsolidatedByDate[],
-  startDate: string | null,
-  endDate: string | null,
-): NumericQuantity[] {
-  if (!startDate || !endDate || !neededConsolidatedByDate.length) return [];
-
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  // Filtrer les dates dans la plage
-  const filteredItems = neededConsolidatedByDate.filter((item) => {
-    const itemDate = new Date(item.dateTimeService);
-    return itemDate >= start && itemDate <= end;
-  });
-
-  if (!filteredItems.length) return [];
-
-  // Agréger par unité
-  return calculateTotalQuantityArray(
-    filteredItems.flatMap((item) => item.neededConsolidatedForDate),
-  );
 }
 
 export function safeJsonParse<T>(jsonString: string | null): T | null {
@@ -190,11 +158,6 @@ export function formatSingleQuantity(value: string, unit: string): string {
   return `${num} ${unit}`;
 }
 
-// =============================================================================
-// ✅ NOUVEAUX : Utilitaires pour la structure byDate
-// =============================================================================
-
-
 /**
  * Agrège un tableau de NumericQuantity par unité
  * @param quantities - Tableau de NumericQuantity
@@ -233,32 +196,6 @@ export function extractAllRecipes(
 }
 
 /**
- * Calcule le total des assiettes pour une plage de dates
- * @param byDate - Structure byDate parsée
- * @param startDate - Date de début
- * @param endDate - Date de fin
- * @returns Nombre total d'assiettes
- */
-export function calculateTotalAssiettesInRange(
-  byDate: Record<string, ByDateEntry>,
-  startDate: string | Date,
-  endDate: string | Date,
-): number {
-  if (!byDate) return 0;
-
-  // Convertir en Dates si nécessaire
-  const start = typeof startDate === "string" ? new Date(startDate) : startDate;
-  const end = typeof endDate === "string" ? new Date(endDate) : endDate;
-
-  return Object.entries(byDate)
-    .filter(([dateStr]) => {
-      const date = new Date(dateStr);
-      return date >= start && date <= end;
-    })
-    .reduce((total, [_, entry]) => total + (entry.totalAssiettes || 0), 0);
-}
-
-/**
  * Détecte si un ingredient a des conversions (q/u différent de qEq/uEq)
  * @param byDate - Structure byDate parsée
  * @returns true si des conversions sont détectées
@@ -271,27 +208,6 @@ export function hasConversions(byDate: Record<string, ByDateEntry>): boolean {
       (recipe) => recipe.q !== undefined || recipe.u !== undefined,
     ),
   );
-}
-
-/**
- * Construit NeededConsolidatedByDateArray depuis byDate pour compatibilité UI
- * @param byDate - Structure byDate parsée
- * @returns NeededConsolidatedByDate[] pour compatibilité avec l'UI existante
- */
-export function buildNeededConsolidatedByDateArray(
-  byDate: Record<string, ByDateEntry>,
-): NeededConsolidatedByDate[] {
-  if (!byDate) return [];
-
-  return Object.entries(byDate).map(([dateTimeService, entry]) => ({
-    dateTimeService,
-    neededConsolidatedForDate: entry.totalConsolidated.map((q) => ({
-      q: q.q,
-      u: q.u,
-    })),
-    recipeNames: entry.recipes?.map((r) => r.r) || [],
-    totalAssiettes: entry.totalAssiettes || 0,
-  }));
 }
 
 export function generateRecipesWithDates(
@@ -333,7 +249,7 @@ export function calculateGlobalTotal(
 }
 
 // =============================================================================
-// ✅ NOUVEAUX : Utilitaires pour le calcul des disponibilités (endDate only)
+// ✅ Utilitaires pour le calcul des disponibilités (endDate only)
 // =============================================================================
 
 /**
@@ -343,113 +259,6 @@ export function calculateGlobalTotal(
  * @param stockReferenceDate - Date de référence du stock (si applicable)
  * @returns true si l'achat est disponible à cette date
  */
-export function isPurchaseAvailable(
-  purchase: any,
-  targetDate: string,
-  stockReferenceDate: string = "",
-): boolean {
-  // Annulé = jamais compté
-  if (purchase.status === "cancelled") return false;
-
-  // Date de référence (deliveryDate ou $createdAt pour les delivered sans deliveryDate)
-  const referenceDate = purchase.deliveryDate || purchase.$createdAt;
-  if (!referenceDate) return false;
-
-  // Si la référence est après notre date = pas encore disponible
-  if (referenceDate > targetDate) return false;
-
-  // Si le stock est postérieur à l'achat = l'achat est inclus dans le stock
-  if (stockReferenceDate && purchase.$createdAt < stockReferenceDate) {
-    return false;
-  }
-
-  // Status rules
-  return (
-    purchase.status === "delivered" ||
-    purchase.status === "pending" ||
-    (purchase.status === "ordered" && referenceDate <= targetDate)
-  );
-}
-
-/**
- * Calcule les quantités disponibles pour un produit à une date donnée
- * @param product - Produit enrichi avec achats, besoins et stock
- * @param targetDate - Date cible (format ISO)
- * @returns NumericQuantity[] des quantités disponibles
- */
-export function calculateAvailableAtDate(
-  product: any,
-  targetDate: string,
-): NumericQuantity[] {
-  // 1. Stock de base (si disponible et antérieur à la date)
-  let baseStock: NumericQuantity[] = [];
-  let stockReferenceDate = "";
-
-  if (
-    product.stockParsed?.dateTime &&
-    product.stockParsed.dateTime <= targetDate
-  ) {
-    baseStock = [
-      {
-        q: parseFloat(product.stockParsed.quantity),
-        u: product.stockParsed.unit,
-      },
-    ];
-    stockReferenceDate = product.stockParsed.dateTime;
-  }
-
-  // 2. Ajouter les achats disponibles (en tenant compte de la priorité du stock)
-  const additionalPurchases: NumericQuantity[] = [];
-
-  if (product.purchases) {
-    for (const purchase of product.purchases) {
-      if (isPurchaseAvailable(purchase, targetDate, stockReferenceDate)) {
-        additionalPurchases.push({
-          q: purchase.quantity,
-          u: purchase.unit,
-        });
-      }
-    }
-  }
-
-  // 3. Besoins cumulés jusqu'à cette date
-  const cumulativeNeeded = calculateCumulativeNeeds(product, targetDate);
-
-  // 4. Calcul final avec gestion des unités
-  const allResources = [...baseStock, ...additionalPurchases];
-  const totalResources = aggregateByUnit(allResources);
-
-  // Soustraction des besoins (unité par unité)
-  return subtractQuantities(totalResources, cumulativeNeeded);
-}
-
-/**
- * Calcule les besoins cumulés d'un produit jusqu'à une date donnée
- * @param product - Produit enrichi
- * @param targetDate - Date cible (format ISO)
- * @returns NumericQuantity[] des besoins cumulés
- */
-export function calculateCumulativeNeeds(
-  product: any,
-  targetDate: string,
-): NumericQuantity[] {
-  if (!product.byDate) return [];
-
-  const cumulativeQuantities: NumericQuantity[] = [];
-
-  for (const [dateStr, entry] of Object.entries(product.byDate)) {
-    if (dateStr <= targetDate) {
-      const byDateEntry = entry as any;
-      const neededConsolidated =
-        byDateEntry.totalConsolidated as NumericQuantity[];
-      if (neededConsolidated) {
-        cumulativeQuantities.push(...neededConsolidated);
-      }
-    }
-  }
-
-  return aggregateByUnit(cumulativeQuantities);
-}
 
 /**
  * Soustrait deux tableaux de NumericQuantity et retourne les résultats bruts
@@ -565,7 +374,7 @@ export function formatToastMessage(analysis: any): string {
  */
 export function matchesFilters(
   product: EnrichedProduct,
-  filters: FiltersState
+  filters: FiltersState,
 ): boolean {
   // Recherche textuelle
   if (filters.searchQuery.trim()) {

@@ -4,7 +4,6 @@
   import {
     getProductTypeInfo,
     formatPurchasesWithBadges,
-    formatQuantity,
   } from "../utils/products-display";
 
   // Types
@@ -12,17 +11,16 @@
   import type { ProductRangeStats } from "../types/store.types";
 
   import {
-    LayoutList,
     Store,
     Users,
     ShoppingCart,
+    Check,
     ListTodo,
     LoaderCircle,
     ShoppingBasket,
     Snowflake,
     CookingPot,
     Utensils,
-    Check,
     CircleCheckBig,
     SquarePen,
     Package,
@@ -32,19 +30,11 @@
     CircleX,
     ClipboardCheck,
     PackageCheck,
-    Pencil,
-    Plus,
-    MessageCircle,
     MessageCircleMore,
-    PlusCircle,
-    CirclePlus,
-    ArrowRightFromLine,
-    ArrowDownCircle,
     CircleArrowDown,
     CircleArrowRight,
     ClipboardPenLine,
     CircleAlert,
-    History,
   } from "@lucide/svelte";
   import Tooltip from "./ui/Tooltip.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
@@ -60,6 +50,7 @@
     CircleX,
     ClipboardCheck,
     PackageCheck,
+    Check,
   };
 
   const defaultStats: ProductRangeStats = {
@@ -85,7 +76,7 @@
       products: any[],
     ) => void;
     onOpenGroupPurchaseModal: (products: any[]) => void;
-    onQuickValidation: (product: any) => void;
+    onQuickValidation: (product: any, productInDateRange: any) => void;
   }
 
   let {
@@ -207,7 +198,7 @@
     <!-- Cards des produits du groupe -->
     <div class="space-y-1">
       {#each groupProducts as product (product.$id)}
-        {@const stats =
+        {@const productInDateRange =
           productsStore.productsStatsByDateRange.get(product.$id) ||
           defaultStats}
         {@const typeInfo = getProductTypeInfo(product.productType)}
@@ -276,11 +267,12 @@
                 {/if}
 
                 <!-- 📅 Dates concernées -->
-                {#if stats.concernedDates.length > 0}
+                {#if productInDateRange.concernedDates.length > 0}
                   <div class="text-base-content/60">
                     <div class="flex flex-wrap gap-1">
-                      {#each stats.concernedDates as date (date)}
-                        {@const recipes = stats.recipesByDate.get(date) || []}
+                      {#each productInDateRange.concernedDates as date (date)}
+                        {@const recipes =
+                          productInDateRange.recipesByDate.get(date) || []}
                         <!-- Wrapper avec tooltip si des recettes sont présentes -->
                         {#if recipes.length > 0}
                           <div
@@ -415,7 +407,7 @@
                   </div>
                   <div class="ms-auto flex items-center gap-4 self-end">
                     <div
-                      class="text-base font-bold {stats.hasMissing &&
+                      class="text-base font-bold {productInDateRange.hasMissing &&
                       !productsStore.isEventPassed
                         ? 'text-error'
                         : 'text-success'}"
@@ -427,26 +419,26 @@
                           data-tip="Besoin total modifié manuellement"
                         >
                           <span class="text-base-content/70 line-through"
-                            >{stats.formattedQuantities}</span
+                            >{productInDateRange.formattedQuantities}</span
                           >
                           <ClipboardPenLine class="h-4 w-4" />
                           {totalNeededOverride.totalOverride.q}
                           {totalNeededOverride.totalOverride.u}
                         </div>
                       {:else}
-                        <span> {stats.formattedQuantities}</span>
+                        <span> {productInDateRange.formattedQuantities}</span>
                       {/if}
                     </div>
-                    {#if stats.nbRecipes || stats.totalAssiettes}
+                    {#if productInDateRange.nbRecipes || productInDateRange.totalAssiettes}
                       <div
                         class="text-base-content/70 flex items-center gap-2 text-sm"
                       >
                         <span class="flex items-center gap-1">
-                          {stats.nbRecipes}
+                          {productInDateRange.nbRecipes}
                           <CookingPot class="h-3 w-3" />
                         </span>
                         <span class="flex items-center gap-1">
-                          {stats.totalAssiettes}
+                          {productInDateRange.totalAssiettes}
                           <Utensils class="h-3 w-3" />
                         </span>
                       </div>
@@ -455,29 +447,18 @@
                 </div>
 
                 <!-- Bouton d'achat rapide -->
-                {#if !productsStore.isEventPassed && stats.hasMissing}
+                {#if !productsStore.isEventPassed && productInDateRange.hasMissing}
                   <button
                     class="btn btn-sm btn-soft btn-accent hover:bg-success/70 hover:border-success/70 ms-auto"
                     onclick={(e) => {
                       e.stopPropagation();
-                      onQuickValidation(product);
+                      onQuickValidation(product, productInDateRange);
                     }}
-                    title="Acheter le manquant ({stats.formattedAvailableQuantities})"
+                    title="Acheter le manquant ({productInDateRange.formattedMissingQuantities})"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 14 14"
-                      ><path
-                        fill="currentColor"
-                        fill-rule="evenodd"
-                        d="M.625 0a.625.625 0 1 0 0 1.25h1.818l.205 1.94l.644 6.105a1.626 1.626 0 0 0 1.619 1.455h6.208c.746 0 1.397-.506 1.579-1.23l1.253-5a1.626 1.626 0 0 0-1.579-2.02h-8.54L3.627.56A.625.625 0 0 0 3.006 0zm3.91 9.164L3.964 3.75h8.408c.247 0 .425.23.366.466l-1.253 5a.38.38 0 0 1-.366.284H4.911a.376.376 0 0 1-.376-.336m5.72-3.134a.75.75 0 0 0-1.129-.988l-1.48 1.69l-.526-.395a.75.75 0 1 0-.9 1.2l1.083.813a.75.75 0 0 0 1.015-.106zm1.816 6.845a1.125 1.125 0 1 0-2.25 0a1.125 1.125 0 0 0 2.25 0M4.446 11.75a1.125 1.125 0 1 1 0 2.25a1.125 1.125 0 0 1 0-2.25"
-                        clip-rule="evenodd"
-                      /></svg
-                    >
+                    <div class="cart-icon"></div>
                     <span class="text-xs"
-                      >{stats.formattedAvailableQuantities}</span
+                      >{productInDateRange.formattedMissingQuantities}</span
                     >
                     {#if globalState.isMobile}
                       <CircleArrowDown size={18} />
@@ -527,17 +508,24 @@
                   </div>
                 </div>
                 <!-- Liste des achats -->
-                <div class="flex flex-wrap gap-1.5">
+                <div class="flex flex-wrap justify-end gap-1.5">
                   {#each purchasesBadges as purchase, index (index)}
                     {@const IconComponent = statusIcons[purchase.icon]}
                     <div
-                      class="badge badge-outline flex items-center gap-1 {purchase.badgeClass}"
+                      class="badge badge-outline flex h-fit flex-col items-center gap-1 py-1 {purchase.badgeClass}"
                     >
-                      <IconComponent class="h-4 w-4" />
-                      <span class="text-sm font-medium text-nowrap">
-                        {purchase.quantity}
-                        {purchase.unit}
-                      </span>
+                      <div class="flex items-center gap-1">
+                        <IconComponent class="h-4 w-4" />
+                        <span class="text-sm font-medium text-nowrap">
+                          {purchase.quantity}
+                          {purchase.unit}
+                        </span>
+                      </div>
+                      {#if purchase.deliveryDate}
+                        <span class="text-xs opacity-75">
+                          livré le: {purchase.deliveryDate}
+                        </span>
+                      {/if}
                     </div>
                   {/each}
                   {#if purchasesBadges.length === 0}

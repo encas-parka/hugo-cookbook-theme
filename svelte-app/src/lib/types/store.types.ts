@@ -33,6 +33,8 @@ export interface ProductRangeStats {
   availableQuantities: NumericQuantity[];
   /** Quantités manquantes (valeurs absolues des négatifs) */
   missingQuantities: NumericQuantity[];
+
+  formattedMissingQuantities: string;
   /** Résultat formaté pour affichage */
   formattedAvailableQuantities: string;
   /** Indique si le produit a des quantités disponibles */
@@ -92,16 +94,6 @@ export interface NeededConsolidated {
 }
 
 /**
- * Types pour le besoin consolidé par date (structure pour neededConsolidatedByDate)
- */
-export interface NeededConsolidatedByDate {
-  dateTimeService: string;
-  neededConsolidatedForDate: NumericQuantity[];
-  recipeNames: string[];
-  totalAssiettes: number;
-}
-
-/**
  * Type pour l'entrée de stock (uniquement)
  */
 export interface StockEntry {
@@ -152,7 +144,6 @@ export interface EnrichedProduct {
   isSynced: boolean;
   mainId: Main | string; // ou Main (géré au sync)
   totalNeededRaw: NumericQuantity[];
-
 
   // DONNÉES INTERACTIVES / COLLABORATIVES (brutes Appwrite)
   status: string;

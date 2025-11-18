@@ -1,50 +1,30 @@
 import { SvelteMap } from "svelte/reactivity";
 import { useDebounce } from "runed";
 import type { Products, Purchases } from "../types/appwrite.d";
-import type { ProductRangeStats, TotalNeededOverrideData } from "../types/store.types";
+import type { ProductRangeStats } from "../types/store.types";
 
+import { matchesFilters, type FiltersState } from "../utils/productsUtils";
 import {
-  safeJsonParse,
-  calculateAndFormatMissing,
-  formatTotalQuantity,
-  transformPurchasesToNumericQuantity,
-  calculateTotalQuantityArray,
-  buildNeededConsolidatedByDateArray,
-  hasConversions,
-  calculateTotalAssiettesInRange,
-  calculateTotalNeededInRange,
-  calculateAvailableAtDate,
-  matchesFilters,
-  type FiltersState,
-
-  formatStockResult,
-  formatToastMessage,
-} from "../utils/productsUtils";
+  calculateProductStatsForDateRange,
+  calculateProductStatsForExactDate,
+  calculateProductStatsForFullRange,
+} from "../utils/dateRange";
 import { sanitizePurchase } from "../utils/dataSanitization";
 import {
   createEnrichedProductFromAppwrite,
   updateExistingProduct,
-  recalculatePurchaseDependents
 } from "../utils/productEnrichment";
 import { toastService } from "../services/toast.service.svelte";
 import {
   initializeDateRange,
   createUpcomingDateRange,
-  createFullDateRange,
   getFirstAvailableDate,
   getLastAvailableDate,
-  isEventPassed,
   isFullRange,
   isUpcomingRange,
-  hasSingleDateEvent,
-  type DateRange
+  type DateRange,
 } from "../utils/dateRange";
-import type {
-  EnrichedProduct,
-  NumericQuantity,
-  RecipeOccurrence,
-  StoreInfo,
-} from "../types/store.types";
+import type { EnrichedProduct, NumericQuantity } from "../types/store.types";
 
 import {
   subscribeToRealtime,
@@ -58,7 +38,6 @@ import {
   createEnrichedProductsFromHugo,
   hasHugoContentChanged,
 } from "../services/hugo-loader";
-
 
 import { createIDBCache, type IDBCache } from "../services/indexeddb-cache";
 // new
@@ -108,18 +87,6 @@ import { globalState } from "./GlobalState.svelte";
  * const product = productsStore.getEnrichedProductById('abc');
  * const modalState = createProductModalState('abc');
  */
-
-// =============================================================================
-// INTERFACES & TYPES
-// =============================================================================
-
-
-
-interface CacheData {
-  lastSync: string | null;
-  products: [string, EnrichedProduct][];
-  allDates: string[];
-}
 
 // =============================================================================
 // CONFIGURATION
@@ -191,15 +158,15 @@ class ProductsStore {
   #hugoLastCheck: Date | undefined = $state();
 
   // État pour gérer les conflits d'override
-   #pendingOverrideConflicts = $state<OverrideConflict[]>([]);
+  #pendingOverrideConflicts = $state<OverrideConflict[]>([]);
 
-   get hasPendingConflicts() {
-     return this.#pendingOverrideConflicts.length > 0;
-   }
+  get hasPendingConflicts() {
+    return this.#pendingOverrideConflicts.length > 0;
+  }
 
-   get pendingConflicts() {
-     return this.#pendingOverrideConflicts;
-   }
+  get pendingConflicts() {
+    return this.#pendingOverrideConflicts;
+  }
 
   // =========================================================================
   // INITIALISATION
@@ -386,10 +353,9 @@ class ProductsStore {
     return filteredMap;
   });
 
-
   /**
    * 🚀 OPTIMISATION : Cas spécial pour événement à date unique
-   * Évite tous les calculs de plage et accès direct aux données
+   * Utilise la fonction optimisée pour une date exacte
    */
   #calculateSingleDateStats(): Map<string, ProductRangeStats> {
     console.log("[Store] ⚡ Single date mode - optimized calculation");
@@ -398,46 +364,31 @@ class ProductsStore {
     const singleDate = this.dateRange.start!; // start === end dans ce cas
 
     for (const [id, product] of this.#enrichedProducts) {
-      if (!product.byDate?.[singleDate]) {
-        // Ce produit n'est pas utilisé à cette date
-        continue;
-      }
+      // 🚀 FONCTION UNIFIÉE ET OPTIMISÉE pour date exacte
+      const productStats = calculateProductStatsForExactDate(
+        product,
+        singleDate,
+      );
 
-      const dayData = product.byDate[singleDate];
-
-      // 🎯 Accès direct - pas de calculs nécessaires
-      const concernedDates = [singleDate];
-      const recipesByDate = new Map<string, RecipeOccurrence[]>();
-
-      if (dayData.recipes && dayData.recipes.length > 0) {
-        recipesByDate.set(singleDate, dayData.recipes);
-      }
-
-      // Calcul du stock (même logique que le cas général)
-      const stockResult = calculateAvailableAtDate(product, singleDate);
-      const availableQuantities = stockResult.filter((item) => item.q > 0);
-      const missingQuantities = stockResult
-        .filter((item) => item.q < 0)
-        .map((item) => ({ q: Math.abs(item.q), u: item.u }));
-
+      // 🔄 MAPPING vers l'ancien format pour compatibilité UI existante
       statsMap.set(id, {
-        quantities: dayData.totalConsolidated || [],
-        formattedQuantities: formatTotalQuantity(
-          dayData.totalConsolidated || [],
-        ),
-        nbRecipes: dayData.recipes?.length || 0,
-        totalAssiettes: dayData.totalAssiettes || 0,
+        quantities: productStats.requiredQuantities,
+        formattedQuantities: productStats.requiredQuantitiesFormatted,
+        nbRecipes: productStats.totalRecipesInRange,
+        totalAssiettes: productStats.totalPortionsInRange,
 
-        stockResult,
-        availableQuantities,
-        missingQuantities,
-        formattedAvailableQuantities: formatStockResult(stockResult),
-        hasAvailable: availableQuantities.length > 0,
-        hasMissing: missingQuantities.length > 0,
+        // ✅ STOCK COHÉRENT pour cette date exacte (pas cumulatif !)
+        stockResult: productStats.stockBalance,
+        availableQuantities: productStats.availableStockQuantities,
+        missingQuantities: productStats.missingStockQuantities,
+        formattedMissingQuantities: productStats.missingStockFormatted,
+        formattedAvailableQuantities: productStats.availableStockFormatted,
+        hasAvailable: productStats.hasAvailableStock,
+        hasMissing: productStats.hasMissingStock,
 
-        // 📅 Données directes - pas de filtrage/tri nécessaire
-        concernedDates,
-        recipesByDate,
+        // 📅 Données directes
+        concernedDates: productStats.datesInSelectedRange,
+        recipesByDate: productStats.recipesByDate,
       });
     }
 
@@ -449,142 +400,90 @@ class ProductsStore {
    * Statistiques complètes par produit pour la plage de dates courante
    * Map<productId, ProductRangeStats>
    *
-   * Performance : O(n) au lieu de O(4n) (75% de gain théorique)
    */
   productsStatsByDateRange = $derived.by(() => {
     console.log("[Store] Calcul unifié des stats par produit");
 
-    // 🚀 OPTIMISATION : Cas date unique -> méthode optimisée
+    /** =========================================
+     * Date unique : methode optimisé qui utilise directement les données de byDate
+     ===========================================*/
     if (this.hasSingleDateInRange) {
       return this.#calculateSingleDateStats();
     }
 
     const statsMap = new Map<string, ProductRangeStats>();
 
-    // Cas spécial : plage complète → utilisation des données précalculées
-    const isFullRange =
-      this.dateRange.start === this.firstAvailableDate &&
-      this.dateRange.end === this.lastAvailableDate;
-
-    if (isFullRange) {
-      console.log("[Store] Full date range - using precomputed data", this.dateRange);
+    /** =========================================
+     * Plage complète : méthode optimisée qui utilise les données précalculées
+     ===========================================*/
+    if (this.isFullRange()) {
+      console.log(
+        "[Store] Full date range - using precomputed data",
+        this.dateRange,
+      );
       for (const [id, product] of this.#enrichedProducts) {
-        // Calculer les disponibilités à la fin de la plage complète
-        const stockResult = calculateAvailableAtDate(
+        // 🚀 FONCTION UNIFIÉE ET OPTIMISÉE pour la plage complète
+        const productStats = calculateProductStatsForFullRange(
           product,
-          this.dateRange.end!,
+          this.#availableDates,
         );
-        const availableQuantities = stockResult.filter((item) => item.q > 0);
-        const missingQuantities = stockResult
-          .filter((item) => item.q < 0)
-          .map((item) => ({ q: Math.abs(item.q), u: item.u }));
 
-        // Calculer les dates concernées et recettes associées
-        const concernedDates = product.byDate
-          ? Object.keys(product.byDate).sort()
-          : [];
-        const recipesByDate = new Map<string, RecipeOccurrence[]>();
-        let totalRecipes = 0; // compteur total de recettes
-
-        if (product.byDate) {
-          for (const [date, dayData] of Object.entries(product.byDate)) {
-            if (dayData.recipes && dayData.recipes.length > 0) {
-              recipesByDate.set(date, dayData.recipes);
-              totalRecipes += dayData.recipes.length;
-            }
-          }
-        }
-
+        // 🔄 MAPPING vers l'ancien format pour compatibilité UI existante
         statsMap.set(id, {
-          quantities: product.totalNeededArray,
-          formattedQuantities: formatTotalQuantity(product.totalNeededArray),
-          nbRecipes: product.nbRecipes || 0,
-          totalAssiettes: product.totalAssiettes || 0,
-          stockResult,
-          availableQuantities,
-          missingQuantities,
-          formattedAvailableQuantities: formatStockResult(stockResult),
-          hasAvailable: availableQuantities.length > 0,
-          hasMissing: missingQuantities.length > 0,
-          concernedDates,
-          recipesByDate,
+          quantities: productStats.requiredQuantities,
+          formattedQuantities: productStats.requiredQuantitiesFormatted,
+          nbRecipes: productStats.totalRecipesInRange,
+          totalAssiettes: productStats.totalPortionsInRange,
+
+          // ✅ STOCK COHÉRENT pour la plage complète (données précalculées)
+          stockResult: productStats.stockBalance,
+          availableQuantities: productStats.availableStockQuantities,
+          missingQuantities: productStats.missingStockQuantities,
+          formattedMissingQuantities: productStats.missingStockFormatted,
+          formattedAvailableQuantities: productStats.availableStockFormatted,
+          hasAvailable: productStats.hasAvailableStock,
+          hasMissing: productStats.hasMissingStock,
+
+          // 📅 Données directes
+          concernedDates: productStats.datesInSelectedRange,
+          recipesByDate: productStats.recipesByDate,
         });
       }
       return statsMap;
     }
 
-    // 🎯 UNE SEULE ITÉRATION pour tout calculer
+    /** =========================================
+     * Range de date partiel défini par l'utilisateur
+     ===========================================*/
     for (const [productId, product] of this.filteredProductsMap) {
       if (!product.byDate) continue;
 
-      // 1. Calcul des quantités
-      const neededConsolidated = buildNeededConsolidatedByDateArray(
-        product.byDate,
-      );
-      const quantities = calculateTotalNeededInRange(
-        neededConsolidated,
-        this.dateRange.start,
-        this.dateRange.end,
-      );
-
-      // 2. Formatage des quantités
-      const formattedQuantities =
-        quantities.length > 0 ? formatTotalQuantity(quantities) : "";
-
-      // 3. Calcul DIRECT des assiettes (pas d'appel à getTotalAssiettesInRange)
-      const totalAssiettes = calculateTotalAssiettesInRange(
-        product.byDate,
+      // 🚀 CALCUL UNIFIÉ : une seule fonction pour tout calculer
+      const productStats = calculateProductStatsForDateRange(
+        product,
         this.dateRange.start!,
         this.dateRange.end!,
       );
 
-      // 4. Calcul des dates concernées et recettes associées
-      const datesInRange = Object.keys(product.byDate)
-        .filter((dateStr) => {
-          const date = new Date(dateStr);
-          const startDate = new Date(this.dateRange.start!);
-          const endDate = new Date(this.dateRange.end!);
-          return date >= startDate && date <= endDate;
-        })
-        .sort(); // trie chronologiquement
-
-      const recipesByDate = new Map<string, RecipeOccurrence[]>();
-      let totalRecipes = 0; // compteur total de recettes
-
-      datesInRange.forEach((date) => {
-        const recipes = product.byDate![date]?.recipes || [];
-        if (recipes.length > 0) {
-          recipesByDate.set(date, recipes);
-          totalRecipes += recipes.length; // ajoute le nombre de recettes pour cette date
-        }
-      });
-
-      // 5. Calculer les disponibilités à la fin de la plage
-      const stockResult = calculateAvailableAtDate(
-        product,
-        this.dateRange.end!,
-      );
-      const availableQuantities = stockResult.filter((item) => item.q > 0);
-      const missingQuantities = stockResult
-        .filter((item) => item.q < 0)
-        .map((item) => ({ q: Math.abs(item.q), u: item.u }));
-
-      // 6. Stockage dans l'objet unifié
+      // 🔄 MAPPING vers l'ancien format pour compatibilité UI existante
       statsMap.set(productId, {
-        quantities,
-        formattedQuantities,
-        nbRecipes: totalRecipes, // nombre total de recettes sur toutes les dates
-        totalAssiettes,
-        // NOUVEAUX
-        stockResult,
-        availableQuantities,
-        missingQuantities,
-        formattedAvailableQuantities: formatStockResult(stockResult),
-        hasAvailable: availableQuantities.length > 0,
-        hasMissing: missingQuantities.length > 0,
+        quantities: productStats.requiredQuantities,
+        formattedQuantities: productStats.requiredQuantitiesFormatted,
+        nbRecipes: productStats.totalRecipesInRange,
+        totalAssiettes: productStats.totalPortionsInRange,
+
+        // NOUVEAUX : Stock cohérent sur la plage
+        stockResult: productStats.stockBalance,
+        availableQuantities: productStats.availableStockQuantities,
+        missingQuantities: productStats.missingStockQuantities,
+        formattedMissingQuantities: productStats.missingStockFormatted,
+        formattedAvailableQuantities: productStats.availableStockFormatted,
+        hasAvailable: productStats.hasAvailableStock,
+        hasMissing: productStats.hasMissingStock,
+
         // 📅 NOUVEAUX
-        concernedDates: datesInRange,
-        recipesByDate,
+        concernedDates: productStats.datesInSelectedRange,
+        recipesByDate: productStats.recipesByDate,
       });
     }
 
@@ -713,13 +612,19 @@ class ProductsStore {
         let hugoData;
         if (import.meta.env.DEV) {
           // En développement, essayer de charger les données locales d'abord
-          const { hasDevData, loadDevEventData } = await import('../services/dev-data');
+          const { hasDevData, loadDevEventData } = await import(
+            "../services/dev-data"
+          );
 
           if (await hasDevData(listId)) {
-            console.log(`[ProductsStore] Chargement des données de dev pour ${listId}`);
+            console.log(
+              `[ProductsStore] Chargement des données de dev pour ${listId}`,
+            );
             hugoData = await loadDevEventData(listId);
           } else {
-            console.log(`[ProductsStore] Pas de données de dev pour ${listId}, utilisation des données HUGO`);
+            console.log(
+              `[ProductsStore] Pas de données de dev pour ${listId}, utilisation des données HUGO`,
+            );
             hugoData = await loadHugoEventData(listId);
           }
         } else {
@@ -955,7 +860,9 @@ class ProductsStore {
       // Créer une copie simple du tableau pour éviter l'erreur Proxy
       await this.#idbCache.updateAllDates([...this.#availableDates]);
       await this.#idbCache.updateHugoContentHash(this.#hugoContentHash);
-      console.log("[ProductsStore] Cache IDB persisté avec métadonnées complètes");
+      console.log(
+        "[ProductsStore] Cache IDB persisté avec métadonnées complètes",
+      );
     } catch (error) {
       console.error("[ProductsStore] Erreur persistance cache complet:", error);
     }
@@ -1034,82 +941,86 @@ class ProductsStore {
   }
 
   async #analyzeAndApplyHugoChanges(): Promise<void> {
-      if (!this.#hugoMetadata) {
-        console.warn('[ProductsStore] Impossible d\'analyser: #hugoMetadata non défini');
-        return;
-      }
-
-      try {
-        console.log('[ProductsStore] Chargement nouveau JSON Hugo...');
-        const newHugoData = await loadHugoEventData(this.#hugoMetadata);
-
-        // ✅ Synchronisation simplifiée
-        const result = await syncHugoData(this.#enrichedProducts, newHugoData);
-
-        console.log(`[ProductsStore  - hugo change] ${result.summary}`);
-
-        // Gérer les conflits d'override
-        if (result.overrideConflicts.length > 0) {
-          this.#pendingOverrideConflicts = result.overrideConflicts;
-
-          // Afficher une notification pour alerter l'utilisateur
-          toastService.error(
-            `${result.overrideConflicts.length} quantité(s) personnalisée(s) nécessitent votre attention`,
-            {
-              action: {
-                label: 'Réviser',
-                onClick: () => globalState.modalOverride.isOpen = true
-              }
-            }
-          );
-        }
-
-        // Gérer les produits isMerged modifiés
-        if (result.mergedProductsUpdated.length > 0) {
-          console.log(
-            `[ProductsStore] ⚠️ ${result.mergedProductsUpdated.length} produits fusionnés modifiés`
-          );
-          // Option : afficher une notification spéciale
-        }
-
-        // Gérer les suppressions avec données
-        if (result.removed.length > 0) {
-          const withData = result.removed.filter(p =>
-            p.purchases?.length || p.stockReel || p.who?.length
-          );
-
-          if (withData.length > 0) {
-            console.log(
-              `[ProductsStore] ℹ️ ${withData.length} ingrédients supprimés conservés (données utilisateur)`
-            );
-            // Ces produits restent dans la Map mais ne sont plus dans Hugo
-            // Vous pouvez les marquer visuellement dans l'UI
-          }
-        }
-
-        // Mettre à jour les dates et le hash
-        this.#availableDates = [...newHugoData.allDates];
-        this.#hugoContentHash = newHugoData.hugoContentHash;
-
-        // Réinitialiser la plage de dates si nécessaire
-        this.initializeDateRange();
-
-        await this.#persistToCacheWithMetadata();
-
-        // Notification utilisateur
-        if (result.added.length || result.updated.length || result.removed.length) {
-          toastService.success(result.summary);
-        }
-
-        // Marquer le changement comme traité
-        this.#hugoChangeDetected = false;
-
-      } catch (error) {
-        console.error('[ProductsStore] Erreur sync Hugo:', error);
-        toastService.error('Erreur lors de la mise à jour Hugo');
-      }
+    if (!this.#hugoMetadata) {
+      console.warn(
+        "[ProductsStore] Impossible d'analyser: #hugoMetadata non défini",
+      );
+      return;
     }
 
+    try {
+      console.log("[ProductsStore] Chargement nouveau JSON Hugo...");
+      const newHugoData = await loadHugoEventData(this.#hugoMetadata);
+
+      // ✅ Synchronisation simplifiée
+      const result = await syncHugoData(this.#enrichedProducts, newHugoData);
+
+      console.log(`[ProductsStore  - hugo change] ${result.summary}`);
+
+      // Gérer les conflits d'override
+      if (result.overrideConflicts.length > 0) {
+        this.#pendingOverrideConflicts = result.overrideConflicts;
+
+        // Afficher une notification pour alerter l'utilisateur
+        toastService.error(
+          `${result.overrideConflicts.length} quantité(s) personnalisée(s) nécessitent votre attention`,
+          {
+            action: {
+              label: "Réviser",
+              onClick: () => (globalState.modalOverride.isOpen = true),
+            },
+          },
+        );
+      }
+
+      // Gérer les produits isMerged modifiés
+      if (result.mergedProductsUpdated.length > 0) {
+        console.log(
+          `[ProductsStore] ⚠️ ${result.mergedProductsUpdated.length} produits fusionnés modifiés`,
+        );
+        // Option : afficher une notification spéciale
+      }
+
+      // Gérer les suppressions avec données
+      if (result.removed.length > 0) {
+        const withData = result.removed.filter(
+          (p) => p.purchases?.length || p.stockReel || p.who?.length,
+        );
+
+        if (withData.length > 0) {
+          console.log(
+            `[ProductsStore] ℹ️ ${withData.length} ingrédients supprimés conservés (données utilisateur)`,
+          );
+          // Ces produits restent dans la Map mais ne sont plus dans Hugo
+          // Vous pouvez les marquer visuellement dans l'UI
+        }
+      }
+
+      // Mettre à jour les dates et le hash
+      this.#availableDates = [...newHugoData.allDates];
+      this.#hugoContentHash = newHugoData.hugoContentHash;
+
+      // Réinitialiser la plage de dates si nécessaire
+      this.initializeDateRange();
+
+      await this.#persistToCacheWithMetadata();
+
+      // Notification utilisateur
+      if (
+        result.added.length ||
+        result.updated.length ||
+        result.removed.length
+      ) {
+        toastService.success(result.summary);
+      }
+
+      // Marquer le changement comme traité
+      this.#hugoChangeDetected = false;
+    } catch (error) {
+      console.error("[ProductsStore] Erreur sync Hugo:", error);
+      toastService.error("Erreur lors de la mise à jour Hugo");
+    }
+  }
 
   /**
    * Démarre la vérification périodique des changements Hugo
@@ -1163,9 +1074,6 @@ class ProductsStore {
       return createEnrichedProductFromAppwrite(product);
     }
   }
-
-
-
 
   /**
    * Batch upsert multiple products
@@ -1273,8 +1181,6 @@ class ProductsStore {
     // Retourner les IDs des produits affectés pour persistence
     return affectedProducts.map((p) => p.$id);
   }
-
-
 
   /**
    * Ajoute un purchase à ses products (pour CREATE)
@@ -1573,8 +1479,6 @@ class ProductsStore {
     return hasConversions(product.byDate);
   }
 
-
-
   async forceReload(mainId: string, listId: string) {
     await this.clearCache();
     await this.initialize(mainId, listId);
@@ -1645,7 +1549,6 @@ class ProductsStore {
 
     // Arrêter la surveillance des changements Hugo
     this.#stopHugoChangeMonitoring();
-
 
     if (this.#idbCache) {
       this.#idbCache.close();
