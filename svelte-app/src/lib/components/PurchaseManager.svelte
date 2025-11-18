@@ -21,12 +21,14 @@
     formatDateOrNull,
   } from "../utils/products-display.js";
   import { productsStore } from "../stores/ProductsStore.svelte";
+  import ArchiveMessage from "./ArchiveMessage.svelte";
 
   interface Props {
     modalState: ProductModalStateType;
+    isArchiveMode?: boolean;
   }
 
-  let { modalState }: Props = $props();
+  let { modalState, isArchiveMode = false }: Props = $props();
 
   // ✅ Validation inline - pas de $derived inutiles
   function isAddFormValid(): boolean {
@@ -87,6 +89,12 @@
 </script>
 
 <div class="space-y-4">
+  {#if isArchiveMode}
+    <ArchiveMessage
+      title="Achats non modifiables"
+      message="L'événement est terminé, les achats ne peuvent plus être ajoutés ou modifiés."
+    />
+  {:else}
   <h3 class="flex items-center gap-2 text-lg font-semibold">
     <ShoppingCart class="h-5 w-5" />
     Gestion des achats
@@ -217,19 +225,21 @@
         {/if}
       </div>
       <div class="card-actions mt-4 justify-end">
-        <button
-          class="btn btn-primary btn-sm"
-          onclick={handleAddPurchase}
-          disabled={modalState.loading || !isAddFormValid()}
-        >
-          {#if modalState.loading}
-            <span class="loading loading-spinner loading-sm"></span>
-          {:else}
-            Ajouter l'achat
-          {/if}
-        </button>
+          <button
+            class="btn btn-primary btn-sm"
+            onclick={handleAddPurchase}
+            disabled={modalState.loading || !isAddFormValid()}
+          >
+            {#if modalState.loading}
+              <span class="loading loading-spinner loading-sm"></span>
+            {:else}
+              Ajouter l'achat
+            {/if}
+          </button>
+        </div>
       </div>
     </div>
+  {/if}
   </div>
 
   <!-- Table des achats -->
@@ -251,7 +261,7 @@
             <th>Date livraison</th>
             <th>Prix</th>
             <th>Notes</th>
-            <th>Actions</th>
+            {#if !isArchiveMode}<th>Actions</th>{/if}
           </tr>
         </thead>
         <tbody>
@@ -396,6 +406,7 @@
                 </td>
                 <td>{purchase.price ? `${purchase.price}€` : "-"}</td>
                 <td>{purchase.notes || "-"}</td>
+                {#if !isArchiveMode}
                 <td>
                   <div class="btn-group btn-group-sm">
                     <button
@@ -417,6 +428,7 @@
                     </button>
                   </div>
                 </td>
+                {/if}
               </tr>
             {/if}
           {/each}
@@ -424,4 +436,3 @@
       </table>
     </div>
   {/if}
-</div>

@@ -6,16 +6,17 @@
 
   interface Props {
     modalState: ProductModalStateType;
+    isArchiveMode: boolean
   }
 
-  let { modalState }: Props = $props();
+  let { modalState, isArchiveMode }: Props = $props();
 
   // Données dérivées du store
   const recipes = $derived(modalState.recipes);
 </script>
 
 <!-- Section Override Manager -->
-<OverrideManager {modalState} />
+<OverrideManager {modalState} {isArchiveMode} />
 <div class="space-y-6">
   <h3 class="flex items-center gap-2 text-lg font-semibold">
     <CookingPot class="h-5 w-5" />

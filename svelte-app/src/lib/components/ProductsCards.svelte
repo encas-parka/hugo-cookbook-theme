@@ -44,9 +44,11 @@
     CircleArrowRight,
     ClipboardPenLine,
     CircleAlert,
+    History,
   } from "@lucide/svelte";
   import Tooltip from "./ui/Tooltip.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
+  import { formatDateWdDayMonthShort } from "../utils/dateRange";
 
   // Récupérer les icônes de statut depuis le parent pour éviter la duplication
   const statusIcons = {
@@ -97,23 +99,43 @@
     productsStore.groupedFilteredProducts,
   );
   const filters = $derived(productsStore.filters);
+
+  const formatedStartDateRange = $derived(
+    formatDateWdDayMonthShort(productsStore.dateRange.start),
+  );
+  const formatedEndDateRange = $derived(
+    formatDateWdDayMonthShort(productsStore.dateRange.end),
+  );
+
+  const formatedDateRange = $derived.by(() => {
+    if (productsStore.dateRange.start !== productsStore.dateRange.end) {
+      return (
+        "du " +
+        formatDateWdDayMonthShort(productsStore.dateRange.start) +
+        " au " +
+        formatDateWdDayMonthShort(productsStore.dateRange.end)
+      );
+    } else {
+      return "le " + formatDateWdDayMonthShort(productsStore.dateRange.start);
+    }
+  });
 </script>
 
 <div class="space-y-4 rounded-lg">
   {#each Object.entries(groupedFilteredProducts) as [groupKey, gProducts] (groupKey)}
-  {@const groupProducts : EnrichedProduct[] = gProducts}
+    {@const groupProducts : EnrichedProduct[] = gProducts}
     {#if groupKey !== ""}
       <!-- Header de groupe sticky -->
       {@const groupTypeInfo = getProductTypeInfo(groupKey)}
       <div
-        class="bg-primary @container sticky top-0 z-2 flex flex-wrap items-center justify-between rounded-lg px-4 py-2 font-semibold shadow-lg brightness-100 drop-shadow-xl @md:flex-nowrap"
+        class="bg-primary @container sticky top-0 z-2 flex flex-wrap items-center justify-between rounded-lg px-4 py-2 shadow-lg brightness-100 drop-shadow-xl @md:flex-nowrap"
       >
         <!-- Nom du groupe -->
-        <div class="flex items-center gap-2 @md:min-w-48">
+        <div class="flex items-center gap-2 font-semibold @md:min-w-48">
           {#if filters.groupBy === "store"}
             🏪 {groupKey} ({groupProducts!.length})
           {:else if filters.groupBy === "productType"}
-            <div class="text-neutral-content flex items-center gap-2">
+            <div class="text-primary-content flex items-center gap-2">
               <groupTypeInfo.icon class="h-4 w-4" />
               <span>{groupTypeInfo.displayName}</span>
               <span class="text-sm opacity-70">({groupProducts!.length})</span>
@@ -123,60 +145,71 @@
           {/if}
         </div>
 
-        <!-- Actions groupées -->
-        <div class="flex flex-wrap items-center justify-end gap-2">
-          <button
-            class="btn btn-sm btn-primary btn-soft"
-            onclick={() =>
-              onOpenGroupEditModal(
-                "store",
-                groupProducts!.map((p) => p.$id),
-                groupProducts!,
-              )}
-            title="Attribuer un magasin à tous les produits de ce groupe"
-          >
-            <Store size={16} />
-            <span class="hidden @md:block">Magasin</span>
-            <SquarePen size={16} />
-          </button>
-
-          <button
-            class="btn btn-sm btn-primary btn-soft"
-            onclick={() =>
-              onOpenGroupEditModal(
-                "who",
-                groupProducts!.map((p) => p.$id),
-                groupProducts!,
-              )}
-            title="Gérer les volontaires pour tous les produits de ce groupe"
-          >
-            <Users size={16} />
-            <span class="hidden @md:block"> Volontaires </span>
-            <SquarePen size={16} />
-          </button>
-
-          <!-- Bouton validation groupée -->
-          {#if groupProducts!.some((p) => p.displayMissingQuantity !== "✅ Complet")}
-            <button
-              class="btn btn-sm btn-primary btn-soft"
-              onclick={() => onOpenGroupPurchaseModal(groupProducts!)}
-              title="Ouvrir le modal d'achat groupé"
-            >
-              <ShoppingCart size={16} />
-              <span class="hidden @md:block"> Achat groupé </span>
-              <CircleCheckBig size={16} />
-            </button>
+        <div class="text-primary-content">
+          {#if productsStore.dateRange.start !== productsStore.dateRange.end}
+            du <span class="font-semibold">{formatedStartDateRange}</span> au
+            <span class="font-semibold">{formatedEndDateRange}</span>
+          {:else}
+            le <span class="font-semibold">{formatedStartDateRange}</span>
           {/if}
         </div>
+
+        <!-- Actions groupées -->
+        {#if !productsStore.isEventPassed}
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <button
+              class="btn btn-sm btn-primary btn-soft"
+              onclick={() =>
+                onOpenGroupEditModal(
+                  "store",
+                  groupProducts!.map((p) => p.$id),
+                  groupProducts!,
+                )}
+              title="Attribuer un magasin à tous les produits de ce groupe"
+            >
+              <Store size={16} />
+              <span class="hidden @md:block">Magasin</span>
+              <SquarePen size={16} />
+            </button>
+
+            <button
+              class="btn btn-sm btn-primary btn-soft"
+              onclick={() =>
+                onOpenGroupEditModal(
+                  "who",
+                  groupProducts!.map((p) => p.$id),
+                  groupProducts!,
+                )}
+              title="Gérer les volontaires pour tous les produits de ce groupe"
+            >
+              <Users size={16} />
+              <span class="hidden @md:block"> Volontaires </span>
+              <SquarePen size={16} />
+            </button>
+
+            <!-- Bouton validation groupée -->
+            {#if groupProducts!.some((p) => p.displayMissingQuantity !== "✅ Complet")}
+              <button
+                class="btn btn-sm btn-primary btn-soft"
+                onclick={() => onOpenGroupPurchaseModal(groupProducts!)}
+                title="Ouvrir le modal d'achat groupé"
+              >
+                <ShoppingCart size={16} />
+                <span class="hidden @md:block"> Achat groupé </span>
+                <CircleCheckBig size={16} />
+              </button>
+            {/if}
+          </div>
+        {/if}
       </div>
     {/if}
 
     <!-- Cards des produits du groupe -->
     <div class="space-y-1">
       {#each groupProducts as product (product.$id)}
-        {@const stats = productsStore.productsStatsByDateRange.get(
-          product.$id) || defaultStats
-        }
+        {@const stats =
+          productsStore.productsStatsByDateRange.get(product.$id) ||
+          defaultStats}
         {@const typeInfo = getProductTypeInfo(product.productType)}
         {@const purchasesBadges = formatPurchasesWithBadges(
           product.purchases || [],
@@ -280,71 +313,89 @@
               </div>
 
               <!-- Section droite: Store & Who (horizontal, wrap) -->
-              <div class="ml-4 flex gap-2">
-                <!-- Store -->
-                <button
-                  title="Modifier le magasin"
-                  class="btn btn-soft btn-sm group relative {product.storeInfo
-                    ?.storeName
-                    ? 'btn-success'
-                    : ''}"
-                  onclick={() => onOpenModal(product.$id, "magasins")}
-                  onkeydown={(e) =>
-                    e.key === "Enter" && onOpenModal(product.$id, "magasins")}
-                >
-                  <Store size={18} />
+              {#if !productsStore.isEventPassed}
+                <div class="ml-4 flex gap-2">
+                  <!-- Store -->
+                  <button
+                    title="Modifier le magasin"
+                    class="btn btn-soft btn-sm group relative {product.storeInfo
+                      ?.storeName
+                      ? 'btn-success'
+                      : ''}"
+                    onclick={() => onOpenModal(product.$id, "magasins")}
+                    onkeydown={(e) =>
+                      e.key === "Enter" && onOpenModal(product.$id, "magasins")}
+                  >
+                    <Store size={18} />
+                    {#if product.storeInfo?.storeName}
+                      <div class="ml-1">
+                        {product.storeInfo.storeName}
+                      </div>
+                      {#if product.storeInfo?.storeComment}
+                        <div class="ml-1">
+                          <Tooltip
+                            tip={product.storeInfo.storeComment}
+                            icon={MessageCircleMore}
+                            iconSize={14}
+                          />
+                        </div>
+                      {/if}
+                    {:else}
+                      <div class="ml-1 text-sm font-medium">?</div>
+                    {/if}
+                  </button>
+
+                  <!-- Who -->
+                  <button
+                    title="Modifier les volontaires"
+                    class="btn btn-sm btn-soft group relative {product.who &&
+                    product.who?.length > 0
+                      ? 'btn-success'
+                      : ''}"
+                    onclick={() => onOpenModal(product.$id, "volontaires")}
+                    onkeydown={(e) =>
+                      e.key === "Enter" &&
+                      onOpenModal(product.$id, "volontaires")}
+                  >
+                    <Users size={18} />
+                    {#if product.who && product.who.length > 0}
+                      <div class="ml-1 flex gap-1">
+                        {product.who
+                          .slice(0, 2)
+                          .map((person) => person.slice(0, 3))
+                          .join(" | ")}
+                        {#if product.who.length > 2}
+                          <span class="text-base-content/50 text-xs"
+                            >+{product.who.length - 2}</span
+                          >
+                        {/if}
+                      </div>
+                    {:else}
+                      <div class="ml-1 text-sm font-medium">?</div>
+                    {/if}
+                  </button>
+                </div>
+              {:else}
+                <!-- Affichage lecture seule en mode archive -->
+                <div class="mx-4 flex gap-2 opacity-60">
                   {#if product.storeInfo?.storeName}
-                    <div class="ml-1">
+                    <div class="flex items-center gap-1 text-sm">
+                      <Store size={16} />
                       {product.storeInfo.storeName}
                     </div>
-                    {#if product.storeInfo?.storeComment}
-                      <div class="ml-1">
-                        <Tooltip
-                          tip={product.storeInfo.storeComment}
-                          icon={MessageCircleMore}
-                          iconSize={14}
-                        />
-                      </div>
-                    {/if}
-                  {:else}
-                    <div class="ml-1 text-sm font-medium">?</div>
                   {/if}
-                </button>
-
-                <!-- Who -->
-                <button
-                  title="Modifier les volontaires"
-                  class="btn btn-sm btn-soft group relative {product.who && product.who
-                    ?.length > 0
-                    ? 'btn-success'
-                    : ''}"
-                  onclick={() => onOpenModal(product.$id, "volontaires")}
-                  onkeydown={(e) =>
-                    e.key === "Enter" &&
-                    onOpenModal(product.$id, "volontaires")}
-                >
-                  <Users size={18} />
                   {#if product.who && product.who.length > 0}
-                    <div class="ml-1 flex gap-1">
-                      {product.who
-                        .slice(0, 2)
-                        .map((person) => person.slice(0, 3))
-                        .join(" | ")}
-                      {#if product.who.length > 2}
-                        <span class="text-base-content/50 text-xs"
-                          >+{product.who.length - 2}</span
-                        >
-                      {/if}
+                    <div class="flex items-center gap-1 text-sm">
+                      <Users size={16} />
+                      {product.who.join(", ")}
                     </div>
-                  {:else}
-                    <div class="ml-1 text-sm font-medium">?</div>
                   {/if}
-                </button>
-              </div>
+                </div>
+              {/if}
             </div>
 
             <!-- Deuxième ligne: Groupe Besoins + Achats + Manquants (flex wrap) -->
-            <div class="flex flex-wrap gap-3 min-h-14" id="card-needs-missing">
+            <div class="flex min-h-14 flex-wrap gap-3" id="card-needs-missing">
               <!-- Besoins -->
               <div
                 id="needs-card"
@@ -354,30 +405,36 @@
                 onclick={() => onOpenModal(product.$id, "recettes")}
                 onkeydown={(e) =>
                   e.key === "Enter" && onOpenModal(product.$id, "recettes")}
-
               >
-                <div class="flex gap-x-4 gap-y-0 flex-wrap">
+                <div class="flex flex-wrap gap-x-4 gap-y-0">
                   <div
                     class="text-base-content/80 flex items-center gap-2 text-sm font-medium"
                   >
                     <ListTodo class="h-4 w-4" />
                     Besoins
                   </div>
-                  <div class="flex items-center gap-4 self-end ms-auto">
+                  <div class="ms-auto flex items-center gap-4 self-end">
                     <div
-                      class="font-bold text-base {stats.hasMissing
+                      class="text-base font-bold {stats.hasMissing &&
+                      !productsStore.isEventPassed
                         ? 'text-error'
                         : 'text-success'}"
                     >
                       <!-- affichage override -->
                       {#if totalNeededOverride?.totalOverride}
-                        <div class="flex items-center gap-2 tooltip" data-tip="Besoin total modifié manuellement">
-                        <span class="text-base-content/70 line-through">{stats.formattedQuantities}</span>
+                        <div
+                          class="tooltip flex items-center gap-2"
+                          data-tip="Besoin total modifié manuellement"
+                        >
+                          <span class="text-base-content/70 line-through"
+                            >{stats.formattedQuantities}</span
+                          >
                           <ClipboardPenLine class="h-4 w-4" />
-                          {totalNeededOverride.totalOverride.q} {totalNeededOverride.totalOverride.u}
+                          {totalNeededOverride.totalOverride.q}
+                          {totalNeededOverride.totalOverride.u}
                         </div>
                       {:else}
-                        <span > {stats.formattedQuantities}</span>
+                        <span> {stats.formattedQuantities}</span>
                       {/if}
                     </div>
                     {#if stats.nbRecipes || stats.totalAssiettes}
@@ -395,11 +452,10 @@
                       </div>
                     {/if}
                   </div>
-
                 </div>
 
                 <!-- Bouton d'achat rapide -->
-                {#if stats.hasMissing}
+                {#if !productsStore.isEventPassed && stats.hasMissing}
                   <button
                     class="btn btn-sm btn-soft btn-accent hover:bg-success/70 hover:border-success/70 ms-auto"
                     onclick={(e) => {
@@ -429,59 +485,67 @@
                       <CircleArrowRight size={18} />
                     {/if}
                   </button>
-                {:else}
+                {:else if !productsStore.isEventPassed}
                   <CircleCheckBig size={24} class="text-success ms-auto" />
                 {/if}
-                {#if totalNeededOverride?.hasUnresolvedChangedSinceOverride}
-                <div id="override_alert" class="alert alert-warning px-1 py-0.5 alert-soft mt-1">
-                  <CircleAlert size={18} />
-                  <span>Les quantités des menus ont été modifiées depuis l'attribution manuelle des "besoins"</span>
-                </div>
+                {#if !productsStore.isEventPassed && totalNeededOverride?.hasUnresolvedChangedSinceOverride}
+                  <div
+                    id="override_alert"
+                    class="alert alert-warning alert-soft mt-1 px-1 py-0.5"
+                  >
+                    <CircleAlert size={18} />
+                    <span
+                      >Les quantités des menus ont été modifiées depuis
+                      l'attribution manuelle des "besoins"</span
+                    >
+                  </div>
                 {/if}
               </div>
 
               <!-- Achats -->
               <div
-                class="group bg-base-200/40 hover:bg-base-200/50 hover:ring-accent/60 relative flex-1 min-w-[200px] items-center justify-between gap-2 flex cursor-pointer rounded-lg p-3 transition-colors hover:ring-2"
+                class="group bg-base-200/40 hover:bg-base-200/50 hover:ring-accent/60 relative flex min-w-[200px] flex-1 cursor-pointer items-center justify-between gap-2 rounded-lg p-3 transition-colors hover:ring-2"
                 role="button"
                 tabindex="0"
                 onclick={() => onOpenModal(product.$id, "achats")}
                 onkeydown={(e) =>
                   e.key === "Enter" && onOpenModal(product.$id, "achats")}
               >
-                  <div class="flex flex-wrap gap-0 items-start self-start">
-                    <div
-                      class="text-base-content/80 flex items-center gap-2 text-sm font-medium"
-                    >
-                      <ShoppingCart class="h-4 w-4" />
-                      Achats / Récup:
-                      <!-- Liste des achats -->
-                    </div>
-                    <div
-                      class="text-base-content/30 ms-4 text-xs italic opacity-100 transition-opacity group-hover:opacity-100 sm:opacity-0"
-                    >
-                      ajouter un achat
-                    </div>
+                <div class="flex flex-wrap items-start gap-0 self-start">
+                  <div
+                    class="text-base-content/80 flex items-center gap-2 text-sm font-medium"
+                  >
+                    <ShoppingCart class="h-4 w-4" />
+                    Achats / Récup:
                   </div>
-                  <div class="flex flex-wrap gap-1.5">
-                    {#each purchasesBadges as purchase, index (index)}
-                      {@const IconComponent = statusIcons[purchase.icon]}
-                      <div
-                        class="badge badge-outline flex items-center gap-1 {purchase.badgeClass}"
-                      >
-                        <IconComponent class="h-4 w-4" />
-                        <span class="text-sm font-medium text-nowrap">
-                          {formatQuantity(purchase.quantity, purchase.unit)}
-                        </span>
-                      </div>
-                    {/each}
-                    {#if purchasesBadges.length === 0}
-                      <span class="text-base-content/50 text-xs italic"
-                        >aucun</span
-                      >
-                    {/if}
+                  <div
+                    class="text-base-content/30 ms-4 text-xs italic opacity-100 transition-opacity {productsStore.isEventPassed
+                      ? ''
+                      : 'group-hover:opacity-100'} sm:opacity-0"
+                  >
+                    ajouter un achat
                   </div>
-
+                </div>
+                <!-- Liste des achats -->
+                <div class="flex flex-wrap gap-1.5">
+                  {#each purchasesBadges as purchase, index (index)}
+                    {@const IconComponent = statusIcons[purchase.icon]}
+                    <div
+                      class="badge badge-outline flex items-center gap-1 {purchase.badgeClass}"
+                    >
+                      <IconComponent class="h-4 w-4" />
+                      <span class="text-sm font-medium text-nowrap">
+                        {purchase.quantity}
+                        {purchase.unit}
+                      </span>
+                    </div>
+                  {/each}
+                  {#if purchasesBadges.length === 0}
+                    <span class="text-base-content/50 text-xs italic"
+                      >aucun</span
+                    >
+                  {/if}
+                </div>
               </div>
             </div>
           </div>

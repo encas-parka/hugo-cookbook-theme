@@ -3,11 +3,63 @@
  * Permet de utiliser un JSON local au lieu du JSON généré par HUGO
  */
 
-import type { HugoEventData, HugoIngredient } from "./hugo-loader";
+import type {
+  HugoEventData,
+  HugoIngredient,
+  EventMetadata,
+} from "./hugo-loader";
 import { createEnrichedProductsFromHugo } from "./hugo-loader";
 
 // Détection de l'environnement de développement
 const isDev = import.meta.env.DEV;
+
+/**
+ * Charge les métadonnées de développement depuis un JSON local
+ */
+export async function loadDevEventMetadata(
+  listId: string,
+): Promise<EventMetadata> {
+  try {
+    // Essayer de charger depuis le dossier public/dev-data
+    const response = await fetch(`/dev-data/metadata.json`);
+
+    if (!response.ok) {
+      throw new Error(
+        `Fichier de métadonnées de dev non trouvé: /dev-data/metadata.json`,
+      );
+    }
+
+    const data = await response.json();
+    console.log(
+      `[DevData] Métadonnées chargées depuis /dev-data/metadata.json`,
+    );
+    return data;
+  } catch (error) {
+    console.warn(
+      `[DevData] Impossible de charger les métadonnées de dev pour ${listId}:`,
+      error,
+    );
+
+    // Fallback : métadonnées basiques extraites des données
+    const eventData = await loadDevEventData(listId);
+    return {
+      mainGroup_id: eventData.mainGroup_id,
+      hugoContentHash: eventData.hugoContentHash,
+      name: eventData.name,
+      allDates: eventData.allDates,
+      lastModified: new Date().toISOString(),
+      ingredientsCount: eventData.ingredients.length,
+      totalAssiettes: eventData.ingredients.reduce(
+        (sum, ing) => sum + (ing.totalAssiettes || 0),
+        0,
+      ),
+      totalRecipes: eventData.ingredients.reduce(
+        (sum, ing) => sum + (ing.nbRecipes || 0),
+        0,
+      ),
+    };
+  }
+}
 
 /**
  * Charge les données de développement depuis un JSON local
@@ -15,17 +67,20 @@ const isDev = import.meta.env.DEV;
 export async function loadDevEventData(listId: string): Promise<HugoEventData> {
   try {
     // Essayer de charger depuis le dossier public/dev-data
-    const response = await fetch(`/dev-data/${listId}.json`);
+    const response = await fetch(`/dev-data/index.json`);
 
     if (!response.ok) {
-      throw new Error(`Fichier de dev non trouvé: /dev-data/${listId}.json`);
+      throw new Error(`Fichier de dev non trouvé: /dev-data/index.json`);
     }
 
     const data = await response.json();
-    console.log(`[DevData] Données chargées depuis /dev-data/${listId}.json`);
+    console.log(`[DevData] Données chargées depuis /dev-data/index.json`);
     return data;
   } catch (error) {
-    console.warn(`[DevData] Impossible de charger les données de dev pour ${listId}:`, error);
+    console.warn(
+      `[DevData] Impossible de charger les données de dev pour index:`,
+      error,
+    );
 
     // Fallback : données de démonstration génériques
     return createFallbackDevData(listId);
@@ -37,7 +92,7 @@ export async function loadDevEventData(listId: string): Promise<HugoEventData> {
  */
 export async function hasDevData(listId: string): Promise<boolean> {
   try {
-    const response = await fetch(`/dev-data/${listId}.json`, { method: 'HEAD' });
+    const response = await fetch(`/dev-data/index.json`, { method: "HEAD" });
     return response.ok;
   } catch {
     return false;
@@ -61,10 +116,10 @@ function createFallbackDevData(listId: string): HugoEventData {
       byDate: {
         "2024-01-01": {
           recipes: ["Recipe 1", "Recipe 2"],
-          totalNeeded: [{ q: 500, u: "g" }]
-        }
+          totalNeeded: [{ q: 500, u: "g" }],
+        },
       },
-      totalNeededRaw: [{ q: 500, u: "g" }]
+      totalNeededRaw: [{ q: 500, u: "g" }],
     },
     {
       ingredientHugoUuid: "dev-002",
@@ -78,10 +133,10 @@ function createFallbackDevData(listId: string): HugoEventData {
       byDate: {
         "2024-01-01": {
           recipes: ["Recipe 1"],
-          totalNeeded: [{ q: 4, u: "unités" }]
-        }
+          totalNeeded: [{ q: 4, u: "unités" }],
+        },
       },
-      totalNeededRaw: [{ q: 4, u: "unités" }]
+      totalNeededRaw: [{ q: 4, u: "unités" }],
     },
     {
       ingredientHugoUuid: "dev-003",
@@ -95,11 +150,11 @@ function createFallbackDevData(listId: string): HugoEventData {
       byDate: {
         "2024-01-01": {
           recipes: ["Recipe 2"],
-          totalNeeded: [{ q: 250, u: "ml" }]
-        }
+          totalNeeded: [{ q: 250, u: "ml" }],
+        },
       },
-      totalNeededRaw: [{ q: 250, u: "ml" }]
-    }
+      totalNeededRaw: [{ q: 250, u: "ml" }],
+    },
   ];
 
   return {
@@ -107,7 +162,7 @@ function createFallbackDevData(listId: string): HugoEventData {
     name: `Event de démonstration (${listId})`,
     hugoContentHash: "dev-fallback-hash",
     allDates: ["2024-01-01"],
-    ingredients: fallbackIngredients
+    ingredients: fallbackIngredients,
   };
 }
 
@@ -117,7 +172,9 @@ function createFallbackDevData(listId: string): HugoEventData {
  */
 export async function generateDevFileFromHugo(listId: string): Promise<void> {
   if (!isDev) {
-    console.warn("[DevData] Cette fonction n'est disponible qu'en développement");
+    console.warn(
+      "[DevData] Cette fonction n'est disponible qu'en développement",
+    );
     return;
   }
 
@@ -128,10 +185,10 @@ export async function generateDevFileFromHugo(listId: string): Promise<void> {
 
     // Créer un blob et le télécharger
     const dataStr = JSON.stringify(hugoData, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
+    const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
 
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `${listId}.json`;
     document.body.appendChild(a);
@@ -139,8 +196,13 @@ export async function generateDevFileFromHugo(listId: string): Promise<void> {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    console.log(`[DevData] Fichier ${listId}.json téléchargé. Placez-le dans public/dev-data/`);
+    console.log(
+      `[DevData] Fichier ${listId}.json téléchargé. Placez-le dans public/dev-data/`,
+    );
   } catch (error) {
-    console.error("[DevData] Erreur lors de la génération du fichier de dev:", error);
+    console.error(
+      "[DevData] Erreur lors de la génération du fichier de dev:",
+      error,
+    );
   }
 }

@@ -6,6 +6,7 @@
     Archive,
     Users,
     Store,
+    History,
   } from "@lucide/svelte";
 
   // Stores and Global States
@@ -18,7 +19,6 @@
   import StoreManager from "./StoreManager.svelte";
   import RecipesManager from "./RecipesManager.svelte";
   import { productsStore } from "../stores/ProductsStore.svelte";
-  import { onMount } from "svelte";
 
   let {
     productId,
@@ -32,6 +32,9 @@
 
   // 1. Déclarer l'état du modal. Il sera `null` au premier rendu.
   let modalState = $derived(createProductModalState(productId));
+
+  // Mode archive si l'événement est passé
+  let isArchiveMode = $derived(productsStore.isEventPassed);
 
   let currentTab = $state(initialTab);
 
@@ -53,9 +56,19 @@
     <!-- Header -->
     <div class="flex items-center justify-between border-b p-4 pt-0">
       {#if modalState && modalState.product}
+
         <div class="text-xl font-bold">
           {modalState.product?.productName}
         </div>
+
+        <!-- Header avec indicateur d'archive -->
+        {#if modalState && isArchiveMode}
+          <div class="alert alert-warning py-0.5">
+            <History class="h-4 w-4" />
+            <span class="font-medium">Mode consultation</span>
+            <span class="">Événement terminé</span>
+          </div>
+        {/if}
         <div class="me-2 mt-2 flex items-center gap-3">
           <span class="badge badge-secondary"
             >{modalState.product?.productType}</span
@@ -80,6 +93,7 @@
         <X class="h-4 w-4" />
       </button>
     </div>
+
 
     <!-- Onglets -->
     {#if modalState}
@@ -175,15 +189,15 @@
         <div class="">
           {#key currentTab}
             {#if currentTab === "recettes"}
-              <RecipesManager {modalState} />
+              <RecipesManager {modalState} {isArchiveMode} />
             {:else if currentTab === "achats"}
-              <PurchaseManager {modalState} />
+              <PurchaseManager {modalState} {isArchiveMode} />
             {:else if currentTab === "stock"}
-              <StockManager {modalState} />
+              <StockManager {modalState} {isArchiveMode} />
             {:else if currentTab === "volontaires"}
-              <VolunteerManager {modalState} />
+              <VolunteerManager {modalState} {isArchiveMode} />
             {:else if currentTab === "magasins"}
-              <StoreManager {modalState} />
+              <StoreManager {modalState} {isArchiveMode} />
             {/if}
           {/key}
         </div>

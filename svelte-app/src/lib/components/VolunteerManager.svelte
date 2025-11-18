@@ -3,12 +3,14 @@
   import type { ProductModalStateType } from "../types/store.types.js";
   import { productsStore } from "../stores/ProductsStore.svelte.js";
   import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
+  import ArchiveMessage from "./ArchiveMessage.svelte";
 
   interface Props {
     modalState: ProductModalStateType;
+    isArchiveMode?: boolean;
   }
 
-  let { modalState }: Props = $props();
+  let { modalState, isArchiveMode = false }: Props = $props();
 
   // État local uniquement pour le nouveau volontaire
   let newVolunteerName = $state("");
@@ -76,14 +78,21 @@
 </script>
 
 <div class="space-y-4">
+      {#if isArchiveMode}
+        <ArchiveMessage
+          title="Volontaires non modifiables"
+          message="L'événement est terminé, les volontaires assignés ne peuvent plus être modifiés."
+        />
+      {:else}
   <div class="card bg-base-200">
     <div class="card-body">
       <h4 class="card-title text-base">Gérer les volontaires</h4>
-      <p class="mb-4 text-sm opacity-75">
-        Ajoutez ou retirez des volontaires pour ce produit.
-      </p>
 
-      <div class="space-y-4">
+        <p class="mb-4 text-sm opacity-75">
+          Ajoutez ou retirez des volontaires pour ce produit.
+        </p>
+
+        <div class="space-y-4">
         <!-- Ajout rapide -->
         <div class="flex gap-2">
           <label class="input w-72">
@@ -121,18 +130,19 @@
             showIcon={true}
           />
         </div>
+            </div>
       </div>
 
       <!-- Actions -->
-      <div class="card-actions justify-end">
-        <button
-          class="btn btn-ghost btn-sm"
-          onclick={handleCancel}
-          disabled={modalState.loading}
-        >
-          Annuler
-        </button>
-      </div>
+        <div class="card-actions justify-end">
+          <button
+            class="btn btn-ghost btn-sm"
+            onclick={handleCancel}
+            disabled={modalState.loading}
+          >
+            Annuler
+          </button>
+        </div>
     </div>
+      {/if}
   </div>
-</div>

@@ -46,7 +46,7 @@ export function getFirstAvailableDate(dates: string[]): string | null {
  */
 export function getLastAvailableDate(dates: string[]): string | null {
   if (dates.length === 0) return null;
-  return sortDates(dates).pop();
+  return sortDates(dates).pop() ?? null;
 }
 
 /**
@@ -58,7 +58,7 @@ export function getFirstUpcomingDate(dates: string[]): string | null {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Début de journée
 
-  return sortDates(dates).find(date => new Date(date) >= today) || null;
+  return sortDates(dates).find((date) => new Date(date) >= today) || null;
 }
 
 /**
@@ -70,11 +70,12 @@ export function getUpcomingDates(dates: string[]): string[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  return sortDates(dates).filter(date => new Date(date) >= today);
+  return sortDates(dates).filter((date) => new Date(date) >= today);
 }
 
 /**
  * Initialise une plage de dates intelligente
+ * - Si toutes les dates sont passées : commence à la première date
  * - Si la première date est passée : commence à aujourd'hui
  * - Sinon : commence à la première date disponible
  */
@@ -82,13 +83,23 @@ export function initializeDateRange(dates: string[]): DateRange | null {
   if (dates.length === 0) return null;
 
   const sortedDates = sortDates(dates);
+  const eventPassed = isEventPassed(dates);
   const isFirstDatePassed = isDatePassed(sortedDates[0]);
 
   // Utiliser le même format que les dates disponibles (ISO sans millisecondes)
   const today = new Date();
-  const startDate = isFirstDatePassed
-    ? today.toISOString().slice(0, 19) + 'Z'  // Format: 2025-11-17T12:00:00Z
-    : sortedDates[0];
+  let startDate: string;
+
+  if (eventPassed) {
+    // Si toutes les dates sont passées, commencer à la première date
+    startDate = sortedDates[0];
+  } else if (isFirstDatePassed) {
+    // Si la première date est passée, commencer à aujourd'hui
+    startDate = today.toISOString().slice(0, 19) + "Z"; // Format: 2025-11-17T12:00:00Z
+  } else {
+    // Sinon, commencer à la première date disponible
+    startDate = sortedDates[0];
+  }
 
   return {
     start: startDate,
@@ -133,19 +144,25 @@ export function isFullRange(currentRange: DateRange, dates: string[]): boolean {
   const fullRange = createFullDateRange(dates);
   if (!fullRange) return false;
 
-  return currentRange.start === fullRange.start &&
-         currentRange.end === fullRange.end;
+  return (
+    currentRange.start === fullRange.start && currentRange.end === fullRange.end
+  );
 }
 
 /**
  * Vérifie si une plage de dates couvre toutes les dates à venir
  */
-export function isUpcomingRange(currentRange: DateRange, dates: string[]): boolean {
+export function isUpcomingRange(
+  currentRange: DateRange,
+  dates: string[],
+): boolean {
   const upcomingRange = createUpcomingDateRange(dates);
   if (!upcomingRange) return false;
 
-  return currentRange.start === upcomingRange.start &&
-         currentRange.end === upcomingRange.end;
+  return (
+    currentRange.start === upcomingRange.start &&
+    currentRange.end === upcomingRange.end
+  );
 }
 
 /**
@@ -158,8 +175,17 @@ export function hasSingleDateEvent(dates: string[]): boolean {
 /**
  * Formate une date pour l'affichage (français)
  */
-export function formatDate(dateStr: string): string {
+export function formatDateDayMonthShort(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+export function formatDateWdDayMonthShort(dateStr: string | null): string {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("fr-Fr", {
+    weekday: "short",
     day: "numeric",
     month: "short",
   });

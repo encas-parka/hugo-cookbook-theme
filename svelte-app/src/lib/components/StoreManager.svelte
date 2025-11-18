@@ -4,12 +4,14 @@
   import { createProductModalState } from "../stores/ProductModalState.svelte";
   import { productsStore } from "../stores/ProductsStore.svelte";
   import Suggestions from "./ui/Suggestions.svelte";
+  import ArchiveMessage from "./ArchiveMessage.svelte";
 
   interface Props {
     modalState: ProductModalStateType;
+    isArchiveMode?: boolean;
   }
 
-  let { modalState }: Props = $props();
+  let { modalState, isArchiveMode = false }: Props = $props();
 
   // ✅ Utilisation directe de l'état centralisé - pas d'état local
   const storeForm = $derived(
@@ -32,14 +34,23 @@
 </script>
 
 <div class="space-y-4">
+      {#if isArchiveMode}
+        <ArchiveMessage
+          title="Magasin non modifiable"
+          message="L'événement est terminé, les informations de magasin ne peuvent plus être modifiées."
+          data={modalState.product?.storeInfo}
+          dataLabel="Magasin actuel"
+        />
+      {:else}
   <div class="card bg-base-200">
     <div class="card-body">
       <h4 class="card-title text-base">Magasin</h4>
-      <p class="mb-4 text-sm opacity-75">
-        Définissez le magasin où vous prévoyez d'acheter ce produit.
-      </p>
 
-      <div class="grid-col-1 grid gap-4">
+        <p class="mb-4 text-sm opacity-75">
+          Définissez le magasin où vous prévoyez d'acheter ce produit.
+        </p>
+
+        <div class="grid-col-1 grid gap-4">
         <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
           <label class="input">
             <Store class="h-4 w-4 opacity-50" />
@@ -84,17 +95,18 @@
       </div>
 
       <div class="card-actions mt-4 justify-end">
-        <button
-          class="btn btn-ghost btn-sm"
-          onclick={() => {
-            modalState.forms.store.name = "";
-            modalState.forms.store.comment = "";
-          }}
-          disabled={modalState.loading}
-        >
-          Effacer
-        </button>
+          <button
+            class="btn btn-ghost btn-sm"
+            onclick={() => {
+              modalState.forms.store.name = "";
+              modalState.forms.store.comment = "";
+            }}
+            disabled={modalState.loading}
+          >
+            Effacer
+          </button>
+        </div>
       </div>
     </div>
+        {/if}
   </div>
-</div>

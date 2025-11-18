@@ -51,12 +51,28 @@ export function normalizeUnit(
 }
 
 export function formatQuantity(quantity: number, unit: string): string {
+  let formattedQuantity: string;
+  let displayUnit: string;
+
   if (unit === "gr." && quantity >= 1000) {
-    return `${(quantity / 1000).toFixed(1)} kg`;
+    const kgValue = quantity / 1000;
+    formattedQuantity = roundAndTrim(kgValue);
+    displayUnit = "kg";
   } else if (unit === "ml" && quantity >= 1000) {
-    return `${(quantity / 1000).toFixed(1)} l`;
+    const lValue = quantity / 1000;
+    formattedQuantity = roundAndTrim(lValue);
+    displayUnit = "l";
+  } else {
+    formattedQuantity = roundAndTrim(quantity);
+    displayUnit = unit;
   }
-  return `${quantity} ${unit}`;
+
+  return `${formattedQuantity} ${displayUnit}`;
+}
+
+function roundAndTrim(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return rounded.toString().replace(/\.0$/, "");
 }
 
 export function formatDate(dateString: string): string {
@@ -134,7 +150,7 @@ export function formatDateOrNull(dateString: string | null): string {
 
 // Fonction pour formater les achats avec badges structurés
 export function formatPurchasesWithBadges(purchases: any[]): Array<{
-  quantity: number;
+  quantity: string;
   unit: string;
   status: string | null;
   badgeClass: string;
@@ -165,7 +181,14 @@ export function formatPurchasesWithBadges(purchases: any[]): Array<{
     return acc;
   }, {});
 
-  return Object.values(grouped);
+  // Formatter les quantités en utilisant formatQuantity
+  return Object.values(grouped).map((item) => ({
+    ...item,
+    quantity: formatQuantity(item.quantity, item.unit).replace(
+      ` ${item.unit}`,
+      "",
+    ),
+  }));
 }
 
 // Fonction pour obtenir l'icône correspondant au statut

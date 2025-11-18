@@ -3,12 +3,14 @@
   import type { ProductModalStateType } from "../types/store.types.js";
   import { formatDate } from "../utils/products-display.js";
   import InfoCollapse from "./ui/InfoCollapse.svelte";
+  import ArchiveMessage from "./ArchiveMessage.svelte";
 
   interface Props {
     modalState: ProductModalStateType;
+    isArchiveMode?: boolean;
   }
 
-  let { modalState }: Props = $props();
+  let { modalState, isArchiveMode = false }: Props = $props();
 
   // Données dérivées du store
 
@@ -30,6 +32,14 @@
 </script>
 
 <div class="space-y-4">
+  {#if isArchiveMode}
+    <ArchiveMessage
+      title="Stock non modifiable"
+      message="L'événement est terminé, le stock ne peut plus être modifié."
+      data={modalState.stockParsed}
+      dataLabel="Stock actuel"
+    />
+  {:else}
   <h3 class="flex items-center gap-2 text-lg font-semibold">
     <Archive class="h-5 w-5" />
     Gestion du stock
@@ -98,18 +108,20 @@
         </textarea>
       </div>
       <div class="card-actions mt-4 justify-end">
-        <button
-          class="btn btn-ghost btn-sm"
-          onclick={() => {
-            modalState.forms.stock.quantity = null;
-            modalState.forms.store.comment = "";
-          }}
-          disabled={modalState.loading}
-        >
-          Effacer
-        </button>
+          <button
+            class="btn btn-ghost btn-sm"
+            onclick={() => {
+              modalState.forms.stock.quantity = null;
+              modalState.forms.store.comment = "";
+            }}
+            disabled={modalState.loading}
+          >
+            Effacer
+          </button>
+        </div>
       </div>
     </div>
+  {/if}
   </div>
 
   {#if !modalState.stockParsed}
@@ -142,6 +154,7 @@
             </div>
           {/if}
         </div>
+        {#if !isArchiveMode}
         <div class="card-actions mt-4 justify-end">
           <button
             class="btn btn-error btn-sm"
@@ -155,10 +168,10 @@
             {/if}
           </button>
         </div>
+        {/if}
       </div>
     </div>
   {/if}
-</div>
 
 <style>
 </style>

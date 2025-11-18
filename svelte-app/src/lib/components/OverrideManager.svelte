@@ -4,13 +4,14 @@ import type {
 ProductModalStateType,
 TotalNeededOverrideData,
 } from "../types/store.types.js";
-import { formatQuantity } from "../utils/products-display.js";
 import Fieldset from "./ui/Fieldset.svelte";
+
 interface Props {
 modalState: ProductModalStateType;
+isArchiveMode: boolean;
 }
 
-let { modalState }: Props = $props();
+let { modalState, isArchiveMode }: Props = $props();
 
 // Données dérivées du store
 const overrideData = $derived(modalState.product?.totalNeededOverrideParsed);
@@ -59,19 +60,6 @@ editMode = false;
 }
 </script>
 
-{#snippet quantityLabeled (label: string, value: string, className?: string, statDesc?: string)}
-  <div class="stat">
-    <div class="stat-title">
-      {label}
-    </div>
-    <div class="stat-value text-lg {className}">
-      {value}
-    </div>
-    <div class="stat-desc">{statDesc}</div>
-
-  </div>
-{/snippet}
-
 {#if modalState.product}
 <div class="mb-2 space-y-4">
   <!-- Quantité calculée affichée en référence -->
@@ -112,6 +100,8 @@ editMode = false;
       </div>
     {/if}
   </div>
+  {#if !isArchiveMode}
+
   <div class="flex justify-end gap-2">
 
     <button
@@ -121,6 +111,8 @@ editMode = false;
     >Modifier</button
     >
   </div>
+
+  {/if}
   {#if editMode}
   <div
     class="card border-base-300 border {editMode
@@ -173,6 +165,7 @@ editMode = false;
           </div>
         </div>
 
+        {#if !isArchiveMode}
         <div class="card-actions mt-4 justify-end gap-2">
 
           <button class="btn btn-ghost btn-sm" onclick={() => editMode = false}>
@@ -202,6 +195,7 @@ editMode = false;
             {/if}
           </button>
         </div>
+        {/if}
     </div>
   </div>
       {/if}

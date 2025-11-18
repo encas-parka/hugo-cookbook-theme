@@ -69,10 +69,12 @@ export async function fetchHugoMetadata(
 
   if (import.meta.env.DEV) {
     // Essayer depuis dev-data
-    response = await fetch(`/dev-data/${listId}_metadata.json`);
+    response = await fetch(`/dev-data/metadata.json`);
 
     if (!response.ok) {
-      console.log(`[HugoLoader] Metadata non trouvé dans dev-data, tentative depuis HUGO...`);
+      console.log(
+        `[HugoLoader] Metadata non trouvé dans dev-data, tentative depuis HUGO...`,
+      );
       response = await fetch(`/evenements/${listId}/metadata.json`);
     }
   } else {
@@ -174,8 +176,7 @@ export function createEnrichedProductFromHugo(
   // ✅ Défauts Appwrite (vides localement)
   return {
     // Métadonnées
-    $id:
-      `${ingredient.productSemanticKey}`,
+    $id: `${ingredient.productSemanticKey}`,
     $updatedAt: undefined,
 
     // Données métier

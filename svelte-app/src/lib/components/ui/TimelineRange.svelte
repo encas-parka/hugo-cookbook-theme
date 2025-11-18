@@ -1,6 +1,6 @@
 <script>
   import { Cloud, Sun, Moon } from "@lucide/svelte";
-  import { formatDate, getTimeIcon } from "../../utils/dateRange";
+  import { formatDateDayMonthShort, getTimeIcon } from "../../utils/dateRange";
 
   let {
     availableDates = [],
@@ -30,11 +30,13 @@
 
     // Trouver la première date aujourd'hui ou dans le futur
     const sortedDates = [...availableDates].sort();
-    const firstUpcoming = sortedDates.find(date => new Date(date) >= today);
+    const firstUpcoming = sortedDates.find((date) => new Date(date) >= today);
 
-    return firstUpcoming &&
-           localStart === firstUpcoming &&
-           localEnd === availableDates[availableDates.length - 1];
+    return (
+      firstUpcoming &&
+      localStart === firstUpcoming &&
+      localEnd === availableDates[availableDates.length - 1]
+    );
   });
 
   // Vérifie si l'événement est terminé
@@ -52,7 +54,7 @@
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return [...availableDates].some(date => new Date(date) >= today);
+    return [...availableDates].some((date) => new Date(date) >= today);
   });
 
   // Synchronisation avec les props
@@ -79,12 +81,12 @@
 
   function getDateButtonClass(date) {
     // En mode "select", les dates dans la sélection courante sont btn-soft + btn-primary
+    if (isAllDatesSelected) return "btn-soft";
     const isInCurrentSelection =
       new Date(date) >= new Date(localStart) &&
       new Date(date) <= new Date(localEnd);
-    return isInCurrentSelection
-      ? "btn-soft btn-secondary"
-      : "btn-dash btn-secondary opacity-80";
+
+    return isInCurrentSelection ? "" : "btn-dash";
   }
 
   function selectAllDates() {
@@ -103,7 +105,7 @@
 
     // Trouver la première date aujourd'hui ou dans le futur
     const sortedDates = [...availableDates].sort();
-    const firstUpcoming = sortedDates.find(date => new Date(date) >= today);
+    const firstUpcoming = sortedDates.find((date) => new Date(date) >= today);
 
     if (firstUpcoming) {
       localStart = firstUpcoming;
@@ -116,10 +118,10 @@
 <div class=" flex flex-wrap gap-1">
   {#each availableDates as date, index (date)}
     <button
-      class="btn btn-sm {getDateButtonClass(date)}"
+      class="btn btn-sm btn-secondary {getDateButtonClass(date)}"
       onclick={() => handleDateClick(date)}
     >
-      <span>{formatDate(date)}</span>
+      <span>{formatDateDayMonthShort(date)}</span>
       {#if getTimeIcon(date) === "sun"}
         <Sun size={16} />
       {:else if getTimeIcon(date) === "moon"}
@@ -137,7 +139,7 @@
   </div>
 {:else}
   <!-- Événement en cours : afficher les boutons -->
-  <div class="flex justify-end gap-2 flex-wrap">
+  <div class="flex flex-wrap justify-end gap-2">
     <!-- Bouton "Dates à venir" : s'affiche seulement s'il existe des dates à venir
          et que le range ne correspond pas aux dates à venir -->
     {#if hasUpcomingDates && !isAllUpcomingDatesSelected}
