@@ -263,7 +263,7 @@
         <BtnGroupCheck
           items={badgeItems}
           onToggleItem={handleToggleProduct}
-          badgeSize="btn-md"
+          badgeSize="btn-sm"
           badgeStyle="btn-soft"
           color="success"
         />

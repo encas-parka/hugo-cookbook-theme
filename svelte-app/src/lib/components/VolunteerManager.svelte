@@ -128,6 +128,8 @@
             items={volunteerItems}
             onToggleItem={handleToggleVolunteer}
             showIcon={true}
+            badgeSize="btn-sm"
+
           />
         </div>
             </div>

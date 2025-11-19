@@ -77,6 +77,10 @@ export class ProductModel {
         this.data,
         availableDates,
       );
+      // Dans le cas d'une plage complète, on ne garde que les dates présentes dans byDate
+      productStats.datesInSelectedRange = productStats.datesInSelectedRange.filter(
+        (date) => this.data.byDate && this.data.byDate[date],
+      );
     }
     // 3. Plage partielle
     else if (dateRange.start && dateRange.end) {
