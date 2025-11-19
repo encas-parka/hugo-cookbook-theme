@@ -37,7 +37,11 @@
   let isArchiveMode = $derived(productsStore.isEventPassed);
 
   let currentTab = $state(initialTab);
-
+  // Réagir aux changements d'initialTab pour mettre à jour currentTab
+  $effect(() => {
+    currentTab = initialTab;
+  });
+  
   function handleTabClick(tab: string) {
     currentTab = tab;
   }

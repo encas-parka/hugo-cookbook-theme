@@ -114,10 +114,10 @@
   function openGroupPurchaseModal(products: any[]) {
     // 🚨 FILTRER SEULEMENT LES PRODUITS AVEC QUANTITÉS MANQUANTES
     const productsWithMissingQuantities = products.filter(
-      (product) =>
-        product.displayMissingQuantity !== "✅ Complet" &&
-        product.missingQuantityArray &&
-        product.missingQuantityArray.length > 0,
+   (product) => {
+        const productModel = productsStore.getProductModelById(product.$id);
+        return productModel?.stats.hasMissing;
+      },
     );
 
     console.log(

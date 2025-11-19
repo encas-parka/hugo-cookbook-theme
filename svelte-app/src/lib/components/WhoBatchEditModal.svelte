@@ -234,6 +234,8 @@
               items={volunteerItems}
               onToggleItem={handleToggleVolunteer}
               showIcon={true}
+              badgeSize="btn-sm"
+              badgeStyle="btn-soft"
             />
           </div>
         </div>
@@ -261,8 +263,8 @@
         <BtnGroupCheck
           items={badgeItems}
           onToggleItem={handleToggleProduct}
-          badgeSize="badge-md"
-          badgeStyle="badge-soft"
+          badgeSize="btn-md"
+          badgeStyle="btn-soft"
           color="success"
         />
       </div>
