@@ -6,7 +6,7 @@
 import type {
   HugoEventData,
   HugoIngredient,
-  EventMetadata,
+  HugoEventMetadata,
 } from "./hugo-loader";
 import { createEnrichedProductsFromHugo } from "./hugo-loader";
 
@@ -18,7 +18,7 @@ const isDev = import.meta.env.DEV;
  */
 export async function loadDevEventMetadata(
   listId: string,
-): Promise<EventMetadata> {
+): Promise<HugoEventMetadata> {
   try {
     // Essayer de charger depuis le dossier public/dev-data
     const response = await fetch(`/dev-data/metadata.json`);
@@ -115,8 +115,13 @@ function createFallbackDevData(listId: string): HugoEventData {
       pSurgel: false,
       byDate: {
         "2024-01-01": {
-          recipes: ["Recipe 1", "Recipe 2"],
-          totalNeeded: [{ q: 500, u: "g" }],
+          recipes: [
+            { r: "Recipe 1", qEq: 250, uEq: "g", a: 4 },
+            { r: "Recipe 2", qEq: 250, uEq: "g", a: 4 },
+          ],
+          totalConsolidated: [{ q: 500, u: "g" }],
+          totalAssiettes: 8,
+          recipeCount: 2,
         },
       },
       totalNeededRaw: [{ q: 500, u: "g" }],
@@ -132,8 +137,10 @@ function createFallbackDevData(listId: string): HugoEventData {
       pSurgel: false,
       byDate: {
         "2024-01-01": {
-          recipes: ["Recipe 1"],
-          totalNeeded: [{ q: 4, u: "unités" }],
+          recipes: [{ r: "Recipe 1", qEq: 4, uEq: "unités", a: 4 }],
+          totalConsolidated: [{ q: 4, u: "unités" }],
+          totalAssiettes: 4,
+          recipeCount: 1,
         },
       },
       totalNeededRaw: [{ q: 4, u: "unités" }],
@@ -149,8 +156,10 @@ function createFallbackDevData(listId: string): HugoEventData {
       pSurgel: false,
       byDate: {
         "2024-01-01": {
-          recipes: ["Recipe 2"],
-          totalNeeded: [{ q: 250, u: "ml" }],
+          recipes: [{ r: "Recipe 2", qEq: 250, uEq: "ml", a: 4 }],
+          totalConsolidated: [{ q: 250, u: "ml" }],
+          totalAssiettes: 4,
+          recipeCount: 1,
         },
       },
       totalNeededRaw: [{ q: 250, u: "ml" }],

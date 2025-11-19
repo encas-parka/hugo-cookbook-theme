@@ -1026,12 +1026,12 @@ export function subscribeToRealtime(
         if (isCreate || isUpdate) {
           toastService.info(
             `${product.updatedBy} a modifié le produit "${product.productName}"`,
-            "realtime-other",
+            { source: "realtime-other" },
           );
         } else if (isDelete) {
           toastService.info(
             `${product.updatedBy} a supprimé un produit`,
-            "realtime-other",
+            { source: "realtime-other" },
           );
         }
       }
@@ -1053,17 +1053,17 @@ export function subscribeToRealtime(
         if (isCreate && purchase.who !== getCurrentUserName()) {
           toastService.info(
             `${purchase.who} a ajouté un achat pour ${productName}`,
-            "realtime-other",
+            { source: "realtime-other" },
           );
         } else if (isUpdate && purchase.who !== getCurrentUserName()) {
           toastService.info(
             `${purchase.who} a modifié un achat pour ${productName}`,
-            "realtime-other",
+            { source: "realtime-other" },
           );
         } else if (isDelete) {
           toastService.info(
             `${purchase.who} a supprimé un achat pour ${productName}`,
-            "realtime-other",
+            { source: "realtime-other" },
           );
         }
       }

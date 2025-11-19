@@ -221,6 +221,7 @@ export function createEnrichedProductFromHugo(
     displayTotalPurchases: "-",
     displayMissingQuantity,
     totalNeededOverrideParsed: null,
+    displayTotalOverride: "",
   };
 }
 

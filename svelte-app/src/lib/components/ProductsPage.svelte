@@ -50,9 +50,6 @@
   };
 
   // Accès réactif aux valeurs dérivées du store
-  const groupedFilteredProducts = $derived(
-    productsStore.groupedFilteredProducts,
-  );
   const stats = $derived(productsStore.stats);
 
   // État local : quel produit a son modal ouvert, et sur quel onglet
@@ -245,7 +242,7 @@
 </div>
 
 <ProductModal
-  productId={openModalProductId}
+  productId={openModalProductId || ""}
   initialTab={openModalTab}
   onClose={closeModal}
 />

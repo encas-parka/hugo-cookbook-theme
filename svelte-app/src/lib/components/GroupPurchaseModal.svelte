@@ -26,7 +26,7 @@
   // État local du modal
   let loading = $state(false);
   let error = $state<string | null>(null);
-  let result = $state<{ purchases: number; expense?: boolean } | null>(null);
+  let result = $state<{ purchases: number; expense?: boolean; batches?: number } | null>(null);
 
   // Données du formulaire
   let formData = $state({

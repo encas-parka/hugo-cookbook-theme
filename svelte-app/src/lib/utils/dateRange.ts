@@ -3,7 +3,7 @@
  * Fonctions réutilisables et testables sans état
  */
 
-import type { NumericQuantity, RecipeOccurrence } from "../types/store.types";
+import type { NumericQuantity, RecipeOccurrence, EnrichedProduct, ByDateEntry } from "../types/store.types";
 import { formatTotalQuantity, formatStockResult } from "./productsUtils";
 import { aggregateByUnit, subtractQuantities } from "./productsUtils";
 
@@ -251,7 +251,7 @@ export function getTimeIcon(dateStr: string): "sun" | "moon" | "cloud" | null {
  * @returns Statistiques complètes pour cette date
  */
 export function calculateProductStatsForExactDate(
-  product: any,
+  product: EnrichedProduct,
   targetDate: string,
 ): ProductStatsForDateRange {
   // Vérifier si le produit a des données pour cette date
@@ -414,7 +414,7 @@ function isPurchaseAvailableForExactDate(
  * @returns Statistiques complètes pour la plage complète
  */
 export function calculateProductStatsForFullRange(
-  product: any,
+  product: EnrichedProduct,
   availableDates: string[],
 ): ProductStatsForDateRange {
   // 🚀 DONNÉES PRÉCALCULÉES - pas d'itérations nécessaires
@@ -469,7 +469,7 @@ export function calculateProductStatsForFullRange(
 }
 
 export function calculateProductStatsForDateRange(
-  product: any,
+  product: EnrichedProduct,
   startDate: string,
   endDate: string,
 ): ProductStatsForDateRange {
@@ -501,7 +501,6 @@ export function calculateProductStatsForDateRange(
   let totalPortionsInRange = 0;
   let totalRecipesInRange = 0;
 
-  // 🚀 UNE SEULE ITÉRATION sur product.byDate
   for (const [dateStr, dayData] of Object.entries(product.byDate)) {
     const date = new Date(dateStr);
 
@@ -533,7 +532,7 @@ export function calculateProductStatsForDateRange(
       ? formatTotalQuantity(requiredQuantities)
       : "-";
 
-  // Calcul du stock pour CETTE plage (pas cumulatif !)
+  // Calcul du stock pour CETTE plage
   const stockBalance = calculateStockBalanceForDateRange(
     product,
     startDate,

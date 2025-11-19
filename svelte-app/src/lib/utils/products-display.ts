@@ -188,7 +188,7 @@ export function formatPurchasesWithBadges(purchases: any[]): Array<{
   }, {});
 
   // Formatter les quantités en utilisant formatQuantity
-  return Object.values(grouped).map((item) => ({
+  return Object.values(grouped).map((item: any) => ({
     ...item,
     quantity: formatQuantity(item.quantity, item.unit).replace(
       ` ${item.unit}`,

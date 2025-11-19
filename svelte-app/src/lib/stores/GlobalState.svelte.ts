@@ -31,6 +31,10 @@ class GlobalState {
     isOpen: false,
     conflicts: [] as OverrideConflict[]
   });
+
+  modal = $state({
+    isOpen: false
+  });
 }
 
 

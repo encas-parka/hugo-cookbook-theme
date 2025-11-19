@@ -266,8 +266,12 @@ export const AppwriteClient = {
   subscribeToCollections(
     collectionNames,
     listId,
-    onMessage,
-    connectionCallbacks = {},
+    onMessage: (response: any) => void,
+    connectionCallbacks: {
+      onConnect?: () => void;
+      onDisconnect?: () => void;
+      onError?: (error: any) => void;
+    } = {},
   ) {
     const { onConnect, onDisconnect, onError } = connectionCallbacks;
 

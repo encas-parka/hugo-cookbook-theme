@@ -3,7 +3,7 @@ import { useDebounce } from "runed";
 import type { Products, Purchases } from "../types/appwrite.d";
 import type { ProductRangeStats } from "../types/store.types";
 
-import { matchesFilters, type FiltersState } from "../utils/productsUtils";
+import { matchesFilters, type FiltersState, hasConversions } from "../utils/productsUtils";
 import {
   calculateProductStatsForDateRange,
   calculateProductStatsForExactDate,
@@ -46,6 +46,7 @@ import {
   type OverrideConflict,
 } from "../services/hugo-sync-json";
 import { globalState } from "./GlobalState.svelte";
+import { ProductModel } from "../models/ProductModel.svelte";
 /**
  * ProductsStore - Store principal de gestion des produits avec Svelte 5
  *
@@ -101,7 +102,7 @@ const SYNC_DEBOUNCE_MS = 500;
 
 class ProductsStore {
   // État principal - SvelteMap réactive
-  #enrichedProducts = new SvelteMap<string, EnrichedProduct>();
+  #enrichedProducts = new SvelteMap<string, ProductModel>();
 
   // Métadonnées
   #currentMainId = $state<string | null>(null);
@@ -136,7 +137,7 @@ class ProductsStore {
   // État de l'événement
   isEventPassed = $derived.by<boolean>(() => {
     if (this.#availableDates.length === 0) return true;
-    const lastDate = new Date(this.lastAvailableDate!);
+    const lastDate = this.lastAvailableDate ? new Date(this.lastAvailableDate) : new Date();
     lastDate.setHours(23, 59, 59, 999); // Fin de journée
     return lastDate < new Date();
   });
@@ -306,7 +307,7 @@ class ProductsStore {
    * Conversion SvelteMap → Array pour les templates
    */
   enrichedProducts = $derived.by(() => {
-    const result = Array.from(this.#enrichedProducts.values());
+    const result = Array.from(this.#enrichedProducts.values()).map(m => m.data);
     console.log(
       `[ProductsStore] enrichedProducts recalculated: ${result.length} products`,
     );
@@ -324,15 +325,16 @@ class ProductsStore {
     console.log("[Store] Filtering products by date range (Map)");
 
     if (!this.dateRange.start || !this.dateRange.end) {
-      return new Map();
+      return new Map<string, ProductModel>();
     }
 
     const startDate = new Date(this.dateRange.start);
     const endDate = new Date(this.dateRange.end);
-    const filteredMap = new Map<string, EnrichedProduct>();
+    const filteredMap = new Map<string, ProductModel>();
 
     // Itération directe sur la Map interne (plus performant)
-    for (const [id, product] of this.#enrichedProducts) {
+    for (const [id, model] of this.#enrichedProducts) {
+      const product = model.data;
       if (!product.byDate) continue;
 
       // Application des filtres utilisateur
@@ -346,177 +348,44 @@ class ProductsStore {
       });
 
       if (hasDataInRange) {
-        filteredMap.set(id, product);
+        filteredMap.set(id, model);
       }
     }
 
     return filteredMap;
   });
 
-  /**
-   * 🚀 OPTIMISATION : Cas spécial pour événement à date unique
-   * Utilise la fonction optimisée pour une date exacte
-   */
-  #calculateSingleDateStats(): Map<string, ProductRangeStats> {
-    console.log("[Store] ⚡ Single date mode - optimized calculation");
-
-    const statsMap = new Map<string, ProductRangeStats>();
-    const singleDate = this.dateRange.start!; // start === end dans ce cas
-
-    for (const [id, product] of this.#enrichedProducts) {
-      // 🚀 FONCTION UNIFIÉE ET OPTIMISÉE pour date exacte
-      const productStats = calculateProductStatsForExactDate(
-        product,
-        singleDate,
-      );
-
-      // 🔄 MAPPING vers l'ancien format pour compatibilité UI existante
-      statsMap.set(id, {
-        quantities: productStats.requiredQuantities,
-        formattedQuantities: productStats.requiredQuantitiesFormatted,
-        nbRecipes: productStats.totalRecipesInRange,
-        totalAssiettes: productStats.totalPortionsInRange,
-
-        // ✅ STOCK COHÉRENT pour cette date exacte (pas cumulatif !)
-        stockResult: productStats.stockBalance,
-        availableQuantities: productStats.availableStockQuantities,
-        missingQuantities: productStats.missingStockQuantities,
-        formattedMissingQuantities: productStats.missingStockFormatted,
-        formattedAvailableQuantities: productStats.availableStockFormatted,
-        hasAvailable: productStats.hasAvailableStock,
-        hasMissing: productStats.hasMissingStock,
-
-        // 📅 Données directes
-        concernedDates: productStats.datesInSelectedRange,
-        recipesByDate: productStats.recipesByDate,
-      });
-    }
-
-    return statsMap;
-  }
-
-  /**
-   *
-   * Statistiques complètes par produit pour la plage de dates courante
-   * Map<productId, ProductRangeStats>
-   *
-   */
-  productsStatsByDateRange = $derived.by(() => {
-    console.log("[Store] Calcul unifié des stats par produit");
-
-    /** =========================================
-     * Date unique : methode optimisé qui utilise directement les données de byDate
-     ===========================================*/
-    if (this.hasSingleDateInRange) {
-      return this.#calculateSingleDateStats();
-    }
-
-    const statsMap = new Map<string, ProductRangeStats>();
-
-    /** =========================================
-     * Plage complète : méthode optimisée qui utilise les données précalculées
-     ===========================================*/
-    if (this.isFullRange()) {
-      console.log(
-        "[Store] Full date range - using precomputed data",
-        this.dateRange,
-      );
-      for (const [id, product] of this.#enrichedProducts) {
-        // 🚀 FONCTION UNIFIÉE ET OPTIMISÉE pour la plage complète
-        const productStats = calculateProductStatsForFullRange(
-          product,
-          this.#availableDates,
-        );
-
-        // 🔄 MAPPING vers l'ancien format pour compatibilité UI existante
-        statsMap.set(id, {
-          quantities: productStats.requiredQuantities,
-          formattedQuantities: productStats.requiredQuantitiesFormatted,
-          nbRecipes: productStats.totalRecipesInRange,
-          totalAssiettes: productStats.totalPortionsInRange,
-
-          // ✅ STOCK COHÉRENT pour la plage complète (données précalculées)
-          stockResult: productStats.stockBalance,
-          availableQuantities: productStats.availableStockQuantities,
-          missingQuantities: productStats.missingStockQuantities,
-          formattedMissingQuantities: productStats.missingStockFormatted,
-          formattedAvailableQuantities: productStats.availableStockFormatted,
-          hasAvailable: productStats.hasAvailableStock,
-          hasMissing: productStats.hasMissingStock,
-
-          // 📅 Données directes
-          concernedDates: productStats.datesInSelectedRange,
-          recipesByDate: productStats.recipesByDate,
-        });
-      }
-      return statsMap;
-    }
-
-    /** =========================================
-     * Range de date partiel défini par l'utilisateur
-     ===========================================*/
-    for (const [productId, product] of this.filteredProductsMap) {
-      if (!product.byDate) continue;
-
-      // 🚀 CALCUL UNIFIÉ : une seule fonction pour tout calculer
-      const productStats = calculateProductStatsForDateRange(
-        product,
-        this.dateRange.start!,
-        this.dateRange.end!,
-      );
-
-      // 🔄 MAPPING vers l'ancien format pour compatibilité UI existante
-      statsMap.set(productId, {
-        quantities: productStats.requiredQuantities,
-        formattedQuantities: productStats.requiredQuantitiesFormatted,
-        nbRecipes: productStats.totalRecipesInRange,
-        totalAssiettes: productStats.totalPortionsInRange,
-
-        // NOUVEAUX : Stock cohérent sur la plage
-        stockResult: productStats.stockBalance,
-        availableQuantities: productStats.availableStockQuantities,
-        missingQuantities: productStats.missingStockQuantities,
-        formattedMissingQuantities: productStats.missingStockFormatted,
-        formattedAvailableQuantities: productStats.availableStockFormatted,
-        hasAvailable: productStats.hasAvailableStock,
-        hasMissing: productStats.hasMissingStock,
-
-        // 📅 NOUVEAUX
-        concernedDates: productStats.datesInSelectedRange,
-        recipesByDate: productStats.recipesByDate,
-      });
-    }
-
-    return statsMap;
-  });
+  // 🗑️ SUPPRIMÉ : productsStatsByDateRange
+  // La logique est maintenant déléguée à ProductModel.stats
+  // Cela évite de recalculer une Map géante à chaque changement
 
   /**
    * Statistiques des produits filtrés
    */
   stats = $derived.by(() => ({
-    total: this.enrichedProducts.length,
-    frais: this.enrichedProducts.filter((p) => p.pFrais).length,
-    surgel: this.enrichedProducts.filter((p) => p.pSurgel).length,
-    merged: this.enrichedProducts.filter((p) => p.isMerged).length,
+    total: this.#enrichedProducts.size,
+    frais: Array.from(this.#enrichedProducts.values()).filter((p) => p.pFrais).length,
+    surgel: Array.from(this.#enrichedProducts.values()).filter((p) => p.pSurgel).length,
+    merged: Array.from(this.#enrichedProducts.values()).filter((p) => p.data.isMerged).length,
   }));
 
   /**
    * Valeurs uniques pour les filtres
    */
   uniqueStores = $derived.by(() => {
-    const storeNames = this.enrichedProducts
+    const storeNames = Array.from(this.#enrichedProducts.values())
       .map((p) => p.storeInfo?.storeName)
       .filter(Boolean);
     return [...new Set(storeNames)] as string[];
   });
 
   uniqueWho = $derived.by(() => {
-    const whos = this.enrichedProducts.flatMap((p) => p.who || []);
+    const whos = Array.from(this.#enrichedProducts.values()).flatMap((p) => p.who || []);
     return [...new Set(whos)] as string[];
   });
 
   uniqueProductTypes = $derived.by(() => {
-    const types = this.enrichedProducts
+    const types = Array.from(this.#enrichedProducts.values())
       .map((p) => p.productType)
       .filter(Boolean);
     return [...new Set(types)] as string[];
@@ -542,11 +411,11 @@ class ProductsStore {
       return { "": sortedProducts };
     }
 
-    const groups = Object.groupBy(sortedProducts, (product) => {
+    const groups = Object.groupBy(sortedProducts, (model) => {
       if (this.#filters.groupBy === "store") {
-        return product.storeInfo?.storeName || "Non défini";
+        return model.storeInfo?.storeName || "Non défini";
       } else {
-        return product.productType || "Non défini";
+        return model.productType || "Non défini";
       }
     });
 
@@ -559,9 +428,9 @@ class ProductsStore {
     });
 
     // Reconstruire l'objet dans l'ordre trié
-    const sortedGroups: Record<string, EnrichedProduct[]> = {};
+    const sortedGroups: Record<string, ProductModel[]> = {};
     sortedGroupKeys.forEach((key) => {
-      sortedGroups[key] = groups[key];
+      sortedGroups[key] = groups[key]!;
     });
 
     return sortedGroups;
@@ -646,7 +515,10 @@ class ProductsStore {
 
         // Ajouter à la SvelteMap
         enrichedProducts.forEach((enriched) => {
-          this.#enrichedProducts.set(enriched.$id, enriched);
+          this.#enrichedProducts.set(
+            enriched.$id, 
+            new ProductModel(enriched, () => this.dateRange, () => this.#availableDates)
+          );
         });
 
         // Initialiser la plage de dates
@@ -716,7 +588,10 @@ class ProductsStore {
       const productsMap = await this.#idbCache.loadProducts();
 
       productsMap.forEach((product, id) => {
-        this.#enrichedProducts.set(id, product);
+        this.#enrichedProducts.set(
+          id, 
+          new ProductModel(product, () => this.dateRange, () => this.#availableDates)
+        );
       });
 
       // Charger les métadonnées
@@ -756,13 +631,21 @@ class ProductsStore {
       // 2. Appliquer les produits venant d'Appwrite (isSynced: true)
       // IMPORTANT : Faire cela en premier pour établir la base de données
       allProducts.forEach((product) => {
-        const existing = this.#enrichedProducts.get(product.$id);
+        const existingModel = this.#enrichedProducts.get(product.$id);
         console.log(
-          `[ProductsStore] Sync produit ${product.$id}: existing=${!!existing}, who=${product.who}, store=${product.store}`,
+          `[ProductsStore] Sync produit ${product.$id}: existing=${!!existingModel}, who=${product.who}, store=${product.store}`,
         );
-        const enriched = this.#enrichProduct(product, existing); // ← Préserve les données locales
+        const enriched = this.#enrichProduct(product, existingModel?.data); // ← Préserve les données locales
         enriched.isSynced = true; // ✅ SYNC : Les produits venant d'Appwrite sont sync
-        this.#enrichedProducts.set(product.$id, enriched);
+        
+        if (existingModel) {
+          existingModel.update(enriched);
+        } else {
+          this.#enrichedProducts.set(
+            product.$id, 
+            new ProductModel(enriched, () => this.dateRange, () => this.#availableDates)
+          );
+        }
       });
 
       // 3. Synchroniser les purchases modifiés (pour les produits non-modifiés)
@@ -814,7 +697,10 @@ class ProductsStore {
 
     try {
       // Sauvegarder les produits
-      await this.#idbCache.saveProducts(this.#enrichedProducts);
+      const productsToSave = new Map<string, EnrichedProduct>();
+
+      this.#enrichedProducts.forEach((model, id) => productsToSave.set(id, $state.snapshot(model.data)));
+      await this.#idbCache.saveProducts(productsToSave);
 
       // Sauvegarder les métadonnées
       await this.#idbCache.saveMetadata({
@@ -836,7 +722,9 @@ class ProductsStore {
 
     try {
       // Sauvegarder les produits
-      await this.#idbCache.saveProducts(this.#enrichedProducts);
+      const productsToSave = new Map<string, EnrichedProduct>();
+      this.#enrichedProducts.forEach((model, id) => productsToSave.set(id, $state.snapshot(model.data)));
+      await this.#idbCache.saveProducts(productsToSave);
 
       // Sauvegarder les métadonnées
       await this.#idbCache.updateLastSync(this.#lastSync);
@@ -854,7 +742,9 @@ class ProductsStore {
     if (!this.#idbCache) return;
     try {
       // Sauvegarder les produits
-      await this.#idbCache.saveProducts(this.#enrichedProducts);
+      const productsToSave = new Map<string, EnrichedProduct>();
+      this.#enrichedProducts.forEach((model, id) => productsToSave.set(id, $state.snapshot(model.data)));
+      await this.#idbCache.saveProducts(productsToSave);
       // Sauvegarder toutes les métadonnées
       await this.#idbCache.updateLastSync(this.#lastSync);
       // Créer une copie simple du tableau pour éviter l'erreur Proxy
@@ -878,9 +768,9 @@ class ProductsStore {
     try {
       // Persister chaque produit affecté
       const persistPromises = productIds
-        .map((id) => this.#enrichedProducts.get(id))
+        .map((id) => this.#enrichedProducts.get(id)?.data)
         .filter((product) => product != null)
-        .map((product) => this.#idbCache!.upsertProduct(product!));
+        .map((product) => this.#idbCache!.upsertProduct($state.snapshot(product!)));
 
       if (persistPromises.length > 0) {
         await Promise.all(persistPromises);
@@ -953,7 +843,10 @@ class ProductsStore {
       const newHugoData = await loadHugoEventData(this.#hugoMetadata);
 
       // ✅ Synchronisation simplifiée
-      const result = await syncHugoData(this.#enrichedProducts, newHugoData);
+      // Convertir les models en Map de produits pour syncHugoData
+      const currentProducts = new Map<string, EnrichedProduct>();
+      this.#enrichedProducts.forEach((model, id) => currentProducts.set(id, model.data));
+      const result = await syncHugoData(currentProducts, newHugoData);
 
       console.log(`[ProductsStore  - hugo change] ${result.summary}`);
 
@@ -1090,10 +983,17 @@ class ProductsStore {
    * Version optimisée avec enrichProduct intelligent
    */
   #upsertEnrichedProduct(product: Products) {
-    const existing = this.#enrichedProducts.get(product.$id);
-    const enriched = this.#enrichProduct(product, existing);
+    const existingModel = this.#enrichedProducts.get(product.$id);
+    const enriched = this.#enrichProduct(product, existingModel?.data);
 
-    this.#enrichedProducts.set(product.$id, enriched);
+    if (existingModel) {
+      existingModel.update(enriched);
+    } else {
+      this.#enrichedProducts.set(
+        product.$id, 
+        new ProductModel(enriched, () => this.dateRange, () => this.#availableDates)
+      );
+    }
   }
 
   /**
@@ -1170,9 +1070,11 @@ class ProductsStore {
    */
   async #applyPurchaseDeleted(purchaseId: string): Promise<string[]> {
     // Trouver et re-enrichir les produits affectés
-    const affectedProducts = Array.from(this.#enrichedProducts.values()).filter(
-      (p) => p.purchases?.some((pur) => pur.$id === purchaseId),
-    );
+    const affectedProducts = Array.from(this.#enrichedProducts.values())
+      .map(m => m.data)
+      .filter(
+        (p) => p.purchases?.some((pur) => pur.$id === purchaseId),
+      );
 
     affectedProducts.forEach((product) => {
       this.#upsertEnrichedProduct(product as any);
@@ -1192,8 +1094,9 @@ class ProductsStore {
     const productsToUpdate: EnrichedProduct[] = [];
 
     productIds.forEach((productId) => {
-      const product = this.#enrichedProducts.get(productId);
-      if (product) {
+      const model = this.#enrichedProducts.get(productId);
+      if (model) {
+        const product = model.data;
         const purchases = product.purchases || [];
         // Éviter les doublons (au cas où)
         if (!purchases.some((p) => p.$id === sanitizedPurchase.$id)) {
@@ -1214,7 +1117,10 @@ class ProductsStore {
 
     // Mettre à jour directement les produits dans la map
     productsToUpdate.forEach((product) => {
-      this.#enrichedProducts.set(product.$id, product);
+      const model = this.#enrichedProducts.get(product.$id);
+      if (model) {
+        model.update(product);
+      }
     });
   }
 
@@ -1230,8 +1136,9 @@ class ProductsStore {
     // TOCHECK : le fait qu'il y ait potentiellement products est correct du point de vue de la façon dont nous avons défini la relation products ←→ purchases comme "many to many", en vue des products mergés, mais dans les fait, est ce qu'on attribura plusieurs products à un purchases ???
 
     productIds.forEach((productId) => {
-      const product = this.#enrichedProducts.get(productId);
-      if (product) {
+      const model = this.#enrichedProducts.get(productId);
+      if (model) {
+        const product = model.data;
         const purchases = product.purchases || [];
         const index = purchases.findIndex(
           (p) => p.$id === sanitizedPurchase.$id,
@@ -1269,7 +1176,10 @@ class ProductsStore {
 
     // Mettre à jour directement les produits dans la map
     productsToUpdate.forEach((product) => {
-      this.#enrichedProducts.set(product.$id, product);
+      const model = this.#enrichedProducts.get(product.$id);
+      if (model) {
+        model.update(product);
+      }
     });
   }
 
@@ -1283,10 +1193,10 @@ class ProductsStore {
         this.#upsertEnrichedProduct(product);
         // Persistence immédiate du produit modifié
         if (this.#idbCache) {
-          const enriched = this.#enrichedProducts.get(product.$id);
-          if (enriched) {
+          const model = this.#enrichedProducts.get(product.$id);
+          if (model) {
             this.#idbCache
-              .upsertProduct(enriched)
+              .upsertProduct($state.snapshot(model.data))
               .catch((err) =>
                 console.error(
                   "[ProductsStore] Erreur persistence produit:",
@@ -1300,10 +1210,10 @@ class ProductsStore {
         this.#upsertEnrichedProduct(product);
         // Persistence immédiate du produit modifié
         if (this.#idbCache) {
-          const enriched = this.#enrichedProducts.get(product.$id);
-          if (enriched) {
+          const model = this.#enrichedProducts.get(product.$id);
+          if (model) {
             this.#idbCache
-              .upsertProduct(enriched)
+              .upsertProduct($state.snapshot(model.data))
               .catch((err) =>
                 console.error(
                   "[ProductsStore] Erreur persistence produit:",
@@ -1466,6 +1376,10 @@ class ProductsStore {
   // =========================================================================
 
   getEnrichedProductById(productId: string): EnrichedProduct | null {
+    return this.#enrichedProducts.get(productId)?.data ?? null;
+  }
+
+  getProductModelById(productId: string): ProductModel | null {
     return this.#enrichedProducts.get(productId) ?? null;
   }
 
@@ -1473,7 +1387,7 @@ class ProductsStore {
    * Détecte si un produit a des conversions (q/u différent de qEq/uEq)
    */
   hasConversions(productId: string): boolean {
-    const product = this.#enrichedProducts.get(productId);
+    const product = this.#enrichedProducts.get(productId)?.data;
     if (!product?.byDate) return false;
 
     return hasConversions(product.byDate);
@@ -1507,13 +1421,13 @@ class ProductsStore {
     const status = syncing ? "isSyncing" : "active";
 
     productIds.forEach((productId) => {
-      const product = this.#enrichedProducts.get(productId);
-      if (product) {
+      const model = this.#enrichedProducts.get(productId);
+      if (model) {
         const updatedProduct = {
-          ...product,
+          ...model.data,
           status,
         };
-        this.#enrichedProducts.set(productId, updatedProduct);
+        model.update(updatedProduct);
       }
     });
 
@@ -1529,8 +1443,8 @@ class ProductsStore {
   clearSyncStatus() {
     const productsToReset: string[] = [];
 
-    for (const [productId, product] of this.#enrichedProducts) {
-      if (product.status === "isSyncing") {
+    for (const [productId, model] of this.#enrichedProducts) {
+      if (model.status === "isSyncing") {
         productsToReset.push(productId);
       }
     }

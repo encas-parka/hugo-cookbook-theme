@@ -9,6 +9,7 @@
   // Types
   import type { EnrichedProduct } from "../types/store.types";
   import type { ProductRangeStats } from "../types/store.types";
+  import { ProductModel } from "../models/ProductModel.svelte";
 
   import {
     Store,
@@ -61,6 +62,7 @@
     stockResult: [],
     availableQuantities: [],
     missingQuantities: [],
+    formattedMissingQuantities: "",
     formattedAvailableQuantities: "Équilibré",
     hasAvailable: false,
     hasMissing: false,
@@ -114,7 +116,7 @@
 
 <div class="space-y-4 rounded-lg">
   {#each Object.entries(groupedFilteredProducts) as [groupKey, gProducts] (groupKey)}
-    {@const groupProducts : EnrichedProduct[] = gProducts}
+    {@const groupProducts : ProductModel[] = gProducts}
     {#if groupKey !== ""}
       <!-- Header de groupe sticky -->
       {@const groupTypeInfo = getProductTypeInfo(groupKey)}
@@ -153,8 +155,8 @@
               onclick={() =>
                 onOpenGroupEditModal(
                   "store",
-                  groupProducts!.map((p) => p.$id),
-                  groupProducts!,
+                  groupProducts!.map((p) => p.data.$id),
+                  groupProducts!.map((p) => p.data),
                 )}
               title="Attribuer un magasin à tous les produits de ce groupe"
             >
@@ -168,8 +170,8 @@
               onclick={() =>
                 onOpenGroupEditModal(
                   "who",
-                  groupProducts!.map((p) => p.$id),
-                  groupProducts!,
+                  groupProducts!.map((p) => p.data.$id),
+                  groupProducts!.map((p) => p.data),
                 )}
               title="Gérer les volontaires pour tous les produits de ce groupe"
             >
@@ -179,10 +181,10 @@
             </button>
 
             <!-- Bouton validation groupée -->
-            {#if groupProducts!.some((p) => p.displayMissingQuantity !== "✅ Complet")}
+            {#if groupProducts!.some((p) => p.data.displayMissingQuantity !== "✅ Complet")}
               <button
                 class="btn btn-sm btn-primary btn-soft"
-                onclick={() => onOpenGroupPurchaseModal(groupProducts!)}
+                onclick={() => onOpenGroupPurchaseModal(groupProducts!.map((p) => p.data))}
                 title="Ouvrir le modal d'achat groupé"
               >
                 <ShoppingCart size={16} />
@@ -197,10 +199,9 @@
 
     <!-- Cards des produits du groupe -->
     <div class="space-y-1">
-      {#each groupProducts as product (product.$id)}
-        {@const productInDateRange =
-          productsStore.productsStatsByDateRange.get(product.$id) ||
-          defaultStats}
+      {#each groupProducts as productModel (productModel.data.$id)}
+        {@const product = productModel.data}
+        {@const productInDateRange = productModel.stats}
         {@const typeInfo = getProductTypeInfo(product.productType)}
         {@const purchasesBadges = formatPurchasesWithBadges(
           product.purchases || [],

@@ -55,6 +55,7 @@ export function createEnrichedProductFromAppwrite(product: Products): EnrichedPr
     totalAssiettes: 0,
     isSynced: product.isSynced,
     mainId: product.mainId,
+    totalNeededRaw: [],
 
     // Données collaboratives (brutes Appwrite)
     status: product.status,
@@ -71,7 +72,7 @@ export function createEnrichedProductFromAppwrite(product: Products): EnrichedPr
     purchases: product.purchases,
 
     // Hugo (⚠️ manquant, sera vide)
-    byDate: null,
+    byDate: {},
 
     // Calculées
     storeInfo,
