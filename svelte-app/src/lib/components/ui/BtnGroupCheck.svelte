@@ -8,6 +8,7 @@
     icon?: any; // Composant d'icône optionnel
     title?: string; // Tooltip optionnel
     selected?: boolean; // État initial de sélection (true/undefined = actif, false = inactif)
+    badge?: string; // Badge optionnel pour afficher une information supplémentaire
   }
 
   interface Props {
@@ -22,7 +23,7 @@
 
   let {
     items,
-    badgeSize = "badge-lg",
+    badgeSize = "btn-lg",
     color = "primary",
     badgeStyle = "",
     onToggleItem = () => {},
@@ -63,10 +64,10 @@
   {#each items as item (item.id)}
     {@const isActive = itemStates[item.id]}
     <button
-      class="badge {badgeSize} badge-{color} flex cursor-pointer items-center gap-2 transition-all duration-200
+      class="btn {badgeSize} btn-{color} flex cursor-pointer items-center gap-2 transition-all duration-200
         {isActive
-        ? `${badgeStyle} hover:opacity-70 `
-        : 'badge-dash hover:border-solid '}"
+        ? `${badgeStyle} hover:line-through `
+        : 'btn-dash hover:border-solid '}"
       onclick={() => handleToggleItem(item.id)}
       title={isActive ? "Retirer de la liste" : "Réajouter à la liste"}
     >
@@ -77,6 +78,11 @@
 
       <!-- Label principal -->
       <span class="max-w-32 truncate">{item.label}</span>
+
+      <!-- Badge optionnel -->
+      {#if item.badge}
+        <span class="badge badge-sm badge-{color}">{item.badge}</span>
+      {/if}
 
       <!-- Bouton d'action -->
       {#if showIcon}

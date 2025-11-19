@@ -12,6 +12,7 @@
   import { createGroupPurchaseWithSync } from "../services/appwrite-transaction";
   import { productsStore } from "../stores/ProductsStore.svelte";
   import type { EnrichedProduct } from "../types/store.types";
+  import { formatDateWdDayMonthShort } from "../utils/dateRange";
   import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
   import InfoCollapse from "./ui/InfoCollapse.svelte";
 
@@ -62,9 +63,20 @@
     return true;
   });
 
-  const title = $derived(
-    `Achat groupé (${activeProducts.length} produits sélectionnés)`,
-  );
+  const title = $derived.by(() => {
+    const dateRange = productsStore.dateRange;
+    let dateText = "";
+
+    if (dateRange?.start && dateRange?.end) {
+      if (dateRange.start === dateRange.end) {
+        dateText = ` - ${formatDateWdDayMonthShort(dateRange.start)}`;
+      } else {
+        dateText = ` - Du ${formatDateWdDayMonthShort(dateRange.start)} au ${formatDateWdDayMonthShort(dateRange.end)}`;
+      }
+    }
+
+    return `Achat groupé (${activeProducts.length} produits sélectionnés)${dateText}`;
+  });
 
   // Actions
   async function handleSubmit() {
@@ -78,11 +90,11 @@
       // Générer un ID de facture
       const invoiceId = `FACTURE_${Date.now()}`;
 
-      // 🚀 UX IMMÉDIAT : Marquer les produits comme "isSyncing"
+      // Marquer les produits comme "isSyncing"
       const productIds = activeProducts.map((p) => p.$id);
       productsStore.setSyncStatus(productIds, true);
 
-      // ✅ NOUVELLE LOGIQUE : Utiliser le service avec gestion de lots et sync automatique
+      // Utiliser le service avec gestion de lots et sync automatique
       const productsData: Array<{
         productId: string;
         isSynced: boolean;
@@ -91,11 +103,12 @@
       }> = [];
 
       for (const product of activeProducts) {
+        const productModel = productsStore.getProductModelById(product.$id);
         productsData.push({
           productId: product.$id,
           isSynced: product.isSynced,
           productData: product, // Envoyer les données complètes du produit
-          missingQuantities: product.missingQuantityArray || [],
+          missingQuantities: productModel?.stats.missingQuantities || [],
         });
       }
 
@@ -108,7 +121,7 @@
           formData.notes ||
           `Achat groupé pour ${activeProducts.length} produits`,
         who: formData.who.trim() || undefined,
-        // 🎯 NOUVEAUX : Passer le statut et la date de livraison des achats
+        // Passer le statut et la date de livraison des achats
         purchaseStatus: formData.status || "delivered",
         purchaseDeliveryDate: formData.deliveryDate || null,
       };
@@ -117,7 +130,7 @@
         `[GroupPurchaseModal] Création achat groupé avec sync pour ${productsData.length} produits...`,
       );
 
-      // ⚡ FERMER LE MODAL IMMÉDIATEMENT POUR UX
+      // FERMER LE MODAL IMMÉDIATEMENT POUR UX
       onClose();
 
       // Utiliser le nouveau service qui gère les lots et la synchronisation
@@ -175,11 +188,15 @@
 
   // Préparer les données pour BtnGroupCheck
   const badgeItems = $derived(
-    products.map((product) => ({
-      id: product.$id,
-      label: product.productName,
-      title: product.productName,
-    })),
+    products.map((product) => {
+      const productModel = productsStore.getProductModelById(product.$id);
+      return {
+        id: product.$id,
+        label: product.productName,
+        title: `${product.productName} - Manque: ${productModel?.stats.formattedMissingQuantities || '-'}`,
+        badge: productModel?.stats.formattedMissingQuantities || '-',
+      };
+    }),
   );
 </script>
 
@@ -228,14 +245,15 @@
 
       <div>
         <InfoCollapse
-          contentVisible="Un 'achat' sera créé avec les quantités manquantes pour chaque produit."
+          contentVisible="Un 'achat' sera créé avec les quantités manquantes pour chaque produit sur la période sélectionnée."
           class="bg-base-200"
         >
           <p>
             Cette fonctionnalité permet de créer un achat groupé pour plusieurs
             produits en une seule fois. Les quantités déclarées dans les achats
-            correspondront aux quantités manquantes, c'est à dire le besoin
-            total pour chaque produit moins les achats ou stocks déjà déclarés.
+            correspondront aux quantités manquantes <strong>pour la période sélectionnée</strong>,
+            c'est à dire le besoin total pour chaque produit sur cette période
+            moins les achats ou stocks déjà déclarés.
           </p>
           <p>
             Pour le suivi des dépenses, vous pouvez renseigner votre nom et le
@@ -369,8 +387,8 @@
         <BtnGroupCheck
           items={badgeItems}
           onToggleItem={handleToggleProduct}
-          badgeSize="badge-md"
-          badgeStyle="badge-soft"
+          badgeSize="btn-sm"
+          badgeStyle="btn-soft"
           color="success"
         />
       </div>
