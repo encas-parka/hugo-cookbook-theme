@@ -27,7 +27,11 @@
   // État local du modal
   let loading = $state(false);
   let error = $state<string | null>(null);
-  let result = $state<{ purchases: number; expense?: boolean; batches?: number } | null>(null);
+  let result = $state<{
+    purchases: number;
+    expense?: boolean;
+    batches?: number;
+  } | null>(null);
 
   // Données du formulaire
   let formData = $state({
@@ -104,11 +108,16 @@
 
       for (const product of activeProducts) {
         const productModel = productsStore.getProductModelById(product.$id);
+        // Convertir les quantités négatives en positif pour les achats
+        const missingQuantities = (productModel?.stats.missingQuantities || [])
+          .filter((qty) => qty.q < 0) // Uniquement les quantités manquantes
+          .map((qty) => ({ ...qty, q: Math.abs(qty.q) })); // Convertir en positif
+
         productsData.push({
           productId: product.$id,
           isSynced: product.isSynced,
           productData: product, // Envoyer les données complètes du produit
-          missingQuantities: productModel?.stats.missingQuantities || [],
+          missingQuantities,
         });
       }
 
@@ -193,8 +202,8 @@
       return {
         id: product.$id,
         label: product.productName,
-        title: `${product.productName} - Manque: ${productModel?.stats.formattedMissingQuantities || '-'}`,
-        badge: productModel?.stats.formattedMissingQuantities || '-',
+        title: `${product.productName} - Manque: ${productModel?.stats.formattedMissingQuantities || "-"}`,
+        badge: productModel?.stats.formattedMissingQuantities || "-",
       };
     }),
   );
@@ -251,9 +260,10 @@
           <p>
             Cette fonctionnalité permet de créer un achat groupé pour plusieurs
             produits en une seule fois. Les quantités déclarées dans les achats
-            correspondront aux quantités manquantes <strong>pour la période sélectionnée</strong>,
-            c'est à dire le besoin total pour chaque produit sur cette période
-            moins les achats ou stocks déjà déclarés.
+            correspondront aux quantités manquantes <strong
+              >pour la période sélectionnée</strong
+            >, c'est à dire le besoin total pour chaque produit sur cette
+            période moins les achats ou stocks déjà déclarés.
           </p>
           <p>
             Pour le suivi des dépenses, vous pouvez renseigner votre nom et le

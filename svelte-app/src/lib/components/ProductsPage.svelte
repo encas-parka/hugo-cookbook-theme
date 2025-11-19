@@ -113,12 +113,10 @@
   // Fonctions pour le modal d'achat groupé
   function openGroupPurchaseModal(products: any[]) {
     // 🚨 FILTRER SEULEMENT LES PRODUITS AVEC QUANTITÉS MANQUANTES
-    const productsWithMissingQuantities = products.filter(
-   (product) => {
-        const productModel = productsStore.getProductModelById(product.$id);
-        return productModel?.stats.hasMissing;
-      },
-    );
+    const productsWithMissingQuantities = products.filter((product) => {
+      const productModel = productsStore.getProductModelById(product.$id);
+      return productModel?.stats.hasMissing;
+    });
 
     console.log(
       `[ProductsTable] openGroupPurchaseModal: ${products.length} produits reçus → ${productsWithMissingQuantities.length} produits avec quantités manquantes`,
@@ -155,11 +153,11 @@
         return;
       }
 
-      // ✅ CONVERSIONS : Filtrer uniquement les vrais manquants (q < 0) (sécurité ?)
-      // et convertir en positif + normaliser les unités (kg→gr., l.→ml)
+      // ✅ CONVERSIONS : Les missingQuantités sont négatives, les convertir en positif pour les achats
+      // et normaliser les unités (kg→gr., l.→ml)
       const normalizedQuantities = missingQuantities
-        .filter((qty) => qty.q < 0) // Uniquement les manquants
-        .map((qty) => ({ ...qty, q: Math.abs(qty.q) })) // Convertir en positif
+        .filter((qty) => qty.q < 0) // Uniquement les quantités manquantes (négatives)
+        .map((qty) => ({ ...qty, q: Math.abs(qty.q) })) // Convertir en positif pour les achats
         .map((qty) => {
           const { quantity, unit } = normalizeUnit(qty.q, qty.u);
           return { q: quantity, u: unit };
