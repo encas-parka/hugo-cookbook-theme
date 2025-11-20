@@ -1,9 +1,12 @@
 <script lang="ts">
   import { User, UserPlus, X, Check, TriangleAlert } from "@lucide/svelte";
-  import { batchUpdateWho } from "../services/appwrite-interactions";
+  import {
+    batchUpdateWho,
+    type BatchUpdateResult,
+  } from "../services/appwrite-interactions";
   import { productsStore } from "../stores/ProductsStore.svelte";
   import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
-  import type { BatchUpdateResult } from "../types/store.types";
+  import WhoInput from "./ui/WhoInput.svelte";
 
   interface Props {
     productIds: string[];
@@ -98,9 +101,7 @@
         selectedProductIds.includes(p.$id),
       );
 
-      // 🚀 UX IMMÉDIAT : Marquer les produits comme "isSyncing"
       productsStore.setSyncStatus(selectedProductIds, true);
-      // ⚡ FERMER LE MODAL IMMÉDIATEMENT POUR UX
       onClose();
 
       const updateResult = await batchUpdateWho(
@@ -201,22 +202,18 @@
         <div>
           <!-- Ajout rapide -->
           <div class="flex gap-2">
-            <label class="input flex-1">
-              <User class="h-4 w-4 opacity-50" />
-              <input
-                type="text"
-                class="w-full"
-                placeholder="Ajouter un volontaire..."
+            <div class="">
+              <WhoInput
                 bind:value={newVolunteerName}
+                disabled={loading}
                 onkeydown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     handleQuickAdd();
                   }
                 }}
-                disabled={loading}
               />
-            </label>
+            </div>
 
             <button
               class="btn btn-square btn-primary"
@@ -229,7 +226,7 @@
 
           <!-- Gestion des volontaires avec BtnGroupCheck -->
           <div>
-            <h5 class="mb-2 font-medium">Sélection rapide</h5>
+            <h5 class="text-base-content/70">Sélection rapide</h5>
             <BtnGroupCheck
               items={volunteerItems}
               onToggleItem={handleToggleVolunteer}

@@ -1,10 +1,9 @@
 <script lang="ts">
-  import { Store, MapPin } from "@lucide/svelte";
   import type { StoreInfo, ProductModalStateType } from "../types/store.types";
-  import { createProductModalState } from "../stores/ProductModalState.svelte";
   import { productsStore } from "../stores/ProductsStore.svelte";
-  import Suggestions from "./ui/Suggestions.svelte";
   import ArchiveMessage from "./ArchiveMessage.svelte";
+  import StoreInput from "./ui/StoreInput.svelte";
+  import CommentTextarea from "./ui/CommentTextarea.svelte";
 
   interface Props {
     modalState: ProductModalStateType;
@@ -13,12 +12,6 @@
 
   let { modalState, isArchiveMode = false }: Props = $props();
 
-  // ✅ Utilisation directe de l'état centralisé - pas d'état local
-  const storeForm = $derived(
-    modalState?.forms?.store || { name: null, comment: null },
-  );
-
-  // Validation : formulaire valide si au moins une valeur a changé
   const isFormValid = $derived(modalState?.hasChanges?.store || false);
 
   async function handleUpdateStore() {
@@ -34,67 +27,43 @@
 </script>
 
 <div class="space-y-4">
-      {#if isArchiveMode}
-        <ArchiveMessage
-          title="Magasin non modifiable"
-          message="L'événement est terminé, les informations de magasin ne peuvent plus être modifiées."
-          data={modalState.product?.storeInfo}
-          dataLabel="Magasin actuel"
-        />
-      {:else}
-  <div class="card bg-base-200">
-    <div class="card-body">
-      <h4 class="card-title text-base">Magasin</h4>
+  {#if isArchiveMode}
+    <ArchiveMessage
+      title="Magasin non modifiable"
+      message="L'événement est terminé, les informations de magasin ne peuvent plus être modifiées."
+      data={modalState.product?.storeInfo}
+      dataLabel="Magasin actuel"
+    />
+  {:else}
+    <div class="card bg-base-200">
+      <div class="card-body">
+        <h4 class="card-title text-base">Magasin</h4>
 
         <p class="mb-4 text-sm opacity-75">
           Définissez le magasin où vous prévoyez d'acheter ce produit.
         </p>
 
         <div class="grid-col-1 grid gap-4">
-        <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <label class="input">
-            <Store class="h-4 w-4 opacity-50" />
-            <input
-              type="text"
+          <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <StoreInput
               bind:value={modalState.forms.store.name}
-              placeholder="Nom du magasin"
-              list="stores"
-              maxlength="50"
+              suggestions={productsStore.uniqueStores}
+              disabled={modalState.loading}
               onkeydown={(e) => {
                 if (e.key === "Enter") {
                   handleUpdateStore();
                 }
               }}
             />
-          </label>
+          </div>
 
-          <!-- Suggestions de magasins -->
-          {#if productsStore.uniqueStores.length > 0}
-            <Suggestions
-              suggestions={productsStore.uniqueStores.map((store) => ({
-                id: store,
-                label: store,
-                disabled: store === modalState.forms.store.name,
-              }))}
-              onSuggestionClick={(suggestion) => {
-                modalState.forms.store.name = suggestion.label;
-              }}
-              buttonVariant="btn-outline"
-            />
-          {/if}
+          <CommentTextarea
+            bind:value={modalState.forms.store.comment}
+            disabled={modalState.loading}
+          />
         </div>
 
-        <textarea
-          class="textarea flex w-full"
-          bind:value={modalState.forms.store.comment}
-          placeholder="Commentaire (optionnel)"
-          rows="1"
-          maxlength="250"
-        >
-        </textarea>
-      </div>
-
-      <div class="card-actions mt-4 justify-end">
+        <div class="card-actions mt-4 justify-end">
           <button
             class="btn btn-ghost btn-sm"
             onclick={() => {
@@ -108,5 +77,5 @@
         </div>
       </div>
     </div>
-        {/if}
-  </div>
+  {/if}
+</div>

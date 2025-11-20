@@ -134,7 +134,7 @@ export interface EnrichedProduct {
   $tableId?: string;
 
   // DONNÉES MÉTIER DE BASE (brutes Appwrite / Hugo)
-  productHugoUuid: string;
+  productHugoUuid: string | null;
   productName: string;
   productType: string;
   pFrais: boolean;
@@ -175,6 +175,16 @@ export interface EnrichedProduct {
   displayMissingQuantity: string; // Formaté pour UI
   displayTotalOverride: string; // Formaté pour UI depuis totalNeededOverride
   totalNeededOverrideParsed: TotalNeededOverrideData | null; // Parsé de totalNeededOverride
+  
+  // Specs pour produits manuels
+  specs: string | null;
+  specsParsed: ManualSpecs | null;
+}
+
+export interface ManualSpecs {
+  quantity?: NumericQuantity;
+  pFrais?: boolean;
+  pSurgel?: boolean;
 }
 
 /**
@@ -187,7 +197,7 @@ export interface PurchaseFormData {
   who: string;
   price: number | null;
   notes: string;
-  status: string | null;
+  status: "ordered" | "delivered" | null;
   orderDate: string | null;
   deliveryDate: string | null;
 }
@@ -366,6 +376,8 @@ export interface BatchUpdateResult {
   error?: string;
   timestamp: string;
 }
+
+
 
 export interface GroupEditModalProps {
   productIds: string[];

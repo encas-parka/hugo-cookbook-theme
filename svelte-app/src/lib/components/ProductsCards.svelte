@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Spanish } from "./../../../../assets/flatpickr/esm/l10n/es.js";
   import { productsStore } from "../stores/ProductsStore.svelte";
   // utils
   import {
@@ -126,10 +127,13 @@
         <!-- Nom du groupe -->
         <div class="flex items-center gap-2 font-semibold @md:min-w-48">
           {#if filters.groupBy === "store"}
-            🏪 {groupKey} ({groupProducts!.length})
+            <div class="text-primary-content flex items-center gap-2">
+              <Store size={20} />
+              {groupKey} ({groupProducts!.length})
+            </div>
           {:else if filters.groupBy === "productType"}
             <div class="text-primary-content flex items-center gap-2">
-              <groupTypeInfo.icon class="h-4 w-4" />
+              <groupTypeInfo.icon size={20} />
               <span>{groupTypeInfo.displayName}</span>
               <span class="text-sm opacity-70">({groupProducts!.length})</span>
             </div>
@@ -139,7 +143,9 @@
         </div>
 
         <div class="text-primary-content">
-          {#if productsStore.dateRange.start !== productsStore.dateRange.end}
+          {#if productsStore.isFullRange()}
+            <div class="font-semibold">Sur toute la période</div>
+          {:else if productsStore.dateRange.start !== productsStore.dateRange.end}
             du <span class="font-semibold">{formatedStartDateRange}</span> au
             <span class="font-semibold">{formatedEndDateRange}</span>
           {:else}
@@ -184,7 +190,8 @@
             {#if groupProducts!.some((p) => p.data.displayMissingQuantity !== "✅ Complet")}
               <button
                 class="btn btn-sm btn-primary btn-soft"
-                onclick={() => onOpenGroupPurchaseModal(groupProducts!.map((p) => p.data))}
+                onclick={() =>
+                  onOpenGroupPurchaseModal(groupProducts!.map((p) => p.data))}
                 title="Ouvrir le modal d'achat groupé"
               >
                 <ShoppingCart size={16} />
@@ -236,6 +243,14 @@
                   {#if product.previousNames && product.previousNames.length > 0}
                     <div class="text-base-content/60 text-sm font-normal">
                       Ancien: {product.previousNames[0]}
+                    </div>
+                  {/if}
+                  {#if !product.productHugoUuid}
+                    <div
+                      class="tooltip"
+                      data-tip="Ajouté manuellement, ne fait pas partie des recette"
+                    >
+                      <ClipboardPenLine class="text-warning h-4 w-4" />
                     </div>
                   {/if}
                 </div>

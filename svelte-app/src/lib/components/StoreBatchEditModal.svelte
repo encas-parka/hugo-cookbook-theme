@@ -4,6 +4,8 @@
   import { productsStore } from "../stores/ProductsStore.svelte";
   import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
   import Suggestions from "./ui/Suggestions.svelte";
+  import StoreInput from "./ui/StoreInput.svelte";
+  import CommentTextarea from "./ui/CommentTextarea.svelte";
   import type { BatchUpdateResult, StoreInfo } from "../types/store.types";
 
   interface Props {
@@ -173,42 +175,20 @@
       <!-- Formulaire Store -->
       <div class="space-y-4">
         <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <label class="input">
-            <Store class="h-4 w-4 opacity-50" />
-            <input
-              id="store-name-input"
-              type="text"
-              bind:value={storeName}
-              placeholder="Nom du magasin"
-              list="stores"
-              maxlength="50"
-              disabled={loading}
-            />
-          </label>
-          <!-- Suggestions de magasins -->
-          <Suggestions
-            suggestions={productsStore.uniqueStores.map((store) => ({
-              id: store,
-              label: store,
-              disabled: store === storeName,
-            }))}
-            onSuggestionClick={(suggestion) => {
-              storeName = suggestion.label;
-            }}
-            title="Suggestions de magasins :"
+          <StoreInput
+            bind:value={storeName}
+            suggestions={productsStore.uniqueStores}
+            disabled={loading}
+            id="store-name-input"
           />
         </div>
 
         <div>
-          <textarea
-            id="store-comment-textarea"
-            class="textarea w-full"
+          <CommentTextarea
             bind:value={storeComment}
-            placeholder="Commentaire sur le magasin..."
-            rows="2"
-            maxlength="250"
             disabled={loading}
-          ></textarea>
+            id="store-comment-textarea"
+          />
         </div>
       </div>
 

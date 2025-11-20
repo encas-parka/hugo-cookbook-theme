@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    BadgeEuro,
     CircleCheck,
     CircleX,
     ClipboardCheck,
@@ -11,6 +12,7 @@
     Receipt,
     ShoppingCart,
     SquarePen,
+    Plus,
   } from "@lucide/svelte";
   // Store and global state
   import { productsStore } from "../stores/ProductsStore.svelte";
@@ -18,11 +20,13 @@
   // Components
   import { globalState } from "../stores/GlobalState.svelte";
   import GroupPurchaseModal from "./GroupPurchaseModal.svelte";
+  import AddProductModal from "./AddProductModal.svelte";
   import ProductModal from "./ProductModal.svelte";
   import ProductsFilters from "./ProductsFilters.svelte";
   import ProductsCards from "./ProductsCards.svelte";
   import StoreBatchEditModal from "./StoreBatchEditModal.svelte";
   import WhoBatchEditModal from "./WhoBatchEditModal.svelte";
+  import GlobalPurchasesModal from "./GlobalPurchasesModal.svelte";
   // Services
   import {
     createQuickValidationPurchases,
@@ -65,6 +69,9 @@
   // État local pour le modal d'achat groupé
   let groupPurchaseModalOpen = $state(false);
   let groupPurchaseProducts = $state<any[]>([]);
+
+  // État local pour le modal d'ajout de produit
+  let isAddProductModalOpen = $state(false);
 
   // Fonctions pour contrôler l'ouverture/fermeture
   function openModal(productId: string, tab: string = "recettes") {
@@ -137,6 +144,12 @@
     closeGroupPurchaseModal();
   }
 
+  function handleOpenAddProductModal() {
+    isAddProductModalOpen = true;
+  }
+
+
+
   // Validation rapide individuelle
   async function handleQuickValidation(product: any, productInDateRange: any) {
     try {
@@ -200,11 +213,8 @@
     }
   }
 
-  // Ouvrir modal de dépense (pour l'instant simple alert)
-  function handleAddExpense() {
-    // TODO
-    return;
-  }
+  let GlobalPurchasesModalisOpen = $state(false);
+
 </script>
 
 <div class="space-y-6 {globalState.isMobile ? '' : 'ml-100'}">
@@ -217,11 +227,20 @@
 
     <button
       class="btn btn-sm btn-outline btn-ghost"
-      onclick={handleAddExpense}
+      onclick={() => (GlobalPurchasesModalisOpen = true)}
       title="Ajouter une dépense générale"
     >
-      <Receipt class="mr-1 h-4 w-4" />
+      <BadgeEuro class="mr-1 h-4 w-4" />
       Dépense
+    </button>
+
+    <button
+      class="btn btn-sm btn-primary"
+      onclick={handleOpenAddProductModal}
+      title="Ajouter un produit manuellement"
+    >
+      <Plus class="mr-1 h-4 w-4" />
+      Produit
     </button>
   </div>
 
@@ -237,7 +256,6 @@
   />
 
   <!-- Vue Mobile Cards -->
-</div>
 
 <ProductModal
   productId={openModalProductId || ""}
@@ -270,3 +288,8 @@
     onSuccess={handleGroupPurchaseSuccess}
   />
 {/if}
+
+<AddProductModal bind:open={isAddProductModalOpen} />
+
+<GlobalPurchasesModal bind:isOpen={GlobalPurchasesModalisOpen} />
+</div>

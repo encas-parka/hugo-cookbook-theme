@@ -42,8 +42,9 @@ export type Main = Models.Row & {
 };
 
 export type Products = Models.Row & {
-  productHugoUuid: string;
+  productHugoUuid: string | null;
   productName: string;
+  productType: string;
   stockReel: string | null;
   status: string;
   who: string[] | null;
@@ -59,6 +60,7 @@ export type Products = Models.Row & {
   mainId: Main | string; // workarround
   totalNeededOverride: string | null;
   updatedBy: string; // Nom de l'utilisateur ayant modifié le produit
+  specs: string | null; // JSON pour les métadonnées produits manuels (quantité, frais, surgelé)
 };
 
 export type Purchases = Models.Row & {

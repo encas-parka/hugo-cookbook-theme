@@ -4,6 +4,8 @@
   import { formatDate } from "../utils/products-display.js";
   import InfoCollapse from "./ui/InfoCollapse.svelte";
   import ArchiveMessage from "./ArchiveMessage.svelte";
+  import QuantityInput from "./ui/QuantityInput.svelte";
+  import CommentTextarea from "./ui/CommentTextarea.svelte";
 
   interface Props {
     modalState: ProductModalStateType;
@@ -40,10 +42,10 @@
       dataLabel="Stock actuel"
     />
   {:else}
-  <h3 class="flex items-center gap-2 text-lg font-semibold">
+  <!-- <h3 class="flex items-center gap-2 text-lg font-semibold">
     <Archive class="h-5 w-5" />
     Gestion du stock
-  </h3>
+  </h3> -->
 
   <div class="card bg-base-200">
     <div class="card-body">
@@ -71,41 +73,18 @@
         </InfoCollapse>
       </div>
       <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-        <label class="input">
-          <Package class="h-4 w-4 opacity-50" />
-          <input
-            placeholder="Quantité"
-            type="number"
-            step="1"
-            bind:value={modalState.forms.stock.quantity}
-            minlength="0.01"
-            title="La quantité doit être supérieure à 0"
-            required
-          />
-        </label>
-
-        <select
-          class="custom-select input w-32"
-          bind:value={modalState.forms.stock.unit}
-          required
-        >
-          <option disabled value="">Selectionné l'unité</option>
-          <option value="kg">kg</option>
-          <option value="gr.">gr.</option>
-          <option value="l.">l.</option>
-          <option value="ml">ml</option>
-          <option value="unité">unité·s</option>
-          <option value="bottes">botte·s</option>
-        </select>
+        <QuantityInput
+          bind:quantity={modalState.forms.stock.quantity}
+          bind:unit={modalState.forms.stock.unit}
+          disabled={modalState.loading}
+        />
       </div>
 
       <div>
-        <textarea
-          class="textarea flex w-full"
+        <CommentTextarea
           bind:value={modalState.forms.stock.notes}
-          placeholder="Commentaire (optionnel)"
-        >
-        </textarea>
+          disabled={modalState.loading}
+        />
       </div>
       <div class="card-actions mt-4 justify-end">
           <button

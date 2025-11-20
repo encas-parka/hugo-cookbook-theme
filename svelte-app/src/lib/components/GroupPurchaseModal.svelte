@@ -15,6 +15,13 @@
   import { formatDateWdDayMonthShort } from "../utils/dateRange";
   import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
   import InfoCollapse from "./ui/InfoCollapse.svelte";
+  import Suggestions from "./ui/Suggestions.svelte";
+  import QuantityInput from "./ui/QuantityInput.svelte";
+  import StoreInput from "./ui/StoreInput.svelte";
+  import WhoInput from "./ui/WhoInput.svelte";
+  import CommentTextarea from "./ui/CommentTextarea.svelte";
+  import PriceInput from "./ui/PriceInput.svelte";
+  import StatusSelect from "./ui/StatusSelect.svelte";
 
   interface Props {
     products: EnrichedProduct[];
@@ -39,12 +46,7 @@
     who: "",
     expense: null as number | null,
     notes: "",
-    status: "delivered" as
-      | "requested"
-      | "ordered"
-      | "delivered"
-      | "cancelled"
-      | null,
+    status: "delivered" as "ordered" | "delivered" | null,
     orderDate: null as string | null,
     deliveryDate: null as string | null,
   });
@@ -276,118 +278,41 @@
       <div class="space-y-4">
         <h4 class="font-medium">Détails de l'achat</h4>
 
-        <div class="items-top flex flex-wrap gap-4">
-          <!-- Magasin -->
-          <div>
-            <label class="input">
-              <Store class="h-4 w-4 opacity-50" />
-              <input
-                type="text"
-                bind:value={formData.store}
-                placeholder="Nom du magasin"
-                list="stores"
-                maxlength="50"
-                disabled={loading}
-              />
-            </label>
-            <datalist id="stores">
-              {#each productsStore.uniqueStores as store}
-                <option value={store}>{store}</option>
-              {/each}
-            </datalist>
-          </div>
+          <div class="items-top flex flex-wrap gap-4">
+            <!-- Magasin -->
+            <StoreInput
+              bind:value={formData.store}
+              suggestions={productsStore.uniqueStores}
+              disabled={loading}
+            />
 
-          <!-- Qui -->
-          <div>
-            <label class="input">
-              <User class="h-4 w-4 opacity-50" />
-              <input
-                type="text"
-                bind:value={formData.who}
-                placeholder="Qui"
-                list="users"
-                maxlength="50"
-                disabled={loading}
-              />
-            </label>
-            <datalist id="users">
-              {#each productsStore.uniqueWho as user}
-                <option value={user}>{user}</option>
-              {/each}
-            </datalist>
-          </div>
+            <!-- Qui -->
+            <WhoInput
+              bind:value={formData.who}
+              suggestions={productsStore.uniqueWho}
+              disabled={loading}
+            />
 
-          <!-- Dépense -->
-          <div>
-            <label class="input w-28">
-              <Euro class="h-4 w-4 opacity-50" />
-              <input
-                type="number"
-                bind:value={formData.expense}
-                placeholder="0.00"
-                step="1"
-                min="0"
-                disabled={loading}
-              />
-            </label>
+            <!-- Dépense -->
+            <PriceInput
+              bind:value={formData.expense}
+              disabled={loading}
+            />
           </div>
-        </div>
 
         <!-- Statut -->
-        <div class="flex w-full flex-wrap gap-4">
-          <div class="flex flex-col">
-            <select
-              class="custom-select input w-52"
-              bind:value={formData.status}
-              disabled={loading}
-            >
-              <option value="delivered" selected>Livré</option>
-              <option value="ordered" title="La commande à été passée"
-                >Commandé</option
-              >
-              <!-- <option
-                value="requested"
-                title="Le fournisseur doit confirmer la disponibilité du produit"
-                >Demandé</option
-              >
-              <option value="cancelled">Annulé</option> -->
-            </select>
-            <div
-              class="label text-sm {formData.status === 'delivered'
-                ? ''
-                : 'hidden'}"
-            >
-              Modifiez s'il s'agit d'une commande
-            </div>
-          </div>
-
-          <!-- Date de livraison (si commandé) -->
-          {#if formData.status === "ordered"}
-            <div>
-              <label class="input">
-                <span class="label">Date de livraison prévue</span>
-                <input
-                  type="date"
-                  bind:value={formData.deliveryDate}
-                  disabled={loading}
-                />
-              </label>
-            </div>
-          {/if}
-        </div>
+        <StatusSelect
+          bind:status={formData.status}
+          bind:deliveryDate={formData.deliveryDate}
+          disabled={loading}
+        />
 
         <!-- Notes -->
         <div>
-          <label class="input validator flex w-2/3">
-            <MessageCircle class="h-4 w-4 opacity-50" />
-            <input
-              type="text"
-              bind:value={formData.notes}
-              placeholder="Commentaires..."
-              maxlength="250"
-              disabled={loading}
-            />
-          </label>
+          <CommentTextarea
+            bind:value={formData.notes}
+            disabled={loading}
+          />
         </div>
       </div>
 

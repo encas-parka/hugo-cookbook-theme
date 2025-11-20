@@ -103,6 +103,8 @@ const SYNC_DEBOUNCE_MS = 500;
 class ProductsStore {
   // État principal - SvelteMap réactive
   #enrichedProducts = new SvelteMap<string, ProductModel>();
+  // Achats orphelins (dépenses globales sans produits)
+  #orphanPurchases = new SvelteMap<string, Purchases>();
 
   // Métadonnées
   #currentMainId = $state<string | null>(null);
@@ -115,6 +117,11 @@ class ProductsStore {
   // FIXIT [AI] : Que vaut lastSync a la premier initialisation sur un device, alors que des products ont déjà été modifié / synchronisé sur appwrite ??? Il ne faut pas que ce soit today ! Mais la date de creation de mainId, ou que le premier sync SyncFromAppwrite ait lieu avant sa définition
   #lastSync = $state<string | null>(null);
   #hugoContentHash = $state<string | null>(null);
+
+  // Getters publics
+  get currentMainId() {
+    return this.#currentMainId;
+  }
 
   // Gestion des dates
   #availableDates = $state<string[]>([]);
@@ -203,9 +210,7 @@ class ProductsStore {
     );
   }
 
-  get currentMainId() {
-    return this.#currentMainId;
-  }
+
   get loading() {
     return this.#loading;
   }
@@ -347,7 +352,11 @@ class ProductsStore {
         return date >= startDate && date <= endDate;
       });
 
-      if (hasDataInRange) {
+      // ✅ INCLURE AUSSI LES PRODUITS MANUELS (sans lien Hugo)
+      // Ils doivent toujours apparaître car ils ne dépendent pas des dates Hugo
+      const isManualProduct = product.productHugoUuid === null;
+
+      if (hasDataInRange || isManualProduct) {
         filteredMap.set(id, model);
       }
     }
@@ -545,6 +554,9 @@ class ProductsStore {
       // 3. Sync en arrière-plan
       await this.#syncFromAppwrite();
 
+      // 4. Charger les dépenses globales (orphelines)
+      await this.#loadOrphanPurchases();
+
       // Marquer comme initialisé
       this.#isInitialized = true;
 
@@ -648,7 +660,7 @@ class ProductsStore {
         }
       });
 
-      // 3. Synchroniser les purchases modifiés (pour les produits non-modifiés)
+      // 3. Synchroniser les purchases modifiés (pour les produits non-modifiés ET les orphelins)
       // Appliquer PAR-DESSUS les produits fraîchement synchronisés
       if (this.#lastSync) {
         console.log(
@@ -666,9 +678,12 @@ class ProductsStore {
           `[ProductsStore] ${updatedPurchases.length} purchases modifiés récupérés`,
         );
 
-        // Appliquer les purchases modifiés aux produits existants
+        // Appliquer les purchases modifiés aux produits existants OU aux orphelins
         updatedPurchases.forEach((purchase) => {
-          if (purchase.products?.length) {
+          if (purchase.status === "expense") {
+            // C'est une dépense globale
+            this.#orphanPurchases.set(purchase.$id, purchase);
+          } else if (purchase.products?.length) {
             const productIds = purchase.products.map((prod: any) =>
               typeof prod === "string" ? prod : prod.$id,
             );
@@ -1235,16 +1250,33 @@ class ProductsStore {
         }
       },
       onPurchaseCreate: async (purchase: Purchases) => {
+        if (purchase.status === "expense") {
+          this.#orphanPurchases.set(purchase.$id, purchase);
+          return;
+        }
         const affectedIds = await this.#applyPurchaseCreated(purchase);
         await this.#persistAffectedProducts(affectedIds);
       },
       onPurchaseUpdate: async (purchase: Purchases) => {
+        if (purchase.status === "expense") {
+          this.#orphanPurchases.set(purchase.$id, purchase);
+          return;
+        }
+        // Si un purchase passe de "expense" à "lié" (peu probable mais possible), on le retire des orphelins
+        if (this.#orphanPurchases.has(purchase.$id)) {
+            this.#orphanPurchases.delete(purchase.$id);
+        }
+
         const affectedIds = await this.#applyPurchaseUpdated(purchase);
         await this.#persistAffectedProducts(affectedIds);
       },
 
       // TODO: on ne delete pas les purchase, on les marque deleted = true
       onPurchaseDelete: async (purchaseId: string) => {
+        if (this.#orphanPurchases.has(purchaseId)) {
+          this.#orphanPurchases.delete(purchaseId);
+          return;
+        }
         const affectedIds = await this.#applyPurchaseDeleted(purchaseId);
         await this.#persistAffectedProducts(affectedIds);
       },
@@ -1470,6 +1502,91 @@ class ProductsStore {
     }
     console.log("[ProductsStore] Ressources nettoyées");
   }
+  // =========================================================================
+  // GESTION DES DÉPENSES GLOBALES (ORPHELINES)
+  // =========================================================================
+
+  async #loadOrphanPurchases() {
+    if (!this.#currentMainId) return;
+    
+    try {
+      const { loadOrphanPurchases } = await import("../services/appwrite-interactions");
+      const orphans = await loadOrphanPurchases(this.#currentMainId);
+      
+      orphans.forEach(purchase => {
+        this.#orphanPurchases.set(purchase.$id, purchase);
+      });
+      
+      console.log(`[ProductsStore] ${orphans.length} dépenses globales chargées`);
+    } catch (err) {
+      console.error("[ProductsStore] Erreur chargement dépenses globales:", err);
+    }
+  }
+
+  /**
+   * Statistiques financières globales
+   */
+  financialStats = $derived.by(() => {
+    let totalGlobal = 0;
+    const byStore: Record<string, number> = {};
+    const byWho: Record<string, number> = {};
+    const allPurchases: Purchases[] = [];
+
+    // 1. Ajouter les dépenses orphelines
+    for (const purchase of this.#orphanPurchases.values()) {
+      const amount = purchase.invoiceTotal || purchase.price || 0;
+      totalGlobal += amount;
+      
+      const store = purchase.store || "Non défini";
+      byStore[store] = (byStore[store] || 0) + amount;
+      
+      const who = purchase.who || "Non défini";
+      byWho[who] = (byWho[who] || 0) + amount;
+      
+      allPurchases.push(purchase);
+    }
+
+    // 2. Ajouter les achats liés aux produits
+    for (const model of this.#enrichedProducts.values()) {
+      const product = model.data;
+      if (product.purchases && product.purchases.length > 0) {
+        for (const purchase of product.purchases) {
+          // Ignorer les achats annulés ou non livrés/commandés si nécessaire
+          // Ici on prend tout ce qui a un prix
+          if (purchase.price) {
+            totalGlobal += purchase.price;
+            
+            const store = purchase.store || "Non défini";
+            byStore[store] = (byStore[store] || 0) + purchase.price;
+            
+            const who = purchase.who || "Non défini";
+            byWho[who] = (byWho[who] || 0) + purchase.price;
+            
+            // Enrichir l'achat avec le nom du produit pour l'affichage
+            const purchaseWithProductName = {
+                ...purchase,
+                _productName: product.productName
+            };
+            allPurchases.push(purchaseWithProductName);
+          }
+        }
+      }
+    }
+
+    // Trier tous les achats par date (plus récent en premier)
+    allPurchases.sort((a, b) => {
+        const dateA = new Date(a.orderDate || a.$createdAt).getTime();
+        const dateB = new Date(b.orderDate || b.$createdAt).getTime();
+        return dateB - dateA;
+    });
+
+    return {
+      totalGlobal,
+      byStore,
+      byWho,
+      allPurchases
+    };
+  });
 }
 
 // =============================================================================

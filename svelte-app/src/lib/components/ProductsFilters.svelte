@@ -130,6 +130,7 @@
               ? 'btn-success'
               : 'btn-dash btn-success'}"
           onclick={() => productsStore.toggleTemperature("frais")}
+          title="Filtrer les légumes ou produits à conserver au frais"
         >
           <ShoppingBasket class="h-5 w-5" />
           Frais
@@ -141,6 +142,7 @@
               ? 'btn-info'
               : 'btn-dash btn-info'}"
           onclick={() => productsStore.toggleTemperature("surgele")}
+          title="Filtrer les roduits à concerver au congélateur"
         >
           <Snowflake class="h-5 w-5" />
           Surgelés

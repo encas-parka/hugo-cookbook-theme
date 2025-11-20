@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PencilLine } from "@lucide/svelte";
   import type { ComponentType } from "svelte";
 
   interface SuggestionItem {
@@ -14,7 +15,7 @@
     maxSuggestions?: number;
     title?: string;
     buttonSize?: "btn-xs" | "btn-sm" | "btn-md" | "btn-lg";
-    buttonVariant?: "btn-soft" | "btn-outline" | "btn-ghost" | "btn-solid";
+    buttonVariant?: "btn-soft" | "btn-outline" | "btn-ghost";
     disabled?: boolean;
   }
 
@@ -22,7 +23,7 @@
     suggestions,
     onSuggestionClick,
     maxSuggestions = 8,
-    title = "Suggestions :",
+    title,
     buttonSize = "btn-xs",
     buttonVariant = "btn-soft",
     disabled = false,
@@ -43,10 +44,11 @@
     {#if title}
       <div class="mb-1 text-xs opacity-70">{title}</div>
     {/if}
-    <div class="flex flex-wrap gap-1">
+    <div class="ms-1 flex flex-wrap items-center gap-1">
+      <PencilLine class="text-base-content/70 mr-1" size={14} />
       {#each displaySuggestions as suggestion (suggestion.id)}
         <button
-          class="btn {buttonSize} {buttonVariant}"
+          class="btn btn-primary {buttonSize} {buttonVariant}"
           onclick={() => handleSuggestionClick(suggestion)}
           disabled={disabled || suggestion.disabled}
           title={suggestion.disabled ? "Déjà sélectionné" : suggestion.label}

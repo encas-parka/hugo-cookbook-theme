@@ -559,6 +559,77 @@ export async function upsertProduct(
 }
 
 /**
+ * Crée un produit manuel (sans lien Hugo)
+ * @param productData - Données du produit (nom, type, store, who)
+ * @param mainId - ID du main
+ * @returns Promise<Products>
+ */
+export async function createManualProduct(
+  productData: {
+    productName: string;
+    productType: string;
+    store?: StoreInfo;
+    who?: string[];
+    pFrais?: boolean;
+    pSurgel?: boolean;
+    quantity?: { q: number; u: string };
+  },
+  mainId: string,
+): Promise<Products> {
+  try {
+    const { databases, config } = await getAppwriteInstances();
+    const { slugify } = await import("../utils/productsUtils");
+
+    // Générer un ID unique basé sur le nom slugifié (10 premiers chars) + timestamp
+    const slug = slugify(productData.productName).substring(0, 10);
+    const uniqueId = `${slug}_${Date.now().toString(36)}`;
+
+    // Construire l'objet specs (métadonnées manuelles)
+    const specs = {
+      quantity: productData.quantity, // { q: number, u: string }
+      pFrais: productData.pFrais || false,
+      pSurgel: productData.pSurgel || false,
+    };
+
+    const manualProduct = {
+      productHugoUuid: null, // Toujours null pour les produits manuels
+      productName: productData.productName,
+      productType: productData.productType || "Autre",
+      store: productData.store ? JSON.stringify(productData.store) : null,
+      who: productData.who || [],
+      isSynced: true, // Toujours true pour les produits créés directement dans Appwrite
+      mainId: mainId,
+      status: "active",
+      updatedBy: getCurrentUserName(),
+      // Champs par défaut
+      stockReel: null,
+      isMerged: false,
+      mergedFrom: null,
+      mergeDate: null,
+      mergeReason: null,
+      mergedInto: null,
+      totalNeededOverride: null,
+      specs: JSON.stringify(specs), // ✅ Stockage des métadonnées manuelles
+    };
+
+    console.log(`[Appwrite Interactions] Création produit manuel ${uniqueId}...`, manualProduct);
+
+    const response = await databases.createDocument(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.products,
+      uniqueId,
+      manualProduct,
+    );
+
+    console.log(`[Appwrite Interactions] Produit manuel ${uniqueId} créé avec succès`);
+    return response as Products;
+  } catch (error) {
+    console.error("[Appwrite Interactions] Erreur création produit manuel:", error);
+    throw error;
+  }
+}
+
+/**
  * Met à jour le magasin d'un produit
  * @param productId - ID du produit
  * @param store - Nouveau magasin (objet StoreInfo ou null)
@@ -1488,6 +1559,7 @@ export async function createExpensePurchase(
   invoiceTotal?: number,
   store?: string,
   notes?: string,
+  who?: string,
 ): Promise<Purchases> {
   try {
     const { databases, config } = await getAppwriteInstances();
@@ -1495,8 +1567,14 @@ export async function createExpensePurchase(
     const account = await client.getAccount();
     const user = await account.get();
 
-    if (!invoiceId || !invoiceTotal) {
-      throw new Error("invoiceId et invoiceTotal sont requis pour une dépense");
+    // Générer un invoiceId si non fourni
+    const finalInvoiceId = invoiceId || ID.unique();
+    
+    // Utiliser le nom de l'utilisateur courant comme "who" par défaut
+    const who = user.name;
+
+    if (!invoiceTotal) {
+      throw new Error("invoiceTotal est requis pour une dépense");
     }
 
     const completeExpenseData = {
@@ -1507,9 +1585,9 @@ export async function createExpensePurchase(
       status: "expense",
       notes: notes || "",
       store: store ?? null,
-      who: user.name,
+      who: who || user.name,
       price: invoiceTotal,
-      invoiceId: invoiceId,
+      invoiceId: finalInvoiceId,
       invoiceTotal: invoiceTotal,
       orderDate: null,
       deliveryDate: null,
@@ -1530,6 +1608,38 @@ export async function createExpensePurchase(
     const errorMessage =
       error instanceof Error ? error.message : "Erreur inconnue";
     throw new Error(`Échec de la création de la dépense: ${errorMessage}`);
+  }
+}
+
+/**
+ * Charge les achats orphelins (dépenses globales)
+ * @param mainId - ID de l'événement principal
+ * @returns Promise<Purchases[]>
+ */
+export async function loadOrphanPurchases(mainId: string): Promise<Purchases[]> {
+  try {
+    const { databases, config } = await getAppwriteInstances();
+
+    const response = await databases.listDocuments(
+      config.APPWRITE_CONFIG.databaseId,
+      config.APPWRITE_CONFIG.collections.purchases,
+      [
+        Query.equal("mainId", mainId),
+        Query.equal("status", "expense"),
+        Query.limit(1000), // Limite raisonnable pour les dépenses
+      ],
+    );
+
+    console.log(
+      `[Appwrite Interactions] ${response.documents.length} dépenses globales chargées`,
+    );
+    return response.documents as Purchases[];
+  } catch (error) {
+    console.error(
+      "[Appwrite Interactions] Erreur chargement dépenses globales:",
+      error,
+    );
+    return [];
   }
 }
 
@@ -1559,6 +1669,8 @@ export default {
 
   // Services achats
   createPurchase,
+  createExpensePurchase,
+  loadOrphanPurchases,
   updatePurchase,
   deletePurchase,
 
