@@ -175,7 +175,7 @@ export interface EnrichedProduct {
   displayMissingQuantity: string; // Formaté pour UI
   displayTotalOverride: string; // Formaté pour UI depuis totalNeededOverride
   totalNeededOverrideParsed: TotalNeededOverrideData | null; // Parsé de totalNeededOverride
-  
+
   // Specs pour produits manuels
   specs: string | null;
   specsParsed: ManualSpecs | null;
@@ -258,6 +258,15 @@ export interface ProductModalStateType {
   // Formulaires locaux
   readonly forms: ModalForms;
 
+  // États UI pour les composants
+  readonly uiStates: {
+    overrideManagerEditMode: boolean;
+  };
+
+  // Gestion de l'onglet courant
+  readonly currentTab: string;
+  setCurrentTab(tab: string): void;
+
   // Actions - Purchases
   addPurchase(): Promise<void>;
   startEditPurchase(purchase: Purchases): void;
@@ -287,6 +296,9 @@ export interface ProductModalStateType {
     who: boolean;
   };
   readonly hasAnyChanges: boolean;
+
+  // Réinitialisation
+  resetForms(): void;
 
   // Utilitaires
   formatQuantity(quantity: number, unit: string): string;
@@ -376,8 +388,6 @@ export interface BatchUpdateResult {
   error?: string;
   timestamp: string;
 }
-
-
 
 export interface GroupEditModalProps {
   productIds: string[];

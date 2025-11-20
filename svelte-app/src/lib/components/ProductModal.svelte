@@ -31,36 +31,35 @@
   }>();
 
   // 1. Déclarer l'état du modal. Il sera `null` au premier rendu.
-  let modalState = $derived(createProductModalState(productId));
+  let modalState = $derived(createProductModalState(productId, initialTab));
 
   // Mode archive si l'événement est passé
   let isArchiveMode = $derived(productsStore.isEventPassed);
 
-  let currentTab = $state(initialTab);
-  // Réagir aux changements d'initialTab pour mettre à jour currentTab
-  $effect(() => {
-    currentTab = initialTab;
-  });
-  
   function handleTabClick(tab: string) {
-    currentTab = tab;
+    modalState.setCurrentTab(tab);
   }
 
   function saveAllAndClose() {
     modalState.saveAllChanges().then(() => {
+      modalState.resetForms();
       onClose();
     });
+  }
+
+  function handleModalClose() {
+    modalState.resetForms();
+    onClose();
   }
 </script>
 
 <div id="product_modal" class="modal {productId && 'modal-open'}">
   <div
-    class="modal-box flex fixed top-0 overflow-auto h-lvh w-lvw flex-col md:top-10 md:h-full md:max-h-11/12 md:w-full md:max-w-6xl"
+    class="modal-box fixed top-0 flex h-lvh w-lvw flex-col overflow-auto md:top-10 md:h-full md:max-h-11/12 md:w-full md:max-w-6xl"
   >
     <!-- Header -->
     <div class="flex items-center justify-between border-b p-4 pt-0">
       {#if modalState && modalState.product}
-
         <div class="text-xl font-bold">
           {modalState.product?.productName}
         </div>
@@ -91,20 +90,19 @@
       {/if}
       <button
         class="btn btn-circle btn-ghost btn-sm absolute top-2 right-2"
-        onclick={onClose}
+        onclick={handleModalClose}
         aria-label="Fermer"
       >
         <X class="h-4 w-4" />
       </button>
     </div>
 
-
     <!-- Onglets -->
     {#if modalState}
       <div class="tabs tabs-border flex-none" role="tablist">
         <button
           role="tab"
-          class="tab {currentTab === 'recettes' ? 'tab-active' : ''}"
+          class="tab {modalState.currentTab === 'recettes' ? 'tab-active' : ''}"
           onclick={() => handleTabClick("recettes")}
         >
           <CookingPot class="mr-1 h-5 w-5" />
@@ -120,7 +118,7 @@
 
         <button
           role="tab"
-          class="tab {currentTab === 'magasins' ? 'tab-active' : ''}"
+          class="tab {modalState.currentTab === 'magasins' ? 'tab-active' : ''}"
           onclick={() => handleTabClick("magasins")}
         >
           <Store class="mr-1 h-5 w-5" />
@@ -132,7 +130,9 @@
 
         <button
           role="tab"
-          class="tab {currentTab === 'volontaires' ? 'tab-active' : ''}"
+          class="tab {modalState.currentTab === 'volontaires'
+            ? 'tab-active'
+            : ''}"
           onclick={() => handleTabClick("volontaires")}
         >
           <Users class="mr-1 h-5 w-5" />
@@ -150,7 +150,7 @@
 
         <button
           role="tab"
-          class="tab {currentTab === 'stock' ? 'tab-active' : ''}"
+          class="tab {modalState.currentTab === 'stock' ? 'tab-active' : ''}"
           onclick={() => handleTabClick("stock")}
         >
           <Archive class="mr-1 h-5 w-5" />
@@ -166,7 +166,7 @@
 
         <button
           role="tab"
-          class="tab {currentTab === 'achats' ? 'tab-active' : ''}"
+          class="tab {modalState.currentTab === 'achats' ? 'tab-active' : ''}"
           onclick={() => handleTabClick("achats")}
         >
           <ShoppingCart class="mr-1 h-5 w-5" />
@@ -191,16 +191,16 @@
         {/if}
 
         <div class="">
-          {#key currentTab}
-            {#if currentTab === "recettes"}
+          {#key modalState.currentTab}
+            {#if modalState.currentTab === "recettes"}
               <RecipesManager {modalState} {isArchiveMode} />
-            {:else if currentTab === "achats"}
+            {:else if modalState.currentTab === "achats"}
               <PurchaseManager {modalState} {isArchiveMode} />
-            {:else if currentTab === "stock"}
+            {:else if modalState.currentTab === "stock"}
               <StockManager {modalState} {isArchiveMode} />
-            {:else if currentTab === "volontaires"}
+            {:else if modalState.currentTab === "volontaires"}
               <VolunteerManager {modalState} {isArchiveMode} />
-            {:else if currentTab === "magasins"}
+            {:else if modalState.currentTab === "magasins"}
               <StoreManager {modalState} {isArchiveMode} />
             {/if}
           {/key}
@@ -209,7 +209,7 @@
 
       <!-- Footer -->
       <div class="modal-action">
-        <button class="btn btn-ghost" onclick={onClose}>
+        <button class="btn btn-ghost" onclick={handleModalClose}>
           {modalState?.hasAnyChanges ? "Annuler" : "Fermer"}
         </button>
         <button

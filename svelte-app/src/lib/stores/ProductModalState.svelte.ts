@@ -35,9 +35,15 @@ import { productsStore } from "./ProductsStore.svelte";
  * Les données du produit (purchases, recipes, stock, etc.) sont
  * TOUJOURS lues en direct du ProductsStore, jamais copiées.
  */
-export function createProductModalState(productId: string) {
+export function createProductModalState(
+  productId: string,
+  initialTab: string = "recettes",
+) {
   let loading = $state(false);
   let error = $state<string | null>(null);
+
+  // État de l'onglet courant dans le modal
+  let currentTab = $state(initialTab);
 
   // ─────────────────────────────────────────────────────────────
   // DONNÉES DÉRIVÉES - Toujours fraîches du store
@@ -91,6 +97,11 @@ export function createProductModalState(productId: string) {
       comment: null as string | null,
     },
     who: [] as string[],
+  });
+
+  // État UI pour les composants (ex: editMode dans OverrideManager)
+  const uiStates = $state({
+    overrideManagerEditMode: false,
   });
 
   // Initialiser les formulaires une seule fois que le produit est dispo
@@ -569,6 +580,24 @@ export function createProductModalState(productId: string) {
     }, "Modifications enregistrées");
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // RÉINITIALISATION DES FORMULAIRES - Appelé à la fermeture du modal
+  // ─────────────────────────────────────────────────────────────
+
+  function resetForms() {
+    // Réinitialiser les états UI
+    uiStates.overrideManagerEditMode = false;
+
+    // Réinitialiser l'état d'édition des purchases
+    editingPurchaseId = null;
+
+    // Réinitialiser l'initialisation pour forcer une réinitialisation complète
+    // lors de la prochaine ouverture du modal
+    initialized = false;
+
+    console.log("[ProductModalState] Formulaires et états UI réinitialisés");
+  }
+
   return {
     // État UI
     get loading() {
@@ -606,6 +635,19 @@ export function createProductModalState(productId: string) {
     // Formulaires locaux
     forms,
 
+    // États UI pour les composants
+    get uiStates() {
+      return uiStates;
+    },
+
+    // Gestion de l'onglet courant
+    get currentTab() {
+      return currentTab;
+    },
+    setCurrentTab(tab: string) {
+      currentTab = tab;
+    },
+
     // Actions
     addPurchase,
     startEditPurchase,
@@ -627,6 +669,9 @@ export function createProductModalState(productId: string) {
     get hasAnyChanges() {
       return hasAnyChanges;
     },
+
+    // Réinitialisation
+    resetForms,
 
     // Utilitaires
     formatQuantity,
