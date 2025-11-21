@@ -16,6 +16,8 @@ import type {
   EnrichedProduct,
   StoreInfo,
   TotalNeededOverrideData,
+  ProductModalStateType,
+  ModalForms,
 } from "../types/store.types";
 import {
   formatDate,
@@ -35,222 +37,172 @@ import { productsStore } from "./ProductsStore.svelte";
  * Les données du produit (purchases, recipes, stock, etc.) sont
  * TOUJOURS lues en direct du ProductsStore, jamais copiées.
  */
-export function createProductModalState(
-  productId: string,
-  initialTab: string = "recettes",
-) {
-  let loading = $state(false);
-  let error = $state<string | null>(null);
+export class ProductModalState implements ProductModalStateType {
+  // État UI
+  loading = $state(false);
+  error = $state<string | null>(null);
 
-  // État de l'onglet courant dans le modal
-  let currentTab = $state(initialTab);
+  // État de l'onglet courant
+  currentTab = $state("recettes");
 
-  // ─────────────────────────────────────────────────────────────
-  // DONNÉES DÉRIVÉES - Toujours fraîches du store
-  // ─────────────────────────────────────────────────────────────
-
-  // const product = $derived(productsStore.getEnrichedProductById(productId));
-  // DEBUG
-  const product = $derived.by(() => {
-    console.log(`[ProductModalState] Recalculating product ${productId}`);
-    return productsStore.getEnrichedProductById(productId);
-  });
-  // ✅ Ces dérivés dépendent du produit du store, donc auto-update
-
-  const whoList = $derived(product?.who ?? []);
-  const stockParsed = $derived(product?.stockParsed ?? null);
-  const purchasesList = $derived(product?.purchases ?? []);
-
-  const recipes = $derived.by(() => {
-    if (!product?.byDate) return [];
-
-    // console.log(
-    //   `[ProductModalState] Génération des recettes pour ${productId}`,
-    // );
-    return generateRecipesWithDates(product.byDate);
+  // Données dérivées du store
+  product = $derived.by(() => {
+    const id = this.productId;
+    // console.log(`[ProductModalState] Recalculating product ${id}`);
+    return productsStore.getEnrichedProductById(id);
   });
 
-  // ─────────────────────────────────────────────────────────────
-  // FORMULAIRES LOCAUX - État du modal uniquement
-  // ─────────────────────────────────────────────────────────────
+  whoList = $derived(this.product?.who ?? []);
+  stockParsed = $derived(this.product?.stockParsed ?? null);
+  purchasesList = $derived(this.product?.purchases ?? []);
 
-  const forms = $state({
+  recipes = $derived.by(() => {
+    if (!this.product?.byDate) return [];
+    return generateRecipesWithDates(this.product.byDate);
+  });
+
+  // Formulaires locaux
+  forms = $state<ModalForms>({
     purchase: {
-      quantity: null as number | null,
+      quantity: null,
       unit: "",
       store: "",
       who: globalState.userName() ?? "",
-      price: null as number | null,
+      price: null,
       notes: "",
-      status: null as string | null,
-      orderDate: null as string | null,
-      deliveryDate: null as string | null,
+      status: null,
+      orderDate: null,
+      deliveryDate: null,
     },
     stock: {
-      quantity: null as number | null,
+      quantity: null,
       unit: "",
       notes: "",
       dateTime: new Date().toISOString(),
     },
     store: {
-      name: null as string | null,
-      comment: null as string | null,
+      name: null,
+      comment: null,
     },
-    who: [] as string[],
+    who: [],
   });
 
-  // État UI pour les composants (ex: editMode dans OverrideManager)
-  const uiStates = $state({
+  // État UI pour les composants
+  uiStates = $state({
     overrideManagerEditMode: false,
   });
 
-  // Initialiser les formulaires une seule fois que le produit est dispo
-  let initialized = $state(false);
+  // État d'édition
+  editingPurchaseId = $state<string | null>(null);
 
-  // ─────────────────────────────────────────────────────────────
-  // SUIVI DES CHANGEMENTS - Snapshot des états originaux
-  // ─────────────────────────────────────────────────────────────
-  let originalFormsSnapshot = $state<{
-    purchase: typeof forms.purchase;
-    stock: typeof forms.stock;
-    store: typeof forms.store;
+  editingPurchaseData = $derived.by(() => {
+    if (!this.editingPurchaseId) return null;
+    return this.purchasesList.find((p) => p.$id === this.editingPurchaseId) ?? null;
+  });
+
+  // Snapshot pour la détection des changements
+  private originalFormsSnapshot = $state<{
+    purchase: ModalForms["purchase"];
+    stock: ModalForms["stock"];
+    store: ModalForms["store"];
     whoList: string[];
   } | null>(null);
 
-  $effect(() => {
-    // S'assurer que le produit est disponible ET que ce n'est pas déjà initialisé
-    if (!product || initialized) return;
+  constructor(private productId: string, initialTab: string = "recettes") {
+    this.currentTab = initialTab;
+    
+    // Initialisation immédiate
+    this.initForms();
+  }
 
-    // Initialisation UNIQUEMENT au premier chargement
-    forms.purchase.quantity = product.missingQuantityArray[0]?.q ?? null;
-    forms.purchase.unit = product.totalNeededArray[0]?.u ?? "";
-    forms.purchase.store = product.storeInfo?.storeName ?? "";
-    forms.purchase.who = globalState.userName() ?? "";
-    forms.purchase.status = forms.purchase.status || "delivered";
+  private initForms() {
+    
+    const currentProduct = productsStore.getEnrichedProductById(this.productId);
+    if (!currentProduct) return;
 
-    forms.stock.unit = product.totalNeededArray[0]?.u ?? "";
+    this.forms.purchase.quantity = currentProduct.missingQuantityArray[0]?.q ?? null;
+    this.forms.purchase.unit = currentProduct.totalNeededArray[0]?.u ?? "";
+    this.forms.purchase.store = currentProduct.storeInfo?.storeName ?? "";
+    this.forms.purchase.who = globalState.userName() ?? "";
+    this.forms.purchase.status = this.forms.purchase.status || "delivered";
 
-    forms.store.name = product.storeInfo?.storeName ?? "";
-    forms.store.comment = product.storeInfo?.storeComment ?? null;
+    this.forms.stock.unit = currentProduct.totalNeededArray[0]?.u ?? "";
 
-    // Initialiser who avec les valeurs du produit
-    forms.who = product?.who ? [...product.who] : [];
+    this.forms.store.name = currentProduct.storeInfo?.storeName ?? "";
+    this.forms.store.comment = currentProduct.storeInfo?.storeComment ?? null;
 
-    // Faire un snapshot des états originaux APRÈS l'initialisation
-    originalFormsSnapshot = {
-      purchase: { ...forms.purchase },
-      stock: { ...forms.stock },
-      store: { ...forms.store },
-      whoList: [...forms.who],
+    this.forms.who = currentProduct.who ? [...currentProduct.who] : [];
+
+    // Snapshot
+    this.originalFormsSnapshot = {
+      purchase: { ...this.forms.purchase },
+      stock: { ...this.forms.stock },
+      store: { ...this.forms.store },
+      whoList: [...this.forms.who],
     };
+  }
 
-    // Marquer comme initialisé pour ne plus jamais ré-exécuter
-    initialized = true;
+  // Détection des changements
+  hasChanges = $derived.by(() => {
+    if (!this.originalFormsSnapshot) {
+      return { store: false, stock: false, who: false };
+    }
+
+    return {
+      store:
+        this.forms.store.name !== this.originalFormsSnapshot.store.name ||
+        this.forms.store.comment !== this.originalFormsSnapshot.store.comment,
+      stock: this.hasStockChanges(),
+      who: JSON.stringify(this.forms.who) !== JSON.stringify(this.originalFormsSnapshot.whoList),
+    };
   });
 
-  // ─────────────────────────────────────────────────────────────
-  // DÉTECTION DES CHANGEMENTS
-  // ─────────────────────────────────────────────────────────────
-  const hasChanges = $derived(
-    originalFormsSnapshot
-      ? {
-          store:
-            JSON.stringify(forms.store) !==
-            JSON.stringify(originalFormsSnapshot.store),
-          stock: hasStockChanges(),
-          who:
-            JSON.stringify(forms.who) !==
-            JSON.stringify(originalFormsSnapshot.whoList),
-        }
-      : { store: false, stock: false, who: false },
+  hasAnyChanges = $derived(
+    Boolean(
+      this.originalFormsSnapshot &&
+        (this.hasChanges.store || this.hasChanges.stock || this.hasChanges.who)
+    )
   );
 
-  // Fonction pour détecter si le stock a changé (logique réutilisée de StockManager)
-  function hasStockChanges(): boolean {
-    // Le formulaire doit être valide pour considérer les changements
-    const isFormValid =
-      forms.stock.quantity && forms.stock.quantity > 0 && forms.stock.unit;
+  private hasStockChanges(): boolean {
+    if (!this.isStockFormValid) return false;
 
-    if (!isFormValid) {
-      return false;
-    }
+    if (!this.stockParsed) return true;
 
-    // S'il n'y a pas de stock existant, c'est un ajout
-    if (!stockParsed) {
-      return true;
-    }
-
-    // Comparer avec le stock existant
     return (
-      forms.stock.quantity!.toString() !== stockParsed.quantity ||
-      forms.stock.unit !== stockParsed.unit ||
-      (forms.stock.notes || "") !== (stockParsed.notes || "")
+      this.forms.stock.quantity!.toString() !== this.stockParsed.quantity ||
+      this.forms.stock.unit !== this.stockParsed.unit ||
+      (this.forms.stock.notes || "") !== (this.stockParsed.notes || "")
     );
   }
 
-  const hasAnyChanges = $derived(
-    Boolean(
-      originalFormsSnapshot &&
-        (hasChanges.store || hasChanges.stock || hasChanges.who),
-    ),
-  );
-
-  // ─────────────────────────────────────────────────────────────
-  // ÉTAT D'ÉDITION - Tracking quel item est édité
-  // ─────────────────────────────────────────────────────────────
-
-  let editingPurchaseId = $state<string | null>(null);
-
-  // ✅ Les données d'édition viennent du purchasesList dérivé
-  const editingPurchaseData = $derived.by(() => {
-    if (!editingPurchaseId) return null;
-    return purchasesList.find((p) => p.$id === editingPurchaseId) ?? null;
-  });
-
-  // ─────────────────────────────────────────────────────────────
-  // HELPERS
-  // ─────────────────────────────────────────────────────────────
-
-  async function withLoading<T>(
-    operation: () => Promise<T>,
-    successMessage?: string,
-  ): Promise<T | null> {
-    loading = true;
-    error = null;
-    try {
-      const result = await operation();
-      if (successMessage) {
-        showToast("success", successMessage);
-      }
-      return result;
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Une erreur est survenue";
-      error = message;
-      showToast("error", message);
-      console.error("[ProductModalState]", err);
-      return null;
-    } finally {
-      loading = false;
-    }
+  // Validation
+  get isPurchaseFormValid(): boolean {
+    return (
+      this.forms.purchase.quantity !== null &&
+      this.forms.purchase.quantity !== 0 &&
+      (this.forms.purchase.unit?.trim() ?? "") !== ""
+    );
   }
 
-  function showToast(type: "success" | "error", message: string) {
-    const event = new CustomEvent("toast", {
-      detail: { type, message },
-    });
-    window.dispatchEvent(event);
+  get isStockFormValid(): boolean {
+    return (
+      this.forms.stock.quantity !== null &&
+      this.forms.stock.quantity > 0 &&
+      (this.forms.stock.unit?.trim() ?? "") !== ""
+    );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // ACTIONS - PURCHASES
-  // ─────────────────────────────────────────────────────────────
+  // Actions
+  setCurrentTab(tab: string) {
+    this.currentTab = tab;
+  }
 
-  async function addPurchase() {
-    if (!product) return;
+  async addPurchase() {
+    if (!this.product) return;
 
-    await withLoading(async () => {
-      if (!forms.purchase.quantity || !forms.purchase.unit.trim()) {
+    await this.withLoading(async () => {
+      if (!this.forms.purchase.quantity || !this.forms.purchase.unit.trim()) {
         throw new Error("Veuillez remplir les champs obligatoires");
       }
 
@@ -259,53 +211,45 @@ export function createProductModalState(
       }
 
       const { quantity, unit } = normalizeUnit(
-        forms.purchase.quantity,
-        forms.purchase.unit,
+        this.forms.purchase.quantity,
+        this.forms.purchase.unit
       );
 
-      // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit avant création du purchase
-      if (!product.isSynced) {
-        // Produit local : créer sur Appwrite d'abord
-        console.log(
-          `[ProductModalState] Produit ${product.$id} local, création pour purchase...`,
-        );
+      if (!this.product!.isSynced) {
         await upsertProduct(
-          product.$id,
-          {}, // Pas de modifications spécifiques au produit lui-même
-          (id) => productsStore.getEnrichedProductById(id),
+          this.product!.$id,
+          {},
+          (id) => productsStore.getEnrichedProductById(id)
         );
       }
 
-      // Préparer les données du purchase avec gestion automatique de deliveryDate
-      const purchaseStatus = forms.purchase.status || "delivered";
-      let deliveryDate = forms.purchase.deliveryDate || null;
+      const purchaseStatus = this.forms.purchase.status || "delivered";
+      let deliveryDate = this.forms.purchase.deliveryDate || null;
 
-      // 🎯 NOUVELLE LOGIQUE : Assigner automatiquement deliveryDate pour les achats livrés sans date
       if (purchaseStatus === "delivered" && !deliveryDate) {
-        deliveryDate = new Date().toISOString(); // Conserve l'heure complète
+        deliveryDate = new Date().toISOString();
       }
 
-      // Ensuite créer le purchase normalement
       await createPurchase({
-        products: [product.$id],
-        mainId: productsStore.currentMainId,
+        products: [this.product!.$id],
+        mainId: productsStore.currentMainId!,
         unit,
         quantity,
-        store: forms.purchase.store || null,
-        who: forms.purchase.who || null,
-        notes: forms.purchase.notes || "",
-        price: forms.purchase.price || null,
+        store: this.forms.purchase.store || null,
+        who: this.forms.purchase.who || null,
+        notes: this.forms.purchase.notes || "",
+        price: this.forms.purchase.price || null,
         status: purchaseStatus,
-        orderDate: forms.purchase.orderDate || null,
+        orderDate: this.forms.purchase.orderDate || null,
         deliveryDate,
       });
 
-      // ✅ Reset local form, les données du produit se mettront à jour via le store
-      forms.purchase = {
-        quantity: product.missingQuantityArray[0]?.q ?? null,
-        unit: product.totalNeededArray[0]?.u ?? "",
-        store: forms.purchase.store,
-        who: forms.purchase.who,
+      // Reset form
+      this.forms.purchase = {
+        quantity: this.product!.missingQuantityArray[0]?.q ?? null,
+        unit: this.product!.totalNeededArray[0]?.u ?? "",
+        store: this.forms.purchase.store,
+        who: this.forms.purchase.who,
         price: null,
         notes: "",
         status: null,
@@ -315,30 +259,28 @@ export function createProductModalState(
     }, "Achat ajouté avec succès");
   }
 
-  function startEditPurchase(purchase: Purchases) {
-    editingPurchaseId = purchase.$id;
+  startEditPurchase(purchase: Purchases) {
+    this.editingPurchaseId = purchase.$id;
   }
 
-  function cancelEditPurchase() {
-    editingPurchaseId = null;
+  cancelEditPurchase() {
+    this.editingPurchaseId = null;
   }
 
-  async function updateEditedPurchase(updatedPurchase: Purchases) {
+  async updateEditedPurchase(updatedPurchase: Purchases) {
     if (!updatedPurchase.$id) return;
 
-    await withLoading(async () => {
+    await this.withLoading(async () => {
       const { quantity, unit } = normalizeUnit(
         updatedPurchase.quantity,
-        updatedPurchase.unit,
+        updatedPurchase.unit
       );
 
-      // Préparer les données avec gestion automatique de deliveryDate
       const purchaseStatus = updatedPurchase.status || null;
       let deliveryDate = updatedPurchase.deliveryDate || null;
 
-      // 🎯 NOUVELLE LOGIQUE : Assigner automatiquement deliveryDate pour les achats livrés sans date
       if (purchaseStatus === "delivered" && !deliveryDate) {
-        deliveryDate = new Date().toISOString(); // Conserve l'heure complète
+        deliveryDate = new Date().toISOString();
       }
 
       await updatePurchase(updatedPurchase.$id, {
@@ -353,328 +295,211 @@ export function createProductModalState(
         deliveryDate,
       });
 
-      editingPurchaseId = null;
+      this.editingPurchaseId = null;
     }, "Achat modifié avec succès");
   }
 
-  async function removePurchase(purchaseId: string) {
-    const purchase = purchasesList.find((p) => p.$id === purchaseId);
+  async removePurchase(purchaseId: string) {
+    const purchase = this.purchasesList.find((p) => p.$id === purchaseId);
     if (!purchase) return;
 
-    if (
-      !confirm(`Supprimer cet achat (${purchase.quantity} ${purchase.unit}) ?`)
-    ) {
+    if (!confirm(`Supprimer cet achat (${purchase.quantity} ${purchase.unit}) ?`)) {
       return;
     }
 
-    await withLoading(async () => {
+    await this.withLoading(async () => {
       await deletePurchase(purchaseId);
     }, "Achat supprimé avec succès");
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // ACTIONS - STOCK (simplifié - même pattern)
-  // ─────────────────────────────────────────────────────────────
+  async setStock() {
+    if (!this.product) return;
 
-  async function setStock() {
-    if (!product) return;
-
-    await withLoading(async () => {
-      if (!forms.stock.quantity || !forms.stock.unit) {
+    await this.withLoading(async () => {
+      if (!this.forms.stock.quantity || !this.forms.stock.unit) {
         throw new Error("Veuillez remplir les champs obligatoires");
       }
 
       const newEntry = {
-        quantity: forms.stock.quantity.toString(),
-        unit: forms.stock.unit,
-        notes: forms.stock.notes,
-        dateTime: forms.stock.dateTime,
+        quantity: this.forms.stock.quantity.toString(),
+        unit: this.forms.stock.unit,
+        notes: this.forms.stock.notes,
+        dateTime: this.forms.stock.dateTime,
       };
 
-      // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit
-      if (!product.isSynced) {
-        // Produit local : utiliser upsertProduct pour créer sur Appwrite
-        console.log(
-          `[ProductModalState] Produit ${product.$id} local, création stock avec upsert...`,
-        );
+      if (!this.product!.isSynced) {
         await upsertProduct(
-          product.$id,
+          this.product!.$id,
           { stockReel: JSON.stringify(newEntry) },
-          (id) => productsStore.getEnrichedProductById(id),
+          (id) => productsStore.getEnrichedProductById(id)
         );
       } else {
-        // Produit déjà sync : utiliser updateProductStock normal
-        console.log(
-          `[ProductModalState] Produit ${product.$id} déjà sync, update stock normal...`,
-        );
-        await updateProductStock(product.$id, JSON.stringify(newEntry));
+        await updateProductStock(this.product!.$id, JSON.stringify(newEntry));
       }
 
-      // Reset formulaire
-      forms.stock.quantity = null;
-      forms.stock.notes = "";
-      forms.stock.dateTime = new Date().toISOString();
+      this.forms.stock.quantity = null;
+      this.forms.stock.notes = "";
+      this.forms.stock.dateTime = new Date().toISOString();
     }, "Stock mis à jour");
   }
 
-  async function removeStock() {
-    if (!product) return;
+  async removeStock() {
+    if (!this.product) return;
 
     if (!confirm("Supprimer le stock actuel ?")) return;
 
-    await withLoading(async () => {
-      // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit
-      if (!product.isSynced) {
-        // Produit local : utiliser upsertProduct
-        console.log(
-          `[ProductModalState] Produit ${product.$id} local, suppression stock avec upsert...`,
-        );
-        await upsertProduct(product.$id, { stockReel: null }, (id) =>
-          productsStore.getEnrichedProductById(id),
+    await this.withLoading(async () => {
+      if (!this.product!.isSynced) {
+        await upsertProduct(this.product!.$id, { stockReel: null }, (id) =>
+          productsStore.getEnrichedProductById(id)
         );
       } else {
-        // Produit déjà sync : utiliser updateProductStock normal
-        console.log(
-          `[ProductModalState] Produit ${product.$id} déjà sync, suppression stock normal...`,
-        );
-        await updateProductStock(product.$id, null);
+        await updateProductStock(this.product!.$id, null);
       }
     }, "Stock supprimé");
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // ACTIONS - VOLUNTEERS & STORE (même pattern)
-  // ─────────────────────────────────────────────────────────────
+  async setWho(newWhoList: string[]) {
+    if (!this.product) return;
 
-  async function setWho(newWhoList: string[]) {
-    if (!product) return;
-
-    await withLoading(async () => {
-      // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit
-      if (!product.isSynced) {
-        // Produit local : utiliser upsertProduct pour créer sur Appwrite
-        console.log(
-          `[ProductModalState] Produit ${product.$id} local, création who avec upsert...`,
-        );
-        await upsertProduct(product.$id, { who: newWhoList }, (id) =>
-          productsStore.getEnrichedProductById(id),
+    await this.withLoading(async () => {
+      if (!this.product!.isSynced) {
+        await upsertProduct(this.product!.$id, { who: newWhoList }, (id) =>
+          productsStore.getEnrichedProductById(id)
         );
       } else {
-        // Produit déjà sync : utiliser updateProductWho normal
-        console.log(
-          `[ProductModalState] Produit ${product.$id} déjà sync, setWho normal...`,
-        );
-        await updateProductWho(product.$id, newWhoList);
+        await updateProductWho(this.product!.$id, newWhoList);
       }
     }, "Volontaires mis à jour");
   }
 
-  async function updateStore(storeInfo: StoreInfo) {
-    if (!product) return;
+  async updateStore(storeInfo: StoreInfo) {
+    if (!this.product) return;
 
-    await withLoading(async () => {
-      // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit
-      if (!product.isSynced) {
-        // Produit local : utiliser upsertProduct pour créer sur Appwrite
-        console.log(
-          `[ProductModalState] Produit ${product.$id} local, création store avec upsert...`,
-        );
+    await this.withLoading(async () => {
+      if (!this.product!.isSynced) {
         await upsertProduct(
-          product.$id,
+          this.product!.$id,
           { store: JSON.stringify(storeInfo) },
-          (id) => productsStore.getEnrichedProductById(id),
+          (id) => productsStore.getEnrichedProductById(id)
         );
       } else {
-        // Produit déjà sync : utiliser updateProductStore normal
-        console.log(
-          `[ProductModalState] Produit ${product.$id} déjà sync, update store normal...`,
-        );
-        await updateProductStore(product.$id, storeInfo);
+        await updateProductStore(this.product!.$id, storeInfo);
       }
     }, "Magasin mis à jour");
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // ACTIONS - OVERRIDE MANUEL
-  // ─────────────────────────────────────────────────────────────
+  async setOverride(overrideData: TotalNeededOverrideData) {
+    if (!this.product) return;
 
-  async function setOverride(overrideData: TotalNeededOverrideData) {
-    if (!product) return;
-
-    await withLoading(async () => {
-      if (!product.isSynced) {
-        // Produit local : utiliser upsertProduct pour créer sur Appwrite
-        console.log(
-          `[ProductModalState] Produit ${product.$id} local, création who avec upsert...`,
-        );
+    await this.withLoading(async () => {
+      if (!this.product!.isSynced) {
         await upsertProduct(
-          product.$id,
+          this.product!.$id,
           { totalNeededOverride: JSON.stringify(overrideData) },
-          (id) => productsStore.getEnrichedProductById(id),
+          (id) => productsStore.getEnrichedProductById(id)
         );
       } else {
-        await updateTotalOverride(product.$id, overrideData, true);
+        await updateTotalOverride(this.product!.$id, overrideData, true);
       }
     }, "Override appliqué");
   }
 
-  async function removeOverride() {
-    if (!product) return;
+  async removeOverride() {
+    if (!this.product) return;
 
-    if (
-      !confirm("Supprimer l'override manuel et revenir au calcul automatique ?")
-    )
+    if (!confirm("Supprimer l'override manuel et revenir au calcul automatique ?"))
       return;
 
-    await withLoading(async () => {
-      await removeTotalOverride(product.$id, true);
+    await this.withLoading(async () => {
+      await removeTotalOverride(this.product!.$id, true);
     }, "Override supprimé");
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // SAUVEGARDE GLOBALE - Méthode batch
-  // ─────────────────────────────────────────────────────────────
-  async function saveAllChanges() {
-    if (!product || !hasAnyChanges) return;
+  async saveAllChanges() {
+    if (!this.product || !this.hasAnyChanges) return;
 
-    await withLoading(async () => {
+    await this.withLoading(async () => {
       const batchUpdates: any = {};
 
-      // Collecter les changements
-      if (hasChanges.stock && forms.stock.quantity && forms.stock.unit) {
+      if (this.hasChanges.stock && this.forms.stock.quantity && this.forms.stock.unit) {
         const newEntry = {
-          quantity: forms.stock.quantity.toString(),
-          unit: forms.stock.unit,
-          notes: forms.stock.notes,
-          dateTime: forms.stock.dateTime,
+          quantity: this.forms.stock.quantity.toString(),
+          unit: this.forms.stock.unit,
+          notes: this.forms.stock.notes,
+          dateTime: this.forms.stock.dateTime,
         };
         batchUpdates.stockReel = JSON.stringify(newEntry);
       }
 
-      if (hasChanges.who) {
-        batchUpdates.who = forms.who;
+      if (this.hasChanges.who) {
+        batchUpdates.who = this.forms.who;
       }
 
-      if (hasChanges.store) {
+      if (this.hasChanges.store) {
         const storeInfo: StoreInfo = {
-          storeName: forms.store.name || "",
-          storeComment: forms.store.comment || undefined,
+          storeName: this.forms.store.name || "",
+          storeComment: this.forms.store.comment || undefined,
         };
         batchUpdates.storeInfo = storeInfo;
       }
 
-      // Utiliser la méthode batch pour tout mettre à jour en un appel
       if (Object.keys(batchUpdates).length > 0) {
-        await updateProductBatch(product.$id, batchUpdates, (id) =>
-          productsStore.getEnrichedProductById(id),
+        await updateProductBatch(this.product!.$id, batchUpdates, (id) =>
+          productsStore.getEnrichedProductById(id)
         );
 
-        // Mettre à jour le snapshot après sauvegarde
-        originalFormsSnapshot = {
-          purchase: { ...forms.purchase },
-          stock: { ...forms.stock },
-          store: { ...forms.store },
-          whoList: [...forms.who],
+        this.originalFormsSnapshot = {
+          purchase: { ...this.forms.purchase },
+          stock: { ...this.forms.stock },
+          store: { ...this.forms.store },
+          whoList: [...this.forms.who],
         };
       }
     }, "Modifications enregistrées");
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // RÉINITIALISATION DES FORMULAIRES - Appelé à la fermeture du modal
-  // ─────────────────────────────────────────────────────────────
-
-  function resetForms() {
-    // Réinitialiser les états UI
-    uiStates.overrideManagerEditMode = false;
-
-    // Réinitialiser l'état d'édition des purchases
-    editingPurchaseId = null;
-
-    // Réinitialiser l'initialisation pour forcer une réinitialisation complète
-    // lors de la prochaine ouverture du modal
-    initialized = false;
-
+  resetForms() {
+    this.uiStates.overrideManagerEditMode = false;
+    this.editingPurchaseId = null;
+    // Re-init forms with current product data
+    this.initForms();
     console.log("[ProductModalState] Formulaires et états UI réinitialisés");
   }
 
-  return {
-    // État UI
-    get loading() {
-      return loading;
-    },
-    get error() {
-      return error;
-    },
+  // Helpers
+  private async withLoading<T>(
+    operation: () => Promise<T>,
+    successMessage?: string
+  ): Promise<T | null> {
+    this.loading = true;
+    this.error = null;
+    try {
+      const result = await operation();
+      if (successMessage) {
+        this.showToast("success", successMessage);
+      }
+      return result;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Une erreur est survenue";
+      this.error = message;
+      this.showToast("error", message);
+      console.error("[ProductModalState]", err);
+      return null;
+    } finally {
+      this.loading = false;
+    }
+  }
 
-    // Données du produit (toujours fraîches du store)
-    get product() {
-      return product;
-    },
-    get recipes() {
-      return recipes;
-    },
-    get whoList() {
-      return whoList;
-    },
-    get stockParsed() {
-      return stockParsed;
-    },
-    get purchasesList() {
-      return purchasesList;
-    },
+  private showToast(type: "success" | "error", message: string) {
+    const event = new CustomEvent("toast", {
+      detail: { type, message },
+    });
+    window.dispatchEvent(event);
+  }
 
-    // État d'édition
-    get editingPurchaseId() {
-      return editingPurchaseId;
-    },
-    get editingPurchaseData() {
-      return editingPurchaseData;
-    },
-
-    // Formulaires locaux
-    forms,
-
-    // États UI pour les composants
-    get uiStates() {
-      return uiStates;
-    },
-
-    // Gestion de l'onglet courant
-    get currentTab() {
-      return currentTab;
-    },
-    setCurrentTab(tab: string) {
-      currentTab = tab;
-    },
-
-    // Actions
-    addPurchase,
-    startEditPurchase,
-    cancelEditPurchase,
-    updateEditedPurchase,
-    removePurchase,
-    setStock,
-    removeStock,
-    setWho,
-    updateStore,
-    setOverride,
-    removeOverride,
-
-    // Sauvegarde globale et suivi des changements
-    saveAllChanges,
-    get hasChanges() {
-      return hasChanges;
-    },
-    get hasAnyChanges() {
-      return hasAnyChanges;
-    },
-
-    // Réinitialisation
-    resetForms,
-
-    // Utilitaires
-    formatQuantity,
-    formatDate,
-  };
+  // Utilitaires exposés
+  formatQuantity = formatQuantity;
+  formatDate = formatDate;
 }

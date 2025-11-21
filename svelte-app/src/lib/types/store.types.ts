@@ -303,6 +303,10 @@ export interface ProductModalStateType {
   // Utilitaires
   formatQuantity(quantity: number, unit: string): string;
   formatDate(dateString: string): string;
+
+  // Validation
+  readonly isPurchaseFormValid: boolean;
+  readonly isStockFormValid: boolean;
 }
 
 // Types pour les données brutes venant de Appwrite (non enrichies)

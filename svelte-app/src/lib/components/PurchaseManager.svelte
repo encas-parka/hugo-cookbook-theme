@@ -36,17 +36,6 @@
 
   let { modalState, isArchiveMode = false }: Props = $props();
 
-  // ✅ Validation inline - pas de $derived inutiles
-  function isAddFormValid(): boolean {
-    return (
-      modalState &&
-      modalState.forms &&
-      modalState.forms.purchase.quantity !== null &&
-      modalState.forms.purchase.quantity !== 0 &&
-      modalState.forms.purchase.unit?.trim() !== ""
-    );
-  }
-
   function isEditFormValid(purchase: Purchases): boolean {
     return (
       purchase.quantity !== null &&
@@ -60,7 +49,7 @@
 
   // ✅ Pas besoin d'intermédiaires - accès direct au state du modalState
   function handleAddPurchase() {
-    if (!isAddFormValid()) return;
+    if (!modalState.isPurchaseFormValid) return;
 
     // Définir la date de commande par défaut si c'est une commande
     if (
@@ -154,7 +143,7 @@
           <button
             class="btn btn-primary btn-sm"
             onclick={handleAddPurchase}
-            disabled={modalState.loading || !isAddFormValid()}
+            disabled={modalState.loading || !modalState.isPurchaseFormValid}
           >
             {#if modalState.loading}
               <span class="loading loading-spinner loading-sm"></span>

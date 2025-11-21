@@ -10,7 +10,7 @@
   } from "@lucide/svelte";
 
   // Stores and Global States
-  import { createProductModalState } from "../stores/ProductModalState.svelte";
+  import { ProductModalState } from "../stores/ProductModalState.svelte";
 
   // Components
   import PurchaseManager from "./PurchaseManager.svelte";
@@ -30,25 +30,33 @@
     onClose: () => void;
   }>();
 
-  // 1. Déclarer l'état du modal. Il sera `null` au premier rendu.
-  let modalState = $derived(createProductModalState(productId, initialTab));
+  // 1. Déclarer l'état du modal.
+  // Utilisation d'un état local qui sera recréé quand l'ID change
+  let modalState = $state<ProductModalState | null>(null);
+
+  $effect(() => {
+    // Créer une nouvelle instance d'état quand le productId change
+    // Cela nettoie implicitement les effets de l'instance précédente car
+    // l'effet parent (celui-ci) est ré-exécuté.
+    modalState = new ProductModalState(productId, initialTab);
+  });
 
   // Mode archive si l'événement est passé
   let isArchiveMode = $derived(productsStore.isEventPassed);
 
   function handleTabClick(tab: string) {
-    modalState.setCurrentTab(tab);
+    modalState?.setCurrentTab(tab);
   }
 
   function saveAllAndClose() {
-    modalState.saveAllChanges().then(() => {
-      modalState.resetForms();
+    modalState?.saveAllChanges().then(() => {
+      modalState?.resetForms();
       onClose();
     });
   }
 
   function handleModalClose() {
-    modalState.resetForms();
+    modalState?.resetForms();
     onClose();
   }
 </script>

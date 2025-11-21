@@ -32,9 +32,6 @@
     }));
   });
 
-  // Validation : utiliser le suivi des changements du modalState
-  const isFormValid = $derived(modalState?.hasChanges?.who || false);
-
   function handleAddVolunteer(name: string) {
     const trimmedName = name.trim();
     if (trimmedName && !modalState.forms.who.includes(trimmedName)) {
