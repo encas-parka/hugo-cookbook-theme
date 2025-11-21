@@ -62,6 +62,7 @@ import type {
     TotalNeededOverrideData,
 } from "../types/store.types";
 import { toastService } from "./toast.service.svelte";
+import { executeWithRetry } from "../utils/retry.utils";
 
 // =============================================================================
 // TYPES INTERNE (utilise les types générés automatiquement ??)
@@ -1324,17 +1325,31 @@ export async function batchUpdateProducts(
       `[Appwrite Interactions] Lancement mise à jour groupée: ${data.productIds.length} produits, type: ${data.updateType}`,
     );
 
-    const execution = await functions.createExecution(
-      config.APPWRITE_CONFIG.functions.batchUpdate,
-      JSON.stringify(payload),
-      false, // async = false pour attendre le résultat
-      "/",
-      "POST",
+    // 🔄 RETRY LOGIC for the Appwrite function execution
+    const execution = await executeWithRetry<Models.Execution>(
+      () => functions.createExecution(
+        config.APPWRITE_CONFIG.functions.batchUpdate,
+        JSON.stringify(payload),
+        false, // async = false pour attendre le résultat
+        "/",
+        "POST",
+      ),
+      {
+        operationName: `batchUpdateProducts (${data.productIds.length} products, type: ${data.updateType})`,
+        maxAutoRetries: 1,
+        autoRetryDelay: 2000,
+      }
     );
+
+    if (!execution) {
+      // This case should ideally be handled by executeWithRetry throwing an error
+      // if all retries fail, but added for explicit safety.
+      throw new Error("Opération annulée ou échouée après tentatives de mise à jour groupée");
+    }
 
     if (execution.status !== "completed") {
       throw new Error(
-        `Exécution échouée avec statut: ${execution.status}. Erreur: ${execution.stderr}`,
+        `Exécution échouée avec statut: ${execution.status}. Erreur: ${(execution as any).stderr || execution.responseBody}`,
       );
     }
 

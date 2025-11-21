@@ -218,7 +218,7 @@
         <div
           class="card bg-base-100 border-base-300 {product.status ===
           'isSyncing'
-            ? 'animate-pulse border-l-4 border-l-blue-500 bg-blue-50/40'
+            ? 'border-accent bg-accent/30 animate-pulse border-2'
             : ''}"
         >
           <div class="card-body p-2">

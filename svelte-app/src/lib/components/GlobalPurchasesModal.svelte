@@ -1,8 +1,20 @@
+<!-- 
+Modal de récapitulatif des dépenses 
+-->
 <script lang="ts">
   import { productsStore } from "../stores/ProductsStore.svelte";
-  import { createExpensePurchase, updatePurchase } from "../services/appwrite-interactions";
+  import {
+    createExpensePurchase,
+    updatePurchase,
+  } from "../services/appwrite-interactions";
   import type { Purchases } from "../types/appwrite";
-  import { BadgeEuro, PenLine, PenSquare, Plus, SquarePen } from "@lucide/svelte";
+  import {
+    BadgeEuro,
+    PenLine,
+    PenSquare,
+    Plus,
+    SquarePen,
+  } from "@lucide/svelte";
   import StoreInput from "./ui/StoreInput.svelte";
   import WhoInput from "./ui/WhoInput.svelte";
   import PriceInput from "./ui/PriceInput.svelte";
@@ -21,16 +33,16 @@
     notes: "",
     who: "",
   });
-  
+
   let editingPurchaseId = $state<string | null>(null);
 
   // Initialiser "who" avec l'utilisateur courant
   $effect(() => {
     if (isOpen && !editingPurchaseId) {
-        const currentUser = localStorage.getItem("appwrite-user-name");
-        if (currentUser) {
-            newExpense.who = currentUser;
-        }
+      const currentUser = localStorage.getItem("appwrite-user-name");
+      if (currentUser) {
+        newExpense.who = currentUser;
+      }
     }
   });
 
@@ -96,27 +108,27 @@
     error = null;
 
     try {
-      const mainId = productsStore.currentMainId; 
+      const mainId = productsStore.currentMainId;
       if (!mainId) throw new Error("Aucun événement principal actif");
 
       if (editingPurchaseId) {
         // Mode Édition
         await updatePurchase(editingPurchaseId, {
-            price: newExpense.invoiceTotal,
-            invoiceTotal: newExpense.invoiceTotal,
-            store: newExpense.store,
-            notes: newExpense.notes,
-            who: newExpense.who
+          price: newExpense.invoiceTotal,
+          invoiceTotal: newExpense.invoiceTotal,
+          store: newExpense.store,
+          notes: newExpense.notes,
+          who: newExpense.who,
         });
       } else {
         // Mode Création
         await createExpensePurchase(
-            mainId,
-            undefined, // invoiceId auto-généré
-            newExpense.invoiceTotal,
-            newExpense.store,
-            newExpense.notes,
-            newExpense.who
+          mainId,
+          undefined, // invoiceId auto-généré
+          newExpense.invoiceTotal,
+          newExpense.store,
+          newExpense.notes,
+          newExpense.who,
         );
       }
 
@@ -144,10 +156,10 @@
 
   function startEdit(purchase: Purchases) {
     newExpense = {
-        invoiceTotal: purchase.invoiceTotal || purchase.price || 0,
-        store: purchase.store || "",
-        notes: purchase.notes || "",
-        who: purchase.who || "",
+      invoiceTotal: purchase.invoiceTotal || purchase.price || 0,
+      store: purchase.store || "",
+      notes: purchase.notes || "",
+      who: purchase.who || "",
     };
     editingPurchaseId = purchase.$id;
     showAddForm = true;
@@ -159,7 +171,7 @@
       day: "2-digit",
       month: "2-digit",
       hour: "2-digit",
-      minute: "2-digit"
+      minute: "2-digit",
     });
   }
 
@@ -169,74 +181,110 @@
 </script>
 
 <dialog class="modal {isOpen ? 'modal-open' : ''}">
-  <div class="modal-box w-11/12 max-w-5xl h-[90vh] flex flex-col p-0 bg-base-100">
+  <div
+    class="modal-box bg-base-100 flex h-[90vh] w-11/12 max-w-5xl flex-col p-0"
+  >
     <!-- Header -->
-    <div class="p-4 border-b border-base-300 flex justify-between items-center bg-base-200 sticky top-0 z-10">
-      <h3 class="font-bold text-lg flex items-center gap-2">
-      <BadgeEuro />
+    <div
+      class="border-base-300 bg-base-200 sticky top-0 z-10 flex items-center justify-between border-b p-4"
+    >
+      <h3 class="flex items-center gap-2 text-lg font-bold">
+        <BadgeEuro />
         Gestion des Dépenses
       </h3>
-      <button class="btn btn-sm btn-circle btn-ghost" onclick={() => (isOpen = false)}>✕</button>
+      <button
+        class="btn btn-sm btn-circle btn-ghost"
+        onclick={() => (isOpen = false)}>✕</button
+      >
     </div>
 
     <!-- Content -->
-    <div class="flex-1 overflow-y-auto p-4 space-y-6">
-      
+    <div class="flex-1 space-y-6 overflow-y-auto p-4">
       <!-- Stats Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="stats shadow bg-primary text-primary-content">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="stats bg-primary text-primary-content shadow">
           <div class="stat">
             <div class="stat-title text-primary-content/80">Total Global</div>
             <div class="stat-value">{formatPrice(stats.totalGlobal)}</div>
-            <div class="stat-desc text-primary-content/80">{purchases.length} transactions</div>
+            <div class="stat-desc text-primary-content/80">
+              {purchases.length} transactions
+            </div>
           </div>
         </div>
-        
+
         <!-- Breakdown Lists -->
-        <div class="card bg-base-200 shadow-sm p-4">
-            <h4 class="font-semibold mb-2 text-sm uppercase tracking-wider opacity-70">Par Magasin</h4>
-            <div class="overflow-y-auto max-h-24 text-sm space-y-1">
-                {#each Object.entries(stats.byStore).sort((a, b) => b[1] - a[1]) as [store, amount]}
-                    <div class="flex justify-between">
-                        <span>{store}</span>
-                        <span class="font-mono">{formatPrice(amount)}</span>
-                    </div>
-                {/each}
-            </div>
+        <div class="card bg-base-200 p-4 shadow-sm">
+          <h4
+            class="mb-2 text-sm font-semibold tracking-wider uppercase opacity-70"
+          >
+            Par Magasin
+          </h4>
+          <div class="max-h-24 space-y-1 overflow-y-auto text-sm">
+            {#each Object.entries(stats.byStore).sort((a, b) => b[1] - a[1]) as [store, amount]}
+              <div class="flex justify-between">
+                <span>{store}</span>
+                <span class="font-mono">{formatPrice(amount)}</span>
+              </div>
+            {/each}
+          </div>
         </div>
 
-        <div class="card bg-base-200 shadow-sm p-4">
-            <h4 class="font-semibold mb-2 text-sm uppercase tracking-wider opacity-70">Par Acheteur</h4>
-            <div class="overflow-y-auto max-h-24 text-sm space-y-1">
-                {#each Object.entries(stats.byWho).sort((a, b) => b[1] - a[1]) as [who, amount]}
-                    <div class="flex justify-between">
-                        <span>{who}</span>
-                        <span class="font-mono">{formatPrice(amount)}</span>
-                    </div>
-                {/each}
-            </div>
+        <div class="card bg-base-200 p-4 shadow-sm">
+          <h4
+            class="mb-2 text-sm font-semibold tracking-wider uppercase opacity-70"
+          >
+            Par Acheteur
+          </h4>
+          <div class="max-h-24 space-y-1 overflow-y-auto text-sm">
+            {#each Object.entries(stats.byWho).sort((a, b) => b[1] - a[1]) as [who, amount]}
+              <div class="flex justify-between">
+                <span>{who}</span>
+                <span class="font-mono">{formatPrice(amount)}</span>
+              </div>
+            {/each}
+          </div>
         </div>
       </div>
 
       <!-- Toolbar -->
-      <div class="flex justify-between items-center">
-        <h4 class="font-bold text-sm uppercase opacity-70">Liste des transactions</h4>
+      <div class="flex items-center justify-between">
+        <h4 class="text-sm font-bold uppercase opacity-70">
+          Liste des transactions
+        </h4>
         {#if !showAddForm}
-            <button class="btn btn-primary btn-sm" onclick={() => showAddForm = true}>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          <button
+            class="btn btn-primary btn-sm"
+            onclick={() => (showAddForm = true)}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="mr-1 h-4 w-4"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 4.5v15m7.5-7.5h-15"
+              />
             </svg>
             Ajouter une dépense
-            </button>
+          </button>
         {/if}
       </div>
 
       <!-- Add Expense Form -->
       {#if showAddForm}
-        <div class="card bg-base-200 shadow-md animate-in fade-in slide-in-from-top-4 duration-300">
+        <div
+          class="card bg-base-200 animate-in fade-in slide-in-from-top-4 shadow-md duration-300"
+        >
           <div class="card-body p-4">
-            <h4 class="card-title text-sm">{editingPurchaseId ? 'Modifier la dépense' : 'Nouvelle Dépense'}</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <h4 class="card-title text-sm">
+              {editingPurchaseId ? "Modifier la dépense" : "Nouvelle Dépense"}
+            </h4>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <PriceInput
                 bind:value={newExpense.invoiceTotal}
                 disabled={loading}
@@ -256,72 +304,122 @@
                 disabled={loading}
               />
             </div>
-            <div class="card-actions justify-end mt-2">
-              <button class="btn btn-sm btn-ghost" onclick={resetForm}>Annuler</button>
-              <button class="btn btn-sm btn-primary" onclick={handleAddOrUpdateExpense} disabled={loading}>
-                {#if loading}<span class="loading loading-spinner loading-xs"></span>{/if}
-                {editingPurchaseId ? 'Enregistrer' : 'Ajouter'}
+            <div class="card-actions mt-2 justify-end">
+              <button class="btn btn-sm btn-ghost" onclick={resetForm}
+                >Annuler</button
+              >
+              <button
+                class="btn btn-sm btn-primary"
+                onclick={handleAddOrUpdateExpense}
+                disabled={loading}
+              >
+                {#if loading}<span class="loading loading-spinner loading-xs"
+                  ></span>{/if}
+                {editingPurchaseId ? "Enregistrer" : "Ajouter"}
               </button>
             </div>
             {#if error}
-              <div class="text-error text-xs mt-2">{error}</div>
+              <div class="text-error mt-2 text-xs">{error}</div>
             {/if}
           </div>
         </div>
       {/if}
 
       <!-- Purchases Table -->
-      <div class="overflow-x-auto bg-base-100 rounded-lg border border-base-200">
-        <table class="table table-zebra table-xs w-full">
+      <div
+        class="bg-base-100 border-base-200 overflow-x-auto rounded-lg border"
+      >
+        <table class="table-zebra table-xs table w-full">
           <thead class="bg-base-200 sticky top-0">
             <tr>
-              <th class="cursor-pointer hover:bg-base-300" onclick={() => toggleSort("date")}>
-                Date {sortColumn === 'date' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+              <th
+                class="hover:bg-base-300 cursor-pointer"
+                onclick={() => toggleSort("date")}
+              >
+                Date {sortColumn === "date"
+                  ? sortDirection === "asc"
+                    ? "↑"
+                    : "↓"
+                  : ""}
               </th>
               <th>Description</th>
-              <th class="cursor-pointer hover:bg-base-300" onclick={() => toggleSort("store")}>
-                Magasin {sortColumn === 'store' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+              <th
+                class="hover:bg-base-300 cursor-pointer"
+                onclick={() => toggleSort("store")}
+              >
+                Magasin {sortColumn === "store"
+                  ? sortDirection === "asc"
+                    ? "↑"
+                    : "↓"
+                  : ""}
               </th>
-              <th class="cursor-pointer hover:bg-base-300" onclick={() => toggleSort("who")}>
-                Qui {sortColumn === 'who' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+              <th
+                class="hover:bg-base-300 cursor-pointer"
+                onclick={() => toggleSort("who")}
+              >
+                Qui {sortColumn === "who"
+                  ? sortDirection === "asc"
+                    ? "↑"
+                    : "↓"
+                  : ""}
               </th>
-              <th class="cursor-pointer hover:bg-base-300 text-right" onclick={() => toggleSort("amount")}>
-                Montant {sortColumn === 'amount' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+              <th
+                class="hover:bg-base-300 cursor-pointer text-right"
+                onclick={() => toggleSort("amount")}
+              >
+                Montant {sortColumn === "amount"
+                  ? sortDirection === "asc"
+                    ? "↑"
+                    : "↓"
+                  : ""}
               </th>
-              <th><PenLine size={14}/></th>
+              <th><PenLine size={14} /></th>
             </tr>
           </thead>
           <tbody>
             {#each displayedPurchases as purchase (purchase.$id)}
               <tr class="hover">
-                <td class="whitespace-nowrap">{formatDate(purchase.orderDate || purchase.$createdAt)}</td>
+                <td class="whitespace-nowrap"
+                  >{formatDate(purchase.orderDate || purchase.$createdAt)}</td
+                >
 
                 <td class="max-w-xs truncate">
-                    {#if purchase.status === 'expense'}
-                        <span class="italic text-base-content/70">{purchase.notes || "-"}</span>
-                    {:else}
-                        <span class="font-medium">{purchase['_productName'] || "Produit inconnu"}</span>
-                        {#if purchase.notes}
-                            <span class="text-xs text-base-content/50 ml-1">- {purchase.notes}</span>
-                        {/if}
+                  {#if purchase.status === "expense"}
+                    <span class="text-base-content/70 italic"
+                      >{purchase.notes || "-"}</span
+                    >
+                  {:else}
+                    <span class="font-medium"
+                      >{purchase["_productName"] || "Produit inconnu"}</span
+                    >
+                    {#if purchase.notes}
+                      <span class="text-base-content/50 ml-1 text-xs"
+                        >- {purchase.notes}</span
+                      >
                     {/if}
+                  {/if}
                 </td>
                 <td>{purchase.store || "-"}</td>
                 <td>{purchase.who || "-"}</td>
                 <td class="text-right font-mono font-bold">
-                    {formatPrice(purchase.invoiceTotal || purchase.price)}
+                  {formatPrice(purchase.invoiceTotal || purchase.price)}
                 </td>
                 <td>
-                    <button class="btn btn-ghost btn-square" onclick={() => startEdit(purchase)}>
-                        <SquarePen size={14}/>
-                    </button>
+                  <button
+                    class="btn btn-ghost btn-square"
+                    onclick={() => startEdit(purchase)}
+                  >
+                    <SquarePen size={14} />
+                  </button>
                 </td>
               </tr>
             {/each}
             {#if displayedPurchases.length === 0}
-                <tr>
-                    <td colspan="7" class="text-center py-8 text-base-content/50">Aucune dépense trouvée</td>
-                </tr>
+              <tr>
+                <td colspan="7" class="text-base-content/50 py-8 text-center"
+                  >Aucune dépense trouvée</td
+                >
+              </tr>
             {/if}
           </tbody>
         </table>
@@ -329,8 +427,12 @@
     </div>
 
     <!-- Footer -->
-    <div class="py-1 px-4 border-t border-base-300 bg-base-200 flex justify-between items-center sticky bottom-0 z-10">
-          <button class="btn btn-ghost ms-auto" onclick={() => (isOpen = false)}>Fermer</button>
+    <div
+      class="border-base-300 bg-base-200 sticky bottom-0 z-10 flex items-center justify-between border-t px-4 py-1"
+    >
+      <button class="btn btn-ghost ms-auto" onclick={() => (isOpen = false)}
+        >Fermer</button
+      >
     </div>
   </div>
   <form method="dialog" class="modal-backdrop">

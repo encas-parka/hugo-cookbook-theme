@@ -5,6 +5,8 @@
     type BatchUpdateResult,
   } from "../services/appwrite-interactions";
   import { productsStore } from "../stores/ProductsStore.svelte";
+  import { toastService } from "../services/toast.service.svelte";
+  import { globalState } from "../stores/GlobalState.svelte";
   import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
   import WhoInput from "./ui/WhoInput.svelte";
 
@@ -88,22 +90,31 @@
   });
 
   // Actions
+  // Actions
   async function handleSubmit() {
     if (!isFormValid || loading) return;
 
     error = null;
     result = null;
 
+    // Extraire les données depuis selectedBadgeItems
+    const selectedProductIds = selectedBadgeItems.map((item) => item.id);
+    const selectedProducts = products.filter((p) =>
+      selectedProductIds.includes(p.$id),
+    );
+
+    productsStore.setSyncStatus(selectedProductIds, true);
+
+    // Signaler l'opération en arrière-plan
+    globalState.backgroundOperation = {
+      isRunning: true,
+      name: `Mise à jour volontaires (${selectedProductIds.length} produits)`,
+      progress: 0,
+    };
+
+    onClose();
+
     try {
-      // Extraire les données depuis selectedBadgeItems
-      const selectedProductIds = selectedBadgeItems.map((item) => item.id);
-      const selectedProducts = products.filter((p) =>
-        selectedProductIds.includes(p.$id),
-      );
-
-      productsStore.setSyncStatus(selectedProductIds, true);
-      onClose();
-
       const updateResult = await batchUpdateWho(
         selectedProductIds,
         selectedProducts,
@@ -111,14 +122,17 @@
         "replace", // Mode fixe à "replace"
       );
 
-      result = updateResult;
-
       if (updateResult.success) {
         console.log(
           `[WhoEditModal] Mise à jour groupée réussie: ${updateResult.updatedCount} produits modifiés`,
         );
 
-        // Notifier le succès
+        // Notifier le succès via Toast
+        toastService.success(
+          `Volontaires mis à jour pour ${updateResult.updatedCount} produits.`,
+        );
+
+        // Notifier le succès callback optionnel
         onSuccess?.(updateResult);
       } else {
         throw new Error(updateResult.error || "Erreur lors de la mise à jour");
@@ -126,13 +140,21 @@
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Erreur inconnue";
-      error = errorMessage;
       console.error("[WhoEditModal] Erreur mise à jour:", err);
+
+      // Notifier l'erreur via Toast
+      toastService.error(`Erreur mise à jour volontaires: ${errorMessage}`);
 
       // 🔧 NETTOYAGE : Retirer le statut "isSyncing" en cas d'erreur
       productsStore.clearSyncStatus();
     } finally {
       loading = false;
+      // Reset background operation
+      globalState.backgroundOperation = {
+        isRunning: false,
+        name: "",
+        progress: 0,
+      };
     }
   }
 

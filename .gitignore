@@ -8,3 +8,8 @@ public/
 **/jsconfig.json
 node_modules/
 .directory
+
+# ignore for dev : svelte app buildé
+/static/dist/*  
+static/dist/assets/index.css
+static/dist/assets/index.js

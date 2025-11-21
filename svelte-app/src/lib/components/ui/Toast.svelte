@@ -47,12 +47,7 @@
 <!-- Conteneur de toasts DaisyUI CORRIGÉ -->
 <div class="toast {position} z-50">
   {#each toasts as toast (toast.id)}
-    <div
-      class="alert alert-{toast.state} max-w-sm {paddingClass} shadow-lg {toast.state ===
-      'error'
-        ? ''
-        : 'alert-soft'}"
-    >
+    <div class="alert alert-{toast.state} max-w-sm {paddingClass} shadow-lg">
       <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-2">
           {#if toast.state === "loading"}
@@ -63,6 +58,16 @@
         </div>
 
         <div class="flex items-center gap-1">
+          <!-- Bouton d'action personnalisé -->
+          {#if toast.action}
+            <button
+              class="btn btn-sm btn-primary"
+              onclick={toast.action.onClick}
+            >
+              {toast.action.label}
+            </button>
+          {/if}
+
           <!-- Bouton détails si disponible -->
           {#if toast.details}
             <button

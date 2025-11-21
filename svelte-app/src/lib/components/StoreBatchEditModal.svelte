@@ -2,6 +2,8 @@
   import { Store, X, Check, TriangleAlert } from "@lucide/svelte";
   import { batchUpdateStore } from "../services/appwrite-interactions";
   import { productsStore } from "../stores/ProductsStore.svelte";
+  import { toastService } from "../services/toast.service.svelte";
+  import { globalState } from "../stores/GlobalState.svelte";
   import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
   import Suggestions from "./ui/Suggestions.svelte";
   import StoreInput from "./ui/StoreInput.svelte";
@@ -84,24 +86,33 @@
   });
 
   // Actions
+  // Actions
   async function handleSubmit() {
     if (!isFormValid || loading) return;
 
     error = null;
     result = null;
 
+    // Extraire les données depuis selectedBadgeItems
+    const selectedProductIds = selectedBadgeItems.map((item) => item.id);
+    const selectedProducts = products.filter((p) =>
+      selectedProductIds.includes(p.$id),
+    );
+
+    // 🚀 UX IMMÉDIAT : Marquer les produits comme "isSyncing"
+    productsStore.setSyncStatus(selectedProductIds, true);
+
+    // Signaler l'opération en arrière-plan
+    globalState.backgroundOperation = {
+      isRunning: true,
+      name: `Mise à jour magasin (${selectedProductIds.length} produits)`,
+      progress: 0,
+    };
+
+    // ⚡ FERMER LE MODAL IMMÉDIATEMENT POUR UX
+    onClose();
+
     try {
-      // Extraire les données depuis selectedBadgeItems
-      const selectedProductIds = selectedBadgeItems.map((item) => item.id);
-      const selectedProducts = products.filter((p) =>
-        selectedProductIds.includes(p.$id),
-      );
-
-      // 🚀 UX IMMÉDIAT : Marquer les produits comme "isSyncing"
-      productsStore.setSyncStatus(selectedProductIds, true);
-      // ⚡ FERMER LE MODAL IMMÉDIATEMENT POUR UX
-      onClose();
-
       const storeInfo: StoreInfo = {
         storeName: storeName.trim(),
         storeComment: storeComment.trim(),
@@ -113,14 +124,17 @@
         storeInfo,
       );
 
-      result = updateResult;
-
       if (updateResult.success) {
         console.log(
           `[StoreEditModal] Mise à jour groupée réussie: ${updateResult.updatedCount} produits modifiés`,
         );
 
-        // Notifier le succès
+        // Notifier le succès via Toast
+        toastService.success(
+          `Magasin mis à jour pour ${updateResult.updatedCount} produits.`,
+        );
+
+        // Notifier le succès callback optionnel
         onSuccess?.(updateResult);
       } else {
         throw new Error(updateResult.error || "Erreur lors de la mise à jour");
@@ -128,13 +142,21 @@
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Erreur inconnue";
-      error = errorMessage;
       console.error("[StoreEditModal] Erreur mise à jour:", err);
+
+      // Notifier l'erreur via Toast
+      toastService.error(`Erreur mise à jour magasin: ${errorMessage}`);
 
       // 🔧 NETTOYAGE : Retirer le statut "isSyncing" en cas d'erreur
       productsStore.clearSyncStatus();
     } finally {
       loading = false;
+      // Reset background operation
+      globalState.backgroundOperation = {
+        isRunning: false,
+        name: "",
+        progress: 0,
+      };
     }
   }
 

@@ -35,6 +35,12 @@ class GlobalState {
   modal = $state({
     isOpen: false
   });
+
+  backgroundOperation = $state({
+    isRunning: false,
+    name: "",
+    progress: 0
+  });
 }
 
 

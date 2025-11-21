@@ -1,3 +1,4 @@
+<!-- Modal achat groupé -->
 <script lang="ts">
   import {
     TriangleAlert,
@@ -11,6 +12,8 @@
   } from "@lucide/svelte";
   import { createGroupPurchaseWithSync } from "../services/appwrite-transaction";
   import { productsStore } from "../stores/ProductsStore.svelte";
+  import { toastService } from "../services/toast.service.svelte";
+  import { globalState } from "../stores/GlobalState.svelte";
   import type { EnrichedProduct } from "../types/store.types";
   import { formatDateWdDayMonthShort } from "../utils/dateRange";
   import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
@@ -85,6 +88,7 @@
   });
 
   // Actions
+  // Actions
   async function handleSubmit() {
     if (!isFormValid || loading) return;
 
@@ -92,58 +96,64 @@
     error = null;
     result = null;
 
+    // Générer un ID de facture
+    const invoiceId = `FACTURE_${Date.now()}`;
+
+    // Marquer les produits comme "isSyncing"
+    const productIds = activeProducts.map((p) => p.$id);
+    productsStore.setSyncStatus(productIds, true);
+
+    // Signaler l'opération en arrière-plan
+    globalState.backgroundOperation = {
+      isRunning: true,
+      name: `Achat groupé (${activeProducts.length} produits)`,
+      progress: 0,
+    };
+
+    // Utiliser le service avec gestion de lots et sync automatique
+    const productsData: Array<{
+      productId: string;
+      isSynced: boolean;
+      productData: any;
+      missingQuantities: Array<{ q: number; u: string }>;
+    }> = [];
+
+    for (const product of activeProducts) {
+      const productModel = productsStore.getProductModelById(product.$id);
+      // Convertir les quantités négatives en positif pour les achats
+      const missingQuantities = (productModel?.stats.missingQuantities || [])
+        .filter((qty) => qty.q < 0) // Uniquement les quantités manquantes
+        .map((qty) => ({ ...qty, q: Math.abs(qty.q) })); // Convertir en positif
+
+      productsData.push({
+        productId: product.$id,
+        isSynced: product.isSynced,
+        productData: product, // Envoyer les données complètes du produit
+        missingQuantities,
+      });
+    }
+
+    // Préparer les données de facture
+    const invoiceData = {
+      invoiceId,
+      invoiceTotal: formData.expense || undefined,
+      store: formData.store.trim() || undefined,
+      notes:
+        formData.notes || `Achat groupé pour ${activeProducts.length} produits`,
+      who: formData.who.trim() || undefined,
+      // Passer le statut et la date de livraison des achats
+      purchaseStatus: formData.status || "delivered",
+      purchaseDeliveryDate: formData.deliveryDate || null,
+    };
+
+    console.log(
+      `[GroupPurchaseModal] Création achat groupé avec sync pour ${productsData.length} produits...`,
+    );
+
+    // FERMER LE MODAL IMMÉDIATEMENT POUR UX
+    onClose();
+
     try {
-      // Générer un ID de facture
-      const invoiceId = `FACTURE_${Date.now()}`;
-
-      // Marquer les produits comme "isSyncing"
-      const productIds = activeProducts.map((p) => p.$id);
-      productsStore.setSyncStatus(productIds, true);
-
-      // Utiliser le service avec gestion de lots et sync automatique
-      const productsData: Array<{
-        productId: string;
-        isSynced: boolean;
-        productData: any;
-        missingQuantities: Array<{ q: number; u: string }>;
-      }> = [];
-
-      for (const product of activeProducts) {
-        const productModel = productsStore.getProductModelById(product.$id);
-        // Convertir les quantités négatives en positif pour les achats
-        const missingQuantities = (productModel?.stats.missingQuantities || [])
-          .filter((qty) => qty.q < 0) // Uniquement les quantités manquantes
-          .map((qty) => ({ ...qty, q: Math.abs(qty.q) })); // Convertir en positif
-
-        productsData.push({
-          productId: product.$id,
-          isSynced: product.isSynced,
-          productData: product, // Envoyer les données complètes du produit
-          missingQuantities,
-        });
-      }
-
-      // Préparer les données de facture
-      const invoiceData = {
-        invoiceId,
-        invoiceTotal: formData.expense || undefined,
-        store: formData.store.trim() || undefined,
-        notes:
-          formData.notes ||
-          `Achat groupé pour ${activeProducts.length} produits`,
-        who: formData.who.trim() || undefined,
-        // Passer le statut et la date de livraison des achats
-        purchaseStatus: formData.status || "delivered",
-        purchaseDeliveryDate: formData.deliveryDate || null,
-      };
-
-      console.log(
-        `[GroupPurchaseModal] Création achat groupé avec sync pour ${productsData.length} produits...`,
-      );
-
-      // FERMER LE MODAL IMMÉDIATEMENT POUR UX
-      onClose();
-
       // Utiliser le nouveau service qui gère les lots et la synchronisation
       const batchResult = await createGroupPurchaseWithSync(
         productsStore.currentMainId!,
@@ -152,17 +162,16 @@
       );
 
       if (batchResult.success) {
-        result = {
-          purchases: batchResult.totalPurchasesCreated,
-          expense: batchResult.totalExpensesCreated > 0,
-          batches: batchResult.results.length,
-        };
-
         console.log(
           `[GroupPurchaseModal] Achat groupé créé avec succès: ${batchResult.totalProductsCreated} produits synchronisés, ${batchResult.totalPurchasesCreated} achats créés, ${batchResult.totalExpensesCreated} dépenses globales`,
         );
 
-        // Notifier le succès
+        // Notifier le succès via Toast car le modal est fermé
+        toastService.success(
+          `Achat groupé réussi ! ${batchResult.totalPurchasesCreated} achats créés.`,
+        );
+
+        // Notifier le succès callback optionnel
         onSuccess?.();
       } else {
         throw new Error(
@@ -172,13 +181,21 @@
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Erreur inconnue";
-      error = errorMessage;
       console.error("[GroupPurchaseModal] Erreur création achat groupé:", err);
+
+      // Notifier l'erreur via Toast car le modal est fermé
+      toastService.error(`Erreur achat groupé: ${errorMessage}`);
 
       // 🔧 NETTOYAGE : Retirer le statut "isSyncing" en cas d'erreur
       productsStore.clearSyncStatus();
     } finally {
       loading = false;
+      // Reset background operation
+      globalState.backgroundOperation = {
+        isRunning: false,
+        name: "",
+        progress: 0,
+      };
     }
   }
 
@@ -278,27 +295,24 @@
       <div class="space-y-4">
         <h4 class="font-medium">Détails de l'achat</h4>
 
-          <div class="items-top flex flex-wrap gap-4">
-            <!-- Magasin -->
-            <StoreInput
-              bind:value={formData.store}
-              suggestions={productsStore.uniqueStores}
-              disabled={loading}
-            />
+        <div class="items-top flex flex-wrap gap-4">
+          <!-- Magasin -->
+          <StoreInput
+            bind:value={formData.store}
+            suggestions={productsStore.uniqueStores}
+            disabled={loading}
+          />
 
-            <!-- Qui -->
-            <WhoInput
-              bind:value={formData.who}
-              suggestions={productsStore.uniqueWho}
-              disabled={loading}
-            />
+          <!-- Qui -->
+          <WhoInput
+            bind:value={formData.who}
+            suggestions={productsStore.uniqueWho}
+            disabled={loading}
+          />
 
-            <!-- Dépense -->
-            <PriceInput
-              bind:value={formData.expense}
-              disabled={loading}
-            />
-          </div>
+          <!-- Dépense -->
+          <PriceInput bind:value={formData.expense} disabled={loading} />
+        </div>
 
         <!-- Statut -->
         <StatusSelect
@@ -309,10 +323,7 @@
 
         <!-- Notes -->
         <div>
-          <CommentTextarea
-            bind:value={formData.notes}
-            disabled={loading}
-          />
+          <CommentTextarea bind:value={formData.notes} disabled={loading} />
         </div>
       </div>
 

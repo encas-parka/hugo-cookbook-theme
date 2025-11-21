@@ -596,6 +596,10 @@ class ProductsStore {
       const productsMap = await this.#idbCache.loadProducts();
 
       productsMap.forEach((product, id) => {
+        // 🔧 SANITIZATION: Reset transient status
+        if (product.status === "isSyncing") {
+          product.status = "active";
+        }
         this.#enrichedProducts.set(
           id, 
           new ProductModel(product, () => this.dateRange, () => this.#availableDates)
@@ -710,7 +714,14 @@ class ProductsStore {
       // Sauvegarder les produits
       const productsToSave = new Map<string, EnrichedProduct>();
 
-      this.#enrichedProducts.forEach((model, id) => productsToSave.set(id, $state.snapshot(model.data)));
+      this.#enrichedProducts.forEach((model, id) => {
+        const snapshot = $state.snapshot(model.data);
+        // 🔧 SANITIZATION: Ne jamais persister l'état transitoire
+        if (snapshot.status === "isSyncing") {
+          snapshot.status = "active";
+        }
+        productsToSave.set(id, snapshot);
+      });
       await this.#idbCache.saveProducts(productsToSave);
 
       // Sauvegarder les métadonnées
@@ -734,7 +745,14 @@ class ProductsStore {
     try {
       // Sauvegarder les produits
       const productsToSave = new Map<string, EnrichedProduct>();
-      this.#enrichedProducts.forEach((model, id) => productsToSave.set(id, $state.snapshot(model.data)));
+      this.#enrichedProducts.forEach((model, id) => {
+        const snapshot = $state.snapshot(model.data);
+        // 🔧 SANITIZATION: Ne jamais persister l'état transitoire
+        if (snapshot.status === "isSyncing") {
+          snapshot.status = "active";
+        }
+        productsToSave.set(id, snapshot);
+      });
       await this.#idbCache.saveProducts(productsToSave);
 
       // Sauvegarder les métadonnées
@@ -754,7 +772,14 @@ class ProductsStore {
     try {
       // Sauvegarder les produits
       const productsToSave = new Map<string, EnrichedProduct>();
-      this.#enrichedProducts.forEach((model, id) => productsToSave.set(id, $state.snapshot(model.data)));
+      this.#enrichedProducts.forEach((model, id) => {
+        const snapshot = $state.snapshot(model.data);
+        // 🔧 SANITIZATION: Ne jamais persister l'état transitoire
+        if (snapshot.status === "isSyncing") {
+          snapshot.status = "active";
+        }
+        productsToSave.set(id, snapshot);
+      });
       await this.#idbCache.saveProducts(productsToSave);
       // Sauvegarder toutes les métadonnées
       await this.#idbCache.updateLastSync(this.#lastSync);
@@ -781,7 +806,14 @@ class ProductsStore {
       const persistPromises = productIds
         .map((id) => this.#enrichedProducts.get(id)?.data)
         .filter((product) => product != null)
-        .map((product) => this.#idbCache!.upsertProduct($state.snapshot(product!)));
+        .map((product) => {
+          const snapshot = $state.snapshot(product!);
+          // 🔧 SANITIZATION: Ne jamais persister l'état transitoire
+          if (snapshot.status === "isSyncing") {
+            snapshot.status = "active";
+          }
+          return this.#idbCache!.upsertProduct(snapshot);
+        });
 
       if (persistPromises.length > 0) {
         await Promise.all(persistPromises);

@@ -1,6 +1,7 @@
 // =============================================================================
 // SERVICES D'ACHAT GROUPÉ AVEC SYNC
 // =============================================================================
+import { executeWithRetry } from "../utils/retry.utils";
 
 export interface GroupPurchaseProductData {
   productId: string;
@@ -252,6 +253,8 @@ export async function createGroupPurchaseWithSync(
   let totalPurchasesCreated = 0;
   let totalExpensesCreated = 0;
 
+
+  // ... (inside createGroupPurchaseWithSync loop)
   for (let i = 0; i < batches.length; i++) {
     const batch = batches[i];
     console.log(
@@ -260,7 +263,21 @@ export async function createGroupPurchaseWithSync(
 
     try {
       const batchData = await prepareBatchData(batch, invoiceData);
-      const result = await executeGroupPurchaseBatch(batchData);
+      
+      // 🔄 RETRY LOGIC
+      const result = await executeWithRetry(
+        () => executeGroupPurchaseBatch(batchData),
+        {
+          operationName: `Lot ${i + 1}/${batches.length}`,
+          maxAutoRetries: 1,
+          autoRetryDelay: 2000,
+        }
+      );
+
+      if (!result) {
+         throw new Error("Opération annulée ou échouée après tentatives");
+      }
+
       results.push(result);
 
       if (result.success) {

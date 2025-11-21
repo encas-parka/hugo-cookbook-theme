@@ -26,6 +26,11 @@ export interface Toast {
   timeoutId?: number;
   /** Détails optionnels pour affichage dans un modal */
   details?: any;
+  /** Action optionnelle (bouton) */
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 /**
@@ -44,6 +49,11 @@ export interface ToastOptions {
   autoCloseDelay?: number;
   /** Détails optionnels pour affichage dans un modal */
   details?: any;
+  /** Action optionnelle (bouton) */
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 /**
@@ -71,7 +81,7 @@ export class ToastService {
 
   /** Accès en lecture seule aux toasts */
   get toasts(): Toast[] {
-    return this.#toasts.sort((a, b) => b.timestamp - a.timestamp);
+    return [...this.#toasts].sort((a, b) => b.timestamp - a.timestamp);
   }
 
   /**
@@ -87,6 +97,7 @@ export class ToastService {
       source: options.source || "user",
       timeoutId: undefined,
       details: options.details,
+      action: options.action,
     };
 
     // Stratégie simple : 1 toast utilisateur + toasts secondaires
@@ -114,6 +125,7 @@ export class ToastService {
       state: updates.state || existingToast.state,
       message: updates.message || existingToast.message,
       source: updates.source || existingToast.source,
+      action: updates.action || existingToast.action,
     };
 
     // Nouvelle auto-fermeture si nécessaire
@@ -221,7 +233,7 @@ export class ToastService {
       return;
     }
 
-    const delay = toast.source === "realtime-other" ? 24000 : 23000;
+    const delay = toast.source === "realtime-other" ? 4000 : 2000;
 
     toast.timeoutId = setTimeout(() => {
       this.dismiss(toast.id);
