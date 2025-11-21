@@ -4,11 +4,6 @@ import type { Products, Purchases } from "../types/appwrite.d";
 import type { ProductRangeStats } from "../types/store.types";
 
 import { matchesFilters, type FiltersState, hasConversions } from "../utils/productsUtils";
-import {
-  calculateProductStatsForDateRange,
-  calculateProductStatsForExactDate,
-  calculateProductStatsForFullRange,
-} from "../utils/dateRange";
 import { sanitizePurchase } from "../utils/dataSanitization";
 import {
   createEnrichedProductFromAppwrite,
@@ -340,21 +335,25 @@ class ProductsStore {
     // Itération directe sur la Map interne (plus performant)
     for (const [id, model] of this.#enrichedProducts) {
       const product = model.data;
-      if (!product.byDate) continue;
+
+      const isManualProduct = !product.productHugoUuid;
+      // 2. On exclut si pas de byDate ET que ce n'est PAS un produit manuel
+      if (!product.byDate && !isManualProduct) continue;
 
       // Application des filtres utilisateur
       const matchesFiltersResult = matchesFilters(product, this.#filters);
       if (!matchesFiltersResult) continue;
 
       // Vérifier si le produit a des données dans la plage de dates
-      const hasDataInRange = Object.keys(product.byDate).some((dateStr) => {
-        const date = new Date(dateStr);
-        return date >= startDate && date <= endDate;
-      });
+      // Vérifier si le produit a des données dans la plage de dates
+      let hasDataInRange = false;
+      if (product.byDate) {
+        hasDataInRange = Object.keys(product.byDate).some((dateStr) => {
+          const date = new Date(dateStr);
+          return date >= startDate && date <= endDate;
+        });
+      }
 
-      // ✅ INCLURE AUSSI LES PRODUITS MANUELS (sans lien Hugo)
-      // Ils doivent toujours apparaître car ils ne dépendent pas des dates Hugo
-      const isManualProduct = product.productHugoUuid === null;
 
       if (hasDataInRange || isManualProduct) {
         filteredMap.set(id, model);
@@ -364,9 +363,6 @@ class ProductsStore {
     return filteredMap;
   });
 
-  // 🗑️ SUPPRIMÉ : productsStatsByDateRange
-  // La logique est maintenant déléguée à ProductModel.stats
-  // Cela évite de recalculer une Map géante à chaque changement
 
   /**
    * Statistiques des produits filtrés
