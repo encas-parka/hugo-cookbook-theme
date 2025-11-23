@@ -3,7 +3,8 @@
 backend:
   name: github
   repo: encas-parka/enka-cookbook-site
-  branch: sv-hugo-mig # DEV TEST
+  # branch: sv-hugo-mig # DEV TEST
+  branch: main
   auth_type: github
   automatic_deployments: false
   # Vérifier si ca marche bien : si un article est modifier plusieur fois avant d'etre mergé/publié, un seul commit avec rebased.
