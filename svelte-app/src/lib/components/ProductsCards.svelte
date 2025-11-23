@@ -513,7 +513,6 @@
                   <!-- Bouton d'achat désactivé pour dates passées -->
                   <button
                     class="btn btn-sm btn-disabled ms-auto opacity-50"
-                    onclick={() => productsStore.showPastDatesWarningIfNeeded()}
                     title="Contient des dates passées - achats non disponibles"
                     disabled
                   >
