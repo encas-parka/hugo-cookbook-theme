@@ -106,6 +106,7 @@ collections:
           required: false,
           hint: "Les brouillons ne sont pas publiés.",
         }
+      - { label: "Image", name: "img", widget: "image", required: false }
       - {
           required: false,
           hint: "Les brouillons ne sont pas publiés.",
@@ -367,6 +368,7 @@ collections:
               widget: "datetime",
               hint: "Jour ou le repas sera servis..",
               date_format: YYYY-MM-DD,
+              default: "{{now}}",
             }
 
           - {
