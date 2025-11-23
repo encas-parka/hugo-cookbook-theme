@@ -1,11 +1,12 @@
-import type { EnrichedProduct, ProductRangeStats } from "../types/store.types";
-import type { DateRange } from "../utils/dateRange";
+import type { EnrichedProduct, StoreInfo, ProductRangeStats } from "../types/store.types";
+import type { DateRange, ProductStatsForDateRange } from "../utils/dateRange";
 import {
   calculateProductStatsForDateRange,
   calculateProductStatsForExactDate,
   calculateProductStatsForFullRange,
   isFullRange,
 } from "../utils/dateRange";
+import type { DateRangeStore } from "../stores/DateRangeStore.svelte";
 
 /**
  * Modèle réactif pour un produit
@@ -14,20 +15,17 @@ import {
  */
 export class ProductModel {
   // Données brutes réactives
-  data = $state<EnrichedProduct>() as EnrichedProduct;
+  data = $state<EnrichedProduct>({} as EnrichedProduct);
   
   // Accès au contexte global (dateRange)
-  #dateRangeGetter: () => DateRange;
-  #availableDatesGetter: () => string[];
+  dateStore: DateRangeStore;
 
   constructor(
     initialData: EnrichedProduct, 
-    dateRangeGetter: () => DateRange,
-    availableDatesGetter: () => string[]
+    dateStore: DateRangeStore,
   ) {
     this.data = initialData;
-    this.#dateRangeGetter = dateRangeGetter;
-    this.#availableDatesGetter = availableDatesGetter;
+    this.dateStore = dateStore;
   }
 
   /**
@@ -59,29 +57,39 @@ export class ProductModel {
    * Ne se recalcule que si this.data change OU dateRange change
    */
   stats = $derived.by<ProductRangeStats>(() => {
-    const dateRange = this.#dateRangeGetter();
-    const availableDates = this.#availableDatesGetter();
+    const dateRange = this.dateStore.current;
+    const availableDates = this.dateStore.dates;
 
-    let productStats;
+    let productStats: ProductStatsForDateRange;
 
-    // 1. Cas spécial : Date unique
-    if (dateRange.start && dateRange.start === dateRange.end) {
-      productStats = calculateProductStatsForExactDate(
-        this.data,
-        dateRange.start,
-      );
-    }
-    // 2. Cas spécial : Plage complète
-    else if (isFullRange(dateRange, availableDates)) {
+    // 1. Cas "Plage complète" (toutes les dates)
+    // 🚀 OPTIMISATION : Utilise les données précalculées
+    if (this.dateStore.isFullRange) {
       productStats = calculateProductStatsForFullRange(
         this.data,
         availableDates,
       );
       // Dans le cas d'une plage complète, on ne garde que les dates présentes dans byDate
-      productStats.datesInSelectedRange = productStats.datesInSelectedRange.filter(
-        (date) => this.data.byDate && this.data.byDate[date],
+      if (productStats.datesInSelectedRange) {
+        productStats.datesInSelectedRange =
+          productStats.datesInSelectedRange.filter(
+            (date) => this.data.byDate && this.data.byDate[date],
+          );
+      }
+    }
+
+    // 2. Cas "Date unique" (optimisé)
+    else if (
+      dateRange.start &&
+      dateRange.end &&
+      dateRange.start === dateRange.end
+    ) {
+      productStats = calculateProductStatsForExactDate(
+        this.data,
+        dateRange.start,
       );
     }
+
     // 3. Plage partielle
     else if (dateRange.start && dateRange.end) {
       productStats = calculateProductStatsForDateRange(
@@ -90,7 +98,8 @@ export class ProductModel {
         dateRange.end,
       );
     }
-    // 4. Fallback
+
+    // 4. Fallback (vide)
     else {
       return {
         quantities: [],
@@ -116,16 +125,16 @@ export class ProductModel {
       nbRecipes: productStats.totalRecipesInRange,
       totalAssiettes: productStats.totalPortionsInRange,
 
-      // ✅ STOCK COHÉRENT
       stockResult: productStats.stockBalance,
       availableQuantities: productStats.availableStockQuantities,
       missingQuantities: productStats.missingStockQuantities,
+
       formattedMissingQuantities: productStats.missingStockFormatted,
       formattedAvailableQuantities: productStats.availableStockFormatted,
+
       hasAvailable: productStats.hasAvailableStock,
       hasMissing: productStats.hasMissingStock,
 
-      // 📅 Données directes
       concernedDates: productStats.datesInSelectedRange,
       recipesByDate: productStats.recipesByDate,
     };

@@ -85,7 +85,6 @@ export function getLastAvailableDate(dates: string[]): string | null {
   if (dates.length === 0) return null;
   return sortDates(dates).pop() ?? null;
 }
-
 /**
  * Récupère la première date à partir d'aujourd'hui
  */

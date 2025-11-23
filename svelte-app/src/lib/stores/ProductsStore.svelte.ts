@@ -46,6 +46,7 @@ import {
 } from "../services/hugo-sync-json";
 import { globalState } from "./GlobalState.svelte";
 import { ProductModel } from "../models/ProductModel.svelte";
+import { DateRangeStore } from "./DateRangeStore.svelte";
 /**
  * ProductsStore - Store principal de gestion des produits avec Svelte 5
  *
@@ -123,46 +124,33 @@ class ProductsStore {
   }
 
   // Gestion des dates
-  #availableDates = $state<string[]>([]);
-  dateRange = $state<DateRange>({
-    start: null,
-    end: null,
-  });
+  dateStore = new DateRangeStore();
 
-  /**
-   * 🚀 OPTIMISATION : Indique si l'événement est sur une seule date
-   * Permet aux composants d'adapter leur affichage et d'optimiser les calculs
-   */
+  // Delegation des propriétés pour compatibilité (ou usage direct via dateStore)
+  get dateRange() {
+    return this.dateStore.current;
+  }
 
-  hasSingleDateInRange = $derived<boolean>(
-    !!(this.dateRange.start && this.dateRange.start === this.dateRange.end),
-  );
+  get availableDates() {
+    return this.dateStore.dates;
+  }
 
-  hasSingleDateEvent = $derived<boolean>(this.#availableDates.length === 1);
+  // État de l'événement (Delegation)
+  get isEventPassed() {
+    return this.dateStore.isEventPassed;
+  }
 
-  // État de l'événement
-  isEventPassed = $derived.by<boolean>(() => {
-    if (this.#availableDates.length === 0) return true;
-    const lastDate = this.lastAvailableDate
-      ? new Date(this.lastAvailableDate)
-      : new Date();
-    lastDate.setHours(23, 59, 59, 999); // Fin de journée
-    return lastDate < new Date();
-  });
+  get hasSingleDateEvent() {
+    return this.dateStore.hasSingleDateEvent;
+  }
 
-  // État des dates partiellement passées
-  hasPastDatesInRange = $derived.by<boolean>(() => {
-    if (!this.dateRange.start || !this.dateRange.end) return false;
-    if (this.isEventPassed) return false; // Totalement passé = autre cas
+  get hasSingleDateInRange() {
+    return this.dateStore.hasSingleDateInRange;
+  }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Début de journée
-
-    const startDate = new Date(this.dateRange.start);
-
-    // Si le début de la plage est avant aujourd'hui ET qu'on n'est pas totalement dans le passé
-    return startDate < today;
-  });
+  get hasPastDatesInRange() {
+    return this.dateStore.hasPastDatesInRange;
+  }
 
   // Cache keys
   // #cacheKey: string | null = null;
@@ -242,98 +230,58 @@ class ProductsStore {
 
   // ====== Gestion des dates ======
   //
-  get availableDates() {
-    return this.#availableDates;
-  }
+  // ====== Gestion des dates (Delegation) ======
+  //
 
   /**
    * Définit la plage de dates avec validation intelligente
-   * Détermine automatiquement quelle date est start/end en fonction de leur ordre chronologique
    */
   setDateRange(date1: string | null, date2: string | null) {
-    if (!date1 && !date2) {
-      this.dateRange = { start: null, end: null };
-      return;
-    }
-
-    if (!date1 || !date2) {
-      // Un seul cas, on l'utilise pour les deux
-      this.dateRange = { start: date1 || date2, end: date1 || date2 };
-      return;
-    }
-
-    // Déterminer automatiquement start/end selon l'ordre chronologique
-    const start = new Date(date1) <= new Date(date2) ? date1 : date2;
-    const end = new Date(date1) >= new Date(date2) ? date1 : date2;
-
-    this.dateRange = { start, end };
+    this.dateStore.setRange(date1, date2);
   }
 
   /**
    * Vérifie si la plage de dates couvre toutes les dates disponibles
    */
   isFullRange() {
-    return isFullRange(this.dateRange, this.#availableDates);
+    return this.dateStore.isFullRange;
   }
 
   /**
    * Initialise automatiquement la plage de dates si elle est vide
    */
   private initializeDateRange() {
-    const range = initializeDateRange(this.#availableDates);
-    if (range) {
-      this.dateRange = range;
-    }
-    console.log(
-      `[ProductsStore] Date range initialized: ${this.dateRange.start} - ${this.dateRange.end}`,
-    );
+    this.dateStore.initializeSmartRange();
   }
 
   /**
    * Sélectionne toutes les dates à partir d'aujourd'hui
    */
   selectUpcomingDates() {
-    const range = createUpcomingDateRange(this.#availableDates);
-    if (range) {
-      this.dateRange = range;
-    }
+    this.dateStore.selectUpcoming();
   }
 
   /**
    * Vérifie si la plage de dates actuelle correspond aux dates à venir
    */
   isUpcomingRange() {
-    return isUpcomingRange(this.dateRange, this.#availableDates);
+    return this.dateStore.isUpcomingRange;
   }
 
   // Bornes calculées (dérivées)
   get firstAvailableDate() {
-    return getFirstAvailableDate(this.#availableDates);
+    return this.dateStore.firstAvailableDate;
   }
 
   get lastAvailableDate() {
-    return getLastAvailableDate(this.#availableDates);
+    return this.dateStore.lastAvailableDate;
   }
 
   /**
    * Sélectionne uniquement les dates futures à partir de demain
    */
   selectFutureDatesOnly() {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-
-    // Trouver la première date disponible à partir de demain
-    const futureDates = this.#availableDates.filter(
-      (date) => new Date(date) >= tomorrow,
-    );
-
-    if (futureDates.length > 0) {
-      this.dateRange = {
-        start: futureDates[0],
-        end: futureDates[futureDates.length - 1],
-      };
-    }
+    this.dateStore.selectFutureDatesOnly();
   }
   get realtimeConnected() {
     return this.#realtimeConnected;
@@ -570,14 +518,13 @@ class ProductsStore {
             enriched.$id,
             new ProductModel(
               enriched,
-              () => this.dateRange,
-              () => this.#availableDates,
+              this.dateStore,
             ),
           );
         });
 
         // Initialiser la plage de dates
-        this.#availableDates = [...hugoData.allDates]; // Copie pour éviter les références croisées
+        this.dateStore.setAvailableDates([...hugoData.allDates]);
 
         const mainDocument = await loadMainEventData(mainId);
 
@@ -654,8 +601,7 @@ class ProductsStore {
           id,
           new ProductModel(
             product,
-            () => this.dateRange,
-            () => this.#availableDates,
+            this.dateStore,
           ),
         );
       });
@@ -663,7 +609,7 @@ class ProductsStore {
       // Charger les métadonnées
       const metadata = await this.#idbCache.loadMetadata();
       this.#lastSync = metadata.lastSync;
-      this.#availableDates = [...metadata.allDates]; // Copie pour éviter les références croisées
+      this.dateStore.setAvailableDates([...metadata.allDates]);
       this.#hugoContentHash = metadata.hugoContentHash || null;
 
       console.log(
@@ -711,8 +657,7 @@ class ProductsStore {
             product.$id,
             new ProductModel(
               enriched,
-              () => this.dateRange,
-              () => this.#availableDates,
+              this.dateStore,
             ),
           );
         }
@@ -785,7 +730,7 @@ class ProductsStore {
       // Sauvegarder les métadonnées
       await this.#idbCache.saveMetadata({
         lastSync: this.#lastSync,
-        allDates: [...this.#availableDates], // Copie simple pour éviter les problèmes de clonage
+        allDates: [...this.dateStore.dates], // Copie simple pour éviter les problèmes de clonage
         hugoContentHash: this.#hugoContentHash,
       });
 
@@ -993,7 +938,7 @@ class ProductsStore {
       }
 
       // Mettre à jour les dates et le hash
-      this.#availableDates = [...newHugoData.allDates];
+      this.dateStore.setAvailableDates([...newHugoData.allDates]);
       this.#hugoContentHash = newHugoData.hugoContentHash;
 
       // Réinitialiser la plage de dates si nécessaire
@@ -1092,12 +1037,12 @@ class ProductsStore {
     if (existingModel) {
       existingModel.update(enriched);
     } else {
+      const allDates = this.dateStore.dates;
       this.#enrichedProducts.set(
         product.$id,
         new ProductModel(
           enriched,
-          () => this.dateRange,
-          () => this.#availableDates,
+          this.dateStore,
         ),
       );
     }
