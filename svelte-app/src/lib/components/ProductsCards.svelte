@@ -38,6 +38,7 @@
     CircleAlert,
   } from "@lucide/svelte";
   import Tooltip from "./ui/Tooltip.svelte";
+  import DateBadge from "./ui/DateBadge.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
   import { formatDateWdDayMonthShort } from "../utils/dateRange";
 
@@ -99,19 +100,6 @@
   const formatedEndDateRange = $derived(
     formatDateWdDayMonthShort(productsStore.dateStore.end),
   );
-
-  const formatedDateRange = $derived.by(() => {
-    if (productsStore.dateStore.start !== productsStore.dateStore.end) {
-      return (
-        "du " +
-        formatDateWdDayMonthShort(productsStore.dateStore.start) +
-        " au " +
-        formatDateWdDayMonthShort(productsStore.dateStore.end)
-      );
-    } else {
-      return "le " + formatDateWdDayMonthShort(productsStore.dateStore.start);
-    }
-  });
 
   // Dérivé pour déterminer si les boutons d'action doivent être affichés
   const shouldShowActionButtons = $derived(
@@ -306,31 +294,10 @@
                       {#each productInDateRange.concernedDates as date (date)}
                         {@const recipes =
                           productInDateRange.recipesByDate.get(date) || []}
-                        <!-- Wrapper avec tooltip si des recettes sont présentes -->
-                        {#if recipes.length > 0}
-                          <div
-                            class="tooltip"
-                            data-tip={recipes.map((r) => r.r).join(", ")}
-                          >
-                            <div
-                              class="badge badge-outline badge-sm hover:badge-primary"
-                            >
-                              {new Date(date).toLocaleDateString("fr-FR", {
-                                weekday: "short",
-                                day: "numeric",
-                              })}
-                            </div>
-                          </div>
-                        {:else}
-                          <div
-                            class="badge badge-outline badge-xs hover:badge-primary"
-                          >
-                            {new Date(date).toLocaleDateString("fr-FR", {
-                              weekday: "short",
-                              day: "numeric",
-                            })}
-                          </div>
-                        {/if}
+                        {@const dateDisplayInfo =
+                          productModel.data.dateDisplayInfo[date]}
+
+                        <DateBadge {dateDisplayInfo} {recipes} />
                       {/each}
                     </div>
                   </div>
@@ -398,16 +365,6 @@
                     {:else}
                       <div class="ml-1 text-sm font-medium">?</div>
                     {/if}
-                  </button>
-                </div>
-              {:else if productsStore.dateStore.hasPastDatesInRange}
-                <!-- Affichage lecture seule en mode partiellement passé -->
-                <div class="mx-4 flex gap-2 opacity-60">
-                  <button
-                    class="btn btn-ghost btn-xs"
-                    title="Période partiellement passée - cliquez pour voir les options"
-                  >
-                    <Clock size={16} />
                   </button>
                 </div>
               {:else}
@@ -508,15 +465,6 @@
                     {:else}
                       <CircleArrowRight size={18} />
                     {/if}
-                  </button>
-                {:else if productsStore.dateStore.hasPastDatesInRange && productInDateRange.hasMissing}
-                  <!-- Bouton d'achat désactivé pour dates passées -->
-                  <button
-                    class="btn btn-sm btn-disabled ms-auto opacity-50"
-                    title="Contient des dates passées - achats non disponibles"
-                    disabled
-                  >
-                    <CircleX size={24} />
                   </button>
                 {:else if shouldShowActionButtons}
                   <CircleCheckBig size={24} class="text-success ms-auto" />

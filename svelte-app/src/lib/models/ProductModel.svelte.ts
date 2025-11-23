@@ -1,4 +1,9 @@
-import type { EnrichedProduct, StoreInfo, ProductRangeStats } from "../types/store.types";
+import type {
+  EnrichedProduct,
+  StoreInfo,
+  ProductRangeStats,
+  DateDisplayInfo,
+} from "../types/store.types";
 import type { DateRange, ProductStatsForDateRange } from "../utils/dateRange";
 import {
   calculateProductStatsForDateRange,
@@ -15,14 +20,11 @@ import type { DateRangeStore } from "../stores/DateRangeStore.svelte";
 export class ProductModel {
   // Données brutes réactives
   data = $state<EnrichedProduct>({} as EnrichedProduct);
-  
+
   // Accès au contexte global (dateRange)
   dateStore: DateRangeStore;
 
-  constructor(
-    initialData: EnrichedProduct, 
-    dateStore: DateRangeStore,
-  ) {
+  constructor(initialData: EnrichedProduct, dateStore: DateRangeStore) {
     this.data = initialData;
     this.dateStore = dateStore;
   }
@@ -35,21 +37,51 @@ export class ProductModel {
   }
 
   // Proxies pour faciliter l'accès aux propriétés de data
-  get $id() { return this.data.$id; }
-  get productName() { return this.data.productName; }
-  get productType() { return this.data.productType; }
-  get storeInfo() { return this.data.storeInfo; }
-  get who() { return this.data.who; }
-  get pFrais() { return this.data.pFrais; }
-  get pSurgel() { return this.data.pSurgel; }
-  get status() { return this.data.status; }
-  get previousNames() { return this.data.previousNames; }
-  get purchases() { return this.data.purchases; }
-  get totalNeededOverrideParsed() { return this.data.totalNeededOverrideParsed; }
-  get displayMissingQuantity() { return this.data.displayMissingQuantity; }
-  get missingQuantityArray() { return this.data.missingQuantityArray; }
-  get isSynced() { return this.data.isSynced; }
-  get byDate() { return this.data.byDate; }
+  get $id() {
+    return this.data.$id;
+  }
+  get productName() {
+    return this.data.productName;
+  }
+  get productType() {
+    return this.data.productType;
+  }
+  get storeInfo() {
+    return this.data.storeInfo;
+  }
+  get who() {
+    return this.data.who;
+  }
+  get pFrais() {
+    return this.data.pFrais;
+  }
+  get pSurgel() {
+    return this.data.pSurgel;
+  }
+  get status() {
+    return this.data.status;
+  }
+  get previousNames() {
+    return this.data.previousNames;
+  }
+  get purchases() {
+    return this.data.purchases;
+  }
+  get totalNeededOverrideParsed() {
+    return this.data.totalNeededOverrideParsed;
+  }
+  get displayMissingQuantity() {
+    return this.data.displayMissingQuantity;
+  }
+  get missingQuantityArray() {
+    return this.data.missingQuantityArray;
+  }
+  get isSynced() {
+    return this.data.isSynced;
+  }
+  get byDate() {
+    return this.data.byDate;
+  }
 
   /**
    * Stats calculées dynamiquement pour ce produit

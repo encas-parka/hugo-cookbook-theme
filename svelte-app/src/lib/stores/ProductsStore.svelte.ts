@@ -392,6 +392,7 @@ class ProductsStore {
 
     // 🎯 TRI ALPHABÉTIQUE NATIF - grâce aux clés sémantiques !
     // Les clés sémantiques sont de la forme "nom-produit_uuid" donc trier directement sur $id
+    // TOCHECK [AI] : pourquoi sur $id ???
     const sortedProducts = relevantProducts.sort((a, b) =>
       a.$id.localeCompare(b.$id),
     );
@@ -723,6 +724,7 @@ class ProductsStore {
   }
   /**
    * Persiste les produits enrichis dans IndexedDB
+   * @legacy
    */
   async #persistToCache() {
     if (!this.#idbCache) return;
@@ -879,6 +881,38 @@ class ProductsStore {
       const result = await syncHugoData(currentProducts, newHugoData);
 
       console.log(`[ProductsStore  - hugo change] ${result.summary}`);
+
+      // 🔄 SYNCHRONISATION DES PRODUCTMODEL
+      // Mettre à jour les ProductModel existants avec les nouvelles données
+      for (const [id, updatedData] of currentProducts) {
+        const model = this.#enrichedProducts.get(id);
+        if (model) {
+          model.update(updatedData);
+        } else {
+          // Nouveau produit - créer un nouveau ProductModel directement
+          const newModel = new ProductModel(updatedData, this.dateStore);
+          this.#enrichedProducts.set(id, newModel);
+          console.log(`[ProductsStore] ✨ Nouveau ProductModel créé : ${id}`);
+        }
+      }
+
+      // Supprimer les ProductModel qui n'existent plus dans les données synchronisées
+      const idsToDelete = [];
+      for (const [id] of this.#enrichedProducts) {
+        if (!currentProducts.has(id)) {
+          idsToDelete.push(id);
+        }
+      }
+
+      // Supprimer en dehors de la boucle pour éviter les problèmes d'itération
+      for (const id of idsToDelete) {
+        this.#enrichedProducts.delete(id);
+        console.log(`[ProductsStore] 🗑️ ProductModel supprimé : ${id}`);
+      }
+
+      console.log(
+        `[ProductsStore] 🔄 Synchronisation terminée : ${currentProducts.size} produits synchronisés, ${this.#enrichedProducts.size} ProductModel actifs`,
+      );
 
       // Gérer les conflits d'override
       if (result.overrideConflicts.length > 0) {

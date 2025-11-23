@@ -176,6 +176,9 @@ export interface EnrichedProduct {
   displayTotalOverride: string; // Formaté pour UI depuis totalNeededOverride
   totalNeededOverrideParsed: TotalNeededOverrideData | null; // Parsé de totalNeededOverride
 
+  // Informations d'affichage des dates précalculées
+  dateDisplayInfo: Record<string, DateDisplayInfo>; // Map dateStr → displayInfo
+
   // Specs pour produits manuels
   specs: string | null;
   specsParsed: ManualSpecs | null;
@@ -185,6 +188,14 @@ export interface ManualSpecs {
   quantity?: NumericQuantity;
   pFrais?: boolean;
   pSurgel?: boolean;
+}
+
+/**
+ * Interface pour les informations d'affichage de date précalculées
+ */
+export interface DateDisplayInfo {
+  formattedDate: string; // Date formatée "lun 23"
+  timeIcon: "sun" | "moon" | "cloud" | null; // Icône horaire
 }
 
 /**

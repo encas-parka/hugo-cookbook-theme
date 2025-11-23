@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { Cloud, Sun, Moon } from "@lucide/svelte";
+  import {
+    Cloud,
+    Sun,
+    Moon,
+    CircleArrowDown,
+    CircleArrowRight,
+  } from "@lucide/svelte";
   import { formatDateDayMonthShort, getTimeIcon } from "../../utils/dateRange";
   import type { DateRangeStore } from "../../stores/DateRangeStore.svelte";
 
@@ -16,12 +22,8 @@
   // État local pour suivre la date survolée
   let hoveredDate = $state<string | null>(null);
 
-  let outSideDateRange = $state();
-
   function handleDateClick(clickedDate: string) {
-    if (localStart === clickedDate && localEnd === clickedDate) {
-      dateStore.selectAll();
-    } else if (localStart && new Date(clickedDate) < new Date(localStart)) {
+    if (localStart && new Date(clickedDate) < new Date(localStart)) {
       dateStore.setRange(clickedDate, localEnd);
     } else if (localEnd && new Date(clickedDate) > new Date(localEnd)) {
       dateStore.setRange(localStart, clickedDate);
@@ -38,13 +40,7 @@
       return { start: null, end: null };
     }
 
-    if (localStart === clickedDate && localEnd === clickedDate) {
-      // Sélectionne toutes les dates - utilise les bornes du store
-      return {
-        start: dateStore.firstAvailableDate,
-        end: dateStore.lastAvailableDate,
-      };
-    } else if (localStart && new Date(clickedDate) < new Date(localStart)) {
+    if (localStart && new Date(clickedDate) < new Date(localStart)) {
       // Étend le range vers le début
       return { start: clickedDate, end: localEnd };
     } else if (localEnd && new Date(clickedDate) > new Date(localEnd)) {
@@ -93,7 +89,7 @@
   }
 </script>
 
-<div class="flex flex-wrap gap-1">
+<div class="mb-2 flex flex-wrap gap-2">
   {#each dateStore.dates as date (date)}
     <button
       class="btn btn-sm btn-secondary {getDateButtonClass(date)}"
@@ -120,31 +116,29 @@
   </div>
 {:else}
   <!-- Événement en cours : afficher les boutons -->
-  <div class="flex flex-wrap justify-end gap-2">
-    <!-- Bouton "Dates à venir" -->
-    {#if dateStore.hasUpcomingDates && !dateStore.isUpcomingRange}
-      <button
-        class="btn btn-xs btn-link text-primary/80"
-        type="button"
-        onclick={() => dateStore.selectUpcoming()}
-      >
-        Dates à venir
-      </button>
-    {/if}
 
-    <!-- Bouton "Toutes les dates" -->
-    {#if !dateStore.isFullRange}
-      <button
-        class="btn btn-xs btn-link text-primary/80"
-        type="button"
-        onclick={() => dateStore.selectAll()}
-      >
-        Toutes les dates
-      </button>
-    {:else}
-      <div class="text-base-content/60 p-1 text-end text-xs italic">
-        toutes les dates sont incluses
-      </div>
-    {/if}
+  <div class="join my-2 ms-auto">
+    <button
+      type="button"
+      name="options"
+      class="join-item btn btn-sm {dateStore.isUpcomingRange
+        ? 'btn-soft btn-secondary'
+        : 'btn-ghost'}"
+      aria-label=" Dates à venir"
+      onclick={() => dateStore.selectUpcoming()}
+    >
+      Dates à venir
+    </button>
+    <button
+      type="button"
+      name="options"
+      class="join-item btn btn-sm {dateStore.isFullRange
+        ? 'btn-soft btn-secondary'
+        : 'btn-ghost'}"
+      aria-label=" Toutes les dates"
+      onclick={() => dateStore.selectAll()}
+    >
+      Toutes les dates
+    </button>
   </div>
 {/if}

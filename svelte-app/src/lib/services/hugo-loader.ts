@@ -10,6 +10,7 @@ import type {
   EnrichedProduct,
   NumericQuantity,
 } from "../types/store.types";
+import { calculateAllDateDisplayInfo } from "../utils/dateRange";
 
 export interface HugoIngredient {
   ingredientHugoUuid: string;
@@ -173,6 +174,10 @@ export function createEnrichedProductFromHugo(
   const { numeric: missingQuantityArray, display: displayMissingQuantity } =
     calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
 
+  // 🚀 NOUVEAU : Calculer les informations d'affichage des dates
+  const datesInProduct = Object.keys(ingredient.byDate || {});
+  const dateDisplayInfo = calculateAllDateDisplayInfo(datesInProduct);
+
   // ✅ Défauts Appwrite (vides localement)
   return {
     // Métadonnées
@@ -222,6 +227,7 @@ export function createEnrichedProductFromHugo(
     displayMissingQuantity,
     totalNeededOverrideParsed: null,
     displayTotalOverride: "",
+    dateDisplayInfo,
   };
 }
 

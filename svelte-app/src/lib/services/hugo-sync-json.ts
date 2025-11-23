@@ -4,12 +4,16 @@
  *
  * Objectif : Mettre à jour les données Hugo tout en préservant les données utilisateur
  *
- * Clé des produits : productSemanticKey (devient $id)
- * - Format : "nom-produit_uuid" (tri alphabétique natif)
- * - Cohérent avec Appwrite
+ * Clé des produits : productSemanticKey (cohérent avec $id Appwrite/IDB)
+ * - Format : "nom-produit_uuid_mainId" (identifiant unique par contexte)
+ * - Correspondance directe : productSemanticKey = $id dans toute la chaîne
  */
 
-import type { EnrichedProduct, TotalNeededOverrideData, NumericQuantity } from "../types/store.types";
+import type {
+  EnrichedProduct,
+  TotalNeededOverrideData,
+  NumericQuantity,
+} from "../types/store.types";
 import type { HugoEventData, HugoIngredient } from "./hugo-loader";
 import { createEnrichedProductFromHugo } from "./hugo-loader";
 import {
@@ -19,19 +23,19 @@ import {
   transformPurchasesToNumericQuantity,
   calculateAndFormatMissing,
 } from "../utils/productsUtils";
+import { calculateAllDateDisplayInfo } from "../utils/dateRange";
 import { updateTotalOverride } from "./appwrite-interactions";
-
 
 /**
  * Résultat de la synchronisation
  */
 export interface HugoSyncResult {
-  added: HugoIngredient[];                    // Nouveaux ingrédients
-  updated: string[];                          // Semantic keys mis à jour
-  removed: EnrichedProduct[];                 // Produits supprimés
-  mergedProductsUpdated: OverrideConflict[];  // Produits isMerged modifiés
-  overrideConflicts: OverrideConflict[];      // Conflits totalNeededOverride
-  summary: string;                            // Message pour l'utilisateur
+  added: HugoIngredient[]; // Nouveaux ingrédients
+  updated: string[]; // Semantic keys mis à jour
+  removed: EnrichedProduct[]; // Produits supprimés
+  mergedProductsUpdated: OverrideConflict[]; // Produits isMerged modifiés
+  overrideConflicts: OverrideConflict[]; // Conflits totalNeededOverride
+  summary: string; // Message pour l'utilisateur
 }
 
 /**
@@ -39,8 +43,8 @@ export interface HugoSyncResult {
  */
 export interface OverrideConflict {
   product: EnrichedProduct;
-  oldDisplayTotal: string;         // Ancien totalNeeded affiché
-  newDisplayTotal: string;         // Nouveau totalNeeded calculé
+  oldDisplayTotal: string; // Ancien totalNeeded affiché
+  newDisplayTotal: string; // Nouveau totalNeeded calculé
   currentOverride: TotalNeededOverrideData; // Override actuel
   semanticKey: string;
 }
@@ -51,10 +55,7 @@ export interface OverrideConflict {
 function requiresUserAttention(product: EnrichedProduct): boolean {
   // Seulement isMerged ou totalNeededOverride
   // Les purchases/stock/who sont juste préservés
-  return !!(
-    product.isMerged ||
-    product.totalNeededOverride
-  );
+  return !!(product.isMerged || product.totalNeededOverride);
 }
 
 /**
@@ -63,7 +64,7 @@ function requiresUserAttention(product: EnrichedProduct): boolean {
  */
 function hasQuantitiesChanged(
   oldQuantities: NumericQuantity[] | undefined,
-  newQuantities: NumericQuantity[]
+  newQuantities: NumericQuantity[],
 ): boolean {
   // Si undefined, considérer comme un changement
   if (!oldQuantities) return true;
@@ -93,26 +94,16 @@ function hasQuantitiesChanged(
  */
 export async function syncHugoData(
   localProducts: Map<string, EnrichedProduct>,
-  newHugoData: HugoEventData
+  newHugoData: HugoEventData,
 ): Promise<HugoSyncResult> {
-
   const result: HugoSyncResult = {
     added: [],
     updated: [],
     removed: [],
     mergedProductsUpdated: [],
     overrideConflicts: [],
-    summary: ""
+    summary: "",
   };
-
-  // ========================================
-  // Index par UUID pour retrouver les produits
-  // Clé = UUID Hugo, Valeur = semantic key
-  // ========================================
-  const uuidToSemanticKey = new Map<string, string>();
-  for (const [semanticKey, product] of localProducts) {
-    uuidToSemanticKey.set(product.productHugoUuid, semanticKey);
-  }
 
   // Set des semantic keys distantes pour détecter les suppressions
   const remoteSemanticKeys = new Set<string>();
@@ -121,15 +112,20 @@ export async function syncHugoData(
   // PHASE 1 : Traiter les ingrédients Hugo
   // ========================================
   for (const ingredient of newHugoData.ingredients) {
-    const semanticKey = ingredient.productSemanticKey ||
-                       `${newHugoData.mainGroup_id}_${ingredient.ingredientHugoUuid}`;
+    // ✅ CLÉ DIRECTE - productSemanticKey correspond au $id Appwrite/IDB
+    const semanticKey = ingredient.productSemanticKey;
+
+    if (!semanticKey) {
+      console.warn(
+        `[syncHugoData] Ingrédient sans productSemanticKey ignoré : ${ingredient.ingredientName}`,
+      );
+      continue;
+    }
 
     remoteSemanticKeys.add(semanticKey);
 
-    const existingSemanticKey = uuidToSemanticKey.get(ingredient.ingredientHugoUuid);
-    const localProduct = existingSemanticKey
-      ? localProducts.get(existingSemanticKey)
-      : undefined;
+    // ✅ RECHERCHE DIRECTE dans la Map des produits locaux
+    const localProduct = localProducts.get(semanticKey);
 
     if (!localProduct) {
       // NOUVEAU PRODUIT
@@ -137,17 +133,16 @@ export async function syncHugoData(
 
       const newProduct = createEnrichedProductFromHugo(
         ingredient,
-        newHugoData.mainGroup_id
+        newHugoData.mainGroup_id,
       );
       localProducts.set(newProduct.$id, newProduct);
-
     } else {
       // MISE À JOUR
 
       // Vérifier si les quantités ont réellement changé
       const hasChanged = hasQuantitiesChanged(
         localProduct.totalNeededRaw,
-        ingredient.totalNeededRaw
+        ingredient.totalNeededRaw,
       );
 
       if (hasChanged) {
@@ -167,7 +162,7 @@ export async function syncHugoData(
             oldDisplayTotal: oldTotal,
             newDisplayTotal: localProduct.displayTotalNeeded,
             currentOverride: localProduct.totalNeededOverrideParsed!,
-            semanticKey
+            semanticKey,
           });
         } else {
           // Mise à jour normale
@@ -191,10 +186,12 @@ export async function syncHugoData(
       result.removed.push(product);
 
       // Supprimer seulement si pas de données utilisateur à préserver
-      if (!requiresUserAttention(product) &&
-          !product.purchases?.length &&
-          !product.stockReel &&
-          !product.who?.length) {
+      if (
+        !requiresUserAttention(product) &&
+        !product.purchases?.length &&
+        !product.stockReel &&
+        !product.who?.length
+      ) {
         localProducts.delete(semanticKey);
       }
       // Sinon, le produit reste mais sera marqué comme obsolète
@@ -221,14 +218,15 @@ export async function syncHugoData(
  */
 function detectOverrideConflict(
   localProduct: EnrichedProduct,
-  remoteIngredient: HugoIngredient
+  remoteIngredient: HugoIngredient,
 ): OverrideConflict | null {
-
   // Pas de conflit si pas d'override
-  if (!localProduct.totalNeededOverride || !localProduct.totalNeededOverrideParsed) {
+  if (
+    !localProduct.totalNeededOverride ||
+    !localProduct.totalNeededOverrideParsed
+  ) {
     return null;
   }
-
 
   // Calculer le nouveau total
   const newTotalNeededArray = calculateGlobalTotal(remoteIngredient.byDate);
@@ -244,7 +242,7 @@ function detectOverrideConflict(
       oldDisplayTotal,
       newDisplayTotal,
       currentOverride: localProduct.totalNeededOverrideParsed,
-      semanticKey: localProduct.$id
+      semanticKey: localProduct.$id,
     };
   }
 
@@ -254,14 +252,16 @@ function detectOverrideConflict(
 /**
  * Traite les conflits d'override en mettant à jour Appwrite et les données locales
  */
-async function processOverrideConflicts(conflicts: OverrideConflict[]): Promise<void> {
+async function processOverrideConflicts(
+  conflicts: OverrideConflict[],
+): Promise<void> {
   for (const conflict of conflicts) {
     // Enrichir totalNeededOverride avec les nouvelles données
     const updatedOverride: TotalNeededOverrideData = {
       ...conflict.currentOverride,
       hasUnresolvedChangedSinceOverride: true,
       oldTotalDisplay: conflict.oldDisplayTotal,
-      newTotalDisplay: conflict.newDisplayTotal
+      newTotalDisplay: conflict.newDisplayTotal,
     };
 
     const updatedOverrideString = JSON.stringify(updatedOverride);
@@ -272,11 +272,13 @@ async function processOverrideConflicts(conflicts: OverrideConflict[]): Promise<
       await updateTotalOverride(
         conflict.product.$id,
         updatedOverride,
-        false  // putUpdatedBy: false
+        false, // putUpdatedBy: false
       );
-
     } catch (error) {
-      console.error(`Erreur lors de la mise à jour de l'override pour ${conflict.product.$id}:`, error);
+      console.error(
+        `Erreur lors de la mise à jour de l'override pour ${conflict.product.$id}:`,
+        error,
+      );
       // Continuer avec les autres conflits même si celui-ci échoue
     }
   }
@@ -288,7 +290,7 @@ async function processOverrideConflicts(conflicts: OverrideConflict[]): Promise<
  */
 function updateHugoData(
   localProduct: EnrichedProduct,
-  remoteIngredient: HugoIngredient
+  remoteIngredient: HugoIngredient,
 ): void {
   // ✅ Remplacer les données Hugo (statiques)
   localProduct.byDate = remoteIngredient.byDate;
@@ -311,14 +313,13 @@ function updateHugoData(
  * (Logique extraite de votre HugoDataMerger)
  */
 function recalculateDerivedData(product: EnrichedProduct): void {
-
   // Recalculer totalNeededArray
   product.totalNeededArray = calculateGlobalTotal(product.byDate);
   product.displayTotalNeeded = formatTotalQuantity(product.totalNeededArray);
 
   // Recalculer les quantités manquantes
   const totalPurchasesArray = calculateTotalQuantityArray(
-    transformPurchasesToNumericQuantity(product.purchases)
+    transformPurchasesToNumericQuantity(product.purchases),
   );
 
   const { numeric: missingQuantityArray, display: displayMissingQuantity } =
@@ -327,6 +328,10 @@ function recalculateDerivedData(product: EnrichedProduct): void {
   product.totalPurchasesArray = totalPurchasesArray;
   product.missingQuantityArray = missingQuantityArray;
   product.displayMissingQuantity = displayMissingQuantity;
+
+  // 🚀 NOUVEAU : Calculer les informations d'affichage des dates
+  const datesInProduct = Object.keys(product.byDate || {});
+  product.dateDisplayInfo = calculateAllDateDisplayInfo(datesInProduct);
 
   // Mettre à jour stockOrTotalPurchases
   product.stockOrTotalPurchases =
@@ -341,8 +346,14 @@ function recalculateDerivedData(product: EnrichedProduct): void {
 function generateSummary(result: HugoSyncResult): string {
   const parts: string[] = [];
 
-  if (result.added.length > 0 || result.updated.length > 0 || result.removed.length > 0) {
-    parts.push("Les recettes ou menus ont été modifiés depuis votre dernière consultation: ")
+  if (
+    result.added.length > 0 ||
+    result.updated.length > 0 ||
+    result.removed.length > 0
+  ) {
+    parts.push(
+      "Les recettes ou menus ont été modifiés depuis votre dernière consultation: ",
+    );
   }
   if (result.added.length > 0) {
     parts.push(`${result.added.length} nouveau(x) ingrédient(s)`);
@@ -354,19 +365,19 @@ function generateSummary(result: HugoSyncResult): string {
 
   if (result.overrideConflicts.length > 0) {
     parts.push(
-      `⚠️ ${result.overrideConflicts.length} quantité(s) personnalisée(s) à réviser`
+      `⚠️ ${result.overrideConflicts.length} quantité(s) personnalisée(s) à réviser`,
     );
   }
 
   if (result.mergedProductsUpdated.length > 0) {
     parts.push(
-      `🔀 ${result.mergedProductsUpdated.length} produit(s) fusionné(s) modifié(s)`
+      `🔀 ${result.mergedProductsUpdated.length} produit(s) fusionné(s) modifié(s)`,
     );
   }
 
   if (result.removed.length > 0) {
-    const withData = result.removed.filter(p =>
-      p.purchases?.length || p.stockReel || p.who?.length
+    const withData = result.removed.filter(
+      (p) => p.purchases?.length || p.stockReel || p.who?.length,
     ).length;
 
     if (withData > 0) {
@@ -376,7 +387,5 @@ function generateSummary(result: HugoSyncResult): string {
     }
   }
 
-  return parts.length > 0
-    ? parts.join(", ")
-    : "Aucune modification détectée";
+  return parts.length > 0 ? parts.join(", ") : "Aucune modification détectée";
 }

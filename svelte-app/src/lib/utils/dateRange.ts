@@ -45,12 +45,9 @@ export interface ProductStatsForDateRange {
   recipesByDate: Map<string, RecipeOccurrence[]>; // Recettes groupées par date
 }
 
-
-
 /**
  * Vérifie si un événement a une seule date
  */
-
 
 /**
  * Formate une date pour l'affichage (français)
@@ -78,10 +75,51 @@ export function getTimeIcon(dateStr: string): "sun" | "moon" | "cloud" | null {
   const date = new Date(dateStr);
   const hour = date.getHours(); // Utiliser l'heure locale
 
-  if (hour === 12) return "sun";
-  if (hour === 20) return "moon";
-  if (hour === 8) return "cloud";
+  // Plages horaires plus larges pour mieux correspondre aux repas
+  if (hour >= 11 && hour <= 13) return "sun"; // Midi (11-13h)
+  if (hour >= 19 && hour <= 21) return "moon"; // Soir (19-21h)
+  if (hour >= 7 && hour <= 9) return "cloud"; // Matin (7-9h)
   return null;
+}
+
+/**
+ * Calcule les informations d'affichage pour une date spécifique
+ * Combine le formatage de date et l'icône horaire
+ */
+export function calculateDateDisplayInfo(dateStr: string): {
+  formattedDate: string;
+  timeIcon: "sun" | "moon" | "cloud" | null;
+} {
+  const date = new Date(dateStr);
+
+  return {
+    formattedDate: date.toLocaleDateString("fr-FR", {
+      weekday: "short",
+      day: "numeric",
+    }),
+    timeIcon: getTimeIcon(dateStr),
+  };
+}
+
+/**
+ * Calcule les informations d'affichage pour toutes les dates d'un produit
+ */
+export function calculateAllDateDisplayInfo(
+  dates: string[],
+): Record<
+  string,
+  { formattedDate: string; timeIcon: "sun" | "moon" | "cloud" | null }
+> {
+  const dateDisplayInfo: Record<
+    string,
+    { formattedDate: string; timeIcon: "sun" | "moon" | "cloud" | null }
+  > = {};
+
+  for (const date of dates) {
+    dateDisplayInfo[date] = calculateDateDisplayInfo(date);
+  }
+
+  return dateDisplayInfo;
 }
 
 /**

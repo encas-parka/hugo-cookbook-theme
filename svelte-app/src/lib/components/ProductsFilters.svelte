@@ -14,6 +14,7 @@
   import { getProductTypeInfo } from "../utils/products-display";
   import TimelineRange from "./ui/TimelineRange.svelte";
   import Fieldset from "./ui/Fieldset.svelte";
+  import { slide } from "svelte/transition";
 
   const filters = $derived(productsStore.filters);
   const uniqueStores = $derived(productsStore.uniqueStores);
@@ -97,7 +98,7 @@
       <TimelineRange dateStore={productsStore.dateStore} />
 
       {#if productsStore.hasPastDatesInRange}
-        <div class="alert alert-warning">
+        <div class="alert alert-warning" transition:slide>
           Cette période contient des dates passées. Les achats ne sont plus
           possibles pour ces dates.
         </div>
