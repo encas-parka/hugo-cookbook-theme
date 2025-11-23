@@ -3,7 +3,11 @@ import { useDebounce } from "runed";
 import type { Products, Purchases } from "../types/appwrite.d";
 import type { ProductRangeStats } from "../types/store.types";
 
-import { matchesFilters, type FiltersState, hasConversions } from "../utils/productsUtils";
+import {
+  matchesFilters,
+  type FiltersState,
+  hasConversions,
+} from "../utils/productsUtils";
 import { sanitizePurchase } from "../utils/dataSanitization";
 import {
   createEnrichedProductFromAppwrite,
@@ -139,9 +143,25 @@ class ProductsStore {
   // État de l'événement
   isEventPassed = $derived.by<boolean>(() => {
     if (this.#availableDates.length === 0) return true;
-    const lastDate = this.lastAvailableDate ? new Date(this.lastAvailableDate) : new Date();
+    const lastDate = this.lastAvailableDate
+      ? new Date(this.lastAvailableDate)
+      : new Date();
     lastDate.setHours(23, 59, 59, 999); // Fin de journée
     return lastDate < new Date();
+  });
+
+  // État des dates partiellement passées
+  hasPastDatesInRange = $derived.by<boolean>(() => {
+    if (!this.dateRange.start || !this.dateRange.end) return false;
+    if (this.isEventPassed) return false; // Totalement passé = autre cas
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Début de journée
+
+    const startDate = new Date(this.dateRange.start);
+
+    // Si le début de la plage est avant aujourd'hui ET qu'on n'est pas totalement dans le passé
+    return startDate < today;
   });
 
   // Cache keys
@@ -204,7 +224,6 @@ class ProductsStore {
       this.filters.selectedTemperatures.length > 0
     );
   }
-
 
   get loading() {
     return this.#loading;
@@ -295,6 +314,27 @@ class ProductsStore {
   get lastAvailableDate() {
     return getLastAvailableDate(this.#availableDates);
   }
+
+  /**
+   * Sélectionne uniquement les dates futures à partir de demain
+   */
+  selectFutureDatesOnly() {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+
+    // Trouver la première date disponible à partir de demain
+    const futureDates = this.#availableDates.filter(
+      (date) => new Date(date) >= tomorrow,
+    );
+
+    if (futureDates.length > 0) {
+      this.dateRange = {
+        start: futureDates[0],
+        end: futureDates[futureDates.length - 1],
+      };
+    }
+  }
   get realtimeConnected() {
     return this.#realtimeConnected;
   }
@@ -307,7 +347,9 @@ class ProductsStore {
    * Conversion SvelteMap → Array pour les templates
    */
   enrichedProducts = $derived.by(() => {
-    const result = Array.from(this.#enrichedProducts.values()).map(m => m.data);
+    const result = Array.from(this.#enrichedProducts.values()).map(
+      (m) => m.data,
+    );
     console.log(
       `[ProductsStore] enrichedProducts recalculated: ${result.length} products`,
     );
@@ -354,7 +396,6 @@ class ProductsStore {
         });
       }
 
-
       if (hasDataInRange || isManualProduct) {
         filteredMap.set(id, model);
       }
@@ -363,15 +404,18 @@ class ProductsStore {
     return filteredMap;
   });
 
-
   /**
    * Statistiques des produits filtrés
    */
   stats = $derived.by(() => ({
     total: this.#enrichedProducts.size,
-    frais: Array.from(this.#enrichedProducts.values()).filter((p) => p.pFrais).length,
-    surgel: Array.from(this.#enrichedProducts.values()).filter((p) => p.pSurgel).length,
-    merged: Array.from(this.#enrichedProducts.values()).filter((p) => p.data.isMerged).length,
+    frais: Array.from(this.#enrichedProducts.values()).filter((p) => p.pFrais)
+      .length,
+    surgel: Array.from(this.#enrichedProducts.values()).filter((p) => p.pSurgel)
+      .length,
+    merged: Array.from(this.#enrichedProducts.values()).filter(
+      (p) => p.data.isMerged,
+    ).length,
   }));
 
   /**
@@ -385,7 +429,9 @@ class ProductsStore {
   });
 
   uniqueWho = $derived.by(() => {
-    const whos = Array.from(this.#enrichedProducts.values()).flatMap((p) => p.who || []);
+    const whos = Array.from(this.#enrichedProducts.values()).flatMap(
+      (p) => p.who || [],
+    );
     return [...new Set(whos)] as string[];
   });
 
@@ -521,8 +567,12 @@ class ProductsStore {
         // Ajouter à la SvelteMap
         enrichedProducts.forEach((enriched) => {
           this.#enrichedProducts.set(
-            enriched.$id, 
-            new ProductModel(enriched, () => this.dateRange, () => this.#availableDates)
+            enriched.$id,
+            new ProductModel(
+              enriched,
+              () => this.dateRange,
+              () => this.#availableDates,
+            ),
           );
         });
 
@@ -601,8 +651,12 @@ class ProductsStore {
           product.status = "active";
         }
         this.#enrichedProducts.set(
-          id, 
-          new ProductModel(product, () => this.dateRange, () => this.#availableDates)
+          id,
+          new ProductModel(
+            product,
+            () => this.dateRange,
+            () => this.#availableDates,
+          ),
         );
       });
 
@@ -649,13 +703,17 @@ class ProductsStore {
         );
         const enriched = this.#enrichProduct(product, existingModel?.data); // ← Préserve les données locales
         enriched.isSynced = true; // ✅ SYNC : Les produits venant d'Appwrite sont sync
-        
+
         if (existingModel) {
           existingModel.update(enriched);
         } else {
           this.#enrichedProducts.set(
-            product.$id, 
-            new ProductModel(enriched, () => this.dateRange, () => this.#availableDates)
+            product.$id,
+            new ProductModel(
+              enriched,
+              () => this.dateRange,
+              () => this.#availableDates,
+            ),
           );
         }
       });
@@ -888,7 +946,9 @@ class ProductsStore {
       // ✅ Synchronisation simplifiée
       // Convertir les models en Map de produits pour syncHugoData
       const currentProducts = new Map<string, EnrichedProduct>();
-      this.#enrichedProducts.forEach((model, id) => currentProducts.set(id, model.data));
+      this.#enrichedProducts.forEach((model, id) =>
+        currentProducts.set(id, model.data),
+      );
       const result = await syncHugoData(currentProducts, newHugoData);
 
       console.log(`[ProductsStore  - hugo change] ${result.summary}`);
@@ -1033,8 +1093,12 @@ class ProductsStore {
       existingModel.update(enriched);
     } else {
       this.#enrichedProducts.set(
-        product.$id, 
-        new ProductModel(enriched, () => this.dateRange, () => this.#availableDates)
+        product.$id,
+        new ProductModel(
+          enriched,
+          () => this.dateRange,
+          () => this.#availableDates,
+        ),
       );
     }
   }
@@ -1114,10 +1178,8 @@ class ProductsStore {
   async #applyPurchaseDeleted(purchaseId: string): Promise<string[]> {
     // Trouver et re-enrichir les produits affectés
     const affectedProducts = Array.from(this.#enrichedProducts.values())
-      .map(m => m.data)
-      .filter(
-        (p) => p.purchases?.some((pur) => pur.$id === purchaseId),
-      );
+      .map((m) => m.data)
+      .filter((p) => p.purchases?.some((pur) => pur.$id === purchaseId));
 
     affectedProducts.forEach((product) => {
       this.#upsertEnrichedProduct(product as any);
@@ -1292,7 +1354,7 @@ class ProductsStore {
         }
         // Si un purchase passe de "expense" à "lié" (peu probable mais possible), on le retire des orphelins
         if (this.#orphanPurchases.has(purchase.$id)) {
-            this.#orphanPurchases.delete(purchase.$id);
+          this.#orphanPurchases.delete(purchase.$id);
         }
 
         const affectedIds = await this.#applyPurchaseUpdated(purchase);
@@ -1536,18 +1598,25 @@ class ProductsStore {
 
   async #loadOrphanPurchases() {
     if (!this.#currentMainId) return;
-    
+
     try {
-      const { loadOrphanPurchases } = await import("../services/appwrite-interactions");
+      const { loadOrphanPurchases } = await import(
+        "../services/appwrite-interactions"
+      );
       const orphans = await loadOrphanPurchases(this.#currentMainId);
-      
-      orphans.forEach(purchase => {
+
+      orphans.forEach((purchase) => {
         this.#orphanPurchases.set(purchase.$id, purchase);
       });
-      
-      console.log(`[ProductsStore] ${orphans.length} dépenses globales chargées`);
+
+      console.log(
+        `[ProductsStore] ${orphans.length} dépenses globales chargées`,
+      );
     } catch (err) {
-      console.error("[ProductsStore] Erreur chargement dépenses globales:", err);
+      console.error(
+        "[ProductsStore] Erreur chargement dépenses globales:",
+        err,
+      );
     }
   }
 
@@ -1564,13 +1633,13 @@ class ProductsStore {
     for (const purchase of this.#orphanPurchases.values()) {
       const amount = purchase.invoiceTotal || purchase.price || 0;
       totalGlobal += amount;
-      
+
       const store = purchase.store || "Non défini";
       byStore[store] = (byStore[store] || 0) + amount;
-      
+
       const who = purchase.who || "Non défini";
       byWho[who] = (byWho[who] || 0) + amount;
-      
+
       allPurchases.push(purchase);
     }
 
@@ -1583,17 +1652,17 @@ class ProductsStore {
           // Ici on prend tout ce qui a un prix
           if (purchase.price) {
             totalGlobal += purchase.price;
-            
+
             const store = purchase.store || "Non défini";
             byStore[store] = (byStore[store] || 0) + purchase.price;
-            
+
             const who = purchase.who || "Non défini";
             byWho[who] = (byWho[who] || 0) + purchase.price;
-            
+
             // Enrichir l'achat avec le nom du produit pour l'affichage
             const purchaseWithProductName = {
-                ...purchase,
-                _productName: product.productName
+              ...purchase,
+              _productName: product.productName,
             };
             allPurchases.push(purchaseWithProductName);
           }
@@ -1603,16 +1672,16 @@ class ProductsStore {
 
     // Trier tous les achats par date (plus récent en premier)
     allPurchases.sort((a, b) => {
-        const dateA = new Date(a.orderDate || a.$createdAt).getTime();
-        const dateB = new Date(b.orderDate || b.$createdAt).getTime();
-        return dateB - dateA;
+      const dateA = new Date(a.orderDate || a.$createdAt).getTime();
+      const dateB = new Date(b.orderDate || b.$createdAt).getTime();
+      return dateB - dateA;
     });
 
     return {
       totalGlobal,
       byStore,
       byWho,
-      allPurchases
+      allPurchases,
     };
   });
 }

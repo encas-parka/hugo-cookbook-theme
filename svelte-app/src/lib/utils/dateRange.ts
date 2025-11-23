@@ -3,7 +3,12 @@
  * Fonctions réutilisables et testables sans état
  */
 
-import type { NumericQuantity, RecipeOccurrence, EnrichedProduct, ByDateEntry } from "../types/store.types";
+import type {
+  NumericQuantity,
+  RecipeOccurrence,
+  EnrichedProduct,
+  ByDateEntry,
+} from "../types/store.types";
 import { formatTotalQuantity, formatStockResult } from "./productsUtils";
 import { aggregateByUnit, subtractQuantities } from "./productsUtils";
 
@@ -296,7 +301,13 @@ export function calculateProductStatsForExactDate(
     requiredQuantities,
   );
   const availableStockQuantities = stockBalance.filter((item) => item.q > 0);
-  const missingStockQuantities = stockBalance.filter((item) => item.q < 0);
+
+  // Pour les dates passées : pas de manquants calculés
+  const today = new Date().toISOString().split("T")[0];
+  const isDatePassed = targetDate < today;
+  const missingStockQuantities = isDatePassed
+    ? []
+    : stockBalance.filter((item) => item.q < 0);
 
   return {
     requiredQuantities,
@@ -540,7 +551,13 @@ export function calculateProductStatsForDateRange(
     requiredQuantities,
   );
   const availableStockQuantities = stockBalance.filter((item) => item.q > 0);
-  const missingStockQuantities = stockBalance.filter((item) => item.q < 0);
+
+  // Pour les plages entièrement passées : pas de manquants calculés
+  const today = new Date().toISOString().split("T")[0];
+  const isRangeInPast = endDate < today;
+  const missingStockQuantities = isRangeInPast
+    ? []
+    : stockBalance.filter((item) => item.q < 0);
 
   return {
     requiredQuantities,
@@ -651,6 +668,6 @@ function isPurchaseAvailableInRange(
     return false;
   }
 
-  // L'achat est disponible si sa date de référence est dans la plage
-  return referenceDate >= startDate && referenceDate <= endDate;
+  // L'achat est disponible si sa date de référence est avant ou à la fin de la plage
+  return referenceDate <= endDate;
 }

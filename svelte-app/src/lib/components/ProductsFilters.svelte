@@ -99,6 +99,13 @@
         currentRange={productsStore.dateRange}
         onRangeChange={(start, end) => productsStore.setDateRange(start, end)}
       />
+
+      {#if productsStore.hasPastDatesInRange}
+        <div class="alert alert-warning">
+          Cette période contient des dates passées. Les achats ne sont plus
+          possibles pour ces dates.
+        </div>
+      {/if}
     </Fieldset>
   {/if}
 

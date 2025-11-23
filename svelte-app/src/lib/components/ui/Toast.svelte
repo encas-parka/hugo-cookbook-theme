@@ -2,6 +2,7 @@
   import {
     toastService,
     type Toast,
+    type ToastAction,
   } from "../../services/toast.service.svelte";
   import { X, LoaderCircle, ChevronDown } from "@lucide/svelte";
 
@@ -42,6 +43,10 @@
       details: toast.details,
     });
   }
+
+  function handleActionClick(toast: Toast, action: ToastAction) {
+    action.onClick();
+  }
 </script>
 
 <!-- Conteneur de toasts DaisyUI CORRIGÉ -->
@@ -58,14 +63,16 @@
         </div>
 
         <div class="flex items-center gap-1">
-          <!-- Bouton d'action personnalisé -->
-          {#if toast.action}
-            <button
-              class="btn btn-sm btn-primary"
-              onclick={toast.action.onClick}
-            >
-              {toast.action.label}
-            </button>
+          <!-- Boutons d'action personnalisés -->
+          {#if toast.actions && toast.actions.length > 0}
+            {#each toast.actions as action}
+              <button
+                class="btn btn-sm btn-primary"
+                onclick={() => handleActionClick(toast, action)}
+              >
+                {action.label}
+              </button>
+            {/each}
           {/if}
 
           <!-- Bouton détails si disponible -->
@@ -80,15 +87,15 @@
             </button>
           {/if}
 
-          <!-- Bouton de fermeture (erreurs uniquement) -->
-          {#if toast.state === "error" || !shouldAutoClose(toast.state)}
+          <!-- Bouton de fermeture (erreurs et warnings uniquement) -->
+          {#if toast.state === "error" || toast.state === "warning" || !shouldAutoClose(toast.state)}
             <button
-              class="btn btn-ghost btn-sm btn-square"
+              class="btn btn-ghost btn-sm btn-circle absolute top-1 right-1"
               onclick={() => dismiss(toast)}
               title="Fermer"
               aria-label="Fermer la notification"
             >
-              <X class="ms-1 h-4 w-4" />
+              <X class="h-4 w-4" />
             </button>
           {/if}
         </div>

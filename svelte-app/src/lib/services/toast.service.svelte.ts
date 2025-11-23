@@ -1,12 +1,20 @@
 /**
  * Types d'états des toasts
  */
-export type ToastState = "loading" | "success" | "error" | "info";
+export type ToastState = "loading" | "success" | "error" | "info" | "warning";
 
 /**
  * Source du toast
  */
 export type ToastSource = "user" | "realtime-other" | "system";
+
+/**
+ * Interface pour une action de toast
+ */
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
 
 /**
  * Interface pour un toast
@@ -26,11 +34,8 @@ export interface Toast {
   timeoutId?: number;
   /** Détails optionnels pour affichage dans un modal */
   details?: any;
-  /** Action optionnelle (bouton) */
-  action?: {
-    label: string;
-    onClick: () => void;
-  };
+  /** Actions optionnelles (boutons) */
+  actions?: ToastAction[];
 }
 
 /**
@@ -49,11 +54,8 @@ export interface ToastOptions {
   autoCloseDelay?: number;
   /** Détails optionnels pour affichage dans un modal */
   details?: any;
-  /** Action optionnelle (bouton) */
-  action?: {
-    label: string;
-    onClick: () => void;
-  };
+  /** Actions optionnelles (boutons) */
+  actions?: ToastAction[];
 }
 
 /**
@@ -97,7 +99,7 @@ export class ToastService {
       source: options.source || "user",
       timeoutId: undefined,
       details: options.details,
-      action: options.action,
+      actions: options.actions || [],
     };
 
     // Stratégie simple : 1 toast utilisateur + toasts secondaires
@@ -125,7 +127,7 @@ export class ToastService {
       state: updates.state || existingToast.state,
       message: updates.message || existingToast.message,
       source: updates.source || existingToast.source,
-      action: updates.action || existingToast.action,
+      actions: updates.actions || existingToast.actions,
     };
 
     // Nouvelle auto-fermeture si nécessaire
@@ -249,6 +251,19 @@ export class ToastService {
 
   error(message: string, details?: any): string {
     return this.create({ state: "error", message, details });
+  }
+
+  warning(
+    message: string,
+    options?: { source?: ToastSource; details?: any; actions?: ToastAction[] },
+  ): string {
+    return this.create({
+      state: "warning",
+      message,
+      source: options?.source || "system",
+      details: options?.details,
+      actions: options?.actions,
+    });
   }
 
   info(

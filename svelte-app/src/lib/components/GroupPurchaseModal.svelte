@@ -231,7 +231,7 @@
 <div class="modal modal-open">
   <div class="modal-box max-h-[90vh] max-w-4xl overflow-y-auto">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b pb-4">
+    <div class="mb-4 flex items-center justify-between border-b pb-4">
       <h3 class="flex items-center gap-2 text-lg font-semibold">
         <ShoppingCart class="h-5 w-5" />
         {title}
@@ -246,7 +246,7 @@
     </div>
 
     <!-- Contenu -->
-    <div class="space-y-6 py-6">
+    <div class="space-y-6">
       <!-- Erreur -->
       {#if error}
         <div class="alert alert-error">
@@ -309,10 +309,9 @@
             suggestions={productsStore.uniqueWho}
             disabled={loading}
           />
-
-          <!-- Dépense -->
-          <PriceInput bind:value={formData.expense} disabled={loading} />
         </div>
+        <!-- Dépense -->
+        <PriceInput bind:value={formData.expense} disabled={loading} />
 
         <!-- Statut -->
         <StatusSelect
@@ -328,8 +327,17 @@
       </div>
 
       <!-- Liste des produits -->
-      <div>
-        <h4 class="mb-3 font-medium">Produits concernés</h4>
+      <div class="mb-4">
+        <h4 class=" font-medium">Produits concernés</h4>
+        <div class="text-base-content/70 mb-4">
+          les quantités manquantes du <span class="badge badge-info badge-sm"
+            >{formatDateWdDayMonthShort(productsStore.dateRange.start)}</span
+          >
+          au
+          <span class="badge badge-info badge-sm"
+            >{formatDateWdDayMonthShort(productsStore.dateRange.start)}</span
+          > pour les produits suivant seront déclarés "acheté"
+        </div>
         <BtnGroupCheck
           items={badgeItems}
           onToggleItem={handleToggleProduct}

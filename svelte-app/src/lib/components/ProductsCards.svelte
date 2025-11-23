@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { Spanish } from "./../../../../assets/flatpickr/esm/l10n/es.js";
   import { productsStore } from "../stores/ProductsStore.svelte";
   // utils
   import {
@@ -113,6 +112,11 @@
       return "le " + formatDateWdDayMonthShort(productsStore.dateRange.start);
     }
   });
+
+  // Dérivé pour déterminer si les boutons d'action doivent être affichés
+  const shouldShowActionButtons = $derived(
+    !productsStore.isEventPassed && !productsStore.hasPastDatesInRange,
+  );
 </script>
 
 <div class="space-y-4 rounded-lg">
@@ -154,7 +158,7 @@
         </div>
 
         <!-- Actions groupées -->
-        {#if !productsStore.isEventPassed}
+        {#if shouldShowActionButtons}
           <div class="flex flex-wrap items-center justify-end gap-2">
             <button
               class="btn btn-sm btn-primary btn-soft"
@@ -199,6 +203,18 @@
                 <CircleCheckBig size={16} />
               </button>
             {/if}
+          </div>
+        {:else if productsStore.hasPastDatesInRange}
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <div
+              class="alert px-4 py-1"
+              title="Contient des dates passées - actions non disponibles"
+            >
+              <Clock size={16} />
+              <span class="hidden @md:block">
+                Période partiellement passée
+              </span>
+            </div>
           </div>
         {/if}
       </div>
@@ -321,7 +337,7 @@
               </div>
 
               <!-- Section droite: Store & Who (horizontal, wrap) -->
-              {#if !productsStore.isEventPassed}
+              {#if shouldShowActionButtons}
                 <div class="ml-4 flex gap-2">
                   <!-- Store -->
                   <button
@@ -383,6 +399,17 @@
                     {/if}
                   </button>
                 </div>
+              {:else if productsStore.hasPastDatesInRange}
+                <!-- Affichage lecture seule en mode partiellement passé -->
+                <div class="mx-4 flex gap-2 opacity-60">
+                  <button
+                    class="btn btn-ghost btn-xs"
+                    onclick={() => productsStore.showPastDatesWarningIfNeeded()}
+                    title="Période partiellement passée - cliquez pour voir les options"
+                  >
+                    <Clock size={16} />
+                  </button>
+                </div>
               {:else}
                 <!-- Affichage lecture seule en mode archive -->
                 <div class="mx-4 flex gap-2 opacity-60">
@@ -424,7 +451,7 @@
                   <div class="ms-auto flex items-center gap-4 self-end">
                     <div
                       class="text-base font-bold {productInDateRange.hasMissing &&
-                      !productsStore.isEventPassed
+                      shouldShowActionButtons
                         ? 'text-error'
                         : 'text-success'}"
                     >
@@ -463,7 +490,7 @@
                 </div>
 
                 <!-- Bouton d'achat rapide -->
-                {#if !productsStore.isEventPassed && productInDateRange.hasMissing}
+                {#if shouldShowActionButtons && productInDateRange.hasMissing}
                   <button
                     class="btn btn-sm btn-soft btn-accent hover:bg-success/70 hover:border-success/70 ms-auto"
                     onclick={(e) => {
@@ -482,10 +509,20 @@
                       <CircleArrowRight size={18} />
                     {/if}
                   </button>
-                {:else if !productsStore.isEventPassed}
+                {:else if productsStore.hasPastDatesInRange && productInDateRange.hasMissing}
+                  <!-- Bouton d'achat désactivé pour dates passées -->
+                  <button
+                    class="btn btn-sm btn-disabled ms-auto opacity-50"
+                    onclick={() => productsStore.showPastDatesWarningIfNeeded()}
+                    title="Contient des dates passées - achats non disponibles"
+                    disabled
+                  >
+                    <CircleX size={24} />
+                  </button>
+                {:else if shouldShowActionButtons}
                   <CircleCheckBig size={24} class="text-success ms-auto" />
                 {/if}
-                {#if !productsStore.isEventPassed && totalNeededOverride?.hasUnresolvedChangedSinceOverride}
+                {#if shouldShowActionButtons && totalNeededOverride?.hasUnresolvedChangedSinceOverride}
                   <div
                     id="override_alert"
                     class="alert alert-warning alert-soft mt-1 px-1 py-0.5"
@@ -516,7 +553,7 @@
                     Achats / Récup:
                   </div>
                   <div
-                    class="text-base-content/30 ms-4 text-xs italic opacity-100 transition-opacity {productsStore.isEventPassed
+                    class="text-base-content/30 ms-4 text-xs italic opacity-100 transition-opacity {!shouldShowActionButtons
                       ? ''
                       : 'group-hover:opacity-100'} sm:opacity-0"
                   >
