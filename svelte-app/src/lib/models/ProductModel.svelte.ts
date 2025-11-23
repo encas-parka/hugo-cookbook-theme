@@ -4,7 +4,6 @@ import {
   calculateProductStatsForDateRange,
   calculateProductStatsForExactDate,
   calculateProductStatsForFullRange,
-  isFullRange,
 } from "../utils/dateRange";
 import type { DateRangeStore } from "../stores/DateRangeStore.svelte";
 

@@ -14,15 +14,6 @@ import {
   updateExistingProduct,
 } from "../utils/productEnrichment";
 import { toastService } from "../services/toast.service.svelte";
-import {
-  initializeDateRange,
-  createUpcomingDateRange,
-  getFirstAvailableDate,
-  getLastAvailableDate,
-  isFullRange,
-  isUpcomingRange,
-  type DateRange,
-} from "../utils/dateRange";
 import type { EnrichedProduct, NumericQuantity } from "../types/store.types";
 
 import {
@@ -516,10 +507,7 @@ class ProductsStore {
         enrichedProducts.forEach((enriched) => {
           this.#enrichedProducts.set(
             enriched.$id,
-            new ProductModel(
-              enriched,
-              this.dateStore,
-            ),
+            new ProductModel(enriched, this.dateStore),
           );
         });
 
@@ -599,10 +587,7 @@ class ProductsStore {
         }
         this.#enrichedProducts.set(
           id,
-          new ProductModel(
-            product,
-            this.dateStore,
-          ),
+          new ProductModel(product, this.dateStore),
         );
       });
 
@@ -655,10 +640,7 @@ class ProductsStore {
         } else {
           this.#enrichedProducts.set(
             product.$id,
-            new ProductModel(
-              enriched,
-              this.dateStore,
-            ),
+            new ProductModel(enriched, this.dateStore),
           );
         }
       });
@@ -787,7 +769,7 @@ class ProductsStore {
       // Sauvegarder toutes les métadonnées
       await this.#idbCache.updateLastSync(this.#lastSync);
       // Créer une copie simple du tableau pour éviter l'erreur Proxy
-      await this.#idbCache.updateAllDates([...this.#availableDates]);
+      await this.#idbCache.updateAllDates([...this.availableDates]);
       await this.#idbCache.updateHugoContentHash(this.#hugoContentHash);
       console.log(
         "[ProductsStore] Cache IDB persisté avec métadonnées complètes",
@@ -1040,10 +1022,7 @@ class ProductsStore {
       const allDates = this.dateStore.dates;
       this.#enrichedProducts.set(
         product.$id,
-        new ProductModel(
-          enriched,
-          this.dateStore,
-        ),
+        new ProductModel(enriched, this.dateStore),
       );
     }
   }
@@ -1467,7 +1446,6 @@ class ProductsStore {
 
   async clearCache() {
     this.#enrichedProducts.clear();
-    this.#availableDates = [];
     this.#lastSync = null;
     if (this.#idbCache) {
       await this.#idbCache.clear();

@@ -94,28 +94,29 @@
   const filters = $derived(productsStore.filters);
 
   const formatedStartDateRange = $derived(
-    formatDateWdDayMonthShort(productsStore.dateRange.start),
+    formatDateWdDayMonthShort(productsStore.dateStore.start),
   );
   const formatedEndDateRange = $derived(
-    formatDateWdDayMonthShort(productsStore.dateRange.end),
+    formatDateWdDayMonthShort(productsStore.dateStore.end),
   );
 
   const formatedDateRange = $derived.by(() => {
-    if (productsStore.dateRange.start !== productsStore.dateRange.end) {
+    if (productsStore.dateStore.start !== productsStore.dateStore.end) {
       return (
         "du " +
-        formatDateWdDayMonthShort(productsStore.dateRange.start) +
+        formatDateWdDayMonthShort(productsStore.dateStore.start) +
         " au " +
-        formatDateWdDayMonthShort(productsStore.dateRange.end)
+        formatDateWdDayMonthShort(productsStore.dateStore.end)
       );
     } else {
-      return "le " + formatDateWdDayMonthShort(productsStore.dateRange.start);
+      return "le " + formatDateWdDayMonthShort(productsStore.dateStore.start);
     }
   });
 
   // Dérivé pour déterminer si les boutons d'action doivent être affichés
   const shouldShowActionButtons = $derived(
-    !productsStore.isEventPassed && !productsStore.hasPastDatesInRange,
+    !productsStore.dateStore.isEventPassed &&
+      !productsStore.dateStore.hasPastDatesInRange,
   );
 </script>
 
@@ -147,9 +148,9 @@
         </div>
 
         <div class="text-primary-content">
-          {#if productsStore.isFullRange()}
+          {#if productsStore.dateStore.isFullRange}
             <div class="font-semibold">Sur toute la période</div>
-          {:else if productsStore.dateRange.start !== productsStore.dateRange.end}
+          {:else if productsStore.dateStore.start !== productsStore.dateStore.end}
             du <span class="font-semibold">{formatedStartDateRange}</span> au
             <span class="font-semibold">{formatedEndDateRange}</span>
           {:else}
@@ -204,7 +205,7 @@
               </button>
             {/if}
           </div>
-        {:else if productsStore.hasPastDatesInRange}
+        {:else if productsStore.dateStore.hasPastDatesInRange}
           <div class="flex flex-wrap items-center justify-end gap-2">
             <div
               class="alert px-4 py-1"
@@ -399,12 +400,11 @@
                     {/if}
                   </button>
                 </div>
-              {:else if productsStore.hasPastDatesInRange}
+              {:else if productsStore.dateStore.hasPastDatesInRange}
                 <!-- Affichage lecture seule en mode partiellement passé -->
                 <div class="mx-4 flex gap-2 opacity-60">
                   <button
                     class="btn btn-ghost btn-xs"
-                    onclick={() => productsStore.showPastDatesWarningIfNeeded()}
                     title="Période partiellement passée - cliquez pour voir les options"
                   >
                     <Clock size={16} />
@@ -509,7 +509,7 @@
                       <CircleArrowRight size={18} />
                     {/if}
                   </button>
-                {:else if productsStore.hasPastDatesInRange && productInDateRange.hasMissing}
+                {:else if productsStore.dateStore.hasPastDatesInRange && productInDateRange.hasMissing}
                   <!-- Bouton d'achat désactivé pour dates passées -->
                   <button
                     class="btn btn-sm btn-disabled ms-auto opacity-50"

@@ -1,10 +1,4 @@
 import {
-  initializeDateRange,
-  createUpcomingDateRange,
-  getFirstAvailableDate,
-  getLastAvailableDate,
-  isFullRange,
-  isUpcomingRange,
   type DateRange,
 } from "../utils/dateRange";
 
@@ -29,6 +23,12 @@ export class DateRangeStore {
   get dates() {
     return this.#availableDates;
   }
+
+  // Bornes calculées (définies avant utilisation dans d'autres derived)
+  firstAvailableDate = $derived([...this.#availableDates].sort()[0]);
+  lastAvailableDate = $derived(
+    [...this.#availableDates].sort()[this.#availableDates.length - 1]
+  );
 
   // Objet range pour compatibilité (ou usage direct)
   get current(): DateRange {
@@ -58,7 +58,25 @@ export class DateRangeStore {
   );
 
   isUpcomingRange = $derived.by(() => {
-    return isUpcomingRange(this.current, this.#availableDates);
+    if (this.#availableDates.length === 0) return false;
+    const sortedDates = [...this.#availableDates].sort();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const firstUpcoming =
+      sortedDates.find((date) => new Date(date) >= today) || null;
+    let start, end;
+
+    if (!firstUpcoming) {
+      const lastDate = sortedDates[sortedDates.length - 1];
+      start = lastDate;
+      end = lastDate;
+    } else {
+      start = firstUpcoming;
+      end = sortedDates[sortedDates.length - 1];
+    }
+
+    return this.#start === start && this.#end === end;
   });
 
   hasSingleDateEvent = $derived(this.#availableDates.length === 1);
@@ -80,14 +98,7 @@ export class DateRangeStore {
     return startDate < today;
   });
 
-  // Bornes calculées
-  get firstAvailableDate() {
-    return getFirstAvailableDate(this.#availableDates);
-  }
 
-  get lastAvailableDate() {
-    return getLastAvailableDate(this.#availableDates);
-  }
 
   // Actions
   setAvailableDates(dates: string[]) {
@@ -125,10 +136,24 @@ export class DateRangeStore {
   }
 
   selectUpcoming() {
-    const range = createUpcomingDateRange(this.#availableDates);
-    if (range) {
-      this.#start = range.start;
-      this.#end = range.end;
+    if (this.#availableDates.length === 0) return;
+
+    const sortedDates = [...this.#availableDates].sort();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const firstUpcoming =
+      sortedDates.find((date) => new Date(date) >= today) || null;
+
+    if (!firstUpcoming) {
+      // Si aucune date future, on prend la dernière date disponible
+      const lastDate = sortedDates[sortedDates.length - 1];
+      this.#start = lastDate;
+      this.#end = lastDate;
+    } else {
+      // Sinon on prend du premier événement futur jusqu'au dernier
+      this.#start = firstUpcoming;
+      this.#end = sortedDates[sortedDates.length - 1];
     }
   }
 
@@ -149,13 +174,28 @@ export class DateRangeStore {
   }
 
   initializeSmartRange() {
-    const range = initializeDateRange(this.#availableDates);
-    if (range) {
-      this.#start = range.start;
-      this.#end = range.end;
+    if (this.#availableDates.length === 0) return;
+
+    const sortedDates = [...this.#availableDates].sort();
+    const eventPassed = this.isEventPassed;
+    const isFirstDatePassed = new Date(sortedDates[0]) < new Date();
+
+    const today = new Date();
+    let startDate: string;
+
+    if (eventPassed) {
+      startDate = sortedDates[0];
+    } else if (isFirstDatePassed) {
+      startDate = today.toISOString().slice(0, 19) + "Z";
+    } else {
+      startDate = sortedDates[0];
     }
+
+    this.#start = startDate;
+    this.#end = sortedDates[sortedDates.length - 1];
+
     console.log(
-      `[DateRangeStore] Initialized: ${this.#start} - ${this.#end}`
+      `[DateRangeStore] Initialized: ${this.#start} - ${this.#end}`,
     );
   }
 }

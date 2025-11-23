@@ -94,11 +94,7 @@
   </div>
   {#if !productsStore.hasSingleDateEvent}
     <Fieldset legend="Date incluses" bgClass="bg-base-100">
-      <TimelineRange
-        availableDates={productsStore.availableDates}
-        currentRange={productsStore.dateRange}
-        onRangeChange={(start, end) => productsStore.setDateRange(start, end)}
-      />
+      <TimelineRange dateStore={productsStore.dateStore} />
 
       {#if productsStore.hasPastDatesInRange}
         <div class="alert alert-warning">
