@@ -22,7 +22,7 @@
 
 <div class="tooltip" data-tip={recipes.map((r) => r.r).join(", ")}>
   <div
-    class="badge badge-outline badge-sm hover:badge-primary flex items-center gap-1"
+    class="badge badge-soft badge-sm hover:badge-primary flex items-center gap-1"
   >
     <span class="whitespace-nowrap">{dateDisplayInfo.formattedDate}</span>
 

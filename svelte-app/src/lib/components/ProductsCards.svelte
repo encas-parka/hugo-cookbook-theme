@@ -118,7 +118,7 @@
         class="bg-primary @container sticky top-0 z-2 flex flex-wrap items-center justify-between rounded-lg px-4 py-2 shadow-lg brightness-100 drop-shadow-xl @md:flex-nowrap"
       >
         <!-- Nom du groupe -->
-        <div class="flex items-center gap-2 font-semibold @md:min-w-48">
+        <div class="flex items-center gap-2 text-lg font-bold @md:min-w-48">
           {#if filters.groupBy === "store"}
             <div class="text-primary-content flex items-center gap-2">
               <Store size={20} />
@@ -497,7 +497,7 @@
                     class="text-base-content/80 flex items-center gap-2 text-sm font-medium"
                   >
                     <ShoppingCart class="h-4 w-4" />
-                    Achats / Récup:
+                    Achats / Récup effectués:
                   </div>
                   <div
                     class="text-base-content/30 ms-4 text-xs italic opacity-100 transition-opacity {!shouldShowActionButtons

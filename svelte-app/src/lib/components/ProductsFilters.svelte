@@ -60,37 +60,35 @@
         <X class="h-4 w-4" />
       </button>
     </div>
-    <!-- Groupement -->
   </div>
-  <div class="mb-4">
+  <!-- Groupement -->
+  <div class="mb-4 flex flex-col">
     <label class="label flex" for="grouping-select">
-      <span class="label-text">Groupement</span>
+      <span class="label-text">Groupement par:</span>
     </label>
-    <div class="join" id="grouping-select">
-      <input
-        class="join-item btn btn-sm md:btn-md"
-        type="radio"
-        name="grouping-options"
+    <div
+      class=" bg-base-100 flex gap-1 rounded-xl p-2 font-semibold"
+      id="grouping-select"
+    >
+      <button
+        class="btn flex-1 {filters.groupBy === 'none' && 'btn-secondary'}"
+        type="button"
         aria-label="Aucun"
-        checked={filters.groupBy === "none"}
-        onchange={() => productsStore.setGroupBy("none")}
-      />
-      <input
-        class="join-item btn btn-sm md:btn-md"
-        type="radio"
-        name="grouping-options"
+        onclick={() => productsStore.setGroupBy("none")}>Aucun</button
+      >
+      <button
+        class="btn flex-1 {filters.groupBy === 'store' && 'btn-secondary'}"
+        type="button"
         aria-label="Par magasin"
-        checked={filters.groupBy === "store"}
-        onchange={() => productsStore.setGroupBy("store")}
-      />
-      <input
-        class="join-item btn btn-sm md:btn-md"
-        type="radio"
-        name="grouping-options"
+        onclick={() => productsStore.setGroupBy("store")}>Magasins</button
+      >
+      <button
+        class="btn flex-1 {filters.groupBy === 'productType' &&
+          'btn-secondary'}"
+        type="button"
         aria-label="Par type"
-        checked={filters.groupBy === "productType"}
-        onchange={() => productsStore.setGroupBy("productType")}
-      />
+        onclick={() => productsStore.setGroupBy("productType")}>Type</button
+      >
     </div>
   </div>
   {#if !productsStore.hasSingleDateEvent}
