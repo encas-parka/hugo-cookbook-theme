@@ -16,6 +16,7 @@
   import OverrideConflictModal from "./lib/components/OverrideConflictModal.svelte";
   import { globalState } from "./lib/stores/GlobalState.svelte";
   import IngredientsTest from "./lib/components/IngredientsTest.svelte";
+  import RecipesTest from "./lib/components/RecipesTest.svelte";
 
   let mainId: string;
   let initError: string | null = $state(null);
@@ -203,7 +204,7 @@
       {:else if displayError}
         <ErrorAlert message={displayError} />
       {/if}
-      <IngredientsTest />
+      <RecipesTest />
 
       <!-- Liste des produits -->
       {#if productsStore.enrichedProducts.length > 0}

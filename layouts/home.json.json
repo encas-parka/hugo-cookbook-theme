@@ -22,8 +22,8 @@
   {{- if .Title -}}
     {{- $uuid := replaceRE "^.*_([a-z0-9]+)$" "$1" (path.Base .File.Dir) -}}
     {{- $typeEnum := 0 -}}
-    {{- if eq .Params.type "plat" -}}{{ $typeEnum = 1 }}{{- end -}}
-    {{- if eq .Params.type "dessert" -}}{{ $typeEnum = 2 }}{{- end -}}
+    {{- if eq .Params.typeR "plat" -}}{{ $typeEnum = 1 }}{{- end -}}
+    {{- if eq .Params.typeR "dessert" -}}{{ $typeEnum = 2 }}{{- end -}}
     
     {{/* Construct relative path to JSON file */}}
     {{- $relPath := printf "%srecipe.json" .RelPermalink -}}
