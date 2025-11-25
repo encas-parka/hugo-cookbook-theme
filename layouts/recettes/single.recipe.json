@@ -20,9 +20,20 @@
       {{- if $ingData -}}
         {{- $ingName = $ingData.title -}}
       {{- end -}}
+      
+      {{/* Gestion des quantités/unités manquantes (ex: sel, poivre) */}}
+      {{- $quantite := 1 -}}
+      {{- $unit := "ajuster" -}}
+      {{- if .quantite -}}
+        {{- $quantite = .quantite -}}
+      {{- end -}}
+      {{- if .unit -}}
+        {{- $unit = .unit -}}
+      {{- end -}}
+      
       {{- $conversion := partial "functions/quantite-converter.html" (dict 
-        "quantite" .quantite 
-        "unit" .unit 
+        "quantite" $quantite
+        "unit" $unit
         "ingredient" $ingName
       ) -}}
       {{- $allergenes := slice -}}
@@ -35,7 +46,7 @@
       {{- if .commentaire -}}
         {{- $comment = .commentaire -}}
       {{- end -}}
-[{{ $ingUUID | jsonify }}, {{ .quantite }}, {{ .unit | jsonify }}, {{ $conversion.quantiteEq }}, {{ $conversion.unitEq | jsonify }}, {{ $comment | jsonify }}, {{ $allergenes | jsonify }}, {{ $ingType | jsonify }}]
+[{{ $ingUUID | jsonify }}, {{ $quantite }}, {{ $unit | jsonify }}, {{ $conversion.quantiteEq }}, {{ $conversion.unitEq | jsonify }}, {{ $comment | jsonify }}, {{ $allergenes | jsonify }}, {{ $ingType | jsonify }}]
     {{- end -}}
   ],
   "preparation": {{ .Params.preparation | jsonify }}

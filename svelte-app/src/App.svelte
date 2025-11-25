@@ -208,7 +208,7 @@
 
       <!-- Liste des produits -->
       {#if productsStore.enrichedProducts.length > 0}
-        <ProductsPage />
+        <!-- <ProductsPage /> -->
       {:else if !productsStore.loading && !initError}
         <div class="alert alert-info">
           <div>
