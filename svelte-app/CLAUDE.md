@@ -47,7 +47,7 @@ The application follows a **3-layer reactive architecture**:
                    │ Reactive state management
 ┌─────────────────▼───────────────────────────────────────────┐
 │                  ProductsStore                              │
-│  • SvelteMap<string, EnrichedProduct>                     │
+│  • SvelteMap<string, ProductModel>                        │
 │  • localStorage cache (SuperJSON)                         │
 │  • Reactive filtering ($derived.by())                      │
 │  • Realtime updates                                         │
@@ -60,6 +60,13 @@ The application follows a **3-layer reactive architecture**:
 │  • Local forms (purchase, stock, store, etc.)             │
 │  • Orchestration of Appwrite calls                         │
 │  • Loading/error UI states                                 │
+└─────────────────▲───────────────────────────────────────────┘
+                   │ Cloud Functions (Batch Ops)
+┌─────────────────▼───────────────────────────────────────────┐
+│              appwrite-transaction                           │
+│  • Batch operations (Group Purchase)                        │
+│  • Cloud Function execution                                 │
+│  • Retry logic & error handling                             │
 └─────────────────▲───────────────────────────────────────────┘
                    │ Reactive UI consumption
 ┌─────────────────▼───────────────────────────────────────────┐
@@ -74,18 +81,32 @@ The application follows a **3-layer reactive architecture**:
 
 **1. ProductsStore (Singleton)**
 - Central state management with SvelteMap for O(1) access
+- **Stores `ProductModel` instances** instead of raw objects
 - **Initialization flow**: Hugo → Cache → Appwrite → Realtime
 - **Persistence**: localStorage with SuperJSON + debounced writes
 - **Filtering**: Reactive `$derived.by()` for performance
 - **Real-time**: Appwrite subscription for instant updates
 - **Cache strategy**: Incremental sync with `lastSync` timestamps
 
-**2. ProductModalState (Factory)**
+**2. ProductModel (Reactive Wrapper)**
+- **Class-based model**: `src/lib/models/ProductModel.svelte.ts`
+- **Reactive Data**: Encapsulates `EnrichedProduct` in a `$state`
+- **Dynamic Stats**: Calculates stats (quantities, stock, missing) on-the-fly via `$derived.by()`
+- **Context Aware**: Depends on `DateRangeStore` for date-specific calculations
+- **Optimized**: Only recalculates when its specific data or the date range changes
+
+**3. ProductModalState (Factory)**
 - **Factory function**: `createProductModalState(productId)`
 - **Data flow**: Always reads from ProductsStore via `$derived()`
 - **Local state**: Forms for purchase, stock, store, volunteer management
 - **Sync logic**: Checks `product.isSynced` before create/update operations
 - **Error handling**: Centralized loading/error states with toast notifications
+
+**4. Cloud Transactions (Batch Operations)**
+- **Service**: `src/lib/services/appwrite-transaction.ts`
+- **Usage**: Complex operations requiring atomicity or exceeding client limits
+- **Pattern**: Prepares batch data -> Calls Appwrite Cloud Function -> Handles result
+- **Example**: `createGroupPurchaseWithSync` splits large batches and syncs products before creating purchases
 
 **3. Data Synchronization Strategy**
 ```typescript
@@ -99,8 +120,10 @@ The application follows a **3-layer reactive architecture**:
 ### Key Directories & Files
 
 - `src/lib/stores/ProductsStore.svelte.ts` - Main reactive state store
+- `src/lib/models/ProductModel.svelte.ts` - Reactive product model
 - `src/lib/stores/ProductModalState.svelte.ts` - Per-product modal factory
 - `src/lib/services/appwrite-interactions.ts` - Pure Appwrite CRUD layer
+- `src/lib/services/appwrite-transaction.ts` - Cloud function transactions
 - `src/lib/services/hugo-loader.ts` - Hugo data import service
 - `src/lib/utils/productsUtils.ts` - Business logic calculations
 - `src/lib/types/appwrite.d.ts` - Auto-generated Appwrite types
@@ -127,10 +150,12 @@ The application follows a **3-layer reactive architecture**:
 ```typescript
 // In components
 const productsStore = get(productsStore);
-const filteredProducts = $derived(productsStore.filteredProducts);
+const filteredProducts = $derived(productsStore.filteredProducts); // Returns ProductModel[]
 
 // In ProductModalState
-const product = $derived(productsStore.getEnrichedProductById(productId));
+const model = $derived(productsStore.getEnrichedProductById(productId));
+const product = $derived(model.data); // Access raw data
+const stats = $derived(model.stats); // Access calculated stats
 ```
 
 **2. Modal State Management**

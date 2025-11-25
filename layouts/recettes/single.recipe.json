@@ -1,0 +1,54 @@
+{{- $parentDir := path.Base .File.Dir -}}
+{{- $uuid := replaceRE "^.*_([a-f0-9]+)$" "$1" $parentDir -}}
+{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" -}}
+{{- $byUUID := $ingredientsIndex.byUUID -}}
+
+{{- $ingredients := slice -}}
+{{- range .Params.ingredients -}}
+  {{/* Extract ingredient UUID from its path (e.g., "ail_u2m28w" -> "u2m28w") */}}
+  {{- $ingPath := .ingredient -}}
+  {{- $ingUUID := replaceRE "^.*_([a-z0-9]+)$" "$1" $ingPath -}}
+  
+  {{/* Lookup ingredient data in the index */}}
+  {{- $ingData := index $byUUID $ingUUID -}}
+  
+  {{/* Get ingredient name for conversion (fallback to empty string if not found) */}}
+  {{- $ingName := "" -}}
+  {{- if $ingData -}}
+    {{- $ingName = $ingData.title -}}
+  {{- end -}}
+  
+  {{/* Conversion via quantite-converter */}}
+  {{- $conversion := partial "functions/quantite-converter.html" (dict 
+    "quantite" .quantite 
+    "unit" .unit 
+    "ingredient" $ingName
+  ) -}}
+  
+  {{/* Get allergenes and type (with fallback to empty values) */}}
+  {{- $allergenes := slice -}}
+  {{- $ingType := "" -}}
+  {{- if $ingData -}}
+    {{- $allergenes = $ingData.allergenes | default (slice) -}}
+    {{- $ingType = $ingData.type | default "" -}}
+  {{- end -}}
+  
+  {{/* Structure enrichie : [uuid, qte_originale, unit_originale, qte_normalisée, unit_normalisée, commentaire, allergènes, type] */}}
+  {{- $ing := slice $ingUUID .quantite .unit $conversion.quantiteEq $conversion.unitEq -}}
+  {{- if .commentaire -}}
+    {{- $ing = $ing | append .commentaire -}}
+  {{- else -}}
+    {{- $ing = $ing | append "" -}} {{/* Placeholder pour garder l'index cohérent */}}
+  {{- end -}}
+  {{- $ing = $ing | append $allergenes -}} {{/* Array d'allergènes */}}
+  {{- $ing = $ing | append $ingType -}} {{/* Type (frais, légumes, etc.) */}}
+  {{- $ingredients = $ingredients | append $ing -}}
+{{- end -}}
+
+{{- dict
+  "uuid" $uuid
+  "title" .Title
+  "plate" .Params.plate
+  "ingredients" $ingredients
+  "preparation" .Params.preparation
+| jsonify -}}

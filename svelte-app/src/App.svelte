@@ -14,7 +14,8 @@
   import Toast from "./lib/components/ui/Toast.svelte";
   import ThemeSwitcher from "./lib/components/ThemeSwitcher.svelte";
   import OverrideConflictModal from "./lib/components/OverrideConflictModal.svelte";
-  import {globalState} from "./lib/stores/GlobalState.svelte";
+  import { globalState } from "./lib/stores/GlobalState.svelte";
+  import IngredientsTest from "./lib/components/IngredientsTest.svelte";
 
   let mainId: string;
   let initError: string | null = $state(null);
@@ -39,10 +40,12 @@
     try {
       // 1️⃣ En développement, charger Appwrite si nécessaire
       if (import.meta.env.DEV && !window.AppwriteClient) {
-        console.log("[App] Chargement du module Appwrite pour le développement...");
-        await import('./lib/appwrite-dev');
+        console.log(
+          "[App] Chargement du module Appwrite pour le développement...",
+        );
+        await import("./lib/appwrite-dev");
         // Attendre un cycle que le global soit défini
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
 
       // 2️⃣ Vérifier l'authentification AVANT d'initialiser le store
@@ -181,10 +184,7 @@
 
             {#if initError}
               <div class="">
-                <button
-                  class="btn btn-primary btn-sm"
-                  onclick={openAuthModal}
-                >
+                <button class="btn btn-primary btn-sm" onclick={openAuthModal}>
                   <LogInIcon class="mr-2 h-4 w-4" />
                   Se connecter
                 </button>
@@ -203,6 +203,7 @@
       {:else if displayError}
         <ErrorAlert message={displayError} />
       {/if}
+      <IngredientsTest />
 
       <!-- Liste des produits -->
       {#if productsStore.enrichedProducts.length > 0}
@@ -234,7 +235,7 @@
 <!-- Modal d'authentification -->
 {#if showAuthModal}
   <AuthModal
-    onClose={() => showAuthModal = false}
+    onClose={() => (showAuthModal = false)}
     onAuthSuccess={handleAuthSuccess}
   />
 {/if}
