@@ -53,13 +53,14 @@
  * par ProductsStore et ProductModalState.
  */
 
-import { ID, Query, type Models } from "appwrite";
+import { ID, Query, type Models, ExecutionMethod } from "appwrite";
+import { getAppwriteInstances, getAppwriteConfig } from "./appwrite";
 import type { Products, Purchases } from "../types/appwrite.d";
 import type {
-    EnrichedProduct,
-    MainEventData,
-    StoreInfo,
-    TotalNeededOverrideData,
+  EnrichedProduct,
+  MainEventData,
+  StoreInfo,
+  TotalNeededOverrideData,
 } from "../types/store.types";
 import { toastService } from "./toast.service.svelte";
 import { executeWithRetry } from "../utils/retry.utils";
@@ -146,30 +147,13 @@ export interface RealtimeCallbacks {
 // =============================================================================
 
 /**
- * Récupère les instances Appwrite nécessaires
- * @throws Error si AppwriteClient n'est pas disponible
- */
-async function getAppwriteInstances() {
-  if (!(window as any).AppwriteClient) {
-    throw new Error("AppwriteClient non disponible");
-  }
-
-  const databases = await (window as any).AppwriteClient.getDatabases();
-  const config = (window as any).AppwriteClient.getConfig();
-
-  return { databases, config };
-}
-
-/**
  * Enrichit les données produit avec le nom de l'utilisateur
  * @param data - Données du produit à enrichir
  * @returns Données enrichies avec updatedBy
  */
 async function enrichProductWithUser(data: any) {
-  const client = (window as any).AppwriteClient!;
-  const account = await client.getAccount();
+  const { account } = await getAppwriteInstances();
   const user = await account.get();
-
   return {
     ...data,
     updatedBy: user.name,
@@ -217,11 +201,11 @@ export async function loadProductsWithPurchases(
   } = options;
 
   try {
-    const { databases, config } = await getAppwriteInstances();
+    const { tables, config } = await getAppwriteInstances();
 
     // Charger les produits avec leurs relations purchases
-    const productsResponse = await databases.listDocuments(
-      config.APPWRITE_CONFIG.databaseId,
+    const productsResponse = await tables.listRows(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.products,
       [
         Query.equal("mainId", mainId),
@@ -232,13 +216,13 @@ export async function loadProductsWithPurchases(
         Query.select(["*", "purchases.*"]), // Récupérer la relation purchases
       ],
     );
-    const products = productsResponse.documents as Products[];
+    const products = productsResponse.rows as unknown as Products[];
 
     // Les relations sont déjà incluses dans les produits
     const productsWithPurchases = products as ProductWithPurchases[];
 
     console.log(
-      `[Appwrite Interactions] ${productsResponse.documents.length} produits chargés avec achats`,
+      `[Appwrite Interactions] ${productsResponse.rows.length} produits chargés avec achats`,
     );
 
     return productsWithPurchases;
@@ -275,13 +259,13 @@ export async function loadProductById(
   productId: string,
 ): Promise<Products | null> {
   try {
-    const { databases, config } = await getAppwriteInstances();
-    const response = await databases.getDocument(
-      config.APPWRITE_CONFIG.databaseId,
+    const { tables, config } = await getAppwriteInstances();
+    const response = await tables.getRow(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.products,
       productId,
     );
-    return response as Products;
+    return response as unknown as Products;
   } catch (err) {
     console.error("[Appwrite Interactions] Erreur chargement produit:", err);
     return null;
@@ -301,10 +285,10 @@ export async function loadUpdatedPurchases(
   limit = 100,
 ): Promise<Purchases[]> {
   try {
-    const { databases, config } = await getAppwriteInstances();
+    const { tables, config } = await getAppwriteInstances();
 
-    const response = await databases.listDocuments(
-      config.APPWRITE_CONFIG.databaseId,
+    const response = await tables.listRows(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.purchases,
       [
         Query.greaterThan("$updatedAt", lastSync),
@@ -315,9 +299,9 @@ export async function loadUpdatedPurchases(
     );
 
     console.log(
-      `[Appwrite Interactions] ${response.documents.length} purchases modifiés chargés`,
+      `[Appwrite Interactions] ${response.rows.length} purchases modifiés chargés`,
     );
-    return response.documents as Purchases[];
+    return response.rows as unknown as Purchases[];
   } catch (error) {
     console.error(
       "[Appwrite Interactions] Erreur chargement purchases modifiés:",
@@ -334,11 +318,11 @@ export async function loadProductsListByIds(
   productIds: string[],
 ): Promise<Products[]> {
   try {
-    const { databases, config } = await getAppwriteInstances();
+    const { tables, config } = await getAppwriteInstances();
 
     // Utiliser une requête avec filtre OR pour récupérer les produits
-    const response = await databases.listDocuments(
-      config.APPWRITE_CONFIG.databaseId,
+    const response = await tables.listRows(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.products,
       [
         Query.equal("$id", productIds), // ← Filtre par IDs
@@ -360,7 +344,7 @@ export async function loadProductsListByIds(
       ],
     );
 
-    return response.documents as Products[];
+    return response.rows as unknown as Products[];
   } catch (err) {
     console.error("[Appwrite Interactions] Erreur chargement produits:", err);
     return [];
@@ -390,14 +374,14 @@ export async function syncProductsWithPurchases(
   const { lastSync, limit = 100 } = options;
 
   try {
-    const { databases, config } = await getAppwriteInstances();
+    const { tables, config } = await getAppwriteInstances();
 
     if (!lastSync) {
       // === CHARGEMENT COMPLET ===
       console.log("[Appwrite Interactions] Chargement complet des produits");
 
-      const response = await databases.listDocuments(
-        config.APPWRITE_CONFIG.databaseId,
+      const response = await tables.listRows(
+        config.databaseId,
         config.APPWRITE_CONFIG.collections.products,
         [
           Query.equal("mainId", mainId),
@@ -420,11 +404,11 @@ export async function syncProductsWithPurchases(
         ],
       );
 
-      return response.documents as ProductWithPurchases[];
+      return response.rows as unknown as ProductWithPurchases[];
     }
 
-    const response = await databases.listDocuments(
-      config.APPWRITE_CONFIG.databaseId,
+    const response = await tables.listRows(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.products,
       [
         Query.greaterThan("$updatedAt", lastSync),
@@ -448,13 +432,13 @@ export async function syncProductsWithPurchases(
       ],
     );
 
-    if (response.documents.length > 0) {
+    if (response.rows.length > 0) {
       console.log(
-        `[Appwrite Interactions] ${response.documents.length} produits synchronisés avec leurs purchases`,
+        `[Appwrite Interactions] ${response.rows.length} produits synchronisés avec leurs purchases`,
       );
     }
 
-    return response.documents as ProductWithPurchases[];
+    return response.rows as unknown as ProductWithPurchases[];
   } catch (error) {
     console.error(
       `[Appwrite Interactions] Erreur sync produits avec purchases pour mainId ${mainId}:`,
@@ -481,23 +465,23 @@ export async function syncProductsWithPurchases(
 export async function updateProduct(
   productId: string,
   updates: ProductUpdate,
-  putUpdatedBy: boolean = true
+  putUpdatedBy: boolean = true,
 ): Promise<Products> {
-  const { databases, config } = await getAppwriteInstances();
+  const { tables, config } = await getAppwriteInstances();
 
   // Enrichir les données avec updatedBy
   if (putUpdatedBy) {
     updates.updatedBy = getCurrentUserName();
   }
 
-  const response = await databases.updateDocument(
-    config.APPWRITE_CONFIG.databaseId,
+  const response = await tables.updateRow(
+    config.databaseId,
     config.APPWRITE_CONFIG.collections.products,
     productId,
     updates,
   );
 
-  return response as Products;
+  return response as unknown as Products;
 }
 
 /**
@@ -534,9 +518,9 @@ export async function upsertProduct(
     // Enrichir les données avec updatedBy
     const enrichedData = await enrichProductWithUser(appwriteData);
 
-    const { databases, config } = await getAppwriteInstances();
-    const response = await databases.createDocument(
-      config.APPWRITE_CONFIG.databaseId,
+    const { tables, config } = await getAppwriteInstances();
+    const response = await tables.createRow(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.products,
       productId, // $id prédéfini
       enrichedData, // ← Utiliser les données enrichies
@@ -547,7 +531,7 @@ export async function upsertProduct(
     );
 
     // Note : le ProductsStore mettra à jour isSynced via le realtime
-    return response as Products;
+    return response as unknown as Products;
   } catch (error) {
     console.error(
       `[Appwrite Interactions] Erreur création produit ${productId}:`,
@@ -578,7 +562,7 @@ export async function createManualProduct(
   mainId: string,
 ): Promise<Products> {
   try {
-    const { databases, config } = await getAppwriteInstances();
+    const { tables, config } = await getAppwriteInstances();
     const { slugify } = await import("../utils/productsUtils");
 
     // Générer un ID unique basé sur le nom slugifié (10 premiers chars) + timestamp
@@ -613,19 +597,27 @@ export async function createManualProduct(
       specs: JSON.stringify(specs), // ✅ Stockage des métadonnées manuelles
     };
 
-    console.log(`[Appwrite Interactions] Création produit manuel ${uniqueId}...`, manualProduct);
+    console.log(
+      `[Appwrite Interactions] Création produit manuel ${uniqueId}...`,
+      manualProduct,
+    );
 
-    const response = await databases.createDocument(
-      config.APPWRITE_CONFIG.databaseId,
+    const response = await tables.createRow(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.products,
       uniqueId,
       manualProduct,
     );
 
-    console.log(`[Appwrite Interactions] Produit manuel ${uniqueId} créé avec succès`);
-    return response as Products;
+    console.log(
+      `[Appwrite Interactions] Produit manuel ${uniqueId} créé avec succès`,
+    );
+    return response as unknown as Products;
   } catch (error) {
-    console.error("[Appwrite Interactions] Erreur création produit manuel:", error);
+    console.error(
+      "[Appwrite Interactions] Erreur création produit manuel:",
+      error,
+    );
     throw error;
   }
 }
@@ -694,7 +686,7 @@ export async function updateProductStock(
 export async function updateTotalOverride(
   productId: string,
   overrideData: TotalNeededOverrideData,
-  putUpdatedBy: boolean = false
+  putUpdatedBy: boolean = false,
 ): Promise<Products> {
   if (!productId) {
     throw new Error("ID du produit requis pour la mise à jour de l'override");
@@ -706,12 +698,12 @@ export async function updateTotalOverride(
   const result = await updateProduct(
     productId,
     { totalNeededOverride: serializedOverride },
-    putUpdatedBy
+    putUpdatedBy,
   );
 
   console.log(
     `[Appwrite Interactions] Total override mis à jour pour le produit ${productId}:`,
-    overrideData
+    overrideData,
   );
 
   return result;
@@ -725,7 +717,7 @@ export async function updateTotalOverride(
  */
 export async function removeTotalOverride(
   productId: string,
-  putUpdatedBy: boolean = true
+  putUpdatedBy: boolean = true,
 ): Promise<Products> {
   if (!productId) {
     throw new Error("ID du produit requis pour la suppression de l'override");
@@ -734,11 +726,11 @@ export async function removeTotalOverride(
   const result = await updateProduct(
     productId,
     { totalNeededOverride: null },
-    putUpdatedBy
+    putUpdatedBy,
   );
 
   console.log(
-    `[Appwrite Interactions] Total override supprimé pour le produit ${productId}`
+    `[Appwrite Interactions] Total override supprimé pour le produit ${productId}`,
   );
 
   return result;
@@ -824,22 +816,22 @@ export async function updateProductBatch(
 export async function createPurchase(
   purchaseData: PurchaseCreate,
 ): Promise<Purchases> {
-  const { databases, config } = await getAppwriteInstances();
+  const { tables, config } = await getAppwriteInstances();
 
   const completePurchaseData = {
     ...purchaseData,
     createdBy: getCurrentUserName(),
   };
 
-  const response = await databases.createDocument(
-    config.APPWRITE_CONFIG.databaseId,
+  const response = await tables.createRow(
+    config.databaseId,
     config.APPWRITE_CONFIG.collections.purchases,
     ID.unique(),
     completePurchaseData,
   );
 
   console.log("[Appwrite Interactions] Achat créé:", response);
-  return response as Purchases;
+  return response as unknown as Purchases;
 }
 
 /**
@@ -853,11 +845,11 @@ export async function updatePurchase(
   updates: PurchaseUpdate,
 ): Promise<Purchases> {
   try {
-    const { databases, config } = await getAppwriteInstances();
+    const { tables, config, account } = await getAppwriteInstances();
 
     // Récupérer le purchase existant pour préserver la relation products
-    const existingPurchase = await databases.getDocument(
-      config.APPWRITE_CONFIG.databaseId,
+    const existingPurchase = await tables.getRow(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.purchases,
       purchaseId,
     );
@@ -866,11 +858,11 @@ export async function updatePurchase(
     const finalUpdates = {
       ...updates,
       // Conserver la relation products existante si non fournie dans les updates
-      products: updates.products || (existingPurchase as Purchases).products,
+      products: updates.products || (existingPurchase as unknown as Purchases).products,
     };
 
-    const response = await databases.updateDocument(
-      config.APPWRITE_CONFIG.databaseId,
+    const response = await tables.updateRow(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.purchases,
       purchaseId,
       finalUpdates,
@@ -880,7 +872,7 @@ export async function updatePurchase(
       `[Appwrite Interactions] Achat ${purchaseId} mis à jour:`,
       finalUpdates,
     );
-    return response as Purchases;
+    return response as unknown as Purchases;
   } catch (error) {
     console.error(
       `[Appwrite Interactions] Erreur mise à jour achat ${purchaseId}:`,
@@ -898,10 +890,10 @@ export async function updatePurchase(
  */
 export async function deletePurchase(purchaseId: string): Promise<void> {
   try {
-    const { databases, config } = await getAppwriteInstances();
+    const { tables, config } = await getAppwriteInstances();
 
-    await databases.deleteDocument(
-      config.APPWRITE_CONFIG.databaseId,
+    await tables.deleteRow(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.purchases,
       purchaseId,
     );
@@ -938,18 +930,18 @@ export async function loadPurchasesListByIds(
   if (!purchaseIds?.length) return [];
 
   try {
-    const { databases, config } = await getAppwriteInstances();
+    const { tables, config } = await getAppwriteInstances();
 
-    const response = await databases.listDocuments(
-      config.APPWRITE_CONFIG.databaseId,
+    const response = await tables.listRows(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.purchases,
       [Query.equal("$id", purchaseIds), Query.select(["*", "products.$id"])],
     );
 
     console.log(
-      `[Appwrite Interactions] ${response.documents.length} purchases chargés avec relations products`,
+      `[Appwrite Interactions] ${response.rows.length} purchases chargés avec relations products`,
     );
-    return response.documents as Purchases[];
+    return response.rows as unknown as Purchases[];
   } catch (error) {
     console.error(
       "[Appwrite Interactions] Erreur chargement purchases avec relations:",
@@ -1101,10 +1093,9 @@ export function subscribeToRealtime(
             { source: "realtime-other" },
           );
         } else if (isDelete) {
-          toastService.info(
-            `${product.updatedBy} a supprimé un produit`,
-            { source: "realtime-other" },
-          );
+          toastService.info(`${product.updatedBy} a supprimé un produit`, {
+            source: "realtime-other",
+          });
         }
       }
 
@@ -1210,18 +1201,17 @@ export async function loadMainEventData(
       `[Appwrite Interactions] Chargement des données principales pour mainId: ${mainId}`,
     );
 
-    const { databases } = await getAppwriteInstances();
-    const config = (window as any).AppwriteClient.getConfig();
+    const { tables, config } = await getAppwriteInstances();
 
-    const mainData = (await databases.getDocument(
-      config.APPWRITE_CONFIG.databaseId,
-      config.APPWRITE_CONFIG.collections.main,
+    const mainData = await tables.getRow(
+      config.databaseId,
+      config.collections.main,
       mainId,
-    )) as MainEventData;
+    );
     console.log(
       `[Appwrite Interactions] Données principales chargées pour: ${mainData.name}`,
     );
-    return mainData;
+    return mainData as unknown as MainEventData;
   } catch (error) {
     console.error(
       `[Appwrite Interactions] Erreur chargement données principales pour mainId ${mainId}:`,
@@ -1243,13 +1233,11 @@ export async function createMainDocument(
   try {
     console.log(`[Appwrite Interactions] Création du Main document: ${mainId}`);
 
-    const { databases } = await getAppwriteInstances();
-    const config = (window as any).AppwriteClient.getConfig();
-    const account = await (window as any).AppwriteClient.getAccount();
+    const { tables, config, account } = await getAppwriteInstances();
     const user = await account.get();
 
-    await databases.createDocument(
-      config.APPWRITE_CONFIG.databaseId,
+    await tables.createRow(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.main,
       mainId,
       {
@@ -1309,12 +1297,7 @@ export async function batchUpdateProducts(
   data: BatchUpdateData,
 ): Promise<BatchUpdateResult> {
   try {
-    if (!(window as any).AppwriteClient) {
-      throw new Error("AppwriteClient non disponible");
-    }
-
-    const functions = await (window as any).AppwriteClient.getFunctions();
-    const config = (window as any).AppwriteClient.getConfig();
+    const { functions, config } = await getAppwriteInstances();
 
     const payload = {
       operation: "batchUpdateProducts",
@@ -1327,24 +1310,27 @@ export async function batchUpdateProducts(
 
     // 🔄 RETRY LOGIC for the Appwrite function execution
     const execution = await executeWithRetry<Models.Execution>(
-      () => functions.createExecution(
-        config.APPWRITE_CONFIG.functions.batchUpdate,
-        JSON.stringify(payload),
-        false, // async = false pour attendre le résultat
-        "/",
-        "POST",
-      ),
+      () =>
+        functions.createExecution(
+          config.APPWRITE_CONFIG.functions.batchUpdate,
+          JSON.stringify(payload),
+          false, // async = false pour attendre le résultat
+          "/",
+          ExecutionMethod.POST,
+        ),
       {
         operationName: `batchUpdateProducts (${data.productIds.length} products, type: ${data.updateType})`,
         maxAutoRetries: 1,
         autoRetryDelay: 2000,
-      }
+      },
     );
 
     if (!execution) {
       // This case should ideally be handled by executeWithRetry throwing an error
       // if all retries fail, but added for explicit safety.
-      throw new Error("Opération annulée ou échouée après tentatives de mise à jour groupée");
+      throw new Error(
+        "Opération annulée ou échouée après tentatives de mise à jour groupée",
+      );
     }
 
     if (execution.status !== "completed") {
@@ -1499,9 +1485,7 @@ export async function createQuickValidationPurchases(
   } = {},
 ): Promise<Purchases[]> {
   try {
-    const { databases, config } = await getAppwriteInstances();
-    const client = (window as any).AppwriteClient!;
-    const account = await client.getAccount();
+    const { tables, config, account } = await getAppwriteInstances();
     const user = await account.get();
 
     const purchases: Purchases[] = [];
@@ -1537,14 +1521,14 @@ export async function createQuickValidationPurchases(
         invoiceTotal: null,
       };
 
-      const response = await databases.createDocument(
-        config.APPWRITE_CONFIG.databaseId,
+      const response = await tables.createRow(
+        config.databaseId,
         config.APPWRITE_CONFIG.collections.purchases,
         ID.unique(),
         purchaseData,
       );
 
-      purchases.push(response as Purchases);
+      purchases.push(response as unknown as Purchases);
     }
 
     console.log(
@@ -1577,14 +1561,12 @@ export async function createExpensePurchase(
   who?: string,
 ): Promise<Purchases> {
   try {
-    const { databases, config } = await getAppwriteInstances();
-    const client = (window as any).AppwriteClient!;
-    const account = await client.getAccount();
+    const { tables, config, account } = await getAppwriteInstances();
     const user = await account.get();
 
     // Générer un invoiceId si non fourni
     const finalInvoiceId = invoiceId || ID.unique();
-    
+
     // Utiliser le nom de l'utilisateur courant comme "who" par défaut
     const who = user.name;
 
@@ -1609,15 +1591,15 @@ export async function createExpensePurchase(
       createdBy: user.$id,
     };
 
-    const response = await databases.createDocument(
-      config.APPWRITE_CONFIG.databaseId,
+    const response = await tables.createRow(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.purchases,
       ID.unique(),
       completeExpenseData,
     );
 
     console.log("[Appwrite Interactions] Dépense créée:", response);
-    return response as Purchases;
+    return response as unknown as Purchases;
   } catch (error) {
     console.error("[Appwrite Interactions] Erreur création dépense:", error);
     const errorMessage =
@@ -1631,12 +1613,14 @@ export async function createExpensePurchase(
  * @param mainId - ID de l'événement principal
  * @returns Promise<Purchases[]>
  */
-export async function loadOrphanPurchases(mainId: string): Promise<Purchases[]> {
+export async function loadOrphanPurchases(
+  mainId: string,
+): Promise<Purchases[]> {
   try {
-    const { databases, config } = await getAppwriteInstances();
+    const { tables, config } = await getAppwriteInstances();
 
-    const response = await databases.listDocuments(
-      config.APPWRITE_CONFIG.databaseId,
+    const response = await tables.listRows(
+      config.databaseId,
       config.APPWRITE_CONFIG.collections.purchases,
       [
         Query.equal("mainId", mainId),
@@ -1646,9 +1630,9 @@ export async function loadOrphanPurchases(mainId: string): Promise<Purchases[]> 
     );
 
     console.log(
-      `[Appwrite Interactions] ${response.documents.length} dépenses globales chargées`,
+      `[Appwrite Interactions] ${response.rows.length} dépenses globales chargées`,
     );
-    return response.documents as Purchases[];
+    return response.rows as unknown as Purchases[];
   } catch (error) {
     console.error(
       "[Appwrite Interactions] Erreur chargement dépenses globales:",

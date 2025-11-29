@@ -1,10 +1,11 @@
-interface AppwriteConfig {
+export interface AppwriteConfig {
   endpoint: string;
   projectId: string;
   databaseId: string;
   functions: {
     cmsAuth: string;
     accessRequest: string;
+    batchUpdate: string;
   };
   collections: {
     events: string;
@@ -15,41 +16,53 @@ interface AppwriteConfig {
   };
 }
 
-interface AppwriteClientGlobal {
-  getAppwriteClients: () => Promise<any>;
-  getAccount: () => Promise<any>;
-  getFunctions: () => Promise<any>;
-  getDatabases: () => Promise<any>;
-  getConfig: () => {
-    APPWRITE_ENDPOINT: string;
-    APPWRITE_PROJECT_ID: string;
-    APPWRITE_FUNCTION_ID: string;
-    ACCESS_REQUEST_FUNCTION_ID: string;
-    APPWRITE_CONFIG: AppwriteConfig;
-  };
-  isInitialized: () => boolean;
-  initializeAppwrite: () => Promise<any>;
-  getLocalCmsUser: () => any;
-  isAuthenticatedCms: () => boolean;
-  isAuthenticatedAppwrite: () => Promise<boolean>;
-  isConnectedAppwrite: () => Promise<boolean>;
-  getUserEmail: () => Promise<string | null>;
-  getUserName: () => Promise<string | null>;
-  clearAuthData: () => void;
-  setAuthData: (data: any) => void;
-  logoutGlobal: () => Promise<void>;
-  isEmailVerified: () => Promise<boolean>;
-  subscribeToCollections: (
-    collectionNames: string[],
-    listId: string,
-    onMessage: (response: any) => void,
-    connectionCallbacks?: {
-      onConnect?: () => void;
-      onDisconnect?: () => void;
-      onError?: (error: any) => void;
-    },
-  ) => () => void;
-}
+  interface AppwriteClientGlobal {
+    getAppwriteClients: () => Promise<{
+      client: any;
+      account: any;
+      functions: any;
+      databases: any;
+      teams: any;
+    }>;
+    getAccount: () => Promise<any>;
+    getTeams: () => Promise<any>;
+    getFunctions: () => Promise<any>;
+    getDatabases: () => Promise<any>;
+    getConfig: () => {
+      APPWRITE_ENDPOINT: string;
+      APPWRITE_PROJECT_ID: string;
+      APPWRITE_FUNCTION_ID: string;
+      ACCESS_REQUEST_FUNCTION_ID: string;
+      APPWRITE_CONFIG: AppwriteConfig;
+    };
+    isInitialized: () => boolean;
+    initializeAppwrite: () => Promise<any>;
+    getLocalCmsUser: () => any;
+    isAuthenticatedCms: () => boolean;
+    isAuthenticatedAppwrite: () => Promise<boolean>;
+    isConnectedAppwrite: () => Promise<boolean>;
+    getUserEmail: () => string | null;
+    getUserName: () => string | null;
+    clearAuthData: () => void;
+    setAuthData: (email: string, name: string, cmsAuth?: any) => void;
+    logoutGlobal: () => Promise<void>;
+    isEmailVerified: () => Promise<boolean>;
+    sendVerificationEmail: () => Promise<void>;
+    verifyEmail: (userId: string, secret: string) => Promise<void>;
+    getLocalEmailVerificationStatus: () => boolean;
+    createCollaborativeProductsListFromEvent: (eventId: string) => Promise<any>;
+    checkExistingMainGroup: (mainGroupId: string) => Promise<boolean>;
+    subscribeToCollections: (
+      collections: string[],
+      databaseId: string,
+      callback: (response: any) => void,
+      connectionCallbacks?: {
+        onConnect?: () => void;
+        onDisconnect?: () => void;
+        onError?: (error: any) => void;
+      },
+    ) => () => void;
+  }
 
 interface AppwriteSDK {
   Client: any;

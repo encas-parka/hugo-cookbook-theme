@@ -1,0 +1,1099 @@
+
+> svelte-app@0.0.1 check
+> svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json
+
+Loading svelte-check in workspace: /home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app
+Getting Svelte diagnostics...
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/services/hugo-loader.ts:182:3
+Error: Type '{ $id: string; $updatedAt: undefined; productHugoUuid: string; productName: string; productType: string; pFrais: boolean; pSurgel: boolean; nbRecipes: number; totalNeededRaw: NumericQuantity[]; ... 27 more ...; dateDisplayInfo: Record<...>; }' is missing the following properties from type 'EnrichedProduct': specs, specsParsed 
+  // ✅ Défauts Appwrite (vides localement)
+  return {
+    // Métadonnées
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/utils/productEnrichment.ts:56:3
+Error: Property 'dateDisplayInfo' is missing in type '{ $id: string; $createdAt: string; $updatedAt: string; productHugoUuid: string; productName: string; productType: string; pFrais: boolean; pSurgel: boolean; nbRecipes: number; totalAssiettes: number; ... 28 more ...; displayTotalOverride: string; }' but required in type 'EnrichedProduct'. 
+
+  return {
+    // Métadonnées Appwrite
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/utils/retry.utils.ts:67:13
+Error: Object literal may only specify known properties, but 'action' does not exist in type 'Partial<ToastOptions>'. Did you mean to write 'actions'? 
+            message: options.successMessage || `${operationName} réussie !`,
+            action: undefined,
+          });
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/utils/retry.utils.ts:97:13
+Error: Object literal may only specify known properties, but 'action' does not exist in type 'Partial<ToastOptions>'. Did you mean to write 'actions'? 
+            message: `Échec ${operationName}: ${errMessage}`,
+            action: {
+              label: "Réessayer",
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/services/appwrite-interactions.ts:1150:9
+Error: Type '(() => void) | undefined' is not assignable to type '(() => void) | null'.
+  Type 'undefined' is not assignable to type '(() => void) | null'. 
+
+        unsubscribe = window.AppwriteClient.subscribeToCollections(
+          ["products", "purchases"],
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/services/appwrite-interactions.ts:1154:11
+Error: Expected 3 arguments, but got 4. 
+          handleRealtimeEvent,
+          {
+            onConnect: () => {
+              console.log("[Appwrite Interactions] Realtime connecté");
+              callbacks.onConnect?.();
+            },
+            onDisconnect: () => {
+              console.log("[Appwrite Interactions] Realtime déconnecté");
+              callbacks.onDisconnect?.();
+            },
+            onError: (error: any) => {
+              console.error("[Appwrite Interactions] Erreur realtime:", error);
+              callbacks.onError?.(error);
+            },
+          },
+        );
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/services/appwrite-interactions.ts:1314:9
+Error: Cannot find name 'functions'. Did you mean 'Function'? 
+      () =>
+        functions.createExecution(
+          config.APPWRITE_CONFIG.functions.batchUpdate,
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/services/appwrite-interactions.ts:1565:24
+Error: Cannot find name 'account'. 
+    const { tables, config } = await getAppwriteInstances();
+    const user = await account.get();
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/services/appwrite-teams.ts:18:23
+Error: Return type of exported function has or is using name '__default' from external module "/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/node_modules/appwrite/types/models" but cannot be named. 
+ */
+export async function listUserTeams() {
+  try {
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/services/appwrite-teams.ts:31:23
+Error: Return type of exported function has or is using name '__default' from external module "/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/node_modules/appwrite/types/models" but cannot be named. 
+ */
+export async function getTeam(teamId: string) {
+  try {
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/services/appwrite-teams.ts:44:23
+Error: Return type of exported function has or is using name '__default' from external module "/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/node_modules/appwrite/types/models" but cannot be named. 
+ */
+export async function createTeam(name: string, roles?: string[]) {
+  try {
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/services/appwrite-teams.ts:60:23
+Error: Return type of exported function has or is using name '__default' from external module "/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/node_modules/appwrite/types/models" but cannot be named. 
+ */
+export async function updateTeam(teamId: string, name: string) {
+  try {
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/stores/ProductsStore.svelte.ts:903:28
+Error: Argument of type 'string' is not assignable to parameter of type 'never'. 
+        if (!currentProducts.has(id)) {
+          idsToDelete.push(id);
+        }
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/stores/EventsStore.svelte.ts:157:7
+Error: Type 'Promise<() => void>' is not assignable to type '() => void'.
+  Type 'Promise<() => void>' provides no match for the signature '(): void'. 
+    try {
+      this.#realtimeUnsubscribe = subscribeToEvents(
+        this.#userId!,
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/services/appwrite-transaction.ts:113:5
+Error: Type 'string' is not assignable to type 'null'. 
+    const user = await account.get();
+    currentUserId = user.$id;
+  } catch (error) {
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/services/appwrite-transaction.ts:356:7
+Error: Argument of type '"POST"' is not assignable to parameter of type 'ExecutionMethod | undefined'. 
+      "/",
+      "POST",
+    );
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/services/appwrite-transaction.ts:361:82
+Error: Property 'stderr' does not exist on type 'Execution'. 
+      throw new Error(
+        `Exécution échouée avec statut: ${execution.status}. Erreur: ${execution.stderr}`,
+      );
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/AddProductModal.svelte:220:18
+Error: Type 'number | null | undefined' is not assignable to type 'number | null'.
+  Type 'undefined' is not assignable to type 'number | null'. (ts)
+          <QuantityInput
+            bind:quantity={formData.quantity}
+            bind:unit={formData.unit}
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/stores/ProductModalState.svelte.ts:233:28
+Error: Argument of type '{ products: string[]; mainId: string; unit: string; quantity: number; store: string | null; who: string | null; notes: string; price: number | null; status: "ordered" | "delivered"; orderDate: string | null; deliveryDate: string | null; }' is not assignable to parameter of type 'PurchaseCreate'.
+  Type '{ products: string[]; mainId: string; unit: string; quantity: number; store: string | null; who: string | null; notes: string; price: number | null; status: "ordered" | "delivered"; orderDate: string | null; deliveryDate: string | null; }' is missing the following properties from type 'Omit<Purchases, "mainId" | "purchases" | "products" | keyof Row | "createdBy">': invoiceId, invoiceTotal 
+
+      await createPurchase({
+        products: [this.product!.$id],
+        mainId: productsStore.currentMainId!,
+        unit,
+        quantity,
+        store: this.forms.purchase.store || null,
+        who: this.forms.purchase.who || null,
+        notes: this.forms.purchase.notes || "",
+        price: this.forms.purchase.price || null,
+        status: purchaseStatus,
+        orderDate: this.forms.purchase.orderDate || null,
+        deliveryDate,
+      });
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/StoreBatchEditModal.svelte:212:13
+Error: Object literal may only specify known properties, and '"id"' does not exist in type 'Props'. (ts)
+            disabled={loading}
+            id="store-comment-textarea"
+          />
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/DashboardPage.svelte:75:26
+Error: Property 'dates' does not exist on type 'Main'. (ts)
+              </h3>
+              {#if event.dates && event.dates.length > 0}
+                <div class="badge badge-ghost text-xs">
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/DashboardPage.svelte:75:41
+Error: Property 'dates' does not exist on type 'Main'. (ts)
+              </h3>
+              {#if event.dates && event.dates.length > 0}
+                <div class="badge badge-ghost text-xs">
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/DashboardPage.svelte:77:37
+Error: Property 'dates' does not exist on type 'Main'. (ts)
+                <div class="badge badge-ghost text-xs">
+                  {formatDate(event.dates[0])}
+                </div>
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/DashboardPage.svelte:95:26
+Error: Property 'dates' does not exist on type 'Main'. (ts)
+                <span>
+                  {event.dates?.length || 0} jours
+                </span>
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/RecipeSearchCard.svelte:131:13
+Warn: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+          <div class="">
+            <label class="label py-1 text-xs">Type</label>
+            <select
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/RecipeSearchCard.svelte:142:13
+Warn: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+          <div class="">
+            <label class="label py-1 text-xs">Couverts</label>
+            <input
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/AuthModal.svelte:157:1
+Warn: Elements with the 'dialog' interactive role must have a tabindex value
+https://svelte.dev/e/a11y_interactive_supports_focus (svelte)
+<!-- Overlay -->
+<div
+  class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="modal-title"
+  onclick={closeModal}
+  onkeydown={(e) => e.key === "Escape" && closeModal()}
+>
+  <!-- Modal content -->
+  <div
+    class="mx-4 w-full max-w-md rounded-lg bg-white shadow-xl"
+    onclick={stopPropagation}
+  >
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b p-6">
+      <h2 id="modal-title" class="text-xl font-semibold text-gray-900">
+        {showForgotPassword
+          ? "Mot de passe oublié"
+          : showLogin
+            ? "Connexion"
+            : "Inscription"}
+      </h2>
+      <button
+        onclick={closeModal}
+        class="p-1 text-gray-400 transition-colors hover:text-gray-600"
+        disabled={isLoading}
+        aria-label="Fermer la modale"
+      >
+        <svg
+          class="h-6 w-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6">
+      <!-- Messages -->
+      {#if errorMessage}
+        <div
+          class="mb-4 rounded border border-red-400 bg-red-100 p-3 text-red-700"
+          role="alert"
+        >
+          {errorMessage}
+        </div>
+      {/if}
+
+      {#if successMessage}
+        <div
+          class="mb-4 rounded border border-green-400 bg-green-100 p-3 text-green-700"
+          role="status"
+        >
+          {successMessage}
+        </div>
+      {/if}
+
+      <!-- Mot de passe oublié -->
+      {#if showForgotPassword}
+        <form onsubmit={handleForgotPassword}>
+          <div class="mb-4">
+            <label
+              for="forgot-email"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Email
+            </label>
+            <input
+              id="forgot-email"
+              type="email"
+              bind:value={forgotEmail}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="votre@email.com"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            disabled={isLoading}
+          >
+            {isLoading ? "Envoi..." : "Envoyer l'email de réinitialisation"}
+          </button>
+        </form>
+
+        <div class="mt-4 text-center">
+          <button
+            onclick={() => (showForgotPassword = false)}
+            class="text-sm text-blue-600 hover:text-blue-800"
+            disabled={isLoading}
+          >
+            ← Retour à la connexion
+          </button>
+        </div>
+        <!-- Connexion -->
+      {:else if showLogin}
+        <form onsubmit={handleLogin}>
+          <div class="mb-4">
+            <label
+              for="login-email"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Email
+            </label>
+            <input
+              id="login-email"
+              type="email"
+              bind:value={loginEmail}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="votre@email.com"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <div class="mb-4">
+            <label
+              for="login-password"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Mot de passe
+            </label>
+            <input
+              id="login-password"
+              type="password"
+              bind:value={loginPassword}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="••••••••"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            disabled={isLoading}
+          >
+            {isLoading ? "Connexion..." : "Se connecter"}
+          </button>
+        </form>
+
+        <div class="mt-4 space-y-2 text-center">
+          <button
+            onclick={() => (showForgotPassword = true)}
+            class="text-sm text-blue-600 hover:text-blue-800"
+            disabled={isLoading}
+          >
+            Mot de passe oublié ?
+          </button>
+
+          <div class="text-sm text-gray-600">
+            Pas encore de compte ?
+            <button
+              onclick={() => (showLogin = false)}
+              class="ml-1 text-blue-600 hover:text-blue-800"
+              disabled={isLoading}
+            >
+              S'inscrire
+            </button>
+          </div>
+        </div>
+
+        <!-- Inscription -->
+      {:else}
+        <form onsubmit={handleRegister}>
+          <div class="mb-4">
+            <label
+              for="register-name"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Nom
+            </label>
+            <input
+              id="register-name"
+              type="text"
+              bind:value={registerName}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="Votre nom"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <div class="mb-4">
+            <label
+              for="register-email"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Email
+            </label>
+            <input
+              id="register-email"
+              type="email"
+              bind:value={registerEmail}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="votre@email.com"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <div class="mb-4">
+            <label
+              for="register-password"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Mot de passe
+            </label>
+            <input
+              id="register-password"
+              type="password"
+              bind:value={registerPassword}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="••••••••"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+            disabled={isLoading}
+          >
+            {isLoading ? "Création..." : "Créer un compte"}
+          </button>
+        </form>
+
+        <div class="mt-4 text-center text-sm text-gray-600">
+          Déjà un compte ?
+          <button
+            onclick={() => (showLogin = true)}
+            class="ml-1 text-blue-600 hover:text-blue-800"
+            disabled={isLoading}
+          >
+            Se connecter
+          </button>
+        </div>
+      {/if}
+    </div>
+  </div>
+</div>
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/AuthModal.svelte:166:3
+Warn: Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events (svelte)
+  <!-- Modal content -->
+  <div
+    class="mx-4 w-full max-w-md rounded-lg bg-white shadow-xl"
+    onclick={stopPropagation}
+  >
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b p-6">
+      <h2 id="modal-title" class="text-xl font-semibold text-gray-900">
+        {showForgotPassword
+          ? "Mot de passe oublié"
+          : showLogin
+            ? "Connexion"
+            : "Inscription"}
+      </h2>
+      <button
+        onclick={closeModal}
+        class="p-1 text-gray-400 transition-colors hover:text-gray-600"
+        disabled={isLoading}
+        aria-label="Fermer la modale"
+      >
+        <svg
+          class="h-6 w-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6">
+      <!-- Messages -->
+      {#if errorMessage}
+        <div
+          class="mb-4 rounded border border-red-400 bg-red-100 p-3 text-red-700"
+          role="alert"
+        >
+          {errorMessage}
+        </div>
+      {/if}
+
+      {#if successMessage}
+        <div
+          class="mb-4 rounded border border-green-400 bg-green-100 p-3 text-green-700"
+          role="status"
+        >
+          {successMessage}
+        </div>
+      {/if}
+
+      <!-- Mot de passe oublié -->
+      {#if showForgotPassword}
+        <form onsubmit={handleForgotPassword}>
+          <div class="mb-4">
+            <label
+              for="forgot-email"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Email
+            </label>
+            <input
+              id="forgot-email"
+              type="email"
+              bind:value={forgotEmail}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="votre@email.com"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            disabled={isLoading}
+          >
+            {isLoading ? "Envoi..." : "Envoyer l'email de réinitialisation"}
+          </button>
+        </form>
+
+        <div class="mt-4 text-center">
+          <button
+            onclick={() => (showForgotPassword = false)}
+            class="text-sm text-blue-600 hover:text-blue-800"
+            disabled={isLoading}
+          >
+            ← Retour à la connexion
+          </button>
+        </div>
+        <!-- Connexion -->
+      {:else if showLogin}
+        <form onsubmit={handleLogin}>
+          <div class="mb-4">
+            <label
+              for="login-email"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Email
+            </label>
+            <input
+              id="login-email"
+              type="email"
+              bind:value={loginEmail}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="votre@email.com"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <div class="mb-4">
+            <label
+              for="login-password"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Mot de passe
+            </label>
+            <input
+              id="login-password"
+              type="password"
+              bind:value={loginPassword}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="••••••••"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            disabled={isLoading}
+          >
+            {isLoading ? "Connexion..." : "Se connecter"}
+          </button>
+        </form>
+
+        <div class="mt-4 space-y-2 text-center">
+          <button
+            onclick={() => (showForgotPassword = true)}
+            class="text-sm text-blue-600 hover:text-blue-800"
+            disabled={isLoading}
+          >
+            Mot de passe oublié ?
+          </button>
+
+          <div class="text-sm text-gray-600">
+            Pas encore de compte ?
+            <button
+              onclick={() => (showLogin = false)}
+              class="ml-1 text-blue-600 hover:text-blue-800"
+              disabled={isLoading}
+            >
+              S'inscrire
+            </button>
+          </div>
+        </div>
+
+        <!-- Inscription -->
+      {:else}
+        <form onsubmit={handleRegister}>
+          <div class="mb-4">
+            <label
+              for="register-name"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Nom
+            </label>
+            <input
+              id="register-name"
+              type="text"
+              bind:value={registerName}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="Votre nom"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <div class="mb-4">
+            <label
+              for="register-email"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Email
+            </label>
+            <input
+              id="register-email"
+              type="email"
+              bind:value={registerEmail}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="votre@email.com"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <div class="mb-4">
+            <label
+              for="register-password"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Mot de passe
+            </label>
+            <input
+              id="register-password"
+              type="password"
+              bind:value={registerPassword}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="••••••••"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+            disabled={isLoading}
+          >
+            {isLoading ? "Création..." : "Créer un compte"}
+          </button>
+        </form>
+
+        <div class="mt-4 text-center text-sm text-gray-600">
+          Déjà un compte ?
+          <button
+            onclick={() => (showLogin = true)}
+            class="ml-1 text-blue-600 hover:text-blue-800"
+            disabled={isLoading}
+          >
+            Se connecter
+          </button>
+        </div>
+      {/if}
+    </div>
+  </div>
+</div>
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/AuthModal.svelte:166:3
+Warn: `<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+  <!-- Modal content -->
+  <div
+    class="mx-4 w-full max-w-md rounded-lg bg-white shadow-xl"
+    onclick={stopPropagation}
+  >
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b p-6">
+      <h2 id="modal-title" class="text-xl font-semibold text-gray-900">
+        {showForgotPassword
+          ? "Mot de passe oublié"
+          : showLogin
+            ? "Connexion"
+            : "Inscription"}
+      </h2>
+      <button
+        onclick={closeModal}
+        class="p-1 text-gray-400 transition-colors hover:text-gray-600"
+        disabled={isLoading}
+        aria-label="Fermer la modale"
+      >
+        <svg
+          class="h-6 w-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6">
+      <!-- Messages -->
+      {#if errorMessage}
+        <div
+          class="mb-4 rounded border border-red-400 bg-red-100 p-3 text-red-700"
+          role="alert"
+        >
+          {errorMessage}
+        </div>
+      {/if}
+
+      {#if successMessage}
+        <div
+          class="mb-4 rounded border border-green-400 bg-green-100 p-3 text-green-700"
+          role="status"
+        >
+          {successMessage}
+        </div>
+      {/if}
+
+      <!-- Mot de passe oublié -->
+      {#if showForgotPassword}
+        <form onsubmit={handleForgotPassword}>
+          <div class="mb-4">
+            <label
+              for="forgot-email"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Email
+            </label>
+            <input
+              id="forgot-email"
+              type="email"
+              bind:value={forgotEmail}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="votre@email.com"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            disabled={isLoading}
+          >
+            {isLoading ? "Envoi..." : "Envoyer l'email de réinitialisation"}
+          </button>
+        </form>
+
+        <div class="mt-4 text-center">
+          <button
+            onclick={() => (showForgotPassword = false)}
+            class="text-sm text-blue-600 hover:text-blue-800"
+            disabled={isLoading}
+          >
+            ← Retour à la connexion
+          </button>
+        </div>
+        <!-- Connexion -->
+      {:else if showLogin}
+        <form onsubmit={handleLogin}>
+          <div class="mb-4">
+            <label
+              for="login-email"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Email
+            </label>
+            <input
+              id="login-email"
+              type="email"
+              bind:value={loginEmail}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="votre@email.com"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <div class="mb-4">
+            <label
+              for="login-password"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Mot de passe
+            </label>
+            <input
+              id="login-password"
+              type="password"
+              bind:value={loginPassword}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="••••••••"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            disabled={isLoading}
+          >
+            {isLoading ? "Connexion..." : "Se connecter"}
+          </button>
+        </form>
+
+        <div class="mt-4 space-y-2 text-center">
+          <button
+            onclick={() => (showForgotPassword = true)}
+            class="text-sm text-blue-600 hover:text-blue-800"
+            disabled={isLoading}
+          >
+            Mot de passe oublié ?
+          </button>
+
+          <div class="text-sm text-gray-600">
+            Pas encore de compte ?
+            <button
+              onclick={() => (showLogin = false)}
+              class="ml-1 text-blue-600 hover:text-blue-800"
+              disabled={isLoading}
+            >
+              S'inscrire
+            </button>
+          </div>
+        </div>
+
+        <!-- Inscription -->
+      {:else}
+        <form onsubmit={handleRegister}>
+          <div class="mb-4">
+            <label
+              for="register-name"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Nom
+            </label>
+            <input
+              id="register-name"
+              type="text"
+              bind:value={registerName}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="Votre nom"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <div class="mb-4">
+            <label
+              for="register-email"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Email
+            </label>
+            <input
+              id="register-email"
+              type="email"
+              bind:value={registerEmail}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="votre@email.com"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <div class="mb-4">
+            <label
+              for="register-password"
+              class="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Mot de passe
+            </label>
+            <input
+              id="register-password"
+              type="password"
+              bind:value={registerPassword}
+              class="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="••••••••"
+              disabled={isLoading}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+            disabled={isLoading}
+          >
+            {isLoading ? "Création..." : "Créer un compte"}
+          </button>
+        </form>
+
+        <div class="mt-4 text-center text-sm text-gray-600">
+          Déjà un compte ?
+          <button
+            onclick={() => (showLogin = true)}
+            class="ml-1 text-blue-600 hover:text-blue-800"
+            disabled={isLoading}
+          >
+            Se connecter
+          </button>
+        </div>
+      {/if}
+    </div>
+  </div>
+</div>
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/App.svelte:214:15
+Warn: noninteractive element cannot have nonnegative tabIndex value
+https://svelte.dev/e/a11y_no_noninteractive_tabindex (svelte)
+            <div class="dropdown dropdown-end">
+              <label
+                tabindex="0"
+                class="btn btn-ghost btn-circle avatar placeholder"
+              >
+                <div
+                  class="bg-neutral-focus text-neutral-content w-10 rounded-full"
+                >
+                  <span class="text-xs">
+                    {globalState.user?.name?.charAt(0).toUpperCase() || "U"}
+                  </span>
+                </div>
+              </label>
+              <ul
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/App.svelte:214:15
+Warn: A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control (svelte)
+            <div class="dropdown dropdown-end">
+              <label
+                tabindex="0"
+                class="btn btn-ghost btn-circle avatar placeholder"
+              >
+                <div
+                  class="bg-neutral-focus text-neutral-content w-10 rounded-full"
+                >
+                  <span class="text-xs">
+                    {globalState.user?.name?.charAt(0).toUpperCase() || "U"}
+                  </span>
+                </div>
+              </label>
+              <ul
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/App.svelte:226:15
+Warn: noninteractive element cannot have nonnegative tabIndex value
+https://svelte.dev/e/a11y_no_noninteractive_tabindex (svelte)
+              </label>
+              <ul
+                tabindex="0"
+                class="menu menu-compact dropdown-content bg-base-100 rounded-box mt-3 w-52 p-2 shadow"
+              >
+                <li><a onclick={handleLogout}>Se déconnecter</a></li>
+              </ul>
+            </div>
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/App.svelte:230:21
+Warn: Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events (svelte)
+              >
+                <li><a onclick={handleLogout}>Se déconnecter</a></li>
+              </ul>
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/App.svelte:230:21
+Warn: `<a>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions (svelte)
+              >
+                <li><a onclick={handleLogout}>Se déconnecter</a></li>
+              </ul>
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/App.svelte:230:21
+Warn: `<a>` element should have an href attribute
+https://svelte.dev/e/a11y_missing_attribute (svelte)
+              >
+                <li><a onclick={handleLogout}>Se déconnecter</a></li>
+              </ul>
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/App.svelte:82:11
+Error: Argument of type '() => Promise<() => void>' is not assignable to parameter of type '() => (() => any) | Promise<never>'.
+  Type 'Promise<() => void>' is not assignable to type '(() => any) | Promise<never>'.
+    Type 'Promise<() => void>' is not assignable to type 'Promise<never>'.
+      Type '() => void' is not assignable to type 'never'. (ts)
+
+  onMount(async () => {
+    // Déterminer le mode de montage
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/App.svelte:134:27
+Error: Property 'forceReloadFromHugo' does not exist on type 'ProductsStore'. (ts)
+    try {
+      await productsStore.forceReloadFromHugo();
+      window.location.reload();
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/App.svelte:284:5
+Error: Type 'any' is not assignable to type 'never'. (ts)
+  <OverrideConflictModal
+    isOpen={globalState.isConflictModalOpen}
+    conflictData={globalState.conflictData}
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/App.svelte:284:25
+Error: Property 'isConflictModalOpen' does not exist on type 'GlobalState'. (ts)
+  <OverrideConflictModal
+    isOpen={globalState.isConflictModalOpen}
+    conflictData={globalState.conflictData}
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/App.svelte:285:5
+Error: Type 'any' is not assignable to type 'never'. (ts)
+    isOpen={globalState.isConflictModalOpen}
+    conflictData={globalState.conflictData}
+  />
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/App.svelte:285:31
+Error: Property 'conflictData' does not exist on type 'GlobalState'. (ts)
+    isOpen={globalState.isConflictModalOpen}
+    conflictData={globalState.conflictData}
+  />
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/models/RecipeEventModel.test.ts:1:38
+Error: Cannot find module 'vitest' or its corresponding type declarations. 
+import { describe, it, expect } from 'vitest';
+import { RecipeModel, type RecipeData } from './RecipeModel.svelte';
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/models/RecipeEventModel.test.ts:2:46
+Error: Cannot find module './RecipeModel.svelte' or its corresponding type declarations. 
+import { describe, it, expect } from 'vitest';
+import { RecipeModel, type RecipeData } from './RecipeModel.svelte';
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/utils/UnitConverter.test.ts:1:38
+Error: Cannot find module 'vitest' or its corresponding type declarations. 
+import { describe, it, expect } from 'vitest';
+import { UnitConverter } from './UnitConverter';
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/RecipeSelectorModal.svelte:71:13
+Warn: Avoid using autofocus
+https://svelte.dev/e/a11y_autofocus (svelte)
+            bind:value={searchQuery}
+            autoFocus
+          />
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/RecipeSelectorModal.svelte:56:10
+Error: Object literal may only specify known properties, and '"title"' does not exist in type '$$ComponentProps'. (ts)
+{#if isOpen}
+  <Modal title="Ajouter une recette" onClose={reset}>
+    <div class="space-y-6">
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/RecipeSelectorModal.svelte:81:56
+Error: Argument of type 'RecipeIndexEntry' is not assignable to parameter of type 'RecipeData'.
+  Type 'RecipeIndexEntry' is missing the following properties from type 'RecipeData': uuid, title, plate, ingredients, preparation (ts)
+            <li>
+              <button onclick={() => handleRecipeClick(recipe)}>
+                <span class="font-medium">{recipe.title}</span>
+
+/home/geo/Developpement/ENKA-COOKBOOK/hugo-cookbook-theme/svelte-app/src/lib/components/RecipeSelectorModal.svelte:82:51
+Error: Property 'title' does not exist on type 'RecipeIndexEntry'. (ts)
+              <button onclick={() => handleRecipeClick(recipe)}>
+                <span class="font-medium">{recipe.title}</span>
+              </button>
+
+====================================
+svelte-check found 36 errors and 12 warnings in 18 files

@@ -29,13 +29,14 @@ export interface EnrichedIngredient extends Ingredient {
 // =============================================================================
 
 /**
- * Entrée d'index de recette (depuis data.json)
+ * Entrée d'index de recette (depuis data.json ou Appwrite)
  */
 export interface RecipeIndexEntry {
   u: string;        // UUID court
   n: string;        // Nom
   t: number;        // Type enum (0=entrée, 1=plat, 2=dessert)
-  p: string;        // Path vers recipe.json
+  p: string | null; // Path vers recipe.json (null pour recettes Appwrite)
+  isPublished?: boolean; // true = Hugo, false = Appwrite non-published
 }
 
 /**

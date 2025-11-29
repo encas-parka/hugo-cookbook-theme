@@ -2,6 +2,7 @@
 // SERVICES D'ACHAT GROUPÉ AVEC SYNC
 // =============================================================================
 import { executeWithRetry } from "../utils/retry.utils";
+import { getAppwriteInstances, getAppwriteConfig } from "./appwrite";
 
 export interface GroupPurchaseProductData {
   productId: string;
@@ -107,10 +108,7 @@ async function prepareBatchData(
   // Récupérer l'utilisateur connecté
   let currentUserId = null;
   try {
-    if (!(window as any).AppwriteClient) {
-      throw new Error("AppwriteClient non disponible");
-    }
-    const account = await (window as any).AppwriteClient.getAccount();
+    const { account } = await getAppwriteInstances();
     const user = await account.get();
     currentUserId = user.$id;
   } catch (error) {
@@ -338,12 +336,8 @@ async function executeGroupPurchaseBatch(batchData: {
   invoiceData: GroupPurchaseInvoiceData;
 }): Promise<GroupPurchaseResult> {
   try {
-    if (!(window as any).AppwriteClient) {
-      throw new Error("AppwriteClient non disponible");
-    }
-
-    const functions = await (window as any).AppwriteClient.getFunctions();
-    const config = (window as any).AppwriteClient.getConfig();
+    const config = getAppwriteConfig();
+    const { functions } = await getAppwriteInstances();
 
     const payload = {
       operation: "createGroupPurchaseWithSync",
@@ -351,7 +345,7 @@ async function executeGroupPurchaseBatch(batchData: {
     };
 
     console.log(
-      `[Appwrite Interactions] Exécution du lot: ${batchData.batchData.productsToCreate.length} produits à créer, ${batchData.batchData.purchasesToCreate.length} achats à créer`,
+      `[Appwrite Interactions] Exécution du lot: ${batchData.batchData.productsToCreate.length} produits à créer, ${batchData.batchData.purchasesToCreate.length} achats créer`,
     );
 
     const execution = await functions.createExecution(

@@ -10,6 +10,12 @@ export enum Status {
   ARCHIVE = "archive",
 }
 
+export enum TypeR {
+  ENTREE = "entree",
+  PLAT = "plat",
+  DESSERT = "dessert",
+}
+
 export type InscriptionCampaigns = Models.Row & {
   campaign_id: string;
   team_id: string;
@@ -34,17 +40,18 @@ export type Main = Models.Row & {
   dateStart: string | null;
   dateEnd: string | null;
   teams: string[] | null;
+  contributors: string[] | null;
   status: Status | null;
   error: string | null;
   allDates: string[] | null;
   productsId: Products[];
   purchasesId: Purchases[];
+  meals: string | null;
 };
 
 export type Products = Models.Row & {
   productHugoUuid: string | null;
   productName: string;
-  productType: string;
   stockReel: string | null;
   status: string;
   who: string[] | null;
@@ -57,10 +64,11 @@ export type Products = Models.Row & {
   purchases: Purchases[];
   isSynced: boolean;
   mergedInto: string | null;
-  mainId: Main | string; // workarround
+  mainId: Main;
   totalNeededOverride: string | null;
-  updatedBy: string; // Nom de l'utilisateur ayant modifié le produit
-  specs: string | null; // JSON pour les métadonnées produits manuels (quantité, frais, surgelé)
+  updatedBy: string | null;
+  productType: string | null;
+  specs: string | null;
 };
 
 export type Purchases = Models.Row & {
@@ -76,6 +84,22 @@ export type Purchases = Models.Row & {
   mainId: Main;
   orderDate: string | null;
   deliveryDate: string | null;
-  invoiceId?: string | null; // Référence facture pour expenses/batch
-  invoiceTotal?: number | null; // Montant total de la facture
+  invoiceId: string | null;
+  invoiceTotal: number | null;
+};
+
+export type Recettes = Models.Row & {
+  title: string;
+  plate: number;
+  ingredients: string;
+  preparation: string;
+  draft: boolean;
+  typeR: TypeR;
+  categories: string[] | null;
+  regime: string[] | null;
+  isPublished: boolean;
+  publishedAt: string | null;
+  createdBy: string;
+  teams: string[] | null;
+  contributors: string[] | null;
 };

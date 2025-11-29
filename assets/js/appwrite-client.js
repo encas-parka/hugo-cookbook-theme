@@ -1,6 +1,7 @@
 // hugo-cookbook-theme/assets/js/appwrite-client.js
 // Module commun pour l'initialisation et la gestion du client Appwrite
 // Évite la duplication d'initialisation entre auth-status.js et authAppwrite.js
+// LEGACY : migrer toute les dépendande (auth, invitation, etc...)
 
 // --- CONFIGURATION CENTRALE APPWRITE ---
 const APPWRITE_CONFIG = {
@@ -25,7 +26,9 @@ let client = null;
 let account = null;
 let functions = null;
 let databases = null;
+let teams = null;
 let initializationPromise = null;
+
 
 /**
  * Attend que le SDK Appwrite soit chargé et initialise les clients
@@ -75,7 +78,7 @@ async function initializeAppwrite() {
       console.log("[Appwrite Client] Début de l'initialisation");
       await waitForAppwrite();
 
-      const { Client, Account, Functions, Databases } = window.Appwrite;
+      const { Client, Account, Functions, Databases, Teams } = window.Appwrite;
 
       client = new Client()
         .setEndpoint(APPWRITE_CONFIG.endpoint)
@@ -84,9 +87,12 @@ async function initializeAppwrite() {
       account = new Account(client);
       functions = new Functions(client);
       databases = new Databases(client);
+      teams = new Teams(client);
+
 
       console.log("[Appwrite Client] Initialisation terminée avec succès");
-      return { client, account, functions, databases };
+
+      return { client, account, functions, databases, teams };
     } catch (error) {
       console.error(
         "[Appwrite Client] Erreur lors de l'initialisation:",
@@ -96,6 +102,7 @@ async function initializeAppwrite() {
       account = null;
       functions = null;
       databases = null;
+      teams = null;
       initializationPromise = null;
       throw error;
     }
@@ -111,23 +118,22 @@ async function getAppwriteClients() {
 }
 
 async function getAccount() {
-  const { account } = await initializeAppwrite();
+  if (!account) await initializeAppwrite();
   return account;
 }
 
 async function getTeams() {
-  const { Teams } = window.Appwrite;
-  if (!client) await initializeAppwrite();
-  return new Teams(client);
+  if (!teams) await initializeAppwrite();
+  return teams;
 }
 
 async function getFunctions() {
-  const { functions } = await initializeAppwrite();
+  if (!functions) await initializeAppwrite();
   return functions;
 }
 
 async function getDatabases() {
-  const { databases } = await initializeAppwrite();
+  if (!databases) await initializeAppwrite();
   return databases;
 }
 
@@ -142,7 +148,7 @@ function getConfig() {
 }
 
 function isInitialized() {
-  return !!(client && account && functions && databases);
+  return !!(client && account && functions && databases && teams);
 }
 
 function getLocalCmsUser() {

@@ -99,7 +99,7 @@ export const AppwriteClient = {
   },
 
   isInitialized(): boolean {
-    return !!(client && account && functions && databases);
+    return !!(client && account && functions && databases && teams);
   },
 
   async initializeAppwrite() {

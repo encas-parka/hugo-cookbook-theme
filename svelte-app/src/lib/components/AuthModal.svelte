@@ -1,63 +1,54 @@
 <script lang="ts">
-  // Props avec callbacks Svelte 5
-  let {
-    onClose = () => {},
-    onAuthSuccess = () => {}
-  } = $props();
+  import { getAppwriteInstances } from "../services/appwrite";
+
+  let { isOpen = $bindable(), onAuthSuccess = () => {} } = $props();
 
   // États avec runes Svelte 5
   let showLogin = $state(true);
   let isLoading = $state(false);
-  let errorMessage = $state('');
-  let successMessage = $state('');
+  let errorMessage = $state("");
+  let successMessage = $state("");
 
   // Formulaire de connexion
-  let loginEmail = $state('');
-  let loginPassword = $state('');
+  let loginEmail = $state("");
+  let loginPassword = $state("");
 
   // Formulaire d'inscription
-  let registerName = $state('');
-  let registerEmail = $state('');
-  let registerPassword = $state('');
+  let registerName = $state("");
+  let registerEmail = $state("");
+  let registerPassword = $state("");
 
   // Formulaire mot de passe oublié
-  let forgotEmail = $state('');
+  let forgotEmail = $state("");
   let showForgotPassword = $state(false);
-
-  // Fonction utilitaire pour accéder à Appwrite
-  function getAppwriteClient() {
-    if (typeof window !== 'undefined' && window.AppwriteClient) {
-      return window.AppwriteClient;
-    }
-    throw new Error('AppwriteClient non disponible');
-  }
 
   async function handleLogin(event: Event) {
     event.preventDefault();
 
     if (!loginEmail || !loginPassword) {
-      errorMessage = 'Veuillez remplir tous les champs';
+      errorMessage = "Veuillez remplir tous les champs";
       return;
     }
 
     isLoading = true;
-    errorMessage = '';
+    errorMessage = "";
 
     try {
-      const appwrite = getAppwriteClient();
-      const account = await appwrite.getAccount();
+      const { account } = await getAppwriteInstances();
 
       // Créer la session
-      await account.createEmailPasswordSession(loginEmail, loginPassword);
+      await account.createEmailPasswordSession({
+        email: loginEmail,
+        password: loginPassword,
+      });
 
-      successMessage = 'Connexion réussie !';
+      successMessage = "Connexion réussie !";
       setTimeout(() => {
         onAuthSuccess();
       }, 1000);
-
     } catch (error: any) {
-      console.error('Erreur de connexion:', error);
-      errorMessage = error.message || 'Erreur lors de la connexion';
+      console.error("Erreur de connexion:", error);
+      errorMessage = error.message || "Erreur lors de la connexion";
     } finally {
       isLoading = false;
     }
@@ -67,36 +58,37 @@
     event.preventDefault();
 
     if (!registerName || !registerEmail || !registerPassword) {
-      errorMessage = 'Veuillez remplir tous les champs';
+      errorMessage = "Veuillez remplir tous les champs";
       return;
     }
 
     isLoading = true;
-    errorMessage = '';
+    errorMessage = "";
 
     try {
-      const appwrite = getAppwriteClient();
-      const account = await appwrite.getAccount();
+      const { account } = await getAppwriteInstances();
 
       // Créer le compte
-      await account.create(
-        'unique()',
-        registerEmail,
-        registerPassword,
-        registerName
-      );
+      await account.create({
+        userId: "unique()",
+        email: registerEmail,
+        password: registerPassword,
+        name: registerName,
+      });
 
       // Créer la session
-      await account.createEmailPasswordSession(registerEmail, registerPassword);
+      await account.createEmailPasswordSession({
+        email: registerEmail,
+        password: registerPassword,
+      });
 
-      successMessage = 'Compte créé et connecté !';
+      successMessage = "Compte créé et connecté !";
       setTimeout(() => {
         onAuthSuccess();
       }, 1000);
-
     } catch (error: any) {
-      console.error('Erreur d\'inscription:', error);
-      errorMessage = error.message || 'Erreur lors de la création du compte';
+      console.error("Erreur d'inscription:", error);
+      errorMessage = error.message || "Erreur lors de la création du compte";
     } finally {
       isLoading = false;
     }
@@ -106,31 +98,29 @@
     event.preventDefault();
 
     if (!forgotEmail) {
-      errorMessage = 'Veuillez entrer votre email';
+      errorMessage = "Veuillez entrer votre email";
       return;
     }
 
     isLoading = true;
-    errorMessage = '';
+    errorMessage = "";
 
     try {
-      const appwrite = getAppwriteClient();
-      const account = await appwrite.getAccount();
+      const { account } = await getAppwriteInstances();
 
-      await account.createRecovery(
-        forgotEmail,
-        `${window.location.origin}/reset-password`
-      );
+      await account.createRecovery({
+        email: forgotEmail,
+        url: `${window.location.origin}/reset-password`,
+      });
 
-      successMessage = 'Email de réinitialisation envoyé !';
+      successMessage = "Email de réinitialisation envoyé !";
       setTimeout(() => {
         showForgotPassword = false;
-        forgotEmail = '';
+        forgotEmail = "";
       }, 2000);
-
     } catch (error: any) {
-      console.error('Erreur mot de passe oublié:', error);
-      errorMessage = error.message || 'Erreur lors de l\'envoi de l\'email';
+      console.error("Erreur mot de passe oublié:", error);
+      errorMessage = error.message || "Erreur lors de l'envoi de l'email";
     } finally {
       isLoading = false;
     }
@@ -138,7 +128,7 @@
 
   function closeModal() {
     if (!isLoading) {
-      onClose();
+      isOpen = false;
     }
   }
 
@@ -149,113 +139,109 @@
   // Reset des messages via effet réactif
   $effect(() => {
     if (showLogin || showForgotPassword) {
-      errorMessage = '';
-      successMessage = '';
+      errorMessage = "";
+      successMessage = "";
     }
   });
 </script>
 
-<!-- Overlay -->
-<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="modal-title" onclick={closeModal} onkeydown={(e) => e.key === 'Escape' && closeModal()}>
-  <!-- Modal content -->
-  <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4" onclick={stopPropagation}>
-
+<div class="auth-modal {isOpen && 'auth-modal-open'}" role="dialog">
+  <div class="auth-modal-content">
     <!-- Header -->
-    <div class="flex items-center justify-between p-6 border-b">
-      <h2 id="modal-title" class="text-xl font-semibold text-gray-900">
-        {showForgotPassword ? 'Mot de passe oublié' : (showLogin ? 'Connexion' : 'Inscription')}
-      </h2>
-      <button
-        onclick={closeModal}
-        class="text-gray-400 hover:text-gray-600 transition-colors p-1"
-        disabled={isLoading}
-        aria-label="Fermer la modale"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
+    <div class="auth-header">
+      <div class="auth-title">
+        {showForgotPassword
+          ? "Mot de passe oublié"
+          : showLogin
+            ? "Connexion"
+            : "Inscription"}
+      </div>
+      <button class="auth-close-btn" onclick={closeModal}>✕</button>
     </div>
 
     <!-- Content -->
-    <div class="p-6">
+    <div class="auth-body">
       <!-- Messages -->
       {#if errorMessage}
-        <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded" role="alert">
-          {errorMessage}
+        <div class="auth-message auth-message-error">
+          <span>{errorMessage}</span>
         </div>
       {/if}
 
       {#if successMessage}
-        <div class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded" role="status">
-          {successMessage}
+        <div class="auth-message auth-message-success">
+          <span>{successMessage}</span>
         </div>
       {/if}
 
       <!-- Mot de passe oublié -->
       {#if showForgotPassword}
-        <form onsubmit={handleForgotPassword}>
-          <div class="mb-4">
-            <label for="forgot-email" class="block text-sm font-medium text-gray-700 mb-2">
-              Email
+        <form onsubmit={handleForgotPassword} class="auth-form">
+          <div class="auth-field">
+            <label class="auth-label" for="forgot-email">
+              <span class="auth-label-text">Email</span>
             </label>
             <input
               id="forgot-email"
               type="email"
               bind:value={forgotEmail}
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="auth-input"
               placeholder="votre@email.com"
               disabled={isLoading}
-              required
             />
           </div>
 
           <button
             type="submit"
-            class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+            class="auth-btn auth-btn-primary auth-btn-full"
             disabled={isLoading}
           >
-            {isLoading ? 'Envoi...' : 'Envoyer l\'email de réinitialisation'}
+            {#if isLoading}
+              <span class="auth-spinner"></span>
+            {:else}
+              Envoyer l'email de réinitialisation
+            {/if}
           </button>
         </form>
 
-        <div class="mt-4 text-center">
+        <div class="auth-back-link">
           <button
-            onclick={() => showForgotPassword = false}
-            class="text-blue-600 hover:text-blue-800 text-sm"
+            onclick={() => (showForgotPassword = false)}
+            class="auth-link-btn"
             disabled={isLoading}
           >
             ← Retour à la connexion
           </button>
         </div>
-      <!-- Connexion -->
+
+        <!-- Connexion -->
       {:else if showLogin}
-        <form onsubmit={handleLogin}>
-          <div class="mb-4">
-            <label for="login-email" class="block text-sm font-medium text-gray-700 mb-2">
-              Email
+        <form onsubmit={handleLogin} class="auth-form">
+          <div class="auth-field">
+            <label class="auth-label" for="login-email">
+              <span class="auth-label-text">Email</span>
             </label>
             <input
               id="login-email"
               type="email"
               bind:value={loginEmail}
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="auth-input"
               placeholder="votre@email.com"
               disabled={isLoading}
               required
             />
           </div>
 
-          <div class="mb-4">
-            <label for="login-password" class="block text-sm font-medium text-gray-700 mb-2">
-              Mot de passe
+          <div class="auth-field">
+            <label class="auth-label" for="login-password">
+              <span class="auth-label-text">Mot de passe</span>
             </label>
             <input
               id="login-password"
               type="password"
               bind:value={loginPassword}
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
+              class="auth-input"
+              placeholder="•••••••"
               disabled={isLoading}
               required
             />
@@ -263,27 +249,31 @@
 
           <button
             type="submit"
-            class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+            class="auth-btn auth-btn-primary auth-btn-full"
             disabled={isLoading}
           >
-            {isLoading ? 'Connexion...' : 'Se connecter'}
+            {#if isLoading}
+              <span class="auth-spinner"></span>
+            {:else}
+              Se connecter
+            {/if}
           </button>
         </form>
 
-        <div class="mt-4 text-center space-y-2">
+        <div class="auth-actions">
           <button
-            onclick={() => showForgotPassword = true}
-            class="text-blue-600 hover:text-blue-800 text-sm"
+            onclick={() => (showForgotPassword = true)}
+            class="auth-link-btn"
             disabled={isLoading}
           >
             Mot de passe oublié ?
           </button>
 
-          <div class="text-sm text-gray-600">
+          <div class="auth-switch">
             Pas encore de compte ?
             <button
-              onclick={() => showLogin = false}
-              class="text-blue-600 hover:text-blue-800 ml-1"
+              onclick={() => (showLogin = false)}
+              class="auth-link-btn auth-link-inline"
               disabled={isLoading}
             >
               S'inscrire
@@ -291,49 +281,49 @@
           </div>
         </div>
 
-      <!-- Inscription -->
+        <!-- Inscription -->
       {:else}
-        <form onsubmit={handleRegister}>
-          <div class="mb-4">
-            <label for="register-name" class="block text-sm font-medium text-gray-700 mb-2">
-              Nom
+        <form onsubmit={handleRegister} class="auth-form">
+          <div class="auth-field">
+            <label class="auth-label" for="register-name">
+              <span class="auth-label-text">Nom</span>
             </label>
             <input
               id="register-name"
               type="text"
               bind:value={registerName}
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="auth-input"
               placeholder="Votre nom"
               disabled={isLoading}
               required
             />
           </div>
 
-          <div class="mb-4">
-            <label for="register-email" class="block text-sm font-medium text-gray-700 mb-2">
-              Email
+          <div class="auth-field">
+            <label class="auth-label" for="register-email">
+              <span class="auth-label-text">Email</span>
             </label>
             <input
               id="register-email"
               type="email"
               bind:value={registerEmail}
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="auth-input"
               placeholder="votre@email.com"
               disabled={isLoading}
               required
             />
           </div>
 
-          <div class="mb-4">
-            <label for="register-password" class="block text-sm font-medium text-gray-700 mb-2">
-              Mot de passe
+          <div class="auth-field">
+            <label class="auth-label" for="register-password">
+              <span class="auth-label-text">Mot de passe</span>
             </label>
             <input
               id="register-password"
               type="password"
               bind:value={registerPassword}
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
+              class="auth-input"
+              placeholder="•••••••"
               disabled={isLoading}
               required
             />
@@ -341,18 +331,22 @@
 
           <button
             type="submit"
-            class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+            class="auth-btn auth-btn-success auth-btn-full"
             disabled={isLoading}
           >
-            {isLoading ? 'Création...' : 'Créer un compte'}
+            {#if isLoading}
+              <span class="auth-spinner"></span>
+            {:else}
+              Créer un compte
+            {/if}
           </button>
         </form>
 
-        <div class="mt-4 text-center text-sm text-gray-600">
+        <div class="auth-switch">
           Déjà un compte ?
           <button
-            onclick={() => showLogin = true}
-            class="text-blue-600 hover:text-blue-800 ml-1"
+            onclick={() => (showLogin = true)}
+            class="auth-link-btn auth-link-inline"
             disabled={isLoading}
           >
             Se connecter
@@ -362,3 +356,254 @@
     </div>
   </div>
 </div>
+
+<style>
+  /* Modal styles */
+  .auth-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0.3s ease,
+      visibility 0.3s ease;
+  }
+
+  .auth-modal.auth-modal-open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .auth-modal-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    max-width: 28rem;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* Header styles */
+  .auth-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .auth-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .auth-close-btn {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #6b7280;
+    transition: background-color 0.2s ease;
+  }
+
+  .auth-close-btn:hover {
+    background-color: #f3f4f6;
+  }
+
+  .auth-close-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Body styles */
+  .auth-body {
+    padding: 1.5rem;
+  }
+
+  /* Message styles */
+  .auth-message {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .auth-message-error {
+    background-color: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+
+  .auth-message-success {
+    background-color: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+  }
+
+  /* Form styles */
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .auth-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .auth-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+  }
+
+  .auth-label-text {
+    display: block;
+  }
+
+  .auth-input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background-color: white;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .auth-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .auth-input:disabled {
+    background-color: #f9fafb;
+    color: #6b7280;
+    cursor: not-allowed;
+  }
+
+  /* Button styles */
+  .auth-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .auth-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .auth-btn-primary {
+    background-color: #3b82f6;
+    color: white;
+  }
+
+  .auth-btn-primary:hover:not(:disabled) {
+    background-color: #2563eb;
+  }
+
+  .auth-btn-success {
+    background-color: #10b981;
+    color: white;
+  }
+
+  .auth-btn-success:hover:not(:disabled) {
+    background-color: #059669;
+  }
+
+  .auth-btn-full {
+    width: 100%;
+  }
+
+  /* Link button styles */
+  .auth-link-btn {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    cursor: pointer;
+    font-size: 0.875rem;
+    text-decoration: underline;
+    transition: color 0.2s ease;
+  }
+
+  .auth-link-btn:hover:not(:disabled) {
+    color: #2563eb;
+  }
+
+  .auth-link-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .auth-link-inline {
+    display: inline;
+  }
+
+  /* Layout styles */
+  .auth-back-link {
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  .auth-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+
+  .auth-switch {
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  /* Spinner styles */
+  .auth-spinner {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #e5e7eb;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+</style>

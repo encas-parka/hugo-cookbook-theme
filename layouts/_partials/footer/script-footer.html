@@ -1,2 +1,12 @@
-<!-- Charge les script js importé dans app.js (bootstrap, auth-status)-->
-{{ partial "footer/esbuild" (dict "src" "js/app.js" "targetPath" "main.js" "load" "defer" "transpile" false) -}}
+<!-- Charge l'app Svelte (gère auth + header sur toutes les pages, dashboard sur /dashboard) -->
+<script type="module" src="/dist/assets/index.js"></script>
+
+<!-- Charge le CSS Svelte -->
+<link rel="stylesheet" href="/dist/assets/index.css">
+
+<!-- Ajustement du body pour compenser la navbar fixe Svelte -->
+<style>
+  body {
+    padding-top: 40px; /* Hauteur de la navbar Svelte */
+  }
+</style>

@@ -8,12 +8,10 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {{ partialCached "head/favicons.html" . "static_favicons" }}
-    {{ partialCached "head/script-header.html" . "appwrite" }}
     <!-- Pas de Bootstrap - uniquement Tailwind/DaisyUI depuis le build Svelte -->
   </head>
 
   <body>
-    {{ partialCached "header/header.html" . "header" }}
 
     <div class="" role="document">
       <div class="content">
