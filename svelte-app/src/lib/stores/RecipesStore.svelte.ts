@@ -458,15 +458,15 @@ class RecipesStore {
   /**
    * Filtre les recettes par type
    */
-  getRecipesByType(type: number): RecipeIndexEntry[] {
+  getRecipesByType(type: string): RecipeIndexEntry[] {
     return this.recipesIndex.filter((recipe) => recipe.t === type);
   }
 
   /**
    * Récupère tous les types de recettes disponibles
    */
-  get availableTypes(): number[] {
-    const types = new Set<number>();
+  get availableTypes(): string[] {
+    const types = new Set<string>();
     this.recipesIndex.forEach((recipe) => types.add(recipe.t));
     return Array.from(types).sort();
   }

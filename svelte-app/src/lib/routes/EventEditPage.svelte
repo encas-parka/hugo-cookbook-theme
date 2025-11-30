@@ -18,6 +18,7 @@
   import { getEvent, parseMeals } from "$lib/services/appwrite-events";
   import { fade } from "svelte/transition";
   import { dateToDateTime } from "$lib/utils/date-helpers";
+  import { flip } from "svelte/animate";
 
   // Props du router
   let { params } = $props<{ params?: Record<string, string> }>();
@@ -44,10 +45,8 @@
     return [...new Set(dates)].sort();
   });
 
-  // Repas triés par date/heure (tri direct sur meal.date qui est maintenant en ISO complet)
-  const sortedMeals = $derived.by(() => {
-    return [...meals].sort((a, b) => a.date.localeCompare(b.date));
-  });
+  // Les repas sont maintenant maintenus triés par date dans le tableau meals
+  // Pas besoin d'un tableau dérivé sortedMeals
 
   const dateStart = $derived(allDates.length > 0 ? allDates[0] : "");
   const dateEnd = $derived(
@@ -67,7 +66,9 @@
             eventName = event.name || "";
             selectedTeams = event.teams || [];
             contributors = event.contributors || [];
-            meals = parseMeals(event);
+            meals = parseMeals(event).sort((a, b) =>
+              a.date.localeCompare(b.date),
+            );
           } else {
             error = "Événement introuvable";
           }
@@ -137,19 +138,19 @@
       recipes: [],
     };
 
-    meals = [...meals, newMeal];
+    // Ajouter le nouveau repas et trier par date
+    meals = [...meals, newMeal].sort((a, b) => a.date.localeCompare(b.date));
     // Mettre le nouveau repas en mode édition en utilisant l'UUID
     editingMealIndex = mealId;
   }
 
   function removeMeal(mealId: string) {
-    meals = meals.filter((meal) => (meal.id || meal.date) !== mealId);
+    meals = meals.filter((meal) => meal.id !== mealId);
   }
 
   function duplicateMeal(mealId: string) {
-    const mealToDuplicate = meals.find(
-      (meal) => (meal.id || meal.date) === mealId,
-    );
+    return; // FIX setDate pour éviter conflit
+    const mealToDuplicate = meals.find((meal) => meal.id === mealId);
     if (!mealToDuplicate) return;
 
     // Créer une copie du repas avec un nouvel UUID
@@ -158,12 +159,14 @@
       id: nanoid(6), // Générer un nouvel UUID pour le duplicata
     };
 
-    // Ajouter 1 jour à la date pour éviter les doublons
     const originalDate = new Date(mealToDuplicate.date);
     originalDate.setDate(originalDate.getDate() + 1);
     duplicatedMeal.date = originalDate.toISOString();
 
-    meals = [...meals, duplicatedMeal];
+    // Ajouter et trier par date
+    meals = [...meals, duplicatedMeal].sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
   }
 
   // Gestion des Contributeurs
@@ -187,11 +190,34 @@
   }
 
   function toggleEditMeal(mealId: string) {
-    if (editingMealIndex === mealId) {
-      editingMealIndex = null;
+    editingMealIndex = editingMealIndex === mealId ? null : mealId;
+  }
+
+  /* Gestion des keydown 'enter'|'tab' sur l'input searchRecipe */
+  function handleEmptySearchSubmit(currentMealId: string) {
+    // Obtenir l'index du repas dans le tableau
+    const currentIndex = meals.findIndex((meal) => meal.id === currentMealId);
+
+    // Vérifier s'il y a un prochain repas
+    if (currentIndex < meals.length - 1) {
+      // Ouvrir le prochain repas en mode édition
+      const nextMeal = meals[currentIndex + 1];
+      if (nextMeal.id) {
+        editingMealIndex = nextMeal.id;
+      } else {
+        // Si le repas n'a pas d'ID, en générer un
+        nextMeal.id = nanoid(6);
+        editingMealIndex = nextMeal.id;
+      }
     } else {
-      editingMealIndex = mealId;
+      // Créer un nouveau repas
+      addMeal();
     }
+  }
+
+  function handleDateChanged(mealId: string, newDate: string) {
+    // Réordonner les repas par date après un changement
+    meals = meals.sort((a, b) => a.date.localeCompare(b.date));
   }
 
   async function handleSave() {
@@ -407,23 +433,21 @@
                 </p>
               </div>
             {:else}
-              <div class="space-y-4" transition:fade>
-                {#each sortedMeals as meal (meal.id)}
-                  {@const mealId = meal.id || meal.date}
-
-                  {@const mealIndex = meals.findIndex(
-                    (m) => (m.id || m.date) === mealId,
-                  )}
-                  {#if mealIndex !== -1}
+              <div class="space-y-4">
+                {#each meals as meal, $index (meal.id)}
+                  <div animate:flip={{ delay: 100, duration: 400 }}>
                     <EventMealCard
-                      bind:meal={meals[mealIndex]}
-                      isEditing={editingMealIndex === mealId}
-                      onEditToggle={() => toggleEditMeal(mealId)}
-                      onDelete={() => removeMeal(mealId)}
-                      onDuplicate={() => duplicateMeal(mealId)}
+                      bind:meal={meals[$index]}
+                      isEditing={editingMealIndex === meal.id}
+                      onEditToggle={() => meal.id && toggleEditMeal(meal.id)}
+                      onDelete={() => meal.id && removeMeal(meal.id)}
+                      onDuplicate={() => meal.id && duplicateMeal(meal.id)}
                       {allDates}
+                      onEmptySearchSubmit={() =>
+                        meal.id && handleEmptySearchSubmit(meal.id)}
+                      onDateChanged={handleDateChanged}
                     />
-                  {/if}
+                  </div>
                 {/each}
               </div>
             {/if}

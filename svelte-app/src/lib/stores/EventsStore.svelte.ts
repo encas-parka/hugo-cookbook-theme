@@ -158,21 +158,25 @@ class EventsStore {
    */
   #setupRealtime(): void {
     try {
-      this.#realtimeUnsubscribe = subscribeToEvents(
-        this.#userId!,
-        this.#userTeams,
-        (event, eventType) => {
-          console.log(`[EventsStore] Realtime: ${eventType} pour ${event.$id}`);
+      this.#realtimeUnsubscribe = async () => {
+        await subscribeToEvents(
+          this.#userId!,
+          this.#userTeams,
+          (event, eventType) => {
+            console.log(
+              `[EventsStore] Realtime: ${eventType} pour ${event.$id}`,
+            );
 
-          if (eventType === "create" || eventType === "update") {
-            this.#events.set(event.$id, event);
-          } else if (eventType === "delete") {
-            this.#events.delete(event.$id);
-          }
-        },
-      );
+            if (eventType === "create" || eventType === "update") {
+              this.#events.set(event.$id, event);
+            } else if (eventType === "delete") {
+              this.#events.delete(event.$id);
+            }
+          },
+        );
 
-      console.log("[EventsStore] Realtime activé");
+        console.log("[EventsStore] Realtime activé");
+      };
     } catch (err) {
       console.error(
         "[EventsStore] Erreur lors de la configuration du realtime:",

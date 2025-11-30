@@ -1,8 +1,6 @@
 <script lang="ts">
   import { globalState } from "../stores/GlobalState.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
-  // 	import { Router } from 'sv-router';
-  // import { navigate, p } from '@/router';
 
   import {
     LogInIcon,

@@ -26,6 +26,7 @@
     extractTime,
     dateToDateTime,
   } from "$lib/utils/date-helpers";
+  import { flip } from "svelte/animate";
 
   interface Props {
     meal: Meal;
@@ -35,6 +36,8 @@
     isEditing?: boolean;
     onEditToggle?: () => void;
     allDates?: string[];
+    onEmptySearchSubmit?: () => void;
+    onDateChanged?: (mealId: string, newDate: string) => void;
   }
 
   let {
@@ -45,7 +48,12 @@
     isEditing = $bindable(false),
     onEditToggle,
     allDates = [],
+    onEmptySearchSubmit,
+    onDateChanged,
   }: Props = $props();
+
+  // État pour le focus automatique sur le champ de recherche
+  let shouldFocusSearch = $state(false);
 
   // Initialisation des valeurs par défaut si vide
   if (!meal.guests) meal.guests = defaultGuests;
@@ -55,16 +63,27 @@
   let displayDate = $derived(extractDate(meal.date || ""));
   let displayTime = $derived(extractTime(meal.date || ""));
 
-  let newDateInput = $state(displayDate);
-  let newTimeInput = $state(displayTime);
-  let newDateTime = $derived(dateToDateTime(newDateInput, newTimeInput));
   // État pour savoir si l'utilisateur a essayé de sélectionner une date en conflit
   let hasTryConflictingDate = $state(false);
 
+  // Initialiser les valeurs d'entrée avec les valeurs actuelles
+  let newDateInput = $state(extractDate(meal.date || ""));
+  let newTimeInput = $state(extractTime(meal.date || ""));
+  let newDateTime = $derived(dateToDateTime(newDateInput, newTimeInput));
+
   $effect(() => {
     const isValidNewDateTime = !isDateTimeTaken(newDateTime);
+    const oldDate = meal.date; // ✅ Stocker l'ancienne date
+
     if (isValidNewDateTime) {
       meal.date = newDateTime;
+      hasTryConflictingDate = false;
+
+      // ✅ Comparer avec l'ancienne date pour voir si ça a changé
+      if (onDateChanged && meal.id && oldDate !== newDateTime) {
+        // Ne notifier que si le changement affecte l'ordre
+        onDateChanged(meal.id, newDateTime);
+      }
       hasTryConflictingDate = false;
     } else {
       hasTryConflictingDate = true;
@@ -126,17 +145,6 @@
     meal.recipes = [...meal.recipes, { ...newRecipe }];
   }
 
-  function updateRecipe(recipeUuid: string, updates: Partial<MealRecipe>) {
-    meal.recipes = meal.recipes.map((recipe) => {
-      if (recipe.recipeUuid === recipeUuid) {
-        // Créer une copie complète pour éviter les liaisons
-        const updatedRecipe = { ...recipe, ...updates };
-        return { ...updatedRecipe };
-      }
-      return recipe;
-    });
-  }
-
   function removeRecipe(recipeUuid: string) {
     meal.recipes = meal.recipes.filter(
       (recipe) => recipe.recipeUuid !== recipeUuid,
@@ -150,8 +158,21 @@
   function handleCardClick() {
     if (!isEditing && onEditToggle) {
       onEditToggle();
+      // Déclencher le focus sur le champ de recherche après le passage en mode édition
+      shouldFocusSearch = true;
     }
   }
+
+  // Effect pour déclencher le focus quand isEditing change
+  $effect(() => {
+    if (isEditing) {
+      shouldFocusSearch = true;
+      // Réinitialiser après un court délai
+      setTimeout(() => {
+        shouldFocusSearch = false;
+      }, 100);
+    }
+  });
 
   function getRecipeColor(type) {
     if (type === "entree") return "bg-lime-100 border-lime-200";
@@ -299,7 +320,7 @@
               {#each sortedRecipes as recipe, i (recipe.recipeUuid)}
                 {@const recipeIndex = getRecipeIndex(recipe.recipeUuid)}
                 <div
-                  transition:fade
+                  animate:flip={{ duration: 200 }}
                   class="group bg-base-200/40 flex flex-wrap items-center gap-3 rounded-lg p-3"
                 >
                   <!-- Icône -->
@@ -323,17 +344,7 @@
                   <!-- Contrôles d'édition -->
                   <div class="flex items-center gap-2">
                     <!-- Type -->
-                    <select
-                      class="select w-24"
-                      bind:value={recipe.type}
-                      onchange={(e) =>
-                        updateRecipe(recipe.recipeUuid, {
-                          type: e.currentTarget.value as
-                            | "entree"
-                            | "plat"
-                            | "dessert",
-                        })}
-                    >
+                    <select class="select w-24" bind:value={recipe.type}>
                       <option value="entree">Entrée</option>
                       <option value="plat">Plat</option>
                       <option value="dessert">Dessert</option>
@@ -346,11 +357,6 @@
                         class="input join-item w-20 text-center"
                         bind:value={recipe.plates}
                         min="1"
-                        onchange={(e) =>
-                          updateRecipe(recipe.recipeUuid, {
-                            plates:
-                              parseInt(e.currentTarget.value) || meal.guests,
-                          })}
                       />
                       <div
                         class="bg-base-300 join-item flex items-center px-2 text-xs"
@@ -375,6 +381,8 @@
           <RecipeSearchCard
             onSelect={handleAddRecipe}
             defaultPlates={meal.guests}
+            autoFocus={shouldFocusSearch}
+            onEmptySubmit={onEmptySearchSubmit}
           />
         </div>
       </div>

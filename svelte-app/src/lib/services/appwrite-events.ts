@@ -34,10 +34,10 @@ export async function listEvents(
 ): Promise<Main[]> {
   try {
     const { tables, config } = await getAppwriteInstances();
-    const response = await tables.listRows(
-      config.databaseId,
-      EVENTS_COLLECTION_ID,
-    );
+    const response = await tables.listRows({
+      databaseId: config.databaseId,
+      tableId: EVENTS_COLLECTION_ID,
+    });
 
     return (response.rows as unknown as Main[]).filter((event) => {
       return (

@@ -2,6 +2,7 @@
   import { Search, Plus, ChefHat, X, LoaderCircle } from "@lucide/svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import type { RecipeData, RecipeIndexEntry } from "$lib/types/recipes.types";
+  import { keyboardNavigation } from "$lib/attachments/keyboardNavigation.svelte";
 
   interface Props {
     onSelect: (
@@ -10,9 +11,16 @@
       plates: number,
     ) => void;
     defaultPlates?: number;
+    autoFocus?: boolean;
+    onEmptySubmit?: () => void;
   }
 
-  let { onSelect, defaultPlates = 4 }: Props = $props();
+  let {
+    onSelect,
+    defaultPlates = 4,
+    autoFocus = false,
+    onEmptySubmit,
+  }: Props = $props();
 
   let searchQuery = $state("");
   let selectedType = $state<"entree" | "plat" | "dessert" | "">("");
@@ -27,6 +35,15 @@
       ? recipesStore.searchRecipes(searchQuery).slice(0, 5) // Limiter à 5 résultats
       : [],
   );
+
+  // Gérer le selectedIndex de manière réactive
+  $effect(() => {
+    if (filteredRecipes.length > 0 && selectedIndex === -1) {
+      selectedIndex = 0; // Sélectionner le premier élément par défaut
+    } else if (filteredRecipes.length === 0) {
+      selectedIndex = -1; // Réinitialiser si aucun résultat
+    }
+  });
 
   function reset() {
     selectedRecipe = null;
@@ -84,23 +101,25 @@
     {#if !selectedRecipe}
       <!-- Mode Recherche -->
       <div class="mt-2">
-        <div class="relative">
-          <Search
-            class="text-base-content/50 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
-          />
+        <label class="input input-accent w-full">
+          <Search class="h-4 w-4 opacity-50" />
           <input
             type="text"
             placeholder="Rechercher une recette..."
-            class="input w-full pl-9"
+            class=""
             bind:value={searchQuery}
             onkeydown={handleKeydown}
+            {@attach keyboardNavigation({
+              shouldFocus: autoFocus,
+              onEmptySubmit: onEmptySubmit,
+            })}
           />
           {#if isLoadingDetails}
             <div class="absolute top-1/2 right-3 -translate-y-1/2">
               <LoaderCircle class="text-primary h-4 w-4 animate-spin" />
             </div>
           {/if}
-        </div>
+        </label>
 
         {#if searchQuery.length > 1 && filteredRecipes.length === 0}
           <div class="text-base-content/60 mt-2 py-2 text-center text-xs">
