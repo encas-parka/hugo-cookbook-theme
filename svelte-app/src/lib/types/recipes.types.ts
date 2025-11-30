@@ -10,10 +10,10 @@
  * Ingrédient tel que chargé depuis data.json
  */
 export interface Ingredient {
-  u: string;        // UUID court (ex: "xo0ibs")
-  n: string;        // Nom (ex: "Abricot")
-  t: string;        // Type (ex: "legumes", "epices", etc.)
-  a?: string[];     // Allergènes optionnels (ex: ["Sésame"])
+  u: string; // UUID court (ex: "xo0ibs")
+  n: string; // Nom (ex: "Abricot")
+  t: string; // Type (ex: "legumes", "epices", etc.)
+  a?: string[]; // Allergènes optionnels (ex: ["Sésame"])
 }
 
 /**
@@ -21,7 +21,7 @@ export interface Ingredient {
  */
 export interface EnrichedIngredient extends Ingredient {
   // Ajout de propriétés calculées si besoin
-  searchableText?: string;  // Pour la recherche
+  searchableText?: string; // Pour la recherche
 }
 
 // =============================================================================
@@ -32,10 +32,11 @@ export interface EnrichedIngredient extends Ingredient {
  * Entrée d'index de recette (depuis data.json ou Appwrite)
  */
 export interface RecipeIndexEntry {
-  u: string;        // UUID court
-  n: string;        // Nom
-  t: number;        // Type enum (0=entrée, 1=plat, 2=dessert)
+  u: string; // UUID court
+  n: string; // Nom
+  t: string; // Type (ex: "entree", "plat", "dessert")
   p: string | null; // Path vers recipe.json (null pour recettes Appwrite)
+  plates?: number; // Nombre de couverts par défaut de la recette
   isPublished?: boolean; // true = Hugo, false = Appwrite non-published
 }
 
@@ -82,15 +83,14 @@ export interface ScaledIngredient extends RecipeIngredient {
  */
 export interface MealRecipe {
   recipeUuid: string;
-  scaleFactor?: number;  // Override du scaling par défaut
+  plates: number; // Nombre de couverts pour cette recette dans ce repas
 }
 
 /**
  * Repas dans un événement
  */
 export interface Meal {
-  date: string;
-  time: "midi" | "soir";
+  date: string; // DateTime ISO 8601 complet (ex: "2025-11-30T12:00:00")
   guests: number;
   recipes: MealRecipe[];
 }
@@ -103,7 +103,7 @@ export interface Event {
   name: string;
   startDate: string;
   endDate: string;
-  meals: Meal[];  // Stocké comme JSON dans Appwrite
+  meals: Meal[]; // Stocké comme JSON dans Appwrite
 }
 
 // =============================================================================
@@ -115,7 +115,7 @@ export interface Event {
  */
 export interface IngredientsCacheMetadata {
   lastSync: string | null;
-  dataJsonHash: string | null;  // Hash du fichier data.json
+  dataJsonHash: string | null; // Hash du fichier data.json
   ingredientsCount: number;
 }
 

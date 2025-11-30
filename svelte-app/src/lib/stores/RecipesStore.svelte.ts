@@ -8,7 +8,7 @@
  * 4. Lazy loading des détails depuis /recettes/.../recipe.json ou Appwrite
  * 5. Cache IndexedDB pour performance
  * 6. Cleanup automatique (marquer isPublished: true après build Hugo)
- * 
+ *
  * Responsabilités:
  * - Charger et fusionner recettes Hugo + Appwrite
  * - Lazy-load les détails de recettes à la demande
@@ -26,7 +26,10 @@
 import { SvelteMap } from "svelte/reactivity";
 import type { RecipeIndexEntry, RecipeData } from "../types/recipes.types";
 import type { Recettes } from "../types/appwrite.d";
-import type { CreateRecipeData, UpdateRecipeData } from "../types/appwrite.types";
+import type {
+  CreateRecipeData,
+  UpdateRecipeData,
+} from "../types/appwrite.types";
 import {
   createRecipesIDBCache,
   type RecipesIDBCache,
@@ -58,10 +61,10 @@ const DATA_JSON_URL = "/api/data.json";
 class RecipesStore {
   // État réactif - Index (Hugo + Appwrite fusionné)
   #recipesIndex = new SvelteMap<string, RecipeIndexEntry>();
-  
+
   // État réactif - Détails (lazy-loaded)
   #recipesDetails = new SvelteMap<string, RecipeData>();
-  
+
   // État UI
   #loading = $state(false);
   #error = $state<string | null>(null);
@@ -178,9 +181,7 @@ class RecipesStore {
       );
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Erreur lors de l'initialisation";
+        err instanceof Error ? err.message : "Erreur lors de l'initialisation";
       this.#error = message;
       console.error("[RecipesStore]", message, err);
       throw err;
@@ -205,7 +206,9 @@ class RecipesStore {
       const recipes = data.recipes as RecipeIndexEntry[];
 
       if (!Array.isArray(recipes)) {
-        throw new Error("Format de données invalide: recipes n'est pas un tableau");
+        throw new Error(
+          "Format de données invalide: recipes n'est pas un tableau",
+        );
       }
 
       // Calculer un hash de l'index
@@ -241,7 +244,10 @@ class RecipesStore {
         `[RecipesStore] ${indexMap.size} recettes (index) chargées depuis data.json`,
       );
     } catch (err) {
-      console.error("[RecipesStore] Erreur lors du chargement de l'index:", err);
+      console.error(
+        "[RecipesStore] Erreur lors du chargement de l'index:",
+        err,
+      );
       throw err;
     }
   }
@@ -257,18 +263,16 @@ class RecipesStore {
     return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
-
-
   /**
    * Cleanup : marque les recettes Appwrite comme published si présentes dans Hugo
    */
   async #cleanupPublishedRecipes(): Promise<void> {
     try {
       console.log("[RecipesStore] Cleanup des recettes publiées...");
-      
+
       // Récupérer TOUTES les recettes non-published (accès global)
       const appwriteRecipes = await listAllNonPublishedRecipes();
-      
+
       let cleanedCount = 0;
       for (const appwriteRecipe of appwriteRecipes) {
         // Vérifier si la recette existe dans l'index Hugo
@@ -278,9 +282,11 @@ class RecipesStore {
           cleanedCount++;
         }
       }
-      
+
       if (cleanedCount > 0) {
-        console.log(`[RecipesStore] ${cleanedCount} recettes marquées comme published`);
+        console.log(
+          `[RecipesStore] ${cleanedCount} recettes marquées comme published`,
+        );
       }
     } catch (err) {
       console.error("[RecipesStore] Erreur lors du cleanup:", err);
@@ -295,22 +301,25 @@ class RecipesStore {
   async #loadAppwriteRecipes(): Promise<void> {
     try {
       console.log("[RecipesStore] Chargement des recettes Appwrite...");
-      
+
       // Charger TOUTES les recettes non-published (accès global en lecture)
       const appwriteRecipes = await listAllNonPublishedRecipes();
-      
+
       // Ajouter à l'index avec flag isPublished: false
       appwriteRecipes.forEach((recipe) => {
         this.#recipesIndex.set(recipe.$id, {
           u: recipe.$id,
           n: recipe.title,
-          t: this.#mapTypeRToNumber(recipe.typeR),
+          t: recipe.typeR,
           p: null, // Pas de path JSON pour les recettes Appwrite
+          plates: recipe.plate, // Nombre de couverts par défaut de la recette
           isPublished: false,
         });
       });
-      
-      console.log(`[RecipesStore] ${appwriteRecipes.length} recettes Appwrite chargées`);
+
+      console.log(
+        `[RecipesStore] ${appwriteRecipes.length} recettes Appwrite chargées`,
+      );
     } catch (err) {
       console.error("[RecipesStore] Erreur lors du chargement Appwrite:", err);
       // Ne pas bloquer l'initialisation
@@ -326,18 +335,21 @@ class RecipesStore {
         globalState.userId!,
         globalState.userTeams,
         (recipe, eventType) => {
-          console.log(`[RecipesStore] Realtime: ${eventType} pour ${recipe.$id}`);
-          
+          console.log(
+            `[RecipesStore] Realtime: ${eventType} pour ${recipe.$id}`,
+          );
+
           if (eventType === "create" || eventType === "update") {
             // Mettre à jour l'index
             this.#recipesIndex.set(recipe.$id, {
               u: recipe.$id,
               n: recipe.title,
-              t: this.#mapTypeRToNumber(recipe.typeR),
+              t: recipe.typeR,
               p: null,
+              plates: recipe.plate, // Nombre de couverts par défaut de la recette
               isPublished: recipe.isPublished,
             });
-            
+
             // Invalider le cache des détails si déjà chargé
             if (this.#recipesDetails.has(recipe.$id)) {
               this.#recipesDetails.delete(recipe.$id);
@@ -347,12 +359,15 @@ class RecipesStore {
             this.#recipesIndex.delete(recipe.$id);
             this.#recipesDetails.delete(recipe.$id);
           }
-        }
+        },
       );
-      
+
       console.log("[RecipesStore] Realtime activé");
     } catch (err) {
-      console.error("[RecipesStore] Erreur lors de la configuration du realtime:", err);
+      console.error(
+        "[RecipesStore] Erreur lors de la configuration du realtime:",
+        err,
+      );
     }
   }
 
@@ -361,10 +376,14 @@ class RecipesStore {
    */
   #mapTypeRToNumber(typeR: string): number {
     switch (typeR) {
-      case "entree": return 0;
-      case "plat": return 1;
-      case "dessert": return 2;
-      default: return 0;
+      case "entree":
+        return 0;
+      case "plat":
+        return 1;
+      case "dessert":
+        return 2;
+      default:
+        return 0;
     }
   }
 
@@ -373,10 +392,14 @@ class RecipesStore {
    */
   #mapNumberToTypeR(type: number): "entree" | "plat" | "dessert" {
     switch (type) {
-      case 0: return "entree";
-      case 1: return "plat";
-      case 2: return "dessert";
-      default: return "plat";
+      case 0:
+        return "entree";
+      case 1:
+        return "plat";
+      case 2:
+        return "dessert";
+      default:
+        return "plat";
     }
   }
 
@@ -470,10 +493,17 @@ class RecipesStore {
       return (
         recipe.createdBy === globalState.userId ||
         Boolean(recipe.contributors?.includes(globalState.userId)) ||
-        Boolean(recipe.teams?.some((teamId) => globalState.userTeams.includes(teamId)))
+        Boolean(
+          recipe.teams?.some((teamId) =>
+            globalState.userTeams.includes(teamId),
+          ),
+        )
       );
     } catch (err) {
-      console.error(`[RecipesStore] Erreur lors de la vérification des permissions pour ${uuid}:`, err);
+      console.error(
+        `[RecipesStore] Erreur lors de la vérification des permissions pour ${uuid}:`,
+        err,
+      );
       return false;
     }
   }
@@ -484,12 +514,12 @@ class RecipesStore {
 
   /**
    * Récupère les détails complets d'une recette (avec lazy loading)
-   * 
+   *
    * 1. Vérifie si déjà en mémoire
    * 2. Vérifie le cache IndexedDB
    * 3. Fetch depuis /recettes/.../recipe.json
    * 4. Parse et met en cache
-   * 
+   *
    * @param uuid - UUID de la recette
    * @returns Détails de la recette ou null si non trouvée
    */
@@ -503,7 +533,9 @@ class RecipesStore {
 
     // Éviter les chargements parallèles du même UUID
     if (this.#loadingDetails.has(uuid)) {
-      console.log(`[RecipesStore] Chargement de ${uuid} déjà en cours, attente...`);
+      console.log(
+        `[RecipesStore] Chargement de ${uuid} déjà en cours, attente...`,
+      );
       // Attendre que le chargement se termine
       while (this.#loadingDetails.has(uuid)) {
         await new Promise((resolve) => setTimeout(resolve, 50));
@@ -535,7 +567,9 @@ class RecipesStore {
 
       if (indexEntry.p) {
         // 4a. Recette Hugo : fetch depuis le fichier JSON
-        console.log(`[RecipesStore] Chargement des détails de ${uuid} depuis ${indexEntry.p}...`);
+        console.log(
+          `[RecipesStore] Chargement des détails de ${uuid} depuis ${indexEntry.p}...`,
+        );
         const response = await fetch(indexEntry.p);
         if (!response.ok) {
           throw new Error(`Erreur HTTP: ${response.status}`);
@@ -545,10 +579,14 @@ class RecipesStore {
         recipeData = parseRecipeData(rawData);
       } else {
         // 4b. Recette Appwrite : fetch depuis Appwrite
-        console.log(`[RecipesStore] Chargement des détails de ${uuid} depuis Appwrite...`);
+        console.log(
+          `[RecipesStore] Chargement des détails de ${uuid} depuis Appwrite...`,
+        );
         const appwriteRecipe = await getAppwriteRecipe(uuid);
         if (!appwriteRecipe) {
-          console.warn(`[RecipesStore] Recette ${uuid} non trouvée dans Appwrite`);
+          console.warn(
+            `[RecipesStore] Recette ${uuid} non trouvée dans Appwrite`,
+          );
           return null;
         }
 
@@ -565,7 +603,10 @@ class RecipesStore {
       console.log(`[RecipesStore] Détails de ${uuid} chargés et mis en cache`);
       return recipeData;
     } catch (err) {
-      console.error(`[RecipesStore] Erreur lors du chargement de ${uuid}:`, err);
+      console.error(
+        `[RecipesStore] Erreur lors du chargement de ${uuid}:`,
+        err,
+      );
       return null;
     } finally {
       this.#loadingDetails.delete(uuid);
@@ -574,7 +615,7 @@ class RecipesStore {
 
   /**
    * Précharge les détails de plusieurs recettes en parallèle
-   * 
+   *
    * @param uuids - Liste des UUIDs à précharger
    * @returns Promesse résolue quand tous les chargements sont terminés
    */
@@ -612,14 +653,18 @@ class RecipesStore {
         contributors: [],
       };
 
-      const appwriteRecipe = await createAppwriteRecipe(createData, globalState.userId);
-      
+      const appwriteRecipe = await createAppwriteRecipe(
+        createData,
+        globalState.userId,
+      );
+
       // Ajouter à l'index local
       this.#recipesIndex.set(appwriteRecipe.$id, {
         u: appwriteRecipe.$id,
         n: appwriteRecipe.title,
-        t: this.#mapTypeRToNumber(appwriteRecipe.typeR),
+        t: appwriteRecipe.typeR,
         p: null,
+        plates: appwriteRecipe.plate, // Nombre de couverts par défaut de la recette
         isPublished: false,
       });
 
@@ -641,20 +686,22 @@ class RecipesStore {
     try {
       // Convertir RecipeData vers UpdateRecipeData
       const updateData: UpdateRecipeData = {};
-      
+
       if (data.title) updateData.title = data.title;
       if (data.plate) updateData.plate = data.plate;
-      if (data.ingredients) updateData.ingredients = JSON.stringify(data.ingredients);
+      if (data.ingredients)
+        updateData.ingredients = JSON.stringify(data.ingredients);
       if (data.preparation) updateData.preparation = data.preparation;
 
       const appwriteRecipe = await updateAppwriteRecipe(uuid, updateData);
-      
+
       // Mettre à jour l'index local
       this.#recipesIndex.set(appwriteRecipe.$id, {
         u: appwriteRecipe.$id,
         n: appwriteRecipe.title,
-        t: this.#mapTypeRToNumber(appwriteRecipe.typeR),
+        t: appwriteRecipe.typeR,
         p: null,
+        plates: appwriteRecipe.plate, // Nombre de couverts par défaut de la recette
         isPublished: appwriteRecipe.isPublished,
       });
 
@@ -664,7 +711,10 @@ class RecipesStore {
       // Convertir et retourner
       return this.#convertAppwriteToRecipeData(appwriteRecipe);
     } catch (err) {
-      console.error(`[RecipesStore] Erreur lors de la mise à jour de ${uuid}:`, err);
+      console.error(
+        `[RecipesStore] Erreur lors de la mise à jour de ${uuid}:`,
+        err,
+      );
       throw err;
     }
   }
@@ -675,14 +725,17 @@ class RecipesStore {
   async deleteRecipe(uuid: string): Promise<void> {
     try {
       await deleteAppwriteRecipe(uuid);
-      
+
       // Supprimer de l'index et du cache local
       this.#recipesIndex.delete(uuid);
       this.#recipesDetails.delete(uuid);
-      
+
       console.log(`[RecipesStore] Recette ${uuid} supprimée`);
     } catch (err) {
-      console.error(`[RecipesStore] Erreur lors de la suppression de ${uuid}:`, err);
+      console.error(
+        `[RecipesStore] Erreur lors de la suppression de ${uuid}:`,
+        err,
+      );
       throw err;
     }
   }

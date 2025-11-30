@@ -16,7 +16,11 @@
 
 import { SvelteMap } from "svelte/reactivity";
 import type { Main } from "../types/appwrite.d";
-import type { CreateEventData, UpdateEventData, Meal } from "../types/appwrite.types";
+import type {
+  CreateEventData,
+  UpdateEventData,
+  Meal,
+} from "../types/appwrite.types";
 import {
   listEvents,
   getEvent as getAppwriteEvent,
@@ -38,7 +42,7 @@ import { globalState } from "./GlobalState.svelte";
 class EventsStore {
   // État réactif - Événements
   #events = new SvelteMap<string, Main>();
-  
+
   // État UI
   #loading = $state(false);
   #error = $state<string | null>(null);
@@ -113,12 +117,12 @@ class EventsStore {
       this.#setupRealtime();
 
       this.#isInitialized = true;
-      console.log(`[EventsStore] Initialisation complétée: ${this.#events.size} événements`);
+      console.log(
+        `[EventsStore] Initialisation complétée: ${this.#events.size} événements`,
+      );
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Erreur lors de l'initialisation";
+        err instanceof Error ? err.message : "Erreur lors de l'initialisation";
       this.#error = message;
       console.error("[EventsStore]", message, err);
       throw err;
@@ -134,14 +138,14 @@ class EventsStore {
   async #loadEvents(): Promise<void> {
     try {
       console.log("[EventsStore] Chargement des événements...");
-      
+
       const events = await listEvents(this.#userId!, this.#userTeams);
-      
+
       // Ajouter à la map
       events.forEach((event) => {
         this.#events.set(event.$id, event);
       });
-      
+
       console.log(`[EventsStore] ${events.length} événements chargés`);
     } catch (err) {
       console.error("[EventsStore] Erreur lors du chargement:", err);
@@ -159,18 +163,21 @@ class EventsStore {
         this.#userTeams,
         (event, eventType) => {
           console.log(`[EventsStore] Realtime: ${eventType} pour ${event.$id}`);
-          
+
           if (eventType === "create" || eventType === "update") {
             this.#events.set(event.$id, event);
           } else if (eventType === "delete") {
             this.#events.delete(event.$id);
           }
-        }
+        },
       );
-      
+
       console.log("[EventsStore] Realtime activé");
     } catch (err) {
-      console.error("[EventsStore] Erreur lors de la configuration du realtime:", err);
+      console.error(
+        "[EventsStore] Erreur lors de la configuration du realtime:",
+        err,
+      );
     }
   }
 
@@ -206,9 +213,12 @@ class EventsStore {
    */
   getEventsByDateRange(startDate: string, endDate: string): Main[] {
     return this.events.filter((event) => {
-      return event.dateStart && event.dateEnd &&
+      return (
+        event.dateStart &&
+        event.dateEnd &&
         event.dateStart >= startDate &&
-        event.dateEnd <= endDate;
+        event.dateEnd <= endDate
+      );
     });
   }
 
@@ -260,7 +270,10 @@ class EventsStore {
       console.log(`[EventsStore] Événement mis à jour: ${eventId}`);
       return event;
     } catch (err) {
-      console.error(`[EventsStore] Erreur lors de la mise à jour de ${eventId}:`, err);
+      console.error(
+        `[EventsStore] Erreur lors de la mise à jour de ${eventId}:`,
+        err,
+      );
       throw err;
     }
   }
@@ -274,7 +287,10 @@ class EventsStore {
       this.#events.delete(eventId);
       console.log(`[EventsStore] Événement supprimé: ${eventId}`);
     } catch (err) {
-      console.error(`[EventsStore] Erreur lors de la suppression de ${eventId}:`, err);
+      console.error(
+        `[EventsStore] Erreur lors de la suppression de ${eventId}:`,
+        err,
+      );
       throw err;
     }
   }
@@ -310,14 +326,21 @@ class EventsStore {
   /**
    * Met à jour un repas dans un événement
    */
-  async updateMeal(eventId: string, mealIndex: number, meal: Meal): Promise<Main> {
+  async updateMeal(
+    eventId: string,
+    mealIndex: number,
+    meal: Meal,
+  ): Promise<Main> {
     try {
       const event = await updateMeal(eventId, mealIndex, meal);
       this.#events.set(eventId, event);
       console.log(`[EventsStore] Meal ${mealIndex} mis à jour dans ${eventId}`);
       return event;
     } catch (err) {
-      console.error(`[EventsStore] Erreur lors de la mise à jour du meal:`, err);
+      console.error(
+        `[EventsStore] Erreur lors de la mise à jour du meal:`,
+        err,
+      );
       throw err;
     }
   }
@@ -332,9 +355,24 @@ class EventsStore {
       console.log(`[EventsStore] Meal ${mealIndex} supprimé de ${eventId}`);
       return event;
     } catch (err) {
-      console.error(`[EventsStore] Erreur lors de la suppression du meal:`, err);
+      console.error(
+        `[EventsStore] Erreur lors de la suppression du meal:`,
+        err,
+      );
       throw err;
     }
+  }
+
+  // =============================================================================
+  // CALCULS UTILITAIRES
+  // =============================================================================
+
+  /**
+   * Calcule le scaleFactor pour une recette dans un repas
+   * scaleFactor = plates / basePlates
+   */
+  calculateScaleFactor(recipePlates: number, recipeBasePlates: number): number {
+    return recipePlates / recipeBasePlates;
   }
 
   // =============================================================================

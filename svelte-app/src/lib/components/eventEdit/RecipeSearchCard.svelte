@@ -1,25 +1,25 @@
 <script lang="ts">
   import { Search, Plus, ChefHat, X, LoaderCircle } from "@lucide/svelte";
-  import { recipesStore } from "../stores/RecipesStore.svelte";
-  import type { RecipeData, RecipeIndexEntry } from "../types/recipes.types";
+  import { recipesStore } from "$lib/stores/RecipesStore.svelte";
+  import type { RecipeData, RecipeIndexEntry } from "$lib/types/recipes.types";
 
   interface Props {
     onSelect: (
-      recipe: RecipeData,
+      recipe: RecipeIndexEntry,
       type: "entree" | "plat" | "dessert",
       plates: number,
     ) => void;
-    onCancel: () => void;
     defaultPlates?: number;
   }
 
-  let { onSelect, onCancel, defaultPlates = 4 }: Props = $props();
+  let { onSelect, defaultPlates = 4 }: Props = $props();
 
   let searchQuery = $state("");
-  let selectedType = $state<"entree" | "plat" | "dessert">("plat");
+  let selectedType = $state<"entree" | "plat" | "dessert" | "">("");
   let plates = $state(defaultPlates);
-  let selectedRecipe = $state<RecipeData | null>(null);
+  let selectedRecipe = $state<RecipeIndexEntry | null>(null);
   let isLoadingDetails = $state(false);
+  let selectedIndex = $state(-1); // Index de l'élément sélectionné avec le clavier
 
   // Filtrage des recettes
   let filteredRecipes = $derived(
@@ -28,44 +28,62 @@
       : [],
   );
 
-  async function handleSelectRecipe(indexEntry: RecipeIndexEntry) {
-    isLoadingDetails = true;
-    try {
-      const fullRecipe = await recipesStore.getRecipeByUuid(indexEntry.u);
-      if (fullRecipe) {
-        selectedRecipe = fullRecipe;
-        // Auto-détection du type si possible (à implémenter si les données le permettent)
-        // Pour l'instant on garde le type sélectionné par défaut
-      }
-    } catch (error) {
-      console.error("Erreur lors du chargement de la recette", error);
-    } finally {
-      isLoadingDetails = false;
+  function reset() {
+    selectedRecipe = null;
+    searchQuery = "";
+    selectedType = "";
+    plates = defaultPlates;
+    selectedIndex = -1;
+  }
+
+  function handleSelectRecipe(indexEntry: RecipeIndexEntry) {
+    selectedRecipe = indexEntry;
+    // Utiliser le type de la recette s'il est disponible, sinon "plat"
+    const typeFromIndex =
+      (indexEntry.t as "entree" | "plat" | "dessert") || "plat";
+    selectedType = selectedType ? selectedType : typeFromIndex;
+    // Auto-confirmation immédiate lorsque la recette est sélectionnée
+    onSelect(indexEntry, selectedType, plates);
+    reset();
+  }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (!filteredRecipes.length) return;
+
+    // Gérer la navigation avec les flèches
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      selectedIndex = (selectedIndex + 1) % filteredRecipes.length;
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      selectedIndex =
+        selectedIndex <= 0 ? filteredRecipes.length - 1 : selectedIndex - 1;
+    }
+    // Gérer la sélection avec Entrée ou Tab
+    else if (
+      (event.key === "Enter" || event.key === "Tab") &&
+      selectedIndex >= 0
+    ) {
+      event.preventDefault();
+      handleSelectRecipe(filteredRecipes[selectedIndex]);
     }
   }
 
-  function handleConfirm() {
-    if (selectedRecipe) {
-      onSelect(selectedRecipe, selectedType, plates);
-    }
-  }
+  const uniqueId = Math.random().toString(36).slice(2);
 </script>
 
 <div class="card bg-base-100 border-base-300 border shadow-sm">
   <div class="card-body gap-3 p-3">
     <div class="flex items-center justify-between">
-      <h4 class="flex items-center gap-2 text-sm font-bold">
+      <h4 class="flex items-center gap-2 font-bold">
         <Plus class="text-primary h-4 w-4" />
         Ajouter une recette
       </h4>
-      <button class="btn btn-ghost btn-xs btn-square" onclick={onCancel}>
-        <X class="h-4 w-4" />
-      </button>
     </div>
 
     {#if !selectedRecipe}
       <!-- Mode Recherche -->
-      <div class="">
+      <div class="mt-2">
         <div class="relative">
           <Search
             class="text-base-content/50 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
@@ -73,8 +91,9 @@
           <input
             type="text"
             placeholder="Rechercher une recette..."
-            class="input input-sm w-full pl-9"
+            class="input w-full pl-9"
             bind:value={searchQuery}
+            onkeydown={handleKeydown}
           />
           {#if isLoadingDetails}
             <div class="absolute top-1/2 right-3 -translate-y-1/2">
@@ -91,10 +110,11 @@
 
         {#if filteredRecipes.length > 0}
           <ul class="menu bg-base-200/50 rounded-box mt-2 gap-1 p-1">
-            {#each filteredRecipes as recipe}
+            {#each filteredRecipes as recipe, index (recipe.u)}
               <li>
                 <button
-                  class="flex items-center gap-2 py-2 text-left"
+                  class="flex items-center gap-2 py-2 text-left {index ===
+                    selectedIndex && 'ring-accent/40 ring-2'} "
                   onclick={() => handleSelectRecipe(recipe)}
                   disabled={isLoadingDetails}
                 >
@@ -116,7 +136,7 @@
             <ChefHat class="h-5 w-5" />
           </div>
           <div class="min-w-0 flex-1">
-            <div class="truncate font-medium">{selectedRecipe.title}</div>
+            <div class="truncate font-medium">{selectedRecipe.n}</div>
             <button
               class="text-primary mt-0.5 text-xs hover:underline"
               onclick={() => (selectedRecipe = null)}
@@ -128,34 +148,32 @@
 
         <div class="grid grid-cols-2 gap-2">
           <div class="">
-            <label class="label py-1 text-xs">Type</label>
+            <label class="label py-1 text-xs" for={`type-${uniqueId}`}
+              >Type</label
+            >
             <select
+              id={`type-${uniqueId}`}
               class="select select-bordered select-xs w-full"
               bind:value={selectedType}
             >
+              <option value="" disabled selected>Sélectionner un type</option>
               <option value="entree">Entrée</option>
               <option value="plat">Plat</option>
               <option value="dessert">Dessert</option>
             </select>
           </div>
           <div class="">
-            <label class="label py-1 text-xs">Couverts</label>
+            <label class="label py-1 text-xs" for={`plates-${uniqueId}`}
+              >Couverts</label
+            >
             <input
+              id={`plates-${uniqueId}`}
               type="number"
               class="input w-full"
               bind:value={plates}
               min="1"
             />
           </div>
-        </div>
-
-        <div class="mt-2 flex justify-end gap-2">
-          <button class="btn btn-ghost btn-xs" onclick={onCancel}
-            >Annuler</button
-          >
-          <button class="btn btn-primary btn-xs" onclick={handleConfirm}>
-            Confirmer
-          </button>
         </div>
       </div>
     {/if}

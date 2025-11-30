@@ -1,5 +1,9 @@
 <script lang="ts">
   import { globalState } from "../stores/GlobalState.svelte";
+  import { navigate } from "$lib/services/simple-router.svelte";
+  // 	import { Router } from 'sv-router';
+  // import { navigate, p } from '@/router';
+
   import {
     LogInIcon,
     LogOutIcon,
@@ -108,22 +112,40 @@
                 </div>
               </li>
               <li>
-                <a class="svelte-dropdown-item" href="/dashboard">
+                <button
+                  class="svelte-dropdown-item"
+                  onclick={() => navigate("/")}
+                >
                   <LayoutDashboardIcon class="svelte-dropdown-icon" size={16} />
                   <span>Dashboard</span>
-                </a>
+                </button>
               </li>
               <li>
-                <a class="svelte-dropdown-item" href="/dashboard/teams">
+                <button
+                  class="svelte-dropdown-item"
+                  onclick={() => navigate("/teams")}
+                >
                   <UsersIcon class="svelte-dropdown-icon" size={16} />
                   <span>Équipes</span>
-                </a>
+                </button>
               </li>
               <li>
-                <a class="svelte-dropdown-item" href="/dashboard/recipes">
+                <button
+                  class="svelte-dropdown-item"
+                  onclick={() => navigate("/eventEdit")}
+                >
+                  <UsersIcon class="svelte-dropdown-icon" size={16} />
+                  <span>Créer un événement</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  class="svelte-dropdown-item"
+                  onclick={() => navigate("/recipes")}
+                >
                   <BookOpenIcon class="svelte-dropdown-icon" size={16} />
                   <span>Recettes</span>
-                </a>
+                </button>
               </li>
               <li><hr class="svelte-dropdown-divider" /></li>
               <li>

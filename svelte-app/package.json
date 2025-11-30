@@ -23,12 +23,14 @@
   },
   "dependencies": {
     "@lucide/svelte": "^0.545.0",
+    "@mateothegreat/svelte5-router": "^2.16.19",
     "@tailwindcss/vite": "^4.1.14",
     "appwrite": "^21.4.0",
     "cally": "^0.8.0",
     "daisyui": "^5.2.3",
     "runed": "^0.34.0",
     "superjson": "^2.2.2",
+    "sv-router": "^0.11.0",
     "tailwindcss": "^4.1.14"
   }
 }

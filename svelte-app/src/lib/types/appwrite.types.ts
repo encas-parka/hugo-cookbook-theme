@@ -1,6 +1,6 @@
 /**
  * Types TypeScript pour les collections Appwrite
- * 
+ *
  * Collections:
  * - recipes: Recettes (drafts et non-published)
  * - main: Événements (étendu avec meals)
@@ -20,7 +20,7 @@ import type { Models } from "appwrite";
 export interface CreateRecipeData {
   title: string;
   plate: number;
-  ingredients: string;  // JSON stringifié
+  ingredients: string; // JSON stringifié
   preparation: string;
   draft?: boolean;
   typeR: "entree" | "plat" | "dessert";
@@ -57,8 +57,8 @@ export interface UpdateRecipeData {
  * Repas dans un événement
  */
 export interface Meal {
-  date: string;  // ISO 8601
-  time: "matin" | "midi" | "soir";
+  id?: string; // UUID for tracking meals in the UI
+  date: string; // DateTime ISO 8601 complet (ex: "2025-11-30T12:00:00")
   guests: number;
   recipes: MealRecipe[];
 }
@@ -68,7 +68,8 @@ export interface Meal {
  */
 export interface MealRecipe {
   recipeUuid: string;
-  scaleFactor?: number;  // Override du scaling par défaut
+  plates: number; // Nombre de couverts pour cette recette dans ce repas
+  type?: "entree" | "plat" | "dessert"; // Type de plat pour ce repas
 }
 
 /**
@@ -77,20 +78,20 @@ export interface MealRecipe {
 export interface AppwriteEvent extends Models.Document {
   $id: string;
   name: string;
-  dateStart: string;  // ISO 8601
-  dateEnd: string;  // ISO 8601
-  
+  dateStart: string; // ISO 8601
+  dateEnd: string; // ISO 8601
+
   // Produits (existant - ProductsStore)
-  products?: string;  // JSON stringifié
-  
+  products?: string; // JSON stringifié
+
   // Repas (nouveau - RecipesStore)
-  meals?: string;  // JSON stringifié (Meal[])
-  
+  meals?: string; // JSON stringifié (Meal[])
+
   // Permissions
   createdBy: string;
   teams: string[];
   contributors: string[];
-  
+
   // Timestamps
   $createdAt: string;
   $updatedAt: string;
@@ -104,6 +105,7 @@ export interface CreateEventData {
   name: string;
   dateStart: string;
   dateEnd: string;
+  allDates?: string[]; // Tableau de toutes les dates uniques des repas
   meals?: Meal[];
   teams?: string[];
   contributors?: string[];
@@ -116,6 +118,7 @@ export interface UpdateEventData {
   name?: string;
   dateStart?: string;
   dateEnd?: string;
+  allDates?: string[]; // Tableau de toutes les dates uniques des repas
   meals?: Meal[];
   teams?: string[];
   contributors?: string[];
@@ -127,21 +130,21 @@ export interface UpdateEventData {
 
 /**
  * Vérifie si un utilisateur peut éditer une ressource
- * 
+ *
  * Note: Les teams utilisent l'API Teams native d'Appwrite
  * userTeams = liste des team IDs dont l'utilisateur est membre
  */
 export function canEdit(
   resource: { createdBy: string; teams: string[]; contributors: string[] },
   userId: string,
-  userTeams: string[]
+  userTeams: string[],
 ): boolean {
   // Créateur
   if (resource.createdBy === userId) return true;
-  
+
   // Contributeur direct
   if (resource.contributors.includes(userId)) return true;
-  
+
   // Membre d'une team autorisée
   return resource.teams.some((teamId) => userTeams.includes(teamId));
 }
@@ -149,10 +152,8 @@ export function canEdit(
 /**
  * Filtre les ressources accessibles par un utilisateur
  */
-export function filterAccessible<T extends { createdBy: string; teams: string[]; contributors: string[] }>(
-  resources: T[],
-  userId: string,
-  userTeams: string[]
-): T[] {
+export function filterAccessible<
+  T extends { createdBy: string; teams: string[]; contributors: string[] },
+>(resources: T[], userId: string, userTeams: string[]): T[] {
   return resources.filter((resource) => canEdit(resource, userId, userTeams));
 }

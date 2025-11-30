@@ -4,15 +4,15 @@
     {{/* Extract UUID from parent directory name (e.g., "abricot_xo0ibs" -> "xo0ibs") */}}
     {{- $parentDir := path.Base .File.Dir -}}
     {{- $uuid := replaceRE "^.*_([a-z0-9]+)$" "$1" $parentDir -}}
-    
+
     {{/* Build ingredient object with abbreviated keys */}}
     {{- $ing := dict "u" $uuid "n" .Title "t" .Params.type -}}
-    
+
     {{/* Only include allergens if not empty */}}
     {{- if .Params.allergenes -}}
       {{- $ing = merge $ing (dict "a" .Params.allergenes) -}}
     {{- end -}}
-    
+
     {{- $ingredients = $ingredients | append $ing -}}
   {{- end -}}
 {{- end -}}
@@ -21,15 +21,11 @@
 {{- range where .Site.RegularPages "Section" "recettes" -}}
   {{- if .Title -}}
     {{- $uuid := replaceRE "^.*_([a-z0-9]+)$" "$1" (path.Base .File.Dir) -}}
-    {{- $typeEnum := 0 -}}
-    {{- if eq .Params.typeR "plat" -}}{{ $typeEnum = 1 }}{{- end -}}
-    {{- if eq .Params.typeR "dessert" -}}{{ $typeEnum = 2 }}{{- end -}}
-    
     {{/* Construct relative path to JSON file */}}
     {{- $relPath := printf "%srecipe.json" .RelPermalink -}}
-    
+
     {{/* Build recipe object with abbreviated keys */}}
-    {{- $recipe := dict "u" $uuid "n" .Title "t" $typeEnum "p" $relPath -}}
+    {{- $recipe := dict "u" $uuid "n" .Title "t" .Params.typeR "p" $relPath "plates" .Params.plate -}}
     {{- $recipes = $recipes | append $recipe -}}
   {{- end -}}
 {{- end -}}

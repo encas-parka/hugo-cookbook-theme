@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { Plus, Calendar, Users, ChevronRight, Loader2 } from "@lucide/svelte";
-  import { eventsStore } from "../stores/EventsStore.svelte";
-  import type { Main } from "../types/appwrite.d";
-
-  interface Props {
-    onCreateEvent: () => void;
-    onSelectEvent: (eventId: string) => void;
-  }
-
-  let { onCreateEvent, onSelectEvent }: Props = $props();
+  import {
+    Plus,
+    Calendar,
+    Users,
+    ChevronRight,
+    LoaderCircle,
+  } from "@lucide/svelte";
+  import { eventsStore } from "$lib/stores/EventsStore.svelte";
+  import type { Main } from "$lib/types/appwrite.d";
+  import { navigate } from "$lib/services/simple-router.svelte";
 
   // Formatage de date simple
   function formatDate(dateStr: string) {
@@ -19,9 +19,17 @@
       year: "numeric",
     });
   }
+
+  function onSelectEvent(eventId: string) {
+    navigate(`/eventEdit/${eventId}`);
+  }
+
+  function onCreateEvent() {
+    navigate("/eventEdit");
+  }
 </script>
 
-<div class="container mx-auto max-w-5xl px-4 py-8">
+<div class="mx-auto max-w-5xl px-4 py-8">
   <!-- Header -->
   <div class="mb-8 flex items-center justify-between">
     <div>
@@ -37,7 +45,7 @@
   <!-- Contenu -->
   {#if eventsStore.loading && eventsStore.count === 0}
     <div class="flex items-center justify-center py-20">
-      <Loader2 class="text-primary h-8 w-8 animate-spin" />
+      <LoaderCircle class="text-primary h-8 w-8 animate-spin" />
     </div>
   {:else if eventsStore.error}
     <div class="alert alert-error shadow-lg">
@@ -72,9 +80,9 @@
               >
                 {event.name}
               </h3>
-              {#if event.dates && event.dates.length > 0}
+              {#if event.dateStart}
                 <div class="badge badge-ghost text-xs">
-                  {formatDate(event.dates[0])}
+                  {formatDate(event.dateStart)}
                 </div>
               {/if}
             </div>
@@ -92,9 +100,16 @@
               <div class="flex items-center gap-1">
                 <Calendar class="h-4 w-4" />
                 <span>
-                  {event.dates?.length || 0} jours
+                  {event.allDates?.length || 0} jours
                 </span>
               </div>
+            </div>
+
+            <div
+              class="text-base-content/70 mt-auto flex flex-wrap justify-between text-sm"
+            >
+              <div>crée le {event.$createdAt}</div>
+              <div>modifié le {event.$updatedAt}</div>
             </div>
 
             <div class="card-actions mt-4 justify-end">

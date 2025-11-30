@@ -7,6 +7,7 @@
 import { Query, ID, Permission, Role } from "appwrite";
 import { getAppwriteInstances } from "./appwrite";
 import { subscribe, getAppwriteConfig } from "./appwrite";
+import { nanoid } from "nanoid";
 import type { Main } from "../types/appwrite.d";
 import type {
   CreateEventData,
@@ -109,6 +110,7 @@ export async function createEvent(
         name: data.name,
         dateStart: data.dateStart,
         dateEnd: data.dateEnd,
+        allDates: data.allDates, // Sauvegarder les dates calculées
         meals: data.meals ? JSON.stringify(data.meals) : undefined,
         createdBy: userId,
         teams: data.teams ?? [],
@@ -140,6 +142,11 @@ export async function updateEvent(
       updateData.meals = JSON.stringify(data.meals);
     }
 
+    // S'assurer que allDates est inclus s'il est présent
+    if (data.allDates) {
+      updateData.allDates = data.allDates;
+    }
+
     const event = await tables.updateRow(
       config.databaseId,
       EVENTS_COLLECTION_ID,
@@ -161,11 +168,7 @@ export async function updateEvent(
 export async function deleteEvent(eventId: string): Promise<void> {
   try {
     const { tables, config } = await getAppwriteInstances();
-    await tables.deleteRow(
-      config.databaseId,
-      EVENTS_COLLECTION_ID,
-      eventId,
-    );
+    await tables.deleteRow(config.databaseId, EVENTS_COLLECTION_ID, eventId);
     console.log(`[appwrite-events] Event deleted: ${eventId}`);
   } catch (error) {
     console.error(`[appwrite-events] Error deleting event ${eventId}:`, error);
@@ -183,7 +186,17 @@ export async function deleteEvent(eventId: string): Promise<void> {
 export function parseMeals(event: Main): Meal[] {
   if (!event.meals) return [];
   try {
-    return JSON.parse(event.meals);
+    const meals = JSON.parse(event.meals);
+    // Add IDs to meals that don't have them for UI tracking
+    return meals.map((meal: Meal) => {
+      if (!meal.id) {
+        return {
+          ...meal,
+          id: nanoid(6), // Generate a short UUID for tracking
+        };
+      }
+      return meal;
+    });
   } catch (error) {
     console.error("[appwrite-events] Error parsing meals:", error);
     return [];
