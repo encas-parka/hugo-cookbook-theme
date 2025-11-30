@@ -14,6 +14,7 @@
   import { router } from "./lib/services/simple-router.svelte";
   import DashboardPage from "./lib/routes/DashboardPage.svelte";
   import EventEditPage from "./lib/routes/EventEditPage.svelte";
+  import InvitationPage from "./lib/routes/InvitationPage.svelte";
 
   let initError: string | null = $state(null);
 
@@ -22,6 +23,8 @@
   router.addRoute("/dashboard", DashboardPage);
   router.addRoute("/eventEdit", EventEditPage);
   router.addRoute("/eventEdit/:id", EventEditPage);
+  router.addRoute("/invitation", InvitationPage);
+  router.addRoute("/invitation/:id", InvitationPage);
 
   // État du composant actuel
   let currentRoute = $state<any>(null);

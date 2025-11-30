@@ -20,6 +20,7 @@ import type {
   CreateEventData,
   UpdateEventData,
   Meal,
+  ContributorInfo,
 } from "../types/appwrite.types";
 import {
   listEvents,
@@ -31,6 +32,7 @@ import {
   updateMeal,
   deleteMeal,
   parseMeals,
+  parseContributors,
   subscribeToEvents,
 } from "../services/appwrite-events";
 import { globalState } from "./GlobalState.svelte";
@@ -235,10 +237,26 @@ class EventsStore {
     const event = this.#events.get(eventId);
     if (!event) return false;
 
-    return (
-      event.createdBy === this.#userId ||
-      Boolean(event.teams?.some((teamId) => this.#userTeams.includes(teamId)))
-    );
+    // Créateur
+    if (event.createdBy === this.#userId) return true;
+
+    // Membre d'une équipe autorisée
+    if (event.teams?.some((teamId) => this.#userTeams.includes(teamId)))
+      return true;
+
+    // Contributeur accepté
+    if (event.contributors) {
+      const contributors = parseContributors(event);
+      if (
+        contributors.some(
+          (c) => c.id === this.#userId && c.status === "accepted",
+        )
+      ) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   // =============================================================================

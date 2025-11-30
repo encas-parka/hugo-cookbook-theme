@@ -13,6 +13,7 @@ import type {
   CreateEventData,
   UpdateEventData,
   Meal,
+  ContributorInfo,
 } from "../types/appwrite.types";
 
 // =============================================================================
@@ -89,9 +90,13 @@ export async function createEvent(
     ];
 
     if (data.contributors) {
-      data.contributors.forEach((contributorId) => {
-        permissions.push(Permission.read(Role.user(contributorId)));
-        permissions.push(Permission.update(Role.user(contributorId)));
+      data.contributors.forEach((contributor) => {
+        const contributorId =
+          typeof contributor === "string" ? contributor : contributor.id;
+        if (contributor.status === "accepted") {
+          permissions.push(Permission.read(Role.user(contributorId)));
+          permissions.push(Permission.update(Role.user(contributorId)));
+        }
       });
     }
 
@@ -114,7 +119,11 @@ export async function createEvent(
         meals: data.meals ? JSON.stringify(data.meals) : undefined,
         createdBy: userId,
         teams: data.teams ?? [],
-        contributors: data.contributors ?? [],
+        contributors: data.contributors
+          ? data.contributors.map((c) =>
+              typeof c === "string" ? c : JSON.stringify(c),
+            )
+          : [],
       },
       permissions,
     );
@@ -140,6 +149,12 @@ export async function updateEvent(
 
     if (data.meals) {
       updateData.meals = JSON.stringify(data.meals);
+    }
+
+    if (data.contributors) {
+      updateData.contributors = data.contributors.map((c) =>
+        typeof c === "string" ? c : JSON.stringify(c),
+      );
     }
 
     // S'assurer que allDates est inclus s'il est présent
@@ -199,6 +214,37 @@ export function parseMeals(event: Main): Meal[] {
     });
   } catch (error) {
     console.error("[appwrite-events] Error parsing meals:", error);
+    return [];
+  }
+}
+
+/**
+ * Parse les contributeurs d'un événement
+ */
+export function parseContributors(event: Main): ContributorInfo[] {
+  if (!event.contributors) return [];
+
+  // Parser le tableau de strings (chaque string peut être un JSON ou un simple ID)
+  try {
+    const contributors: ContributorInfo[] = [];
+
+    for (const contributorStr of event.contributors) {
+      try {
+        // Essayer de parser le JSON pour obtenir les informations du contributeur
+        const contributor = JSON.parse(contributorStr);
+        contributors.push(contributor);
+      } catch (e) {
+        // Si le parsing échoue, considérer que c'est un simple ID (ancien format)
+        contributors.push({
+          id: contributorStr,
+          status: "accepted" as const,
+        });
+      }
+    }
+
+    return contributors;
+  } catch (error) {
+    console.error("[appwrite-events] Error parsing contributors:", error);
     return [];
   }
 }

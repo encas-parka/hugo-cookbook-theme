@@ -75,7 +75,7 @@ export async function updateTeam(teamId: string, name: string) {
 export async function deleteTeam(teamId: string): Promise<void> {
   try {
     const { teams } = await getAppwriteInstances();
-    await teams.delete(teamId);
+    await teams.delete({ teamId });
     console.log(`[teams] Team deleted: ${teamId}`);
   } catch (error) {
     console.error(`[teams] Error deleting team ${teamId}:`, error);
@@ -93,7 +93,7 @@ export async function deleteTeam(teamId: string): Promise<void> {
 export async function listTeamMembers(teamId: string) {
   try {
     const { teams } = await getAppwriteInstances();
-    return await teams.listMemberships(teamId);
+    return await teams.listMemberships({ teamId: teamId });
   } catch (error) {
     console.error(`[teams] Error listing members of team ${teamId}:`, error);
     throw error;
@@ -111,14 +111,12 @@ export async function createTeamMembership(
 ) {
   try {
     const { teams } = await getAppwriteInstances();
-    const membership = await teams.createMembership(
+    const membership = await teams.createMembership({
       teamId,
-      roles,
-      email,
-      undefined,
-      undefined,
-      url,
-    );
+      roles: roles,
+      email: email,
+      url: url,
+    });
     console.log(`[teams] Membership created for ${email} in team ${teamId}`);
     return membership;
   } catch (error) {
@@ -137,11 +135,11 @@ export async function updateMembershipRoles(
 ) {
   try {
     const { teams } = await getAppwriteInstances();
-    const membership = await teams.updateMembership(
-      teamId,
-      membershipId,
-      roles,
-    );
+    const membership = await teams.updateMembership({
+      teamId: teamId,
+      membershipId: membershipId,
+      roles: roles,
+    });
     console.log(`[teams] Membership ${membershipId} roles updated`);
     return membership;
   } catch (error) {
@@ -159,7 +157,10 @@ export async function deleteTeamMembership(
 ): Promise<void> {
   try {
     const { teams } = await getAppwriteInstances();
-    await teams.deleteMembership(teamId, membershipId);
+    await teams.deleteMembership({
+      teamId: teamId,
+      membershipId: membershipId,
+    });
     console.log(
       `[teams] Membership ${membershipId} deleted from team ${teamId}`,
     );
@@ -203,4 +204,3 @@ export async function isTeamMember(teamId: string): Promise<boolean> {
     return false;
   }
 }
-

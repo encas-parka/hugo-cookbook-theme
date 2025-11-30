@@ -10,6 +10,23 @@
 import type { Models } from "appwrite";
 
 // =============================================================================
+// CONTRIBUTORS - Types pour la gestion des contributeurs
+// =============================================================================
+
+/**
+ * Information sur un contributeur avec statut d'invitation
+ */
+export interface ContributorInfo {
+  id: string;
+  email?: string;
+  name?: string;
+  status: "invited" | "accepted" | "declined";
+  invitedAt?: string;
+  respondedAt?: string;
+  teamId?: string; // Si provenant d'une équipe
+}
+
+// =============================================================================
 // RECIPES - Types de création/mise à jour
 // =============================================================================
 // Note: Le type Recettes est auto-généré dans appwrite.d.ts
@@ -108,7 +125,7 @@ export interface CreateEventData {
   allDates?: string[]; // Tableau de toutes les dates uniques des repas
   meals?: Meal[];
   teams?: string[];
-  contributors?: string[];
+  contributors?: string[]; // Tableau de strings JSONifiées pour ContributorInfo
 }
 
 /**
@@ -121,7 +138,7 @@ export interface UpdateEventData {
   allDates?: string[]; // Tableau de toutes les dates uniques des repas
   meals?: Meal[];
   teams?: string[];
-  contributors?: string[];
+  contributors?: string[]; // Tableau de strings JSONifiées pour ContributorInfo
 }
 
 // =============================================================================
@@ -135,15 +152,32 @@ export interface UpdateEventData {
  * userTeams = liste des team IDs dont l'utilisateur est membre
  */
 export function canEdit(
-  resource: { createdBy: string; teams: string[]; contributors: string[] },
+  resource: {
+    createdBy: string;
+    teams: string[];
+    contributors: string[]; // Format string[] avec strings JSONifiées
+  },
   userId: string,
   userTeams: string[],
 ): boolean {
   // Créateur
   if (resource.createdBy === userId) return true;
 
-  // Contributeur direct
-  if (resource.contributors.includes(userId)) return true;
+  // Contributeur direct (parser les strings JSON)
+  if (Array.isArray(resource.contributors)) {
+    for (const contributorStr of resource.contributors) {
+      // Essayer de parser le JSON pour obtenir les informations du contributeur
+      try {
+        const contributor = JSON.parse(contributorStr);
+        if (contributor.id === userId && contributor.status === "accepted") {
+          return true;
+        }
+      } catch (e) {
+        // Si le parsing échoue, considérer que c'est un simple ID (ancien format)
+        if (contributorStr === userId) return true;
+      }
+    }
+  }
 
   // Membre d'une team autorisée
   return resource.teams.some((teamId) => userTeams.includes(teamId));
@@ -153,7 +187,11 @@ export function canEdit(
  * Filtre les ressources accessibles par un utilisateur
  */
 export function filterAccessible<
-  T extends { createdBy: string; teams: string[]; contributors: string[] },
+  T extends {
+    createdBy: string;
+    teams: string[];
+    contributors: string[];
+  },
 >(resources: T[], userId: string, userTeams: string[]): T[] {
   return resources.filter((resource) => canEdit(resource, userId, userTeams));
 }

@@ -40,7 +40,7 @@ export type Main = Models.Row & {
   dateStart: string | null;
   dateEnd: string | null;
   teams: string[] | null;
-  contributors: string[] | null;
+  contributors: string[] | null; // Tableau de strings JSONifiées pour ContributorInfo
   status: Status | null;
   error: string | null;
   allDates: string[] | null;
@@ -103,3 +103,5 @@ export type Recettes = Models.Row & {
   teams: string[] | null;
   contributors: string[] | null;
 };
+
+// Type Invitations supprimé car plus nécessaire avec l'approche KISS

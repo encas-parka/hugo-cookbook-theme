@@ -1,24 +1,25 @@
 <script lang="ts">
-  import {
-    ArrowLeft,
-    Save,
-    Calendar,
-    Users,
-    Plus,
-    UserPlus,
-    X,
-    AlertCircle,
-  } from "@lucide/svelte";
+  import { ArrowLeft, Save, Calendar, Plus } from "@lucide/svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { teamsStore } from "$lib/stores/TeamsStore.svelte";
-  import type { CreateEventData, Meal } from "$lib/types/appwrite.types";
+  import type {
+    CreateEventData,
+    Meal,
+    ContributorInfo,
+  } from "$lib/types/appwrite.types";
   import { nanoid } from "nanoid";
   import EventMealCard from "$lib/components/eventEdit/EventMealCard.svelte";
   import Fieldset from "$lib/components/ui/Fieldset.svelte";
-  import { getEvent, parseMeals } from "$lib/services/appwrite-events";
+  import {
+    getEvent,
+    parseMeals,
+    parseContributors,
+  } from "$lib/services/appwrite-events";
   import { fade } from "svelte/transition";
   import { dateToDateTime } from "$lib/utils/date-helpers";
   import { flip } from "svelte/animate";
+  import PermissionsManager from "$lib/components/PermissionsManager.svelte";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
 
   // Props du router
   let { params } = $props<{ params?: Record<string, string> }>();
@@ -28,8 +29,7 @@
   // État du formulaire
   let eventName = $state("");
   let selectedTeams = $state<string[]>([]);
-  let contributors = $state<string[]>([]);
-  let newContributorEmail = $state("");
+  let contributors = $state<ContributorInfo[]>([]);
   let meals = $state<Meal[]>([]);
 
   let loading = $state(false);
@@ -65,7 +65,7 @@
             // Remplir les states avec les données de l'événement
             eventName = event.name || "";
             selectedTeams = event.teams || [];
-            contributors = event.contributors || [];
+            contributors = parseContributors(event);
             meals = parseMeals(event).sort((a, b) =>
               a.date.localeCompare(b.date),
             );
@@ -169,18 +169,7 @@
     );
   }
 
-  // Gestion des Contributeurs
-  function addContributor() {
-    if (newContributorEmail && !contributors.includes(newContributorEmail)) {
-      contributors = [...contributors, newContributorEmail];
-      newContributorEmail = "";
-    }
-  }
-
-  function removeContributor(email: string) {
-    contributors = contributors.filter((c) => c !== email);
-  }
-
+  // Gestion des équipes
   function toggleTeam(teamId: string) {
     if (selectedTeams.includes(teamId)) {
       selectedTeams = selectedTeams.filter((id) => id !== teamId);
@@ -340,72 +329,14 @@
         </div>
 
         <!-- Permissions -->
-        <div class="card bg-base-100 shadow-xl">
-          <div class="card-body">
-            <h3 class="card-title mb-4 flex items-center gap-2 text-lg">
-              <Users class="text-secondary h-5 w-5" />
-              Permissions
-            </h3>
-
-            <!-- Équipes -->
-            <fieldset class="fieldset">
-              <legend class="fieldset-legend">Équipes</legend>
-              <div class="flex flex-col gap-2">
-                {#each teamsStore.teams as team}
-                  <label
-                    class="label border-base-200 hover:bg-base-200/50 cursor-pointer justify-start gap-3 rounded-lg border p-2 transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      class="checkbox checkbox-primary checkbox-sm"
-                      checked={selectedTeams.includes(team.$id)}
-                      onchange={() => toggleTeam(team.$id)}
-                    />
-                    <span>{team.name}</span>
-                  </label>
-                {/each}
-                {#if teamsStore.teams.length === 0}
-                  <p class="text-base-content/60 text-xs italic">
-                    Aucune équipe disponible
-                  </p>
-                {/if}
-              </div>
-            </fieldset>
-
-            <div class="divider my-2"></div>
-
-            <!-- Contributeurs -->
-            <fieldset class="fieldset">
-              <legend class="fieldset-legend"> Contributeurs > </legend>
-              <div class="mb-2 flex gap-2">
-                <input
-                  type="email"
-                  placeholder="email@exemple.com"
-                  class="input input-sm w-full"
-                  bind:value={newContributorEmail}
-                  onkeydown={(e) => e.key === "Enter" && addContributor()}
-                />
-                <button class="btn btn-sm btn-square" onclick={addContributor}>
-                  <UserPlus class="h-4 w-4" />
-                </button>
-              </div>
-
-              <div class="flex flex-wrap gap-2">
-                {#each contributors as email}
-                  <div class="badge badge-outline gap-2 pr-1">
-                    {email}
-                    <button
-                      onclick={() => removeContributor(email)}
-                      class="btn btn-ghost btn-xs btn-circle h-4 min-h-0 w-4"
-                    >
-                      <X class="h-3 w-3" />
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            </fieldset>
-          </div>
-        </div>
+        <PermissionsManager
+          bind:selectedTeams
+          bind:contributors
+          {teamsStore}
+          userId={globalState.userId || ""}
+          userTeams={globalState.userTeams || []}
+          {eventId}
+        />
       </div>
 
       <!-- Colonne Droite : Repas -->
