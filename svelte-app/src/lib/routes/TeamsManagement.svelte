@@ -1,0 +1,101 @@
+<script lang="ts">
+  import { Plus, Users, LoaderCircle } from "@lucide/svelte";
+  import { teamsStore } from "$lib/stores/TeamsStore.svelte";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
+  import TeamCard from "$lib/components/teams/TeamCard.svelte";
+  import CreateTeamModal from "$lib/components/teams/CreateTeamModal.svelte";
+  import TeamDetailModal from "$lib/components/teams/TeamDetailModal.svelte";
+
+  // État de la page
+  let createModalOpen = $state(false);
+  let selectedTeamId = $state<string | null>(null);
+
+  // Ouvrir le modal de détails
+  function openTeamDetails(teamId: string) {
+    selectedTeamId = teamId;
+  }
+
+  // Fermer le modal de détails
+  function closeTeamDetails() {
+    selectedTeamId = null;
+  }
+
+  // Ouvrir le modal de création
+  function openCreateModal() {
+    createModalOpen = true;
+  }
+
+  // Fermer le modal de création
+  function closeCreateModal() {
+    createModalOpen = false;
+  }
+
+  // Après création d'équipe, ouvrir les détails
+  function handleTeamCreated(teamId: string) {
+    closeCreateModal();
+    openTeamDetails(teamId);
+  }
+</script>
+
+<div class="mx-auto max-w-7xl px-4 py-8">
+  <!-- Header -->
+  <div class="mb-8 flex items-center justify-between">
+    <div>
+      <h1 class="mb-2 text-3xl font-bold">Mes Équipes</h1>
+      <p class="text-base-content/60">
+        Gérez vos équipes et collaborez avec vos collègues
+      </p>
+    </div>
+    <button class="btn btn-primary" onclick={openCreateModal}>
+      <Plus class="mr-2 h-5 w-5" />
+      Créer une équipe
+    </button>
+  </div>
+
+  <!-- Contenu -->
+  {#if !globalState.isAuthenticated}
+    <div class="alert alert-warning">
+      <span>Vous devez être connecté pour voir vos équipes</span>
+    </div>
+  {:else if teamsStore.loading && teamsStore.count === 0}
+    <div class="flex items-center justify-center py-20">
+      <LoaderCircle class="text-primary h-8 w-8 animate-spin" />
+    </div>
+  {:else if teamsStore.error}
+    <div class="alert alert-error shadow-lg">
+      <span>{teamsStore.error}</span>
+    </div>
+  {:else if teamsStore.count === 0}
+    <!-- Empty state -->
+    <div
+      class="bg-base-200/50 rounded-box border-base-200 border-2 border-dashed py-20 text-center"
+    >
+      <div class="bg-base-200 mb-4 inline-block rounded-full p-4">
+        <Users class="h-8 w-8 opacity-50" />
+      </div>
+      <h3 class="mb-2 text-lg font-bold">Aucune équipe</h3>
+      <p class="text-base-content/60 mb-6">
+        Vous n'avez pas encore créé ou rejoint d'équipe.
+      </p>
+      <button class="btn btn-primary btn-sm" onclick={openCreateModal}>
+        Créer ma première équipe
+      </button>
+    </div>
+  {:else}
+    <!-- Liste des équipes -->
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {#each teamsStore.teams as team (team.$id)}
+        <TeamCard {team} onClick={(teamId) => openTeamDetails(teamId)} />
+      {/each}
+    </div>
+  {/if}
+</div>
+
+<!-- Modals -->
+<CreateTeamModal
+  isOpen={createModalOpen}
+  onClose={closeCreateModal}
+  onSuccess={handleTeamCreated}
+/>
+
+<TeamDetailModal teamId={selectedTeamId} onClose={closeTeamDetails} />

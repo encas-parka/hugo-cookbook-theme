@@ -27,7 +27,7 @@ const APPWRITE_CONFIG: AppwriteConfig = {
     cmsAuth: "68976500002eb5c6ee4f",
     accessRequest: "689cdea5001a4d74549d",
     batchUpdate: "68f00487000c624533a3",
-    usersTeamsManager: "users_teams_manager", // Fonction pour gérer les utilisateurs et les équipes
+    usersTeamsManager: "692cb2cd000cbb24549c", // Fonction pour gérer les utilisateurs et les équipes
   },
   collections: {
     events: "events", // Ajouté par déduction, à vérifier si nécessaire

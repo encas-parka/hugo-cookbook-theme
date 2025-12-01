@@ -4,19 +4,18 @@
   import { teamsStore } from "$lib/stores/TeamsStore.svelte";
   import type {
     CreateEventData,
-    Meal,
-    ContributorInfo,
-  } from "$lib/types/appwrite.types";
+    EventMeal,
+    EventContributor,
+  } from "$lib/types/events";
   import { nanoid } from "nanoid";
   import EventMealCard from "$lib/components/eventEdit/EventMealCard.svelte";
   import Fieldset from "$lib/components/ui/Fieldset.svelte";
-  import {
-    getEvent,
-    parseMeals,
-    parseContributors,
-  } from "$lib/services/appwrite-events";
+  import { getEvent } from "$lib/services/appwrite-events";
   import { fade } from "svelte/transition";
-  import { dateToDateTime } from "$lib/utils/date-helpers";
+  import {
+    parseEventMeals,
+    parseEventContributors,
+  } from "$lib/utils/events.utils";
   import { flip } from "svelte/animate";
   import PermissionsManager from "$lib/components/PermissionsManager.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
@@ -29,8 +28,8 @@
   // État du formulaire
   let eventName = $state("");
   let selectedTeams = $state<string[]>([]);
-  let contributors = $state<ContributorInfo[]>([]);
-  let meals = $state<Meal[]>([]);
+  let contributors = $state<EventContributor[]>([]);
+  let meals = $state<EventMeal[]>([]);
 
   let loading = $state(false);
   let loadingEvent = $state(false);
@@ -65,8 +64,8 @@
             // Remplir les states avec les données de l'événement
             eventName = event.name || "";
             selectedTeams = event.teams || [];
-            contributors = parseContributors(event);
-            meals = parseMeals(event).sort((a, b) =>
+            contributors = parseEventContributors(event);
+            meals = parseEventMeals(event).sort((a, b) =>
               a.date.localeCompare(b.date),
             );
           } else {
@@ -131,7 +130,7 @@
       return;
     }
 
-    const newMeal: Meal = {
+    const newMeal: EventMeal = {
       id: mealId, // Ajouter un UUID court
       date: defaultDateTime,
       guests: 100,

@@ -10,11 +10,11 @@
   import OverrideConflictModal from "./lib/components/OverrideConflictModal.svelte";
   import { globalState } from "./lib/stores/GlobalState.svelte";
 
-  // Router simple
   import { router } from "./lib/services/simple-router.svelte";
   import DashboardPage from "./lib/routes/DashboardPage.svelte";
   import EventEditPage from "./lib/routes/EventEditPage.svelte";
   import AcceptInvite from "./lib/routes/AcceptInvite.svelte";
+  import TeamsManagement from "./lib/routes/TeamsManagement.svelte";
 
   let initError: string | null = $state(null);
 
@@ -23,6 +23,7 @@
   router.addRoute("/dashboard", DashboardPage);
   router.addRoute("/eventEdit", EventEditPage);
   router.addRoute("/eventEdit/:id", EventEditPage);
+  router.addRoute("/teams", TeamsManagement);
   router.addRoute("/accept-invite", AcceptInvite);
 
   // État du composant actuel

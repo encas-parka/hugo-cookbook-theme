@@ -359,18 +359,36 @@ export class EventsStore {
          return event;
       }
 
-      const newContributor: EventContributor = {
-        id: email, // Temporaire
-        email,
-        name,
-        status: "invited",
-        invitedAt: new Date().toISOString(),
-      };
+      // Vérifier si l'utilisateur existe dans Appwrite
+      const { checkUserEmails, inviteToEvent } = await import('../services/appwrite-functions');
+      const emailCheck = await checkUserEmails([email]);
+      const userInfo = emailCheck[email];
 
-      contributors.push(newContributor);
+      if (userInfo) {
+        // Utilisateur existant : ajouter directement avec ses infos
+        const newContributor: EventContributor = {
+          id: userInfo.id,
+          email,
+          name: userInfo.name,
+          status: "invited",
+          invitedAt: new Date().toISOString(),
+        };
 
-      // updateEvent gère la stringification
-      return await this.updateEvent(eventId, { contributors });
+        contributors.push(newContributor);
+
+        // updateEvent gère la stringification
+        return await this.updateEvent(eventId, { contributors });
+      } else {
+        // Utilisateur non-existant : utiliser la fonction cloud pour créer et inviter
+        await inviteToEvent(eventId, event.name, [email]);
+        
+        // Recharger l'événement depuis Appwrite pour avoir les données à jour
+        // TOCHECK : realtime only ?
+        // const updatedEvent = await this.fetchEvent(eventId);
+        // if (!updatedEvent) throw new Error("Impossible de recharger l'événement");
+        
+        // return updatedEvent;
+      }
     } catch (err) {
       console.error(`[EventsStore] Erreur ajout contributeur:`, err);
       throw err;

@@ -14,7 +14,7 @@
     Sun,
     type Icon as IconType,
   } from "@lucide/svelte";
-  import type { Meal, MealRecipe } from "$lib/types/appwrite.types";
+  import type { EventMeal, EventMealRecipe } from "$lib/types/events.d";
   import type { RecipeIndexEntry } from "$lib/types/recipes.types";
   import RecipeSearchCard from "./RecipeSearchCard.svelte";
   import Fieldset from "$lib/components/ui/Fieldset.svelte";
@@ -29,7 +29,7 @@
   import { flip } from "svelte/animate";
 
   interface Props {
-    meal: Meal;
+    meal: EventMeal;
     onDelete: () => void;
     onDuplicate: () => void;
     defaultGuests?: number;
@@ -135,7 +135,7 @@
     if (alreadyExists) return; // Ignorer silencieusement l'ajout d'une recette déjà présente
 
     const defaultPlates = plates || meal.guests; // Utiliser le nombre de guests par défaut
-    const newRecipe: MealRecipe = {
+    const newRecipe: EventMealRecipe = {
       recipeUuid: recipe.u,
       plates: defaultPlates,
       type,

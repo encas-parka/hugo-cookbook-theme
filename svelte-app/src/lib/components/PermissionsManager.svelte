@@ -32,7 +32,7 @@
     Check,
     XCircle,
   } from "@lucide/svelte";
-  import type { ContributorInfo } from "$lib/types/appwrite.types";
+  import type { EventContributor } from "$lib/types/events";
   import type { TeamsStore } from "$lib/stores/TeamsStore.svelte";
   import { createTeamMembership } from "$lib/services/appwrite-teams";
   import { fade } from "svelte/transition";
@@ -40,7 +40,7 @@
   // Interface des props
   interface Props {
     selectedTeams: string[];
-    contributors: string[]; // Format string[] avec strings JSONifiées
+    contributors: EventContributor[]; // Format string[] avec strings JSONifiées
     teamsStore: TeamsStore;
     userId: string;
     userTeams: string[];
@@ -49,7 +49,7 @@
 
   // État local pour les contributeurs parsés
   let parsedContributors = $derived.by(() => {
-    const result: ContributorInfo[] = [];
+    const result: EventContributor[] = [];
 
     if (contributors && contributors.length > 0) {
       for (const contributorStr of contributors) {
@@ -75,7 +75,7 @@
   let showRemoveTeamModal = $state(false);
   let showRemoveContributorModal = $state(false);
   let teamToRemove = $state<string | null>(null);
-  let contributorToRemove = $state<ContributorInfo | null>(null);
+  let contributorToRemove = $state<EventContributor | null>(null);
 
   // État pour l'invitation par email
   let newContributorEmail = $state("");
@@ -151,7 +151,7 @@
       return;
     }
 
-    const newContributor: ContributorInfo = {
+    const newContributor: EventContributor = {
       id: userId,
       name,
       email,
@@ -205,7 +205,7 @@
     }
   }
 
-  function confirmRemoveContributor(contributor: ContributorInfo) {
+  function confirmRemoveContributor(contributor: EventContributor) {
     contributorToRemove = contributor;
     showRemoveContributorModal = true;
   }
