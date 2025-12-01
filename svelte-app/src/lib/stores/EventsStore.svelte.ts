@@ -19,31 +19,28 @@ import type { Main } from "../types/appwrite.d";
 import type {
   CreateEventData,
   UpdateEventData,
-  Meal,
-  ContributorInfo,
-} from "../types/appwrite.types";
+  EnrichedEvent,
+  EventMeal,
+  EventContributor,
+} from "../types/events.d";
 import {
   listEvents,
   getEvent as getAppwriteEvent,
   createEvent as createAppwriteEvent,
   updateEvent as updateAppwriteEvent,
   deleteEvent as deleteAppwriteEvent,
-  addMeal,
-  updateMeal,
-  deleteMeal,
-  parseMeals,
-  parseContributors,
   subscribeToEvents,
 } from "../services/appwrite-events";
 import { globalState } from "./GlobalState.svelte";
+import { parseEventMeals, parseEventContributors } from "../utils/events.utils";
 
 // =============================================================================
 // STORE SINGLETON
 // =============================================================================
 
-class EventsStore {
+export class EventsStore {
   // État réactif - Événements
-  #events = new SvelteMap<string, Main>();
+  #events = new SvelteMap<string, EnrichedEvent>();
 
   // État UI
   #loading = $state(false);
@@ -141,11 +138,11 @@ class EventsStore {
     try {
       console.log("[EventsStore] Chargement des événements...");
 
-      const events = await listEvents(this.#userId!, this.#userTeams);
+      const { events } = await listEvents();
 
       // Ajouter à la map
       events.forEach((event) => {
-        this.#events.set(event.$id, event);
+        this.#events.set(event.$id, this.#enrichEvent(event));
       });
 
       console.log(`[EventsStore] ${events.length} événements chargés`);
@@ -156,12 +153,23 @@ class EventsStore {
   }
 
   /**
+   * Transforme un événement brut en événement enrichi
+   */
+  #enrichEvent(event: Main): EnrichedEvent {
+    return {
+      ...event,
+      meals: parseEventMeals(event.meals),
+      contributors: parseEventContributors(event.contributors),
+    };
+  }
+
+  /**
    * Configure le realtime pour les événements
    */
   #setupRealtime(): void {
     try {
-      this.#realtimeUnsubscribe = async () => {
-        await subscribeToEvents(
+      this.#realtimeUnsubscribe = () => {
+        subscribeToEvents(
           this.#userId!,
           this.#userTeams,
           (event, eventType) => {
@@ -170,7 +178,7 @@ class EventsStore {
             );
 
             if (eventType === "create" || eventType === "update") {
-              this.#events.set(event.$id, event);
+              this.#events.set(event.$id, this.#enrichEvent(event));
             } else if (eventType === "delete") {
               this.#events.delete(event.$id);
             }
@@ -194,20 +202,22 @@ class EventsStore {
   /**
    * Récupère un événement par ID
    */
-  getEventById(eventId: string): Main | null {
+  getEventById(eventId: string): EnrichedEvent | null {
     return this.#events.get(eventId) || null;
   }
 
   /**
    * Récupère un événement depuis Appwrite (force refresh)
    */
-  async fetchEvent(eventId: string): Promise<Main | null> {
+  async fetchEvent(eventId: string): Promise<EnrichedEvent | null> {
     try {
       const event = await getAppwriteEvent(eventId);
       if (event) {
-        this.#events.set(eventId, event);
+        const enriched = this.#enrichEvent(event);
+        this.#events.set(eventId, enriched);
+        return enriched;
       }
-      return event;
+      return null;
     } catch (err) {
       console.error(`[EventsStore] Erreur lors du fetch de ${eventId}:`, err);
       return null;
@@ -217,7 +227,7 @@ class EventsStore {
   /**
    * Filtre les événements par date
    */
-  getEventsByDateRange(startDate: string, endDate: string): Main[] {
+  getEventsByDateRange(startDate: string, endDate: string): EnrichedEvent[] {
     return this.events.filter((event) => {
       return (
         event.dateStart &&
@@ -246,9 +256,9 @@ class EventsStore {
 
     // Contributeur accepté
     if (event.contributors) {
-      const contributors = parseContributors(event);
+      // event.contributors est déjà un tableau d'objets EventContributor grâce à EnrichedEvent
       if (
-        contributors.some(
+        event.contributors.some(
           (c) => c.id === this.#userId && c.status === "accepted",
         )
       ) {
@@ -260,24 +270,24 @@ class EventsStore {
   }
 
   // =============================================================================
-  // API PUBLIQUE - CRUD
+  // API PUBLIQUE - ÉCRITURE
   // =============================================================================
 
   /**
    * Crée un nouvel événement
    */
-  async createEvent(data: CreateEventData): Promise<Main> {
-    if (!this.#userId) {
-      throw new Error("Utilisateur non connecté");
-    }
-
+  async createEvent(data: CreateEventData): Promise<EnrichedEvent> {
     try {
-      const event = await createAppwriteEvent(data, this.#userId);
-      this.#events.set(event.$id, event);
+      if (!globalState.userId) throw new Error("Utilisateur non connecté");
+
+      const event = await createAppwriteEvent(data, globalState.userId);
+      const enriched = this.#enrichEvent(event); 
+      this.#events.set(event.$id, enriched);
+      
       console.log(`[EventsStore] Événement créé: ${event.$id}`);
-      return event;
+      return enriched;
     } catch (err) {
-      console.error("[EventsStore] Erreur lors de la création:", err);
+      console.error("[EventsStore] Erreur création:", err);
       throw err;
     }
   }
@@ -285,17 +295,16 @@ class EventsStore {
   /**
    * Met à jour un événement
    */
-  async updateEvent(eventId: string, data: UpdateEventData): Promise<Main> {
+  async updateEvent(eventId: string, data: UpdateEventData): Promise<EnrichedEvent> {
     try {
       const event = await updateAppwriteEvent(eventId, data);
-      this.#events.set(eventId, event);
+      const enriched = this.#enrichEvent(event);
+      this.#events.set(eventId, enriched);
+      
       console.log(`[EventsStore] Événement mis à jour: ${eventId}`);
-      return event;
+      return enriched;
     } catch (err) {
-      console.error(
-        `[EventsStore] Erreur lors de la mise à jour de ${eventId}:`,
-        err,
-      );
+      console.error(`[EventsStore] Erreur mise à jour ${eventId}:`, err);
       throw err;
     }
   }
@@ -318,29 +327,170 @@ class EventsStore {
   }
 
   // =============================================================================
+  // API PUBLIQUE - CONTRIBUTORS
+  // =============================================================================
+
+  /**
+   * Récupère les contributeurs d'un événement
+   */
+  getContributors(eventId: string): EventContributor[] {
+    const event = this.#events.get(eventId);
+    if (!event) return [];
+    return event.contributors; 
+  }
+
+  /**
+   * Ajoute un contributeur à un événement
+   */
+  async addContributor(
+    eventId: string,
+    email: string,
+    name?: string,
+  ): Promise<EnrichedEvent> {
+    try {
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      const contributors = [...event.contributors]; // Copie pour immutabilité
+      
+      // Vérifier si déjà présent
+      if (contributors.some(c => c.email === email || c.id === email)) {
+         console.log(`[EventsStore] Contributeur déjà présent: ${email}`);
+         return event;
+      }
+
+      const newContributor: EventContributor = {
+        id: email, // Temporaire
+        email,
+        name,
+        status: "invited",
+        invitedAt: new Date().toISOString(),
+      };
+
+      contributors.push(newContributor);
+
+      // updateEvent gère la stringification
+      return await this.updateEvent(eventId, { contributors });
+    } catch (err) {
+      console.error(`[EventsStore] Erreur ajout contributeur:`, err);
+      throw err;
+    }
+  }
+
+  /**
+   * Ajoute un contributeur provenant d'une KTeam
+   */
+  async addContributorFromKteam(
+    eventId: string,
+    userId: string,
+    email?: string,
+    name?: string
+  ): Promise<EnrichedEvent> {
+    try {
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      const contributors = [...event.contributors];
+
+      if (contributors.some(c => c.id === userId || (email && c.email === email))) {
+        console.log(`[EventsStore] Contributeur KTeam déjà présent: ${userId}`);
+        return event;
+      }
+
+      const newContributor: EventContributor = {
+        id: userId,
+        email,
+        name,
+        status: "accepted",
+        invitedAt: new Date().toISOString(),
+        respondedAt: new Date().toISOString(),
+      };
+
+      contributors.push(newContributor);
+
+      return await this.updateEvent(eventId, { contributors });
+    } catch (err) {
+      console.error(`[EventsStore] Erreur ajout contributeur KTeam:`, err);
+      throw err;
+    }
+  }
+
+  /**
+   * Supprime un contributeur d'un événement
+   */
+  async removeContributor(eventId: string, contributorId: string): Promise<EnrichedEvent> {
+    try {
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      const contributors = event.contributors.filter(c => c.id !== contributorId && c.email !== contributorId);
+
+      if (event.contributors.length === contributors.length) {
+        return event;
+      }
+
+      return await this.updateEvent(eventId, { contributors });
+    } catch (err) {
+      console.error(`[EventsStore] Erreur suppression contributeur:`, err);
+      throw err;
+    }
+  }
+
+  /**
+   * Met à jour le statut d'un contributeur
+   */
+  async updateContributorStatus(
+    eventId: string,
+    contributorId: string,
+    status: "accepted" | "declined"
+  ): Promise<EnrichedEvent> {
+    try {
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      const contributors = [...event.contributors];
+      const index = contributors.findIndex(c => c.id === contributorId || c.email === contributorId);
+
+      if (index === -1) throw new Error("Contributeur introuvable");
+
+      contributors[index] = {
+        ...contributors[index],
+        status,
+        respondedAt: new Date().toISOString()
+      };
+
+      return await this.updateEvent(eventId, { contributors });
+    } catch (err) {
+      console.error(`[EventsStore] Erreur maj statut:`, err);
+      throw err;
+    }
+  }
+
+  // =============================================================================
   // API PUBLIQUE - MEALS
   // =============================================================================
 
   /**
    * Récupère les meals d'un événement
    */
-  getMeals(eventId: string): Meal[] {
+  getMeals(eventId: string): EventMeal[] {
     const event = this.#events.get(eventId);
     if (!event) return [];
-    return parseMeals(event);
+    return event.meals; // Déjà parsé !
   }
 
   /**
    * Ajoute un repas à un événement
    */
-  async addMeal(eventId: string, meal: Meal): Promise<Main> {
+  async addMeal(eventId: string, meal: EventMeal): Promise<EnrichedEvent> {
     try {
-      const event = await addMeal(eventId, meal);
-      this.#events.set(eventId, event);
-      console.log(`[EventsStore] Meal ajouté à ${eventId}`);
-      return event;
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      const meals = [...event.meals, meal];
+      return await this.updateEvent(eventId, { meals });
     } catch (err) {
-      console.error(`[EventsStore] Erreur lors de l'ajout du meal:`, err);
+      console.error(`[EventsStore] Erreur ajout meal:`, err);
       throw err;
     }
   }
@@ -351,18 +501,19 @@ class EventsStore {
   async updateMeal(
     eventId: string,
     mealIndex: number,
-    meal: Meal,
-  ): Promise<Main> {
+    meal: EventMeal,
+  ): Promise<EnrichedEvent> {
     try {
-      const event = await updateMeal(eventId, mealIndex, meal);
-      this.#events.set(eventId, event);
-      console.log(`[EventsStore] Meal ${mealIndex} mis à jour dans ${eventId}`);
-      return event;
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      const meals = [...event.meals];
+      if (mealIndex < 0 || mealIndex >= meals.length) throw new Error("Index invalide");
+      
+      meals[mealIndex] = meal;
+      return await this.updateEvent(eventId, { meals });
     } catch (err) {
-      console.error(
-        `[EventsStore] Erreur lors de la mise à jour du meal:`,
-        err,
-      );
+      console.error(`[EventsStore] Erreur maj meal:`, err);
       throw err;
     }
   }
@@ -370,17 +521,18 @@ class EventsStore {
   /**
    * Supprime un repas d'un événement
    */
-  async deleteMeal(eventId: string, mealIndex: number): Promise<Main> {
+  async deleteMeal(eventId: string, mealIndex: number): Promise<EnrichedEvent> {
     try {
-      const event = await deleteMeal(eventId, mealIndex);
-      this.#events.set(eventId, event);
-      console.log(`[EventsStore] Meal ${mealIndex} supprimé de ${eventId}`);
-      return event;
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      const meals = [...event.meals];
+      if (mealIndex < 0 || mealIndex >= meals.length) throw new Error("Index invalide");
+
+      meals.splice(mealIndex, 1);
+      return await this.updateEvent(eventId, { meals });
     } catch (err) {
-      console.error(
-        `[EventsStore] Erreur lors de la suppression du meal:`,
-        err,
-      );
+      console.error(`[EventsStore] Erreur suppression meal:`, err);
       throw err;
     }
   }
@@ -397,6 +549,8 @@ class EventsStore {
     return recipePlates / recipeBasePlates;
   }
 
+
+  
   // =============================================================================
   // UTILITAIRES
   // =============================================================================

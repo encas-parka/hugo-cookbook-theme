@@ -46,3 +46,12 @@ export function transformListIdToMainId(listId: string): string {
 export function createStorageKey(baseKey: string, mainId: string): string {
   return `${baseKey}_${mainId}`;
 }
+
+
+/**
+ * Vérifie si une adresse email est valide
+ */
+export function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}

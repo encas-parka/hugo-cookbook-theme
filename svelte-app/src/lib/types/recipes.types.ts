@@ -75,38 +75,6 @@ export interface ScaledIngredient extends RecipeIngredient {
 }
 
 // =============================================================================
-// ÉVÉNEMENTS
-// =============================================================================
-
-/**
- * Recette dans un repas
- */
-export interface MealRecipe {
-  recipeUuid: string;
-  plates: number; // Nombre de couverts pour cette recette dans ce repas
-}
-
-/**
- * Repas dans un événement
- */
-export interface Meal {
-  date: string; // DateTime ISO 8601 complet (ex: "2025-11-30T12:00:00")
-  guests: number;
-  recipes: MealRecipe[];
-}
-
-/**
- * Événement (structure Appwrite)
- */
-export interface Event {
-  $id: string;
-  name: string;
-  startDate: string;
-  endDate: string;
-  meals: Meal[]; // Stocké comme JSON dans Appwrite
-}
-
-// =============================================================================
 // CACHE & METADATA
 // =============================================================================
 
@@ -126,4 +94,44 @@ export interface RecipesCacheMetadata {
   lastSync: string | null;
   indexHash: string | null;
   recipesCount: number;
+}
+
+
+// =============================================================================
+// RECIPES - Types de création/mise à jour
+// =============================================================================
+// Note: Le type Recettes est auto-généré dans appwrite.d.ts
+
+/**
+ * Données pour créer une recette
+ */
+export interface CreateRecipeData {
+  title: string;
+  plate: number;
+  ingredients: string; // JSON stringifié
+  preparation: string;
+  draft?: boolean;
+  typeR: "entree" | "plat" | "dessert";
+  categories?: string[];
+  regime?: string[];
+  teams?: string[];
+  contributors?: string[];
+}
+
+/**
+ * Données pour mettre à jour une recette
+ */
+export interface UpdateRecipeData {
+  title?: string;
+  plate?: number;
+  ingredients?: string;
+  preparation?: string;
+  draft?: boolean;
+  typeR?: "entree" | "plat" | "dessert";
+  categories?: string[];
+  regime?: string[];
+  isPublished?: boolean;
+  publishedAt?: string;
+  teams?: string[];
+  contributors?: string[];
 }

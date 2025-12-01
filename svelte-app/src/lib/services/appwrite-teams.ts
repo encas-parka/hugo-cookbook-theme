@@ -75,6 +75,14 @@ export async function createTeam(
 
     const teamId = ID.unique();
 
+    // Créer l'objet membre pour le créateur
+    const creatorMember: KTeamMember = {
+      id: user.$id,
+      name: user.name,
+      role: "owner",
+      joinedAt: new Date().toISOString(),
+    };
+
     // Créer l'équipe avec le créateur comme premier membre
     const team = await tables.createRow({
       databaseId: APPWRITE_CONFIG.databaseId,
@@ -84,7 +92,7 @@ export async function createTeam(
         name,
         description: description || null,
         membersId: [user.$id],
-        members: [user.email || ""],
+        members: [JSON.stringify(creatorMember)], // Stocker l'objet stringifié
         invited: null,
         main: [], // Pas d'événements associés initialement
       },
@@ -162,6 +170,7 @@ export async function deleteTeam(teamId: string): Promise<void> {
 export async function addMember(
   teamId: string,
   userId: string,
+  userName: string,
   userEmail?: string,
 ): Promise<Kteams> {
   try {
@@ -172,8 +181,19 @@ export async function addMember(
 
     // Ajouter le membre s'il n'est pas déjà présent
     if (!team.membersId.includes(userId)) {
+      // Créer le nouveau membre
+      const newMember: KTeamMember = {
+        id: userId,
+        name: userName,
+        role: "member",
+        joinedAt: new Date().toISOString(),
+      };
+
       const updatedMembersId = [...team.membersId, userId];
-      const updatedMembers = [...team.members, userEmail || ""];
+      const updatedMembers = [
+        ...team.members,
+        JSON.stringify(newMember), // Stocker l'objet stringifié
+      ];
 
       // Mettre à jour l'équipe
       const updatedTeam = await tables.updateRow({
@@ -190,22 +210,6 @@ export async function addMember(
           Permission.update(Role.user(userId)),
         ],
       });
-
-      // Si l'utilisateur était invité, le retirer de la liste d'invitations
-      if (team.invited) {
-        const updatedInvited = team.invited.filter(
-          (invite) => !JSON.parse(invite).id.includes(userId),
-        );
-
-        if (updatedInvited.length !== team.invited.length) {
-          await tables.updateRow({
-            databaseId: APPWRITE_CONFIG.databaseId,
-            tableId: "kteams",
-            rowId: teamId,
-            data: { invited: updatedInvited },
-          });
-        }
-      }
 
       console.log(`[teams] Member added to team ${teamId}: ${userId}`);
       return updatedTeam as unknown as Kteams;
@@ -250,7 +254,7 @@ export async function removeMember(
       });
 
       console.log(`[teams] Member removed from team ${teamId}: ${userId}`);
-      return updatedTeam;
+      return updatedTeam as unknown as Kteams;
     }
 
     return team; // Retourner l'équipe inchangée si le membre n'était pas présent

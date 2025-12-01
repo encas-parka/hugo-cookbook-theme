@@ -1,3 +1,5 @@
+import type { Kteams } from "./appwrite.d";
+
 export interface KTeamMember {
   id: string; // User ID Appwrite
   name: string; // Nom d'affichage (cache pour éviter des requêtes)
@@ -12,4 +14,9 @@ export interface KTeamInvitation {
   status: "invited"; // Statut (passera dans 'members' une fois accepté)
   invitedAt: string; // Date ISO
   invitedBy: string; // ID de l'inviteur
+}
+
+export interface EnrichedTeam extends Omit<Kteams, "members" | "invited"> {
+  members: KTeamMember[];
+  invited: KTeamInvitation[];
 }

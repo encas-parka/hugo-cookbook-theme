@@ -1,20 +1,18 @@
 /**
  * Service Appwrite pour les événements
  *
- * Gère le CRUD des événements dans Appwrite (collection main)
+ * Gère le CRUD des événements
  */
 
-import { Query, ID, Permission, Role } from "appwrite";
-import { getAppwriteInstances } from "./appwrite";
-import { subscribe, getAppwriteConfig } from "./appwrite";
-import { nanoid } from "nanoid";
+import { ID, Query, Permission, Role } from "appwrite";
+import { getAppwriteInstances, getAppwriteConfig, subscribe } from "./appwrite";
 import type { Main } from "../types/appwrite.d";
-import type {
-  CreateEventData,
-  UpdateEventData,
-  Meal,
-  ContributorInfo,
-} from "../types/appwrite.types";
+import type { UpdateEventData, CreateEventData } from "../types/events.d";
+import {
+  parseEventContributors,
+} from "../utils/events.utils";
+
+const { APPWRITE_CONFIG } = getAppwriteConfig();
 
 // =============================================================================
 // CONFIGURATION
@@ -29,24 +27,15 @@ const EVENTS_COLLECTION_ID = "main";
 /**
  * Liste tous les événements accessibles à l'utilisateur
  */
-export async function listEvents(
-  userId: string,
-  userTeams: string[],
-): Promise<Main[]> {
+export async function listEvents(): Promise<{ events: Main[] }> {
   try {
-    const { tables, config } = await getAppwriteInstances();
+    const { tables } = await getAppwriteInstances();
     const response = await tables.listRows({
-      databaseId: config.databaseId,
+      databaseId: APPWRITE_CONFIG.databaseId,
       tableId: EVENTS_COLLECTION_ID,
+      queries: [Query.orderDesc("dateStart")],
     });
-
-    return (response.rows as unknown as Main[]).filter((event) => {
-      return (
-        event.createdBy === userId ||
-        event.contributors?.includes(userId) ||
-        event.teams?.some((teamId) => userTeams.includes(teamId))
-      );
-    });
+    return { events: response.rows as unknown as Main[] };
   } catch (error) {
     console.error("[appwrite-events] Error listing events:", error);
     throw error;
@@ -58,9 +47,9 @@ export async function listEvents(
  */
 export async function getEvent(eventId: string): Promise<Main | null> {
   try {
-    const { tables, config } = await getAppwriteInstances();
+    const { tables } = await getAppwriteInstances();
     const event = await tables.getRow({
-      databaseId: config.databaseId,
+      databaseId: APPWRITE_CONFIG.databaseId,
       tableId: EVENTS_COLLECTION_ID,
       rowId: eventId,
     });
@@ -80,7 +69,7 @@ export async function createEvent(
   userId: string,
 ): Promise<Main> {
   try {
-    const { tables, config } = await getAppwriteInstances();
+    const { tables } = await getAppwriteInstances();
     const eventId = ID.unique();
 
     const permissions = [
@@ -91,11 +80,9 @@ export async function createEvent(
 
     if (data.contributors) {
       data.contributors.forEach((contributor) => {
-        const contributorId =
-          typeof contributor === "string" ? contributor : contributor.id;
         if (contributor.status === "accepted") {
-          permissions.push(Permission.read(Role.user(contributorId)));
-          permissions.push(Permission.update(Role.user(contributorId)));
+          permissions.push(Permission.read(Role.user(contributor.id)));
+          permissions.push(Permission.update(Role.user(contributor.id)));
         }
       });
     }
@@ -108,7 +95,7 @@ export async function createEvent(
     }
 
     const event = await tables.createRow({
-      databaseId: config.databaseId,
+      databaseId: APPWRITE_CONFIG.databaseId,
       tableId: EVENTS_COLLECTION_ID,
       rowId: eventId,
       data: {
@@ -116,13 +103,11 @@ export async function createEvent(
         dateStart: data.dateStart,
         dateEnd: data.dateEnd,
         allDates: data.allDates, // Sauvegarder les dates calculées
-        meals: data.meals ? JSON.stringify(data.meals) : undefined,
+        meals: data.meals ?  JSON.stringify(data.meals) : [],
         createdBy: userId,
         teams: data.teams ?? [],
         contributors: data.contributors
-          ? data.contributors.map((c) =>
-              typeof c === "string" ? c : JSON.stringify(c),
-            )
+          ?  JSON.stringify(data.contributors)
           : [],
       },
       permissions,
@@ -144,17 +129,20 @@ export async function updateEvent(
   data: UpdateEventData,
 ): Promise<Main> {
   try {
-    const { tables, config } = await getAppwriteInstances();
+    const { tables } = await getAppwriteInstances();
+    
+    // Récupérer l'événement actuel pour avoir le créateur et les données existantes
+    const currentEvent = await getEvent(eventId);
+    if (!currentEvent) throw new Error(`Event ${eventId} not found`);
+
     const updateData: any = { ...data };
 
     if (data.meals) {
-      updateData.meals = JSON.stringify(data.meals);
+      updateData.meals =  JSON.stringify(data.meals);
     }
 
     if (data.contributors) {
-      updateData.contributors = data.contributors.map((c) =>
-        typeof c === "string" ? c : JSON.stringify(c),
-      );
+      updateData.contributors =  JSON.stringify(data.contributors);
     }
 
     // S'assurer que allDates est inclus s'il est présent
@@ -162,11 +150,43 @@ export async function updateEvent(
       updateData.allDates = data.allDates;
     }
 
+    // Recalculer les permissions si les contributeurs ou les équipes changent
+    let permissions: string[] | undefined;
+    
+    if (data.contributors || data.teams) {
+      permissions = [
+        Permission.read(Role.user(currentEvent.createdBy)),
+        Permission.update(Role.user(currentEvent.createdBy)),
+        Permission.delete(Role.user(currentEvent.createdBy)),
+      ];
+
+      // Gestion des équipes
+      const teams = data.teams ?? currentEvent.teams ?? [];
+      teams.forEach((teamId) => {
+        permissions!.push(Permission.read(Role.team(teamId)));
+        permissions!.push(Permission.update(Role.team(teamId)));
+      });
+
+      // Gestion des contributeurs
+      // On utilise la liste fournie dans data (déjà objets EventContributor) ou celle existante (qu'on parse)
+      const contributorsList = data.contributors 
+        ? data.contributors
+        : parseEventContributors(currentEvent.contributors);
+
+      contributorsList.forEach((contributor) => {
+        if (contributor.status === 'accepted') {
+          permissions!.push(Permission.read(Role.user(contributor.id)));
+          permissions!.push(Permission.update(Role.user(contributor.id)));
+        }
+      });
+    }
+
     const event = await tables.updateRow({
-      databaseId: config.databaseId,
+      databaseId: APPWRITE_CONFIG.databaseId,
       tableId: EVENTS_COLLECTION_ID,
       rowId: eventId,
       data: updateData,
+      permissions, // Passer les permissions mises à jour si calculées
     });
 
     console.log(`[appwrite-events] Event updated: ${eventId}`);
@@ -182,9 +202,9 @@ export async function updateEvent(
  */
 export async function deleteEvent(eventId: string): Promise<void> {
   try {
-    const { tables, config } = await getAppwriteInstances();
+    const { tables } = await getAppwriteInstances();
     await tables.deleteRow({
-      databaseId: config.databaseId,
+      databaseId: APPWRITE_CONFIG.databaseId,
       tableId: EVENTS_COLLECTION_ID,
       rowId: eventId,
     });
@@ -193,118 +213,6 @@ export async function deleteEvent(eventId: string): Promise<void> {
     console.error(`[appwrite-events] Error deleting event ${eventId}:`, error);
     throw error;
   }
-}
-
-// =============================================================================
-// HELPERS
-// =============================================================================
-
-/**
- * Parse les meals d'un événement
- */
-export function parseMeals(event: Main): Meal[] {
-  if (!event.meals) return [];
-  try {
-    const meals = JSON.parse(event.meals);
-    // Add IDs to meals that don't have them for UI tracking
-    return meals.map((meal: Meal) => {
-      if (!meal.id) {
-        return {
-          ...meal,
-          id: nanoid(6), // Generate a short UUID for tracking
-        };
-      }
-      return meal;
-    });
-  } catch (error) {
-    console.error("[appwrite-events] Error parsing meals:", error);
-    return [];
-  }
-}
-
-/**
- * Parse les contributeurs d'un événement
- */
-export function parseContributors(event: Main): ContributorInfo[] {
-  if (!event.contributors) return [];
-
-  // Parser le tableau de strings (chaque string peut être un JSON ou un simple ID)
-  try {
-    const contributors: ContributorInfo[] = [];
-
-    for (const contributorStr of event.contributors) {
-      try {
-        // Essayer de parser le JSON pour obtenir les informations du contributeur
-        const contributor = JSON.parse(contributorStr);
-        contributors.push(contributor);
-      } catch (e) {
-        // Si le parsing échoue, considérer que c'est un simple ID (ancien format)
-        contributors.push({
-          id: contributorStr,
-          status: "accepted" as const,
-        });
-      }
-    }
-
-    return contributors;
-  } catch (error) {
-    console.error("[appwrite-events] Error parsing contributors:", error);
-    return [];
-  }
-}
-
-/**
- * Ajoute un repas à un événement
- */
-export async function addMeal(eventId: string, meal: Meal): Promise<Main> {
-  const event = await getEvent(eventId);
-  if (!event) throw new Error(`Event ${eventId} not found`);
-
-  const meals = parseMeals(event);
-  meals.push(meal);
-
-  return await updateEvent(eventId, { meals });
-}
-
-/**
- * Met à jour un repas dans un événement
- */
-export async function updateMeal(
-  eventId: string,
-  mealIndex: number,
-  meal: Meal,
-): Promise<Main> {
-  const event = await getEvent(eventId);
-  if (!event) throw new Error(`Event ${eventId} not found`);
-
-  const meals = parseMeals(event);
-  if (mealIndex < 0 || mealIndex >= meals.length) {
-    throw new Error(`Meal index ${mealIndex} out of bounds`);
-  }
-
-  meals[mealIndex] = meal;
-
-  return await updateEvent(eventId, { meals });
-}
-
-/**
- * Supprime un repas d'un événement
- */
-export async function deleteMeal(
-  eventId: string,
-  mealIndex: number,
-): Promise<Main> {
-  const event = await getEvent(eventId);
-  if (!event) throw new Error(`Event ${eventId} not found`);
-
-  const meals = parseMeals(event);
-  if (mealIndex < 0 || mealIndex >= meals.length) {
-    throw new Error(`Meal index ${mealIndex} out of bounds`);
-  }
-
-  meals.splice(mealIndex, 1);
-
-  return await updateEvent(eventId, { meals });
 }
 
 // =============================================================================

@@ -17,12 +17,11 @@
  */
 
 import { SvelteMap } from "svelte/reactivity";
-import type { Models } from "appwrite";
-import type { Kteams } from "../types/appwrite.d";
+import type { Kteams } from "$lib/types/appwrite.d";
+import type { EnrichedTeam, KTeamMember, KTeamInvitation } from "$lib/types/aw_kteam.d";
 import {
   listUserTeams,
   getTeam,
-  getTeamWithMembers,
   createTeam as createKteam,
   updateTeam as updateKteam,
   deleteTeam as deleteKteam,
@@ -30,45 +29,10 @@ import {
   removeMember,
   inviteMembers,
   acceptInvitation,
-  getUserTeamIds,
   isTeamMember,
-} from "../services/appwrite-teams";
+} from "$lib/services/appwrite-teams";
 import { globalState } from "./GlobalState.svelte";
-
-// =============================================================================
-// TYPES
-// =============================================================================
-
-export interface TeamWithMembers extends Kteams {
-  members?: any[]; // Informations détaillées sur les membres
-}
-
-/**
- * Informations sur une invitation envoyée
- */
-export interface InvitationInfo {
-  id: string;
-  email: string;
-  name?: string;
-  status: "invited" | "accepted" | "declined";
-  invitedAt: string;
-  respondedAt?: string;
-  eventId?: string; // L'événement auquel le contributeur est invité
-  teamId?: string; // L'équipe concernée
-}
-
-/**
- * Informations sur un contributeur
- */
-export interface ContributorInfo {
-  id: string;
-  email?: string;
-  name?: string;
-  status: "invited" | "accepted" | "declined";
-  invitedAt: string;
-  respondedAt?: string;
-  teamId?: string;
-}
+import { ID } from "appwrite";
 
 // =============================================================================
 // STORE SINGLETON
@@ -76,11 +40,7 @@ export interface ContributorInfo {
 
 export class TeamsStore {
   // État réactif - Équipes
-  #teams = new SvelteMap<string, TeamWithMembers>();
-
-  // État réactif - Contributeurs/Invitations
-  #contributors = new SvelteMap<string, ContributorInfo>(); // Clé: contributorId
-  #invitations = new SvelteMap<string, InvitationInfo>(); // Clé: invitationId
+  #teams = new SvelteMap<string, EnrichedTeam>();
 
   // État UI
   #loading = $state(false);
@@ -121,36 +81,6 @@ export class TeamsStore {
     return this.#teams.size;
   }
 
-  /**
-   * Liste des contributeurs
-   */
-  get contributors() {
-    return Array.from(this.#contributors.values());
-  }
-
-  /**
-   * Liste des invitations
-   */
-  get invitations() {
-    return Array.from(this.#invitations.values());
-  }
-
-  /**
-   * Nombre de contributeurs
-   */
-  get contributorsCount() {
-    return this.#contributors.size;
-  }
-
-  /**
-   * Nombre d'invitations en attente
-   */
-  get pendingInvitationsCount() {
-    return Array.from(this.#invitations.values()).filter(
-      (inv) => inv.status === "invited",
-    ).length;
-  }
-
   // =============================================================================
   // INITIALISATION
   // =============================================================================
@@ -159,8 +89,6 @@ export class TeamsStore {
    * Initialise le store
    * 1. Récupère userId
    * 2. Charge les équipes de l'utilisateur
-   * 3. Charge les membres de chaque équipe
-   * 4. Charge les contributeurs et invitations
    */
   async initialize(): Promise<void> {
     if (this.#isInitialized) {
@@ -183,13 +111,9 @@ export class TeamsStore {
       // 2. Charger les équipes
       await this.#loadTeams();
 
-      // 3. Charger les contributeurs et invitations
-      await this.#loadContributors();
-      await this.#loadInvitations();
-
       this.#isInitialized = true;
       console.log(
-        `[TeamsStore] Initialisation complétée: ${this.#teams.size} équipes, ${this.#contributors.size} contributeurs, ${this.#invitations.size} invitations`,
+        `[TeamsStore] Initialisation complétée: ${this.#teams.size} équipes`,
       );
     } catch (err) {
       const message =
@@ -211,23 +135,52 @@ export class TeamsStore {
 
       const response = await listUserTeams();
 
-      // Charger les détails et membres de chaque équipe
+      // Charger les détails et parser les membres de chaque équipe
       for (const team of response.teams) {
         try {
-          const { team: teamDetails, members } = await getTeamWithMembers(
-            team.$id,
-          );
-          this.#teams.set(team.$id, {
-            ...teamDetails,
-            members,
+          // Parser les membres
+          const parsedMembers: KTeamMember[] = team.members.map((memberStr) => {
+            try {
+              return JSON.parse(memberStr);
+            } catch (e) {
+              // Fallback pour les anciens formats (email simple)
+              return {
+                id: "unknown",
+                name: memberStr.split("@")[0] || memberStr,
+                role: "member",
+                joinedAt: new Date().toISOString(),
+              } as KTeamMember;
+            }
           });
+
+          // Parser les invitations
+          const parsedInvited: KTeamInvitation[] = team.invited
+            ? team.invited.map((inviteStr) => {
+                try {
+                  return JSON.parse(inviteStr);
+                } catch (e) {
+                  return {
+                    email: inviteStr,
+                    status: "invited",
+                    invitedAt: new Date().toISOString(),
+                    invitedBy: "unknown",
+                  } as KTeamInvitation;
+                }
+              })
+            : [];
+
+          const enrichedTeam: EnrichedTeam = {
+            ...team,
+            members: parsedMembers,
+            invited: parsedInvited,
+          };
+
+          this.#teams.set(team.$id, enrichedTeam);
         } catch (err) {
           console.error(
-            `[TeamsStore] Erreur lors du chargement des membres de ${team.$id}:`,
+            `[TeamsStore] Erreur lors du parsing de l'équipe ${team.$id}:`,
             err,
           );
-          // Ajouter l'équipe sans les membres
-          this.#teams.set(team.$id, team);
         }
       }
 
@@ -245,20 +198,59 @@ export class TeamsStore {
   /**
    * Récupère une équipe par ID
    */
-  getTeamById(teamId: string): TeamWithMembers | null {
+  getTeamById(teamId: string): EnrichedTeam | null {
     return this.#teams.get(teamId) || null;
   }
 
   /**
    * Récupère une équipe depuis Appwrite (force refresh)
    */
-  async fetchTeam(teamId: string): Promise<TeamWithMembers | null> {
+  async fetchTeam(teamId: string): Promise<EnrichedTeam | null> {
     try {
-      const { team: teamDetails, members } = await getTeamWithMembers(teamId);
-      if (teamDetails) {
-        const teamWithMembers = { ...teamDetails, members };
-        this.#teams.set(teamId, teamWithMembers);
-        return teamWithMembers;
+      // On recharge tout pour simplifier le parsing (réutilise la logique de loadTeams mais pour une seule équipe)
+      // Mais getTeamWithMembers n'est plus adapté car il retourne {team, members} où members est any[]
+      // On va utiliser getTeam directement et parser
+      const team = await getTeam(teamId);
+      
+      if (team) {
+        // Parser les membres
+        const parsedMembers: KTeamMember[] = team.members.map((memberStr) => {
+          try {
+            return JSON.parse(memberStr);
+          } catch (e) {
+            return {
+              id: "unknown",
+              name: memberStr.split("@")[0] || memberStr,
+              role: "member",
+              joinedAt: new Date().toISOString(),
+            } as KTeamMember;
+          }
+        });
+
+        // Parser les invitations
+        const parsedInvited: KTeamInvitation[] = team.invited
+          ? team.invited.map((inviteStr) => {
+              try {
+                return JSON.parse(inviteStr);
+              } catch (e) {
+                return {
+                  email: inviteStr,
+                  status: "invited",
+                  invitedAt: new Date().toISOString(),
+                  invitedBy: "unknown",
+                } as KTeamInvitation;
+              }
+            })
+          : [];
+
+        const enrichedTeam: EnrichedTeam = {
+          ...team,
+          members: parsedMembers,
+          invited: parsedInvited,
+        };
+
+        this.#teams.set(teamId, enrichedTeam);
+        return enrichedTeam;
       }
       return null;
     } catch (err) {
@@ -277,41 +269,9 @@ export class TeamsStore {
   /**
    * Récupère les membres d'une équipe
    */
-  getTeamMembers(teamId: string): any[] | undefined {
+  getTeamMembers(teamId: string): KTeamMember[] | undefined {
     const team = this.#teams.get(teamId);
     return team?.members;
-  }
-
-  /**
-   * Récupère un contributeur par ID
-   */
-  getContributorById(contributorId: string): ContributorInfo | null {
-    return this.#contributors.get(contributorId) || null;
-  }
-
-  /**
-   * Récupère une invitation par ID
-   */
-  getInvitationById(invitationId: string): InvitationInfo | null {
-    return this.#invitations.get(invitationId) || null;
-  }
-
-  /**
-   * Récupère les invitations pour un événement spécifique
-   */
-  getInvitationsByEventId(eventId: string): InvitationInfo[] {
-    return Array.from(this.#invitations.values()).filter(
-      (inv) => inv.eventId === eventId,
-    );
-  }
-
-  /**
-   * Récupère les invitations en attente
-   */
-  getPendingInvitations(): InvitationInfo[] {
-    return Array.from(this.#invitations.values()).filter(
-      (inv) => inv.status === "invited",
-    );
   }
 
   /**
@@ -332,7 +292,7 @@ export class TeamsStore {
   async createTeam(
     name: string,
     description?: string,
-  ): Promise<TeamWithMembers> {
+  ): Promise<EnrichedTeam> {
     if (!globalState.userId) {
       throw new Error("Utilisateur non connecté");
     }
@@ -340,13 +300,18 @@ export class TeamsStore {
     try {
       const team = await createKteam(name, description);
 
-      // Charger les membres (devrait contenir le créateur)
-      const { members } = await getTeamWithMembers(team.$id);
-      const teamWithMembers = { ...team, members };
+      // Parser le membre créateur (qui est déjà un JSON string dans team.members[0])
+      const creatorMember = JSON.parse(team.members[0]);
+      
+      const enrichedTeam: EnrichedTeam = {
+        ...team,
+        members: [creatorMember],
+        invited: [],
+      };
 
-      this.#teams.set(team.$id, teamWithMembers);
+      this.#teams.set(team.$id, enrichedTeam);
       console.log(`[TeamsStore] Équipe créée: ${team.$id}`);
-      return teamWithMembers;
+      return enrichedTeam;
     } catch (err) {
       console.error("[TeamsStore] Erreur lors de la création:", err);
       throw err;
@@ -360,20 +325,36 @@ export class TeamsStore {
     teamId: string,
     name?: string,
     description?: string,
-  ): Promise<TeamWithMembers> {
+  ): Promise<EnrichedTeam> {
     try {
       const team = await updateKteam(teamId, name, description);
 
-      // Garder les membres existants
+      // Garder les membres existants (car updateKteam retourne Kteams avec members stringifiés)
       const existingTeam = this.#teams.get(teamId);
-      const teamWithMembers = {
+      
+      // Si on a l'équipe en cache, on réutilise ses membres parsés
+      // Sinon on parse ceux retournés par l'update (qui sont des strings)
+      let members: KTeamMember[] = [];
+      let invited: KTeamInvitation[] = [];
+
+      if (existingTeam) {
+        members = existingTeam.members;
+        invited = existingTeam.invited;
+      } else {
+        // Fallback parsing si pas en cache (rare)
+        members = team.members.map(m => JSON.parse(m));
+        invited = team.invited ? team.invited.map(i => JSON.parse(i)) : [];
+      }
+
+      const enrichedTeam: EnrichedTeam = {
         ...team,
-        members: existingTeam?.members,
+        members,
+        invited,
       };
 
-      this.#teams.set(teamId, teamWithMembers);
+      this.#teams.set(teamId, enrichedTeam);
       console.log(`[TeamsStore] Équipe mise à jour: ${teamId}`);
-      return teamWithMembers;
+      return enrichedTeam;
     } catch (err) {
       console.error(
         `[TeamsStore] Erreur lors de la mise à jour de ${teamId}:`,
@@ -407,7 +388,7 @@ export class TeamsStore {
   /**
    * Invite des membres à rejoindre une équipe
    */
-  async inviteMembers(
+  async inviteTeamMember(
     teamId: string,
     emails: string[],
     message?: string,
@@ -466,136 +447,19 @@ export class TeamsStore {
     }
   }
 
-  // =============================================================================
-  // API PUBLIQUE - GESTION DES CONTRIBUTEURS ET INVITATIONS
-  // =============================================================================
-
   /**
-   * Ajoute un contributeur à un événement
+   * Accepte une invitation à rejoindre une équipe
    */
-  async addContributor(
-    contributorId: string,
-    email?: string,
-    name?: string,
-    eventId?: string,
-  ): Promise<ContributorInfo> {
+  async acceptTeamInvitation(teamId: string): Promise<void> {
     try {
-      const contributor: ContributorInfo = {
-        id: contributorId,
-        email,
-        name,
-        status: "accepted",
-        invitedAt: new Date().toISOString(),
-      };
+      if (!globalState.userId) throw new Error("Utilisateur non connecté");
 
-      this.#contributors.set(contributorId, contributor);
+      await acceptInvitation(globalState.userId, teamId);
+      
+      // Recharger l'équipe
+      await this.fetchTeam(teamId);
 
-      console.log(`[TeamsStore] Contributeur ajouté: ${contributorId}`);
-      return contributor;
-    } catch (err) {
-      console.error(
-        "[TeamsStore] Erreur lors de l'ajout du contributeur:",
-        err,
-      );
-      throw err;
-    }
-  }
-
-  /**
-   * Supprime un contributeur
-   */
-  removeContributor(contributorId: string): void {
-    if (this.#contributors.has(contributorId)) {
-      this.#contributors.delete(contributorId);
-      console.log(`[TeamsStore] Contributeur supprimé: ${contributorId}`);
-    }
-  }
-
-  /**
-   * Invite un contributeur par email
-   */
-  async inviteContributorByEmail(
-    email: string,
-    eventId: string,
-    teamId?: string,
-  ): Promise<InvitationInfo> {
-    if (!this.isValidEmail(email)) {
-      throw new Error("Adresse email invalide");
-    }
-
-    try {
-      // Vérifier si l'email a déjà été invité pour cet événement
-      const existingInvitation = Array.from(this.#invitations.values()).find(
-        (inv) => inv.email === email && inv.eventId === eventId,
-      );
-
-      if (existingInvitation) {
-        throw new Error("Cet email a déjà été invité pour cet événement");
-      }
-
-      const invitationId = ID.unique();
-      const invitation: InvitationInfo = {
-        id: invitationId,
-        email,
-        status: "invited",
-        invitedAt: new Date().toISOString(),
-        eventId,
-        teamId,
-      };
-
-      this.#invitations.set(invitationId, invitation);
-
-      console.log(
-        `[TeamsStore] Invitation envoyée: ${email} pour l'événement ${eventId}`,
-      );
-      return invitation;
-    } catch (err) {
-      console.error("[TeamsStore] Erreur lors de l'invitation:", err);
-      throw err;
-    }
-  }
-
-  /**
-   * Accepte une invitation
-   */
-  async acceptInvitation(invitationId: string): Promise<void> {
-    try {
-      const invitation = this.#invitations.get(invitationId);
-      if (!invitation) {
-        throw new Error("Invitation introuvable");
-      }
-
-      // Mettre à jour le statut de l'invitation
-      const updatedInvitation: InvitationInfo = {
-        ...invitation,
-        status: "accepted",
-        respondedAt: new Date().toISOString(),
-      };
-
-      this.#invitations.set(invitationId, updatedInvitation);
-
-      // Ajouter comme contributeur accepté si l'ID utilisateur est disponible
-      if (globalState.userId) {
-        const contributor: ContributorInfo = {
-          id: globalState.userId,
-          email: invitation.email,
-          name: invitation.name,
-          status: "accepted",
-          invitedAt: invitation.invitedAt,
-          respondedAt: updatedInvitation.respondedAt,
-          teamId: invitation.teamId,
-        };
-
-        this.#contributors.set(globalState.userId, contributor);
-
-        // Si l'invitation concerne une équipe, ajouter l'utilisateur à l'équipe
-        if (invitation.teamId) {
-          await acceptInvitation(globalState.userId, invitation.teamId);
-          await this.fetchTeam(invitation.teamId);
-        }
-      }
-
-      console.log(`[TeamsStore] Invitation acceptée: ${invitationId}`);
+      console.log(`[TeamsStore] Invitation acceptée pour l'équipe: ${teamId}`);
     } catch (err) {
       console.error("[TeamsStore] Erreur lors de l'acceptation:", err);
       throw err;
@@ -603,150 +467,18 @@ export class TeamsStore {
   }
 
   /**
-   * Refuse une invitation
+   * Refuse une invitation à rejoindre une équipe
    */
-  async declineInvitation(invitationId: string): Promise<void> {
-    try {
-      const invitation = this.#invitations.get(invitationId);
-      if (!invitation) {
-        throw new Error("Invitation introuvable");
-      }
-
-      // Mettre à jour le statut de l'invitation
-      const updatedInvitation: InvitationInfo = {
-        ...invitation,
-        status: "declined",
-        respondedAt: new Date().toISOString(),
-      };
-
-      this.#invitations.set(invitationId, updatedInvitation);
-
-      console.log(`[TeamsStore] Invitation refusée: ${invitationId}`);
-    } catch (err) {
-      console.error("[TeamsStore] Erreur lors du refus:", err);
-      throw err;
-    }
-  }
-
-  /**
-   * Annule une invitation en attente
-   */
-  async cancelInvitation(invitationId: string): Promise<void> {
-    try {
-      const invitation = this.#invitations.get(invitationId);
-      if (!invitation) {
-        throw new Error("Invitation introuvable");
-      }
-
-      if (invitation.status !== "invited") {
-        throw new Error(
-          "Seules les invitations en attente peuvent être annulées",
-        );
-      }
-
-      this.#invitations.delete(invitationId);
-
-      console.log(`[TeamsStore] Invitation annulée: ${invitationId}`);
-    } catch (err) {
-      console.error("[TeamsStore] Erreur lors de l'annulation:", err);
-      throw err;
-    }
+  async declineTeamInvitation(teamId: string): Promise<void> {
+    // TODO: Implémenter le refus d'invitation côté Appwrite si nécessaire
+    // Pour l'instant, on peut simplement retirer l'utilisateur de la liste 'invited'
+    // Mais cela nécessite une fonction cloud ou une logique spécifique
+    console.warn("[TeamsStore] declineTeamInvitation non implémenté");
   }
 
   // =============================================================================
   // MÉTHODES PRIVÉES
   // =============================================================================
-
-  /**
-   * Charge les contributeurs depuis la table Kteams
-   */
-  async #loadContributors(): Promise<void> {
-    try {
-      console.log("[TeamsStore] Chargement des contributeurs...");
-
-      this.#contributors.clear();
-
-      // Parcourir toutes les équipes pour extraire les contributeurs
-      const teams = this.teams;
-      for (const team of teams) {
-        // Ajouter les membres comme contributeurs
-        if (team.membersId) {
-          for (let i = 0; i < team.membersId.length; i++) {
-            const memberId = team.membersId[i];
-            const memberEmail = team.members[i] || "";
-
-            if (!this.#contributors.has(memberId)) {
-              this.#contributors.set(memberId, {
-                id: memberId,
-                email: memberEmail,
-                name: memberEmail.split("@")[0], // Extraire le nom de l'email
-                status: "accepted",
-                invitedAt: new Date().toISOString(),
-                teamId: team.$id,
-              });
-            }
-          }
-        }
-      }
-
-      console.log(
-        `[TeamsStore] ${this.#contributors.size} contributeurs chargés`,
-      );
-    } catch (err) {
-      console.error(
-        "[TeamsStore] Erreur lors du chargement des contributeurs:",
-        err,
-      );
-      // Ne pas lancer d'erreur, continuer avec un Map vide
-    }
-  }
-
-  /**
-   * Charge les invitations depuis la table Kteams
-   */
-  async #loadInvitations(): Promise<void> {
-    try {
-      console.log("[TeamsStore] Chargement des invitations...");
-
-      this.#invitations.clear();
-
-      // Parcourir toutes les équipes pour extraire les invitations
-      const teams = this.teams;
-      for (const team of teams) {
-        // Ajouter les invitations
-        if (team.invited) {
-          for (const invite of team.invited) {
-            try {
-              const inviteData = JSON.parse(invite);
-              const invitationId = `${team.$id}_${inviteData.id}`;
-
-              this.#invitations.set(invitationId, {
-                id: invitationId,
-                email: inviteData.email,
-                name: inviteData.name,
-                status: inviteData.status,
-                invitedAt: inviteData.invitedAt,
-                respondedAt: inviteData.respondedAt,
-                teamId: team.$id,
-              });
-            } catch (err) {
-              console.error("Erreur lors du parsing d'une invitation:", err);
-            }
-          }
-        }
-      }
-
-      console.log(
-        `[TeamsStore] ${this.#invitations.size} invitations chargées`,
-      );
-    } catch (err) {
-      console.error(
-        "[TeamsStore] Erreur lors du chargement des invitations:",
-        err,
-      );
-      // Ne pas lancer d'erreur, continuer avec un Map vide
-    }
-  }
 
   // =============================================================================
   // UTILITAIRES
@@ -762,14 +494,7 @@ export class TeamsStore {
 
     try {
       this.#teams.clear();
-      this.#contributors.clear();
-      this.#invitations.clear();
-
-      await Promise.all([
-        this.#loadTeams(),
-        this.#loadContributors(),
-        this.#loadInvitations(),
-      ]);
+      await this.#loadTeams();
 
       console.log("[TeamsStore] Rechargement complété");
     } catch (err) {
@@ -788,8 +513,6 @@ export class TeamsStore {
    */
   destroy(): void {
     this.#teams.clear();
-    this.#contributors.clear();
-    this.#invitations.clear();
     this.#isInitialized = false;
     console.log("[TeamsStore] Ressources nettoyées");
   }
