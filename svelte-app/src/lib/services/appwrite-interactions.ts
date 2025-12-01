@@ -204,10 +204,10 @@ export async function loadProductsWithPurchases(
     const { tables, config } = await getAppwriteInstances();
 
     // Charger les produits avec leurs relations purchases
-    const productsResponse = await tables.listRows(
-      config.databaseId,
-      config.APPWRITE_CONFIG.collections.products,
-      [
+    const productsResponse = await tables.listRows({
+      databaseId: config.databaseId,
+      tableId: config.APPWRITE_CONFIG.collections.products,
+      queries: [
         Query.equal("mainId", mainId),
         Query.orderAsc(
           orderBy === "productName" ? "productName" : "$updatedAt",
@@ -215,7 +215,7 @@ export async function loadProductsWithPurchases(
         Query.limit(limit),
         Query.select(["*", "purchases.*"]), // Récupérer la relation purchases
       ],
-    );
+    });
     const products = productsResponse.rows as unknown as Products[];
 
     // Les relations sont déjà incluses dans les produits
@@ -260,11 +260,11 @@ export async function loadProductById(
 ): Promise<Products | null> {
   try {
     const { tables, config } = await getAppwriteInstances();
-    const response = await tables.getRow(
-      config.databaseId,
-      config.APPWRITE_CONFIG.collections.products,
-      productId,
-    );
+    const response = await tables.getRow({
+      databaseId: config.databaseId,
+      tableId: config.APPWRITE_CONFIG.collections.products,
+      rowId: productId,
+    });
     return response as unknown as Products;
   } catch (err) {
     console.error("[Appwrite Interactions] Erreur chargement produit:", err);
@@ -287,16 +287,16 @@ export async function loadUpdatedPurchases(
   try {
     const { tables, config } = await getAppwriteInstances();
 
-    const response = await tables.listRows(
-      config.databaseId,
-      config.APPWRITE_CONFIG.collections.purchases,
-      [
+    const response = await tables.listRows({
+      databaseId: config.databaseId,
+      tableId: config.APPWRITE_CONFIG.collections.purchases,
+      queries: [
         Query.greaterThan("$updatedAt", lastSync),
         Query.equal("mainId", mainId),
         Query.limit(limit),
         Query.select(["*", "products.$id"]), // Uniquement les IDs des produits
       ],
-    );
+    });
 
     console.log(
       `[Appwrite Interactions] ${response.rows.length} purchases modifiés chargés`,
@@ -321,10 +321,10 @@ export async function loadProductsListByIds(
     const { tables, config } = await getAppwriteInstances();
 
     // Utiliser une requête avec filtre OR pour récupérer les produits
-    const response = await tables.listRows(
-      config.databaseId,
-      config.APPWRITE_CONFIG.collections.products,
-      [
+    const response = await tables.listRows({
+      databaseId: config.databaseId,
+      tableId: config.APPWRITE_CONFIG.collections.products,
+      queries: [
         Query.equal("$id", productIds), // ← Filtre par IDs
         Query.select([
           "*",
@@ -342,7 +342,7 @@ export async function loadProductsListByIds(
           "purchases.products.$id",
         ]),
       ],
-    );
+    });
 
     return response.rows as unknown as Products[];
   } catch (err) {
@@ -380,10 +380,10 @@ export async function syncProductsWithPurchases(
       // === CHARGEMENT COMPLET ===
       console.log("[Appwrite Interactions] Chargement complet des produits");
 
-      const response = await tables.listRows(
-        config.databaseId,
-        config.APPWRITE_CONFIG.collections.products,
-        [
+      const response = await tables.listRows({
+        databaseId: config.databaseId,
+        tableId: config.APPWRITE_CONFIG.collections.products,
+        queries: [
           Query.equal("mainId", mainId),
           Query.select([
             "*",
@@ -402,15 +402,15 @@ export async function syncProductsWithPurchases(
           ]),
           Query.limit(limit),
         ],
-      );
+      });
 
       return response.rows as unknown as ProductWithPurchases[];
     }
 
-    const response = await tables.listRows(
-      config.databaseId,
-      config.APPWRITE_CONFIG.collections.products,
-      [
+    const response = await tables.listRows({
+      databaseId: config.databaseId,
+      tableId: config.APPWRITE_CONFIG.collections.products,
+      queries: [
         Query.greaterThan("$updatedAt", lastSync),
         Query.equal("mainId", mainId),
         Query.limit(limit),
@@ -430,7 +430,7 @@ export async function syncProductsWithPurchases(
           "purchases.products.$id",
         ]), // Récupérer la relation purchases sans récursion
       ],
-    );
+    });
 
     if (response.rows.length > 0) {
       console.log(
@@ -474,12 +474,12 @@ export async function updateProduct(
     updates.updatedBy = getCurrentUserName();
   }
 
-  const response = await tables.updateRow(
-    config.databaseId,
-    config.APPWRITE_CONFIG.collections.products,
-    productId,
-    updates,
-  );
+  const response = await tables.updateRow({
+    databaseId: config.databaseId,
+    tableId: config.APPWRITE_CONFIG.collections.products,
+    rowId: productId,
+    data: updates,
+  });
 
   return response as unknown as Products;
 }
@@ -519,12 +519,12 @@ export async function upsertProduct(
     const enrichedData = await enrichProductWithUser(appwriteData);
 
     const { tables, config } = await getAppwriteInstances();
-    const response = await tables.createRow(
-      config.databaseId,
-      config.APPWRITE_CONFIG.collections.products,
-      productId, // $id prédéfini
-      enrichedData, // ← Utiliser les données enrichies
-    );
+    const response = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: config.APPWRITE_CONFIG.collections.products,
+      rowId: productId, // $id prédéfini
+      data: enrichedData, // ← Utiliser les données enrichies
+    });
 
     console.log(
       `[Appwrite Interactions] Produit ${productId} créé avec succès`,
@@ -602,12 +602,12 @@ export async function createManualProduct(
       manualProduct,
     );
 
-    const response = await tables.createRow(
-      config.databaseId,
-      config.APPWRITE_CONFIG.collections.products,
-      uniqueId,
-      manualProduct,
-    );
+    const response = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: config.APPWRITE_CONFIG.collections.products,
+      rowId: uniqueId,
+      data: manualProduct,
+    });
 
     console.log(
       `[Appwrite Interactions] Produit manuel ${uniqueId} créé avec succès`,

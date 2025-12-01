@@ -14,7 +14,7 @@
   import { router } from "./lib/services/simple-router.svelte";
   import DashboardPage from "./lib/routes/DashboardPage.svelte";
   import EventEditPage from "./lib/routes/EventEditPage.svelte";
-  import InvitationPage from "./lib/routes/InvitationPage.svelte";
+  import AcceptInvite from "./lib/routes/AcceptInvite.svelte";
 
   let initError: string | null = $state(null);
 
@@ -23,16 +23,19 @@
   router.addRoute("/dashboard", DashboardPage);
   router.addRoute("/eventEdit", EventEditPage);
   router.addRoute("/eventEdit/:id", EventEditPage);
-  router.addRoute("/invitation", InvitationPage);
-  router.addRoute("/invitation/:id", InvitationPage);
+  router.addRoute("/accept-invite", AcceptInvite);
 
   // État du composant actuel
   let currentRoute = $state<any>(null);
 
   // Protection d'authentification
   $effect(() => {
-    // Si non authentifié et qu'on essaie d'accéder à une route protégée (autre que /)
-    if (!globalState.isAuthenticated && router.path !== "/") {
+    // Si non authentifié et qu'on essaie d'accéder à une route protégée (autre que / et /accept-invite)
+    if (
+      !globalState.isAuthenticated &&
+      router.path !== "/" &&
+      router.path !== "/accept-invite"
+    ) {
       // Rediriger vers la racine (qui affichera le dashboard vide ou redirigera selon la logique)
       // Note: Avec le hash routing, on peut juste reset le hash ou rediriger vers /
       window.location.hash = "/";

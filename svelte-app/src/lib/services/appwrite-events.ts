@@ -59,11 +59,11 @@ export async function listEvents(
 export async function getEvent(eventId: string): Promise<Main | null> {
   try {
     const { tables, config } = await getAppwriteInstances();
-    const event = await tables.getRow(
-      config.databaseId,
-      EVENTS_COLLECTION_ID,
-      eventId,
-    );
+    const event = await tables.getRow({
+      databaseId: config.databaseId,
+      tableId: EVENTS_COLLECTION_ID,
+      rowId: eventId,
+    });
     return event as unknown as Main;
   } catch (error: any) {
     if (error.code === 404) return null;
@@ -107,11 +107,11 @@ export async function createEvent(
       });
     }
 
-    const event = await tables.createRow(
-      config.databaseId,
-      EVENTS_COLLECTION_ID,
-      eventId,
-      {
+    const event = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: EVENTS_COLLECTION_ID,
+      rowId: eventId,
+      data: {
         name: data.name,
         dateStart: data.dateStart,
         dateEnd: data.dateEnd,
@@ -126,7 +126,7 @@ export async function createEvent(
           : [],
       },
       permissions,
-    );
+    });
 
     console.log(`[appwrite-events] Event created: ${eventId}`);
     return event as unknown as Main;
@@ -162,12 +162,12 @@ export async function updateEvent(
       updateData.allDates = data.allDates;
     }
 
-    const event = await tables.updateRow(
-      config.databaseId,
-      EVENTS_COLLECTION_ID,
-      eventId,
-      updateData,
-    );
+    const event = await tables.updateRow({
+      databaseId: config.databaseId,
+      tableId: EVENTS_COLLECTION_ID,
+      rowId: eventId,
+      data: updateData,
+    });
 
     console.log(`[appwrite-events] Event updated: ${eventId}`);
     return event as unknown as Main;
@@ -183,7 +183,11 @@ export async function updateEvent(
 export async function deleteEvent(eventId: string): Promise<void> {
   try {
     const { tables, config } = await getAppwriteInstances();
-    await tables.deleteRow(config.databaseId, EVENTS_COLLECTION_ID, eventId);
+    await tables.deleteRow({
+      databaseId: config.databaseId,
+      tableId: EVENTS_COLLECTION_ID,
+      rowId: eventId,
+    });
     console.log(`[appwrite-events] Event deleted: ${eventId}`);
   } catch (error) {
     console.error(`[appwrite-events] Error deleting event ${eventId}:`, error);

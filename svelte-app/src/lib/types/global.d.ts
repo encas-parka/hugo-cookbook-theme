@@ -6,6 +6,7 @@ export interface AppwriteConfig {
     cmsAuth: string;
     accessRequest: string;
     batchUpdate: string;
+    usersTeamsManager: string;
   };
   collections: {
     events: string;
@@ -13,56 +14,57 @@ export interface AppwriteConfig {
     main: string;
     purchases: string;
     products: string;
+    kteams: string;
   };
 }
 
-  interface AppwriteClientGlobal {
-    getAppwriteClients: () => Promise<{
-      client: any;
-      account: any;
-      functions: any;
-      databases: any;
-      teams: any;
-    }>;
-    getAccount: () => Promise<any>;
-    getTeams: () => Promise<any>;
-    getFunctions: () => Promise<any>;
-    getDatabases: () => Promise<any>;
-    getConfig: () => {
-      APPWRITE_ENDPOINT: string;
-      APPWRITE_PROJECT_ID: string;
-      APPWRITE_FUNCTION_ID: string;
-      ACCESS_REQUEST_FUNCTION_ID: string;
-      APPWRITE_CONFIG: AppwriteConfig;
-    };
-    isInitialized: () => boolean;
-    initializeAppwrite: () => Promise<any>;
-    getLocalCmsUser: () => any;
-    isAuthenticatedCms: () => boolean;
-    isAuthenticatedAppwrite: () => Promise<boolean>;
-    isConnectedAppwrite: () => Promise<boolean>;
-    getUserEmail: () => string | null;
-    getUserName: () => string | null;
-    clearAuthData: () => void;
-    setAuthData: (email: string, name: string, cmsAuth?: any) => void;
-    logoutGlobal: () => Promise<void>;
-    isEmailVerified: () => Promise<boolean>;
-    sendVerificationEmail: () => Promise<void>;
-    verifyEmail: (userId: string, secret: string) => Promise<void>;
-    getLocalEmailVerificationStatus: () => boolean;
-    createCollaborativeProductsListFromEvent: (eventId: string) => Promise<any>;
-    checkExistingMainGroup: (mainGroupId: string) => Promise<boolean>;
-    subscribeToCollections: (
-      collections: string[],
-      databaseId: string,
-      callback: (response: any) => void,
-      connectionCallbacks?: {
-        onConnect?: () => void;
-        onDisconnect?: () => void;
-        onError?: (error: any) => void;
-      },
-    ) => () => void;
-  }
+interface AppwriteClientGlobal {
+  getAppwriteClients: () => Promise<{
+    client: any;
+    account: any;
+    functions: any;
+    databases: any;
+    teams: any;
+  }>;
+  getAccount: () => Promise<any>;
+  getTeams: () => Promise<any>;
+  getFunctions: () => Promise<any>;
+  getDatabases: () => Promise<any>;
+  getConfig: () => {
+    APPWRITE_ENDPOINT: string;
+    APPWRITE_PROJECT_ID: string;
+    APPWRITE_FUNCTION_ID: string;
+    ACCESS_REQUEST_FUNCTION_ID: string;
+    APPWRITE_CONFIG: AppwriteConfig;
+  };
+  isInitialized: () => boolean;
+  initializeAppwrite: () => Promise<any>;
+  getLocalCmsUser: () => any;
+  isAuthenticatedCms: () => boolean;
+  isAuthenticatedAppwrite: () => Promise<boolean>;
+  isConnectedAppwrite: () => Promise<boolean>;
+  getUserEmail: () => string | null;
+  getUserName: () => string | null;
+  clearAuthData: () => void;
+  setAuthData: (email: string, name: string, cmsAuth?: any) => void;
+  logoutGlobal: () => Promise<void>;
+  isEmailVerified: () => Promise<boolean>;
+  sendVerificationEmail: () => Promise<void>;
+  verifyEmail: (userId: string, secret: string) => Promise<void>;
+  getLocalEmailVerificationStatus: () => boolean;
+  createCollaborativeProductsListFromEvent: (eventId: string) => Promise<any>;
+  checkExistingMainGroup: (mainGroupId: string) => Promise<boolean>;
+  subscribeToCollections: (
+    collections: string[],
+    databaseId: string,
+    callback: (response: any) => void,
+    connectionCallbacks?: {
+      onConnect?: () => void;
+      onDisconnect?: () => void;
+      onError?: (error: any) => void;
+    },
+  ) => () => void;
+}
 
 interface AppwriteSDK {
   Client: any;

@@ -25,7 +25,7 @@
     Users,
     UserPlus,
     X,
-    AlertCircle,
+    CircleAlert,
     Plus,
     Edit,
     Mail,
@@ -34,10 +34,7 @@
   } from "@lucide/svelte";
   import type { ContributorInfo } from "$lib/types/appwrite.types";
   import type { TeamsStore } from "$lib/stores/TeamsStore.svelte";
-  import {
-    createTeamMembership,
-    isValidEmail,
-  } from "$lib/services/appwrite-teams";
+  import { createTeamMembership } from "$lib/services/appwrite-teams";
   import { fade } from "svelte/transition";
 
   // Interface des props
@@ -71,7 +68,7 @@
     userId = "",
     userTeams = [] as string[],
     eventId = "", // ID de l'événement pour les invitations
-  } = $props<Props>();
+  }: Props = $props();
 
   // État local
   let showTeamEditModal = $state(false);
@@ -89,7 +86,7 @@
   let teamMembers = $derived.by(() => {
     const allMembers = new Map<
       string,
-      { name: string; email?: string; teamId: string }
+      { id: string; name: string; email?: string; teamId: string }
     >();
 
     for (const teamId of selectedTeams) {
@@ -102,7 +99,8 @@
             !parsedContributors.some((c) => c.id === member.userId)
           ) {
             allMembers.set(member.userId, {
-              name: member.userName || member.userEmail || member.userId,
+              id: member.userId,
+              name: member.userName,
               email: member.userEmail,
               teamId,
             });
@@ -115,7 +113,9 @@
   });
 
   // Contributeurs suggérés (membres des équipes sélectionnées)
-  let suggestedContributors = $derived(() => Array.from(teamMembers.values()));
+  let suggestedContributors = $derived.by(() =>
+    Array.from(teamMembers.values()),
+  );
 
   // Fonctions pour la gestion des équipes
   function toggleTeam(teamId: string) {
@@ -165,7 +165,7 @@
   }
 
   async function inviteContributorByEmail() {
-    if (!newContributorEmail || !isValidEmail(newContributorEmail)) {
+    if (!newContributorEmail) {
       invitationError = "Veuillez entrer une adresse email valide";
       return;
     }
@@ -296,7 +296,7 @@
                 class="badge badge-outline badge-lg h-auto gap-1 py-1"
                 onclick={() =>
                   addTeamContributor(
-                    member.name,
+                    member.id,
                     member.name,
                     member.email,
                     member.teamId,
@@ -312,9 +312,10 @@
       {/if}
 
       <!-- Invitation par email -->
-      <div class="mb-3">
-        <p class="mb-2 text-sm font-medium">Inviter par email</p>
-        <div class="flex gap-2">
+      <fieldset class="fieldset mb-3">
+        <legend class="legend">Inviter par email</legend>
+        <label class="input validator flex gap-2">
+          <Mail class="h-4 w-4 opacity-50" />
           <input
             type="email"
             placeholder="email@exemple.com"
@@ -334,15 +335,16 @@
             {/if}
             Inviter
           </button>
-        </div>
+        </label>
+        <div class="validator-hint hidden">email invalide</div>
 
         {#if invitationError}
           <div class="alert alert-error mt-2 py-2 text-xs">
-            <AlertCircle class="h-3 w-3" />
+            <CircleAlert class="h-3 w-3" />
             {invitationError}
           </div>
         {/if}
-      </div>
+      </fieldset>
 
       <!-- Liste des contributeurs -->
       <div class="mb-3">

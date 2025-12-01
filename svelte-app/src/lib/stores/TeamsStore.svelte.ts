@@ -1,10 +1,10 @@
 /**
- * TeamsStore - Store de gestion des équipes Appwrite natives avec Svelte 5
+ * TeamsStore - Store de gestion des équipes basées sur la table Kteams avec Svelte 5
  *
  * Architecture:
- * - Gestion des équipes natives Appwrite (pas de collection custom)
+ * - Gestion des équipes via la table personnalisée Kteams
  * - CRUD équipes (create, update, delete)
- * - Gestion des membres et rôles
+ * - Gestion des membres via la fonction Appwrite users_teams_manager
  * - Gestion des contributeurs individuels avec invitations
  * - Cache local pour performance
  * - Realtime pour les changements d'équipes
@@ -13,41 +13,61 @@
  * await teamsStore.initialize();
  * const myTeams = teamsStore.teams;
  * await teamsStore.createTeam('Mon équipe');
- * await teamsStore.inviteContributor('email@example.com', 'eventId');
+ * await teamsStore.inviteMembers(['email@example.com'], 'teamId');
  */
 
 import { SvelteMap } from "svelte/reactivity";
 import type { Models } from "appwrite";
-import { ID } from "appwrite";
+import type { Kteams } from "../types/appwrite.d";
 import {
   listUserTeams,
   getTeam,
-  createTeam as createAppwriteTeam,
-  updateTeam as updateAppwriteTeam,
-  deleteTeam as deleteAppwriteTeam,
-  listTeamMembers,
-  createTeamMembership,
-  updateMembershipRoles,
-  deleteTeamMembership,
+  getTeamWithMembers,
+  createTeam as createKteam,
+  updateTeam as updateKteam,
+  deleteTeam as deleteKteam,
+  addMember,
+  removeMember,
+  inviteMembers,
+  acceptInvitation,
   getUserTeamIds,
   isTeamMember,
 } from "../services/appwrite-teams";
 import { globalState } from "./GlobalState.svelte";
-import type { ContributorInfo } from "../types/appwrite.types";
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-export interface TeamWithMembers extends Models.Team<Models.Preferences> {
-  members?: Models.MembershipList;
+export interface TeamWithMembers extends Kteams {
+  members?: any[]; // Informations détaillées sur les membres
 }
 
 /**
  * Informations sur une invitation envoyée
  */
-export interface InvitationInfo extends ContributorInfo {
+export interface InvitationInfo {
+  id: string;
+  email: string;
+  name?: string;
+  status: "invited" | "accepted" | "declined";
+  invitedAt: string;
+  respondedAt?: string;
   eventId?: string; // L'événement auquel le contributeur est invité
+  teamId?: string; // L'équipe concernée
+}
+
+/**
+ * Informations sur un contributeur
+ */
+export interface ContributorInfo {
+  id: string;
+  email?: string;
+  name?: string;
+  status: "invited" | "accepted" | "declined";
+  invitedAt: string;
+  respondedAt?: string;
+  teamId?: string;
 }
 
 // =============================================================================
@@ -194,9 +214,11 @@ export class TeamsStore {
       // Charger les détails et membres de chaque équipe
       for (const team of response.teams) {
         try {
-          const members = await listTeamMembers(team.$id);
+          const { team: teamDetails, members } = await getTeamWithMembers(
+            team.$id,
+          );
           this.#teams.set(team.$id, {
-            ...team,
+            ...teamDetails,
             members,
           });
         } catch (err) {
@@ -232,10 +254,9 @@ export class TeamsStore {
    */
   async fetchTeam(teamId: string): Promise<TeamWithMembers | null> {
     try {
-      const team = await getTeam(teamId);
-      if (team) {
-        const members = await listTeamMembers(teamId);
-        const teamWithMembers = { ...team, members };
+      const { team: teamDetails, members } = await getTeamWithMembers(teamId);
+      if (teamDetails) {
+        const teamWithMembers = { ...teamDetails, members };
         this.#teams.set(teamId, teamWithMembers);
         return teamWithMembers;
       }
@@ -256,11 +277,11 @@ export class TeamsStore {
   /**
    * Récupère les membres d'une équipe
    */
-  getTeamMembers(teamId: string): Models.MembershipList | undefined {
+  getTeamMembers(teamId: string): any[] | undefined {
     const team = this.#teams.get(teamId);
     return team?.members;
   }
-l
+
   /**
    * Récupère un contributeur par ID
    */
@@ -308,16 +329,19 @@ l
   /**
    * Crée une nouvelle équipe
    */
-  async createTeam(name: string, roles?: string[]): Promise<TeamWithMembers> {
+  async createTeam(
+    name: string,
+    description?: string,
+  ): Promise<TeamWithMembers> {
     if (!globalState.userId) {
       throw new Error("Utilisateur non connecté");
     }
 
     try {
-      const team = await createAppwriteTeam(name, roles);
+      const team = await createKteam(name, description);
 
       // Charger les membres (devrait contenir le créateur)
-      const members = await listTeamMembers(team.$id);
+      const { members } = await getTeamWithMembers(team.$id);
       const teamWithMembers = { ...team, members };
 
       this.#teams.set(team.$id, teamWithMembers);
@@ -332,9 +356,13 @@ l
   /**
    * Met à jour une équipe
    */
-  async updateTeam(teamId: string, name: string): Promise<TeamWithMembers> {
+  async updateTeam(
+    teamId: string,
+    name?: string,
+    description?: string,
+  ): Promise<TeamWithMembers> {
     try {
-      const team = await updateAppwriteTeam(teamId, name);
+      const team = await updateKteam(teamId, name, description);
 
       // Garder les membres existants
       const existingTeam = this.#teams.get(teamId);
@@ -360,7 +388,7 @@ l
    */
   async deleteTeam(teamId: string): Promise<void> {
     try {
-      await deleteAppwriteTeam(teamId);
+      await deleteKteam(teamId);
       this.#teams.delete(teamId);
       console.log(`[TeamsStore] Équipe supprimée: ${teamId}`);
     } catch (err) {
@@ -377,25 +405,20 @@ l
   // =============================================================================
 
   /**
-   * Invite un membre à rejoindre une équipe
+   * Invite des membres à rejoindre une équipe
    */
-  async inviteMember(
+  async inviteMembers(
     teamId: string,
-    email: string,
-    roles: string[],
-    url: string,
+    emails: string[],
+    message?: string,
   ): Promise<void> {
     try {
-      await createTeamMembership(teamId, email, roles, url);
+      await inviteMembers(teamId, emails, message);
 
-      // Recharger les membres
-      const members = await listTeamMembers(teamId);
-      const team = this.#teams.get(teamId);
-      if (team) {
-        this.#teams.set(teamId, { ...team, members });
-      }
+      // Recharger l'équipe pour mettre à jour la liste d'invitations
+      await this.fetchTeam(teamId);
 
-      console.log(`[TeamsStore] Membre invité dans ${teamId}`);
+      console.log(`[TeamsStore] Membres invités dans ${teamId}`);
     } catch (err) {
       console.error(`[TeamsStore] Erreur lors de l'invitation:`, err);
       throw err;
@@ -403,29 +426,22 @@ l
   }
 
   /**
-   * Met à jour les rôles d'un membre
+   * Ajoute un membre à une équipe
    */
-  async updateMemberRoles(
+  async addMember(
     teamId: string,
-    membershipId: string,
-    roles: string[],
+    userId: string,
+    userEmail?: string,
   ): Promise<void> {
     try {
-      await updateMembershipRoles(teamId, membershipId, roles);
+      await addMember(teamId, userId, userEmail);
 
-      // Recharger les membres
-      const members = await listTeamMembers(teamId);
-      const team = this.#teams.get(teamId);
-      if (team) {
-        this.#teams.set(teamId, { ...team, members });
-      }
+      // Recharger l'équipe pour mettre à jour la liste des membres
+      await this.fetchTeam(teamId);
 
-      console.log(`[TeamsStore] Rôles mis à jour pour ${membershipId}`);
+      console.log(`[TeamsStore] Membre ajouté à ${teamId}: ${userId}`);
     } catch (err) {
-      console.error(
-        `[TeamsStore] Erreur lors de la mise à jour des rôles:`,
-        err,
-      );
+      console.error(`[TeamsStore] Erreur lors de l'ajout du membre:`, err);
       throw err;
     }
   }
@@ -433,18 +449,14 @@ l
   /**
    * Supprime un membre d'une équipe
    */
-  async removeMember(teamId: string, membershipId: string): Promise<void> {
+  async removeMember(teamId: string, userId: string): Promise<void> {
     try {
-      await deleteTeamMembership(teamId, membershipId);
+      await removeMember(teamId, userId);
 
-      // Recharger les membres
-      const members = await listTeamMembers(teamId);
-      const team = this.#teams.get(teamId);
-      if (team) {
-        this.#teams.set(teamId, { ...team, members });
-      }
+      // Recharger l'équipe pour mettre à jour la liste des membres
+      await this.fetchTeam(teamId);
 
-      console.log(`[TeamsStore] Membre ${membershipId} supprimé de ${teamId}`);
+      console.log(`[TeamsStore] Membre supprimé de ${teamId}: ${userId}`);
     } catch (err) {
       console.error(
         `[TeamsStore] Erreur lors de la suppression du membre:`,
@@ -575,6 +587,12 @@ l
         };
 
         this.#contributors.set(globalState.userId, contributor);
+
+        // Si l'invitation concerne une équipe, ajouter l'utilisateur à l'équipe
+        if (invitation.teamId) {
+          await acceptInvitation(globalState.userId, invitation.teamId);
+          await this.fetchTeam(invitation.teamId);
+        }
       }
 
       console.log(`[TeamsStore] Invitation acceptée: ${invitationId}`);
@@ -640,17 +658,36 @@ l
   // =============================================================================
 
   /**
-   * Charge les contributeurs depuis le stockage local ou Appwrite
-   * TODO
+   * Charge les contributeurs depuis la table Kteams
    */
   async #loadContributors(): Promise<void> {
     try {
       console.log("[TeamsStore] Chargement des contributeurs...");
 
-      // Dans une implémentation réelle, cela chargerait depuis Appwrite
-      // Pour l'instant, nous allons simplement initialiser un Map vide
-
       this.#contributors.clear();
+
+      // Parcourir toutes les équipes pour extraire les contributeurs
+      const teams = this.teams;
+      for (const team of teams) {
+        // Ajouter les membres comme contributeurs
+        if (team.membersId) {
+          for (let i = 0; i < team.membersId.length; i++) {
+            const memberId = team.membersId[i];
+            const memberEmail = team.members[i] || "";
+
+            if (!this.#contributors.has(memberId)) {
+              this.#contributors.set(memberId, {
+                id: memberId,
+                email: memberEmail,
+                name: memberEmail.split("@")[0], // Extraire le nom de l'email
+                status: "accepted",
+                invitedAt: new Date().toISOString(),
+                teamId: team.$id,
+              });
+            }
+          }
+        }
+      }
 
       console.log(
         `[TeamsStore] ${this.#contributors.size} contributeurs chargés`,
@@ -665,17 +702,39 @@ l
   }
 
   /**
-   * Charge les invitations depuis le stockage local ou Appwrite
-   * TODO
+   * Charge les invitations depuis la table Kteams
    */
   async #loadInvitations(): Promise<void> {
     try {
       console.log("[TeamsStore] Chargement des invitations...");
 
-      // Dans une implémentation réelle, cela chargerait depuis Appwrite
-      // Pour l'instant, nous allons simplement initialiser un Map vide
-
       this.#invitations.clear();
+
+      // Parcourir toutes les équipes pour extraire les invitations
+      const teams = this.teams;
+      for (const team of teams) {
+        // Ajouter les invitations
+        if (team.invited) {
+          for (const invite of team.invited) {
+            try {
+              const inviteData = JSON.parse(invite);
+              const invitationId = `${team.$id}_${inviteData.id}`;
+
+              this.#invitations.set(invitationId, {
+                id: invitationId,
+                email: inviteData.email,
+                name: inviteData.name,
+                status: inviteData.status,
+                invitedAt: inviteData.invitedAt,
+                respondedAt: inviteData.respondedAt,
+                teamId: team.$id,
+              });
+            } catch (err) {
+              console.error("Erreur lors du parsing d'une invitation:", err);
+            }
+          }
+        }
+      }
 
       console.log(
         `[TeamsStore] ${this.#invitations.size} invitations chargées`,

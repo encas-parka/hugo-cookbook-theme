@@ -33,11 +33,11 @@ export async function listAllNonPublishedRecipes(): Promise<Recettes[]> {
 
     const queries = [Query.equal("isPublished", false)];
 
-    const response = await tables.listRows(
-      config.databaseId,
-      RECIPES_COLLECTION_ID,
+    const response = await tables.listRows({
+      databaseId: config.databaseId,
+      tableId: RECIPES_COLLECTION_ID,
       queries,
-    );
+    });
 
     return response.rows as unknown as Recettes[];
   } catch (error) {
@@ -77,11 +77,11 @@ export async function listNonPublishedRecipes(
 export async function getRecipe(uuid: string): Promise<Recettes | null> {
   try {
     const { tables, config } = await getAppwriteInstances();
-    const recipe = await tables.getRow(
-      config.databaseId,
-      RECIPES_COLLECTION_ID,
-      uuid,
-    );
+    const recipe = await tables.getRow({
+      databaseId: config.databaseId,
+      tableId: RECIPES_COLLECTION_ID,
+      rowId: uuid,
+    });
     return recipe as unknown as Recettes;
   } catch (error: any) {
     if (error.code === 404) return null;
@@ -121,11 +121,11 @@ export async function createRecipe(
       });
     }
 
-    const recipe = await tables.createRow(
-      config.databaseId,
-      RECIPES_COLLECTION_ID,
-      uuid,
-      {
+    const recipe = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: RECIPES_COLLECTION_ID,
+      rowId: uuid,
+      data: {
         title: data.title,
         plate: data.plate,
         ingredients: data.ingredients,
@@ -140,7 +140,7 @@ export async function createRecipe(
         contributors: data.contributors ?? [],
       },
       permissions,
-    );
+    });
 
     console.log(`[appwrite-recipes] Recipe created: ${uuid}`);
     return recipe as unknown as Recettes;
@@ -159,12 +159,12 @@ export async function updateRecipe(
 ): Promise<Recettes> {
   try {
     const { tables, config } = await getAppwriteInstances();
-    const recipe = await tables.updateRow(
-      config.databaseId,
-      RECIPES_COLLECTION_ID,
-      uuid,
+    const recipe = await tables.updateRow({
+      databaseId: config.databaseId,
+      tableId: RECIPES_COLLECTION_ID,
+      rowId: uuid,
       data,
-    );
+    });
     console.log(`[appwrite-recipes] Recipe updated: ${uuid}`);
     return recipe as unknown as Recettes;
   } catch (error) {
@@ -179,11 +179,11 @@ export async function updateRecipe(
 export async function deleteRecipe(uuid: string): Promise<void> {
   try {
     const { tables, config } = await getAppwriteInstances();
-    await tables.deleteRow(
-      config.databaseId,
-      RECIPES_COLLECTION_ID,
-      uuid,
-    );
+    await tables.deleteRow({
+      databaseId: config.databaseId,
+      tableId: RECIPES_COLLECTION_ID,
+      rowId: uuid,
+    });
     console.log(`[appwrite-recipes] Recipe deleted: ${uuid}`);
   } catch (error) {
     console.error(`[appwrite-recipes] Error deleting recipe ${uuid}:`, error);
