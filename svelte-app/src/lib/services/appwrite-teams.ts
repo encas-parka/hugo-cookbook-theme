@@ -26,15 +26,11 @@ export async function listUserTeams(): Promise<{ teams: Kteams[] }> {
     const user = await account.get();
 
     // Récupérer les équipes où l'utilisateur est membre ou a été invité
+    // On s'appuie sur les permissions Appwrite : l'utilisateur ne verra que les équipes
+    // pour lesquelles il a des droits de lecture (membre ou invité)
     const response = await tables.listRows({
       databaseId: APPWRITE_CONFIG.databaseId,
       tableId: "kteams",
-      queries: [
-        Query.or([
-          Query.contains("membersId", user.$id),
-          Query.contains("invited", user.$id),
-        ]),
-      ],
     });
 
     return { teams: response.rows as unknown as Kteams[] };
@@ -271,24 +267,35 @@ export async function removeMember(
 /**
  * Invite des utilisateurs à rejoindre une équipe (utilise la fonction Appwrite)
  */
-/**
- * Invite des utilisateurs à rejoindre une équipe (utilise la fonction Appwrite)
- */
+// Dans appwrite-teams.ts
 export async function inviteMembers(
   teamId: string,
   emails: string[],
   message?: string,
-): Promise<{ success: boolean; processed: number; teamName: string }> {
+): Promise<{
+  success: boolean;
+  processed: number;
+  contextName: string;
+  emailResults?: {
+    sent: number;
+    failed: number;
+    failures: Array<{ email: string; error: string }>;
+  };
+}> {
   try {
     const { functions } = await getAppwriteInstances();
+    const team = await getTeam(teamId);
 
-    // Appeler la fonction Appwrite pour traiter les invitations
     const response = await functions.createExecution({
       functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
       body: JSON.stringify({
         action: "invite",
         emails,
-        teamId,
+        context: {
+          type: "team",
+          id: teamId,
+          name: team.name,
+        },
         message: message || "",
       }),
     });
@@ -298,9 +305,13 @@ export async function inviteMembers(
       throw new Error(result.error || "Erreur lors de l'invitation");
     }
 
-    console.log(
-      `[teams] Invitations sent for team ${teamId}: ${result.processed} processed`,
-    );
+    // Si certains emails ont échoué, on lève une erreur partielle
+    if (result.emailResults && result.emailResults.failed > 0) {
+      console.warn(
+        `[teams] Certains emails n'ont pas pu être envoyés pour l'équipe ${teamId}: ${result.emailResults.failed}/${result.emailResults.sent + result.emailResults.failed} échecs`,
+      );
+    }
+
     return result;
   } catch (error) {
     console.error(`[teams] Error inviting members to team ${teamId}:`, error);
@@ -309,21 +320,93 @@ export async function inviteMembers(
 }
 
 /**
- * Accepte une invitation à rejoindre une équipe
+ * Valide une invitation via un secret et récupère un token de session
+ */
+export async function validateInvitation(
+  teamId: string,
+  userId: string,
+  secret: string,
+): Promise<{ token: string; userId: string }> {
+  try {
+    const { functions } = await getAppwriteInstances();
+
+    const response = await functions.createExecution({
+      functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
+      body: JSON.stringify({
+        action: "exchange-invite",
+        teamId,
+        userId,
+        secret,
+      }),
+    });
+
+    const result = JSON.parse(response.responseBody);
+
+    if (!result.success) {
+      throw new Error(result.error || "L'invitation est invalide ou expirée.");
+    }
+
+    return { token: result.token, userId: result.userId };
+  } catch (error) {
+    console.error("[teams] Error validating invitation:", error);
+    throw error;
+  }
+}
+
+/**
+ * Accepte une invitation (utilise la fonction distante)
  */
 export async function acceptInvitation(
   userId: string,
   teamId: string,
 ): Promise<Kteams> {
   try {
-    const { account } = await getAppwriteInstances();
-    const user = await account.get();
+    const { functions } = await getAppwriteInstances();
 
-    // Ajouter l'utilisateur comme membre
-    return await addMember(teamId, userId, user.email);
+    const response = await functions.createExecution({
+      functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
+      body: JSON.stringify({
+        action: "accept-invitation",
+        userId,
+        context: {
+          type: "team",
+          id: teamId,
+        },
+      }),
+    });
+
+    const result = JSON.parse(response.responseBody);
+    if (!result.success) {
+      throw new Error(result.error || "Erreur lors de l'acceptation");
+    }
+
+    // Retourner l'équipe mise à jour
+    return await getTeam(teamId);
   } catch (error) {
     console.error(
       `[teams] Error accepting invitation for team ${teamId}:`,
+      error,
+    );
+    throw error;
+  }
+}
+
+/**
+ * Refuse une invitation à rejoindre une équipe
+ */
+export async function declineInvitation(
+  userId: string,
+  teamId: string,
+): Promise<void> {
+  try {
+    const { account } = await getAppwriteInstances();
+    const user = await account.get();
+
+    // Retirer l'utilisateur de la liste 'invited'
+    await removeMember(teamId, userId);
+  } catch (error) {
+    console.error(
+      `[teams] Error declining invitation for team ${teamId}:`,
       error,
     );
     throw error;
@@ -335,7 +418,7 @@ export async function acceptInvitation(
  */
 export async function createPublicLink(
   teamId: string,
-  expiration: "24h" | "7j" | "30j" = "24h",
+  expiration: "24h" | "7j" | "30j" = "30j", // TODO
   permissions: ("read" | "write" | "delete")[] = ["read"],
 ): Promise<{ success: boolean; publicUrl: string; expiresAt: string }> {
   try {

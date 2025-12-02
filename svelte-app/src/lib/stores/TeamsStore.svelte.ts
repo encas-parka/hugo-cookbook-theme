@@ -18,7 +18,11 @@
 
 import { SvelteMap } from "svelte/reactivity";
 import type { Kteams } from "$lib/types/appwrite.d";
-import type { EnrichedTeam, KTeamMember, KTeamInvitation } from "$lib/types/aw_kteam.d";
+import type {
+  EnrichedTeam,
+  KTeamMember,
+  KTeamInvitation,
+} from "$lib/types/aw_kteam.d";
 import {
   listUserTeams,
   getTeam,
@@ -211,7 +215,7 @@ export class TeamsStore {
       // Mais getTeamWithMembers n'est plus adapté car il retourne {team, members} où members est any[]
       // On va utiliser getTeam directement et parser
       const team = await getTeam(teamId);
-      
+
       if (team) {
         // Parser les membres
         const parsedMembers: KTeamMember[] = team.members.map((memberStr) => {
@@ -289,10 +293,7 @@ export class TeamsStore {
   /**
    * Crée une nouvelle équipe
    */
-  async createTeam(
-    name: string,
-    description?: string,
-  ): Promise<EnrichedTeam> {
+  async createTeam(name: string, description?: string): Promise<EnrichedTeam> {
     if (!globalState.userId) {
       throw new Error("Utilisateur non connecté");
     }
@@ -302,7 +303,7 @@ export class TeamsStore {
 
       // Parser le membre créateur (qui est déjà un JSON string dans team.members[0])
       const creatorMember = JSON.parse(team.members[0]);
-      
+
       const enrichedTeam: EnrichedTeam = {
         ...team,
         members: [creatorMember],
@@ -331,7 +332,7 @@ export class TeamsStore {
 
       // Garder les membres existants (car updateKteam retourne Kteams avec members stringifiés)
       const existingTeam = this.#teams.get(teamId);
-      
+
       // Si on a l'équipe en cache, on réutilise ses membres parsés
       // Sinon on parse ceux retournés par l'update (qui sont des strings)
       let members: KTeamMember[] = [];
@@ -342,8 +343,8 @@ export class TeamsStore {
         invited = existingTeam.invited;
       } else {
         // Fallback parsing si pas en cache (rare)
-        members = team.members.map(m => JSON.parse(m));
-        invited = team.invited ? team.invited.map(i => JSON.parse(i)) : [];
+        members = team.members.map((m) => JSON.parse(m));
+        invited = team.invited ? team.invited.map((i) => JSON.parse(i)) : [];
       }
 
       const enrichedTeam: EnrichedTeam = {
@@ -384,22 +385,35 @@ export class TeamsStore {
   // =============================================================================
   // API PUBLIQUE - GESTION MEMBRES
   // =============================================================================
-
-  /**
-   * Invite des membres à rejoindre une équipe
-   */
   async inviteTeamMember(
     teamId: string,
     emails: string[],
     message?: string,
   ): Promise<void> {
     try {
-      await inviteMembers(teamId, emails, message);
+      const result = await inviteMembers(teamId, emails, message);
 
       // Recharger l'équipe pour mettre à jour la liste d'invitations
       await this.fetchTeam(teamId);
 
-      console.log(`[TeamsStore] Membres invités dans ${teamId}`);
+      if (result.emailResults && result.emailResults?.failed > 0) {
+        // Avertissement si certains emails ont échoué
+        const failedCount = result.emailResults.failed;
+        const totalSent = result.emailResults.sent;
+
+        console.warn(
+          `[TeamsStore] ${failedCount}/${failedCount + totalSent} invitations n'ont pas pu être envoyées`,
+        );
+
+        // TODO use Toast ?
+        throw new Error(
+          `${result.processed} invitations traitées, mais ${failedCount} emails n'ont pas pu être envoyés. Vérifiez les adresses email et réessayez.`,
+        );
+      } else {
+        console.log(
+          `[TeamsStore] ${result.processed} membres invités dans ${teamId}`,
+        );
+      }
     } catch (err) {
       console.error(`[TeamsStore] Erreur lors de l'invitation:`, err);
       throw err;
@@ -455,7 +469,7 @@ export class TeamsStore {
       if (!globalState.userId) throw new Error("Utilisateur non connecté");
 
       await acceptInvitation(globalState.userId, teamId);
-      
+
       // Recharger l'équipe
       await this.fetchTeam(teamId);
 

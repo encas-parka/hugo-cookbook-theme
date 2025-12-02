@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getAppwriteInstances } from "$lib/services/appwrite";
+  import { validateInvitation } from "$lib/services/appwrite-teams";
   import { navigate, getQuery } from "$lib/services/simple-router.svelte"; // Adaptez le chemin vers votre fichier router
   import { TriangleAlert } from "@lucide/svelte";
 
@@ -33,19 +34,24 @@
     }
 
     try {
-      console.log("[AcceptInvite] Initialisation avec JWT...");
+      console.log("[AcceptInvite] Initialisation avec Secret...");
 
       const { client, account } = await getAppwriteInstances();
 
-      // 2. Authentification "Stateless" avec le JWT
-      // On dit au client Appwrite : "Agis en tant que cet utilisateur pour l'instant"
-      client.setJWT(secret);
+      // 2. Échange du Secret contre un Token Appwrite frais
+      // Cela appelle notre fonction cloud qui vérifie le secret (valide 7 jours)
+      // et nous renvoie un token Appwrite (valide 15 min)
+      const { token } = await validateInvitation(teamId, userId, secret);
 
-      // 3. Vérification du token
-      // Si le JWT est invalide ou expiré, account.get() échouera
+      console.log("[AcceptInvite] Token frais reçu, création session...");
+
+      // 3. Création de la session persistante (Login)
+      // C'est ici que l'utilisateur est réellement connecté (pour 1 an)
+      await account.createSession({ userId: userId, secret: token });
+
+      // 4. Récupération des infos utilisateur
       const user = await account.get();
-
-      console.log("[AcceptInvite] Token valide pour :", user.name);
+      console.log("[AcceptInvite] Connecté en tant que :", user.name);
 
       // Pré-remplir le nom
       name = user.name;
@@ -84,12 +90,6 @@
 
       // Mise à jour du nom si modifié par l'utilisateur
       if (name) await account.updateName({ name });
-
-      // 5. CRITIQUE : Création de la session persistante
-      // Le JWT ne crée pas de cookie de session. Il faut connecter l'utilisateur "pour de vrai".
-      // On récupère l'email frais depuis le compte
-      const user = await account.get();
-      await account.createEmailPasswordSession({ email: user.email, password });
 
       console.log("[AcceptInvite] Session créée, redirection...");
 

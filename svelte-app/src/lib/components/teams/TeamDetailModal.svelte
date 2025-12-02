@@ -23,14 +23,14 @@
   const team = $derived(teamId ? teamsStore.getTeamById(teamId) : null);
 
   // Rôle de l'utilisateur
-  const userRole = $derived(() => {
+  const userRole = $derived.by(() => {
     if (!team || !globalState.userId) return null;
     const member = team.members.find((m) => m.id === globalState.userId);
     return member?.role || null;
   });
 
-  const isOwner = $derived(userRole() === "owner");
-  const canEdit = $derived(isOwner || userRole() === "admin");
+  const isOwner = $derived(userRole === "owner");
+  const canEdit = $derived(isOwner || userRole === "admin");
 
   // État du formulaire de paramètres
   let editName = $state("");
@@ -109,6 +109,14 @@
   <div
     class="modal-box fixed top-0 flex h-lvh w-lvw flex-col overflow-auto md:top-10 md:h-full md:max-h-11/12 md:w-full md:max-w-4xl"
   >
+    <button
+      class="btn btn-circle btn-ghost btn-sm absolute top-4 right-4"
+      onclick={onClose}
+      aria-label="Fermer"
+    >
+      <X class="h-4 w-4" />
+    </button>
+
     {#if team}
       <!-- Header -->
       <div class="flex items-center justify-between border-b p-4 pt-0">
@@ -131,14 +139,6 @@
               <Trash2 class="h-4 w-4" />
             </button>
           {/if}
-
-          <button
-            class="btn btn-circle btn-ghost btn-sm"
-            onclick={onClose}
-            aria-label="Fermer"
-          >
-            <X class="h-4 w-4" />
-          </button>
         </div>
       </div>
 

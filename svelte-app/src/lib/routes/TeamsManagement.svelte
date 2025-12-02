@@ -42,9 +42,6 @@
   <div class="mb-8 flex items-center justify-between">
     <div>
       <h1 class="mb-2 text-3xl font-bold">Mes Équipes</h1>
-      <p class="text-base-content/60">
-        Gérez vos équipes et collaborez avec vos collègues
-      </p>
     </div>
     <button class="btn btn-primary" onclick={openCreateModal}>
       <Plus class="mr-2 h-5 w-5" />
@@ -85,7 +82,11 @@
     <!-- Liste des équipes -->
     <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
       {#each teamsStore.teams as team (team.$id)}
-        <TeamCard {team} onClick={(teamId) => openTeamDetails(teamId)} />
+        <TeamCard
+          {team}
+          teamId={team.$id}
+          onClick={(teamId) => openTeamDetails(teamId)}
+        />
       {/each}
     </div>
   {/if}

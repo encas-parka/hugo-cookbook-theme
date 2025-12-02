@@ -79,9 +79,9 @@
 
       if (globalState.isAuthenticated) {
         // Rediriger vers "/a" si l'utilisateur est authentifié et qu'on n'est pas déjà sur "/a"
-        if (window.location.pathname == "/") {
-          window.location.pathname = "/a";
-        }
+        // if (window.location.pathname == "/") {
+        //   window.location.pathname = "/a";
+        // }
         await initializeDashboard();
       }
     })();
@@ -94,14 +94,16 @@
 <HeaderNav />
 
 <!-- Rendu du composant actuel -->
-{#if currentRoute}
-  {@const Component = currentRoute.component}
-  <Component params={currentRoute.params} query={currentRoute.query} />
-{:else}
-  <div class="flex items-center justify-center py-20">
-    <p class="text-slate-400">Chargement...</p>
-  </div>
-{/if}
+<div class="mt-5">
+  {#if currentRoute && globalState.authInitialized}
+    {@const Component = currentRoute.component}
+    <Component params={currentRoute.params} query={currentRoute.query} />
+  {:else}
+    <div class="flex items-center justify-center py-20">
+      <div class="loading"></div>
+    </div>
+  {/if}
+</div>
 
 <!-- Éléments globaux -->
 <Toast />
