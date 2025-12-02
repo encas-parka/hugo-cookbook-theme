@@ -94,7 +94,7 @@
 <HeaderNav />
 
 <!-- Rendu du composant actuel -->
-<div class="mt-5">
+<div class="mt-7">
   {#if currentRoute && globalState.authInitialized}
     {@const Component = currentRoute.component}
     <Component params={currentRoute.params} query={currentRoute.query} />

@@ -922,10 +922,12 @@ class ProductsStore {
         toastService.error(
           `${result.overrideConflicts.length} quantité(s) personnalisée(s) nécessitent votre attention`,
           {
-            action: {
-              label: "Réviser",
-              onClick: () => (globalState.modalOverride.isOpen = true),
-            },
+            actions: [
+              {
+                label: "Réviser",
+                onClick: () => (globalState.modalOverride.isOpen = true),
+              },
+            ],
           },
         );
       }

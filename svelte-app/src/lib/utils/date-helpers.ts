@@ -29,3 +29,33 @@ export function extractTime(datetime: string): "matin" | "midi" | "soir" {
   if (hour < 17) return "midi";
   return "soir";
 }
+
+/**
+ * Formate une durée en minutes en format lisible
+ */
+export function formatTime(minutes?: number): string {
+  if (!minutes) return "";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h${mins}` : `${hours}h`;
+}
+
+/**
+ * Formate une date relative par rapport à maintenant
+ */
+export function formatDateRelative(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Aujourd'hui";
+  if (diffDays === 1) return "Hier";
+  if (diffDays < 7) return `Il y a ${diffDays} jours`;
+  if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return `Il y a ${weeks} semaine${weeks > 1 ? "s" : ""}`;
+  }
+  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}

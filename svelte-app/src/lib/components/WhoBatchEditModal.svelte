@@ -115,35 +115,37 @@
     onClose();
 
     try {
-      const updateResult = await batchUpdateWho(
-        selectedProductIds,
-        selectedProducts,
-        whoNames,
-        "replace", // Mode fixe à "replace"
+      // Utiliser track() pour suivre l'opération après la fermeture du modal
+      await toastService.track(
+        batchUpdateWho(
+          selectedProductIds,
+          selectedProducts,
+          whoNames,
+          "replace", // Mode fixe à "replace"
+        ).then((result) => {
+          // Ajouter les détails dans la console pour le débogage
+          console.log(
+            `[WhoEditModal] Mise à jour groupée: ${result.success ? "succès" : "échec"}, ${result.updatedCount} produits modifiés`,
+          );
+
+          // Vérifier le succès et gérer les erreurs
+          if (!result.success) {
+            throw new Error(result.error || "Erreur lors de la mise à jour");
+          }
+
+          // Notifier le succès callback optionnel
+          onSuccess?.(result);
+          return result;
+        }),
+        {
+          loading: `Mise à jour des volontaires pour ${selectedProductIds.length} produits...`,
+          success: "Volontaires mis à jour avec succès",
+          error: "Erreur lors de la mise à jour des volontaires",
+        },
       );
-
-      if (updateResult.success) {
-        console.log(
-          `[WhoEditModal] Mise à jour groupée réussie: ${updateResult.updatedCount} produits modifiés`,
-        );
-
-        // Notifier le succès via Toast
-        toastService.success(
-          `Volontaires mis à jour pour ${updateResult.updatedCount} produits.`,
-        );
-
-        // Notifier le succès callback optionnel
-        onSuccess?.(updateResult);
-      } else {
-        throw new Error(updateResult.error || "Erreur lors de la mise à jour");
-      }
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("[WhoEditModal] Erreur mise à jour:", err);
-
-      // Notifier l'erreur via Toast
-      toastService.error(`Erreur mise à jour volontaires: ${errorMessage}`);
+    } catch (error) {
+      // L'erreur est déjà affichée dans le toast, mais on nettoie l'état
+      console.error("[WhoEditModal] Erreur mise à jour:", error);
 
       // 🔧 NETTOYAGE : Retirer le statut "isSyncing" en cas d'erreur
       productsStore.clearSyncStatus();

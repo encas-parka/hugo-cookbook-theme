@@ -112,40 +112,41 @@
     // ⚡ FERMER LE MODAL IMMÉDIATEMENT POUR UX
     onClose();
 
-    try {
-      const storeInfo: StoreInfo = {
-        storeName: storeName.trim(),
-        storeComment: storeComment.trim(),
-      };
+    const storeInfo: StoreInfo = {
+      storeName: storeName.trim(),
+      storeComment: storeComment.trim(),
+    };
 
-      const updateResult = await batchUpdateStore(
-        selectedProductIds,
-        selectedProducts,
-        storeInfo,
+    // Utiliser track() avec des messages statiques pour suivre l'opération après la fermeture du modal
+    try {
+      const updateResult = await toastService.track(
+        batchUpdateStore(selectedProductIds, selectedProducts, storeInfo).then(
+          (result) => {
+            // Ajouter les détails dans la console pour le débogage
+            console.log(
+              `[StoreEditModal] Mise à jour groupée: ${result.success ? "succès" : "échec"}, ${result.updatedCount} produits modifiés`,
+            );
+
+            // Vérifier le succès et gérer les erreurs
+            if (!result.success) {
+              throw new Error(result.error || "Erreur lors de la mise à jour");
+            }
+
+            return result;
+          },
+        ),
+        {
+          loading: `Mise à jour du magasin pour ${selectedProductIds.length} produits...`,
+          success: "Magasin mis à jour avec succès",
+          error: "Erreur lors de la mise à jour du magasin",
+        },
       );
 
-      if (updateResult.success) {
-        console.log(
-          `[StoreEditModal] Mise à jour groupée réussie: ${updateResult.updatedCount} produits modifiés`,
-        );
-
-        // Notifier le succès via Toast
-        toastService.success(
-          `Magasin mis à jour pour ${updateResult.updatedCount} produits.`,
-        );
-
-        // Notifier le succès callback optionnel
-        onSuccess?.(updateResult);
-      } else {
-        throw new Error(updateResult.error || "Erreur lors de la mise à jour");
-      }
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("[StoreEditModal] Erreur mise à jour:", err);
-
-      // Notifier l'erreur via Toast
-      toastService.error(`Erreur mise à jour magasin: ${errorMessage}`);
+      // Notifier le succès callback optionnel
+      onSuccess?.(updateResult);
+    } catch (error) {
+      // L'erreur est déjà affichée dans le toast, mais on nettoie l'état
+      console.error("[StoreEditModal] Erreur mise à jour:", error);
 
       // 🔧 NETTOYAGE : Retirer le statut "isSyncing" en cas d'erreur
       productsStore.clearSyncStatus();

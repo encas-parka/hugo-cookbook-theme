@@ -34,7 +34,7 @@
   } from "@lucide/svelte";
   import type { EventContributor } from "$lib/types/events";
   import type { TeamsStore } from "$lib/stores/TeamsStore.svelte";
-  import { createTeamMembership } from "$lib/services/appwrite-teams";
+  import { addMember } from "$lib/services/appwrite-teams";
   import { fade } from "svelte/transition";
 
   // Interface des props

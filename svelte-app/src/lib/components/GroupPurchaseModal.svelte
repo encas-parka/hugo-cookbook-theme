@@ -154,37 +154,42 @@
     onClose();
 
     try {
-      // Utiliser le nouveau service qui gère les lots et la synchronisation
-      const batchResult = await createGroupPurchaseWithSync(
-        productsStore.currentMainId!,
-        productsData,
-        invoiceData,
+      // Utiliser track() avec des messages statiques pour suivre l'opération après la fermeture du modal
+      await toastService.track(
+        createGroupPurchaseWithSync(
+          productsStore.currentMainId!,
+          productsData,
+          invoiceData,
+        ).then((batchResult) => {
+          // Ajouter les détails dans la console pour le débogage
+          console.log(
+            `[GroupPurchaseModal] Achat groupé créé: ${batchResult.success ? "succès" : "échec"}, ${batchResult.totalProductsCreated} produits synchronisés, ${batchResult.totalPurchasesCreated} achats créés, ${batchResult.totalExpensesCreated} dépenses globales`,
+          );
+
+          // Vérifier le succès et gérer les erreurs
+          if (!batchResult.success) {
+            throw new Error(
+              batchResult.error ||
+                "Erreur lors de la création de l'achat groupé",
+            );
+          }
+
+          // Notifier le succès callback optionnel
+          onSuccess?.();
+          return batchResult;
+        }),
+        {
+          loading: `Création de l'achat groupé en cours...`,
+          success: "Achat groupé créé avec succès",
+          error: "Erreur lors de la création de l'achat groupé",
+        },
       );
-
-      if (batchResult.success) {
-        console.log(
-          `[GroupPurchaseModal] Achat groupé créé avec succès: ${batchResult.totalProductsCreated} produits synchronisés, ${batchResult.totalPurchasesCreated} achats créés, ${batchResult.totalExpensesCreated} dépenses globales`,
-        );
-
-        // Notifier le succès via Toast car le modal est fermé
-        toastService.success(
-          `Achat groupé réussi ! ${batchResult.totalPurchasesCreated} achats créés.`,
-        );
-
-        // Notifier le succès callback optionnel
-        onSuccess?.();
-      } else {
-        throw new Error(
-          batchResult.error || "Erreur lors de la création de l'achat groupé",
-        );
-      }
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("[GroupPurchaseModal] Erreur création achat groupé:", err);
-
-      // Notifier l'erreur via Toast car le modal est fermé
-      toastService.error(`Erreur achat groupé: ${errorMessage}`);
+    } catch (error) {
+      // L'erreur est déjà affichée dans le toast, mais on nettoie l'état
+      console.error(
+        "[GroupPurchaseModal] Erreur création achat groupé:",
+        error,
+      );
 
       // 🔧 NETTOYAGE : Retirer le statut "isSyncing" en cas d'erreur
       productsStore.clearSyncStatus();

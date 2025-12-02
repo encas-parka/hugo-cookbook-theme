@@ -29,7 +29,7 @@ import type { Recettes } from "../types/appwrite.d";
 import type {
   CreateRecipeData,
   UpdateRecipeData,
-} from "../types/appwrite.types";
+} from "../types/recipes.types";
 import {
   createRecipesIDBCache,
   type RecipesIDBCache,
@@ -52,7 +52,11 @@ import { globalState } from "./GlobalState.svelte";
 // CONFIGURATION
 // =============================================================================
 
-const DATA_JSON_URL = "/api/data.json";
+// En mode dev (Vite), utiliser le fichier de données de développement
+// En production (Hugo), utiliser l'API
+const DATA_JSON_URL = import.meta.env.DEV
+  ? "/dev-data/data.json"
+  : "/api/data.json";
 
 // =============================================================================
 // STORE SINGLETON

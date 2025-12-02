@@ -1,6 +1,5 @@
 import { toastService } from "../services/toast.service.svelte";
 
-
 export interface RetryOptions {
   /** Nom de l'opération pour les messages */
   operationName: string;
@@ -27,13 +26,9 @@ export interface RetryOptions {
  */
 export function executeWithRetry<T>(
   operation: () => Promise<T>,
-  options: RetryOptions
+  options: RetryOptions,
 ): Promise<T | null> {
-  const {
-    operationName,
-    maxAutoRetries = 1,
-    autoRetryDelay = 1000,
-  } = options;
+  const { operationName, maxAutoRetries = 1, autoRetryDelay = 1000 } = options;
 
   let attempt = 1;
   let toastId: string | null = null;
@@ -51,7 +46,9 @@ export function executeWithRetry<T>(
               message: `${operationName} (Tentative ${attempt}/${maxAutoRetries + 1})...`,
             });
           } else {
-            toastId = toastService.loading(`${operationName} (Tentative ${attempt}/${maxAutoRetries + 1})...`);
+            toastId = toastService.loading(
+              `${operationName} (Tentative ${attempt}/${maxAutoRetries + 1})...`,
+            );
           }
         } else {
           toastId = toastService.loading(`${operationName} en cours...`);
@@ -64,24 +61,27 @@ export function executeWithRetry<T>(
           toastService.update(toastId, {
             state: "success",
             message: options.successMessage || `${operationName} réussie !`,
-            action: undefined,
+            actions: undefined,
           });
         }
         options.onSuccess?.(result);
         resolve(result);
-
       } catch (error) {
-        console.error(`[RetryUtils] Erreur ${operationName} (Tentative ${attempt}):`, error);
-        const errMessage = error instanceof Error ? error.message : "Erreur inconnue";
+        console.error(
+          `[RetryUtils] Erreur ${operationName} (Tentative ${attempt}):`,
+          error,
+        );
+        const errMessage =
+          error instanceof Error ? error.message : "Erreur inconnue";
 
         // Auto-retry
         if (attempt <= maxAutoRetries) {
           attempt++;
-          
+
           if (toastId) {
             toastService.update(toastId, {
               state: "loading",
-              message: `Erreur. Nouvelle tentative dans ${autoRetryDelay/1000}s...`,
+              message: `Erreur. Nouvelle tentative dans ${autoRetryDelay / 1000}s...`,
             });
           }
 
@@ -94,18 +94,18 @@ export function executeWithRetry<T>(
           toastService.update(toastId, {
             state: "error",
             message: `Échec ${operationName}: ${errMessage}`,
-            action: {
+            actions: {
               label: "Réessayer",
               onClick: () => {
                 toastService.dismiss(toastId!);
-                tryOperation(true); 
-              }
-            }
+                tryOperation(true);
+              },
+            },
           });
         }
-        
+
         // On ne resolve/reject PAS ici, on attend que l'utilisateur clique sur Réessayer.
-        // Si l'utilisateur ferme le toast (via la croix), la promise restera pendante... 
+        // Si l'utilisateur ferme le toast (via la croix), la promise restera pendante...
         // Idéalement il faudrait un callback onDismiss sur le toast pour rejecter la promise.
         // Mais pour l'instant, le comportement "bloquant" est ce qu'on veut pour ne pas casser la boucle.
         options.onError?.(error);

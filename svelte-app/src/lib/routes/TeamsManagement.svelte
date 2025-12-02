@@ -44,7 +44,7 @@
       <h1 class="mb-2 text-3xl font-bold">Mes Équipes</h1>
     </div>
     <button class="btn btn-primary" onclick={openCreateModal}>
-      <Plus class="mr-2 h-5 w-5" />
+      <Plus class="ml-2 h-5 w-5" />
       Créer une équipe
     </button>
   </div>

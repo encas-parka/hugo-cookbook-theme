@@ -80,6 +80,75 @@ export class EventsStore {
   }
 
   // =============================================================================
+  // DERIVED STATES
+  // =============================================================================
+
+  /**
+   * Événements en cours (maintenant)
+   */
+  #currentEvents = $derived.by(() => {
+    const now = new Date();
+    return Array.from(this.#events.values()).filter((event) => {
+      if (!event.dateStart || !event.dateEnd) return false;
+      const start = new Date(event.dateStart);
+      const end = new Date(event.dateEnd);
+      return now >= start && now <= end;
+    });
+  });
+
+  /**
+   * Événements à venir (futurs)
+   */
+  #upcomingEvents = $derived.by(() => {
+    const now = new Date();
+    return Array.from(this.#events.values())
+      .filter((event) => {
+        if (!event.dateStart) return false;
+        const start = new Date(event.dateStart);
+        return start > now;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.dateStart!).getTime();
+        const dateB = new Date(b.dateStart!).getTime();
+        return dateA - dateB;
+      });
+  });
+
+  /**
+   * Événements passés
+   */
+  #pastEvents = $derived.by(() => {
+    const now = new Date();
+    return Array.from(this.#events.values()).filter((event) => {
+      if (!event.dateEnd) return false;
+      const end = new Date(event.dateEnd);
+      return end < now;
+    });
+  });
+
+  /**
+   * Getters publics pour les derived states
+   */
+  get currentEvents() {
+    return this.#currentEvents;
+  }
+
+  get upcomingEvents() {
+    return this.#upcomingEvents;
+  }
+
+  get pastEvents() {
+    return this.#pastEvents;
+  }
+
+  /**
+   * Nombre d'événements passés
+   */
+  get pastEventsCount() {
+    return this.#pastEvents.length;
+  }
+
+  // =============================================================================
   // INITIALISATION
   // =============================================================================
 
@@ -281,9 +350,9 @@ export class EventsStore {
       if (!globalState.userId) throw new Error("Utilisateur non connecté");
 
       const event = await createAppwriteEvent(data, globalState.userId);
-      const enriched = this.#enrichEvent(event); 
+      const enriched = this.#enrichEvent(event);
       this.#events.set(event.$id, enriched);
-      
+
       console.log(`[EventsStore] Événement créé: ${event.$id}`);
       return enriched;
     } catch (err) {
@@ -295,12 +364,15 @@ export class EventsStore {
   /**
    * Met à jour un événement
    */
-  async updateEvent(eventId: string, data: UpdateEventData): Promise<EnrichedEvent> {
+  async updateEvent(
+    eventId: string,
+    data: UpdateEventData,
+  ): Promise<EnrichedEvent> {
     try {
       const event = await updateAppwriteEvent(eventId, data);
       const enriched = this.#enrichEvent(event);
       this.#events.set(eventId, enriched);
-      
+
       console.log(`[EventsStore] Événement mis à jour: ${eventId}`);
       return enriched;
     } catch (err) {
@@ -336,7 +408,7 @@ export class EventsStore {
   getContributors(eventId: string): EventContributor[] {
     const event = this.#events.get(eventId);
     if (!event) return [];
-    return event.contributors; 
+    return event.contributors;
   }
 
   /**
@@ -352,15 +424,17 @@ export class EventsStore {
       if (!event) throw new Error("Événement introuvable");
 
       const contributors = [...event.contributors]; // Copie pour immutabilité
-      
+
       // Vérifier si déjà présent
-      if (contributors.some(c => c.email === email || c.id === email)) {
-         console.log(`[EventsStore] Contributeur déjà présent: ${email}`);
-         return event;
+      if (contributors.some((c) => c.email === email || c.id === email)) {
+        console.log(`[EventsStore] Contributeur déjà présent: ${email}`);
+        return event;
       }
 
       // Vérifier si l'utilisateur existe dans Appwrite
-      const { checkUserEmails, inviteToEvent } = await import('../services/appwrite-functions');
+      const { checkUserEmails, inviteToEvent } = await import(
+        "../services/appwrite-functions"
+      );
       const emailCheck = await checkUserEmails([email]);
       const userInfo = emailCheck[email];
 
@@ -381,12 +455,12 @@ export class EventsStore {
       } else {
         // Utilisateur non-existant : utiliser la fonction cloud pour créer et inviter
         await inviteToEvent(eventId, event.name, [email]);
-        
+
         // Recharger l'événement depuis Appwrite pour avoir les données à jour
         // TOCHECK : realtime only ?
         // const updatedEvent = await this.fetchEvent(eventId);
         // if (!updatedEvent) throw new Error("Impossible de recharger l'événement");
-        
+
         // return updatedEvent;
       }
     } catch (err) {
@@ -402,7 +476,7 @@ export class EventsStore {
     eventId: string,
     userId: string,
     email?: string,
-    name?: string
+    name?: string,
   ): Promise<EnrichedEvent> {
     try {
       const event = this.#events.get(eventId);
@@ -410,7 +484,11 @@ export class EventsStore {
 
       const contributors = [...event.contributors];
 
-      if (contributors.some(c => c.id === userId || (email && c.email === email))) {
+      if (
+        contributors.some(
+          (c) => c.id === userId || (email && c.email === email),
+        )
+      ) {
         console.log(`[EventsStore] Contributeur KTeam déjà présent: ${userId}`);
         return event;
       }
@@ -436,12 +514,17 @@ export class EventsStore {
   /**
    * Supprime un contributeur d'un événement
    */
-  async removeContributor(eventId: string, contributorId: string): Promise<EnrichedEvent> {
+  async removeContributor(
+    eventId: string,
+    contributorId: string,
+  ): Promise<EnrichedEvent> {
     try {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");
 
-      const contributors = event.contributors.filter(c => c.id !== contributorId && c.email !== contributorId);
+      const contributors = event.contributors.filter(
+        (c) => c.id !== contributorId && c.email !== contributorId,
+      );
 
       if (event.contributors.length === contributors.length) {
         return event;
@@ -460,21 +543,23 @@ export class EventsStore {
   async updateContributorStatus(
     eventId: string,
     contributorId: string,
-    status: "accepted" | "declined"
+    status: "accepted" | "declined",
   ): Promise<EnrichedEvent> {
     try {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");
 
       const contributors = [...event.contributors];
-      const index = contributors.findIndex(c => c.id === contributorId || c.email === contributorId);
+      const index = contributors.findIndex(
+        (c) => c.id === contributorId || c.email === contributorId,
+      );
 
       if (index === -1) throw new Error("Contributeur introuvable");
 
       contributors[index] = {
         ...contributors[index],
         status,
-        respondedAt: new Date().toISOString()
+        respondedAt: new Date().toISOString(),
       };
 
       return await this.updateEvent(eventId, { contributors });
@@ -526,8 +611,9 @@ export class EventsStore {
       if (!event) throw new Error("Événement introuvable");
 
       const meals = [...event.meals];
-      if (mealIndex < 0 || mealIndex >= meals.length) throw new Error("Index invalide");
-      
+      if (mealIndex < 0 || mealIndex >= meals.length)
+        throw new Error("Index invalide");
+
       meals[mealIndex] = meal;
       return await this.updateEvent(eventId, { meals });
     } catch (err) {
@@ -545,7 +631,8 @@ export class EventsStore {
       if (!event) throw new Error("Événement introuvable");
 
       const meals = [...event.meals];
-      if (mealIndex < 0 || mealIndex >= meals.length) throw new Error("Index invalide");
+      if (mealIndex < 0 || mealIndex >= meals.length)
+        throw new Error("Index invalide");
 
       meals.splice(mealIndex, 1);
       return await this.updateEvent(eventId, { meals });
@@ -567,8 +654,6 @@ export class EventsStore {
     return recipePlates / recipeBasePlates;
   }
 
-
-  
   // =============================================================================
   // UTILITAIRES
   // =============================================================================
