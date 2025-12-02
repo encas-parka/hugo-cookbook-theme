@@ -4,7 +4,8 @@
 
 <!doctype html>
 <html lang="{{ .Site.LanguageCode | default "fr" }}">
-  {{ partialCached "head/head.html" . .RelPermalink }}
+  <!--FIXIT : bootstrap non chargé globalement pour les test DEV -->
+  {{/* partialCached "head/head.html" . .RelPermalink */}}
 
   {{/*  Creer un espace au dessus de la navbar en rajoutant la class "section" à body. Mais de maniere générale définit des layout en fonction du type de page... from hyas*/}}
   {{/*  {{- partial "head/body-class.html" . -}}
