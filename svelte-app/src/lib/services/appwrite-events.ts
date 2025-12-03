@@ -8,9 +8,7 @@ import { ID, Query, Permission, Role } from "appwrite";
 import { getAppwriteInstances, getAppwriteConfig, subscribe } from "./appwrite";
 import type { Main } from "../types/appwrite.d";
 import type { UpdateEventData, CreateEventData } from "../types/events.d";
-import {
-  parseEventContributors,
-} from "../utils/events.utils";
+import { parseEventContributors } from "../utils/events.utils";
 
 const { APPWRITE_CONFIG } = getAppwriteConfig();
 
@@ -103,11 +101,11 @@ export async function createEvent(
         dateStart: data.dateStart,
         dateEnd: data.dateEnd,
         allDates: data.allDates, // Sauvegarder les dates calculées
-        meals: data.meals ?  JSON.stringify(data.meals) : [],
+        meals: data.meals ? data.meals.map((m) => JSON.stringify(m)) : [],
         createdBy: userId,
         teams: data.teams ?? [],
         contributors: data.contributors
-          ?  JSON.stringify(data.contributors)
+          ? data.contributors.map((c) => JSON.stringify(c))
           : [],
       },
       permissions,
@@ -130,7 +128,7 @@ export async function updateEvent(
 ): Promise<Main> {
   try {
     const { tables } = await getAppwriteInstances();
-    
+
     // Récupérer l'événement actuel pour avoir le créateur et les données existantes
     const currentEvent = await getEvent(eventId);
     if (!currentEvent) throw new Error(`Event ${eventId} not found`);
@@ -138,11 +136,13 @@ export async function updateEvent(
     const updateData: any = { ...data };
 
     if (data.meals) {
-      updateData.meals =  JSON.stringify(data.meals);
+      updateData.meals = data.meals.map((m) => JSON.stringify(m));
     }
 
     if (data.contributors) {
-      updateData.contributors =  JSON.stringify(data.contributors);
+      updateData.contributors = Array.isArray(data.contributors)
+        ? data.contributors.map((c) => JSON.stringify(c))
+        : [];
     }
 
     // S'assurer que allDates est inclus s'il est présent
@@ -152,7 +152,7 @@ export async function updateEvent(
 
     // Recalculer les permissions si les contributeurs ou les équipes changent
     let permissions: string[] | undefined;
-    
+
     if (data.contributors || data.teams) {
       permissions = [
         Permission.read(Role.user(currentEvent.createdBy)),
@@ -169,12 +169,12 @@ export async function updateEvent(
 
       // Gestion des contributeurs
       // On utilise la liste fournie dans data (déjà objets EventContributor) ou celle existante (qu'on parse)
-      const contributorsList = data.contributors 
+      const contributorsList = data.contributors
         ? data.contributors
         : parseEventContributors(currentEvent.contributors);
 
       contributorsList.forEach((contributor) => {
-        if (contributor.status === 'accepted') {
+        if (contributor.status === "accepted") {
           permissions!.push(Permission.read(Role.user(contributor.id)));
           permissions!.push(Permission.update(Role.user(contributor.id)));
         }

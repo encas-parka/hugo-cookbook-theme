@@ -30,8 +30,10 @@ export interface Toast {
   timestamp: number;
   /** Source de l'action */
   source: ToastSource;
-  /** Délai d'auto-fermeture */
+  /** Délai d'auto-fermeture (ID du setTimeout) */
   timeoutId?: number;
+  /** Durée d'auto-fermeture personnalisée en ms */
+  autoCloseDelay?: number;
   /** Détails optionnels pour affichage dans un modal */
   details?: any;
   /** Actions optionnelles (boutons) */
@@ -70,6 +72,10 @@ export interface ToastTrackOptions {
   error?: string;
   /** ID personnalisé du toast */
   id?: string;
+  /** Durée d'auto-fermeture pour le toast de succès */
+  successDelay?: number;
+  /** Durée d'auto-fermeture pour le toast d'erreur */
+  errorDelay?: number;
 }
 
 /**
@@ -98,6 +104,7 @@ export class ToastService {
       timestamp: Date.now(),
       source: options.source || "user",
       timeoutId: undefined,
+      autoCloseDelay: options.autoCloseDelay,
       details: options.details,
       actions: options.actions || [],
     };
@@ -128,6 +135,10 @@ export class ToastService {
       message: updates.message || existingToast.message,
       source: updates.source || existingToast.source,
       actions: updates.actions || existingToast.actions,
+      autoCloseDelay:
+        updates.autoCloseDelay !== undefined
+          ? updates.autoCloseDelay
+          : existingToast.autoCloseDelay,
     };
 
     // Nouvelle auto-fermeture si nécessaire
@@ -153,6 +164,7 @@ export class ToastService {
       this.update(toastId, {
         state: "success",
         message: options.success || "Opération réussie",
+        autoCloseDelay: options.successDelay,
       });
 
       return result;
@@ -161,6 +173,7 @@ export class ToastService {
       this.update(toastId, {
         state: "error",
         message: options.error || "Erreur lors de l'opération",
+        autoCloseDelay: options.errorDelay,
       });
 
       throw error;
@@ -230,12 +243,45 @@ export class ToastService {
    * Programme l'auto-fermeture si nécessaire
    */
   #scheduleAutoClose(toast: Toast): void {
-    // Auto-fermeture seulement pour success et info
-    if (toast.state !== "success" && toast.state !== "info") {
+    // Auto-fermeture pour success, info, error et warning si un délai est spécifié
+    const hasCustomDelay = toast.autoCloseDelay !== undefined;
+    const canAutoClose =
+      toast.state === "success" ||
+      toast.state === "info" ||
+      (toast.state === "error" && hasCustomDelay) ||
+      (toast.state === "warning" && hasCustomDelay);
+
+    if (!canAutoClose) {
       return;
     }
 
-    const delay = toast.source === "realtime-other" ? 4000 : 2000;
+    // Durée par défaut selon le type et la source, ou durée personnalisée si spécifiée
+    let delay: number;
+
+    if (toast.autoCloseDelay !== undefined) {
+      // Utiliser la durée personnalisée
+      delay = toast.autoCloseDelay;
+    } else {
+      // Utiliser les durées par défaut
+      switch (toast.state) {
+        case "success":
+        case "info":
+          delay = toast.source === "realtime-other" ? 4000 : 2000;
+          break;
+        case "warning":
+          // Par défaut, les warnings ne s'auto-ferment pas
+          if (!toast.autoCloseDelay) return;
+          delay = toast.autoCloseDelay;
+          break;
+        case "error":
+          // Les erreurs ne s'auto-ferment que si un délai est spécifié
+          if (!toast.autoCloseDelay) return;
+          delay = toast.autoCloseDelay;
+          break;
+        default:
+          return;
+      }
+    }
 
     toast.timeoutId = setTimeout(() => {
       this.dismiss(toast.id);
@@ -245,17 +291,38 @@ export class ToastService {
   /**
    * Méthodes utilitaires simples
    */
-  success(message: string, details?: any): string {
-    return this.create({ state: "success", message, details });
+  success(
+    message: string,
+    options?: { details?: any; autoCloseDelay?: number },
+  ): string {
+    return this.create({
+      state: "success",
+      message,
+      details: options?.details,
+      autoCloseDelay: options?.autoCloseDelay,
+    });
   }
 
-  error(message: string, details?: any): string {
-    return this.create({ state: "error", message, details });
+  error(
+    message: string,
+    options?: { details?: any; autoCloseDelay?: number },
+  ): string {
+    return this.create({
+      state: "error",
+      message,
+      details: options?.details,
+      autoCloseDelay: options?.autoCloseDelay,
+    });
   }
 
   warning(
     message: string,
-    options?: { source?: ToastSource; details?: any; actions?: ToastAction[] },
+    options?: {
+      source?: ToastSource;
+      details?: any;
+      actions?: ToastAction[];
+      autoCloseDelay?: number;
+    },
   ): string {
     return this.create({
       state: "warning",
@@ -263,23 +330,33 @@ export class ToastService {
       source: options?.source || "system",
       details: options?.details,
       actions: options?.actions,
+      autoCloseDelay: options?.autoCloseDelay,
     });
   }
 
   info(
     message: string,
-    options?: { source?: ToastSource; details?: any },
+    options?: { source?: ToastSource; details?: any; autoCloseDelay?: number },
   ): string {
     return this.create({
       state: "info",
       message,
       source: options?.source || "system",
       details: options?.details,
+      autoCloseDelay: options?.autoCloseDelay,
     });
   }
 
-  loading(message: string, details?: any): string {
-    return this.create({ state: "loading", message, details });
+  loading(
+    message: string,
+    options?: { details?: any; autoCloseDelay?: number },
+  ): string {
+    return this.create({
+      state: "loading",
+      message,
+      details: options?.details,
+      autoCloseDelay: options?.autoCloseDelay,
+    });
   }
 }
 

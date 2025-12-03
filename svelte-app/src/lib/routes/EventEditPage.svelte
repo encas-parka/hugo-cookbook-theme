@@ -10,25 +10,24 @@
   import { nanoid } from "nanoid";
   import EventMealCard from "$lib/components/eventEdit/EventMealCard.svelte";
   import Fieldset from "$lib/components/ui/Fieldset.svelte";
-  import { getEvent } from "$lib/services/appwrite-events";
   import { fade } from "svelte/transition";
-  import {
-    parseEventMeals,
-    parseEventContributors,
-  } from "$lib/utils/events.utils";
   import { flip } from "svelte/animate";
   import PermissionsManager from "$lib/components/PermissionsManager.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
+  import { toastService } from "$lib/services/toast.service.svelte";
 
   // Props du router
   let { params } = $props<{ params?: Record<string, string> }>();
 
   const eventId = $derived(params?.id);
 
+  import { inviteToEvent } from "$lib/services/appwrite-functions";
+
   // État du formulaire
   let eventName = $state("");
   let selectedTeams = $state<string[]>([]);
   let contributors = $state<EventContributor[]>([]);
+  let newContributors = $state<EventContributor[]>([]); // Nouveaux contributeurs à inviter
   let meals = $state<EventMeal[]>([]);
 
   let loading = $state(false);
@@ -52,39 +51,66 @@
     allDates.length > 0 ? allDates[allDates.length - 1] : "",
   );
 
-  // Charger l'événement si un ID est fourni
-  $effect(() => {
-    if (eventId) {
-      loadingEvent = true;
-      error = null;
+  import { untrack } from "svelte";
 
-      getEvent(eventId)
-        .then((event) => {
-          if (event) {
-            // Remplir les states avec les données de l'événement
-            eventName = event.name || "";
-            selectedTeams = event.teams || [];
-            contributors = parseEventContributors(event);
-            meals = parseEventMeals(event).sort((a, b) =>
-              a.date.localeCompare(b.date),
-            );
-          } else {
-            error = "Événement introuvable";
-          }
-        })
-        .catch((err) => {
-          console.error("Erreur lors du chargement de l'événement:", err);
-          error = "Erreur lors du chargement de l'événement";
-        })
-        .finally(() => {
-          loadingEvent = false;
-        });
-    } else {
-      // Réinitialiser le formulaire pour un nouvel événement
-      eventName = "";
-      selectedTeams = [];
-      contributors = [];
-      meals = [];
+  // Charger l'événement si un ID est fourni ou réinitialiser
+  $effect(() => {
+    // On track uniquement eventId pour le chargement/reset
+    const id = eventId;
+
+    untrack(() => {
+      if (id) {
+        loadingEvent = true;
+        eventsStore
+          .fetchEvent(id)
+          .then((event) => {
+            if (event) {
+              eventName = event.name || "";
+              selectedTeams = event.teams || [];
+              // event from store is already enriched, so contributors and meals are already parsed
+              contributors = event.contributors || [];
+              meals = (event.meals || []).sort((a, b) =>
+                a.date.localeCompare(b.date),
+              );
+            } else {
+              toastService.error("Événement introuvable");
+            }
+          })
+          .catch((err) => {
+            console.error("Erreur lors du chargement de l'événement:", err);
+            toastService.error("Erreur lors du chargement de l'événement");
+          })
+          .finally(() => {
+            loadingEvent = false;
+          });
+      } else {
+        // Réinitialiser le formulaire pour un nouvel événement
+        eventName = "";
+        selectedTeams = [];
+        meals = [];
+        contributors = [];
+      }
+    });
+  });
+
+  // Effet séparé pour ajouter l'utilisateur courant comme contributeur en mode création
+  $effect(() => {
+    // Si on est en mode création (pas d'eventId) et qu'on a un userId
+    if (!eventId && globalState.userId) {
+      untrack(() => {
+        // Si la liste est vide, on ajoute l'utilisateur
+        if (contributors.length === 0) {
+          contributors = [
+            {
+              id: globalState.userId!,
+              name: globalState.userName(),
+              status: "accepted" as const,
+              invitedAt: new Date().toISOString(),
+              respondedAt: new Date().toISOString(),
+            },
+          ];
+        }
+      });
     }
   });
 
@@ -126,7 +152,7 @@
 
     // Vérifier si un repas existe déjà avec cette date+time (doublon)
     if (meals.some((meal) => meal.date === defaultDateTime)) {
-      error = "Un repas existe déjà à cette date et heure";
+      toastService.error("Un repas existe déjà à cette date et heure");
       return;
     }
 
@@ -174,6 +200,32 @@
       selectedTeams = selectedTeams.filter((id) => id !== teamId);
     } else {
       selectedTeams = [...selectedTeams, teamId];
+
+      // Ajouter tous les membres de l'équipe comme contributeurs invités
+      const team = teamsStore.getTeamById(teamId);
+      if (team && team.members) {
+        const now = new Date().toISOString();
+        const newContributors: EventContributor[] = team.members
+          .filter((member) => member.id !== globalState.userId) // Ne pas ré-ajouter le créateur
+          .map((member) => ({
+            id: member.id,
+            name: member.name,
+            status: "invited" as const,
+            invitedAt: now,
+            teamId: teamId,
+          }));
+
+        // Ajouter les nouveaux contributeurs sans dupliquer
+        contributors = [
+          ...contributors,
+          ...newContributors.filter(
+            (newContributor) =>
+              !contributors.some(
+                (existing) => existing.id === newContributor.id,
+              ),
+          ),
+        ];
+      }
     }
   }
 
@@ -210,42 +262,111 @@
 
   async function handleSave() {
     if (!eventName) {
-      error = "Veuillez renseigner le nom de l'événement";
+      toastService.error("Veuillez renseigner le nom de l'événement", {
+        autoCloseDelay: 5000,
+      });
       return;
     }
 
     if (meals.length === 0) {
-      error = "Veuillez ajouter au moins un repas";
+      toastService.error("Veuillez ajouter au moins un repas", {
+        autoCloseDelay: 5000,
+      });
       return;
     }
 
     loading = true;
-    error = null;
 
     try {
+      // 1. Envoyer les invitations pour les nouveaux contributeurs
+      if (newContributors.length > 0) {
+        const emailsToInvite = newContributors
+          .map((c) => c.email)
+          .filter((email): email is string => !!email);
+
+        if (emailsToInvite.length > 0) {
+          // On envoie les invitations (le cloud function gère l'envoi d'email)
+          // Note: On le fait avant ou en parallèle de la sauvegarde
+          // Si l'event n'existe pas encore, on a besoin de son ID ?
+          // La fonction inviteToEvent demande un ID d'événement.
+          // Si c'est une création, on ne l'a pas encore...
+          // MAIS createEvent génère l'ID coté client (ID.unique()) dans le service ?
+          // Non, createEvent le fait.
+          // PROBLÈME : Pour inviter à un event, il faut qu'il existe ou qu'on ait son ID.
+          // SOLUTION :
+          // - Si création : On crée d'abord l'event, PUIS on invite.
+          // - Si update : On peut inviter avant ou après.
+        }
+      }
+
+      // Fusionner les nouveaux contributeurs avec les existants pour la sauvegarde
+      const allContributors = [...contributors, ...newContributors];
+
       const eventData: CreateEventData = {
         name: eventName,
         dateStart,
         dateEnd,
-        allDates, // Tableau de toutes les dates uniques
+        allDates,
         teams: selectedTeams,
-        contributors,
+        contributors: allContributors,
         meals,
       };
 
+      let savedEvent;
+
       if (eventId) {
         // Mise à jour d'un événement existant
-        await eventsStore.updateEvent(eventId, eventData);
+        savedEvent = await toastService.track(
+          eventsStore.updateEvent(eventId, eventData),
+          {
+            loading: "Mise à jour de l'événement...",
+            success: "Événement mis à jour avec succès",
+            error: "Erreur lors de la mise à jour de l'événement",
+          },
+        );
       } else {
         // Création d'un nouvel événement
-        await eventsStore.createEvent(eventData);
+        savedEvent = await toastService.track(
+          eventsStore.createEvent(eventData),
+          {
+            loading: "Création de l'événement...",
+            success: "Événement créé avec succès",
+            error: "Erreur lors de la création de l'événement",
+          },
+        );
+      }
+
+      // 2. Envoyer les invitations MAINTENANT qu'on a l'ID sûr
+      if (newContributors.length > 0 && savedEvent) {
+        const emailsToInvite = newContributors
+          .map((c) => c.email)
+          .filter((email): email is string => !!email);
+
+        if (emailsToInvite.length > 0) {
+          // On ne bloque pas l'UI pour l'envoi des mails, on le fait en "background" ou avec un toast séparé
+          // Mais idéalement on attend pour confirmer à l'user.
+          try {
+            await inviteToEvent(
+              savedEvent.$id,
+              savedEvent.name,
+              emailsToInvite,
+            );
+            toastService.success("Invitations envoyées !");
+          } catch (e) {
+            console.error("Erreur envoi invitations:", e);
+            toastService.warning(
+              "Événement sauvegardé, mais erreur lors de l'envoi des emails d'invitation.",
+            );
+          }
+        }
       }
 
       goBack();
     } catch (err) {
       console.error("Erreur lors de la sauvegarde de l'événement:", err);
-      error =
-        "Erreur lors de la sauvegarde de l'événement. Vérifiez votre connexion.";
+      toastService.error(
+        "Erreur lors de la sauvegarde de l'événement. Vérifiez votre connexion.",
+      );
     } finally {
       loading = false;
     }
@@ -293,10 +414,6 @@
         <p class="text-base-content/60">Chargement de l'événement...</p>
       </div>
     </div>
-  {:else if error}
-    <div class="alert alert-error shadow-lg">
-      <span>{error}</span>
-    </div>
   {:else}
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
       <!-- Colonne Gauche : Infos & Permissions -->
@@ -331,7 +448,9 @@
         <PermissionsManager
           bind:selectedTeams
           bind:contributors
+          bind:newContributors
           {teamsStore}
+          {eventsStore}
           userId={globalState.userId || ""}
           userTeams={globalState.userTeams || []}
           {eventId}

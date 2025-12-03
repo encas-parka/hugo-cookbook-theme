@@ -45,7 +45,7 @@ export type Main = Models.Row & {
   allDates: string[] | null;
   productsId: Products[];
   purchasesId: Purchases[];
-  meals: string | null;
+  meals: string[] | null;
   contributors: string[] | null;
   kteams: Kteams[];
 };
