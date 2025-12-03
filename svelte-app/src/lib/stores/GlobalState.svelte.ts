@@ -91,6 +91,40 @@ class GlobalState {
   }
 
   /**
+   * Réinitialise l'authentification après un login/inscription réussie
+   * Force la mise à jour de l'état utilisateur et des équipes
+   */
+  async refreshAuthAfterLogin(): Promise<void> {
+    console.log("[GlobalState] Réinitialisation après login...");
+    this.#authLoading = true;
+    this.#authError = null;
+
+    try {
+      // Récupérer le nouvel utilisateur connecté
+      const { account } = await getAppwriteInstances();
+      this.#user = await account.get();
+
+      // Mettre à jour localStorage
+      localStorage.setItem("appwrite-user-name", this.#user.name);
+      localStorage.setItem("appwrite-user-email", this.#user.email);
+      localStorage.setItem("appwrite-user-id", this.#user.$id);
+
+      // Récupérer les équipes de l'utilisateur
+      this.#userTeams = await getUserTeamIds();
+
+      console.log(
+        `[GlobalState] Réinitialisé après login: ${this.#user.name} (${this.#userTeams.length} équipes)`,
+      );
+    } catch (error) {
+      console.error("[GlobalState] Erreur lors de la réinitialisation:", error);
+      this.#authError =
+        error instanceof Error ? error.message : "Erreur de réinitialisation";
+    } finally {
+      this.#authLoading = false;
+    }
+  }
+
+  /**
    * Déconnexion
    */
   async logout(): Promise<void> {
