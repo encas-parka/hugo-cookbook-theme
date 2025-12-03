@@ -129,7 +129,8 @@
 
         <div class="flex items-center gap-2">
           <!-- Bouton de suppression (owner uniquement) -->
-          {#if isOwner}
+          <!-- TODO what to do -->
+          <!-- {#if isOwner}
             <button
               class="btn btn-error btn-sm"
               onclick={() => (confirmDeleteTeam = true)}
@@ -138,7 +139,7 @@
             >
               <Trash2 class="h-4 w-4" />
             </button>
-          {/if}
+          {/if} -->
         </div>
       </div>
 

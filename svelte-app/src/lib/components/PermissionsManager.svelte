@@ -1,25 +1,3 @@
-<!--
-  PermissionsManager.svelte
-
-  Composant réutilizable pour gérer les permissions (équipes et contributeurs)
-
-  Fonctionnalités:
-  1. Sélection des équipes
-  2. Sélection des contributeurs
-  3. Proposition des contributeurs des équipes communes
-  4. Invitation de contributeurs externes par email
-  5. Modals de confirmation lors du retrait
-  6. Modal d'édition des équipes
-
-  @usage
-  <PermissionsManager
-    bind:selectedTeams={selectedTeams}
-    bind:contributors={contributors}
-    {teamsStore}
-    {userId}
-    {userTeams}
-  />
--->
 <script lang="ts">
   import {
     Users,
@@ -27,457 +5,426 @@
     X,
     CircleAlert,
     Plus,
-    Edit,
     Mail,
     Check,
     XCircle,
+    Trash2,
+    Search,
   } from "@lucide/svelte";
   import type { EventContributor } from "$lib/types/events";
   import type { TeamsStore } from "$lib/stores/TeamsStore.svelte";
-  import { addMember } from "$lib/services/appwrite-teams";
+  import type { EventsStore } from "$lib/stores/EventsStore.svelte";
   import { fade } from "svelte/transition";
+  import { nanoid } from "nanoid";
+  import BtnGroupCheck from "$lib/components/ui/BtnGroupCheck.svelte";
+  import { checkUserEmails } from "$lib/services/appwrite-functions";
+  import Fieldset from "./ui/Fieldset.svelte";
 
   // Interface des props
   interface Props {
     selectedTeams: string[];
-    contributors: EventContributor[]; // Format string[] avec strings JSONifiées
+    contributors: EventContributor[]; // Contributeurs DÉJÀ enregistrés (persistés)
+    newContributors: EventContributor[]; // Nouveaux contributeurs (en attente de sauvegarde)
     teamsStore: TeamsStore;
+    eventsStore: EventsStore;
     userId: string;
     userTeams: string[];
-    eventId?: string; // ID de l'événement pour les invitations
+    eventId?: string;
   }
-
-  // État local pour les contributeurs parsés
-  let parsedContributors = $derived.by(() => {
-    const result: EventContributor[] = [];
-
-    if (contributors && contributors.length > 0) {
-      for (const contributorStr of contributors) {
-        result.push(parseContributor(contributorStr));
-      }
-    }
-
-    return result;
-  });
 
   // Props
   let {
-    selectedTeams = $bindable([] as string[]),
-    contributors = $bindable([] as string[]),
+    selectedTeams = $bindable(),
+    contributors = $bindable(), // Read-only en pratique ici, sauf pour updates de statut si besoin
+    newContributors = $bindable(),
     teamsStore,
+    eventsStore,
     userId = "",
-    userTeams = [] as string[],
-    eventId = "", // ID de l'événement pour les invitations
+    eventId = "",
   }: Props = $props();
 
   // État local
-  let showTeamEditModal = $state(false);
-  let showRemoveTeamModal = $state(false);
-  let showRemoveContributorModal = $state(false);
-  let teamToRemove = $state<string | null>(null);
-  let contributorToRemove = $state<EventContributor | null>(null);
+  let showInviteModal = $state(false);
+  let emailInput = $state("");
+  let isChecking = $state(false);
+  let inviteError = $state<string | null>(null);
 
-  // État pour l'invitation par email
-  let newContributorEmail = $state("");
-  let isInviting = $state(false);
-  let invitationError = $state<string | null>(null);
-
-  // Contributeurs des équipes sélectionnées
-  let teamMembers = $derived.by(() => {
-    const allMembers = new Map<
-      string,
-      { id: string; name: string; email?: string; teamId: string }
-    >();
-
-    for (const teamId of selectedTeams) {
-      const team = teamsStore.getTeamById(teamId);
-      if (team && team.members) {
-        for (const member of team.members.memberships) {
-          // Exclure le créateur de l'événement et les contributeurs déjà ajoutés
+  // Contributeurs des équipes sélectionnées (pour le modal d'invitation)
+  let kteamMembers = $derived.by(() => {
+    const members = [];
+    for (const team of teamsStore.teams) {
+      if (team.members) {
+        for (const member of team.members) {
+          // Exclure le créateur, les contributeurs existants
           if (
-            member.userId !== userId &&
-            !parsedContributors.some((c) => c.id === member.userId)
+            member.id !== userId &&
+            !contributors.some((c) => c.id === member.id)
           ) {
-            allMembers.set(member.userId, {
-              id: member.userId,
-              name: member.userName,
-              email: member.userEmail,
-              teamId,
+            members.push({
+              id: member.id,
+              label: member.name,
+              selected: newContributors.some((nc) => nc.id === member.id),
             });
           }
         }
       }
     }
-
-    return allMembers;
+    return Array.from(new Map(members.map((m) => [m.id, m])).values());
   });
 
-  // Contributeurs suggérés (membres des équipes sélectionnées)
-  let suggestedContributors = $derived.by(() =>
-    Array.from(teamMembers.values()),
+  // Groupes de contributeurs pour l'affichage
+  let acceptedContributors = $derived(
+    contributors.filter((c) => c.status === "accepted"),
+  );
+  let invitedContributors = $derived(
+    contributors.filter((c) => c.status === "invited"),
   );
 
   // Fonctions pour la gestion des équipes
+  // Fonctions pour la gestion des équipes
   function toggleTeam(teamId: string) {
+    const team = teamsStore.teams.find((t) => t.$id === teamId);
+    if (!team) return;
+
     if (selectedTeams.includes(teamId)) {
+      // Désélectionner
       selectedTeams = selectedTeams.filter((id) => id !== teamId);
+
+      // Retirer les membres de newContributors s'ils ne sont pas dans une autre équipe sélectionnée
+      if (team.members) {
+        const membersToRemove = team.members.filter((member) => {
+          // Vérifier si ce membre est dans une AUTRE équipe sélectionnée
+          const inOtherTeam = teamsStore.teams.some(
+            (t) =>
+              t.$id !== teamId &&
+              selectedTeams.includes(t.$id) &&
+              t.members?.some((m) => m.id === member.id),
+          );
+          return !inOtherTeam;
+        });
+
+        const idsToRemove = new Set(membersToRemove.map((m) => m.id));
+        newContributors = newContributors.filter((c) => !idsToRemove.has(c.id));
+      }
     } else {
+      // Sélectionner
       selectedTeams = [...selectedTeams, teamId];
+
+      // Ajouter les membres à newContributors
+      if (team.members) {
+        const membersToAdd = team.members.filter((member) => {
+          // Exclure soi-même
+          if (member.id === userId) return false;
+          // Exclure les contributeurs déjà persistés
+          if (contributors.some((c) => c.id === member.id)) return false;
+          // Exclure ceux déjà dans newContributors
+          if (newContributors.some((c) => c.id === member.id)) return false;
+          return true;
+        });
+
+        const newEntries = membersToAdd.map((m) => ({
+          id: m.id,
+          name: m.name,
+          status: "invited" as const,
+          invitedAt: new Date().toISOString(),
+        }));
+
+        newContributors = [...newContributors, ...newEntries];
+      }
     }
   }
 
-  function confirmRemoveTeam(teamId: string) {
-    teamToRemove = teamId;
-    showRemoveTeamModal = true;
-  }
+  // Ajouter un membre depuis le BtnGroupCheck (KTeams)
+  function toggleKTeamMember(memberId: string) {
+    // Vérifier si déjà présent dans newContributors
+    const existingIndex = newContributors.findIndex((c) => c.id === memberId);
 
-  function removeTeam() {
-    if (teamToRemove) {
-      selectedTeams = selectedTeams.filter((id) => id !== teamToRemove);
-      teamToRemove = null;
-    }
-    showRemoveTeamModal = false;
-  }
-
-  // Fonctions pour la gestion des contributeurs
-  function addTeamContributor(
-    userId: string,
-    name: string,
-    email?: string,
-    teamId?: string,
-  ) {
-    // Vérifier si le contributeur existe déjà
-    if (parsedContributors.some((c) => c.id === userId)) {
+    if (existingIndex !== -1) {
+      // Si présent, on le retire
+      newContributors = newContributors.filter((c) => c.id !== memberId);
       return;
     }
 
+    // Sinon, on l'ajoute
+    // Retrouver les infos du membre
+    let memberInfo;
+    for (const team of teamsStore.teams) {
+      const found = team.members?.find((m) => m.id === memberId);
+      if (found) {
+        memberInfo = found;
+        break;
+      }
+    }
+
+    if (!memberInfo) return;
+
+    // Ajouter aux newContributors
+    // Note: On ajoute avec statut 'invited' comme demandé
     const newContributor: EventContributor = {
-      id: userId,
-      name,
-      email,
-      status: "accepted", // Les membres d'équipe sont automatiquement acceptés
+      id: memberInfo.id,
+      name: memberInfo.name,
+      status: "invited",
       invitedAt: new Date().toISOString(),
-      teamId,
     };
 
-    // Ajouter le contributeur en string JSONifié
-    contributors = [...contributors, stringifyContributor(newContributor)];
+    newContributors = [...newContributors, newContributor];
   }
 
-  async function inviteContributorByEmail() {
-    if (!newContributorEmail) {
-      invitationError = "Veuillez entrer une adresse email valide";
+  // Ajouter par email (avec vérification)
+  async function handleAddEmail() {
+    if (!emailInput) return;
+    const email = emailInput.trim();
+
+    // Vérif doublons (contributors + newContributors)
+    if (
+      contributors.some((c) => c.email === email) ||
+      newContributors.some((c) => c.email === email)
+    ) {
+      inviteError = "Cet email est déjà invité.";
       return;
     }
 
-    if (!eventId) {
-      invitationError = "ID d'événement manquant pour l'invitation";
-      return;
-    }
-
-    // Vérifier si l'email a déjà été invité
-    if (parsedContributors.some((c) => c.email === newContributorEmail)) {
-      invitationError = "Cet email a déjà été invité";
-      return;
-    }
-
-    isInviting = true;
-    invitationError = null;
+    isChecking = true;
+    inviteError = null;
 
     try {
-      // Créer un contributeur temporaire
-      const newContributor = createTempContributor(
-        newContributorEmail,
-        eventId,
-      );
+      // Vérifier si l'utilisateur existe
+      const checkResult = await checkUserEmails([email]);
+      const userInfo = checkResult[email];
 
-      // Envoyer l'invitation via les équipes Appwrite (si disponible)
-      await inviteContributorToEvent(newContributorEmail, eventId, userId);
+      let newContributor: EventContributor;
 
-      // Ajouter le contributeur en string JSONifié
-      contributors = [...contributors, stringifyContributor(newContributor)];
-      newContributorEmail = "";
-    } catch (error) {
-      console.error("Erreur lors de l'invitation:", error);
-      invitationError = "Erreur lors de l'envoi de l'invitation";
+      if (userInfo) {
+        // Utilisateur existant
+        newContributor = {
+          id: userInfo.id,
+          name: userInfo.name,
+          email: email,
+          status: "invited",
+          invitedAt: new Date().toISOString(),
+        };
+      } else {
+        // Utilisateur inconnu (externe)
+        newContributor = {
+          id: nanoid(), // ID temporaire
+          email: email,
+          status: "invited",
+          invitedAt: new Date().toISOString(),
+        };
+      }
+
+      newContributors = [...newContributors, newContributor];
+      emailInput = "";
+      showInviteModal = false;
+    } catch (err) {
+      console.error("Erreur check email:", err);
+      inviteError = "Erreur lors de la vérification de l'email.";
     } finally {
-      isInviting = false;
+      isChecking = false;
     }
   }
 
-  function confirmRemoveContributor(contributor: EventContributor) {
-    contributorToRemove = contributor;
-    showRemoveContributorModal = true;
-  }
+  function removeNewContributor(contributorId: string) {
+    newContributors = newContributors.filter((c) => c.id !== contributorId);
 
-  function removeContributor() {
-    if (contributorToRemove) {
-      // Filtrer les contributeurs en comparant les IDs (après parsing)
-      contributors = contributors.filter((contributorStr) => {
-        const contributor = parseContributor(contributorStr);
-        return contributor.id !== contributorToRemove!.id;
-      });
-      contributorToRemove = null;
+    // Si le membre retiré appartient à une équipe sélectionnée, on décoche l'équipe
+    // (car la sélection n'est plus "complète")
+    const teamsToUncheck = teamsStore.teams
+      .filter(
+        (t) =>
+          selectedTeams.includes(t.$id) &&
+          t.members?.some((m) => m.id === contributorId),
+      )
+      .map((t) => t.$id);
+
+    if (teamsToUncheck.length > 0) {
+      selectedTeams = selectedTeams.filter(
+        (id) => !teamsToUncheck.includes(id),
+      );
     }
-    showRemoveContributorModal = false;
   }
 </script>
 
 <div class="card bg-base-100 shadow-xl">
-  <div class="card-body">
+  <div class="card-body p-4">
     <h3 class="card-title mb-4 flex items-center gap-2 text-lg">
       <Users class="text-secondary h-5 w-5" />
-      Permissions
+      Participants
     </h3>
 
-    <!-- Équipes -->
-    <fieldset class="fieldset">
-      <div class="flex items-center justify-between">
-        <legend class="fieldset-legend">Équipes</legend>
-        <button
-          class="btn btn-ghost btn-xs"
-          onclick={() => (showTeamEditModal = true)}
-        >
-          <Edit class="mr-1 h-3 w-3" />
-          Gérer
-        </button>
-      </div>
+    <div class="divider my-2"></div>
 
-      <div class="flex flex-col gap-2">
-        {#each teamsStore.teams as team}
-          <div
-            class="border-base-200 hover:bg-base-200/50 flex items-center justify-between rounded-lg border p-2 transition-colors"
-          >
-            <label class="flex grow cursor-pointer items-center gap-3">
+    <!-- Participants (Déjà enregistrés) -->
+    <div class="mb-6">
+      <div class="space-y-3">
+        <!-- Accepted -->
+        {#if acceptedContributors.length > 0}
+          <fieldset class="fieldset">
+            <legend class="text-base-content/70 p-1 text-sm font-medium"
+              >Participants</legend
+            >
+            <div class="flex flex-wrap gap-2">
+              {#each acceptedContributors as contributor (contributor.id)}
+                <div class="badge badge-soft badge-success gap-2 p-3">
+                  <span class="font-medium"
+                    >{contributor.name || contributor.email}</span
+                  >
+                </div>
+              {/each}
+            </div>
+          </fieldset>
+        {/if}
+
+        <!-- Invited -->
+        {#if invitedContributors.length > 0}
+          <fieldset class="fieldset">
+            <legend class="text-base-content/70 p-1 text-sm font-medium"
+              >Invité·es</legend
+            >
+            <div class="flex flex-wrap gap-2">
+              {#each invitedContributors as contributor (contributor.id)}
+                <div class="badge badge-warning badge-soft gap-2 p-3">
+                  <span class="font-medium"
+                    >{contributor.name || contributor.email}</span
+                  >
+                </div>
+              {/each}
+            </div>
+          </fieldset>
+        {/if}
+
+        {#if contributors.length === 0}
+          <p class="text-xs italic opacity-60">Aucun participant enregistré</p>
+        {/if}
+      </div>
+    </div>
+
+    <!-- Invitations à envoyer (Nouveaux) -->
+    <Fieldset legend="Ajouter" bgClass="bg-base-200" iconComponent={UserPlus}>
+      <!-- Équipes -->
+      <fieldset class="fieldset">
+        <legend class="text-base-content/70 p-1 text-sm font-medium"
+          >invitez toute une équipe</legend
+        >
+        <div class="flex flex-col gap-2">
+          {#each teamsStore.teams as team}
+            <label
+              class="hover:bg-base-200 flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors"
+            >
               <input
                 type="checkbox"
                 class="checkbox checkbox-primary checkbox-sm"
                 checked={selectedTeams.includes(team.$id)}
                 onchange={() => toggleTeam(team.$id)}
               />
-              <span>{team.name}</span>
+              <span class="text-sm font-medium">{team.name}</span>
             </label>
-
-            {#if selectedTeams.includes(team.$id)}
-              <button
-                class="btn btn-ghost btn-xs btn-circle"
-                onclick={() => confirmRemoveTeam(team.$id)}
-                title="Retirer cette équipe"
-              >
-                <X class="h-3 w-3" />
-              </button>
-            {/if}
-          </div>
-        {/each}
-
-        {#if teamsStore.teams.length === 0}
-          <p class="text-base-content/60 text-xs italic">
-            Aucune équipe disponible
-          </p>
-        {/if}
-      </div>
-    </fieldset>
-
-    <div class="divider my-2"></div>
-
-    <!-- Contributeurs -->
-    <fieldset class="fieldset">
-      <legend class="fieldset-legend">Contributeurs</legend>
-
-      <!-- Suggestions des membres d'équipe -->
-      {#if suggestedContributors.length > 0}
-        <div class="mb-3">
-          <p class="mb-2 text-sm font-medium">
-            Membres des équipes sélectionnées
-          </p>
-          <div class="flex flex-wrap gap-2">
-            {#each suggestedContributors as member (member.name)}
-              <button
-                class="badge badge-outline badge-lg h-auto gap-1 py-1"
-                onclick={() =>
-                  addTeamContributor(
-                    member.id,
-                    member.name,
-                    member.email,
-                    member.teamId,
-                  )}
-                title="Ajouter comme contributeur"
-              >
-                <Plus class="h-3 w-3" />
-                {member.name}
-              </button>
-            {/each}
-          </div>
+          {/each}
+          {#if teamsStore.teams.length === 0}
+            <p class="text-xs italic opacity-60">Aucune équipe disponible</p>
+          {/if}
         </div>
-      {/if}
-
-      <!-- Invitation par email -->
-      <fieldset class="fieldset mb-3">
-        <legend class="legend">Inviter par email</legend>
-        <label class="input validator flex gap-2">
-          <Mail class="h-4 w-4 opacity-50" />
-          <input
-            type="email"
-            placeholder="email@exemple.com"
-            class="input input-sm w-full"
-            bind:value={newContributorEmail}
-            onkeydown={(e) => e.key === "Enter" && inviteContributorByEmail()}
-          />
-          <button
-            class="btn btn-sm btn-primary"
-            onclick={inviteContributorByEmail}
-            disabled={isInviting || !newContributorEmail}
-          >
-            {#if isInviting}
-              <span class="loading loading-spinner loading-xs"></span>
-            {:else}
-              <Mail class="h-4 w-4" />
-            {/if}
-            Inviter
-          </button>
-        </label>
-        <div class="validator-hint hidden">email invalide</div>
-
-        {#if invitationError}
-          <div class="alert alert-error mt-2 py-2 text-xs">
-            <CircleAlert class="h-3 w-3" />
-            {invitationError}
-          </div>
-        {/if}
       </fieldset>
 
-      <!-- Liste des contributeurs -->
-      <div class="mb-3">
-        <p class="mb-2 text-sm font-medium">
-          Contributeurs ({contributors.length})
-        </p>
+      <div class="my-2">
+        <button
+          class="btn btn-sm btn-primary btn-outline btn-block gap-1"
+          onclick={() => (showInviteModal = true)}
+        >
+          <Plus class="h-3 w-3" />
+          Inviter des personnes
+        </button>
+      </div>
+
+      <div class=" my-2">
         <div class="flex flex-wrap gap-2">
-          {#each parsedContributors as contributor (contributor.id)}
-            <div
-              class="badge badge-outline gap-2 pr-1"
-              class:badge-success={contributor.status === "accepted"}
-            >
-              {#if contributor.status === "invited"}
-                <Mail class="h-3 w-3" />
-              {:else if contributor.status === "accepted"}
-                <Check class="h-3 w-3" />
-              {:else if contributor.status === "declined"}
-                <XCircle class="h-3 w-3" />
-              {/if}
-
-              {contributor.name || contributor.email || contributor.id}
-
+          {#each newContributors as contributor (contributor.id)}
+            <div class="badge badge-warning badge-outline gap-2 p-3">
+              <span class="font-medium"
+                >{contributor.name || contributor.email}</span
+              >
               <button
-                onclick={() => confirmRemoveContributor(contributor)}
+                onclick={() => removeNewContributor(contributor.id)}
                 class="btn btn-ghost btn-xs btn-circle h-4 min-h-0 w-4"
-                title="Retirer ce contributeur"
               >
                 <X class="h-3 w-3" />
               </button>
             </div>
           {/each}
 
-          {#if parsedContributors.length === 0}
-            <p class="text-base-content/60 text-xs italic">
-              Aucun contributeur ajouté
+          {#if newContributors.length === 0}
+            <p class="text-xs italic opacity-60">
+              Aucune invitation en attente
             </p>
           {/if}
         </div>
       </div>
-    </fieldset>
+    </Fieldset>
   </div>
 </div>
 
-<!-- Modal de confirmation pour supprimer une équipe -->
-{#if showRemoveTeamModal}
+<!-- Modal d'invitation -->
+{#if showInviteModal}
   <div class="modal modal-open" transition:fade>
     <div class="modal-box">
-      <h3 class="text-lg font-bold">Confirmer le retrait</h3>
-      <p class="py-4">
-        Êtes-vous sûr de vouloir retirer cette équipe des permissions ? Les
-        membres de cette équipe ne pourront plus accéder à cet événement.
-      </p>
-      <div class="modal-action">
-        <button
-          class="btn btn-ghost"
-          onclick={() => (showRemoveTeamModal = false)}
-        >
-          Annuler
-        </button>
-        <button class="btn btn-error" onclick={removeTeam}> Retirer </button>
-      </div>
-    </div>
-  </div>
-{/if}
+      <h3 class="mb-4 text-lg font-bold">Inviter des participants</h3>
 
-<!-- Modal de confirmation pour supprimer un contributeur -->
-{#if showRemoveContributorModal}
-  <div class="modal modal-open" transition:fade>
-    <div class="modal-box">
-      <h3 class="text-lg font-bold">Confirmer le retrait</h3>
-      <p class="py-4">
-        Êtes-vous sûr de vouloir retirer ce contributeur ?
-        {contributorToRemove?.name ||
-          contributorToRemove?.email ||
-          contributorToRemove?.id} ne pourra plus accéder à cet événement.
-      </p>
-      <div class="modal-action">
-        <button
-          class="btn btn-ghost"
-          onclick={() => (showRemoveContributorModal = false)}
-        >
-          Annuler
-        </button>
-        <button class="btn btn-error" onclick={removeContributor}>
-          Retirer
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
-<!-- Modal d'édition des équipes -->
-{#if showTeamEditModal}
-  <div class="modal modal-open" transition:fade>
-    <div class="modal-box max-w-md">
-      <h3 class="text-lg font-bold">Gérer les équipes</h3>
-      <div class="py-4">
-        <div class="flex flex-col gap-2">
-          {#each teamsStore.teams as team}
-            <label
-              class="border-base-200 flex cursor-pointer items-center gap-3 rounded-lg border p-2"
-            >
-              <input
-                type="checkbox"
-                class="checkbox checkbox-primary checkbox-sm"
-                checked={selectedTeams.includes(team.$id)}
-                onchange={() => toggleTeam(team.$id)}
-              />
-              <div class="grow">
-                <div class="font-medium">{team.name}</div>
-                <div class="text-base-content/60 text-xs">
-                  {team.members?.total || 0} membre{team.members?.total !== 1
-                    ? "s"
-                    : ""}
-                </div>
-              </div>
-            </label>
-          {/each}
-
-          {#if teamsStore.teams.length === 0}
-            <p class="text-base-content/60 text-xs italic">
-              Vous n'avez accès à aucune équipe.
-            </p>
-          {/if}
+      <!-- Invitation par email -->
+      <fieldset class="fieldset mb-6">
+        <legend class="legend">Par email</legend>
+        <div class="flex gap-2">
+          <label class="input input-bordered flex flex-1 items-center gap-2">
+            <Mail class="h-4 w-4 opacity-70" />
+            <input
+              type="email"
+              class="grow"
+              placeholder="email@exemple.com"
+              bind:value={emailInput}
+              onkeydown={(e) => e.key === "Enter" && handleAddEmail()}
+            />
+          </label>
+          <button
+            class="btn btn-primary"
+            onclick={handleAddEmail}
+            disabled={isChecking || !emailInput}
+          >
+            {#if isChecking}<span class="loading loading-spinner loading-xs"
+              ></span>{/if}
+            Ajouter
+          </button>
         </div>
-      </div>
+        {#if inviteError}
+          <p class="text-error mt-1 text-xs">{inviteError}</p>
+        {/if}
+        <p class="text-base-content/60 mt-1 text-xs">
+          Recherche automatiquement si l'utilisateur existe déjà.
+        </p>
+      </fieldset>
+
+      <div class="divider">OU</div>
+
+      <!-- Membres des KTeams -->
+      <fieldset>
+        <legend class="mb-2 text-sm font-medium">Depuis vos équipes</legend>
+        {#if kteamMembers.length > 0}
+          <BtnGroupCheck
+            items={kteamMembers}
+            onToggleItem={toggleKTeamMember}
+            badgeSize="btn-sm"
+            badgeStyle="btn-soft"
+            showIcon={true}
+          />
+        {:else}
+          <p class="text-sm italic opacity-60">
+            Aucun membre disponible à inviter.
+          </p>
+        {/if}
+      </fieldset>
+
       <div class="modal-action">
-        <button
-          class="btn btn-ghost"
-          onclick={() => (showTeamEditModal = false)}
+        <button class="btn" onclick={() => (showInviteModal = false)}
+          >Fermer</button
         >
-          Fermer
-        </button>
       </div>
     </div>
   </div>

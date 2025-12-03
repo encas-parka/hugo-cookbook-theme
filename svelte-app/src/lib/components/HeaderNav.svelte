@@ -44,8 +44,10 @@
     }
   }
 
-  function handleLoginSuccess() {
+  async function handleLoginSuccess() {
     showAuthModal = false;
+    // Réinitialiser l'authentification et déclencher le rechargement du dashboard
+    await globalState.refreshAuthAfterLogin();
   }
 
   $effect(() => {
