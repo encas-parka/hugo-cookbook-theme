@@ -23,52 +23,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let databases = null;
 
-  // --- INITIALISATION DES CLIENTS APPWRITE ---
-  async function initializeClients() {
-    const { Client, Databases } = window.Appwrite;
-    if (!databases) {
-      // Utilise la configuration du module commun
-      const client = new Client()
-        .setEndpoint(APPWRITE_ENDPOINT)
-        .setProject(APPWRITE_PROJECT_ID);
-      databases = new Databases(client);
-    }
-    return databases;
-  }
-
-  // --- 1. VÉRIFICATION CÔTÉ CLIENT (POUR L'UI) ---
-  async function checkCampaignStatus() {
-    try {
-      const db = await initializeClients();
-      const campaign = await db.getDocument(
-        DATABASE_ID,
-        COLLECTION_ID,
-        CAMPAIGN_DOC_ID,
-      );
-
-      const isExpired = new Date() > new Date(campaign.expires_at);
-      const isFull = campaign.current_count >= campaign.max_inscriptions;
-
-      if (campaign.is_active && !isExpired && !isFull) {
-        document.getElementById("remaining-slots").textContent =
-          campaign.max_inscriptions - campaign.current_count;
-        loadingState.style.display = "none";
-        campaignValid.style.display = "block";
-      } else {
-        let reason = "La campagne est terminée.";
-        if (isExpired) reason = "La campagne est expirée.";
-        if (isFull) reason = "Le nombre maximum d'inscriptions est atteint.";
-        document.getElementById("invalid-reason").textContent = reason;
-        loadingState.style.display = "none";
-        campaignInvalid.style.display = "block";
-      }
-    } catch (error) {
-      document.getElementById("invalid-reason").textContent =
-        "Impossible de vérifier la campagne. L'ID est peut-être incorrect.";
-      loadingState.style.display = "none";
-      campaignInvalid.style.display = "block";
-    }
-  }
 
   // --- 2. GESTION DE L'INSCRIPTION ---
   if (registrationForm) {
@@ -96,7 +50,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         const payload = {
-          campaign_doc_id: CAMPAIGN_DOC_ID,
           name,
           email,
           password
