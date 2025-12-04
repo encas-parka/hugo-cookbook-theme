@@ -4,11 +4,10 @@
  * Gère le CRUD des événements
  */
 
-import { ID, Query, Permission, Role } from "appwrite";
+import { ID, Query } from "appwrite";
 import { getAppwriteInstances, getAppwriteConfig, subscribe } from "./appwrite";
 import type { Main } from "../types/appwrite.d";
 import type { UpdateEventData, CreateEventData } from "../types/events.d";
-import { parseEventContributors } from "../utils/events.utils";
 
 const { APPWRITE_CONFIG } = getAppwriteConfig();
 
@@ -61,6 +60,7 @@ export async function getEvent(eventId: string): Promise<Main | null> {
 
 /**
  * Crée un nouvel événement
+ * Note: Les permissions sont gérées côté serveur via les fonctions Appwrite
  */
 export async function createEvent(
   data: CreateEventData,
@@ -69,28 +69,6 @@ export async function createEvent(
   try {
     const { tables } = await getAppwriteInstances();
     const eventId = ID.unique();
-
-    const permissions = [
-      Permission.read(Role.user(userId)),
-      Permission.update(Role.user(userId)),
-      Permission.delete(Role.user(userId)),
-    ];
-
-    if (data.contributors) {
-      data.contributors.forEach((contributor) => {
-        if (contributor.status === "accepted") {
-          permissions.push(Permission.read(Role.user(contributor.id)));
-          permissions.push(Permission.update(Role.user(contributor.id)));
-        }
-      });
-    }
-
-    if (data.teams) {
-      data.teams.forEach((teamId) => {
-        permissions.push(Permission.read(Role.team(teamId)));
-        permissions.push(Permission.update(Role.team(teamId)));
-      });
-    }
 
     const event = await tables.createRow({
       databaseId: APPWRITE_CONFIG.databaseId,
@@ -108,7 +86,7 @@ export async function createEvent(
           ? data.contributors.map((c) => JSON.stringify(c))
           : [],
       },
-      permissions,
+      // Les permissions par défaut sont gérées côté serveur
     });
 
     console.log(`[appwrite-events] Event created: ${eventId}`);
@@ -121,6 +99,7 @@ export async function createEvent(
 
 /**
  * Met à jour un événement existant
+ * Note: Les permissions sont gérées côté serveur via les fonctions Appwrite
  */
 export async function updateEvent(
   eventId: string,
@@ -128,10 +107,6 @@ export async function updateEvent(
 ): Promise<Main> {
   try {
     const { tables } = await getAppwriteInstances();
-
-    // Récupérer l'événement actuel pour avoir le créateur et les données existantes
-    const currentEvent = await getEvent(eventId);
-    if (!currentEvent) throw new Error(`Event ${eventId} not found`);
 
     const updateData: any = { ...data };
 
@@ -150,43 +125,12 @@ export async function updateEvent(
       updateData.allDates = data.allDates;
     }
 
-    // Recalculer les permissions si les contributeurs ou les équipes changent
-    let permissions: string[] | undefined;
-
-    if (data.contributors || data.teams) {
-      permissions = [
-        Permission.read(Role.user(currentEvent.createdBy)),
-        Permission.update(Role.user(currentEvent.createdBy)),
-        Permission.delete(Role.user(currentEvent.createdBy)),
-      ];
-
-      // Gestion des équipes
-      const teams = data.teams ?? currentEvent.teams ?? [];
-      teams.forEach((teamId) => {
-        permissions!.push(Permission.read(Role.team(teamId)));
-        permissions!.push(Permission.update(Role.team(teamId)));
-      });
-
-      // Gestion des contributeurs
-      // On utilise la liste fournie dans data (déjà objets EventContributor) ou celle existante (qu'on parse)
-      const contributorsList = data.contributors
-        ? data.contributors
-        : parseEventContributors(currentEvent.contributors);
-
-      contributorsList.forEach((contributor) => {
-        if (contributor.status === "accepted") {
-          permissions!.push(Permission.read(Role.user(contributor.id)));
-          permissions!.push(Permission.update(Role.user(contributor.id)));
-        }
-      });
-    }
-
     const event = await tables.updateRow({
       databaseId: APPWRITE_CONFIG.databaseId,
       tableId: EVENTS_COLLECTION_ID,
       rowId: eventId,
       data: updateData,
-      permissions, // Passer les permissions mises à jour si calculées
+      // Les permissions sont mises à jour côté serveur via les fonctions Appwrite
     });
 
     console.log(`[appwrite-events] Event updated: ${eventId}`);
@@ -254,12 +198,8 @@ export async function subscribeToEvents(
   return subscribe([channel], async (response: any) => {
     const event = response.payload as unknown as Main;
 
-    const hasAccess =
-      event.createdBy === userId ||
-      event.contributors?.includes(userId) ||
-      event.teams?.some((teamId) => userTeams.includes(teamId));
-
-    if (!hasAccess) return;
+    // Note: Appwrite Realtime gère déjà les permissions (read access),
+    // donc pas besoin de filtrer manuellement ici.
 
     let type = "update";
     if (response.events.some((e: string) => e.includes(".create"))) {

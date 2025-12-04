@@ -17,16 +17,6 @@ export interface EventContributor {
   teamId?: string; // Si l'invitation provient d'une équipe
 }
 
-
-export interface ContributorInvitation {
-  email: string;
-  eventId: string;
-  invitedBy: string;
-  status?: "invited" | "accepted" | "declined";
-  teamId?: string;
-}
-
-
 /**
  * Repas dans un événement
  * Stocké dans le champ 'meals' (string) sous forme de JSON stringified (EventMeal[])
@@ -46,7 +36,6 @@ export interface EventMealRecipe {
   plates: number; // Nombre de couverts
   type?: "entree" | "plat" | "dessert";
 }
-
 
 import type { Main } from "./appwrite.d";
 

@@ -38,6 +38,7 @@
     allDates?: string[];
     onEmptySearchSubmit?: () => void;
     onDateChanged?: (mealId: string, newDate: string) => void;
+    disabled?: boolean;
   }
 
   let {
@@ -50,6 +51,7 @@
     allDates = [],
     onEmptySearchSubmit,
     onDateChanged,
+    disabled = false,
   }: Props = $props();
 
   // État pour le focus automatique sur le champ de recherche
@@ -156,6 +158,9 @@
   }
 
   function handleCardClick() {
+    if (disabled || (isEditing && onEditToggle)) {
+      return;
+    }
     if (!isEditing && onEditToggle) {
       onEditToggle();
       // Déclencher le focus sur le champ de recherche après le passage en mode édition
@@ -185,9 +190,13 @@
 <div
   class="card bg-base-100 border-base-200 border shadow-sm transition-all hover:shadow-md {isEditing
     ? 'ring-accent/40 ring-2'
-    : ''} {isEditing ? '' : 'hover:ring-accent/60 cursor-pointer hover:ring-2'}"
+    : ''} {isEditing || disabled
+    ? ''
+    : 'hover:ring-accent/60 cursor-pointer hover:ring-2'} {disabled
+    ? 'opacity-75'
+    : ''}"
   role="button"
-  tabindex={isEditing ? -1 : 0}
+  tabindex={isEditing || disabled ? -1 : 0}
   onclick={handleCardClick}
   onkeydown={(e) => {
     if ((e.key === "Enter" || e.key === " ") && !isEditing) handleCardClick();
@@ -218,6 +227,7 @@
               isEditing = false;
             }}
             title="Terminer l'édition"
+            {disabled}
           >
             valider
           </button>
@@ -226,6 +236,7 @@
             class="btn btn-ghost btn-square"
             onclick={onDuplicate}
             title="Dupliquer"
+            {disabled}
           >
             <Copy class="h-4 w-4" />
           </button>
@@ -233,6 +244,7 @@
             class="btn btn-ghost btn-square text-error"
             onclick={onDelete}
             title="Supprimer"
+            {disabled}
           >
             <Trash2 class="h-4 w-4" />
           </button>
@@ -244,6 +256,7 @@
               if (onEditToggle) onEditToggle();
             }}
             title="Éditer"
+            {disabled}
           >
             <PencilLine class="h-4 w-4" />
           </button>
@@ -370,6 +383,7 @@
                       class="btn btn-ghost btn-sm btn-square text-error"
                       onclick={() => removeRecipe(recipe.recipeUuid)}
                       title="Retirer la recette"
+                      {disabled}
                     >
                       <X class="h-4 w-4" />
                     </button>

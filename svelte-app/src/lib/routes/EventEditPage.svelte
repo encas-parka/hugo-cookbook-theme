@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowLeft, Save, Calendar, Plus } from "@lucide/svelte";
+  import { ArrowLeft, Save, Calendar, Plus, AlertCircle } from "@lucide/svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { teamsStore } from "$lib/stores/TeamsStore.svelte";
   import type {
@@ -19,9 +19,12 @@
   // Props du router
   let { params } = $props<{ params?: Record<string, string> }>();
 
-  const eventId = $derived(params?.id);
+  let eventId = $state(params?.id);
 
-  import { inviteToEvent } from "$lib/services/appwrite-functions";
+  import {
+    inviteToEvent,
+    acceptInvitation,
+  } from "$lib/services/appwrite-functions";
 
   // État du formulaire
   let eventName = $state("");
@@ -33,6 +36,9 @@
   let loading = $state(false);
   let loadingEvent = $state(false);
   let error = $state<string | null>(null);
+
+  // État pour gérer l'ouverture du modal d'invitation après création
+  let openInviteModal = $state(false);
 
   // État pour gérer l'édition unique des repas
   let editingMealIndex = $state<string | null>(null);
@@ -52,6 +58,8 @@
   );
 
   import { untrack } from "svelte";
+  import CurrentEventsCard from "../components/dashboard/CurrentEventsCard.svelte";
+  import { navigate } from "../services/simple-router.svelte";
 
   // Charger l'événement si un ID est fourni ou réinitialiser
   $effect(() => {
@@ -61,34 +69,51 @@
     untrack(() => {
       if (id) {
         loadingEvent = true;
-        eventsStore
-          .fetchEvent(id)
-          .then((event) => {
-            if (event) {
-              eventName = event.name || "";
-              selectedTeams = event.teams || [];
-              // event from store is already enriched, so contributors and meals are already parsed
-              contributors = event.contributors || [];
-              meals = (event.meals || []).sort((a, b) =>
-                a.date.localeCompare(b.date),
-              );
-            } else {
-              toastService.error("Événement introuvable");
-            }
-          })
-          .catch((err) => {
-            console.error("Erreur lors du chargement de l'événement:", err);
-            toastService.error("Erreur lors du chargement de l'événement");
-          })
-          .finally(() => {
-            loadingEvent = false;
-          });
+
+        // Essayer de récupérer depuis le cache en mémoire d'abord
+        const cachedEvent = eventsStore.getEventById(id);
+
+        if (cachedEvent) {
+          eventName = cachedEvent.name || "";
+          selectedTeams = cachedEvent.teams || [];
+          contributors = cachedEvent.contributors || [];
+          meals = (cachedEvent.meals || []).sort((a, b) =>
+            a.date.localeCompare(b.date),
+          );
+          newContributors = [];
+          loadingEvent = false;
+        } else {
+          // Fallback : fetch depuis Appwrite si pas en cache
+          eventsStore
+            .fetchEvent(id)
+            .then((event) => {
+              if (event) {
+                eventName = event.name || "";
+                selectedTeams = event.teams || [];
+                contributors = event.contributors || [];
+                meals = (event.meals || []).sort((a, b) =>
+                  a.date.localeCompare(b.date),
+                );
+                newContributors = [];
+              } else {
+                toastService.error("Événement introuvable");
+              }
+            })
+            .catch((err) => {
+              console.error("Erreur lors du chargement de l'événement:", err);
+              toastService.error("Erreur lors du chargement de l'événement");
+            })
+            .finally(() => {
+              loadingEvent = false;
+            });
+        }
       } else {
         // Réinitialiser le formulaire pour un nouvel événement
         eventName = "";
         selectedTeams = [];
         meals = [];
         contributors = [];
+        newContributors = [];
       }
     });
   });
@@ -116,6 +141,75 @@
 
   function goBack() {
     history.back();
+  }
+
+  // INVITED OR ACCEPTED
+  // TODO IMPROVE → derived ?
+  let isCurrentUserInvited = $state(false);
+
+  let isCurrentUserAccepted = $state(false);
+
+  $effect(() => {
+    const currentUser = contributors.find(
+      (contributor) => contributor.id === globalState.userId,
+    );
+    if (currentUser && currentUser.status === "accepted") {
+      isCurrentUserAccepted = true;
+    }
+    if (currentUser && currentUser.status === "invited") {
+      isCurrentUserInvited = true;
+    }
+  });
+
+  async function handleInvitationResponse(accept: boolean) {
+    if (!eventId || !globalState.userId) return;
+
+    try {
+      loading = true;
+
+      if (accept) {
+        // Utiliser la fonction distante pour accepter l'invitation
+        await acceptInvitation("event", eventId, globalState.userId);
+
+        // Mettre à jour l'état local
+        contributors = contributors.map((contributor) =>
+          contributor.id === globalState.userId
+            ? {
+                ...contributor,
+                status: "accepted",
+                respondedAt: new Date().toISOString(),
+              }
+            : contributor,
+        );
+
+        toastService.success("Vous avez accepté l'invitation");
+      } else {
+        // Pour décliner, on peut utiliser updateContributorStatus car c'est juste un changement de statut
+        await eventsStore.updateContributorStatus(
+          eventId,
+          globalState.userId,
+          "declined",
+        );
+
+        // Mettre à jour l'état local
+        contributors = contributors.map((contributor) =>
+          contributor.id === globalState.userId
+            ? {
+                ...contributor,
+                status: "declined",
+                respondedAt: new Date().toISOString(),
+              }
+            : contributor,
+        );
+
+        toastService.success("Vous avez décliné l'invitation");
+      }
+    } catch (error) {
+      console.error("Erreur lors de la réponse à l'invitation:", error);
+      toastService.error("Erreur lors de la réponse à l'invitation");
+    } finally {
+      loading = false;
+    }
   }
 
   // Gestion des Repas
@@ -275,40 +369,25 @@
       return;
     }
 
+    // Vérifier s'il y a des invitations en attente
+    if (newContributors.length > 0) {
+      toastService.warning(
+        `Il y a ${newContributors.length} invitation(s) en attente. Veuillez les envoyer avant de sauvegarder.`,
+        { autoCloseDelay: 5000 },
+      );
+      return;
+    }
+
     loading = true;
 
     try {
-      // 1. Envoyer les invitations pour les nouveaux contributeurs
-      if (newContributors.length > 0) {
-        const emailsToInvite = newContributors
-          .map((c) => c.email)
-          .filter((email): email is string => !!email);
-
-        if (emailsToInvite.length > 0) {
-          // On envoie les invitations (le cloud function gère l'envoi d'email)
-          // Note: On le fait avant ou en parallèle de la sauvegarde
-          // Si l'event n'existe pas encore, on a besoin de son ID ?
-          // La fonction inviteToEvent demande un ID d'événement.
-          // Si c'est une création, on ne l'a pas encore...
-          // MAIS createEvent génère l'ID coté client (ID.unique()) dans le service ?
-          // Non, createEvent le fait.
-          // PROBLÈME : Pour inviter à un event, il faut qu'il existe ou qu'on ait son ID.
-          // SOLUTION :
-          // - Si création : On crée d'abord l'event, PUIS on invite.
-          // - Si update : On peut inviter avant ou après.
-        }
-      }
-
-      // Fusionner les nouveaux contributeurs avec les existants pour la sauvegarde
-      const allContributors = [...contributors, ...newContributors];
-
       const eventData: CreateEventData = {
         name: eventName,
         dateStart,
         dateEnd,
         allDates,
         teams: selectedTeams,
-        contributors: allContributors,
+        contributors: contributors, // Ne sauvegarder que les contributeurs déjà persistés
         meals,
       };
 
@@ -334,34 +413,9 @@
             error: "Erreur lors de la création de l'événement",
           },
         );
+        eventId = savedEvent.$id;
+        console.log("eventId:", eventId);
       }
-
-      // 2. Envoyer les invitations MAINTENANT qu'on a l'ID sûr
-      if (newContributors.length > 0 && savedEvent) {
-        const emailsToInvite = newContributors
-          .map((c) => c.email)
-          .filter((email): email is string => !!email);
-
-        if (emailsToInvite.length > 0) {
-          // On ne bloque pas l'UI pour l'envoi des mails, on le fait en "background" ou avec un toast séparé
-          // Mais idéalement on attend pour confirmer à l'user.
-          try {
-            await inviteToEvent(
-              savedEvent.$id,
-              savedEvent.name,
-              emailsToInvite,
-            );
-            toastService.success("Invitations envoyées !");
-          } catch (e) {
-            console.error("Erreur envoi invitations:", e);
-            toastService.warning(
-              "Événement sauvegardé, mais erreur lors de l'envoi des emails d'invitation.",
-            );
-          }
-        }
-      }
-
-      goBack();
     } catch (err) {
       console.error("Erreur lors de la sauvegarde de l'événement:", err);
       toastService.error(
@@ -369,6 +423,8 @@
       );
     } finally {
       loading = false;
+
+      navigate(`/eventEdit/${eventId}`);
     }
   }
 </script>
@@ -396,7 +452,7 @@
     <button
       class="btn btn-primary"
       onclick={handleSave}
-      disabled={loading || loadingEvent}
+      disabled={loading || loadingEvent || !isCurrentUserAccepted}
     >
       {#if loading}
         <span class="loading loading-spinner loading-sm"></span>
@@ -406,6 +462,29 @@
       {eventId ? "Enregistrer" : "Créer l'événement"}
     </button>
   </div>
+
+  <!-- Alerte d'invitation pour les utilisateurs invités -->
+  {#if isCurrentUserInvited}
+    <div class="alert alert-info">
+      <AlertCircle class="h-6 w-6 shrink-0" />
+      <div>
+        <h3 class="font-bold">Invitation à participer</h3>
+        <div class="text-xs">
+          Vous avez été invité à participer à cet événement. Acceptez pour
+          pouvoir modifier le menu et les repas.
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button
+          class="btn"
+          onclick={() => handleInvitationResponse(true)}
+          disabled={loading}
+        >
+          Accepter
+        </button>
+      </div>
+    </div>
+  {/if}
 
   {#if loadingEvent}
     <div class="flex items-center justify-center py-20">
@@ -454,6 +533,7 @@
           userId={globalState.userId || ""}
           userTeams={globalState.userTeams || []}
           {eventId}
+          openModalRequest={openInviteModal}
         />
       </div>
 
@@ -463,7 +543,11 @@
           <div class="card-body">
             <div class="mb-6 flex items-center justify-between">
               <h3 class="card-title text-lg">Repas & Menus ({meals.length})</h3>
-              <button class="btn btn-primary btn-sm" onclick={addMeal}>
+              <button
+                class="btn btn-primary btn-sm"
+                onclick={addMeal}
+                disabled={!isCurrentUserAccepted}
+              >
                 <Plus class="mr-1 h-4 w-4" />
                 Ajouter un repas
               </button>
@@ -495,6 +579,7 @@
                       onEmptySearchSubmit={() =>
                         meal.id && handleEmptySearchSubmit(meal.id)}
                       onDateChanged={handleDateChanged}
+                      disabled={!isCurrentUserAccepted}
                     />
                   </div>
                 {/each}
@@ -504,6 +589,7 @@
               <button
                 class="btn btn-soft btn-primary btn-block mt-4"
                 onclick={addMeal}
+                disabled={!isCurrentUserAccepted}
               >
                 <Plus class="mr-1 h-4 w-4" />
                 Ajouter un repas

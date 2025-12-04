@@ -33,6 +33,10 @@ import {
 } from "../services/appwrite-events";
 import { globalState } from "./GlobalState.svelte";
 import { parseEventMeals, parseEventContributors } from "../utils/events.utils";
+import {
+  createEventsIDBCache,
+  type EventsIDBCache,
+} from "../services/events-idb-cache";
 
 // =============================================================================
 // STORE SINGLETON
@@ -46,6 +50,9 @@ export class EventsStore {
   #loading = $state(false);
   #error = $state<string | null>(null);
   #isInitialized = $state(false);
+
+  // Cache IndexedDB
+  #cache: EventsIDBCache | null = null;
 
   // Appwrite
   #userId: string | null = null;
@@ -88,11 +95,18 @@ export class EventsStore {
    */
   #currentEvents = $derived.by(() => {
     const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Début de la journée actuelle
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1); // Début de demain
+
     return Array.from(this.#events.values()).filter((event) => {
       if (!event.dateStart || !event.dateEnd) return false;
-      const start = new Date(event.dateStart);
       const end = new Date(event.dateEnd);
-      return now >= start && now <= end;
+
+      // L'événement est considéré comme "en cours" si sa date de fin est aujourd'hui
+      // (peu importe l'heure, tant que le dernier jour n'est pas terminé)
+      return end >= today && end < tomorrow;
     });
   });
 
@@ -154,9 +168,11 @@ export class EventsStore {
 
   /**
    * Initialise le store
-   * 1. Vérifie que l'utilisateur est authentifié
-   * 2. Charge les événements depuis Appwrite (avec filtrage strict)
-   * 3. Active le realtime
+   * 1. Ouvre le cache IndexedDB
+   * 2. Charge les événements depuis le cache
+   * 3. Charge les événements depuis Appwrite (mise à jour)
+   * 4. Sauvegarde dans le cache
+   * 5. Active le realtime
    */
   async initialize(): Promise<void> {
     if (this.#isInitialized) {
@@ -178,10 +194,31 @@ export class EventsStore {
       this.#userId = globalState.userId;
       this.#userTeams = globalState.userTeams;
 
-      // Charger les événements
+      // 1. Ouvrir le cache IndexedDB
+      this.#cache = await createEventsIDBCache();
+
+      // 2. Charger les événements depuis le cache
+      const cachedEvents = await this.#cache.loadEvents();
+      if (cachedEvents.size > 0) {
+        console.log(
+          `[EventsStore] ${cachedEvents.size} événements chargés depuis le cache`,
+        );
+        this.#events.clear();
+        for (const [id, event] of cachedEvents) {
+          this.#events.set(id, event);
+        }
+      }
+
+      // 3. Charger les événements depuis Appwrite (mise à jour)
       await this.#loadEvents();
 
-      // Activer le realtime
+      // 4. Sauvegarder dans le cache
+      if (this.#cache) {
+        await this.#cache.saveEvents(this.#events);
+        await this.#cache.saveMetadata({ lastSync: new Date().toISOString() });
+      }
+
+      // 5. Activer le realtime
       this.#setupRealtime();
 
       this.#isInitialized = true;
@@ -241,15 +278,26 @@ export class EventsStore {
         subscribeToEvents(
           this.#userId!,
           this.#userTeams,
-          (event, eventType) => {
+          async (event, eventType) => {
             console.log(
               `[EventsStore] Realtime: ${eventType} pour ${event.$id}`,
             );
 
             if (eventType === "create" || eventType === "update") {
-              this.#events.set(event.$id, this.#enrichEvent(event));
+              const enrichedEvent = this.#enrichEvent(event);
+              this.#events.set(event.$id, enrichedEvent);
+
+              // Sauvegarder dans le cache
+              if (this.#cache) {
+                await this.#cache.saveEvent(enrichedEvent);
+              }
             } else if (eventType === "delete") {
               this.#events.delete(event.$id);
+
+              // Supprimer du cache
+              if (this.#cache) {
+                await this.#cache.deleteEvent(event.$id);
+              }
             }
           },
         );
@@ -411,60 +459,62 @@ export class EventsStore {
     return event.contributors;
   }
 
+  getContributorStatus(eventId: string) {
+    const event = this.#events.get(eventId);
+    if (!event) return "";
+    const user = event.contributors.filter((c) => c.id === this.#userId);
+    return user.length > 0 ? user[0].status : "";
+  }
   /**
-   * Ajoute un contributeur à un événement
+   * Ajoute des contributeurs à un événement via la cloud function
+   * Envoie les invitations et met à jour les permissions côté serveur
    */
-  async addContributor(
+  async addContributors(
     eventId: string,
-    email: string,
-    name?: string,
+    emails: string[],
   ): Promise<EnrichedEvent> {
     try {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");
 
-      const contributors = [...event.contributors]; // Copie pour immutabilité
-
-      // Vérifier si déjà présent
-      if (contributors.some((c) => c.email === email || c.id === email)) {
-        console.log(`[EventsStore] Contributeur déjà présent: ${email}`);
+      if (emails.length === 0) {
+        console.log(`[EventsStore] Aucun email à ajouter`);
         return event;
       }
 
-      // Vérifier si l'utilisateur existe dans Appwrite
-      const { checkUserEmails, inviteToEvent } = await import(
-        "../services/appwrite-functions"
+      // Filtrer les emails déjà présents
+      const existingEmails = new Set(
+        event.contributors.map((c) => c.email).filter(Boolean),
       );
-      const emailCheck = await checkUserEmails([email]);
-      const userInfo = emailCheck[email];
+      const newEmails = emails.filter((email) => !existingEmails.has(email));
 
-      if (userInfo) {
-        // Utilisateur existant : ajouter directement avec ses infos
-        const newContributor: EventContributor = {
-          id: userInfo.id,
-          email,
-          name: userInfo.name,
-          status: "invited",
-          invitedAt: new Date().toISOString(),
-        };
-
-        contributors.push(newContributor);
-
-        // updateEvent gère la stringification
-        return await this.updateEvent(eventId, { contributors });
-      } else {
-        // Utilisateur non-existant : utiliser la fonction cloud pour créer et inviter
-        await inviteToEvent(eventId, event.name, [email]);
-
-        // Recharger l'événement depuis Appwrite pour avoir les données à jour
-        // TOCHECK : realtime only ?
-        // const updatedEvent = await this.fetchEvent(eventId);
-        // if (!updatedEvent) throw new Error("Impossible de recharger l'événement");
-
-        // return updatedEvent;
+      if (newEmails.length === 0) {
+        console.log(`[EventsStore] Tous les contributeurs sont déjà présents`);
+        return event;
       }
+
+      // Appeler la cloud function pour gérer l'invitation
+      // Elle va :
+      // 1. Créer les utilisateurs si nécessaire
+      // 2. Ajouter les permissions
+      // 3. Envoyer les emails (groupé pour existants, individuel pour nouveaux)
+      const { inviteToEvent } = await import("../services/appwrite-functions");
+      await inviteToEvent(eventId, event.name, newEmails);
+
+      // Recharger l'événement depuis Appwrite pour avoir les données à jour
+      // Attendre un court instant pour que le traitement côté serveur soit effectué
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const updatedEvent = await this.fetchEvent(eventId);
+      if (!updatedEvent) throw new Error("Impossible de recharger l'événement");
+
+      console.log(
+        `[EventsStore] ${newEmails.length} contributeur(s) ajouté(s) à l'événement ${eventId}`,
+      );
+
+      return updatedEvent;
     } catch (err) {
-      console.error(`[EventsStore] Erreur ajout contributeur:`, err);
+      console.error(`[EventsStore] Erreur ajout contributeurs:`, err);
       throw err;
     }
   }
@@ -689,6 +739,12 @@ export class EventsStore {
     if (this.#realtimeUnsubscribe) {
       this.#realtimeUnsubscribe();
       this.#realtimeUnsubscribe = null;
+    }
+
+    // Fermer le cache
+    if (this.#cache) {
+      this.#cache.close();
+      this.#cache = null;
     }
 
     this.#events.clear();

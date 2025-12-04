@@ -19,6 +19,7 @@
   import BtnGroupCheck from "$lib/components/ui/BtnGroupCheck.svelte";
   import { checkUserEmails } from "$lib/services/appwrite-functions";
   import Fieldset from "./ui/Fieldset.svelte";
+  import { toastService } from "$lib/services/toast.service.svelte";
 
   // Interface des props
   interface Props {
@@ -30,6 +31,7 @@
     userId: string;
     userTeams: string[];
     eventId?: string;
+    openModalRequest?: boolean;
   }
 
   // Props
@@ -41,10 +43,18 @@
     eventsStore,
     userId = "",
     eventId = "",
+    openModalRequest = false,
   }: Props = $props();
 
   // État local
   let showInviteModal = $state(false);
+
+  // Ouvrir le modal si openModalRequest est true
+  $effect(() => {
+    if (openModalRequest) {
+      showInviteModal = true;
+    }
+  });
   let emailInput = $state("");
   let isChecking = $state(false);
   let inviteError = $state<string | null>(null);
@@ -70,6 +80,30 @@
       }
     }
     return Array.from(new Map(members.map((m) => [m.id, m])).values());
+  });
+
+  // Liste fusionnée : membres d'équipe + contributeurs ajoutés par email
+  let allInvitableMembers = $derived.by(() => {
+    const members: Array<{
+      id: string;
+      label: string;
+      selected: boolean;
+      badge?: string;
+    }> = [...kteamMembers];
+
+    // Ajouter les newContributors qui ne sont pas déjà dans kteamMembers
+    for (const contributor of newContributors) {
+      // Vérifier si ce contributeur n'est pas déjà dans la liste
+      if (!members.some((m) => m.id === contributor.id)) {
+        members.push({
+          id: contributor.id,
+          label: contributor.name || contributor.email || contributor.id,
+          selected: true, // Les newContributors sont toujours sélectionnés
+        });
+      }
+    }
+
+    return members;
   });
 
   // Groupes de contributeurs pour l'affichage
@@ -163,6 +197,7 @@
     const newContributor: EventContributor = {
       id: memberInfo.id,
       name: memberInfo.name,
+      email: memberInfo.email, // IMPORTANT: Inclure l'email du membre
       status: "invited",
       invitedAt: new Date().toISOString(),
     };
@@ -215,7 +250,6 @@
 
       newContributors = [...newContributors, newContributor];
       emailInput = "";
-      showInviteModal = false;
     } catch (err) {
       console.error("Erreur check email:", err);
       inviteError = "Erreur lors de la vérification de l'email.";
@@ -243,69 +277,168 @@
       );
     }
   }
+
+  // Fonction pour valider et envoyer les invitations
+  async function validateInvitations() {
+    if (newContributors.length === 0) {
+      toastService.warning("Aucune invitation à envoyer");
+      return;
+    }
+
+    if (!eventId) {
+      toastService.error("ID d'événement manquant");
+      return;
+    }
+
+    try {
+      // Filtrer uniquement les contributeurs avec un email valide
+      const contributorsWithEmail = newContributors.filter((c) => c.email);
+
+      if (contributorsWithEmail.length === 0) {
+        toastService.error("Aucun contributeur avec un email valide à inviter");
+        return;
+      }
+
+      // Extraire tous les emails
+      const emails = contributorsWithEmail.map((c) => c.email!);
+
+      console.log(
+        `[PermissionsManager] Envoi de ${emails.length} invitation(s)`,
+      );
+
+      // Utiliser toastService.track pour suivre l'opération
+      await toastService.track(eventsStore.addContributors(eventId, emails), {
+        loading: "Envoi des invitations en cours...",
+        success: `${emails.length} invitation(s) envoyée(s) avec succès`,
+        error: "Erreur lors de l'envoi des invitations",
+      });
+
+      // Vider la liste des nouveaux contributeurs après envoi réussi
+      newContributors = [];
+    } catch (error) {
+      console.error("Erreur lors de l'envoi des invitations:", error);
+      // Le toast d'erreur est déjà géré par toastService.track
+    }
+  }
 </script>
 
-<div class="card bg-base-100 shadow-xl">
-  <div class="card-body p-4">
-    <h3 class="card-title mb-4 flex items-center gap-2 text-lg">
-      <Users class="text-secondary h-5 w-5" />
-      Participants
-    </h3>
+<!-- N'afficher le composant que si eventId est défini -->
+{#if eventId}
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body p-4">
+      <h3 class="card-title mb-4 flex items-center gap-2 text-lg">
+        <Users class="text-secondary h-5 w-5" />
+        Participants
+      </h3>
 
-    <div class="divider my-2"></div>
+      <div class="divider my-2"></div>
 
-    <!-- Participants (Déjà enregistrés) -->
-    <div class="mb-6">
-      <div class="space-y-3">
-        <!-- Accepted -->
-        {#if acceptedContributors.length > 0}
-          <fieldset class="fieldset">
-            <legend class="text-base-content/70 p-1 text-sm font-medium"
-              >Participants</legend
-            >
-            <div class="flex flex-wrap gap-2">
-              {#each acceptedContributors as contributor (contributor.id)}
-                <div class="badge badge-soft badge-success gap-2 p-3">
-                  <span class="font-medium"
-                    >{contributor.name || contributor.email}</span
-                  >
-                </div>
-              {/each}
-            </div>
-          </fieldset>
-        {/if}
+      <!-- Participants (Déjà enregistrés) -->
+      <div class="mb-6">
+        <div class="space-y-3">
+          <!-- Accepted -->
+          {#if acceptedContributors.length > 0}
+            <fieldset class="fieldset">
+              <legend class="text-base-content/70 p-1 text-sm font-medium"
+                >Participants</legend
+              >
+              <div class="flex flex-wrap gap-2">
+                {#each acceptedContributors as contributor (contributor.id)}
+                  <div class="badge badge-soft badge-success gap-2 p-3">
+                    <span class="font-medium"
+                      >{contributor.name || contributor.email}</span
+                    >
+                  </div>
+                {/each}
+              </div>
+            </fieldset>
+          {/if}
 
-        <!-- Invited -->
-        {#if invitedContributors.length > 0}
-          <fieldset class="fieldset">
-            <legend class="text-base-content/70 p-1 text-sm font-medium"
-              >Invité·es</legend
-            >
-            <div class="flex flex-wrap gap-2">
-              {#each invitedContributors as contributor (contributor.id)}
-                <div class="badge badge-warning badge-soft gap-2 p-3">
-                  <span class="font-medium"
-                    >{contributor.name || contributor.email}</span
-                  >
-                </div>
-              {/each}
-            </div>
-          </fieldset>
-        {/if}
+          <!-- Invited -->
+          {#if invitedContributors.length > 0}
+            <fieldset class="fieldset">
+              <legend class="text-base-content/70 p-1 text-sm font-medium"
+                >Invité·es</legend
+              >
+              <div class="flex flex-wrap gap-2">
+                {#each invitedContributors as contributor (contributor.id)}
+                  <div class="badge badge-warning badge-soft gap-2 p-3">
+                    <span class="font-medium"
+                      >{contributor.name || contributor.email}</span
+                    >
+                  </div>
+                {/each}
+              </div>
+            </fieldset>
+          {/if}
 
-        {#if contributors.length === 0}
-          <p class="text-xs italic opacity-60">Aucun participant enregistré</p>
-        {/if}
+          {#if contributors.length === 0}
+            <p class="text-xs italic opacity-60">
+              Aucun participant enregistré
+            </p>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Bouton pour ouvrir le modal d'invitation -->
+      <div class="my-2">
+        <button
+          class="btn btn-primary btn-outline btn-block gap-1"
+          onclick={() => (showInviteModal = true)}
+        >
+          <UserPlus class="mr-2 h-4 w-4" />
+          Inviter des participant·es
+        </button>
       </div>
     </div>
+  </div>
+{/if}
 
-    <!-- Invitations à envoyer (Nouveaux) -->
-    <Fieldset legend="Ajouter" bgClass="bg-base-200" iconComponent={UserPlus}>
-      <!-- Équipes -->
-      <fieldset class="fieldset">
-        <legend class="text-base-content/70 p-1 text-sm font-medium"
-          >invitez toute une équipe</legend
+<!-- Modal d'invitation -->
+<div class="modal {showInviteModal && 'modal-open'}">
+  <div class="modal-box overflow-auto not-md:h-lvh">
+    <h3 class="mb-4 text-lg font-bold">Inviter des participants</h3>
+
+    <!-- Invitation par email -->
+    <fieldset class="fieldset mb-6">
+      <legend class="legend">Par email</legend>
+      <div class="flex gap-2">
+        <label class="input input-bordered flex flex-1 items-center gap-2">
+          <Mail class="h-4 w-4 opacity-70" />
+          <input
+            type="email"
+            class="grow"
+            placeholder="email@exemple.com"
+            bind:value={emailInput}
+            onkeydown={(e) => e.key === "Enter" && handleAddEmail()}
+          />
+        </label>
+        <button
+          class="btn btn-primary"
+          onclick={handleAddEmail}
+          disabled={isChecking || !emailInput}
         >
+          {#if isChecking}<span class="loading loading-spinner loading-xs"
+            ></span>{/if}
+          Ajouter
+        </button>
+      </div>
+      {#if inviteError}
+        <p class="text-error mt-1 text-xs">{inviteError}</p>
+      {/if}
+      <p class="text-base-content/60 mt-1 text-xs">
+        Recherche automatiquement si l'utilisateur existe déjà.
+      </p>
+    </fieldset>
+
+    <div class="divider">OU</div>
+
+    <!-- Sélection des équipes -->
+    <fieldset>
+      <legend class="mb-2 text-sm font-medium"
+        >Invitez une équipe entière</legend
+      >
+      {#if teamsStore.teams.length > 0}
         <div class="flex flex-col gap-2">
           {#each teamsStore.teams as team}
             <label
@@ -320,112 +453,49 @@
               <span class="text-sm font-medium">{team.name}</span>
             </label>
           {/each}
-          {#if teamsStore.teams.length === 0}
-            <p class="text-xs italic opacity-60">Aucune équipe disponible</p>
-          {/if}
         </div>
-      </fieldset>
+      {:else}
+        <p class="text-sm italic opacity-60">Aucune équipe disponible</p>
+      {/if}
+    </fieldset>
 
-      <div class="my-2">
-        <button
-          class="btn btn-sm btn-primary btn-outline btn-block gap-1"
-          onclick={() => (showInviteModal = true)}
-        >
-          <Plus class="h-3 w-3" />
-          Inviter des personnes
-        </button>
-      </div>
+    <div class="divider">OU</div>
 
-      <div class=" my-2">
-        <div class="flex flex-wrap gap-2">
-          {#each newContributors as contributor (contributor.id)}
-            <div class="badge badge-warning badge-outline gap-2 p-3">
-              <span class="font-medium"
-                >{contributor.name || contributor.email}</span
-              >
-              <button
-                onclick={() => removeNewContributor(contributor.id)}
-                class="btn btn-ghost btn-xs btn-circle h-4 min-h-0 w-4"
-              >
-                <X class="h-3 w-3" />
-              </button>
-            </div>
-          {/each}
-
-          {#if newContributors.length === 0}
-            <p class="text-xs italic opacity-60">
-              Aucune invitation en attente
-            </p>
-          {/if}
-        </div>
-      </div>
-    </Fieldset>
-  </div>
-</div>
-
-<!-- Modal d'invitation -->
-{#if showInviteModal}
-  <div class="modal modal-open" transition:fade>
-    <div class="modal-box">
-      <h3 class="mb-4 text-lg font-bold">Inviter des participants</h3>
-
-      <!-- Invitation par email -->
-      <fieldset class="fieldset mb-6">
-        <legend class="legend">Par email</legend>
-        <div class="flex gap-2">
-          <label class="input input-bordered flex flex-1 items-center gap-2">
-            <Mail class="h-4 w-4 opacity-70" />
-            <input
-              type="email"
-              class="grow"
-              placeholder="email@exemple.com"
-              bind:value={emailInput}
-              onkeydown={(e) => e.key === "Enter" && handleAddEmail()}
-            />
-          </label>
-          <button
-            class="btn btn-primary"
-            onclick={handleAddEmail}
-            disabled={isChecking || !emailInput}
-          >
-            {#if isChecking}<span class="loading loading-spinner loading-xs"
-              ></span>{/if}
-            Ajouter
-          </button>
-        </div>
-        {#if inviteError}
-          <p class="text-error mt-1 text-xs">{inviteError}</p>
-        {/if}
-        <p class="text-base-content/60 mt-1 text-xs">
-          Recherche automatiquement si l'utilisateur existe déjà.
+    <!-- Membres des KTeams -->
+    <fieldset>
+      <legend class="mb-2 text-sm font-medium"
+        >Invitez des membres spécifiques</legend
+      >
+      {#if allInvitableMembers.length > 0}
+        <BtnGroupCheck
+          items={allInvitableMembers}
+          onToggleItem={toggleKTeamMember}
+          badgeSize="btn-sm"
+          badgeStyle="btn-soft"
+          showIcon={true}
+        />
+      {:else}
+        <p class="text-sm italic opacity-60">
+          Aucun membre disponible à inviter.
         </p>
-      </fieldset>
+      {/if}
+    </fieldset>
 
-      <div class="divider">OU</div>
-
-      <!-- Membres des KTeams -->
-      <fieldset>
-        <legend class="mb-2 text-sm font-medium">Depuis vos équipes</legend>
-        {#if kteamMembers.length > 0}
-          <BtnGroupCheck
-            items={kteamMembers}
-            onToggleItem={toggleKTeamMember}
-            badgeSize="btn-sm"
-            badgeStyle="btn-soft"
-            showIcon={true}
-          />
-        {:else}
-          <p class="text-sm italic opacity-60">
-            Aucun membre disponible à inviter.
-          </p>
-        {/if}
-      </fieldset>
-
-      <div class="modal-action">
-        <button class="btn" onclick={() => (showInviteModal = false)}
-          >Fermer</button
-        >
-      </div>
+    <div class="modal-action">
+      <button class="btn" onclick={() => (showInviteModal = false)}
+        >Annuler</button
+      >
+      <button
+        class="btn btn-primary"
+        onclick={() => {
+          showInviteModal = false;
+          validateInvitations();
+        }}
+        disabled={newContributors.length === 0}
+      >
+        <Check class="mr-2 h-4 w-4" />
+        Envoyer les invitations ({newContributors.length})
+      </button>
     </div>
   </div>
-{/if}
+</div>

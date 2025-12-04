@@ -244,7 +244,7 @@
             Tableau de Bord
           </h1>
           <p class="text-base-content/60 text-sm">
-            Bienvenue {globalState.user?.name || ""} ! Voici un aperçu de votre activité.
+            Bienvenue {globalState.user?.name || ""}
           </p>
         </div>
 

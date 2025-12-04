@@ -11,6 +11,9 @@
   import { formatDateRelative } from "$lib/utils/date-helpers";
   import type { EnrichedEvent } from "$lib/types/events.d";
   import { navigate } from "$lib/services/simple-router.svelte";
+  import { formatDateShort } from "@/lib/utils/products-display";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
+  import { eventsStore } from "$lib/stores/EventsStore.svelte";
 
   interface Props {
     currentEvents: EnrichedEvent[];
@@ -26,60 +29,17 @@
     loading = false,
   }: Props = $props();
 
-  function formatEventDate(event: EnrichedEvent): string {
-    if (!event.dateStart) return "";
-    const date = new Date(event.dateStart);
-    const now = new Date();
-
-    // Aujourd'hui, afficher l'heure
-    if (date.toDateString() === now.toDateString()) {
-      return date.toLocaleTimeString("fr-FR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    }
-
-    // Demain
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    if (date.toDateString() === tomorrow.toDateString()) {
-      return `Demain ${date.toLocaleTimeString("fr-FR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`;
-    }
-
-    // Autres jours
-    return date.toLocaleDateString("fr-FR", {
-      weekday: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  function formatEventDuration(event: EnrichedEvent): string {
-    if (!event.dateStart || !event.dateEnd) return "";
-
-    const start = new Date(event.dateStart);
-    const end = new Date(event.dateEnd);
-    const diffMs = end.getTime() - start.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffDays > 0) {
-      return `${diffDays}j${diffHours % 24 > 0 ? ` ${diffHours % 24}h` : ""}`;
-    }
-    return `${diffHours}h`;
-  }
-
   function getEventLocation(event: EnrichedEvent): string {
     // Si l'événement a un champ location ou autre
     return "Lieu à définir"; // Placeholder
   }
 
-  function createNewEvent() {
-    // TODO: Implémenter la navigation vers la création d'événement
-    console.log("Create new event");
+  function hasInvitation(eventId: string) {
+    return eventsStore.getContributorStatus(eventId) === "invited";
+  }
+
+  function isParticipant(eventId: string) {
+    return eventsStore.getContributorStatus(eventId) === "accepted";
   }
 </script>
 
@@ -102,41 +62,48 @@
     {:else}
       <!-- Événements en cours -->
       {#if currentEvents.length > 0}
-        <div class="mb-4">
-          <h3
-            class="text-base-content/70 mb-3 flex items-center gap-2 text-sm font-semibold"
-          >
-            <div class="bg-success h-2 w-2 animate-pulse rounded-full"></div>
-            En cours ({currentEvents.length})
-          </h3>
+        <div class="my-4">
           <div class="space-y-3">
             {#each currentEvents as event (event.$id)}
               <div
                 class="bg-success/5 border-success/20 hover:bg-success/10 flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors"
-                onclick={() => console.log("View event:", event.$id)}
+                onclick={() => navigate(`/eventEdit/${event.$id}`)}
                 role="button"
                 tabindex="0"
                 title="Voir les détails de {event.name}"
                 onkeydown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
-                    console.log("View event:", event.$id);
+                    () => navigate(`/eventEdit/${event.$id}`);
                   }
                 }}
               >
                 <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2">
-                    <div class="truncate text-sm font-medium">{event.name}</div>
-                    <div class="badge badge-success badge-xs">EN COURS</div>
+                  <div class="flex flex-wrap items-center gap-4">
+                    <div class="truncate text-lg font-semibold">
+                      {event.name}
+                    </div>
+                    <div class="badge font-medium">
+                      {#if event.allDates && event.allDates.length > 1 && event.dateStart && event.dateEnd}
+                        <Calendar class="h-4 w-4" />
+                        {formatDateShort(event.dateStart)} au {formatDateShort(
+                          event.dateEnd,
+                        )}
+                      {:else if event.dateStart}
+                        <Calendar class="h-4 w-4" />
+                        {formatDateShort(event.dateStart)}
+                      {/if}
+                    </div>
+                    {#if hasInvitation(event.$id)}
+                      <div class="badge badge-info badge-lg ms-auto">
+                        Vous êtes invité à participer
+                      </div>
+                    {/if}
                   </div>
 
                   <!-- Métadonnées -->
                   <div
                     class="text-base-content/60 mt-2 flex items-center gap-3 text-xs"
                   >
-                    <div class="flex items-center gap-1">
-                      <Clock class="h-3 w-3" />
-                      <span>{formatEventDuration(event)}</span>
-                    </div>
                     <div class="flex items-center gap-1">
                       <MapPin class="h-3 w-3" />
                       <span>{getEventLocation(event)}</span>
@@ -164,12 +131,6 @@
       <!-- Événements à venir -->
       {#if upcomingEvents.length > 0}
         <div class="mb-4">
-          <h3
-            class="text-base-content/70 mb-3 flex items-center gap-2 text-sm font-semibold"
-          >
-            <div class="bg-warning h-2 w-2 rounded-full"></div>
-            À venir ({upcomingEvents.length})
-          </h3>
           <div class="space-y-3">
             {#each upcomingEvents.slice(0, 3) as event (event.$id)}
               <!-- Limiter à 3 événements à venir -->
@@ -186,29 +147,33 @@
                 }}
               >
                 <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2">
-                    <div class="truncate text-sm font-medium">{event.name}</div>
-                    <div class="badge badge-warning badge-xs capitalize">
-                      {formatEventDate(event)}
+                  <div class="flex flex-wrap items-center gap-2">
+                    <div class="truncate text-lg font-semibold">
+                      {event.name}
                     </div>
+                    <div class="badge font-medium">
+                      {#if event.allDates && event.allDates.length > 1 && event.dateStart && event.dateEnd}
+                        <Calendar class="h-4 w-4" />
+                        {formatDateShort(event.dateStart)} au {formatDateShort(
+                          event.dateEnd,
+                        )}
+                      {:else if event.dateStart}
+                        <Calendar class="h-4 w-4" />
+                        {formatDateShort(event.dateStart)}
+                      {/if}
+                    </div>
+
+                    {#if hasInvitation(event.$id)}
+                      <div class="badge badge-info badge-lg ms-auto">
+                        Vous êtes invité·e à participer
+                      </div>
+                    {/if}
                   </div>
 
                   <!-- Métadonnées -->
                   <div
                     class="text-base-content/60 mt-2 flex items-center gap-3 text-xs"
                   >
-                    <div class="flex items-center gap-1">
-                      <Calendar class="h-3 w-3" />
-                      <span>{formatEventDate(event)}</span>
-                    </div>
-                    <div class="flex items-center gap-1">
-                      <Clock class="h-3 w-3" />
-                      <span>{formatEventDuration(event)}</span>
-                    </div>
-                    <div class="flex items-center gap-1">
-                      <MapPin class="h-3 w-3" />
-                      <span>{getEventLocation(event)}</span>
-                    </div>
                     {#if event.contributors && event.contributors.length > 0}
                       <div class="flex items-center gap-1">
                         <Users class="h-3 w-3" />

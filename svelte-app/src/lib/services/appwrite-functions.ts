@@ -2,9 +2,25 @@
  * Service pour les appels aux fonctions cloud Appwrite
  */
 
-import { getAppwriteInstances, getAppwriteConfig } from './appwrite';
+import { getAppwriteInstances, getAppwriteConfig } from "./appwrite";
 
 const { APPWRITE_CONFIG } = getAppwriteConfig();
+
+// 1. Fonction de PING (à appeler au onMount de la page d'invitation)
+export async function warmUpFunctions() {
+  try {
+    const { functions } = await getAppwriteInstances();
+
+    // Mode asynchrone (async: true) pour ne pas bloquer l'UI
+    await functions.createExecution({
+      functionId: "users_teams_manager", // ID de la fonction
+      body: JSON.stringify({ action: "ping" }),
+      async: true,
+    });
+  } catch (e) {
+    console.warn("Warmup failed", e);
+  }
+}
 
 /**
  * Vérifie si des emails existent dans Appwrite
@@ -19,7 +35,7 @@ export async function checkUserEmails(
     const response = await functions.createExecution({
       functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
       body: JSON.stringify({
-        action: 'checkEmails',
+        action: "checkEmails",
         emails,
       }),
       async: false,
@@ -28,12 +44,14 @@ export async function checkUserEmails(
     const result = JSON.parse(response.responseBody);
 
     if (!result.success) {
-      throw new Error(result.error || 'Erreur lors de la vérification des emails');
+      throw new Error(
+        result.error || "Erreur lors de la vérification des emails",
+      );
     }
 
     return result.data;
   } catch (error) {
-    console.error('[appwrite-functions] Erreur checkUserEmails:', error);
+    console.error("[appwrite-functions] Erreur checkUserEmails:", error);
     throw error;
   }
 }
@@ -53,9 +71,9 @@ export async function inviteToEvent(
     const response = await functions.createExecution({
       functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
       body: JSON.stringify({
-        action: 'invite',
+        action: "invite",
         context: {
-          type: 'event',
+          type: "event",
           id: eventId,
           name: eventName,
         },
@@ -71,9 +89,11 @@ export async function inviteToEvent(
       throw new Error(result.error || "Erreur lors de l'invitation");
     }
 
-    console.log(`[appwrite-functions] ${result.processed} invitations envoyées pour l'événement ${eventName}`);
+    console.log(
+      `[appwrite-functions] ${result.processed} invitations envoyées pour l'événement ${eventName}`,
+    );
   } catch (error) {
-    console.error('[appwrite-functions] Erreur inviteToEvent:', error);
+    console.error("[appwrite-functions] Erreur inviteToEvent:", error);
     throw error;
   }
 }
@@ -93,9 +113,9 @@ export async function inviteToTeam(
     const response = await functions.createExecution({
       functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
       body: JSON.stringify({
-        action: 'invite',
+        action: "invite",
         context: {
-          type: 'team',
+          type: "team",
           id: teamId,
           name: teamName,
         },
@@ -111,9 +131,79 @@ export async function inviteToTeam(
       throw new Error(result.error || "Erreur lors de l'invitation");
     }
 
-    console.log(`[appwrite-functions] ${result.processed} invitations envoyées pour l'équipe ${teamName}`);
+    console.log(
+      `[appwrite-functions] ${result.processed} invitations envoyées pour l'équipe ${teamName}`,
+    );
   } catch (error) {
-    console.error('[appwrite-functions] Erreur inviteToTeam:', error);
+    console.error("[appwrite-functions] Erreur inviteToTeam:", error);
+    throw error;
+  }
+}
+
+/**
+ * Accepte une invitation (équipe ou événement)
+ */
+export async function acceptInvitation(
+  contextType: "team" | "event",
+  contextId: string,
+  userId: string,
+): Promise<{
+  success: boolean;
+  message: string;
+  context: { type: string; id: string };
+}> {
+  try {
+    const { functions } = await getAppwriteInstances();
+
+    console.log(
+      `[appwrite-functions] Envoi de la demande d'acceptation pour ${contextType} ${contextId}`,
+    );
+
+    const response = await functions.createExecution({
+      functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
+      body: JSON.stringify({
+        action: "accept-invitation",
+        userId,
+        context: {
+          type: contextType,
+          id: contextId,
+        },
+      }),
+      async: false,
+    });
+
+    console.log(`[appwrite-functions] Réponse reçue:`, response);
+
+    // Vérifier si responseBody existe et n'est pas vide
+    if (!response.responseBody || response.responseBody.trim() === "") {
+      throw new Error("Réponse vide de la fonction Appwrite");
+    }
+
+    let result;
+    try {
+      result = JSON.parse(response.responseBody);
+    } catch (parseError) {
+      console.error("[appwrite-functions] Erreur de parsing JSON:", parseError);
+      console.error(
+        "[appwrite-functions] Corps de la réponse:",
+        response.responseBody,
+      );
+      throw new Error(`Réponse invalide du serveur: ${parseError.message}`);
+    }
+
+    if (!result.success) {
+      throw new Error(
+        result.error || "Erreur lors de l'acceptation de l'invitation",
+      );
+    }
+
+    console.log(
+      `[appwrite-functions] Invitation acceptée avec succès pour ${contextType} ${contextId}`,
+    );
+
+    return result;
+  } catch (error) {
+    console.error("[appwrite-functions] Erreur acceptInvitation:", error);
     throw error;
   }
 }
