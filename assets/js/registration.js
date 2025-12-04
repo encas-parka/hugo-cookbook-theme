@@ -4,27 +4,14 @@ import { getAppwriteClients, getFunctions, getConfig } from './appwrite-client.j
 
 document.addEventListener("DOMContentLoaded", () => {
   // --- CONFIGURATION ---
-  const { APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID } = getConfig();
-  const DATABASE_ID = "689d15b10003a5a13636";
-  const COLLECTION_ID = "689d15c900353f50464a";
   const REGISTER_FUNCTION_ID = "689d1836002b9b5cfda9";
-  const CAMPAIGN_DOC_ID = document.querySelector("[data-campaign-doc-id]")
-    .dataset.campaignDocId;
 
   // --- ÉLÉMENTS DU DOM ---
-  const loadingState = document.getElementById("loading-state");
-  const campaignValid = document.getElementById("campaign-valid");
-  const campaignInvalid = document.getElementById("campaign-invalid");
   const registrationForm = document.getElementById("registration-form");
   const errorMessage = document.getElementById("error-message");
   const successMessage = document.getElementById("success-message");
-  const remainingSlots = document.getElementById("remaining-slots");
-  const invalidReason = document.getElementById("invalid-reason");
 
-  let databases = null;
-
-
-  // --- 2. GESTION DE L'INSCRIPTION ---
+  // --- GESTION DE L'INSCRIPTION ---
   if (registrationForm) {
     registrationForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -85,7 +72,6 @@ document.addEventListener("DOMContentLoaded", () => {
           localStorage.setItem('appwrite-user-name', name);
           localStorage.setItem('email-verification-status', 'not_verified');
 
-
           // Mettre à jour le message de succès
           successMessage.innerHTML = `
             <strong>Inscription terminée !</strong><br>
@@ -131,14 +117,5 @@ document.addEventListener("DOMContentLoaded", () => {
         spinner.style.display = 'none';
       }
     });
-  }
-
-  // Lancer la vérification initiale au chargement de la page
-  if (CAMPAIGN_DOC_ID) {
-    checkCampaignStatus();
-  } else {
-    invalidReason.textContent = 'L\'ID de la campagne n\'est pas configuré sur cette page.';
-    loadingState.style.display = 'none';
-    campaignInvalid.style.display = 'block';
   }
 });
