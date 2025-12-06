@@ -23,14 +23,22 @@ const EVENTS_COLLECTION_ID = "main";
 
 /**
  * Liste tous les événements accessibles à l'utilisateur
+ * Filtrage optimisé avec contributorsIds pour récupérer uniquement les événements où l'utilisateur est contributeur
  */
-export async function listEvents(): Promise<{ events: Main[] }> {
+export async function listEvents(userId: string): Promise<{ events: Main[] }> {
   try {
     const { tables } = await getAppwriteInstances();
     const response = await tables.listRows({
       databaseId: APPWRITE_CONFIG.databaseId,
       tableId: EVENTS_COLLECTION_ID,
-      queries: [Query.orderDesc("dateStart")],
+      queries: [
+        Query.orderDesc("dateStart"),
+        // Filtrer les événements où l'utilisateur est contributeur ou créateur
+        Query.or([
+          Query.equal("createdBy", userId),
+          Query.contains("contributorsIds", userId),
+        ]),
+      ],
     });
     return { events: response.rows as unknown as Main[] };
   } catch (error) {
@@ -70,6 +78,11 @@ export async function createEvent(
     const { tables } = await getAppwriteInstances();
     const eventId = ID.unique();
 
+    // Extraire les IDs des contributors pour le champ contributorsIds
+    const contributorsIds = data.contributors
+      ? data.contributors.map((c) => c.id)
+      : [];
+
     const event = await tables.createRow({
       databaseId: APPWRITE_CONFIG.databaseId,
       tableId: EVENTS_COLLECTION_ID,
@@ -85,6 +98,7 @@ export async function createEvent(
         contributors: data.contributors
           ? data.contributors.map((c) => JSON.stringify(c))
           : [],
+        contributorsIds, // Ajouter le tableau d'IDs pour le filtrage optimisé
       },
       // Les permissions par défaut sont gérées côté serveur
     });
@@ -118,6 +132,9 @@ export async function updateEvent(
       updateData.contributors = Array.isArray(data.contributors)
         ? data.contributors.map((c) => JSON.stringify(c))
         : [];
+
+      // Mettre à jour contributorsIds à partir des contributors
+      updateData.contributorsIds = data.contributors.map((c) => c.id);
     }
 
     // S'assurer que allDates est inclus s'il est présent

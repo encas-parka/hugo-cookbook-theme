@@ -15,6 +15,8 @@
   import EventEditPage from "./lib/routes/EventEditPage.svelte";
   import AcceptInvite from "./lib/routes/AcceptInvite.svelte";
   import TeamsManagement from "./lib/routes/TeamsManagement.svelte";
+  import RecipeDetailPage from "./lib/routes/RecipeDetailPage.svelte";
+  import RecipesListPage from "./lib/routes/RecipesListPage.svelte";
 
   let initError: string | null = $state(null);
 
@@ -25,6 +27,8 @@
   router.addRoute("/eventEdit/:id", EventEditPage);
   router.addRoute("/teams", TeamsManagement);
   router.addRoute("/accept-invite", AcceptInvite);
+  router.addRoute("/recipes", RecipesListPage);
+  router.addRoute("/recipe/:uuid", RecipeDetailPage);
 
   // État du composant actuel
   let currentRoute = $state<any>(null);
@@ -91,7 +95,7 @@
 </script>
 
 <!-- Header toujours présent -->
-<HeaderNav />
+<!-- <HeaderNav /> -->
 
 <!-- Rendu du composant actuel -->
 <div class="mt-7">

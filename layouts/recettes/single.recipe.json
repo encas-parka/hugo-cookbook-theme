@@ -7,20 +7,29 @@
 {
   "uuid": {{ $uuid | jsonify }},
   "title": {{ .Title | jsonify }},
+  "draft": {{ .Draft | jsonify }},
+  "typeR": {{ .Params.typeR | jsonify }},
+  "categories": {{ .Params.categories | jsonify }},
+  "regime": {{ .Params.regime | jsonify }},
+  "cuisson": {{ .Params.cuisson | jsonify }},
+  "temperature": {{ .Params.temperature | jsonify }},
   "plate": {{ .Params.plate }},
+  "quantite_desc": {{ .Params.quantite_desc | jsonify }},
+  "check": {{ .Params.check | jsonify }},
+  "checkAlwaysOk": {{ .Params.checkAlwaysOk | jsonify }},
+  "materiel": {{ .Params.materiel | jsonify }},
   "ingredients": [
     {{- $first := true -}}
     {{- range .Params.ingredients -}}
       {{- if not $first -}},{{ end -}}
       {{- $first = false -}}
-      {{- $ingPath := .ingredient -}}
-      {{- $ingUUID := replaceRE "^.*_([a-z0-9]+)$" "$1" $ingPath -}}
+      {{- $ingUUID := partialCached "functions/extract-uuid-from-slug.html" .ingredient .ingredient -}}
       {{- $ingData := index $byUUID $ingUUID -}}
       {{- $ingName := "" -}}
       {{- if $ingData -}}
         {{- $ingName = $ingData.title -}}
       {{- end -}}
-      
+
       {{/* Gestion des quantités/unités manquantes (ex: sel, poivre) */}}
       {{- $quantite := 1 -}}
       {{- $unit := "ajuster" -}}
@@ -30,8 +39,8 @@
       {{- if .unit -}}
         {{- $unit = .unit -}}
       {{- end -}}
-      
-      {{- $conversion := partial "functions/quantite-converter.html" (dict 
+
+      {{- $conversion := partial "functions/quantite-converter.html" (dict
         "quantite" $quantite
         "unit" $unit
         "ingredient" $ingName
@@ -46,9 +55,20 @@
       {{- if .commentaire -}}
         {{- $comment = .commentaire -}}
       {{- end -}}
-[{{ $ingUUID | jsonify }}, {{ $quantite }}, {{ $unit | jsonify }}, {{ $conversion.quantiteEq }}, {{ $conversion.unitEq | jsonify }}, {{ $comment | jsonify }}, {{ $allergenes | jsonify }}, {{ $ingType | jsonify }}]
+{
+      "uuid": {{ $ingUUID | jsonify }},
+      "name": {{ $ingName | jsonify }},
+      "originalQuantity": {{ $quantite }},
+      "originalUnit": {{ $unit | jsonify }},
+      "normalizedQuantity": {{ $conversion.quantiteEq }},
+      "normalizedUnit": {{ $conversion.unitEq | jsonify }},
+      "comment": {{ $comment | jsonify }},
+      "allergens": {{ $allergenes | jsonify }},
+      "type": {{ $ingType | jsonify }}
+    }
     {{- end -}}
   ],
-  "preparation": {{ .Params.preparation | jsonify }}
+  "preparation": {{ .Params.preparation | jsonify }},
+  "prepAlt": {{ .Params.prepAlt | jsonify }},
+  "publishDate": {{ .PublishDate | jsonify }}
 }
-

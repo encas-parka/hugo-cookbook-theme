@@ -238,20 +238,31 @@ export class EventsStore {
 
   /**
    * Charge les événements depuis Appwrite
-   * Filtrage strict : seulement les événements où l'utilisateur est membre/contributor
+   * Filtrage optimisé : seulement les événements où l'utilisateur est contributeur via contributorsIds
    */
   async #loadEvents(): Promise<void> {
     try {
       console.log("[EventsStore] Chargement des événements...");
 
-      const { events } = await listEvents();
+      // Vérifier que l'utilisateur est initialisé
+      if (!this.#userId) {
+        console.warn(
+          "[EventsStore] userId non défini, impossible de charger les événements",
+        );
+        return;
+      }
+
+      // Utiliser le filtrage optimisé avec contributorsIds
+      const { events } = await listEvents(this.#userId);
 
       // Ajouter à la map
       events.forEach((event) => {
         this.#events.set(event.$id, this.#enrichEvent(event));
       });
 
-      console.log(`[EventsStore] ${events.length} événements chargés`);
+      console.log(
+        `[EventsStore] ${events.length} événements chargés (filtrés pour userId: ${this.#userId})`,
+      );
     } catch (err) {
       console.error("[EventsStore] Erreur lors du chargement:", err);
       throw err;

@@ -30,6 +30,29 @@ export default defineConfig({
 
     // --- Configuration du serveur de développement ---
     server: {
+      // Proxy pour accéder aux données Hugo en mode dev
+      proxy: {
+        // Rediriger /recettes/ vers le serveur Hugo
+        '/recettes': {
+          target: 'http://localhost:1313', // Serveur Hugo par défaut
+          changeOrigin: true,
+          configure: (proxy, _options) => {
+            proxy.on('error', (_err, _req, _res) => {
+              console.log('[Vite Proxy] Hugo server not available for /recettes/');
+            });
+          }
+        },
+        // Rediriger /api/ vers le serveur Hugo (pour data.json)
+        '/api': {
+          target: 'http://localhost:1313',
+          changeOrigin: true,
+          configure: (proxy, _options) => {
+            proxy.on('error', (_err, _req, _res) => {
+              console.log('[Vite Proxy] Hugo server not available for /api/');
+            });
+          }
+        }
+      },
       // Très important : pour éviter une boucle infinie
       // Vite ne doit pas "watch" les fichiers qu'il écrit lui-même.
       // // En vrai c'est bon, c'est dans le parent ..?

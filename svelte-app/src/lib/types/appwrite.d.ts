@@ -47,6 +47,7 @@ export type Main = Models.Row & {
   purchasesId: Purchases[];
   meals: string[] | null;
   contributors: string[] | null;
+  contributorsIds: string[] | null;
   kteams: Kteams[];
 };
 
@@ -103,6 +104,8 @@ export type Recettes = Models.Row & {
   createdBy: string;
   teams: string[] | null;
   contributors: string[] | null;
+  materiel: string[] | null;
+  prepAlt: string[] | null;
 };
 
 export type Kteams = Models.Row & {

@@ -468,29 +468,9 @@ class ProductsStore {
       if (this.#enrichedProducts.size === 0) {
         console.log("[ProductsStore] Cache vide, chargement depuis Hugo...");
 
-        // Charger les données HUGO (ou données de dev en environnement local)
-        let hugoData;
-        if (import.meta.env.DEV) {
-          // En développement, essayer de charger les données locales d'abord
-          const { hasDevData, loadDevEventData } = await import(
-            "../services/dev-data"
-          );
-
-          if (await hasDevData(listId)) {
-            console.log(
-              `[ProductsStore] Chargement des données de dev pour ${listId}`,
-            );
-            hugoData = await loadDevEventData(listId);
-          } else {
-            console.log(
-              `[ProductsStore] Pas de données de dev pour ${listId}, utilisation des données HUGO`,
-            );
-            hugoData = await loadHugoEventData(listId);
-          }
-        } else {
-          // En production, toujours utiliser les données HUGO
-          hugoData = await loadHugoEventData(listId);
-        }
+        // Charger les données Hugo (proxié par Vite en mode dev)
+        const hugoData = await loadHugoEventData(listId);
+        
         console.log(
           `[ProductsStore] Hugo chargé: ${hugoData.ingredients.length} ingrédients`,
         );

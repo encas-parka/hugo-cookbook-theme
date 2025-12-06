@@ -17,6 +17,9 @@
   {{- end -}}
 {{- end -}}
 
+{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" -}}
+{{- $byUUID := $ingredientsIndex.byUUID -}}
+
 {{- $recipes := slice -}}
 {{- range where .Site.RegularPages "Section" "recettes" -}}
   {{- if .Title -}}
@@ -24,8 +27,39 @@
     {{/* Construct relative path to JSON file */}}
     {{- $relPath := printf "%srecipe.json" .RelPermalink -}}
 
-    {{/* Build recipe object with abbreviated keys */}}
-    {{- $recipe := dict "u" $uuid "n" .Title "t" .Params.typeR "p" $relPath "plates" .Params.plate -}}
+    {{/* Extraire les noms des ingrédients pour le filtrage */}}
+    {{- $ingredientNames := slice -}}
+    {{- range .Params.ingredients -}}
+      {{- $ingUUID := partialCached "functions/extract-uuid-from-slug.html" .ingredient .ingredient -}}
+      {{- $ingData := index $byUUID $ingUUID -}}
+      {{- if $ingData -}}
+        {{- $ingredientNames = $ingredientNames | append $ingData.title -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{/* Build recipe object with abbreviated keys - métadonnées essentielles pour l'index */}}
+    {{- $recipe := dict
+      "u" $uuid
+      "n" .Title
+      "t" .Params.typeR
+      "c" .Params.categories
+      "r" .Params.regime
+      "cu" .Params.cuisson
+      "a" .Params.auteur
+      "d" .Draft
+      "te" .Params.temperature
+      "p" $relPath
+      "plates" .Params.plate
+      "q" .Params.quantite_desc
+      "ch" .Params.check
+      "check" .Params.check
+      "checkfor" .Params.checkfor
+      "pd" .Params.PublishDate
+      "materiel" .Params.materiel
+      "saison" .Params.saison
+      "specialite" .Params.specialite
+      "ingredients" $ingredientNames
+    -}}
     {{- $recipes = $recipes | append $recipe -}}
   {{- end -}}
 {{- end -}}

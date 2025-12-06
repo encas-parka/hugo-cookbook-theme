@@ -52,11 +52,8 @@ import { globalState } from "./GlobalState.svelte";
 // CONFIGURATION
 // =============================================================================
 
-// En mode dev (Vite), utiliser le fichier de données de développement
-// En production (Hugo), utiliser l'API
-const DATA_JSON_URL = import.meta.env.DEV
-  ? "/dev-data/data.json"
-  : "/api/data.json";
+// URL du fichier data.json (proxié par Vite en mode dev vers Hugo)
+const DATA_JSON_URL = "/api/data.json";
 
 // =============================================================================
 // STORE SINGLETON
@@ -120,6 +117,13 @@ class RecipesStore {
    */
   get detailsLoadedCount() {
     return this.#recipesDetails.size;
+  }
+
+  /**
+   * Retourne toutes les recettes de l'index (pour la page de liste)
+   */
+  getAllRecipes(): RecipeIndexEntry[] {
+    return Array.from(this.#recipesIndex.values());
   }
 
   // =============================================================================
@@ -315,6 +319,7 @@ class RecipesStore {
           u: recipe.$id,
           n: recipe.title,
           t: recipe.typeR,
+          a: recipe.createdBy, // Auteur de la recette
           p: null, // Pas de path JSON pour les recettes Appwrite
           plates: recipe.plate, // Nombre de couverts par défaut de la recette
           isPublished: false,
@@ -349,6 +354,7 @@ class RecipesStore {
               u: recipe.$id,
               n: recipe.title,
               t: recipe.typeR,
+              a: recipe.createdBy, // Auteur de la recette
               p: null,
               plates: recipe.plate, // Nombre de couverts par défaut de la recette
               isPublished: recipe.isPublished,
@@ -376,38 +382,6 @@ class RecipesStore {
   }
 
   /**
-   * Mappe le type de recette (enum) vers un nombre
-   */
-  #mapTypeRToNumber(typeR: string): number {
-    switch (typeR) {
-      case "entree":
-        return 0;
-      case "plat":
-        return 1;
-      case "dessert":
-        return 2;
-      default:
-        return 0;
-    }
-  }
-
-  /**
-   * Mappe un nombre vers le type de recette (enum)
-   */
-  #mapNumberToTypeR(type: number): "entree" | "plat" | "dessert" {
-    switch (type) {
-      case 0:
-        return "entree";
-      case 1:
-        return "plat";
-      case 2:
-        return "dessert";
-      default:
-        return "plat";
-    }
-  }
-
-  /**
    * Compte les recettes published
    */
   #countPublished(): number {
@@ -429,8 +403,10 @@ class RecipesStore {
       uuid: appwriteRecipe.$id,
       title: appwriteRecipe.title,
       plate: appwriteRecipe.plate,
+      materiel: appwriteRecipe.materiel || [],
       ingredients: JSON.parse(appwriteRecipe.ingredients),
       preparation: appwriteRecipe.preparation,
+      prepAlt: appwriteRecipe.prepAlt || [],
     };
   }
 
@@ -446,7 +422,33 @@ class RecipesStore {
   }
 
   /**
-   * Recherche des recettes par nom (insensible à la casse)
+   * Récupère les données complètes d'une recette (index + détails fusionnés)
+   * Utile pour l'affichage complet d'une recette avec toutes ses métadonnées
+   */
+  async getCompleteRecipe(
+    uuid: string,
+  ): Promise<(RecipeIndexEntry & { details?: RecipeData }) | null> {
+    // Récupérer l'entrée d'index
+    const indexEntry = this.#recipesIndex.get(uuid);
+    if (!indexEntry) {
+      return null;
+    }
+
+    // Récupérer les détails si disponibles
+    try {
+      const details = await this.getRecipeByUuid(uuid);
+      return { ...indexEntry, details: details || undefined };
+    } catch (error) {
+      console.warn(
+        `[RecipesStore] Impossible de charger les détails pour ${uuid}:`,
+        error,
+      );
+      return indexEntry;
+    }
+  }
+
+  /**
+   * Recherche des recettes par texte (nom, catégories)
    */
   searchRecipes(query: string): RecipeIndexEntry[] {
     if (!query.trim()) {
@@ -454,9 +456,17 @@ class RecipesStore {
     }
 
     const lowerQuery = query.toLowerCase();
-    return this.recipesIndex.filter((recipe) =>
-      recipe.n.toLowerCase().includes(lowerQuery),
-    );
+    return this.recipesIndex.filter((recipe) => {
+      // Recherche dans le nom
+      const nameMatch = recipe.n.toLowerCase().includes(lowerQuery);
+
+      // Recherche dans les catégories
+      const categoryMatch =
+        recipe.c?.some((cat) => cat.toLowerCase().includes(lowerQuery)) ||
+        false;
+
+      return nameMatch || categoryMatch;
+    });
   }
 
   /**
@@ -464,6 +474,99 @@ class RecipesStore {
    */
   getRecipesByType(type: string): RecipeIndexEntry[] {
     return this.recipesIndex.filter((recipe) => recipe.t === type);
+  }
+
+  /**
+   * Filtre les recettes par régime alimentaire
+   */
+  getRecipesByRegime(regime: string): RecipeIndexEntry[] {
+    return this.recipesIndex.filter(
+      (recipe) => recipe.r?.includes(regime) || false,
+    );
+  }
+
+  /**
+   * Filtre les recettes qui nécessitent une cuisson
+   */
+  getRecipesWithCooking(): RecipeIndexEntry[] {
+    return this.recipesIndex.filter((recipe) => recipe.cu === true);
+  }
+
+  /**
+   * Filtre les recettes sans cuisson
+   */
+  getRecipesWithoutCooking(): RecipeIndexEntry[] {
+    return this.recipesIndex.filter((recipe) => recipe.cu === false);
+  }
+
+  /**
+   * Filtre les recettes par température (Froid/Chaud)
+   */
+  getRecipesByTemperature(temperature: string): RecipeIndexEntry[] {
+    return this.recipesIndex.filter((recipe) => recipe.te === temperature);
+  }
+
+  /**
+   * Filtre les recettes publiées uniquement
+   */
+  getPublishedRecipes(): RecipeIndexEntry[] {
+    return this.recipesIndex.filter((recipe) => recipe.isPublished === true);
+  }
+
+  /**
+   * Filtre les brouillons uniquement
+   */
+  getDraftRecipes(): RecipeIndexEntry[] {
+    return this.recipesIndex.filter((recipe) => recipe.d === true);
+  }
+
+  /**
+   * Filtre multi-critères
+   */
+  filterRecipes(filters: {
+    type?: string;
+    regimes?: string[];
+    cuisson?: boolean;
+    temperature?: string;
+    draft?: boolean;
+    query?: string;
+  }): RecipeIndexEntry[] {
+    return this.recipesIndex.filter((recipe) => {
+      // Filtre par type
+      if (filters.type && recipe.t !== filters.type) return false;
+
+      // Filtre par régimes
+      if (filters.regimes && filters.regimes.length > 0) {
+        const hasRegime = filters.regimes.some((regime) =>
+          recipe.r?.includes(regime),
+        );
+        if (!hasRegime) return false;
+      }
+
+      // Filtre par cuisson
+      if (filters.cuisson !== undefined && recipe.cu !== filters.cuisson)
+        return false;
+
+      // Filtre par température
+      if (filters.temperature && recipe.te !== filters.temperature)
+        return false;
+
+      // Filtre par statut brouillon
+      if (filters.draft !== undefined && recipe.d !== filters.draft)
+        return false;
+
+      // Filtre par recherche textuelle
+      if (filters.query?.trim()) {
+        const lowerQuery = filters.query.toLowerCase();
+        const nameMatch = recipe.n.toLowerCase().includes(lowerQuery);
+        const categoryMatch =
+          recipe.c?.some((cat) => cat.toLowerCase().includes(lowerQuery)) ||
+          false;
+        if (!nameMatch && !categoryMatch) return false;
+      }
+
+      return true;
+    });
   }
 
   /**
@@ -650,7 +753,7 @@ class RecipesStore {
         ingredients: JSON.stringify(data.ingredients),
         preparation: data.preparation,
         draft: true,
-        typeR: this.#mapNumberToTypeR(0), // Par défaut entrée
+        typeR: data.typeR, // Par défaut entrée
         categories: [],
         regime: [],
         teams: [],

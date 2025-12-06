@@ -1,19 +1,23 @@
 /**
  * Service de cache IndexedDB pour RecipesStore
- * 
+ *
  * Architecture:
  * - 1 base: `recipes-cache`
  * - 1 store "recipes-index" pour les RecipeIndexEntry (index léger)
  * - 1 store "recipes-details" pour les RecipeData (détails complets)
  * - 1 store "metadata" pour lastSync + indexHash
- * 
+ *
  * Stratégie:
  * - L'index est chargé au démarrage (léger)
  * - Les détails sont lazy-loadés à la demande
  * - Cache persistant pour éviter les fetches répétés
  */
 
-import type { RecipeIndexEntry, RecipeData, RecipesCacheMetadata } from "../types/recipes.types";
+import type {
+  RecipeIndexEntry,
+  RecipeData,
+  RecipesCacheMetadata,
+} from "../types/recipes.types";
 
 // =============================================================================
 // TYPES
@@ -21,21 +25,21 @@ import type { RecipeIndexEntry, RecipeData, RecipesCacheMetadata } from "../type
 
 export interface RecipesIDBCache {
   open(): Promise<void>;
-  
+
   // Index
   loadRecipesIndex(): Promise<Map<string, RecipeIndexEntry>>;
   saveRecipesIndex(recipes: Map<string, RecipeIndexEntry>): Promise<void>;
-  
+
   // Détails
   loadRecipeDetail(uuid: string): Promise<RecipeData | null>;
   saveRecipeDetail(recipe: RecipeData): Promise<void>;
   loadAllRecipeDetails(): Promise<Map<string, RecipeData>>;
-  
+
   // Metadata
   loadMetadata(): Promise<RecipesCacheMetadata>;
   saveMetadata(metadata: RecipesCacheMetadata): Promise<void>;
   updateIndexHash(hash: string | null): Promise<void>;
-  
+
   // Utilitaires
   deleteRecipeDetail(uuid: string): Promise<void>;
   clear(): Promise<void>;
@@ -49,13 +53,13 @@ export interface RecipesIDBCache {
 class RecipesIndexedDBCache implements RecipesIDBCache {
   private dbName = "recipes-cache";
   private db: IDBDatabase | null = null;
-  private version = 1;
+  private version = 2; // Incrémenter pour forcer la migration des données
 
   // Noms des object stores
   private readonly RECIPES_INDEX_STORE = "recipes-index";
   private readonly RECIPES_DETAILS_STORE = "recipes-details";
   private readonly METADATA_STORE = "metadata";
-  
+
   // Clés pour les métadonnées
   private readonly LAST_SYNC_KEY = "lastSync";
   private readonly INDEX_HASH_KEY = "indexHash";
@@ -125,7 +129,9 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
         (request.result as RecipeIndexEntry[]).forEach((recipe) => {
           recipes.set(recipe.u, recipe);
         });
-        console.log(`[RecipesIDBCache] ${recipes.size} recettes (index) chargées`);
+        console.log(
+          `[RecipesIDBCache] ${recipes.size} recettes (index) chargées`,
+        );
         resolve(recipes);
       };
 
@@ -136,7 +142,9 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
   /**
    * Sauvegarde l'index complet (bulk write)
    */
-  async saveRecipesIndex(recipes: Map<string, RecipeIndexEntry>): Promise<void> {
+  async saveRecipesIndex(
+    recipes: Map<string, RecipeIndexEntry>,
+  ): Promise<void> {
     if (!this.db) throw new Error("DB non ouverte");
 
     return new Promise((resolve, reject) => {
@@ -150,7 +158,9 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       });
 
       tx.oncomplete = () => {
-        console.log(`[RecipesIDBCache] ${recipes.size} recettes (index) sauvegardées`);
+        console.log(
+          `[RecipesIDBCache] ${recipes.size} recettes (index) sauvegardées`,
+        );
         resolve();
       };
 
@@ -176,7 +186,9 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       request.onsuccess = () => {
         const recipe = request.result as RecipeData | undefined;
         if (recipe) {
-          console.log(`[RecipesIDBCache] Détails de ${uuid} chargés depuis le cache`);
+          console.log(
+            `[RecipesIDBCache] Détails de ${uuid} chargés depuis le cache`,
+          );
         }
         resolve(recipe || null);
       };
@@ -221,7 +233,9 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
         (request.result as RecipeData[]).forEach((recipe) => {
           recipes.set(recipe.uuid, recipe);
         });
-        console.log(`[RecipesIDBCache] ${recipes.size} détails de recettes chargés`);
+        console.log(
+          `[RecipesIDBCache] ${recipes.size} détails de recettes chargés`,
+        );
         resolve(recipes);
       };
 
@@ -271,8 +285,10 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
 
         allEntries.forEach((entry) => {
           if (entry.key === this.LAST_SYNC_KEY) metadata.lastSync = entry.value;
-          else if (entry.key === this.INDEX_HASH_KEY) metadata.indexHash = entry.value;
-          else if (entry.key === this.RECIPES_COUNT_KEY) metadata.recipesCount = entry.value;
+          else if (entry.key === this.INDEX_HASH_KEY)
+            metadata.indexHash = entry.value;
+          else if (entry.key === this.RECIPES_COUNT_KEY)
+            metadata.recipesCount = entry.value;
         });
 
         console.log(
@@ -340,7 +356,11 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
 
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction(
-        [this.RECIPES_INDEX_STORE, this.RECIPES_DETAILS_STORE, this.METADATA_STORE],
+        [
+          this.RECIPES_INDEX_STORE,
+          this.RECIPES_DETAILS_STORE,
+          this.METADATA_STORE,
+        ],
         "readwrite",
       );
 

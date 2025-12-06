@@ -5,27 +5,28 @@
 import type { RecipeIngredient, RecipeData } from "../types/recipes.types";
 
 /**
- * Parse un ingrédient depuis le format tableau compact du JSON Hugo
+ * Parse un ingrédient depuis le JSON Hugo
  * 
- * Format: [uuid, qte_orig, unit_orig, qte_norm, unit_norm, comment, allergens[], type]
+ * Format : {uuid, name, originalQuantity, originalUnit, ...}
  * 
- * @param ingredientArray - Tableau compact depuis recipe.json
+ * @param ingredientData - Données depuis recipe.json
  * @returns RecipeIngredient parsé
  */
-export function parseRecipeIngredient(ingredientArray: any[]): RecipeIngredient {
-  if (!Array.isArray(ingredientArray) || ingredientArray.length < 8) {
-    throw new Error(`Format d'ingrédient invalide: ${JSON.stringify(ingredientArray)}`);
+export function parseRecipeIngredient(ingredientData: any): RecipeIngredient {
+  if (!ingredientData || typeof ingredientData !== "object" || Array.isArray(ingredientData)) {
+    throw new Error(`Format d'ingrédient invalide: ${JSON.stringify(ingredientData)}`);
   }
 
   return {
-    uuid: ingredientArray[0],
-    originalQuantity: ingredientArray[1],
-    originalUnit: ingredientArray[2],
-    normalizedQuantity: ingredientArray[3],
-    normalizedUnit: ingredientArray[4],
-    comment: ingredientArray[5] || "",
-    allergens: Array.isArray(ingredientArray[6]) ? ingredientArray[6] : [],
-    type: ingredientArray[7] || "",
+    uuid: ingredientData.uuid || "",
+    name: ingredientData.name || "",
+    originalQuantity: ingredientData.originalQuantity || 0,
+    originalUnit: ingredientData.originalUnit || "",
+    normalizedQuantity: ingredientData.normalizedQuantity || 0,
+    normalizedUnit: ingredientData.normalizedUnit || "",
+    comment: ingredientData.comment || "",
+    allergens: Array.isArray(ingredientData.allergens) ? ingredientData.allergens : [],
+    type: ingredientData.type || "",
   };
 }
 
@@ -43,9 +44,9 @@ export function parseRecipeData(rawData: any): RecipeData {
   // Parser les ingrédients
   const ingredients: RecipeIngredient[] = [];
   if (Array.isArray(rawData.ingredients)) {
-    rawData.ingredients.forEach((ingArray: any) => {
+    rawData.ingredients.forEach((ingData: any) => {
       try {
-        ingredients.push(parseRecipeIngredient(ingArray));
+        ingredients.push(parseRecipeIngredient(ingData));
       } catch (err) {
         console.warn("[parseRecipeData] Ingrédient invalide ignoré:", err);
       }
