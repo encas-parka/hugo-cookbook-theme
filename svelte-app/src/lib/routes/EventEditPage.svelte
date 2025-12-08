@@ -55,39 +55,17 @@
   import { untrack } from "svelte";
   import { navigate } from "../services/simple-router.svelte";
 
-  import { onMount } from "svelte";
-
-  onMount(async () => {
-    // S'assurer que le store est initialisé (charge le cache et lance le realtime global)
-    if (!eventsStore.isInitialized && globalState.isAuthenticated) {
-      console.log(
-        "[EventEditPage] Initialisation forcée de EventsStore pour le Realtime...",
-      );
-      await eventsStore.initialize();
-    }
-  });
-
   // Charger l'événement si un ID est fourni ou réinitialiser
   $effect(() => {
-    // On track uniquement eventId et l'état d'initialisation
+    // Avec la nouvelle architecture, le store est GARANTI d'être initialisé et chargé
     const id = eventId;
-    const initialized = eventsStore.isInitialized;
 
     untrack(() => {
-      // Si le store n'est pas encore initialisé, on attend (l'effet se relancera quand initialized passera à true)
-      if (!initialized && globalState.isAuthenticated) {
-        console.log("[EventEditPage] Attente de l'initialisation du store...");
-        return;
-      }
-
       if (id) {
-        loadingEvent = true;
-
-        // Essayer de récupérer depuis le cache en mémoire d'abord (maintenant fiable car init terminé)
+        // Récupération synchrone immédiate (plus besoin de fetch manuel ou d'attente)
         const cachedEvent = eventsStore.getEventById(id);
 
         if (cachedEvent) {
-          console.log(`[EventEditPage] Événement ${id} trouvé dans le store`);
           eventName = cachedEvent.name || "";
           selectedTeams = cachedEvent.teams || [];
           contributors = cachedEvent.contributors || [];
@@ -95,43 +73,21 @@
             a.date.localeCompare(b.date),
           );
           newContributors = [];
-          loadingEvent = false;
         } else {
-          // Fallback : fetch depuis Appwrite si pas en cache ET que l'init est fini
-          console.log(
-            `[EventEditPage] Événement ${id} introuvable en cache après init, fetch manuel...`,
-          );
-          eventsStore
-            .fetchEvent(id)
-            .then((event) => {
-              if (event) {
-                eventName = event.name || "";
-                selectedTeams = event.teams || [];
-                contributors = event.contributors || [];
-                meals = (event.meals || []).sort((a, b) =>
-                  a.date.localeCompare(b.date),
-                );
-                newContributors = [];
-              } else {
-                toastService.error("Événement introuvable");
-              }
-            })
-            .catch((err) => {
-              console.error("Erreur lors du chargement de l'événement:", err);
-              toastService.error("Erreur lors du chargement de l'événement");
-            })
-            .finally(() => {
-              loadingEvent = false;
-            });
+          // Si vraiment introuvable malgré le chargement complet, c'est que l'ID est invalide
+          toastService.error("Événement introuvable");
+          navigate("/dashboard");
         }
       } else {
-        // Réinitialiser le formulaire pour un nouvel événement
+        // Mode Création : Réinitialiser le formulaire
         eventName = "";
         selectedTeams = [];
         meals = [];
         contributors = [];
         newContributors = [];
       }
+
+      loadingEvent = false;
     });
   });
 
