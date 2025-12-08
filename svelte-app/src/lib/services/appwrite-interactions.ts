@@ -206,7 +206,7 @@ export async function loadProductsWithPurchases(
     // Charger les produits avec leurs relations purchases
     const productsResponse = await tables.listRows({
       databaseId: config.databaseId,
-      tableId: config.APPWRITE_CONFIG.collections.products,
+      tableId: config.collections.products,
       queries: [
         Query.equal("mainId", mainId),
         Query.orderAsc(
@@ -262,7 +262,7 @@ export async function loadProductById(
     const { tables, config } = await getAppwriteInstances();
     const response = await tables.getRow({
       databaseId: config.databaseId,
-      tableId: config.APPWRITE_CONFIG.collections.products,
+      tableId: config.collections.products,
       rowId: productId,
     });
     return response as unknown as Products;
@@ -289,7 +289,7 @@ export async function loadUpdatedPurchases(
 
     const response = await tables.listRows({
       databaseId: config.databaseId,
-      tableId: config.APPWRITE_CONFIG.collections.purchases,
+      tableId: config.collections.purchases,
       queries: [
         Query.greaterThan("$updatedAt", lastSync),
         Query.equal("mainId", mainId),
@@ -323,7 +323,7 @@ export async function loadProductsListByIds(
     // Utiliser une requête avec filtre OR pour récupérer les produits
     const response = await tables.listRows({
       databaseId: config.databaseId,
-      tableId: config.APPWRITE_CONFIG.collections.products,
+      tableId: config.collections.products,
       queries: [
         Query.equal("$id", productIds), // ← Filtre par IDs
         Query.select([
@@ -382,7 +382,7 @@ export async function syncProductsWithPurchases(
 
       const response = await tables.listRows({
         databaseId: config.databaseId,
-        tableId: config.APPWRITE_CONFIG.collections.products,
+        tableId: config.collections.products,
         queries: [
           Query.equal("mainId", mainId),
           Query.select([
@@ -409,7 +409,7 @@ export async function syncProductsWithPurchases(
 
     const response = await tables.listRows({
       databaseId: config.databaseId,
-      tableId: config.APPWRITE_CONFIG.collections.products,
+      tableId: config.collections.products,
       queries: [
         Query.greaterThan("$updatedAt", lastSync),
         Query.equal("mainId", mainId),
@@ -476,7 +476,7 @@ export async function updateProduct(
 
   const response = await tables.updateRow({
     databaseId: config.databaseId,
-    tableId: config.APPWRITE_CONFIG.collections.products,
+    tableId: config.collections.products,
     rowId: productId,
     data: updates,
   });
@@ -521,7 +521,7 @@ export async function upsertProduct(
     const { tables, config } = await getAppwriteInstances();
     const response = await tables.createRow({
       databaseId: config.databaseId,
-      tableId: config.APPWRITE_CONFIG.collections.products,
+      tableId: config.collections.products,
       rowId: productId, // $id prédéfini
       data: enrichedData, // ← Utiliser les données enrichies
     });
@@ -604,7 +604,7 @@ export async function createManualProduct(
 
     const response = await tables.createRow({
       databaseId: config.databaseId,
-      tableId: config.APPWRITE_CONFIG.collections.products,
+      tableId: config.collections.products,
       rowId: uniqueId,
       data: manualProduct,
     });
@@ -825,7 +825,7 @@ export async function createPurchase(
 
   const response = await tables.createRow(
     config.databaseId,
-    config.APPWRITE_CONFIG.collections.purchases,
+    config.collections.purchases,
     ID.unique(),
     completePurchaseData,
   );
@@ -850,7 +850,7 @@ export async function updatePurchase(
     // Récupérer le purchase existant pour préserver la relation products
     const existingPurchase = await tables.getRow(
       config.databaseId,
-      config.APPWRITE_CONFIG.collections.purchases,
+      config.collections.purchases,
       purchaseId,
     );
 
@@ -863,7 +863,7 @@ export async function updatePurchase(
 
     const response = await tables.updateRow(
       config.databaseId,
-      config.APPWRITE_CONFIG.collections.purchases,
+      config.collections.purchases,
       purchaseId,
       finalUpdates,
     );
@@ -894,7 +894,7 @@ export async function deletePurchase(purchaseId: string): Promise<void> {
 
     await tables.deleteRow(
       config.databaseId,
-      config.APPWRITE_CONFIG.collections.purchases,
+      config.collections.purchases,
       purchaseId,
     );
 
@@ -934,7 +934,7 @@ export async function loadPurchasesListByIds(
 
     const response = await tables.listRows(
       config.databaseId,
-      config.APPWRITE_CONFIG.collections.purchases,
+      config.collections.purchases,
       [Query.equal("$id", purchaseIds), Query.select(["*", "products.$id"])],
     );
 
@@ -1238,7 +1238,7 @@ export async function createMainDocument(
 
     await tables.createRow(
       config.databaseId,
-      config.APPWRITE_CONFIG.collections.main,
+      config.collections.main,
       mainId,
       {
         name: name,
@@ -1312,7 +1312,7 @@ export async function batchUpdateProducts(
     const execution = await executeWithRetry<Models.Execution>(
       () =>
         functions.createExecution(
-          config.APPWRITE_CONFIG.functions.batchUpdate,
+          config.functions.batchUpdate,
           JSON.stringify(payload),
           false, // async = false pour attendre le résultat
           "/",
@@ -1523,7 +1523,7 @@ export async function createQuickValidationPurchases(
 
       const response = await tables.createRow(
         config.databaseId,
-        config.APPWRITE_CONFIG.collections.purchases,
+        config.collections.purchases,
         ID.unique(),
         purchaseData,
       );
@@ -1593,7 +1593,7 @@ export async function createExpensePurchase(
 
     const response = await tables.createRow(
       config.databaseId,
-      config.APPWRITE_CONFIG.collections.purchases,
+      config.collections.purchases,
       ID.unique(),
       completeExpenseData,
     );
@@ -1621,7 +1621,7 @@ export async function loadOrphanPurchases(
 
     const response = await tables.listRows(
       config.databaseId,
-      config.APPWRITE_CONFIG.collections.purchases,
+      config.collections.purchases,
       [
         Query.equal("mainId", mainId),
         Query.equal("status", "expense"),

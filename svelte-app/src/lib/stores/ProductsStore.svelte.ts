@@ -15,29 +15,19 @@ import {
 } from "../utils/productEnrichment";
 import { toastService } from "../services/toast.service.svelte";
 import type { EnrichedProduct, NumericQuantity } from "../types/store.types";
+import type { EnrichedEvent } from "../types/events";
 
 import {
   subscribeToRealtime,
-  createMainDocument,
   loadPurchasesListByIds,
   syncProductsWithPurchases,
-  loadMainEventData,
 } from "../services/appwrite-interactions";
-import {
-  loadHugoEventData,
-  createEnrichedProductsFromHugo,
-  hasHugoContentChanged,
-} from "../services/hugo-loader";
 
 import { createIDBCache, type IDBCache } from "../services/indexeddb-cache";
-// new
-import {
-  syncHugoData,
-  type OverrideConflict,
-} from "../services/hugo-sync-json";
 import { globalState } from "./GlobalState.svelte";
 import { ProductModel } from "../models/ProductModel.svelte";
 import { DateRangeStore } from "./DateRangeStore.svelte";
+import { calculateProductsFromEvent } from "../utils/products-from-events";
 /**
  * ProductsStore - Store principal de gestion des produits avec Svelte 5
  *
@@ -99,15 +89,13 @@ class ProductsStore {
 
   // Métadonnées
   #currentMainId = $state<string | null>(null);
-  #hugoMetadata = $state<string | null>(null);
+  #currentEventId = $state<string | null>(null); // ID de l'événement (remplace hugoMetadata)
   #isInitialized = $state(false);
   #loading = $state(false);
   #error = $state<string | null>(null);
   #syncing = $state(false);
   #realtimeConnected = $state(false);
-  // FIXIT [AI] : Que vaut lastSync a la premier initialisation sur un device, alors que des products ont déjà été modifié / synchronisé sur appwrite ??? Il ne faut pas que ce soit today ! Mais la date de creation de mainId, ou que le premier sync SyncFromAppwrite ait lieu avant sa définition
   #lastSync = $state<string | null>(null);
-  #hugoContentHash = $state<string | null>(null);
 
   // Getters publics
   get currentMainId() {
@@ -151,16 +139,8 @@ class ProductsStore {
   // Gestion des mises à jour
   #unsubscribe: (() => void) | null = null;
 
-  // Gestion des changements Hugo
-  #hugoChangeDetected = $state(false);
-  #hugoCheckInterval: number | null = null;
-
-  // État Hugo
-  #hugoContentChanged = $state(false);
-  #hugoLastCheck: Date | undefined = $state();
-
-  // État pour gérer les conflits d'override
-  #pendingOverrideConflicts = $state<OverrideConflict[]>([]);
+  // État pour gérer les conflits d'override (conservé pour compatibilité)
+  #pendingOverrideConflicts = $state<any[]>([]);
 
   get hasPendingConflicts() {
     return this.#pendingOverrideConflicts.length > 0;
@@ -325,15 +305,23 @@ class ProductsStore {
       const matchesFiltersResult = matchesFilters(product, this.#filters);
       if (!matchesFiltersResult) continue;
 
-      // Vérifier si le produit a des données dans la plage de dates
-      // Vérifier si le produit a des données dans la plage de dates
-      let hasDataInRange = false;
-      if (product.byDate) {
-        hasDataInRange = Object.keys(product.byDate).some((dateStr) => {
-          const date = new Date(dateStr);
-          return date >= startDate && date <= endDate;
-        });
-      }
+        // Vérifier si le produit a des données dans la plage de dates
+        let hasDataInRange = false;
+        if (product.byDate) {
+          // Normaliser les dates de la plage à minuit (UTC pour être sûr)
+          const startDay = new Date(startDate);
+          startDay.setHours(0, 0, 0, 0);
+
+          const endDay = new Date(endDate);
+          endDay.setHours(23, 59, 59, 999);
+
+          hasDataInRange = Object.keys(product.byDate).some((dateStr) => {
+            const date = new Date(dateStr);
+            // On compare la date du produit (qui est déjà à minuit YYYY-MM-DD)
+            // avec le début du jour de start et la fin du jour de end
+            return date >= startDay && date <= endDay;
+          });
+        }
 
       if (hasDataInRange || isManualProduct) {
         filteredMap.set(id, model);
@@ -432,91 +420,62 @@ class ProductsStore {
   // =========================================================================
 
   /**
-   * Initialise le store
-   * 1. Charge depuis le cache localStorage
-   * 2. Charge/synchronise depuis Appwrite
-   * 3. Configure l'abonnement realtime
+   * Initialise le store depuis un événement
+   * 1. Charge depuis le cache IndexedDB
+   * 2. Calcule les produits depuis event.meals
+   * 3. Synchronise avec Appwrite (purchases)
+   * 4. Configure l'abonnement realtime
+   * 
+   * @param eventId - ID de l'événement depuis EventsStore
    */
-  async initialize(mainId: string, listId: string) {
-    if (!mainId?.trim()) {
-      throw new Error("mainId invalide fourni");
+  async initialize(eventId: string) {
+    if (!eventId?.trim()) {
+      throw new Error("eventId invalide fourni");
     }
 
-    if (this.#isInitialized && this.#currentMainId === mainId) {
-      console.log(`[ProductsStore] Déjà initialisé pour mainId: ${mainId}`);
+    if (this.#isInitialized && this.#currentEventId === eventId) {
+      console.log(`[ProductsStore] Déjà initialisé pour eventId: ${eventId}`);
       return;
     }
 
-    console.log(`[ProductsStore] Initialisation avec mainId: ${mainId}`);
+    console.log(`[ProductsStore] Initialisation avec eventId: ${eventId}`);
 
-    this.#currentMainId = mainId;
-    this.#hugoMetadata = listId;
-    try {
-      this.#idbCache = await createIDBCache(mainId);
-    } catch (err) {
-      console.error("[ProductsStore] Erreur ouverture IndexedDB:", err);
-      throw new Error("Impossible d'initialiser le cache IndexedDB");
+    // Récupérer l'événement depuis EventsStore
+    const { eventsStore } = await import("./EventsStore.svelte");
+    const event = eventsStore.getEventById(eventId);
+
+    if (!event) {
+      throw new Error(`Événement ${eventId} introuvable dans EventsStore`);
     }
 
-    this.#error = null;
-
     try {
-      // 1. Charger cache local si existe
+      // Définir les IDs pour les méthodes de sync
+      this.#currentEventId = event.$id;
+      this.#currentMainId = event.$id; // mainId = eventId dans la nouvelle architecture
+
+      // 1. Charger depuis le cache si disponible
       await this.#loadFromCache();
 
-      // 2. Si cache vide → initialiser depuis Hugo
+      // 2. Si le cache est vide, calculer depuis event.meals
       if (this.#enrichedProducts.size === 0) {
-        console.log("[ProductsStore] Cache vide, chargement depuis Hugo...");
-
-        // Charger les données Hugo (proxié par Vite en mode dev)
-        const hugoData = await loadHugoEventData(listId);
-        
         console.log(
-          `[ProductsStore] Hugo chargé: ${hugoData.ingredients.length} ingrédients`,
+          "[ProductsStore] Cache vide, calcul depuis event.meals...",
         );
 
-        // Assigné le hash hugo de idb à la state
-        this.#hugoContentHash = hugoData.hugoContentHash;
+        await this.#calculateProductsFromEvent(event);
 
-        // ✅ Créer directement des EnrichedProducts (avec byDate, calculées, etc.)
-        const enrichedProducts = createEnrichedProductsFromHugo(
-          hugoData.ingredients,
-          mainId,
-        );
-
-        // Ajouter à la SvelteMap
-        enrichedProducts.forEach((enriched) => {
-          this.#enrichedProducts.set(
-            enriched.$id,
-            new ProductModel(enriched, this.dateStore),
-          );
-        });
-
-        // Initialiser la plage de dates
-        this.dateStore.setAvailableDates([...hugoData.allDates]);
-
-        const mainDocument = await loadMainEventData(mainId);
-
-        if (!mainDocument) {
-          //Créer le document main dans Appwrite
-          await createMainDocument(
-            hugoData.mainGroup_id,
-            hugoData.hugoContentHash,
-            hugoData.allDates,
-            hugoData.name,
-          );
-        }
-
-        // Persister le cache avec toutes les métadonnées Hugo
-        await this.#persistToCacheWithMetadata();
+        // Persister le cache
+        await this.#createCache();
       }
 
+      // 3. Initialiser la plage de dates
+      this.dateStore.setAvailableDates([...event.allDates]);
       this.initializeDateRange();
 
-      // 3. Sync en arrière-plan
+      // 4. Sync en arrière-plan (purchases uniquement)
       await this.#syncFromAppwrite();
 
-      // 4. Charger les dépenses globales (orphelines)
+      // 5. Charger les dépenses globales (orphelines)
       await this.#loadOrphanPurchases();
 
       // Marquer comme initialisé
@@ -524,16 +483,7 @@ class ProductsStore {
 
       // Setup realtime
       const callbacks = this.#setupRealtimeCallbacks();
-      this.#unsubscribe = subscribeToRealtime(mainId, callbacks);
-
-      // Démarrer la surveillance des changements Hugo
-      this.#startHugoChangeMonitoring();
-
-      // Vérification initiale immédiate des changements Hugo
-      console.log(
-        "[ProductsStore] Vérification initiale des changements Hugo...",
-      );
-      await this.#checkHugoContentChanges();
+      this.#unsubscribe = subscribeToRealtime(event.$id, callbacks);
 
       console.log(
         `[ProductsStore] Initialisation complétée: ${this.#enrichedProducts.size} produits`,
@@ -545,6 +495,37 @@ class ProductsStore {
       console.error("[ProductsStore]", message, err);
       throw err;
     }
+  }
+
+  /**
+   * Calcule les produits depuis les meals d'un événement
+   */
+  async #calculateProductsFromEvent(event: EnrichedEvent): Promise<void> {
+    const { recipesStore } = await import("./RecipesStore.svelte");
+
+    // Fonction pour récupérer les détails d'une recette
+    const getRecipeDetails = async (uuid: string) => {
+      return await recipesStore.getRecipeByUuid(uuid);
+    };
+
+    // Calculer les produits
+    const products = await calculateProductsFromEvent(
+      event,
+      getRecipeDetails,
+      event.$id,
+    );
+
+    // Ajouter à la SvelteMap
+    products.forEach((enriched) => {
+      this.#enrichedProducts.set(
+        enriched.$id,
+        new ProductModel(enriched, this.dateStore),
+      );
+    });
+
+    console.log(
+      `[ProductsStore] ${products.length} produits calculés depuis ${event.meals.length} repas`,
+    );
   }
 
   // =========================================================================
@@ -576,7 +557,6 @@ class ProductsStore {
       const metadata = await this.#idbCache.loadMetadata();
       this.#lastSync = metadata.lastSync;
       this.dateStore.setAvailableDates([...metadata.allDates]);
-      this.#hugoContentHash = metadata.hugoContentHash || null;
 
       console.log(
         `[ProductsStore] ${productsMap.size} produits chargés du cache IDB, lastSync: ${metadata.lastSync}`,
@@ -693,71 +673,12 @@ class ProductsStore {
       // Sauvegarder les métadonnées
       await this.#idbCache.saveMetadata({
         lastSync: this.#lastSync,
-        allDates: [...this.dateStore.dates], // Copie simple pour éviter les problèmes de clonage
-        hugoContentHash: this.#hugoContentHash,
+        allDates: [...this.dateStore.dates],
       });
 
       console.log("[ProductsStore] Cache IDB persisté");
     } catch (err) {
       console.error("[ProductsStore] Erreur persist cache IDB:", err);
-    }
-  }
-  /**
-   * Persiste les produits enrichis dans IndexedDB
-   * @legacy
-   */
-  async #persistToCache() {
-    if (!this.#idbCache) return;
-
-    try {
-      // Sauvegarder les produits
-      const productsToSave = new Map<string, EnrichedProduct>();
-      this.#enrichedProducts.forEach((model, id) => {
-        const snapshot = $state.snapshot(model.data);
-        // 🔧 SANITIZATION: Ne jamais persister l'état transitoire
-        if (snapshot.status === "isSyncing") {
-          snapshot.status = "active";
-        }
-        productsToSave.set(id, snapshot);
-      });
-      await this.#idbCache.saveProducts(productsToSave);
-
-      // Sauvegarder les métadonnées
-      await this.#idbCache.updateLastSync(this.#lastSync);
-
-      console.log("[ProductsStore] Cache IDB persisté");
-    } catch (err) {
-      console.error("[ProductsStore] Erreur persist cache IDB:", err);
-    }
-  }
-
-  /**
-   * Persiste les produits et TOUTES les métadonnées (y compris Hugo)
-   */
-  async #persistToCacheWithMetadata() {
-    if (!this.#idbCache) return;
-    try {
-      // Sauvegarder les produits
-      const productsToSave = new Map<string, EnrichedProduct>();
-      this.#enrichedProducts.forEach((model, id) => {
-        const snapshot = $state.snapshot(model.data);
-        // 🔧 SANITIZATION: Ne jamais persister l'état transitoire
-        if (snapshot.status === "isSyncing") {
-          snapshot.status = "active";
-        }
-        productsToSave.set(id, snapshot);
-      });
-      await this.#idbCache.saveProducts(productsToSave);
-      // Sauvegarder toutes les métadonnées
-      await this.#idbCache.updateLastSync(this.#lastSync);
-      // Créer une copie simple du tableau pour éviter l'erreur Proxy
-      await this.#idbCache.updateAllDates([...this.availableDates]);
-      await this.#idbCache.updateHugoContentHash(this.#hugoContentHash);
-      console.log(
-        "[ProductsStore] Cache IDB persisté avec métadonnées complètes",
-      );
-    } catch (error) {
-      console.error("[ProductsStore] Erreur persistance cache complet:", error);
     }
   }
 
@@ -798,191 +719,6 @@ class ProductsStore {
 
   #updateLastSync() {
     this.#lastSync = new Date().toISOString();
-  }
-
-  // =========================================================================
-  // GESTION DES CHANGEMENTS HUGO
-  // =========================================================================
-
-  /**
-   * Vérifie si le contenu Hugo a changé et effectue une analyse complète
-   */
-  async #checkHugoContentChanges(): Promise<boolean> {
-    if (!this.#hugoMetadata || this.#loading) {
-      return false;
-    }
-
-    try {
-      // 1. Vérification rapide avec le hash
-      const hasChanged = await hasHugoContentChanged(
-        this.#hugoContentHash,
-        this.#hugoMetadata,
-      );
-
-      if (hasChanged && !this.#hugoChangeDetected) {
-        console.log(
-          `[ProductsStore] Changement Hugo détecté pour ${this.#hugoMetadata}, analyse approfondie en cours...`,
-        );
-        this.#hugoChangeDetected = true;
-
-        // 2. Analyse approfondie des changements
-        await this.#analyzeAndApplyHugoChanges();
-      }
-
-      this.#hugoLastCheck = new Date();
-      return hasChanged;
-    } catch (error) {
-      console.warn(
-        "[ProductsStore] Erreur lors de la vérification du contenu Hugo:",
-        error,
-      );
-      return false;
-    }
-  }
-
-  async #analyzeAndApplyHugoChanges(): Promise<void> {
-    if (!this.#hugoMetadata) {
-      console.warn(
-        "[ProductsStore] Impossible d'analyser: #hugoMetadata non défini",
-      );
-      return;
-    }
-
-    try {
-      console.log("[ProductsStore] Chargement nouveau JSON Hugo...");
-      const newHugoData = await loadHugoEventData(this.#hugoMetadata);
-
-      // ✅ Synchronisation simplifiée
-      // Convertir les models en Map de produits pour syncHugoData
-      const currentProducts = new Map<string, EnrichedProduct>();
-      this.#enrichedProducts.forEach((model, id) =>
-        currentProducts.set(id, model.data),
-      );
-      const result = await syncHugoData(currentProducts, newHugoData);
-
-      console.log(`[ProductsStore  - hugo change] ${result.summary}`);
-
-      // 🔄 SYNCHRONISATION DES PRODUCTMODEL
-      // Mettre à jour les ProductModel existants avec les nouvelles données
-      for (const [id, updatedData] of currentProducts) {
-        const model = this.#enrichedProducts.get(id);
-        if (model) {
-          model.update(updatedData);
-        } else {
-          // Nouveau produit - créer un nouveau ProductModel directement
-          const newModel = new ProductModel(updatedData, this.dateStore);
-          this.#enrichedProducts.set(id, newModel);
-          console.log(`[ProductsStore] ✨ Nouveau ProductModel créé : ${id}`);
-        }
-      }
-
-      // Supprimer les ProductModel qui n'existent plus dans les données synchronisées
-      const idsToDelete = [];
-      for (const [id] of this.#enrichedProducts) {
-        if (!currentProducts.has(id)) {
-          idsToDelete.push(id);
-        }
-      }
-
-      // Supprimer en dehors de la boucle pour éviter les problèmes d'itération
-      for (const id of idsToDelete) {
-        this.#enrichedProducts.delete(id);
-        console.log(`[ProductsStore] 🗑️ ProductModel supprimé : ${id}`);
-      }
-
-      console.log(
-        `[ProductsStore] 🔄 Synchronisation terminée : ${currentProducts.size} produits synchronisés, ${this.#enrichedProducts.size} ProductModel actifs`,
-      );
-
-      // Gérer les conflits d'override
-      if (result.overrideConflicts.length > 0) {
-        this.#pendingOverrideConflicts = result.overrideConflicts;
-
-        // Afficher une notification pour alerter l'utilisateur
-        toastService.error(
-          `${result.overrideConflicts.length} quantité(s) personnalisée(s) nécessitent votre attention`,
-          {
-            actions: [
-              {
-                label: "Réviser",
-                onClick: () => (globalState.modalOverride.isOpen = true),
-              },
-            ],
-          },
-        );
-      }
-
-      // Gérer les produits isMerged modifiés
-      if (result.mergedProductsUpdated.length > 0) {
-        console.log(
-          `[ProductsStore] ⚠️ ${result.mergedProductsUpdated.length} produits fusionnés modifiés`,
-        );
-        // Option : afficher une notification spéciale
-      }
-
-      // Gérer les suppressions avec données
-      if (result.removed.length > 0) {
-        const withData = result.removed.filter(
-          (p) => p.purchases?.length || p.stockReel || p.who?.length,
-        );
-
-        if (withData.length > 0) {
-          console.log(
-            `[ProductsStore] ℹ️ ${withData.length} ingrédients supprimés conservés (données utilisateur)`,
-          );
-          // Ces produits restent dans la Map mais ne sont plus dans Hugo
-          // Vous pouvez les marquer visuellement dans l'UI
-        }
-      }
-
-      // Mettre à jour les dates et le hash
-      this.dateStore.setAvailableDates([...newHugoData.allDates]);
-      this.#hugoContentHash = newHugoData.hugoContentHash;
-
-      // Réinitialiser la plage de dates si nécessaire
-      this.initializeDateRange();
-
-      await this.#persistToCacheWithMetadata();
-
-      // Notification utilisateur
-      if (
-        result.added.length ||
-        result.updated.length ||
-        result.removed.length
-      ) {
-        toastService.success(result.summary);
-      }
-
-      // Marquer le changement comme traité
-      this.#hugoChangeDetected = false;
-    } catch (error) {
-      console.error("[ProductsStore] Erreur sync Hugo:", error);
-      toastService.error("Erreur lors de la mise à jour Hugo");
-    }
-  }
-
-  /**
-   * Démarre la vérification périodique des changements Hugo
-   */
-  #startHugoChangeMonitoring() {
-    if (this.#hugoCheckInterval) {
-      clearInterval(this.#hugoCheckInterval);
-    }
-
-    // Vérifier toutes les 60 secondes
-    this.#hugoCheckInterval = setInterval(async () => {
-      await this.#checkHugoContentChanges();
-    }, 60000) as unknown as number;
-  }
-
-  /**
-   * Arrête la surveillance des changements Hugo
-   */
-  #stopHugoChangeMonitoring() {
-    if (this.#hugoCheckInterval) {
-      clearInterval(this.#hugoCheckInterval);
-      this.#hugoCheckInterval = null;
-    }
   }
 
   // =========================================================================
@@ -1521,9 +1257,6 @@ class ProductsStore {
   destroy() {
     this.#unsubscribe?.();
     this.#unsubscribe = null;
-
-    // Arrêter la surveillance des changements Hugo
-    this.#stopHugoChangeMonitoring();
 
     if (this.#idbCache) {
       this.#idbCache.close();

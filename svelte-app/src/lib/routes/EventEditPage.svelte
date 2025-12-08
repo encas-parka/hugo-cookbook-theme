@@ -449,18 +449,28 @@
         </p>
       </div>
     </div>
-    <button
-      class="btn btn-primary"
-      onclick={handleSave}
-      disabled={loading || loadingEvent || !isCurrentUserAccepted}
-    >
-      {#if loading}
-        <span class="loading loading-spinner loading-sm"></span>
-      {:else}
-        <Save class="mr-2 h-4 w-4" />
+    <div class="flex gap-2">
+      {#if eventId}
+        <button
+          class="btn btn-outline"
+          onclick={() => navigate(`/eventProducts/${eventId}`)}
+        >
+          Voir les produits
+        </button>
       {/if}
-      {eventId ? "Enregistrer" : "Créer l'événement"}
-    </button>
+      <button
+        class="btn btn-primary"
+        onclick={handleSave}
+        disabled={loading || loadingEvent || !isCurrentUserAccepted}
+      >
+        {#if loading}
+          <span class="loading loading-spinner loading-sm"></span>
+        {:else}
+          <Save class="mr-2 h-4 w-4" />
+        {/if}
+        {eventId ? "Enregistrer" : "Créer l'événement"}
+      </button>
+    </div>
   </div>
 
   <!-- Alerte d'invitation pour les utilisateurs invités -->

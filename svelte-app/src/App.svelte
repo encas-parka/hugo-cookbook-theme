@@ -17,6 +17,7 @@
   import TeamsManagement from "./lib/routes/TeamsManagement.svelte";
   import RecipeDetailPage from "./lib/routes/RecipeDetailPage.svelte";
   import RecipesListPage from "./lib/routes/RecipesListPage.svelte";
+  import ProductsPage from "./lib/routes/ProductsPage.svelte";
 
   let initError: string | null = $state(null);
 
@@ -25,6 +26,7 @@
   router.addRoute("/dashboard", DashboardPage);
   router.addRoute("/eventEdit", EventEditPage);
   router.addRoute("/eventEdit/:id", EventEditPage);
+  router.addRoute("/eventProducts/:id", ProductsPage);
   router.addRoute("/teams", TeamsManagement);
   router.addRoute("/accept-invite", AcceptInvite);
   router.addRoute("/recipes", RecipesListPage);

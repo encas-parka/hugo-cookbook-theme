@@ -7,6 +7,7 @@
     ChefHat,
     ArrowRight,
     AlertCircle,
+    ShoppingCart,
   } from "@lucide/svelte";
   import { formatDateRelative } from "$lib/utils/date-helpers";
   import type { EnrichedEvent } from "$lib/types/events.d";
@@ -119,6 +120,20 @@
                         >
                       </div>
                     {/if}
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="mt-3 flex gap-2">
+                    <button
+                      class="btn btn-outline btn-xs"
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/eventProducts/${event.$id}`);
+                      }}
+                    >
+                      <ShoppingCart class="h-3 w-3" />
+                      Produits
+                    </button>
                   </div>
                 </div>
                 <ArrowRight class="mt-1 h-4 w-4 flex-shrink-0 opacity-40" />

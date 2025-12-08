@@ -212,6 +212,43 @@
   }
 
   let GlobalPurchasesModalisOpen = $state(false);
+
+  // =========================================================================
+  // INITIALISATION
+  // =========================================================================
+
+  import { onMount } from "svelte";
+  import { eventsStore } from "$lib/stores/EventsStore.svelte";
+
+  // Récupérer l'eventId depuis les paramètres de route
+  let { params } = $props<{ params?: Record<string, string> }>();
+  let eventId = $state(params?.id);
+
+  onMount(async () => {
+    if (!eventId) {
+      console.error("[ProductsPage] eventId est requis");
+      return;
+    }
+
+    // S'assurer que EventsStore est initialisé
+    if (!eventsStore.isInitialized) {
+      console.log("[ProductsPage] Initialisation d'EventsStore...");
+      await eventsStore.initialize();
+    }
+
+    // Vérifier que l'événement existe
+    const event = eventsStore.getEventById(eventId);
+    if (!event) {
+      console.error(`[ProductsPage] Événement ${eventId} introuvable`);
+      return;
+    }
+
+    // Initialiser ProductsStore
+    console.log(
+      `[ProductsPage] Initialisation de ProductsStore pour événement ${event.name}`,
+    );
+    await productsStore.initialize(eventId);
+  });
 </script>
 
 <div class="space-y-6 {globalState.isMobile ? '' : 'ml-100'}">
