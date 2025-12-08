@@ -7,6 +7,7 @@
   import ActiveFiltersDisplay from "$lib/components/recipes/ActiveFiltersDisplay.svelte";
   import RecipeCard from "$lib/components/recipes/RecipeCard.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
+  import { ingredientsStore } from "$lib/stores/IngredientsStore.svelte";
 
   // État des filtres
   interface Filters {
@@ -55,9 +56,9 @@
   ];
 
   const availableIngredients = $derived.by(() => {
-    const ings = new Set<string>();
-    allRecipes.forEach((r) => r.ingredients?.forEach((i) => ings.add(i)));
-    return Array.from(ings).sort();
+    return ingredientsStore.isInitialized
+      ? ingredientsStore.ingredientNames
+      : [];
   });
 
   // Logique de filtrage
@@ -203,6 +204,9 @@
     if (!recipesStore.isInitialized) {
       await recipesStore.initialize();
     }
+    if (!ingredientsStore.isInitialized) {
+      await ingredientsStore.initialize();
+    }
   });
 </script>
 
@@ -219,8 +223,8 @@
 </LeftPanel>
 
 <!-- Contenu principal -->
-<div class="m-20 w-full p-4">
-  <div class="mx-auto max-w-4xl">
+<div class="mx-auto w-full p-4 lg:ml-140">
+  <div class=" max-w-4xl">
     <h1 class="mb-6 text-3xl font-bold">Toutes les recettes</h1>
 
     <!-- Tabs de filtrage par type -->

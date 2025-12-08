@@ -15,26 +15,26 @@
     Plus,
   } from "@lucide/svelte";
   // Store and global state
-  import { productsStore } from "../stores/ProductsStore.svelte";
+  import { productsStore } from "$lib/stores/ProductsStore.svelte";
 
   // Components
-  import { globalState } from "../stores/GlobalState.svelte";
-  import GroupPurchaseModal from "./GroupPurchaseModal.svelte";
-  import AddProductModal from "./AddProductModal.svelte";
-  import ProductModal from "./ProductModal.svelte";
-  import ProductsFilters from "./ProductsFilters.svelte";
-  import ProductsCards from "./ProductsCards.svelte";
-  import StoreBatchEditModal from "./StoreBatchEditModal.svelte";
-  import WhoBatchEditModal from "./WhoBatchEditModal.svelte";
-  import GlobalPurchasesModal from "./GlobalPurchasesModal.svelte";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
+  import GroupPurchaseModal from "$lib/components/GroupPurchaseModal.svelte";
+  import AddProductModal from "$lib/components/AddProductModal.svelte";
+  import ProductModal from "$lib/components/ProductModal.svelte";
+  import ProductsFilters from "$lib/components/ProductsFilters.svelte";
+  import ProductsCards from "$lib/components/ProductsCards.svelte";
+  import StoreBatchEditModal from "$lib/components/StoreBatchEditModal.svelte";
+  import WhoBatchEditModal from "$lib/components/WhoBatchEditModal.svelte";
+  import GlobalPurchasesModal from "$lib/components/GlobalPurchasesModal.svelte";
   // Services
   import {
     createQuickValidationPurchases,
     upsertProduct,
-  } from "../services/appwrite-interactions";
-  import { normalizeUnit } from "../utils/products-display";
+  } from "$lib/services/appwrite-interactions";
+  import { normalizeUnit } from "$lib/utils/products-display";
 
-  import LeftPanel from "./ui/LeftPanel.svelte";
+  import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
 
   // Dont work properly
   const PANEL_WIDTH = "100";
@@ -148,8 +148,6 @@
     isAddProductModalOpen = true;
   }
 
-
-
   // Validation rapide individuelle
   async function handleQuickValidation(product: any, productInDateRange: any) {
     try {
@@ -214,7 +212,6 @@
   }
 
   let GlobalPurchasesModalisOpen = $state(false);
-
 </script>
 
 <div class="space-y-6 {globalState.isMobile ? '' : 'ml-100'}">
@@ -257,39 +254,39 @@
 
   <!-- Vue Mobile Cards -->
 
-<ProductModal
-  productId={openModalProductId || ""}
-  initialTab={openModalTab}
-  onClose={closeModal}
-/>
-
-{#if whoEditModalOpen}
-  <WhoBatchEditModal
-    productIds={groupEditProductIds}
-    products={groupEditProducts}
-    onClose={() => closeGroupEditModal("who")}
-    onSuccess={handleGroupEditSuccess}
+  <ProductModal
+    productId={openModalProductId || ""}
+    initialTab={openModalTab}
+    onClose={closeModal}
   />
-{/if}
 
-{#if storeEditModalOpen}
-  <StoreBatchEditModal
-    productIds={groupEditProductIds}
-    products={groupEditProducts}
-    onClose={() => closeGroupEditModal("store")}
-    onSuccess={handleGroupEditSuccess}
-  />
-{/if}
+  {#if whoEditModalOpen}
+    <WhoBatchEditModal
+      productIds={groupEditProductIds}
+      products={groupEditProducts}
+      onClose={() => closeGroupEditModal("who")}
+      onSuccess={handleGroupEditSuccess}
+    />
+  {/if}
 
-{#if groupPurchaseModalOpen}
-  <GroupPurchaseModal
-    products={groupPurchaseProducts}
-    onClose={closeGroupPurchaseModal}
-    onSuccess={handleGroupPurchaseSuccess}
-  />
-{/if}
+  {#if storeEditModalOpen}
+    <StoreBatchEditModal
+      productIds={groupEditProductIds}
+      products={groupEditProducts}
+      onClose={() => closeGroupEditModal("store")}
+      onSuccess={handleGroupEditSuccess}
+    />
+  {/if}
 
-<AddProductModal bind:open={isAddProductModalOpen} />
+  {#if groupPurchaseModalOpen}
+    <GroupPurchaseModal
+      products={groupPurchaseProducts}
+      onClose={closeGroupPurchaseModal}
+      onSuccess={handleGroupPurchaseSuccess}
+    />
+  {/if}
 
-<GlobalPurchasesModal bind:isOpen={GlobalPurchasesModalisOpen} />
+  <AddProductModal bind:open={isAddProductModalOpen} />
+
+  <GlobalPurchasesModal bind:isOpen={GlobalPurchasesModalisOpen} />
 </div>

@@ -5,7 +5,7 @@
  * 1. Chargement depuis data.json (Hugo statique)
  * 2. Cache IndexedDB pour performance
  * 3. Réconciliation avec Appwrite (drafts) - TODO Phase 4
- * 
+ *
  * Responsabilités:
  * - Charger et cacher les ingrédients depuis /api/data.json
  * - Fournir une API de recherche/filtrage
@@ -45,6 +45,13 @@ class IngredientsStore {
   // Cache IndexedDB
   #cache: IngredientsIDBCache | null = null;
 
+  // Propriétés dérivées réactives
+  #ingredientNames = $derived.by(() =>
+    Array.from(this.#ingredients.values())
+      .map((ing) => ing.n)
+      .sort(),
+  );
+
   // Getters publics
   get loading() {
     return this.#loading;
@@ -74,6 +81,13 @@ class IngredientsStore {
    */
   get count() {
     return this.#ingredients.size;
+  }
+
+  /**
+   * Liste réactive des noms d'ingrédients triés alphabetiquement
+   */
+  get ingredientNames() {
+    return this.#ingredientNames;
   }
 
   // =============================================================================
@@ -121,9 +135,7 @@ class IngredientsStore {
       );
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Erreur lors de l'initialisation";
+        err instanceof Error ? err.message : "Erreur lors de l'initialisation";
       this.#error = message;
       console.error("[IngredientsStore]", message, err);
       throw err;
@@ -148,16 +160,22 @@ class IngredientsStore {
       const ingredients = data.ingredients as Ingredient[];
 
       if (!Array.isArray(ingredients)) {
-        throw new Error("Format de données invalide: ingredients n'est pas un tableau");
+        throw new Error(
+          "Format de données invalide: ingredients n'est pas un tableau",
+        );
       }
 
       // Calculer un hash simple du contenu pour détecter les changements
-      const contentHash = await this.#calculateHash(JSON.stringify(ingredients));
+      const contentHash = await this.#calculateHash(
+        JSON.stringify(ingredients),
+      );
 
       // Vérifier si le contenu a changé
       const cachedMetadata = await this.#cache!.loadMetadata();
       if (cachedMetadata.dataJsonHash === contentHash) {
-        console.log("[IngredientsStore] data.json inchangé, utilisation du cache");
+        console.log(
+          "[IngredientsStore] data.json inchangé, utilisation du cache",
+        );
         return;
       }
 
@@ -188,7 +206,10 @@ class IngredientsStore {
         `[IngredientsStore] ${ingredientsMap.size} ingrédients chargés depuis data.json`,
       );
     } catch (err) {
-      console.error("[IngredientsStore] Erreur lors du chargement data.json:", err);
+      console.error(
+        "[IngredientsStore] Erreur lors du chargement data.json:",
+        err,
+      );
       throw err;
     }
   }
@@ -249,9 +270,7 @@ class IngredientsStore {
    * Filtre les ingrédients par allergène
    */
   getIngredientsByAllergen(allergen: string): Ingredient[] {
-    return this.ingredients.filter(
-      (ing) => ing.a && ing.a.includes(allergen),
-    );
+    return this.ingredients.filter((ing) => ing.a && ing.a.includes(allergen));
   }
 
   /**

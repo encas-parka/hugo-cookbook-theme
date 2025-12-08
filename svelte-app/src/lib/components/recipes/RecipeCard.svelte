@@ -29,7 +29,7 @@
 </script>
 
 <div
-  class="card bg-base-100 border-base-200 cursor-pointer border p-4 transition-shadow hover:shadow-lg"
+  class="card bg-base-200/30 hover:bg-base-200/60 cursor-pointer p-4 shadow-sm transition-shadow"
   onclick={handleClick}
   role="button"
   tabindex="0"
@@ -110,6 +110,7 @@
       <span class="font-semibold">Ingrédients : </span>
       {#each recipe.ingredients as ingredient, index}
         <span
+          class="me-1"
           class:font-bold={highlightedIngredients.includes(ingredient)}
           class:underline={highlightedIngredients.includes(ingredient)}
         >
@@ -124,8 +125,9 @@
     <div class="text-sm">
       <span class="font-semibold">Matériel : </span>
       {#each recipe.materiel as item, index}
-        <span>
-          {item}{#if index < recipe.materiel.length - 1},{/if}
+        <span class="me-1">
+          {item}{#if index < recipe.materiel.length - 1},
+          {/if}
         </span>
       {/each}
     </div>

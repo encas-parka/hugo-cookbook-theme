@@ -129,10 +129,6 @@
 
   <!-- Ingrédients -->
   <Fieldset legend="Ingrédients" iconComponent={Cookie}>
-    <div class="mb-2">
-      <span class="text-xs opacity-70">(ET logique)</span>
-    </div>
-
     <!-- Input avec autocomplétion -->
     <div class="mb-3">
       <AutocompleteInput
@@ -141,7 +137,6 @@
         placeholder="Ajouter un ingrédient..."
         {disabled}
         minQueryLength={1}
-        maxResults={20}
         bind:value={ingredientSearch}
       />
     </div>
@@ -207,10 +202,10 @@
       {disabled}
     >
       <option value="">Indifférent</option>
-      <option value="Printemps">Printemps</option>
-      <option value="Été">Été</option>
-      <option value="Automne">Automne</option>
-      <option value="Hiver">Hiver</option>
+      <option value="printemps">Printemps</option>
+      <option value="ete">Été</option>
+      <option value="automne">Automne</option>
+      <option value="hiver">Hiver</option>
     </select>
   </Fieldset>
 </div>

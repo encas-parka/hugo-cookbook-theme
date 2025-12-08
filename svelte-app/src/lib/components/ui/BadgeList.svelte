@@ -27,7 +27,7 @@
     }
   }
 
-  let displayItems = $derived(() =>
+  let displayItems = $derived.by(() =>
     maxItems ? items.slice(0, maxItems) : items,
   );
 
@@ -42,7 +42,7 @@
         {#if !disabled}
           <button
             type="button"
-            class="hover:opacity-70"
+            class="cursor-pointer hover:opacity-70"
             onclick={() => handleRemove(item, index)}
             title="Supprimer"
           >
@@ -51,15 +51,5 @@
         {/if}
       </div>
     {/each}
-
-    {#if hasMoreItems}
-      <div class="badge badge-sm badge-outline">
-        +{items.length - maxItems}
-      </div>
-    {/if}
-  </div>
-{:else}
-  <div class="text-base-content/40 text-sm">
-    <slot>Aucun élément sélectionné</slot>
   </div>
 {/if}
