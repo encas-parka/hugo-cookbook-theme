@@ -1,30 +1,25 @@
 <script lang="ts">
-  import { ArrowLeft, Save, Calendar, Plus, AlertCircle } from "@lucide/svelte";
+  import EventMealCard from "$lib/components/eventEdit/EventMealCard.svelte";
+  import PermissionsManager from "$lib/components/PermissionsManager.svelte";
+  import { toastService } from "$lib/services/toast.service.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
   import { teamsStore } from "$lib/stores/TeamsStore.svelte";
   import type {
     CreateEventData,
-    EventMeal,
     EventContributor,
+    EventMeal,
   } from "$lib/types/events";
+  import { AlertCircle, ArrowLeft, Calendar, Plus, Save } from "@lucide/svelte";
   import { nanoid } from "nanoid";
-  import EventMealCard from "$lib/components/eventEdit/EventMealCard.svelte";
-  import Fieldset from "$lib/components/ui/Fieldset.svelte";
-  import { fade } from "svelte/transition";
   import { flip } from "svelte/animate";
-  import PermissionsManager from "$lib/components/PermissionsManager.svelte";
-  import { globalState } from "$lib/stores/GlobalState.svelte";
-  import { toastService } from "$lib/services/toast.service.svelte";
 
   // Props du router
   let { params } = $props<{ params?: Record<string, string> }>();
 
   let eventId = $state(params?.id);
 
-  import {
-    inviteToEvent,
-    acceptInvitation,
-  } from "$lib/services/appwrite-functions";
+  import { acceptInvitation } from "$lib/services/appwrite-functions";
 
   // État du formulaire
   let eventName = $state("");
@@ -58,7 +53,6 @@
   );
 
   import { untrack } from "svelte";
-  import CurrentEventsCard from "../components/dashboard/CurrentEventsCard.svelte";
   import { navigate } from "../services/simple-router.svelte";
 
   import { onMount } from "svelte";
@@ -75,14 +69,21 @@
 
   // Charger l'événement si un ID est fourni ou réinitialiser
   $effect(() => {
-    // On track uniquement eventId pour le chargement/reset
+    // On track uniquement eventId et l'état d'initialisation
     const id = eventId;
+    const initialized = eventsStore.isInitialized;
 
     untrack(() => {
+      // Si le store n'est pas encore initialisé, on attend (l'effet se relancera quand initialized passera à true)
+      if (!initialized && globalState.isAuthenticated) {
+        console.log("[EventEditPage] Attente de l'initialisation du store...");
+        return;
+      }
+
       if (id) {
         loadingEvent = true;
 
-        // Essayer de récupérer depuis le cache en mémoire d'abord (qui vient peut-être d'être chargé par initialize)
+        // Essayer de récupérer depuis le cache en mémoire d'abord (maintenant fiable car init terminé)
         const cachedEvent = eventsStore.getEventById(id);
 
         if (cachedEvent) {
@@ -96,9 +97,9 @@
           newContributors = [];
           loadingEvent = false;
         } else {
-          // Fallback : fetch depuis Appwrite si pas en cache ET que l'init n'a pas suffi (ex: nouvel event pas encore sync)
+          // Fallback : fetch depuis Appwrite si pas en cache ET que l'init est fini
           console.log(
-            `[EventEditPage] Événement ${id} introuvable en cache, fetch manuel...`,
+            `[EventEditPage] Événement ${id} introuvable en cache après init, fetch manuel...`,
           );
           eventsStore
             .fetchEvent(id)

@@ -174,66 +174,86 @@ export class EventsStore {
    * 4. Sauvegarde dans le cache
    * 5. Active le realtime
    */
+  // Promise d'initialisation en cours pour déduplication
+  #initPromise: Promise<void> | null = null;
+
+  /**
+   * Initialise le store
+   * 1. Ouvre le cache IndexedDB
+   * 2. Charge les événements depuis le cache
+   * 3. Charge les événements depuis Appwrite (mise à jour)
+   * 4. Sauvegarde dans le cache
+   * 5. Active le realtime
+   */
   async initialize(): Promise<void> {
     if (this.#isInitialized) {
       console.log("[EventsStore] Déjà initialisé");
       return;
     }
 
+    if (this.#initPromise) {
+      console.log("[EventsStore] Initialisation déjà en cours, attente...");
+      return this.#initPromise;
+    }
+
     console.log("[EventsStore] Initialisation...");
     this.#loading = true;
     this.#error = null;
 
-    try {
-      // Vérifier que l'utilisateur est authentifié
-      if (!globalState.isAuthenticated) {
-        throw new Error("Utilisateur non connecté");
-      }
-
-      // Récupérer userId et teams depuis globalState
-      this.#userId = globalState.userId;
-      this.#userTeams = globalState.userTeams;
-
-      // 1. Ouvrir le cache IndexedDB
-      this.#cache = await createEventsIDBCache();
-
-      // 2. Charger les événements depuis le cache
-      const cachedEvents = await this.#cache.loadEvents();
-      if (cachedEvents.size > 0) {
-        console.log(
-          `[EventsStore] ${cachedEvents.size} événements chargés depuis le cache`,
-        );
-        this.#events.clear();
-        for (const [id, event] of cachedEvents) {
-          this.#events.set(id, event);
+    this.#initPromise = (async () => {
+      try {
+        // Vérifier que l'utilisateur est authentifié
+        if (!globalState.isAuthenticated) {
+          throw new Error("Utilisateur non connecté");
         }
+
+        this.#userId = globalState.userId;
+        this.#userTeams = globalState.userTeams;
+
+        // 1. Ouvrir le cache IndexedDB
+        this.#cache = await createEventsIDBCache();
+
+        // 2. Charger les événements depuis le cache
+        const cachedEvents = await this.#cache.loadEvents();
+        if (cachedEvents.size > 0) {
+          console.log(
+            `[EventsStore] ${cachedEvents.size} événements chargés depuis le cache`,
+          );
+          this.#events.clear();
+          for (const [id, event] of cachedEvents) {
+            this.#events.set(id, event);
+          }
+        }
+
+        // 3. Charger les événements depuis Appwrite (mise à jour)
+        await this.#loadEvents();
+
+        // 4. Sauvegarder dans le cache
+        if (this.#cache) {
+          await this.#cache.saveEvents(this.#events);
+          await this.#cache.saveMetadata({ lastSync: new Date().toISOString() });
+        }
+
+        // 5. Activer le realtime
+        this.#setupRealtime();
+
+        this.#isInitialized = true;
+        console.log(
+          `[EventsStore] Initialisation complétée: ${this.#events.size} événements`,
+        );
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Erreur lors de l'initialisation";
+        this.#error = message;
+        console.error("[EventsStore]", message, err);
+        throw err;
+      } finally {
+        this.#loading = false;
+        this.#initPromise = null;
       }
+    })();
 
-      // 3. Charger les événements depuis Appwrite (mise à jour)
-      await this.#loadEvents();
-
-      // 4. Sauvegarder dans le cache
-      if (this.#cache) {
-        await this.#cache.saveEvents(this.#events);
-        await this.#cache.saveMetadata({ lastSync: new Date().toISOString() });
-      }
-
-      // 5. Activer le realtime
-      this.#setupRealtime();
-
-      this.#isInitialized = true;
-      console.log(
-        `[EventsStore] Initialisation complétée: ${this.#events.size} événements`,
-      );
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Erreur lors de l'initialisation";
-      this.#error = message;
-      console.error("[EventsStore]", message, err);
-      throw err;
-    } finally {
-      this.#loading = false;
-    }
+    return this.#initPromise;
   }
 
   /**
@@ -285,36 +305,47 @@ export class EventsStore {
    */
   #setupRealtime(): void {
     try {
-      this.#realtimeUnsubscribe = () => {
-        subscribeToEvents(
-          this.#userId!,
-          this.#userTeams,
-          async (event, eventType) => {
-            console.log(
-              `[EventsStore] ⚡️ Realtime RECEIVED: ${eventType} pour ${event.$id} (User: ${this.#userId})`,
-            );
+      // Nettoyer l'ancienne souscription si elle existe
+      if (this.#realtimeUnsubscribe) {
+          this.#realtimeUnsubscribe();
+          this.#realtimeUnsubscribe = null;
+      }
 
-            if (eventType === "create" || eventType === "update") {
-              const enrichedEvent = this.#enrichEvent(event);
-              this.#events.set(event.$id, enrichedEvent);
+      console.log("[EventsStore] Activation du Realtime...");
+      
+      console.log("[EventsStore] Activation du Realtime...");
+      
+      subscribeToEvents(
+        this.#userId!,
+        this.#userTeams,
+        async (event, eventType) => {
+          console.log(
+            `[EventsStore] ⚡️ Realtime RECEIVED: ${eventType} pour ${event.$id} (User: ${this.#userId})`,
+          );
 
-              // Sauvegarder dans le cache
-              if (this.#cache) {
-                await this.#cache.saveEvent(enrichedEvent);
-              }
-            } else if (eventType === "delete") {
-              this.#events.delete(event.$id);
+          if (eventType === "create" || eventType === "update") {
+            const enrichedEvent = this.#enrichEvent(event);
+            this.#events.set(event.$id, enrichedEvent);
 
-              // Supprimer du cache
-              if (this.#cache) {
-                await this.#cache.deleteEvent(event.$id);
-              }
+            // Sauvegarder dans le cache
+            if (this.#cache) {
+              await this.#cache.saveEvent(enrichedEvent);
             }
-          },
-        );
+          } else if (eventType === "delete") {
+            this.#events.delete(event.$id);
 
-        console.log("[EventsStore] Realtime activé");
-      };
+            // Supprimer du cache
+            if (this.#cache) {
+              await this.#cache.deleteEvent(event.$id);
+            }
+          }
+        },
+      ).then((unsub) => {
+          this.#realtimeUnsubscribe = unsub;
+          console.log("[EventsStore] Realtime activé avec succès");
+      }).catch((err) => {
+          console.error("[EventsStore] Erreur abonnement Realtime:", err);
+      });
     } catch (err) {
       console.error(
         "[EventsStore] Erreur lors de la configuration du realtime:",

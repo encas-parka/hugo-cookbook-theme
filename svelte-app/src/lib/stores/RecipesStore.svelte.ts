@@ -61,10 +61,10 @@ const DATA_JSON_URL = "/api/data.json";
 
 class RecipesStore {
   // État réactif - Index (Hugo + Appwrite fusionné)
-  #recipesIndex = new SvelteMap<string, RecipeIndexEntry>();
+  #recipesIndex = $state(new SvelteMap<string, RecipeIndexEntry>());
 
   // État réactif - Détails (lazy-loaded)
-  #recipesDetails = new SvelteMap<string, RecipeData>();
+  #recipesDetails = $state(new SvelteMap<string, RecipeData>());
 
   // État UI
   #loading = $state(false);
@@ -472,7 +472,7 @@ class RecipesStore {
       materiel: appwriteRecipe.materiel || [],
       ingredients: JSON.parse(appwriteRecipe.ingredients),
       preparation: appwriteRecipe.preparation,
-      prepAlt: appwriteRecipe.prepAlt || [],
+      prepAlt: (appwriteRecipe.prepAlt || []).map(alt => ({ recetteAlt: alt })),
     };
   }
 
@@ -819,7 +819,7 @@ class RecipesStore {
         ingredients: JSON.stringify(data.ingredients),
         preparation: data.preparation,
         draft: true,
-        typeR: data.typeR, // Par défaut entrée
+        type: (data as any).typeR || "plat", // Par défaut entrée
         categories: [],
         regime: [],
         teams: [],
