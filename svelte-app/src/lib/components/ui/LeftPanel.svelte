@@ -10,7 +10,7 @@
     bgClass?: string;
     width?: string;
   }
-  let { children, width = "80", bgClass = "bg-base-300" }: Props = $props();
+  let { children, width = "80", bgClass = "bg-base-200" }: Props = $props();
 
   const panelWidth = $derived("w-" + width);
 </script>

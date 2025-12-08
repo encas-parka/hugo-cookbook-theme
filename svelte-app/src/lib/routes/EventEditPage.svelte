@@ -402,10 +402,10 @@
   }
 </script>
 
-<div class="mx-auto max-w-11/12 space-y-6 px-4 py-8 pb-20">
+<div class="bg-base-200 space-y-6 px-2 pb-20 md:px-36">
   <!-- Header -->
   <div
-    class="bg-base-100/95 border-base-200 flex items-center justify-between border-b py-4 backdrop-blur"
+    class="bg-base-200 border-base-200 flex items-center justify-between border-b py-4 backdrop-blur"
   >
     <div class="flex items-center gap-4">
       <button class="btn btn-ghost btn-circle" onclick={goBack}>
@@ -521,64 +521,60 @@
       </div>
 
       <!-- Colonne Droite : Repas -->
-      <div class="space-y-6 lg:col-span-3">
-        <div class="card bg-base-100 min-h-[500px] shadow-xl">
-          <div class="card-body">
-            <div class="mb-6 flex items-center justify-between">
-              <h3 class="card-title text-lg">Repas & Menus ({meals.length})</h3>
-              <button
-                class="btn btn-primary btn-sm"
-                onclick={addMeal}
-                disabled={!isCurrentUserAccepted}
-              >
-                <Plus class="mr-1 h-4 w-4" />
-                Ajouter un repas
-              </button>
-            </div>
+      <div class="space-y-6 md:px-4 lg:col-span-3">
+        <div class="mb-6 flex items-center justify-between">
+          <h3 class="card-title text-lg">Repas & Menus ({meals.length})</h3>
+          <button
+            class="btn btn-primary btn-sm"
+            onclick={addMeal}
+            disabled={!isCurrentUserAccepted}
+          >
+            <Plus class="mr-1 h-4 w-4" />
+            Ajouter un repas
+          </button>
+        </div>
 
-            {#if meals.length === 0}
-              <div
-                class="text-base-content/60 bg-base-200/30 rounded-box border-base-200 flex flex-col items-center justify-center border-2 border-dashed py-12"
-              >
-                <div class="bg-base-200 mb-4 rounded-full p-4">
-                  <Calendar class="h-8 w-8 opacity-50" />
-                </div>
-                <p class="font-medium">Aucun repas planifié</p>
-                <p class="mt-1 text-sm">
-                  Commencez par ajouter un repas à votre événement
-                </p>
-              </div>
-            {:else}
-              <div class="space-y-4">
-                {#each meals as meal, $index (meal.id)}
-                  <div animate:flip={{ delay: 100, duration: 400 }}>
-                    <EventMealCard
-                      bind:meal={meals[$index]}
-                      isEditing={editingMealIndex === meal.id}
-                      onEditToggle={() => meal.id && toggleEditMeal(meal.id)}
-                      onDelete={() => meal.id && removeMeal(meal.id)}
-                      onDuplicate={() => meal.id && duplicateMeal(meal.id)}
-                      {allDates}
-                      onEmptySearchSubmit={() =>
-                        meal.id && handleEmptySearchSubmit(meal.id)}
-                      onDateChanged={handleDateChanged}
-                      disabled={!isCurrentUserAccepted}
-                    />
-                  </div>
-                {/each}
-              </div>
-            {/if}
-            <div class="flex">
-              <button
-                class="btn btn-soft btn-primary btn-block mt-4"
-                onclick={addMeal}
-                disabled={!isCurrentUserAccepted}
-              >
-                <Plus class="mr-1 h-4 w-4" />
-                Ajouter un repas
-              </button>
+        {#if meals.length === 0}
+          <div
+            class="text-base-content/60 bg-base-200/30 rounded-box border-base-200 flex flex-col items-center justify-center border-2 border-dashed py-12"
+          >
+            <div class="bg-base-200 mb-4 rounded-full p-4">
+              <Calendar class="h-8 w-8 opacity-50" />
             </div>
+            <p class="font-medium">Aucun repas planifié</p>
+            <p class="mt-1 text-sm">
+              Commencez par ajouter un repas à votre événement
+            </p>
           </div>
+        {:else}
+          <div class="space-y-4">
+            {#each meals as meal, $index (meal.id)}
+              <div animate:flip={{ delay: 100, duration: 400 }}>
+                <EventMealCard
+                  bind:meal={meals[$index]}
+                  isEditing={editingMealIndex === meal.id}
+                  onEditToggle={() => meal.id && toggleEditMeal(meal.id)}
+                  onDelete={() => meal.id && removeMeal(meal.id)}
+                  onDuplicate={() => meal.id && duplicateMeal(meal.id)}
+                  {allDates}
+                  onEmptySearchSubmit={() =>
+                    meal.id && handleEmptySearchSubmit(meal.id)}
+                  onDateChanged={handleDateChanged}
+                  disabled={!isCurrentUserAccepted}
+                />
+              </div>
+            {/each}
+          </div>
+        {/if}
+        <div class="flex">
+          <button
+            class="btn btn-soft btn-primary btn-block mt-4"
+            onclick={addMeal}
+            disabled={!isCurrentUserAccepted}
+          >
+            <Plus class="mr-1 h-4 w-4" />
+            Ajouter un repas
+          </button>
         </div>
       </div>
     </div>

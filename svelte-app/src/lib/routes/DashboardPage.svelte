@@ -42,7 +42,7 @@
   }
 </script>
 
-<div class="bg-base-200/30 min-h-screen">
+<div class="bg-base-200 min-h-screen">
   <!-- Header principal -->
   <div
     class="bg-base-100 border-base-200 bg-opacity-90 sticky top-0 z-10 border-b backdrop-blur-sm"

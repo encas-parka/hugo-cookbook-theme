@@ -255,7 +255,11 @@
   <ProductsFilters />
 </LeftPanel>
 
-<div class="space-y-6 {globalState.isMobile ? '' : 'ml-100'} px-28">
+<div
+  class="space-y-6 {globalState.isMobile
+    ? ''
+    : 'ml-100'} bg-base-200 px-28 py-20"
+>
   <!-- Stats -->
   <div class="flex flex-wrap items-center gap-2">
     <div class="badge badge-neutral badge-lg">
