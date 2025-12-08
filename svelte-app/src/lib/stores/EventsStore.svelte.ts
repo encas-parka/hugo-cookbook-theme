@@ -291,7 +291,7 @@ export class EventsStore {
           this.#userTeams,
           async (event, eventType) => {
             console.log(
-              `[EventsStore] Realtime: ${eventType} pour ${event.$id}`,
+              `[EventsStore] ⚡️ Realtime RECEIVED: ${eventType} pour ${event.$id} (User: ${this.#userId})`,
             );
 
             if (eventType === "create" || eventType === "update") {
@@ -412,6 +412,11 @@ export class EventsStore {
       const enriched = this.#enrichEvent(event);
       this.#events.set(event.$id, enriched);
 
+      // Persistance immédiate dans le cache
+      if (this.#cache) {
+        await this.#cache.saveEvent(enriched);
+      }
+
       console.log(`[EventsStore] Événement créé: ${event.$id}`);
       return enriched;
     } catch (err) {
@@ -432,6 +437,11 @@ export class EventsStore {
       const enriched = this.#enrichEvent(event);
       this.#events.set(eventId, enriched);
 
+      // Persistance immédiate dans le cache
+      if (this.#cache) {
+        await this.#cache.saveEvent(enriched);
+      }
+
       console.log(`[EventsStore] Événement mis à jour: ${eventId}`);
       return enriched;
     } catch (err) {
@@ -447,6 +457,11 @@ export class EventsStore {
     try {
       await deleteAppwriteEvent(eventId);
       this.#events.delete(eventId);
+
+      // Suppression immédiate du cache
+      if (this.#cache) {
+        await this.#cache.deleteEvent(eventId);
+      }
       console.log(`[EventsStore] Événement supprimé: ${eventId}`);
     } catch (err) {
       console.error(

@@ -54,7 +54,11 @@
  */
 
 import { ID, Query, type Models, ExecutionMethod } from "appwrite";
-import { getAppwriteInstances, getAppwriteConfig } from "./appwrite";
+import {
+  getAppwriteInstances,
+  getAppwriteConfig,
+  subscribe as appwriteSubscribe,
+} from "./appwrite";
 import type { Products, Purchases } from "../types/appwrite.d";
 import type {
   EnrichedProduct,
@@ -858,7 +862,8 @@ export async function updatePurchase(
     const finalUpdates = {
       ...updates,
       // Conserver la relation products existante si non fournie dans les updates
-      products: updates.products || (existingPurchase as unknown as Purchases).products,
+      products:
+        updates.products || (existingPurchase as unknown as Purchases).products,
     };
 
     const response = await tables.updateRow(
@@ -1143,30 +1148,43 @@ export function subscribeToRealtime(
 
   const setupSubscription = async () => {
     try {
-      // S'assurer qu'Appwrite est initialisé avant de s'abonner
-      if (typeof window !== "undefined" && window.AppwriteClient) {
-        await window.AppwriteClient.initializeAppwrite();
+      console.log("[Appwrite Interactions] Setup Realtime Subscription...");
 
-        unsubscribe = window.AppwriteClient.subscribeToCollections(
-          ["products", "purchases"],
-          mainId,
-          handleRealtimeEvent,
-          {
-            onConnect: () => {
-              console.log("[Appwrite Interactions] Realtime connecté");
-              callbacks.onConnect?.();
-            },
-            onDisconnect: () => {
-              console.log("[Appwrite Interactions] Realtime déconnecté");
-              callbacks.onDisconnect?.();
-            },
-            onError: (error: any) => {
-              console.error("[Appwrite Interactions] Erreur realtime:", error);
-              callbacks.onError?.(error);
-            },
-          },
-        );
-      }
+      // S'assurer que les instances Appwrite sont initialisées
+      const instances = await getAppwriteInstances();
+      const { config } = instances;
+
+      console.log(
+        "[Appwrite Interactions] Appwrite instances initialisées, subscribing to collections...",
+      );
+
+      // S'abonner aux canaux de collections pour le mainId spécifique
+      const channels = [
+        `databases.${config.databaseId}.collections.${config.collections.products}.documents`,
+        `databases.${config.databaseId}.collections.${config.collections.purchases}.documents`,
+      ];
+
+      unsubscribe = appwriteSubscribe(channels, (response) => {
+        // Filtrer les événements pour ne traiter que ceux liés à notre mainId
+        if (response.payload && response.payload.mainId === mainId) {
+          handleRealtimeEvent(response);
+        }
+
+        // Gérer les callbacks de connexion
+        if (response.event === "client.connected") {
+          console.log("[Appwrite Interactions] Realtime connecté");
+          callbacks.onConnect?.();
+        }
+      });
+
+      console.log(
+        "[Appwrite Interactions] Abonnement realtime configuré avec succès",
+      );
+
+      // Signaler la connexion initiale
+      setTimeout(() => {
+        callbacks.onConnect?.();
+      }, 100);
     } catch (error) {
       console.error(
         "[Appwrite Interactions] Impossible de configurer realtime:",
@@ -1236,21 +1254,16 @@ export async function createMainDocument(
     const { tables, config, account } = await getAppwriteInstances();
     const user = await account.get();
 
-    await tables.createRow(
-      config.databaseId,
-      config.collections.main,
-      mainId,
-      {
-        name: name,
-        createdBy: user.$id,
-        isActive: true,
-        originalDataHash: hugoContentHash,
-        allDates: allDates,
-        status: "active",
-        dateStart: allDates[0] || null,
-        dateEnd: allDates[allDates.length - 1] || null,
-      },
-    );
+    await tables.createRow(config.databaseId, config.collections.main, mainId, {
+      name: name,
+      createdBy: user.$id,
+      isActive: true,
+      originalDataHash: hugoContentHash,
+      allDates: allDates,
+      status: "active",
+      dateStart: allDates[0] || null,
+      dateEnd: allDates[allDates.length - 1] || null,
+    });
 
     console.log(`[Appwrite Interactions] Main document créé: ${mainId}`);
   } catch (error) {

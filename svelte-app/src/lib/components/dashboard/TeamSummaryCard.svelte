@@ -3,28 +3,25 @@
   import { navigate } from "$lib/services/simple-router.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import TeamDetailModal from "$lib/components/teams/TeamDetailModal.svelte";
+  import { teamsStore } from "$lib/stores/TeamsStore.svelte";
+  import type { KTeamInvitation } from "$lib/types/aw_kteam.d";
 
   interface Team {
     $id: string;
     name: string;
-    description?: string;
-    members?: string[];
-    invitations?: Array<{
-      $id: string;
-      teamName: string;
-      invitedBy: string;
-      status: "pending";
-    }>;
+    description: string | null;
+    members?: any[];
+  }
+
+  interface PendingInvite {
+    teamId: string;
+    teamName: string;
+    invitation: KTeamInvitation;
   }
 
   interface Props {
     teams: Team[];
-    invitations: Array<{
-      $id: string;
-      teamName: string;
-      invitedBy: string;
-      status: "pending";
-    }>;
+    invitations: PendingInvite[];
     loading?: boolean;
   }
 
@@ -45,19 +42,17 @@
     selectedTeamId = null;
   }
 
-  async function acceptInvitation(invitationId: string) {
+  async function acceptInvitation(teamId: string) {
     try {
-      // TODO: Implémenter la logique d'acceptation d'invitation
-      console.log("Accept invitation:", invitationId);
+      await teamsStore.acceptTeamInvitation(teamId);
     } catch (error) {
       console.error("Erreur lors de l'acceptation de l'invitation:", error);
     }
   }
 
-  async function rejectInvitation(invitationId: string) {
+  async function rejectInvitation(teamId: string) {
     try {
-      // TODO: Implémenter la logique de rejet d'invitation
-      console.log("Reject invitation:", invitationId);
+      await teamsStore.declineTeamInvitation(teamId);
     } catch (error) {
       console.error("Erreur lors du rejet de l'invitation:", error);
     }
@@ -141,27 +136,27 @@
               Invitations en attente ({invitations.length})
             </h3>
             <div class="space-y-2">
-              {#each invitations as invitation}
+              {#each invitations as invite}
                 <div
                   class="bg-warning/10 border-warning/20 flex items-center justify-between rounded-lg border p-2"
                 >
                   <div class="flex-1">
-                    <div class="text-sm font-medium">{invitation.teamName}</div>
+                    <div class="text-sm font-medium">{invite.teamName}</div>
                     <div class="text-base-content/60 text-xs">
-                      Invité par {invitation.invitedBy}
+                      Invité par {invite.invitation.invitedBy}
                     </div>
                   </div>
                   <div class="flex gap-1">
                     <button
                       class="btn btn-success btn-xs"
-                      onclick={() => acceptInvitation(invitation.$id)}
+                      onclick={() => acceptInvitation(invite.teamId)}
                       title="Accepter l'invitation"
                     >
                       <CheckCircle class="h-3 w-3" />
                     </button>
                     <button
                       class="btn btn-error btn-xs"
-                      onclick={() => rejectInvitation(invitation.$id)}
+                      onclick={() => rejectInvitation(invite.teamId)}
                       title="Refuser l'invitation"
                     >
                       <XCircle class="h-3 w-3" />

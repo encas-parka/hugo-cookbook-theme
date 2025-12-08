@@ -28,21 +28,8 @@
   const upcomingEvents = $derived(eventsStore.upcomingEvents);
   const pastEventsCount = $derived(eventsStore.pastEventsCount);
 
-  // Invitations fictives (en attendant la vraie logique)
-  const mockInvitations = [
-    {
-      $id: "inv1",
-      teamName: "Équipe Famille",
-      invitedBy: "Marie",
-      status: "pending" as const,
-    },
-    {
-      $id: "inv2",
-      teamName: "Amis Foodies",
-      invitedBy: "Thomas",
-      status: "pending" as const,
-    },
-  ];
+  // Invitations réelles
+  const myInvitations = $derived(teamsStore.myPendingInvitations);
 
   // Fonctions de navigation
   function onCreateEvent() {
@@ -103,13 +90,7 @@
         <p class="text-base-content/60 mb-6">
           Connectez-vous pour voir vos équipes, événements et recettes.
         </p>
-        <button
-          class="btn btn-primary"
-          onclick={() => {
-            // TODO: Ouvrir le modal d'authentification
-            console.log("Open auth modal");
-          }}
-        >
+        <button class="btn btn-primary" onclick={() => {}}>
           Se connecter
         </button>
       </div>
@@ -156,7 +137,7 @@
           <!-- Résumé des équipes -->
           <TeamSummaryCard
             teams={teamsStore.teams}
-            invitations={mockInvitations}
+            invitations={myInvitations}
             loading={teamsStore.loading}
           />
         </div>

@@ -87,7 +87,12 @@
 
           <div class="text-sm opacity-75">
             <span class="font-medium">Besoin:</span>
-            {modalState.product?.displayTotalNeeded}
+            {#if modalState.productModel}
+              {modalState.productModel.stats.formattedQuantities ||
+                "Aucun besoin"}
+            {:else}
+              {modalState.product?.displayTotalNeeded || "?"}
+            {/if}
           </div>
         </div>
       {:else}

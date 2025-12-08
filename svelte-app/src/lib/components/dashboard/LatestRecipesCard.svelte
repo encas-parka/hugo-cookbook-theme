@@ -7,6 +7,11 @@
 
   // Récupérer les dernières recettes publiées
   const latestRecipes = $derived.by(() => {
+    // Ne pas essayer de filtrer si le store n'est pas initialisé
+    if (!recipesStore.isInitialized) {
+      return [];
+    }
+
     // Filtrer les recettes publiées et trier par date de publication
     const published = recipesStore.recipesIndex.filter(
       (recipe) => recipe.isPublished !== false && recipe.pd,
@@ -69,7 +74,35 @@
       </button>
     </div>
 
-    {#if recipesStore.loading}
+    {#if recipesStore.error}
+      <div class="py-6 text-center">
+        <div class="text-error mb-2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="mx-auto h-8 w-8"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+        </div>
+        <p class="text-base-content/60 text-sm">
+          Erreur de chargement des recettes
+        </p>
+        <button
+          class="btn btn-ghost btn-xs mt-2"
+          onclick={() => window.location.reload()}
+        >
+          Réessayer
+        </button>
+      </div>
+    {:else if recipesStore.loading || !recipesStore.isInitialized}
       <div class="flex items-center justify-center py-8">
         <span class="loading loading-spinner loading-md"></span>
       </div>

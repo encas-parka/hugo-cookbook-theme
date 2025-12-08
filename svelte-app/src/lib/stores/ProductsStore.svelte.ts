@@ -12,6 +12,7 @@ import { sanitizePurchase } from "../utils/dataSanitization";
 import {
   createEnrichedProductFromAppwrite,
   updateExistingProduct,
+  createEnrichedProductsFromEvent,
 } from "../utils/productEnrichment";
 import { toastService } from "../services/toast.service.svelte";
 import type { EnrichedProduct, NumericQuantity } from "../types/store.types";
@@ -27,7 +28,9 @@ import { createIDBCache, type IDBCache } from "../services/indexeddb-cache";
 import { globalState } from "./GlobalState.svelte";
 import { ProductModel } from "../models/ProductModel.svelte";
 import { DateRangeStore } from "./DateRangeStore.svelte";
-import { calculateProductsFromEvent } from "../utils/products-from-events";
+import { eventsStore } from "./EventsStore.svelte";
+import { recalculatePurchaseDependents } from "../utils/productEnrichment";
+
 /**
  * ProductsStore - Store principal de gestion des produits avec Svelte 5
  *
@@ -305,23 +308,23 @@ class ProductsStore {
       const matchesFiltersResult = matchesFilters(product, this.#filters);
       if (!matchesFiltersResult) continue;
 
-        // Vérifier si le produit a des données dans la plage de dates
-        let hasDataInRange = false;
-        if (product.byDate) {
-          // Normaliser les dates de la plage à minuit (UTC pour être sûr)
-          const startDay = new Date(startDate);
-          startDay.setHours(0, 0, 0, 0);
+      // Vérifier si le produit a des données dans la plage de dates
+      let hasDataInRange = false;
+      if (product.byDate) {
+        // Normaliser les dates de la plage à minuit (UTC pour être sûr)
+        const startDay = new Date(startDate);
+        startDay.setHours(0, 0, 0, 0);
 
-          const endDay = new Date(endDate);
-          endDay.setHours(23, 59, 59, 999);
+        const endDay = new Date(endDate);
+        endDay.setHours(23, 59, 59, 999);
 
-          hasDataInRange = Object.keys(product.byDate).some((dateStr) => {
-            const date = new Date(dateStr);
-            // On compare la date du produit (qui est déjà à minuit YYYY-MM-DD)
-            // avec le début du jour de start et la fin du jour de end
-            return date >= startDay && date <= endDay;
-          });
-        }
+        hasDataInRange = Object.keys(product.byDate).some((dateStr) => {
+          const date = new Date(dateStr);
+          // On compare la date du produit (qui est déjà à minuit YYYY-MM-DD)
+          // avec le début du jour de start et la fin du jour de end
+          return date >= startDay && date <= endDay;
+        });
+      }
 
       if (hasDataInRange || isManualProduct) {
         filteredMap.set(id, model);
@@ -425,7 +428,7 @@ class ProductsStore {
    * 2. Calcule les produits depuis event.meals
    * 3. Synchronise avec Appwrite (purchases)
    * 4. Configure l'abonnement realtime
-   * 
+   *
    * @param eventId - ID de l'événement depuis EventsStore
    */
   async initialize(eventId: string) {
@@ -441,7 +444,6 @@ class ProductsStore {
     console.log(`[ProductsStore] Initialisation avec eventId: ${eventId}`);
 
     // Récupérer l'événement depuis EventsStore
-    const { eventsStore } = await import("./EventsStore.svelte");
     const event = eventsStore.getEventById(eventId);
 
     if (!event) {
@@ -458,9 +460,7 @@ class ProductsStore {
 
       // 2. Si le cache est vide, calculer depuis event.meals
       if (this.#enrichedProducts.size === 0) {
-        console.log(
-          "[ProductsStore] Cache vide, calcul depuis event.meals...",
-        );
+        console.log("[ProductsStore] Cache vide, calcul depuis event.meals...");
 
         await this.#calculateProductsFromEvent(event);
 
@@ -469,7 +469,7 @@ class ProductsStore {
       }
 
       // 3. Initialiser la plage de dates
-      this.dateStore.setAvailableDates([...event.allDates]);
+      this.dateStore.setAvailableDates([...(event.allDates || [])]);
       this.initializeDateRange();
 
       // 4. Sync en arrière-plan (purchases uniquement)
@@ -481,9 +481,25 @@ class ProductsStore {
       // Marquer comme initialisé
       this.#isInitialized = true;
 
-      // Setup realtime
+      // 6. Setup realtime (Appwrite)
       const callbacks = this.#setupRealtimeCallbacks();
       this.#unsubscribe = subscribeToRealtime(event.$id, callbacks);
+
+      // 7. Setup Reactive Sync avec EventsStore (Meals updates)
+      if (this.#cleanupSyncEffect) this.#cleanupSyncEffect();
+
+      this.#cleanupSyncEffect = $effect.root(() => {
+        $effect(() => {
+          // Cette ligne réactive s'abonne aux mises à jour de l'événement dans le EventsStore
+          const reactiveEvent = eventsStore.getEventById(eventId);
+          
+          if (reactiveEvent) {
+             // On utilise untrack pour ne pas re-déclencher l'effet si syncWithEventMeals lit des états réactifs
+             // Mais ici on veut juste réagir au changement de l'objet event (qui change à chaque update realtime)
+             this.#syncWithEventMeals(reactiveEvent);
+          }
+        });
+      });
 
       console.log(
         `[ProductsStore] Initialisation complétée: ${this.#enrichedProducts.size} produits`,
@@ -498,6 +514,102 @@ class ProductsStore {
   }
 
   /**
+   * Synchronise réactivement les produits avec les repas de l'événement
+   * Appelée automatiquement quand l'événément change dans EventsStore
+   */
+  async #syncWithEventMeals(event: EnrichedEvent) {
+      // Trace de l'entrée dans la fonction
+      // console.log(`[ProductsStore] 🔄 Sync check pour event ${event.$id}`);
+
+      if (!this.#isInitialized) {
+        console.warn("[ProductsStore] Sync ignoré car store non initialisé");
+        return; 
+      }
+
+      // Utiliser JSON.stringify pour détecter si les repas ont VRAIMENT changé
+      const mealsHash = JSON.stringify(event.meals); 
+      
+      if (this.#lastMealsHash === mealsHash) {
+         // console.log("[ProductsStore] Pas de changement dans les repas, skip.");
+         return;
+      }
+      
+      console.log(`[ProductsStore] ⚡️ CHANGEMENT REPAS DÉTECTÉ pour ${event.$id} (Hash: ${mealsHash.substring(0, 10)}...), recalcul...`);
+      this.#lastMealsHash = mealsHash;
+      
+      const { recipesStore } = await import("./RecipesStore.svelte");
+      // Fonction pour récupérer les détails d'une recette
+      const getRecipeDetails = async (uuid: string) => {
+        return await recipesStore.getRecipeByUuid(uuid);
+      };
+
+      // Recalculer les produits "frais" depuis les repas
+      const freshProducts = await createEnrichedProductsFromEvent(
+        event,
+        getRecipeDetails,
+        event.$id,
+      );
+
+      // Fusionner avec l'existant pour préserver les achats/overrides
+      freshProducts.forEach(fresh => {
+        const existingModel = this.#enrichedProducts.get(fresh.$id);
+        if (existingModel) {
+             // On met à jour les données calculées depuis les repas
+             // On doit préserver les données Appwrite (purchases, store, etc.) qui sont dans existingModel.data
+             // updateExistingProduct fait l'inverse (merge Appwrite frais sur Existant)
+             
+             // Ici on veut merge FreshMealData sur ExistantAppwriteData
+             // On peut le faire manuellement ici
+             const existing = existingModel.data;
+             
+             const merged: EnrichedProduct = {
+                 ...existing,
+                 // Mise à jour des données dérivées des repas
+                 byDate: fresh.byDate,
+                 totalNeededArray: fresh.totalNeededArray,
+                 totalNeededRaw: fresh.totalNeededRaw,
+                 nbRecipes: fresh.nbRecipes,
+                 totalAssiettes: fresh.totalAssiettes,
+                 // On garde le reste (purchases, overrides, etc.)
+             };
+             
+             // Recalculer les manquants
+             recalculatePurchaseDependents(merged);
+             
+             // Mise à jour du modèle (déclenche la réactivité)
+             existingModel.update(merged);
+        } else {
+             // Nouveau produit (ajouté via nouveau repas)
+             this.#enrichedProducts.set(fresh.$id, new ProductModel(fresh, this.dateStore));
+        }
+      });
+      
+      // On devrait aussi gérer les suppressions (produits qui ne sont plus dans freshProducts)
+      // Mais seulement si !isSynced (non présents sur Appwrite)
+      const freshIds = new Set(freshProducts.map(p => p.$id));
+      for (const [id, model] of this.#enrichedProducts) {
+          if (!freshIds.has(id)) {
+              if (!model.data.isSynced && !model.data.purchases?.length) {
+                  // Produit local qui n'est plus utile -> Suppression
+                  this.#enrichedProducts.delete(id);
+              }
+              // Si isSynced, on garde (peut-être un produit manuel ou orphelin temporaire)
+          }
+      }
+      
+      // Mettre à jour la dateStore si les dates dispos ont changé
+      this.dateStore.setAvailableDates([...(event.allDates || [])]);
+      
+      // Persister les changements majeurs
+      this.#createCache();
+  }
+
+  // Hash pour debounce logique
+  #lastMealsHash = "";
+  // Cleanup effect
+  #cleanupSyncEffect: (() => void) | null = null;
+
+  /**
    * Calcule les produits depuis les meals d'un événement
    */
   async #calculateProductsFromEvent(event: EnrichedEvent): Promise<void> {
@@ -509,7 +621,7 @@ class ProductsStore {
     };
 
     // Calculer les produits
-    const products = await calculateProductsFromEvent(
+    const products = await createEnrichedProductsFromEvent(
       event,
       getRecipeDetails,
       event.$id,
@@ -1191,9 +1303,9 @@ class ProductsStore {
     return hasConversions(product.byDate);
   }
 
-  async forceReload(mainId: string, listId: string) {
+  async forceReload(eventId: string) {
     await this.clearCache();
-    await this.initialize(mainId, listId);
+    await this.initialize(eventId);
   }
 
   async clearCache() {

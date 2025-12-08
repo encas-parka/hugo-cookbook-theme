@@ -132,10 +132,6 @@
     }
   }
 
-  function stopPropagation(event: Event) {
-    event.stopPropagation();
-  }
-
   // Reset des messages via effet réactif
   $effect(() => {
     if (showLogin || showForgotPassword) {

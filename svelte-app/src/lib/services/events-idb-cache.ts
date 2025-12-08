@@ -1,11 +1,11 @@
 /**
  * Service de cache IndexedDB pour EventsStore
- * 
+ *
  * Architecture:
  * - 1 base: `events-cache`
  * - 1 store "events" pour les EnrichedEvent
  * - 1 store "metadata" pour lastSync
- * 
+ *
  * Stratégie:
  * - Tous les événements sont chargés au démarrage
  * - Cache persistant pour éviter les fetches répétés
@@ -24,17 +24,17 @@ export interface EventsCacheMetadata {
 
 export interface EventsIDBCache {
   open(): Promise<void>;
-  
+
   // Events
   loadEvents(): Promise<Map<string, EnrichedEvent>>;
   saveEvents(events: Map<string, EnrichedEvent>): Promise<void>;
   saveEvent(event: EnrichedEvent): Promise<void>;
   deleteEvent(eventId: string): Promise<void>;
-  
+
   // Metadata
   loadMetadata(): Promise<EventsCacheMetadata>;
   saveMetadata(metadata: EventsCacheMetadata): Promise<void>;
-  
+
   // Utilitaires
   clear(): Promise<void>;
   close(): void;
@@ -52,7 +52,7 @@ class EventsIndexedDBCache implements EventsIDBCache {
   // Noms des object stores
   private readonly EVENTS_STORE = "events";
   private readonly METADATA_STORE = "metadata";
-  
+
   // Clés pour les métadonnées
   private readonly LAST_SYNC_KEY = "lastSync";
 

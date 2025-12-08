@@ -246,6 +246,8 @@ export interface ModalForms {
   who: WhoFormData;
 }
 
+import { ProductModel } from "../models/ProductModel.svelte";
+
 /**
  * Type principal pour ProductModalState
  * Utilisation : const modalState: ProductModalStateType = createProductModalState(productId);
@@ -257,6 +259,7 @@ export interface ProductModalStateType {
 
   // Données du produit (dérivées du store)
   readonly product: EnrichedProduct | null;
+  readonly productModel: ProductModel | null;
   readonly recipes: RecipeWithDate[];
   readonly whoList: string[];
   readonly stockParsed: StockEntry | null;

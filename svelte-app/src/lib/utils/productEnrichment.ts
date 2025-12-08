@@ -3,27 +3,36 @@
  * Logique de transformation Products → EnrichedProduct
  */
 
-import type { Products, Purchases } from '$lib/types/appwrite';
+import type { Products, Purchases } from "$lib/types/appwrite";
 import type {
   EnrichedProduct,
   NumericQuantity,
   StoreInfo,
   TotalNeededOverrideData,
   ManualSpecs,
-} from '../types/store.types';
+  RecipeOccurrence,
+  ByDateEntry,
+} from "../types/store.types";
+import type { EnrichedEvent, EventMeal } from "../types/events.d";
+import type { RecipeData, RecipeIngredient } from "../types/recipes.types";
 import {
   calculateTotalQuantityArray,
   transformPurchasesToNumericQuantity,
   calculateAndFormatMissing,
   formatTotalQuantity,
-  safeJsonParse
-} from './productsUtils';
+  safeJsonParse,
+  slugify,
+  aggregateByUnit,
+} from "./productsUtils";
+import { calculateAllDateDisplayInfo } from "./dateRange";
 
 /**
  * Crée un EnrichedProduct depuis un Products Appwrite seul
  * ⚠️ Utilisé au sync si le produit n'existe pas localement (cas rare)
  */
-export function createEnrichedProductFromAppwrite(product: Products): EnrichedProduct {
+export function createEnrichedProductFromAppwrite(
+  product: Products,
+): EnrichedProduct {
   // Parser les specs (métadonnées manuelles)
   const specsParsed = safeJsonParse<ManualSpecs>(product.specs) ?? null;
 
@@ -60,7 +69,7 @@ export function createEnrichedProductFromAppwrite(product: Products): EnrichedPr
     $updatedAt: product.$updatedAt,
 
     // Données métier
-    productHugoUuid: product.productHugoUuid || "" ,
+    productHugoUuid: product.productHugoUuid || "",
     productName: product.productName,
     productType: product.productType || "none",
     // Utiliser les specs pour pFrais/pSurgel, sinon false
@@ -105,9 +114,12 @@ export function createEnrichedProductFromAppwrite(product: Products): EnrichedPr
       product.totalNeededOverride,
     ),
     displayTotalOverride: (() => {
-      const override = safeJsonParse<TotalNeededOverrideData>(product.totalNeededOverride);
+      const override = safeJsonParse<TotalNeededOverrideData>(
+        product.totalNeededOverride,
+      );
       return override ? formatTotalQuantity([override.totalOverride]) : "";
     })(),
+    dateDisplayInfo: {},
   };
 }
 
@@ -228,7 +240,7 @@ export function updateExistingProduct(
     ),
     displayTotalOverride: (() => {
       const override = safeJsonParse<TotalNeededOverrideData>(
-        product.totalNeededOverride ?? existing.totalNeededOverride
+        product.totalNeededOverride ?? existing.totalNeededOverride,
       );
       return override ? formatTotalQuantity([override.totalOverride]) : "";
     })(),
@@ -253,4 +265,262 @@ export function recalculatePurchaseDependents(product: EnrichedProduct): void {
 
   product.missingQuantityArray = missingQuantityArray;
   product.displayMissingQuantity = displayMissingQuantity;
+}
+
+// =============================================================================
+// NOYAU DE CALCUL PRODUIT (Remplace products-from-events.ts)
+// =============================================================================
+
+/**
+ * Structure intermédiaire pour agréger les ingrédients par produit et par date
+ */
+interface ProductAggregation {
+  productHugoUuid: string;
+  productName: string;
+  productType: string;
+  byDate: Record<
+    string,
+    {
+      quantities: NumericQuantity[];
+      recipes: RecipeOccurrence[];
+      totalAssiettes: number;
+    }
+  >;
+  allergens: Set<string>;
+}
+
+/**
+ * Calcule tous les produits nécessaires pour un événement
+ * Utilise une structure intermédiaire pour agréger les données avant de créer les EnrichedProduct
+ */
+export async function createEnrichedProductsFromEvent(
+  event: EnrichedEvent,
+  getRecipeDetails: (uuid: string) => Promise<RecipeData | null>,
+  mainId: string,
+): Promise<EnrichedProduct[]> {
+  console.log(
+    `[productEnrichment] Calcul pour événement ${event.$id} avec ${event.meals.length} repas`,
+  );
+
+  const aggregations = new Map<string, ProductAggregation>();
+
+  for (const meal of event.meals) {
+    await processMeal(meal, getRecipeDetails, aggregations);
+  }
+
+  const products: EnrichedProduct[] = [];
+
+  for (const [uuid, aggregation] of aggregations) {
+    products.push(createEnrichedProductFromAggregation(aggregation, mainId));
+  }
+
+  console.log(`[productEnrichment] ${products.length} produits calculés`);
+  return products;
+}
+
+/**
+ * Traite un repas et ajoute ses ingrédients aux agrégations
+ */
+async function processMeal(
+  meal: EventMeal,
+  getRecipeDetails: (uuid: string) => Promise<RecipeData | null>,
+  aggregations: Map<string, ProductAggregation>,
+): Promise<void> {
+  const mealDate = meal.date.split("T")[0]; // YYYY-MM-DD
+
+  for (const mealRecipe of meal.recipes) {
+    const recipeDetails = await getRecipeDetails(mealRecipe.recipeUuid);
+
+    if (!recipeDetails) {
+      console.warn(
+        `[processMeal] Recette ${mealRecipe.recipeUuid} introuvable`,
+      );
+      continue;
+    }
+
+    const scaleFactor = mealRecipe.plates / recipeDetails.plate;
+
+    for (const ingredient of recipeDetails.ingredients) {
+      addIngredientToAggregation(
+        ingredient,
+        scaleFactor,
+        mealDate,
+        aggregations,
+        recipeDetails.title,
+        mealRecipe.plates,
+      );
+    }
+  }
+}
+
+/**
+ * Ajoute un ingrédient scalé aux agrégations avec détails recette
+ */
+function addIngredientToAggregation(
+  ingredient: RecipeIngredient,
+  scaleFactor: number,
+  date: string,
+  aggregations: Map<string, ProductAggregation>,
+  recipeName: string,
+  plates: number,
+): void {
+  const uuid = ingredient.uuid;
+
+  if (!aggregations.has(uuid)) {
+    aggregations.set(uuid, {
+      productHugoUuid: uuid,
+      productName: ingredient.name,
+      productType: ingredient.type,
+      byDate: {},
+      allergens: new Set(ingredient.allergens || []),
+    });
+  }
+
+  const aggregation = aggregations.get(uuid)!;
+  const scaledQuantity = ingredient.normalizedQuantity * scaleFactor;
+
+  // Initialisation de l'entrée pour cette date
+  if (!aggregation.byDate[date]) {
+    aggregation.byDate[date] = {
+      quantities: [],
+      recipes: [],
+      totalAssiettes: 0,
+    };
+  }
+
+  const entry = aggregation.byDate[date];
+
+  // 1. Ajouter la quantité brute pour le total consolidé
+  entry.quantities.push({
+    q: scaledQuantity,
+    u: ingredient.normalizedUnit,
+  });
+
+  // 2. Ajouter l'occurrence de recette (Traçabilité)
+  entry.recipes.push({
+    r: recipeName,
+    q: ingredient.originalQuantity,
+    u: ingredient.originalUnit,
+    qEq: scaledQuantity,
+    uEq: ingredient.normalizedUnit,
+    a: plates,
+  });
+
+  // 3. Incrémenter les assiettes (Attention: une recette n'est ajoutée qu'une fois par ingrédient,
+  // mais si plusieurs recettes utilisent le même ingrédient le même jour, on somme les assiettes)
+  // Calcul approximatif : somme des assiettes des recettes utilisant cet ingrédient
+  entry.totalAssiettes += plates;
+
+  if (ingredient.allergens) {
+    ingredient.allergens.forEach((a) => aggregation.allergens.add(a));
+  }
+}
+
+/**
+ * Crée un EnrichedProduct final conforme à l'interface
+ */
+function createEnrichedProductFromAggregation(
+  aggregation: ProductAggregation,
+  mainId: string,
+): EnrichedProduct {
+  const semanticId = `${slugify(aggregation.productName)}_${aggregation.productHugoUuid}`;
+
+  // Construction de la structure byDate finale (ByDateEntry)
+  const byDate: Record<string, ByDateEntry> = {};
+
+  for (const [date, data] of Object.entries(aggregation.byDate)) {
+    byDate[date] = {
+      totalConsolidated: aggregateByUnit(data.quantities),
+      recipes: data.recipes,
+      totalAssiettes: data.totalAssiettes,
+      recipeCount: data.recipes.length,
+      // totalRaw: optionnel (non géré ici pour l'instant)
+    };
+  }
+
+  // Calcul du besoin total global (toutes dates)
+  const allQuantities = Object.values(byDate).flatMap(
+    (e) => e.totalConsolidated,
+  );
+  const totalNeededArray = aggregateByUnit(allQuantities);
+
+  // Valeurs par défaut pour les achats (vide au départ)
+  const totalPurchasesArray: NumericQuantity[] = [];
+  const purchases: Purchases[] = [];
+
+  // Calcul missing (Need - Purchase)
+  const { numeric: missingQuantityArray, display: displayMissingQuantity } =
+    calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
+
+  // Petit fix pour nbRecipes et totalAssiettes global
+  const nbRecipes = Object.values(byDate).reduce(
+    (acc, e) => acc + e.recipeCount,
+    0,
+  );
+  const totalAssiettes = Object.values(byDate).reduce(
+    (acc, e) => acc + e.totalAssiettes,
+    0,
+  );
+
+  // Calculate dateDisplayInfo from the byDate entries
+  const dateDisplayInfo = calculateAllDateDisplayInfo(Object.keys(byDate));
+
+  const product: EnrichedProduct = {
+    $id: semanticId,
+    mainId,
+    productHugoUuid: aggregation.productHugoUuid,
+    productName: aggregation.productName,
+    productType: aggregation.productType,
+
+    // Champs statiques Hugo
+    byDate,
+
+    // Champs calculés initiaux
+    totalNeededArray,
+    totalPurchasesArray,
+    missingQuantityArray,
+    displayTotalNeeded: formatTotalQuantity(totalNeededArray),
+    displayTotalPurchases: formatTotalQuantity(totalPurchasesArray),
+    displayMissingQuantity,
+
+    // Métadonnées
+    isSynced: false,
+    status: "active",
+    // allergens removed (not in EnrichedProduct)
+
+    // Champs optionnels vides
+    who: [],
+    store: "" as any,
+    storeInfo: null,
+    purchases,
+    stockReel: "" as any,
+    stockParsed: null,
+    totalNeededOverride: null,
+    totalNeededOverrideParsed: null,
+    displayTotalOverride: "",
+    stockOrTotalPurchases: "",
+    previousNames: null,
+    isMerged: false,
+    mergedFrom: [],
+    mergeDate: null,
+    mergeReason: null,
+    mergedInto: null,
+    specs: null,
+    specsParsed: null,
+    pFrais: false,
+    pSurgel: false,
+    nbRecipes,
+    totalAssiettes,
+    totalNeededRaw: totalNeededArray, // Initialisation cohérente
+    dateDisplayInfo,
+
+    // Timestamps
+    $createdAt: new Date().toISOString(),
+    $updatedAt: new Date().toISOString(),
+    $permissions: [],
+    $databaseId: "",
+    $tableId: "",
+  };
+
+  return product;
 }

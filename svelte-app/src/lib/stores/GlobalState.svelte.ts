@@ -26,6 +26,10 @@ class GlobalState {
     return this.#user?.$id ?? null;
   }
 
+  get userEmail() {
+    return this.#user?.email ?? null;
+  }
+
   get userTeams() {
     return this.#userTeams;
   }

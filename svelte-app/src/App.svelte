@@ -39,6 +39,7 @@
   $effect(() => {
     // Si non authentifié et qu'on essaie d'accéder à une route protégée (autre que / et /accept-invite)
     if (
+      globalState.authInitialized && // Attendre que l'auth soit initialisée
       !globalState.isAuthenticated &&
       router.path !== "/" &&
       router.path !== "/accept-invite"
@@ -67,11 +68,14 @@
 
   async function initializeDashboard() {
     try {
-      await Promise.all([
-        teamsStore.initialize(),
-        recipesStore.initialize(),
-        eventsStore.initialize(),
-      ]);
+      // 1. Initialisation critique (bloquante pour l'UI principale)
+      await Promise.all([teamsStore.initialize(), eventsStore.initialize()]);
+
+      // 2. Initialisation non-bloquante (arrière-plan)
+      // RecipesStore est lourd et pas critique pour l'affichage initial du Dashboard
+      recipesStore.initialize().catch((err) => {
+        console.error("Erreur non-bloquante init recipes:", err);
+      });
     } catch (err: any) {
       console.error("Erreur d'initialisation dashboard:", err);
       initError = err.message || "Erreur inconnue lors de l'initialisation";
@@ -97,7 +101,7 @@
 </script>
 
 <!-- Header toujours présent -->
-<!-- <HeaderNav /> -->
+<HeaderNav />
 
 <!-- Rendu du composant actuel -->
 <div class="mt-7">

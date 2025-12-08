@@ -294,8 +294,11 @@
                       {#each productInDateRange.concernedDates as date (date)}
                         {@const recipes =
                           productInDateRange.recipesByDate.get(date) || []}
-                        {@const dateDisplayInfo =
-                          productModel.data.dateDisplayInfo[date]}
+                        {@const dateDisplayInfo = productModel.data
+                          .dateDisplayInfo[date] || {
+                          formattedDate: date,
+                          timeIcon: null,
+                        }}
 
                         <DateBadge {dateDisplayInfo} {recipes} />
                       {/each}

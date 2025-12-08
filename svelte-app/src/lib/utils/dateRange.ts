@@ -384,7 +384,10 @@ export function calculateProductStatsForDateRange(
   }
 
   const startDateObj = new Date(startDate);
+  startDateObj.setHours(0, 0, 0, 0);
+
   const endDateObj = new Date(endDate);
+  endDateObj.setHours(23, 59, 59, 999);
 
   // Accumulateurs pour stats sur la plage
   const datesInSelectedRange: string[] = [];

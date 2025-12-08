@@ -78,6 +78,9 @@ class RecipesStore {
   // Tracking des chargements en cours (pour éviter les doublons)
   #loadingDetails = new Set<string>();
 
+  // Promise d'initialisation en cours pour déduplication
+  #initPromise: Promise<void> | null = null;
+
   // Appwrite
   #realtimeUnsubscribe: (() => void) | null = null;
 
@@ -140,62 +143,125 @@ class RecipesStore {
    * 6. Active le realtime pour les recettes Appwrite
    */
   async initialize(): Promise<void> {
+    // 1. Déjà initialisé ?
     if (this.#isInitialized) {
       console.log("[RecipesStore] Déjà initialisé");
       return;
     }
 
+    // 2. Initialisation déjà en cours ?
+    if (this.#initPromise) {
+      console.log("[RecipesStore] Initialisation déjà en cours, attente...");
+      return this.#initPromise;
+    }
+
+    // 3. Nouvelle initialisation
     console.log("[RecipesStore] Initialisation...");
     this.#loading = true;
     this.#error = null;
 
-    try {
-      // 1. Ouvrir le cache IndexedDB
-      this.#cache = await createRecipesIDBCache();
+    // Créer la promesse d'initialisation
+    this.#initPromise = (async () => {
+      try {
+        // A. Ouvrir le cache IndexedDB
+        this.#cache = await createRecipesIDBCache();
 
-      // 2. Charger l'index depuis le cache
-      const cachedIndex = await this.#cache.loadRecipesIndex();
-      const cachedMetadata = await this.#cache.loadMetadata();
+        // B. Charger l'index depuis le cache
+        const cachedIndex = await this.#cache.loadRecipesIndex();
+        const cachedMetadata = await this.#cache.loadMetadata();
 
-      if (cachedIndex.size > 0) {
+        if (cachedIndex.size > 0) {
+          console.log(
+            `[RecipesStore] ${cachedIndex.size} recettes (index) chargées depuis le cache`,
+          );
+          this.#recipesIndex = new SvelteMap(cachedIndex);
+          this.#lastSync = cachedMetadata.lastSync;
+        }
+
+        // C. Charger l'index depuis data.json (recettes published)
+        // Cette étape est cruciale - si elle échoue, on initialise avec le cache existant
+        try {
+          await this.#loadIndexFromDataJson();
+        } catch (err) {
+          console.error(
+            "[RecipesStore] Erreur lors du chargement depuis data.json:",
+            err,
+          );
+          // Si on a un cache et que data.json échoue, on continue avec le cache
+          if (cachedIndex.size === 0) {
+            throw new Error(
+              "Impossible de charger les recettes: aucun cache disponible et data.json inaccessible",
+            );
+          }
+          console.log("[RecipesStore] Continuation avec les données du cache");
+        }
+
+        // D. Cleanup : marquer les recettes Appwrite comme published
+        if (globalState.userId) {
+          try {
+            await this.#cleanupPublishedRecipes();
+          } catch (err) {
+            console.warn(
+              "[RecipesStore] Erreur lors du cleanup des recettes publiées:",
+              err,
+            );
+            // Ne pas bloquer l'initialisation pour cette étape
+          }
+        }
+
+        // E. Charger les recettes non-published depuis Appwrite
+        if (globalState.userId) {
+          try {
+            await this.#loadAppwriteRecipes();
+          } catch (err) {
+            console.warn(
+              "[RecipesStore] Erreur lors du chargement des recettes Appwrite:",
+              err,
+            );
+            // Ne pas bloquer l'initialisation pour cette étape
+          }
+        }
+
+        // F. Activer le realtime
+        if (globalState.userId) {
+          try {
+            this.#setupRealtime();
+          } catch (err) {
+            console.warn(
+              "[RecipesStore] Erreur lors de l'activation du realtime:",
+              err,
+            );
+            // Ne pas bloquer l'initialisation pour cette étape
+          }
+        }
+
+        // G. Vérification finale: s'assurer qu'on a bien des données
+        if (this.#recipesIndex.size === 0) {
+          const message = "Aucune recette disponible après initialisation";
+          this.#error = message;
+          console.warn("[RecipesStore]", message);
+        }
+
+        // Tout s'est bien passé (ou erreurs non-bloquantes)
+        this.#isInitialized = true;
         console.log(
-          `[RecipesStore] ${cachedIndex.size} recettes (index) chargées depuis le cache`,
+          `[RecipesStore] Initialisation complétée: ${this.#recipesIndex.size} recettes (${this.#countPublished()} published, ${this.#countNonPublished()} non-published)`,
         );
-        this.#recipesIndex = new SvelteMap(cachedIndex);
-        this.#lastSync = cachedMetadata.lastSync;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Erreur lors de l'initialisation";
+        this.#error = message;
+        console.error("[RecipesStore] ECHEC Initialisation:", message, err);
+        throw err;
+      } finally {
+        this.#loading = false;
+        this.#initPromise = null; // Nettoyer la promesse pour permettre une nouvelle tentative si nécessaire
       }
+    })();
 
-      // 3. Charger l'index depuis data.json (recettes published)
-      await this.#loadIndexFromDataJson();
-
-      // 4. Cleanup : marquer les recettes Appwrite comme published
-      if (globalState.userId) {
-        await this.#cleanupPublishedRecipes();
-      }
-
-      // 5. Charger les recettes non-published depuis Appwrite
-      if (globalState.userId) {
-        await this.#loadAppwriteRecipes();
-      }
-
-      // 6. Activer le realtime
-      if (globalState.userId) {
-        this.#setupRealtime();
-      }
-
-      this.#isInitialized = true;
-      console.log(
-        `[RecipesStore] Initialisation complétée: ${this.#recipesIndex.size} recettes (${this.#countPublished()} published, ${this.#countNonPublished()} non-published)`,
-      );
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Erreur lors de l'initialisation";
-      this.#error = message;
-      console.error("[RecipesStore]", message, err);
-      throw err;
-    } finally {
-      this.#loading = false;
-    }
+    return this.#initPromise;
   }
 
   /**

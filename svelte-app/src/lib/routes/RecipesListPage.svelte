@@ -39,7 +39,13 @@
   let sentinel = $state<HTMLElement | undefined>();
 
   // Récupérer toutes les recettes depuis le store
-  const allRecipes = $derived(recipesStore.getAllRecipes());
+  const allRecipes = $derived.by(() => {
+    // Retourner un tableau vide si le store n'est pas initialisé
+    if (!recipesStore.isInitialized) {
+      return [];
+    }
+    return recipesStore.getAllRecipes();
+  });
 
   // Extraire les valeurs uniques pour les filtres
   const availableCategories = $derived.by(() => {
@@ -270,7 +276,7 @@
     </div>
 
     <!-- Liste des recettes -->
-    {#if recipesStore.loading}
+    {#if recipesStore.loading || !recipesStore.isInitialized}
       <div class="flex justify-center py-12">
         <span class="loading loading-spinner loading-lg"></span>
       </div>

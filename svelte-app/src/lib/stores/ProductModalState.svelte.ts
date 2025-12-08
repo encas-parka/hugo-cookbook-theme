@@ -45,12 +45,12 @@ export class ProductModalState implements ProductModalStateType {
   // État de l'onglet courant
   currentTab = $state("recettes");
 
-  // Données dérivées du store
-  product = $derived.by(() => {
-    const id = this.productId;
-    // console.log(`[ProductModalState] Recalculating product ${id}`);
-    return productsStore.getEnrichedProductById(id);
+  // Données dérivées du store - VIA LE MODEL
+  productModel = $derived.by(() => {
+    return productsStore.getProductModelById(this.productId);
   });
+
+  product = $derived(this.productModel?.data ?? null);
 
   whoList = $derived(this.product?.who ?? []);
   stockParsed = $derived(this.product?.stockParsed ?? null);
@@ -116,22 +116,26 @@ export class ProductModalState implements ProductModalStateType {
   }
 
   private initForms() {
+    // On utilise le model pour avoir accès aux stats calculées (en fonction de la dateRange globale)
+    const model = productsStore.getProductModelById(this.productId);
+    if (!model || !model.data) return;
+
+    // Utiliser les stats actuelles pour pré-remplir la quantité manquante
+    // Si missingQuantities est vide, on met null
+    const firstMissing = model.stats.missingQuantities[0];
     
-    const currentProduct = productsStore.getEnrichedProductById(this.productId);
-    if (!currentProduct) return;
-
-    this.forms.purchase.quantity = currentProduct.missingQuantityArray[0]?.q ?? null;
-    this.forms.purchase.unit = currentProduct.totalNeededArray[0]?.u ?? "";
-    this.forms.purchase.store = currentProduct.storeInfo?.storeName ?? "";
+    this.forms.purchase.quantity = firstMissing?.q ?? null;
+    this.forms.purchase.unit = firstMissing?.u ?? model.data.totalNeededArray?.[0]?.u ?? "";
+    this.forms.purchase.store = model.data.storeInfo?.storeName ?? "";
     this.forms.purchase.who = globalState.userName() ?? "";
-    this.forms.purchase.status = this.forms.purchase.status || "delivered";
+    this.forms.purchase.status = "delivered";
 
-    this.forms.stock.unit = currentProduct.totalNeededArray[0]?.u ?? "";
+    this.forms.stock.unit = model.data.totalNeededArray?.[0]?.u ?? "";
 
-    this.forms.store.name = currentProduct.storeInfo?.storeName ?? "";
-    this.forms.store.comment = currentProduct.storeInfo?.storeComment ?? null;
+    this.forms.store.name = model.data.storeInfo?.storeName ?? "";
+    this.forms.store.comment = model.data.storeInfo?.storeComment ?? null;
 
-    this.forms.who = currentProduct.who ? [...currentProduct.who] : [];
+    this.forms.who = model.data.who ? [...model.data.who] : [];
 
     // Snapshot
     this.originalFormsSnapshot = {
@@ -242,6 +246,8 @@ export class ProductModalState implements ProductModalStateType {
         status: purchaseStatus,
         orderDate: this.forms.purchase.orderDate || null,
         deliveryDate,
+        invoiceId: null,
+        invoiceTotal: null,
       });
 
       // Reset form

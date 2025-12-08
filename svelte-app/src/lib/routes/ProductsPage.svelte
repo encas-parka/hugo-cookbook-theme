@@ -36,6 +36,9 @@
 
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
 
+  import { onMount } from "svelte";
+  import { eventsStore } from "$lib/stores/EventsStore.svelte";
+
   // Dont work properly
   const PANEL_WIDTH = "100";
   const PANEL_SIDE = "ml";
@@ -217,9 +220,6 @@
   // INITIALISATION
   // =========================================================================
 
-  import { onMount } from "svelte";
-  import { eventsStore } from "$lib/stores/EventsStore.svelte";
-
   // Récupérer l'eventId depuis les paramètres de route
   let { params } = $props<{ params?: Record<string, string> }>();
   let eventId = $state(params?.id);
@@ -251,7 +251,11 @@
   });
 </script>
 
-<div class="space-y-6 {globalState.isMobile ? '' : 'ml-100'}">
+<LeftPanel width={PANEL_WIDTH}>
+  <ProductsFilters />
+</LeftPanel>
+
+<div class="space-y-6 {globalState.isMobile ? '' : 'ml-100'} px-28">
   <!-- Stats -->
   <div class="flex flex-wrap items-center gap-2">
     <div class="badge badge-neutral badge-lg">
@@ -277,10 +281,6 @@
       Produit
     </button>
   </div>
-
-  <LeftPanel width={PANEL_WIDTH}>
-    <ProductsFilters />
-  </LeftPanel>
 
   <ProductsCards
     onOpenModal={openModal}

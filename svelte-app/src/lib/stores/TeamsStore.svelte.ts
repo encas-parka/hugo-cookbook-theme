@@ -85,6 +85,37 @@ export class TeamsStore {
     return this.#teams.size;
   }
 
+  /**
+   * Invitations en attente pour l'utilisateur connecté
+   */
+  get myPendingInvitations() {
+    if (!globalState.userEmail) return [];
+    
+    // Rechercher dans toutes les équipes les invitations correspondant à l'email de l'utilisateur
+    const pendingInvites: Array<{teamId: string, teamName: string, invitation: KTeamInvitation}> = [];
+    
+    this.#teams.forEach(team => {
+      // Use fallback empty string to avoid undefined checks if email isn't critical here
+      const userEmail = globalState.userEmail || '';
+      if (!userEmail) return;
+
+      const myInvite = team.invited?.find(inv => 
+        inv.email.toLowerCase() === userEmail.toLowerCase() && 
+        inv.status === 'invited'
+      );
+      
+      if (myInvite) {
+        pendingInvites.push({
+          teamId: team.$id,
+          teamName: team.name,
+          invitation: myInvite
+        });
+      }
+    });
+
+    return pendingInvites;
+  }
+
   // =============================================================================
   // INITIALISATION
   // =============================================================================
@@ -123,8 +154,8 @@ export class TeamsStore {
       const message =
         err instanceof Error ? err.message : "Erreur lors de l'initialisation";
       this.#error = message;
-      console.error("[TeamsStore]", message, err);
-      throw err;
+      // On ne throw pas ici pour ne pas bloquer l'app si les équipes ne chargent pas
+      console.error("[TeamsStore] Initialization error (non-fatal):", message);
     } finally {
       this.#loading = false;
     }
@@ -143,34 +174,11 @@ export class TeamsStore {
       for (const team of response.teams) {
         try {
           // Parser les membres
-          const parsedMembers: KTeamMember[] = team.members.map((memberStr) => {
-            try {
-              return JSON.parse(memberStr);
-            } catch (e) {
-              // Fallback pour les anciens formats (email simple)
-              return {
-                id: "unknown",
-                name: memberStr.split("@")[0] || memberStr,
-                role: "member",
-                joinedAt: new Date().toISOString(),
-              } as KTeamMember;
-            }
-          });
+          const parsedMembers: KTeamMember[] = team.members.map(memberStr => this.#safeParseMember(memberStr));
 
           // Parser les invitations
           const parsedInvited: KTeamInvitation[] = team.invited
-            ? team.invited.map((inviteStr) => {
-                try {
-                  return JSON.parse(inviteStr);
-                } catch (e) {
-                  return {
-                    email: inviteStr,
-                    status: "invited",
-                    invitedAt: new Date().toISOString(),
-                    invitedBy: "unknown",
-                  } as KTeamInvitation;
-                }
-              })
+            ? team.invited.map(inviteStr => this.#safeParseInvitation(inviteStr))
             : [];
 
           const enrichedTeam: EnrichedTeam = {
@@ -192,6 +200,55 @@ export class TeamsStore {
     } catch (err) {
       console.error("[TeamsStore] Erreur lors du chargement:", err);
       throw err;
+    }
+  }
+
+  /**
+   * Parse un membre de manière sécurisée
+   */
+  #safeParseMember(memberStr: string): KTeamMember {
+    try {
+      if (!memberStr) throw new Error("Empty member string");
+      const parsed = JSON.parse(memberStr);
+      // Validation basique
+      return {
+        id: parsed.id || "unknown",
+        name: parsed.name || "Inconnu",
+        role: parsed.role || "member",
+        joinedAt: parsed.joinedAt || new Date().toISOString()
+      };
+    } catch (e) {
+      // Fallback pour les anciens formats ou données corrompues
+      return {
+        id: "unknown",
+        name: memberStr.includes("@") ? memberStr.split("@")[0] : (memberStr || "Inconnu"),
+        role: "member",
+        joinedAt: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Parse une invitation de manière sécurisée
+   */
+  #safeParseInvitation(inviteStr: string): KTeamInvitation {
+    try {
+      if (!inviteStr) throw new Error("Empty invite string");
+      const parsed = JSON.parse(inviteStr);
+      return {
+        email: parsed.email || "unknown@example.com",
+        status: parsed.status || "invited",
+        invitedAt: parsed.invitedAt || new Date().toISOString(),
+        invitedBy: parsed.invitedBy || "unknown",
+        name: parsed.name
+      };
+    } catch (e) {
+      return {
+        email: inviteStr.includes("@") ? inviteStr : "unknown@example.com",
+        status: "invited",
+        invitedAt: new Date().toISOString(),
+        invitedBy: "unknown",
+      };
     }
   }
 
@@ -218,33 +275,11 @@ export class TeamsStore {
 
       if (team) {
         // Parser les membres
-        const parsedMembers: KTeamMember[] = team.members.map((memberStr) => {
-          try {
-            return JSON.parse(memberStr);
-          } catch (e) {
-            return {
-              id: "unknown",
-              name: memberStr.split("@")[0] || memberStr,
-              role: "member",
-              joinedAt: new Date().toISOString(),
-            } as KTeamMember;
-          }
-        });
+        const parsedMembers: KTeamMember[] = team.members.map(memberStr => this.#safeParseMember(memberStr));
 
         // Parser les invitations
         const parsedInvited: KTeamInvitation[] = team.invited
-          ? team.invited.map((inviteStr) => {
-              try {
-                return JSON.parse(inviteStr);
-              } catch (e) {
-                return {
-                  email: inviteStr,
-                  status: "invited",
-                  invitedAt: new Date().toISOString(),
-                  invitedBy: "unknown",
-                } as KTeamInvitation;
-              }
-            })
+          ? team.invited.map(inviteStr => this.#safeParseInvitation(inviteStr))
           : [];
 
         const enrichedTeam: EnrichedTeam = {
@@ -302,7 +337,7 @@ export class TeamsStore {
       const team = await createKteam(name, description);
 
       // Parser le membre créateur (qui est déjà un JSON string dans team.members[0])
-      const creatorMember = JSON.parse(team.members[0]);
+      const creatorMember = this.#safeParseMember(team.members[0]);
 
       const enrichedTeam: EnrichedTeam = {
         ...team,
@@ -343,8 +378,8 @@ export class TeamsStore {
         invited = existingTeam.invited;
       } else {
         // Fallback parsing si pas en cache (rare)
-        members = team.members.map((m) => JSON.parse(m));
-        invited = team.invited ? team.invited.map((i) => JSON.parse(i)) : [];
+        members = team.members.map((m) => this.#safeParseMember(m));
+        invited = team.invited ? team.invited.map((i) => this.#safeParseInvitation(i)) : [];
       }
 
       const enrichedTeam: EnrichedTeam = {

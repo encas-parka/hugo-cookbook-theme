@@ -61,6 +61,18 @@
   import CurrentEventsCard from "../components/dashboard/CurrentEventsCard.svelte";
   import { navigate } from "../services/simple-router.svelte";
 
+  import { onMount } from "svelte";
+
+  onMount(async () => {
+    // S'assurer que le store est initialisé (charge le cache et lance le realtime global)
+    if (!eventsStore.isInitialized && globalState.isAuthenticated) {
+      console.log(
+        "[EventEditPage] Initialisation forcée de EventsStore pour le Realtime...",
+      );
+      await eventsStore.initialize();
+    }
+  });
+
   // Charger l'événement si un ID est fourni ou réinitialiser
   $effect(() => {
     // On track uniquement eventId pour le chargement/reset
@@ -70,10 +82,11 @@
       if (id) {
         loadingEvent = true;
 
-        // Essayer de récupérer depuis le cache en mémoire d'abord
+        // Essayer de récupérer depuis le cache en mémoire d'abord (qui vient peut-être d'être chargé par initialize)
         const cachedEvent = eventsStore.getEventById(id);
 
         if (cachedEvent) {
+          console.log(`[EventEditPage] Événement ${id} trouvé dans le store`);
           eventName = cachedEvent.name || "";
           selectedTeams = cachedEvent.teams || [];
           contributors = cachedEvent.contributors || [];
@@ -83,7 +96,10 @@
           newContributors = [];
           loadingEvent = false;
         } else {
-          // Fallback : fetch depuis Appwrite si pas en cache
+          // Fallback : fetch depuis Appwrite si pas en cache ET que l'init n'a pas suffi (ex: nouvel event pas encore sync)
+          console.log(
+            `[EventEditPage] Événement ${id} introuvable en cache, fetch manuel...`,
+          );
           eventsStore
             .fetchEvent(id)
             .then((event) => {
