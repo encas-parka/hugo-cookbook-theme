@@ -5,11 +5,7 @@ import type {
   DateDisplayInfo,
 } from "../types/store.types";
 import type { DateRange, ProductStatsForDateRange } from "../utils/dateRange";
-import {
-  calculateProductStatsForDateRange,
-  calculateProductStatsForExactDate,
-  calculateProductStatsForFullRange,
-} from "../utils/dateRange";
+import { calculateProductStatsForDateRange } from "../utils/dateRange";
 import type { DateRangeStore } from "../stores/DateRangeStore.svelte";
 
 /**
@@ -93,36 +89,8 @@ export class ProductModel {
 
     let productStats: ProductStatsForDateRange;
 
-    // 1. Cas "Plage complète" (toutes les dates)
-    // 🚀 OPTIMISATION : Utilise les données précalculées
-    if (this.dateStore.isFullRange) {
-      productStats = calculateProductStatsForFullRange(
-        this.data,
-        availableDates,
-      );
-      // Dans le cas d'une plage complète, on ne garde que les dates présentes dans byDate
-      if (productStats.datesInSelectedRange) {
-        productStats.datesInSelectedRange =
-          productStats.datesInSelectedRange.filter(
-            (date) => this.data.byDate && this.data.byDate[date],
-          );
-      }
-    }
-
-    // 2. Cas "Date unique" (optimisé)
-    else if (
-      dateRange.start &&
-      dateRange.end &&
-      dateRange.start === dateRange.end
-    ) {
-      productStats = calculateProductStatsForExactDate(
-        this.data,
-        dateRange.start,
-      );
-    }
-
-    // 3. Plage partielle
-    else if (dateRange.start && dateRange.end) {
+    // Cas principal : utilise calculateProductStatsForDateRange pour tous les cas
+    if (dateRange.start && dateRange.end) {
       productStats = calculateProductStatsForDateRange(
         this.data,
         dateRange.start,
@@ -130,7 +98,7 @@ export class ProductModel {
       );
     }
 
-    // 4. Fallback (vide)
+    // Fallback (vide)
     else {
       return {
         quantities: [],
