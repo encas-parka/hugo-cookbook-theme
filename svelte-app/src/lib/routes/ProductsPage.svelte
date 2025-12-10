@@ -32,7 +32,7 @@
     createQuickValidationPurchases,
     upsertProduct,
   } from "$lib/services/appwrite-interactions";
-  import { normalizeUnit } from "$lib/utils/products-display";
+  import { autoConvertUnit } from "$lib/utils/QuantityFormatter";
 
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
 
@@ -173,7 +173,7 @@
         .filter((qty) => qty.q < 0) // Uniquement les quantités manquantes (négatives)
         .map((qty) => ({ ...qty, q: Math.abs(qty.q) })) // Convertir en positif pour les achats
         .map((qty) => {
-          const { quantity, unit } = normalizeUnit(qty.q, qty.u);
+          const { q: quantity, u: unit } = autoConvertUnit(qty.q, qty.u);
           return { q: quantity, u: unit };
         });
 

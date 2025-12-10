@@ -187,6 +187,10 @@ class ProductsStore {
     );
   }
 
+  get groupedFilteredProducts() {
+    return this.#groupedFilteredProducts;
+  }
+
   get loading() {
     return this.#loading;
   }
@@ -377,7 +381,7 @@ class ProductsStore {
 
   // Un seul dérivé qui fait tout : groupement basé sur les produits filtrés par date
   // Optimisé pour utiliser la Map directement avec tri alphabétique natif
-  groupedFilteredProducts = $derived.by(() => {
+  #groupedFilteredProducts = $derived.by(() => {
     // Utiliser les produits déjà filtrés (conversion unique Map → tableau)
     const relevantProducts = Array.from(this.filteredProductsMap.values());
 
@@ -492,11 +496,11 @@ class ProductsStore {
         $effect(() => {
           // Cette ligne réactive s'abonne aux mises à jour de l'événement dans le EventsStore
           const reactiveEvent = eventsStore.getEventById(eventId);
-          
+
           if (reactiveEvent) {
-             // On utilise untrack pour ne pas re-déclencher l'effet si syncWithEventMeals lit des états réactifs
-             // Mais ici on veut juste réagir au changement de l'objet event (qui change à chaque update realtime)
-             this.#syncWithEventMeals(reactiveEvent);
+            // On utilise untrack pour ne pas re-déclencher l'effet si syncWithEventMeals lit des états réactifs
+            // Mais ici on veut juste réagir au changement de l'objet event (qui change à chaque update realtime)
+            this.#syncWithEventMeals(reactiveEvent);
           }
         });
       });
@@ -518,90 +522,95 @@ class ProductsStore {
    * Appelée automatiquement quand l'événément change dans EventsStore
    */
   async #syncWithEventMeals(event: EnrichedEvent) {
-      // Trace de l'entrée dans la fonction
-      // console.log(`[ProductsStore] 🔄 Sync check pour event ${event.$id}`);
+    // Trace de l'entrée dans la fonction
+    // console.log(`[ProductsStore] 🔄 Sync check pour event ${event.$id}`);
 
-      if (!this.#isInitialized) {
-        console.warn("[ProductsStore] Sync ignoré car store non initialisé");
-        return; 
+    if (!this.#isInitialized) {
+      console.warn("[ProductsStore] Sync ignoré car store non initialisé");
+      return;
+    }
+
+    // Utiliser JSON.stringify pour détecter si les repas ont VRAIMENT changé
+    const mealsHash = JSON.stringify(event.meals);
+
+    if (this.#lastMealsHash === mealsHash) {
+      // console.log("[ProductsStore] Pas de changement dans les repas, skip.");
+      return;
+    }
+
+    console.log(
+      `[ProductsStore] ⚡️ CHANGEMENT REPAS DÉTECTÉ pour ${event.$id} (Hash: ${mealsHash.substring(0, 10)}...), recalcul...`,
+    );
+    this.#lastMealsHash = mealsHash;
+
+    const { recipesStore } = await import("./RecipesStore.svelte");
+    // Fonction pour récupérer les détails d'une recette
+    const getRecipeDetails = async (uuid: string) => {
+      return await recipesStore.getRecipeByUuid(uuid);
+    };
+
+    // Recalculer les produits "frais" depuis les repas
+    const freshProducts = await createEnrichedProductsFromEvent(
+      event,
+      getRecipeDetails,
+      event.$id,
+    );
+
+    // Fusionner avec l'existant pour préserver les achats/overrides
+    freshProducts.forEach((fresh) => {
+      const existingModel = this.#enrichedProducts.get(fresh.$id);
+      if (existingModel) {
+        // On met à jour les données calculées depuis les repas
+        // On doit préserver les données Appwrite (purchases, store, etc.) qui sont dans existingModel.data
+        // updateExistingProduct fait l'inverse (merge Appwrite frais sur Existant)
+
+        // Ici on veut merge FreshMealData sur ExistantAppwriteData
+        // On peut le faire manuellement ici
+        const existing = existingModel.data;
+
+        const merged: EnrichedProduct = {
+          ...existing,
+          // Mise à jour des données dérivées des repas
+          byDate: fresh.byDate,
+          totalNeededArray: fresh.totalNeededArray,
+          totalNeededRaw: fresh.totalNeededRaw,
+          nbRecipes: fresh.nbRecipes,
+          totalAssiettes: fresh.totalAssiettes,
+          // On garde le reste (purchases, overrides, etc.)
+        };
+
+        // Recalculer les manquants
+        recalculatePurchaseDependents(merged);
+
+        // Mise à jour du modèle (déclenche la réactivité)
+        existingModel.update(merged);
+      } else {
+        // Nouveau produit (ajouté via nouveau repas)
+        this.#enrichedProducts.set(
+          fresh.$id,
+          new ProductModel(fresh, this.dateStore),
+        );
       }
+    });
 
-      // Utiliser JSON.stringify pour détecter si les repas ont VRAIMENT changé
-      const mealsHash = JSON.stringify(event.meals); 
-      
-      if (this.#lastMealsHash === mealsHash) {
-         // console.log("[ProductsStore] Pas de changement dans les repas, skip.");
-         return;
-      }
-      
-      console.log(`[ProductsStore] ⚡️ CHANGEMENT REPAS DÉTECTÉ pour ${event.$id} (Hash: ${mealsHash.substring(0, 10)}...), recalcul...`);
-      this.#lastMealsHash = mealsHash;
-      
-      const { recipesStore } = await import("./RecipesStore.svelte");
-      // Fonction pour récupérer les détails d'une recette
-      const getRecipeDetails = async (uuid: string) => {
-        return await recipesStore.getRecipeByUuid(uuid);
-      };
-
-      // Recalculer les produits "frais" depuis les repas
-      const freshProducts = await createEnrichedProductsFromEvent(
-        event,
-        getRecipeDetails,
-        event.$id,
-      );
-
-      // Fusionner avec l'existant pour préserver les achats/overrides
-      freshProducts.forEach(fresh => {
-        const existingModel = this.#enrichedProducts.get(fresh.$id);
-        if (existingModel) {
-             // On met à jour les données calculées depuis les repas
-             // On doit préserver les données Appwrite (purchases, store, etc.) qui sont dans existingModel.data
-             // updateExistingProduct fait l'inverse (merge Appwrite frais sur Existant)
-             
-             // Ici on veut merge FreshMealData sur ExistantAppwriteData
-             // On peut le faire manuellement ici
-             const existing = existingModel.data;
-             
-             const merged: EnrichedProduct = {
-                 ...existing,
-                 // Mise à jour des données dérivées des repas
-                 byDate: fresh.byDate,
-                 totalNeededArray: fresh.totalNeededArray,
-                 totalNeededRaw: fresh.totalNeededRaw,
-                 nbRecipes: fresh.nbRecipes,
-                 totalAssiettes: fresh.totalAssiettes,
-                 // On garde le reste (purchases, overrides, etc.)
-             };
-             
-             // Recalculer les manquants
-             recalculatePurchaseDependents(merged);
-             
-             // Mise à jour du modèle (déclenche la réactivité)
-             existingModel.update(merged);
-        } else {
-             // Nouveau produit (ajouté via nouveau repas)
-             this.#enrichedProducts.set(fresh.$id, new ProductModel(fresh, this.dateStore));
+    // On devrait aussi gérer les suppressions (produits qui ne sont plus dans freshProducts)
+    // Mais seulement si !isSynced (non présents sur Appwrite)
+    const freshIds = new Set(freshProducts.map((p) => p.$id));
+    for (const [id, model] of this.#enrichedProducts) {
+      if (!freshIds.has(id)) {
+        if (!model.data.isSynced && !model.data.purchases?.length) {
+          // Produit local qui n'est plus utile -> Suppression
+          this.#enrichedProducts.delete(id);
         }
-      });
-      
-      // On devrait aussi gérer les suppressions (produits qui ne sont plus dans freshProducts)
-      // Mais seulement si !isSynced (non présents sur Appwrite)
-      const freshIds = new Set(freshProducts.map(p => p.$id));
-      for (const [id, model] of this.#enrichedProducts) {
-          if (!freshIds.has(id)) {
-              if (!model.data.isSynced && !model.data.purchases?.length) {
-                  // Produit local qui n'est plus utile -> Suppression
-                  this.#enrichedProducts.delete(id);
-              }
-              // Si isSynced, on garde (peut-être un produit manuel ou orphelin temporaire)
-          }
+        // Si isSynced, on garde (peut-être un produit manuel ou orphelin temporaire)
       }
-      
-      // Mettre à jour la dateStore si les dates dispos ont changé
-      this.dateStore.setAvailableDates([...(event.allDates || [])]);
-      
-      // Persister les changements majeurs
-      this.#createCache();
+    }
+
+    // Mettre à jour la dateStore si les dates dispos ont changé
+    this.dateStore.setAvailableDates([...(event.allDates || [])]);
+
+    // Persister les changements majeurs
+    this.#createCache();
   }
 
   // Hash pour debounce logique

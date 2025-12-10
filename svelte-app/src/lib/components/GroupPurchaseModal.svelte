@@ -15,7 +15,7 @@
   import { toastService } from "../services/toast.service.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
   import type { EnrichedProduct } from "../types/store.types";
-  import { formatDateWdDayMonthShort } from "../utils/dateRange";
+  import { formatDateWdDayMonthShort } from "../utils/date-helpers";
   import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
   import InfoCollapse from "./ui/InfoCollapse.svelte";
   import Suggestions from "./ui/Suggestions.svelte";

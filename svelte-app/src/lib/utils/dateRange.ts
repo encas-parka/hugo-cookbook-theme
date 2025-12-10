@@ -9,8 +9,12 @@ import type {
   EnrichedProduct,
   ByDateEntry,
 } from "../types/store.types";
-import { formatTotalQuantity, formatStockResult } from "./productsUtils";
-import { aggregateByUnit, subtractQuantities } from "./productsUtils";
+import { formatStockResult } from "./productsUtils";
+import {
+  aggregateByUnit,
+  formatTotalQuantity as formatTotalQuantityFromFormatter,
+  subtractQuantities,
+} from "./QuantityFormatter";
 
 export interface DateRange {
   start: string | null;
@@ -43,29 +47,6 @@ export interface ProductStatsForDateRange {
   // Métadonnées
   datesInSelectedRange: string[]; // Liste des dates dans la plage
   recipesByDate: Map<string, RecipeOccurrence[]>; // Recettes groupées par date
-}
-
-/**
- * Vérifie si un événement a une seule date
- */
-
-/**
- * Formate une date pour l'affichage (français)
- */
-export function formatDateDayMonthShort(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "short",
-  });
-}
-
-export function formatDateWdDayMonthShort(dateStr: string | null): string {
-  if (!dateStr) return "";
-  return new Date(dateStr).toLocaleDateString("fr-Fr", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
 }
 
 /**
@@ -194,7 +175,7 @@ export function calculateProductStatsForDateRange(
   );
   const requiredQuantitiesFormatted =
     requiredQuantities.length > 0
-      ? formatTotalQuantity(requiredQuantities)
+      ? formatTotalQuantityFromFormatter(requiredQuantities)
       : "-";
 
   // Calcul du stock pour CETTE plage
@@ -220,7 +201,7 @@ export function calculateProductStatsForDateRange(
     availableStockQuantities,
     missingStockQuantities,
     availableStockFormatted: formatStockResult(stockBalance),
-    missingStockFormatted: formatTotalQuantity(
+    missingStockFormatted: formatTotalQuantityFromFormatter(
       missingStockQuantities.map((item) => ({
         q: Math.abs(item.q),
         u: item.u,

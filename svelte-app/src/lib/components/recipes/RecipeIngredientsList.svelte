@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { RecipeIngredient } from "$lib/types/recipes.types";
-  import { scaleIngredientQuantity } from "$lib/utils/recipeQuantityUtils";
+  import { scaleAndFormatIngredient } from "$lib/utils/QuantityFormatter";
   import { TriangleAlert } from "@lucide/svelte";
 
   interface Props {
@@ -31,7 +31,7 @@
 
   // Fonction pour scaler un ingrédient
   function getScaledIngredient(ingredient: RecipeIngredient) {
-    const scaled = scaleIngredientQuantity(
+    const scaled = scaleAndFormatIngredient(
       ingredient.normalizedQuantity,
       ingredient.normalizedUnit,
       scaleFactor,
@@ -39,7 +39,7 @@
 
     return {
       ...ingredient,
-      displayQuantity: scaled.formatted,
+      displayQuantity: scaled.formattedNumber, // Version string formatée sans unité
       displayUnit: scaled.unit,
     };
   }

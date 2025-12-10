@@ -19,11 +19,14 @@ import {
   calculateTotalQuantityArray,
   transformPurchasesToNumericQuantity,
   calculateAndFormatMissing,
-  formatTotalQuantity,
   safeJsonParse,
   slugify,
-  aggregateByUnit,
 } from "./productsUtils";
+import {
+  formatTotalQuantity,
+  aggregateByUnit,
+  subtractQuantities,
+} from "./QuantityFormatter";
 import { calculateAllDateDisplayInfo } from "./dateRange";
 
 /**
@@ -326,7 +329,7 @@ async function processMeal(
   getRecipeDetails: (uuid: string) => Promise<RecipeData | null>,
   aggregations: Map<string, ProductAggregation>,
 ): Promise<void> {
-  const mealDate = meal.date.split("T")[0]; // YYYY-MM-DD
+  const mealDate = meal.date; // Conserver la date complète avec l'heure
 
   for (const mealRecipe of meal.recipes) {
     const recipeDetails = await getRecipeDetails(mealRecipe.recipeUuid);

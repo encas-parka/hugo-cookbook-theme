@@ -11,7 +11,6 @@
  */
 
 import type { RecipeData, RecipeIngredient } from "../types/recipes.types";
-import { calculateScaleFactor, scaleIngredient } from "../utils/recipeUtils";
 
 /**
  * Ingrédient scalé pour un événement
@@ -42,7 +41,9 @@ export class RecipeEventModel {
    * Réactif - se recalcule automatiquement quand targetGuests change
    */
   get scaleFactor(): number {
-    return calculateScaleFactor(this.baseData.plate, this.targetGuests);
+    const base = this.baseData.plate || 1;
+    const target = this.targetGuests || 1;
+    return target / base;
   }
 
   /**
@@ -53,9 +54,14 @@ export class RecipeEventModel {
    */
   scaledIngredients = $derived.by<ScaledIngredient[]>(() => {
     return this.baseData.ingredients.map((ing) => {
-      const scaled = scaleIngredient(ing, this.scaleFactor);
+      // Calcul manuel ici pour éviter d'importer scaleIngredient qui est déprécié
+      // On utilise directemnet QuantityFormatter pour le formatage si besoin, 
+      // mais ici on stocke juste la valeur numérique scalée.
+      const scaledQty = ing.normalizedQuantity * this.scaleFactor;
+      
       return {
-        ...scaled,
+        ...ing,
+        scaledQuantity: scaledQty,
         scaleFactor: this.scaleFactor,
       };
     });

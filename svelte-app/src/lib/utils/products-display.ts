@@ -37,43 +37,8 @@ export function getProductTypeInfo(type: string) {
   }
 }
 
-// Fonctions de formatage et normalisation pour les produits
-export function normalizeUnit(
-  quantity: number,
-  unit: string,
-): { quantity: number; unit: string } {
-  if (unit === "kg") {
-    return { quantity: quantity * 1000, unit: "gr." };
-  } else if (unit === "l.") {
-    return { quantity: quantity * 1000, unit: "ml" };
-  }
-  return { quantity, unit };
-}
-
-export function formatQuantity(quantity: number, unit: string): string {
-  let formattedQuantity: string;
-  let displayUnit: string;
-
-  if (unit === "gr." && quantity >= 1000) {
-    const kgValue = quantity / 1000;
-    formattedQuantity = roundAndTrim(kgValue);
-    displayUnit = "kg";
-  } else if (unit === "ml" && quantity >= 1000) {
-    const lValue = quantity / 1000;
-    formattedQuantity = roundAndTrim(lValue);
-    displayUnit = "l";
-  } else {
-    formattedQuantity = roundAndTrim(quantity);
-    displayUnit = unit;
-  }
-
-  return `${formattedQuantity} ${displayUnit}`;
-}
-
-function roundAndTrim(value: number): string {
-  const rounded = Math.round(value * 10) / 10;
-  return rounded.toString().replace(/\.0$/, "");
-}
+// Import des fonctions de formatage depuis QuantityFormatter
+import { convertAndFormatQuantity } from "./QuantityFormatter";
 
 export function formatDate(dateString: string): string {
   if (!dateString) return "-";
@@ -187,14 +152,29 @@ export function formatPurchasesWithBadges(purchases: any[]): Array<{
     return acc;
   }, {});
 
-  // Formatter les quantités en utilisant formatQuantity
-  return Object.values(grouped).map((item: any) => ({
-    ...item,
-    quantity: formatQuantity(item.quantity, item.unit).replace(
-      ` ${item.unit}`,
-      "",
-    ),
-  }));
+  // Formatter les quantités avec conversion d'unité si nécessaire
+  return Object.values(grouped).map((item: any) => {
+    // Utiliser convertAndFormatQuantity pour obtenir directement la valeur et l'unité converties
+    const { value: numericQty, unit: convertedUnit } = convertAndFormatQuantity(
+      item.quantity,
+      item.unit,
+    );
+
+    // Convertir en chaîne pour l'affichage
+    let formattedQty: string;
+    if (convertedUnit === "kg" || convertedUnit === "l.") {
+      // Garder jusqu'à 2 décimales mais retirer les zéros superflus
+      formattedQty = numericQty.toFixed(2).replace(/\.?0+$/, "");
+    } else {
+      formattedQty = numericQty.toString();
+    }
+
+    return {
+      ...item,
+      quantity: formattedQty,
+      unit: convertedUnit, // Mettre à jour l'unité avec l'unité convertie
+    };
+  });
 }
 
 // Fonction pour obtenir l'icône correspondant au statut

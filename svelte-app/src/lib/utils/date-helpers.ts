@@ -59,3 +59,25 @@ export function formatDateRelative(dateStr: string): string {
   }
   return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
+
+/**
+ * Formate une date pour l'affichage (français) - jour et mois court
+ */
+export function formatDateDayMonthShort(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+/**
+ * Formate une date pour l'affichage (français) - jour de semaine, jour et mois court
+ */
+export function formatDateWdDayMonthShort(dateStr: string | null): string {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("fr-FR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}

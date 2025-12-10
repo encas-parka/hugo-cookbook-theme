@@ -1,12 +1,7 @@
 <script lang="ts">
-  import {
-    Cloud,
-    Sun,
-    Moon,
-    CircleArrowDown,
-    CircleArrowRight,
-  } from "@lucide/svelte";
-  import { formatDateDayMonthShort, getTimeIcon } from "../../utils/dateRange";
+  import { Cloud, Sun, Moon } from "@lucide/svelte";
+  import { formatDateDayMonthShort } from "../../utils/date-helpers";
+  import { getTimeIcon } from "../../utils/dateRange";
   import type { DateRangeStore } from "../../stores/DateRangeStore.svelte";
 
   let {

@@ -16,10 +16,10 @@
   import type { ProductModalStateType } from "../types/store.types.js";
   import {
     formatDate,
-    formatQuantity,
     getStatusBadge,
     formatDateOrNull,
   } from "../utils/products-display.js";
+  import { formatSingleQuantity } from "../utils/QuantityFormatter.js";
   import { productsStore } from "../stores/ProductsStore.svelte";
   import ArchiveMessage from "./ArchiveMessage.svelte";
   import QuantityInput from "./ui/QuantityInput.svelte";
@@ -301,7 +301,7 @@
             <!-- Mode affichage -->
             <tr>
               <td class="font-medium">
-                {formatQuantity(purchase.quantity, purchase.unit)}
+                {formatSingleQuantity(purchase.quantity, purchase.unit)}
               </td>
               <td>{purchase.store || "-"}</td>
               <td>{purchase.who || "-"}</td>

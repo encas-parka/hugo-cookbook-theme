@@ -1068,6 +1068,10 @@ export function subscribeToRealtime(
   mainId: string,
   callbacks: RealtimeCallbacks = {},
 ): () => void {
+  console.log(
+    "[Appwrite Interactions] subscribeToRealtime appelé avec mainId:",
+    mainId,
+  );
   let unsubscribe: (() => void) | null = null;
 
   const handleRealtimeEvent = (response: any) => {
@@ -1157,6 +1161,7 @@ export function subscribeToRealtime(
       console.log(
         "[Appwrite Interactions] Appwrite instances initialisées, subscribing to collections...",
       );
+      console.log("[Appwrite Interactions] Config:", config);
 
       // S'abonner aux canaux de collections pour le mainId spécifique
       const channels = [
@@ -1165,15 +1170,16 @@ export function subscribeToRealtime(
       ];
 
       unsubscribe = appwriteSubscribe(channels, (response) => {
-        // Filtrer les événements pour ne traiter que ceux liés à notre mainId
-        if (response.payload && response.payload.mainId === mainId) {
-          handleRealtimeEvent(response);
-        }
-
         // Gérer les callbacks de connexion
         if (response.event === "client.connected") {
           console.log("[Appwrite Interactions] Realtime connecté");
           callbacks.onConnect?.();
+        }
+
+        // Traiter les événements de produits et achats
+        // Pas besoin de filtrer par mainId - on est déjà sur le bon événement
+        if (response.payload) {
+          handleRealtimeEvent(response);
         }
       });
 

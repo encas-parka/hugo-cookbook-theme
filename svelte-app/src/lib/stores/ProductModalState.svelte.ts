@@ -19,11 +19,11 @@ import type {
   ProductModalStateType,
   ModalForms,
 } from "../types/store.types";
+import { formatDate } from "../utils/products-display";
 import {
-  formatDate,
-  formatQuantity,
-  normalizeUnit,
-} from "../utils/products-display";
+  formatSingleQuantity,
+  autoConvertUnit,
+} from "../utils/QuantityFormatter";
 import { globalState } from "./GlobalState.svelte";
 import { productsStore } from "./ProductsStore.svelte";
 
@@ -97,7 +97,9 @@ export class ProductModalState implements ProductModalStateType {
 
   editingPurchaseData = $derived.by(() => {
     if (!this.editingPurchaseId) return null;
-    return this.purchasesList.find((p) => p.$id === this.editingPurchaseId) ?? null;
+    return (
+      this.purchasesList.find((p) => p.$id === this.editingPurchaseId) ?? null
+    );
   });
 
   // Snapshot pour la détection des changements
@@ -108,9 +110,12 @@ export class ProductModalState implements ProductModalStateType {
     whoList: string[];
   } | null>(null);
 
-  constructor(private productId: string, initialTab: string = "recettes") {
+  constructor(
+    private productId: string,
+    initialTab: string = "recettes",
+  ) {
     this.currentTab = initialTab;
-    
+
     // Initialisation immédiate
     this.initForms();
   }
@@ -123,9 +128,10 @@ export class ProductModalState implements ProductModalStateType {
     // Utiliser les stats actuelles pour pré-remplir la quantité manquante
     // Si missingQuantities est vide, on met null
     const firstMissing = model.stats.missingQuantities[0];
-    
+
     this.forms.purchase.quantity = firstMissing?.q ?? null;
-    this.forms.purchase.unit = firstMissing?.u ?? model.data.totalNeededArray?.[0]?.u ?? "";
+    this.forms.purchase.unit =
+      firstMissing?.u ?? model.data.totalNeededArray?.[0]?.u ?? "";
     this.forms.purchase.store = model.data.storeInfo?.storeName ?? "";
     this.forms.purchase.who = globalState.userName() ?? "";
     this.forms.purchase.status = "delivered";
@@ -157,15 +163,17 @@ export class ProductModalState implements ProductModalStateType {
         this.forms.store.name !== this.originalFormsSnapshot.store.name ||
         this.forms.store.comment !== this.originalFormsSnapshot.store.comment,
       stock: this.hasStockChanges(),
-      who: JSON.stringify(this.forms.who) !== JSON.stringify(this.originalFormsSnapshot.whoList),
+      who:
+        JSON.stringify(this.forms.who) !==
+        JSON.stringify(this.originalFormsSnapshot.whoList),
     };
   });
 
   hasAnyChanges = $derived(
     Boolean(
       this.originalFormsSnapshot &&
-        (this.hasChanges.store || this.hasChanges.stock || this.hasChanges.who)
-    )
+        (this.hasChanges.store || this.hasChanges.stock || this.hasChanges.who),
+    ),
   );
 
   private hasStockChanges(): boolean {
@@ -214,16 +222,14 @@ export class ProductModalState implements ProductModalStateType {
         throw new Error("mainId non disponible");
       }
 
-      const { quantity, unit } = normalizeUnit(
+      const { q: quantity, u: unit } = autoConvertUnit(
         this.forms.purchase.quantity,
-        this.forms.purchase.unit
+        this.forms.purchase.unit,
       );
 
       if (!this.product!.isSynced) {
-        await upsertProduct(
-          this.product!.$id,
-          {},
-          (id) => productsStore.getEnrichedProductById(id)
+        await upsertProduct(this.product!.$id, {}, (id) =>
+          productsStore.getEnrichedProductById(id),
         );
       }
 
@@ -277,9 +283,9 @@ export class ProductModalState implements ProductModalStateType {
     if (!updatedPurchase.$id) return;
 
     await this.withLoading(async () => {
-      const { quantity, unit } = normalizeUnit(
+      const { q: quantity, u: unit } = autoConvertUnit(
         updatedPurchase.quantity,
-        updatedPurchase.unit
+        updatedPurchase.unit,
       );
 
       const purchaseStatus = updatedPurchase.status || null;
@@ -309,7 +315,9 @@ export class ProductModalState implements ProductModalStateType {
     const purchase = this.purchasesList.find((p) => p.$id === purchaseId);
     if (!purchase) return;
 
-    if (!confirm(`Supprimer cet achat (${purchase.quantity} ${purchase.unit}) ?`)) {
+    if (
+      !confirm(`Supprimer cet achat (${purchase.quantity} ${purchase.unit}) ?`)
+    ) {
       return;
     }
 
@@ -337,7 +345,7 @@ export class ProductModalState implements ProductModalStateType {
         await upsertProduct(
           this.product!.$id,
           { stockReel: JSON.stringify(newEntry) },
-          (id) => productsStore.getEnrichedProductById(id)
+          (id) => productsStore.getEnrichedProductById(id),
         );
       } else {
         await updateProductStock(this.product!.$id, JSON.stringify(newEntry));
@@ -357,7 +365,7 @@ export class ProductModalState implements ProductModalStateType {
     await this.withLoading(async () => {
       if (!this.product!.isSynced) {
         await upsertProduct(this.product!.$id, { stockReel: null }, (id) =>
-          productsStore.getEnrichedProductById(id)
+          productsStore.getEnrichedProductById(id),
         );
       } else {
         await updateProductStock(this.product!.$id, null);
@@ -371,7 +379,7 @@ export class ProductModalState implements ProductModalStateType {
     await this.withLoading(async () => {
       if (!this.product!.isSynced) {
         await upsertProduct(this.product!.$id, { who: newWhoList }, (id) =>
-          productsStore.getEnrichedProductById(id)
+          productsStore.getEnrichedProductById(id),
         );
       } else {
         await updateProductWho(this.product!.$id, newWhoList);
@@ -387,7 +395,7 @@ export class ProductModalState implements ProductModalStateType {
         await upsertProduct(
           this.product!.$id,
           { store: JSON.stringify(storeInfo) },
-          (id) => productsStore.getEnrichedProductById(id)
+          (id) => productsStore.getEnrichedProductById(id),
         );
       } else {
         await updateProductStore(this.product!.$id, storeInfo);
@@ -403,7 +411,7 @@ export class ProductModalState implements ProductModalStateType {
         await upsertProduct(
           this.product!.$id,
           { totalNeededOverride: JSON.stringify(overrideData) },
-          (id) => productsStore.getEnrichedProductById(id)
+          (id) => productsStore.getEnrichedProductById(id),
         );
       } else {
         await updateTotalOverride(this.product!.$id, overrideData, true);
@@ -414,7 +422,9 @@ export class ProductModalState implements ProductModalStateType {
   async removeOverride() {
     if (!this.product) return;
 
-    if (!confirm("Supprimer l'override manuel et revenir au calcul automatique ?"))
+    if (
+      !confirm("Supprimer l'override manuel et revenir au calcul automatique ?")
+    )
       return;
 
     await this.withLoading(async () => {
@@ -428,7 +438,11 @@ export class ProductModalState implements ProductModalStateType {
     await this.withLoading(async () => {
       const batchUpdates: any = {};
 
-      if (this.hasChanges.stock && this.forms.stock.quantity && this.forms.stock.unit) {
+      if (
+        this.hasChanges.stock &&
+        this.forms.stock.quantity &&
+        this.forms.stock.unit
+      ) {
         const newEntry = {
           quantity: this.forms.stock.quantity.toString(),
           unit: this.forms.stock.unit,
@@ -452,7 +466,7 @@ export class ProductModalState implements ProductModalStateType {
 
       if (Object.keys(batchUpdates).length > 0) {
         await updateProductBatch(this.product!.$id, batchUpdates, (id) =>
-          productsStore.getEnrichedProductById(id)
+          productsStore.getEnrichedProductById(id),
         );
 
         this.originalFormsSnapshot = {
@@ -476,7 +490,7 @@ export class ProductModalState implements ProductModalStateType {
   // Helpers
   private async withLoading<T>(
     operation: () => Promise<T>,
-    successMessage?: string
+    successMessage?: string,
   ): Promise<T | null> {
     this.loading = true;
     this.error = null;
@@ -506,6 +520,7 @@ export class ProductModalState implements ProductModalStateType {
   }
 
   // Utilitaires exposés
-  formatQuantity = formatQuantity;
+  formatQuantity = (quantity: number, unit: string) =>
+    formatSingleQuantity(quantity, unit);
   formatDate = formatDate;
 }

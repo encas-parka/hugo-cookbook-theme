@@ -40,7 +40,8 @@
   import Tooltip from "./ui/Tooltip.svelte";
   import DateBadge from "./ui/DateBadge.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
-  import { formatDateWdDayMonthShort } from "../utils/dateRange";
+  import { formatDateWdDayMonthShort } from "../utils/date-helpers";
+  import { calculateDateDisplayInfo } from "../utils/dateRange";
 
   // Récupérer les icônes de statut depuis le parent pour éviter la duplication
   const statusIcons = {
@@ -92,13 +93,13 @@
   const groupedFilteredProducts = $derived(
     productsStore.groupedFilteredProducts,
   );
-  const filters = $derived(productsStore.filters);
+  const filters = productsStore.filters;
 
-  const formatedStartDateRange = $derived(
-    formatDateWdDayMonthShort(productsStore.dateStore.start),
+  const formatedStartDateRange = formatDateWdDayMonthShort(
+    productsStore.dateStore.start,
   );
-  const formatedEndDateRange = $derived(
-    formatDateWdDayMonthShort(productsStore.dateStore.end),
+  const formatedEndDateRange = formatDateWdDayMonthShort(
+    productsStore.dateStore.end,
   );
 
   // Dérivé pour déterminer si les boutons d'action doivent être affichés
@@ -294,12 +295,9 @@
                       {#each productInDateRange.concernedDates as date (date)}
                         {@const recipes =
                           productInDateRange.recipesByDate.get(date) || []}
-                        {@const dateDisplayInfo = productModel.data
-                          .dateDisplayInfo[date] || {
-                          formattedDate: date,
-                          timeIcon: null,
-                        }}
-
+                        {@const dateDisplayInfo =
+                          productModel.data.dateDisplayInfo[date] ||
+                          calculateDateDisplayInfo(date)}
                         <DateBadge {dateDisplayInfo} {recipes} />
                       {/each}
                     </div>

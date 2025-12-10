@@ -1,11 +1,12 @@
 import type {
+  ByDateEntry,
+  EnrichedProduct,
   NumericQuantity,
   RecipeOccurrence,
-  ByDateEntry,
   RecipeWithDate,
-  TotalNeededOverrideData,
-  EnrichedProduct,
 } from "../types/store.types";
+
+import { aggregateByUnit, formatSingleQuantity } from "./QuantityFormatter";
 
 /**
  * Interface pour l'état des filtres
@@ -92,7 +93,7 @@ export function calculateAndFormatMissing(
 
   if (!purchasesArray?.length) {
     const display = neededArray
-      .map((n) => formatSingleQuantity(n.q.toString(), n.u))
+      .map((n) => formatSingleQuantity(n.q, n.u))
       .join(" et ");
     return { numeric: neededArray as any, display };
   }
@@ -119,7 +120,7 @@ export function calculateAndFormatMissing(
     const missing = needed - purchased;
     if (missing > 0) {
       numeric.push({ q: missing, u: unit });
-      formatted.push(formatSingleQuantity(missing.toString(), unit));
+      formatted.push(formatSingleQuantity(missing, unit));
     }
   });
 
@@ -127,61 +128,6 @@ export function calculateAndFormatMissing(
   return { numeric, display };
 }
 
-export function formatTotalQuantity(total: NumericQuantity[]): string {
-  if (!total?.length) return "-";
-  return total
-    .map((p) => formatSingleQuantity(p.q.toString(), p.u))
-    .join(" et ");
-}
-
-export function formatSingleQuantity(value: string, unit: string): string {
-  const num = parseFloat(value);
-  if (isNaN(num)) return `${value} ${unit}`;
-
-  if ((unit === "gr." || unit === "ml") && num >= 1000) {
-    const converted = num / 1000;
-    const newUnit = unit === "gr." ? "kg" : "l.";
-    const rounded = Math.round(converted * 100) / 100;
-    let formatted = rounded.toString();
-    if (formatted.endsWith(",0")) formatted = formatted.slice(0, -2);
-    if (formatted.endsWith(",00")) formatted = formatted.slice(0, -3);
-    return `${formatted} ${newUnit}`;
-  }
-
-  if (!["gr.", "ml", "kg", "l."].includes(unit)) {
-    const rounded = Math.round(num * 10) / 10;
-    let formatted = rounded.toString();
-    if (formatted.endsWith(",0")) formatted = formatted.slice(0, -2);
-    return `${formatted} ${unit}`;
-  }
-
-  return `${num} ${unit}`;
-}
-
-/**
- * Agrège un tableau de NumericQuantity par unité
- * @param quantities - Tableau de NumericQuantity
- * @returns Tableau agrégé par unité
- */
-export function aggregateByUnit(
-  quantities: NumericQuantity[],
-): NumericQuantity[] {
-  if (!quantities?.length) return [];
-
-  const unitMap = new Map<string, number>();
-
-  quantities.forEach(({ q, u }) => {
-    if (typeof q === "number" && !isNaN(q)) {
-      const existing = unitMap.get(u) || 0;
-      unitMap.set(u, existing + q);
-    }
-  });
-
-  return Array.from(unitMap.entries()).map(([u, q]) => ({
-    q,
-    u,
-  }));
-}
 /**
  * Extrait toutes les recettes depuis la structure byDate
  * @param byDate - Structure byDate parsée
@@ -261,48 +207,6 @@ export function calculateGlobalTotal(
  */
 
 /**
- * Soustrait deux tableaux de NumericQuantity et retourne les résultats bruts
- * @param resources - Quantités disponibles
- * @param needs - Quantités nécessaires
- * @returns NumericQuantity[] avec valeurs positives (surplus) et négatives (manquants)
- */
-export function subtractQuantities(
-  resources: NumericQuantity[],
-  needs: NumericQuantity[],
-): NumericQuantity[] {
-  const resourceMap = new Map<string, number>();
-  const needMap = new Map<string, number>();
-
-  // Agréger les ressources par unité
-  resources.forEach(({ q, u }) => {
-    resourceMap.set(u, (resourceMap.get(u) || 0) + q);
-  });
-
-  // Agréger les besoins par unité
-  needs.forEach(({ q, u }) => {
-    needMap.set(u, (needMap.get(u) || 0) + q);
-  });
-
-  // Calculer la différence avec conservation du signe
-  const result: NumericQuantity[] = [];
-  const allUnits = new Set([...resourceMap.keys(), ...needMap.keys()]);
-
-  for (const unit of allUnits) {
-    const resourceQty = resourceMap.get(unit) || 0;
-    const needQty = needMap.get(unit) || 0;
-    const diff = resourceQty - needQty;
-
-    // Garder les valeurs non nulles (positives ET négatives)
-    if (Math.abs(diff) > 0.001) {
-      // Éviter les problèmes de flottants
-      result.push({ q: diff, u: unit });
-    }
-  }
-
-  return result;
-}
-
-/**
  * Formate le résultat du calcul de stock pour l'affichage
  * @param result - NumericQuantity[] avec valeurs positives et négatives
  * @returns string formatée pour l'affichage
@@ -316,26 +220,24 @@ export function formatStockResult(result: NumericQuantity[]): string {
   if (positives.length > 0 && negatives.length > 0) {
     // Cas unités différentes : "2kg disponibles, 1L manquant"
     const surplusStr = positives
-      .map((item) => formatSingleQuantity(item.q.toString(), item.u))
+      .map((item) => formatSingleQuantity(item.q, item.u))
       .join(" et ");
     const missingStr = negatives
-      .map((item) => formatSingleQuantity(Math.abs(item.q).toString(), item.u))
+      .map((item) => formatSingleQuantity(Math.abs(item.q), item.u))
       .join(" et ");
     return `${surplusStr} disponibles, ${missingStr} manquant${negatives.length > 1 ? "s" : ""}`;
   } else if (positives.length > 0) {
     // Uniquement des surplus
     return (
       positives
-        .map((item) => "+" + formatSingleQuantity(item.q.toString(), item.u))
+        .map((item) => "+" + formatSingleQuantity(item.q, item.u))
         .join(" et ") + " disponibles"
     );
   } else if (negatives.length > 0) {
     // Uniquement des manquants
     return (
       negatives
-        .map((item) =>
-          formatSingleQuantity(Math.abs(item.q).toString(), item.u),
-        )
+        .map((item) => formatSingleQuantity(Math.abs(item.q), item.u))
         .join(" et ") + ` manquant${negatives.length > 1 ? "s" : ""}`
     );
   } else {

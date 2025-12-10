@@ -1,7 +1,5 @@
 import type { Main, Products, Purchases } from "./appwrite.d";
 
-export type { HugoIngredient } from "../services/hugo-loader";
-
 /**
  * Types pour les statuts d'achat
  */
