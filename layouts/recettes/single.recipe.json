@@ -6,7 +6,7 @@
 {{/* Construction manuelle du JSON pour éviter l'aplatissement des tableaux par Hugo */}}
 {
   "uuid": {{ $uuid | jsonify }},
-  "title": {{ .Title | jsonify }},
+  "title": {{ .Title | lower | title | jsonify }},
   "draft": {{ .Draft | jsonify }},
   "typeR": {{ .Params.typeR | jsonify }},
   "categories": {{ .Params.categories | jsonify }},
@@ -32,7 +32,7 @@
 
       {{/* Gestion des quantités/unités manquantes (ex: sel, poivre) */}}
       {{- $quantite := 1 -}}
-      {{- $unit := "ajuster" -}}
+      {{- $unit := "au goût" -}}
       {{- if .quantite -}}
         {{- $quantite = .quantite -}}
       {{- end -}}
@@ -59,9 +59,9 @@
       "uuid": {{ $ingUUID | jsonify }},
       "name": {{ $ingName | jsonify }},
       "originalQuantity": {{ $quantite }},
-      "originalUnit": {{ $unit | jsonify }},
+      "originalUnit": {{ $unit | lower | jsonify }},
       "normalizedQuantity": {{ $conversion.quantiteEq }},
-      "normalizedUnit": {{ $conversion.unitEq | jsonify }},
+      "normalizedUnit": {{ $conversion.unitEq | lower | jsonify }},
       "comment": {{ $comment | jsonify }},
       "allergens": {{ $allergenes | jsonify }},
       "type": {{ $ingType | jsonify }}

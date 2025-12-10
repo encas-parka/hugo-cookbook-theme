@@ -13,6 +13,8 @@
     Cloud,
     Sun,
     type Icon as IconType,
+    Check,
+    RefreshCcw,
   } from "@lucide/svelte";
   import type { EventMeal, EventMealRecipe } from "$lib/types/events.d";
   import type { RecipeIndexEntry } from "$lib/types/recipes.types";
@@ -127,6 +129,50 @@
     });
   });
 
+  // État pour suivre si les couverts d'une recette ont été modifiés manuellement
+  // On utilise un identifiant composite meal.id-recipeUuid pour une identification unique
+  let manuallyEditedPlates = $state<Record<string, boolean>>({});
+
+  // État pour savoir si les couverts d'une recette sont en mode édition
+  // On utilise un identifiant composite meal.id-recipeUuid pour une identification unique
+  let editablePlates = $state<Record<string, boolean>>({});
+
+  // Fonction helper pour générer une clé unique pour une recette dans un repas
+  function getRecipeKey(recipeUuid: string): string {
+    return `${meal.id}-${recipeUuid}`;
+  }
+
+  // Initialiser editablePlates et manuallyEditedPlates pour les recettes existantes
+  $effect(() => {
+    meal.recipes.forEach((recipe) => {
+      const key = getRecipeKey(recipe.recipeUuid);
+      if (editablePlates[key] === undefined) {
+        editablePlates[key] = false;
+      }
+      // Initialiser manuallyEditedPlates uniquement si non défini
+      // et détecter si la recette a déjà des valeurs différentes au chargement
+      if (manuallyEditedPlates[key] === undefined) {
+        manuallyEditedPlates[key] = recipe.plates !== meal.guests;
+      }
+    });
+  });
+
+  // Effect pour synchroniser recipe.plates avec meal.guests uniquement pour les recettes non modifiées manuellement
+  $effect(() => {
+    meal.recipes.forEach((recipe) => {
+      const key = getRecipeKey(recipe.recipeUuid);
+      // Synchroniser uniquement si la recette n'est pas marquée comme modifiée manuellement
+      // et n'est pas en mode édition
+      if (
+        !manuallyEditedPlates[key] &&
+        !editablePlates[key] &&
+        recipe.plates !== meal.guests
+      ) {
+        recipe.plates = meal.guests;
+      }
+    });
+  });
+
   function handleAddRecipe(
     recipe: RecipeIndexEntry,
     type: "entree" | "plat" | "dessert",
@@ -136,7 +182,7 @@
     const alreadyExists = meal.recipes.some((r) => r.recipeUuid === recipe.u);
     if (alreadyExists) return; // Ignorer silencieusement l'ajout d'une recette déjà présente
 
-    const defaultPlates = plates || meal.guests; // Utiliser le nombre de guests par défaut
+    const defaultPlates = meal.guests; // Utiliser le nombre de guests par défaut
     const newRecipe: EventMealRecipe = {
       recipeUuid: recipe.u,
       plates: defaultPlates,
@@ -269,33 +315,23 @@
         <!-- Configuration Repas -->
         <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
           <!-- Date -->
-          <label class="w-full">
-            <div class="label">
-              <span class="label-text">Date</span>
-            </div>
-            <input
-              type="date"
-              class="input input-bordered w-full {hasTryConflictingDate
-                ? 'input-error'
-                : ''}"
-              bind:value={newDateInput}
-            />
+          <fieldset class="">
+            <label class="input {hasTryConflictingDate ? 'input-error' : ''}">
+              <span class="label">Date</span>
+              <input type="date" class="w-full" bind:value={newDateInput} />
+            </label>
             {#if hasTryConflictingDate}
-              <div class="text-error mt-1 text-xs">
+              <p class="text-error mt-1 text-xs">
                 Cette date/heure est déjà utilisée
-              </div>
+              </p>
             {/if}
-          </label>
+          </fieldset>
 
           <!-- Moment -->
-          <label class="w-full">
-            <div class="label">
-              <span class="label-text">Moment</span>
-            </div>
+          <label class="select">
+            <span class="label"> Moment </span>
             <select
-              class="select select-bordered w-full {hasTryConflictingDate
-                ? 'select-error'
-                : ''}"
+              class="w-full {hasTryConflictingDate ? 'select-error' : ''}"
               bind:value={newTimeInput}
             >
               <option value="" disabled selected>Choisir un moment</option>
@@ -306,24 +342,30 @@
           </label>
 
           <!-- Couverts global meal -->
-          <label class="w-full">
-            <div class="label">
-              <span class="label-text">Couverts</span>
-            </div>
-            <input
-              type="number"
-              class="input input-bordered w-full"
-              bind:value={meal.guests}
-              min="1"
-            />
-          </label>
+          <div>
+            <label class="input">
+              <span class="label">
+                <Utensils class="text-base-content/50 me-1 h-4 w-4" />
+                Couverts
+              </span>
+              <input
+                type="number"
+                class="w-full"
+                bind:value={meal.guests}
+                min="1"
+              />
+            </label>
+            <p class="text-base-content/60 pl-2 text-xs">
+              Peut etre modifié individuellement pour chaque recette
+            </p>
+          </div>
         </div>
 
         <!-- Liste des Recettes -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
             <h4 class="flex items-center gap-2 font-semibold">
-              <Utensils class="h-4 w-4" />
+              <ChefHat class="h-4 w-4" />
               Recettes
             </h4>
           </div>
@@ -334,7 +376,7 @@
                 {@const recipeIndex = getRecipeIndex(recipe.recipeUuid)}
                 <div
                   animate:flip={{ duration: 200 }}
-                  class="group bg-base-200/40 flex flex-wrap items-center gap-3 rounded-lg p-3"
+                  class="bg-base-200/40 flex flex-wrap items-center gap-3 rounded-lg p-3"
                 >
                   <!-- Icône -->
                   <div class="flex flex-1 items-center gap-2">
@@ -347,7 +389,7 @@
                     </div>
 
                     <!-- Infos Recette -->
-                    <div class="min-w-0 flex-1">
+                    <div class="min-w-56 flex-1">
                       <div class="font-medium">
                         {recipeIndex?.n || "Recette inconnue"}
                       </div>
@@ -355,7 +397,7 @@
                   </div>
 
                   <!-- Contrôles d'édition -->
-                  <div class="flex items-center gap-2">
+                  <div class="me-10 flex items-center gap-2">
                     <!-- Type -->
                     <select class="select w-24" bind:value={recipe.type}>
                       <option value="entree">Entrée</option>
@@ -364,20 +406,74 @@
                     </select>
 
                     <!-- Couverts -->
-                    <div class="join">
-                      <input
-                        type="number"
-                        class="input join-item w-20 text-center"
-                        bind:value={recipe.plates}
-                        min="1"
-                      />
+                    {#if editablePlates[getRecipeKey(recipe.recipeUuid)]}
                       <div
-                        class="bg-base-300 join-item flex items-center px-2 text-xs"
+                        class="ring-base-300 flex items-center gap-1 rounded-xl p-1 ring-1"
                       >
-                        pers.
-                      </div>
-                    </div>
+                        <div class="input w-28">
+                          <Utensils class="h-4 w-4 opacity-50" />
+                          <input
+                            type="number"
+                            class="w-full text-center"
+                            bind:value={recipe.plates}
+                            min="1"
+                            onchange={() => {
+                              manuallyEditedPlates[
+                                getRecipeKey(recipe.recipeUuid)
+                              ] = true;
+                            }}
+                          />
+                        </div>
 
+                        <button
+                          class="btn btn-sm btn-circle me-1"
+                          onclick={() => {
+                            editablePlates[getRecipeKey(recipe.recipeUuid)] =
+                              false;
+                          }}
+                          title="Valider"
+                        >
+                          <Check class="text-success h-4 w-4" />
+                        </button>
+                        <button
+                          class="btn btn-sm btn-circle"
+                          onclick={() => {
+                            editablePlates[getRecipeKey(recipe.recipeUuid)] =
+                              false;
+                            manuallyEditedPlates[
+                              getRecipeKey(recipe.recipeUuid)
+                            ] = false;
+                            recipe.plates = meal.guests;
+                          }}
+                          title="Revenir au nombre de couvert du repas ({meal.guests})"
+                        >
+                          <RefreshCcw class="text-secondary h-4 w-4" />
+                        </button>
+                      </div>
+                    {:else}
+                      <button
+                        class="btn {recipe.plates === meal.guests
+                          ? 'btn-ghost'
+                          : 'btn-soft btn-warning'}"
+                        onclick={() => {
+                          editablePlates[getRecipeKey(recipe.recipeUuid)] =
+                            true;
+                        }}
+                        title="Éditer les couverts"
+                      >
+                        <span class="font-normal">
+                          {manuallyEditedPlates[getRecipeKey(recipe.recipeUuid)]
+                            ? recipe.plates
+                            : meal.guests} pers.
+                        </span>
+                        <PencilLine
+                          size={14}
+                          class="text-base-content/70  ms-1"
+                        />
+                      </button>
+                    {/if}
+                  </div>
+                  <div class="ms-auto">
                     <!-- Supprimer -->
                     <button
                       class="btn btn-ghost btn-sm btn-square text-error"
@@ -405,7 +501,7 @@
       <div class="space-y-2">
         {#if sortedRecipes.length > 0}
           <div class="flex flex-wrap gap-2">
-            {#each sortedRecipes as recipe (recipe.recipeUuid)}
+            {#each sortedRecipes as recipe, i (recipe.recipeUuid)}
               {@const recipeIndex = getRecipeIndex(recipe.recipeUuid)}
               <div
                 class="badge badge-lg {getRecipeColor(
@@ -414,8 +510,9 @@
               >
                 <ChefHat class="h-4 w-4" />
                 <span>{recipeIndex?.n || "..."}</span>
-                <span class="badge badge-sm badge-outline font-base">
-                  {recipe.plates || meal.guests}p
+                <span class="badge badge-sm badge-outline font-normal">
+                  {recipe.plates || meal.guests}
+                  <Utensils size={12} />
                 </span>
               </div>
             {/each}

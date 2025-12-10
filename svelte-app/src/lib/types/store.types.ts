@@ -338,8 +338,8 @@ export interface ProductData {
 // ✅ NOUVEAUX : Types pour la structure byDate
 export interface RecipeOccurrence {
   r: string; // recipeName
-  q?: number; // quantité brute (optionnel, si différent de qEq)
-  u?: string; // unité brute (optionnel, si différent de uEq)
+  q: number; // quantité brute (optionnel, si différent de qEq)
+  u: string; // unité brute (optionnel, si différent de uEq)
   qEq: number; // quantité équivalente (convertie)
   uEq: string; // unité équivalente
   a: number; // assiettes

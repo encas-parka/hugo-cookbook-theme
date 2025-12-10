@@ -13,6 +13,7 @@
   import { formatDateWdDayMonthShort } from "../utils/date-helpers.js";
   import { getTimeIcon } from "../utils/dateRange.js";
   import { formatSingleQuantity } from "../utils/QuantityFormatter.js";
+  import QuantityInput from "./ui/QuantityInput.svelte";
 
   interface Props {
     modalState: ProductModalStateType;
@@ -25,10 +26,8 @@
   const recipes = $derived(modalState.recipes);
 
   // Formate la quantité pour une recette (déjà scalée dans productEnrichment)
-  function getRecipeQty(recipe: any): string {
+  function getRecipeQty(quantity: number, unit: string): string {
     // Selon l'interface RecipeOccurrence, qEq et uEq sont toujours définis et sont des nombres/string
-    const quantity = recipe.qEq; // Pas besoin de fallback sur q, qEq est obligatoire
-    const unit = recipe.uEq; // Pas besoin de fallback sur u, uEq est obligatoire
 
     if (!quantity || !unit) return "-";
 
@@ -79,12 +78,13 @@
 
               <!-- Couverts + quantités -->
               <div class="ms-auto flex flex-wrap items-center gap-2">
-                <span class="text-base font-medium">{getRecipeQty(recipe)}</span
+                <span class="text-base font-medium"
+                  >{getRecipeQty(recipe.qEq, recipe.uEq)}</span
                 >
 
-                {#if recipe.q && recipe.u && recipe.q !== recipe.qEq}
+                {#if recipe.q && recipe.u && recipe.u !== recipe.uEq}
                   <span class="text-base-content/70">
-                    ({formatSingleQuantity(recipe.q, recipe.u)})
+                    ({getRecipeQty(recipe.q, recipe.u)})
                   </span>
                   <span class="badge badge-soft gap-1">
                     <UtensilsCrossed class="h-3 w-3" />
