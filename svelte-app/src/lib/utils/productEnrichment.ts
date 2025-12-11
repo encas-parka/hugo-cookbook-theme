@@ -380,7 +380,12 @@ function addIngredientToAggregation(
   }
 
   const aggregation = aggregations.get(uuid)!;
-  const scaledQuantity = ingredient.normalizedQuantity * scaleFactor;
+
+  // Cas spécial : "au goût" - ne pas scaler
+  const scaledQuantity =
+    ingredient.normalizedUnit === "au goût"
+      ? ingredient.normalizedQuantity
+      : ingredient.normalizedQuantity * scaleFactor;
 
   // Initialisation de l'entrée pour cette date
   if (!aggregation.byDate[date]) {

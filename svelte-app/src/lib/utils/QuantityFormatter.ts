@@ -132,6 +132,16 @@ export function scaleAndFormatIngredient(
   formatted: string;
   formattedNumber: string;
 } {
+  // Cas spécial : "au goût" - ne pas scaler
+  if (unit === "au goût") {
+    return {
+      quantity,
+      unit,
+      formatted: `${quantity} ${unit}`,
+      formattedNumber: `${quantity}`,
+    };
+  }
+
   // 1. Scaler la valeur brute
   const scaledRaw = quantity * scaleFactor;
 
