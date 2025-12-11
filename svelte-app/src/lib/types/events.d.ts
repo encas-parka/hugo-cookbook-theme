@@ -15,6 +15,7 @@ export interface EventContributor {
   invitedAt: string;
   respondedAt?: string;
   teamId?: string; // Si l'invitation provient d'une équipe
+  isKTeamMember?: boolean;
 }
 
 /**

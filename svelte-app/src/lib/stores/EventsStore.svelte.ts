@@ -231,7 +231,9 @@ export class EventsStore {
         // 4. Sauvegarder dans le cache
         if (this.#cache) {
           await this.#cache.saveEvents(this.#events);
-          await this.#cache.saveMetadata({ lastSync: new Date().toISOString() });
+          await this.#cache.saveMetadata({
+            lastSync: new Date().toISOString(),
+          });
         }
 
         // 5. Activer le realtime
@@ -243,7 +245,9 @@ export class EventsStore {
         );
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Erreur lors de l'initialisation";
+          err instanceof Error
+            ? err.message
+            : "Erreur lors de l'initialisation";
         this.#error = message;
         console.error("[EventsStore]", message, err);
         throw err;
@@ -307,14 +311,14 @@ export class EventsStore {
     try {
       // Nettoyer l'ancienne souscription si elle existe
       if (this.#realtimeUnsubscribe) {
-          this.#realtimeUnsubscribe();
-          this.#realtimeUnsubscribe = null;
+        this.#realtimeUnsubscribe();
+        this.#realtimeUnsubscribe = null;
       }
 
       console.log("[EventsStore] Activation du Realtime...");
-      
+
       console.log("[EventsStore] Activation du Realtime...");
-      
+
       subscribeToEvents(
         this.#userId!,
         this.#userTeams,
@@ -340,12 +344,14 @@ export class EventsStore {
             }
           }
         },
-      ).then((unsub) => {
+      )
+        .then((unsub) => {
           this.#realtimeUnsubscribe = unsub;
           console.log("[EventsStore] Realtime activé avec succès");
-      }).catch((err) => {
+        })
+        .catch((err) => {
           console.error("[EventsStore] Erreur abonnement Realtime:", err);
-      });
+        });
     } catch (err) {
       console.error(
         "[EventsStore] Erreur lors de la configuration du realtime:",
@@ -528,14 +534,22 @@ export class EventsStore {
    */
   async addContributors(
     eventId: string,
-    emails: string[],
+    contributorData: {
+      emails?: string[];
+      userIds?: string[];
+    },
   ): Promise<EnrichedEvent> {
     try {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");
 
-      if (emails.length === 0) {
-        console.log(`[EventsStore] Aucun email à ajouter`);
+      const { emails = [], userIds = [] } = contributorData;
+
+      if (
+        (!emails || emails.length === 0) &&
+        (!userIds || userIds.length === 0)
+      ) {
+        console.log(`[EventsStore] Aucun contributeur à ajouter`);
         return event;
       }
 
@@ -545,7 +559,11 @@ export class EventsStore {
       );
       const newEmails = emails.filter((email) => !existingEmails.has(email));
 
-      if (newEmails.length === 0) {
+      // Filtrer les userIds déjà présents
+      const existingUserIds = new Set(event.contributors.map((c) => c.id));
+      const newUserIds = userIds.filter((id) => !existingUserIds.has(id));
+
+      if (newEmails.length === 0 && newUserIds.length === 0) {
         console.log(`[EventsStore] Tous les contributeurs sont déjà présents`);
         return event;
       }
@@ -556,7 +574,7 @@ export class EventsStore {
       // 2. Ajouter les permissions
       // 3. Envoyer les emails (groupé pour existants, individuel pour nouveaux)
       const { inviteToEvent } = await import("../services/appwrite-functions");
-      await inviteToEvent(eventId, event.name, newEmails);
+      await inviteToEvent(eventId, event.name, newEmails, newUserIds);
 
       // Recharger l'événement depuis Appwrite pour avoir les données à jour
       // Attendre un court instant pour que le traitement côté serveur soit effectué
@@ -566,54 +584,12 @@ export class EventsStore {
       if (!updatedEvent) throw new Error("Impossible de recharger l'événement");
 
       console.log(
-        `[EventsStore] ${newEmails.length} contributeur(s) ajouté(s) à l'événement ${eventId}`,
+        `[EventsStore] ${newEmails.length + newUserIds.length} contributeur(s) ajouté(s) à l'événement ${eventId}`,
       );
 
       return updatedEvent;
     } catch (err) {
       console.error(`[EventsStore] Erreur ajout contributeurs:`, err);
-      throw err;
-    }
-  }
-
-  /**
-   * Ajoute un contributeur provenant d'une KTeam
-   */
-  async addContributorFromKteam(
-    eventId: string,
-    userId: string,
-    email?: string,
-    name?: string,
-  ): Promise<EnrichedEvent> {
-    try {
-      const event = this.#events.get(eventId);
-      if (!event) throw new Error("Événement introuvable");
-
-      const contributors = [...event.contributors];
-
-      if (
-        contributors.some(
-          (c) => c.id === userId || (email && c.email === email),
-        )
-      ) {
-        console.log(`[EventsStore] Contributeur KTeam déjà présent: ${userId}`);
-        return event;
-      }
-
-      const newContributor: EventContributor = {
-        id: userId,
-        email,
-        name,
-        status: "accepted",
-        invitedAt: new Date().toISOString(),
-        respondedAt: new Date().toISOString(),
-      };
-
-      contributors.push(newContributor);
-
-      return await this.updateEvent(eventId, { contributors });
-    } catch (err) {
-      console.error(`[EventsStore] Erreur ajout contributeur KTeam:`, err);
       throw err;
     }
   }

@@ -197,9 +197,10 @@
     const newContributor: EventContributor = {
       id: memberInfo.id,
       name: memberInfo.name,
-      email: memberInfo.email, // IMPORTANT: Inclure l'email du membre
+      email: memberInfo.email, // Peut être undefined pour les membres KTeams
       status: "invited",
       invitedAt: new Date().toISOString(),
+      isKTeamMember: true, // Marqueur pour identifier les membres KTeams
     };
 
     newContributors = [...newContributors, newContributor];
@@ -291,27 +292,34 @@
     }
 
     try {
-      // Filtrer uniquement les contributeurs avec un email valide
-      const contributorsWithEmail = newContributors.filter((c) => c.email);
+      // Séparer les contributeurs en deux groupes
+      const kteamContributors = newContributors.filter((c) => c.isKTeamMember);
+      const emailContributors = newContributors.filter(
+        (c) => !c.isKTeamMember && c.email,
+      );
 
-      if (contributorsWithEmail.length === 0) {
-        toastService.error("Aucun contributeur avec un email valide à inviter");
+      // Préparer les données pour l'API
+      const userIds = kteamContributors.map((c) => c.id);
+      const emails = emailContributors.map((c) => c.email!);
+
+      if (userIds.length === 0 && emails.length === 0) {
+        toastService.error("Aucun contributeur valide à inviter");
         return;
       }
 
-      // Extraire tous les emails
-      const emails = contributorsWithEmail.map((c) => c.email!);
-
       console.log(
-        `[PermissionsManager] Envoi de ${emails.length} invitation(s)`,
+        `[PermissionsManager] Envoi de ${userIds.length + emails.length} invitation(s)`,
       );
 
       // Utiliser toastService.track pour suivre l'opération
-      await toastService.track(eventsStore.addContributors(eventId, emails), {
-        loading: "Envoi des invitations en cours...",
-        success: `${emails.length} invitation(s) envoyée(s) avec succès`,
-        error: "Erreur lors de l'envoi des invitations",
-      });
+      await toastService.track(
+        eventsStore.addContributors(eventId, { emails, userIds }),
+        {
+          loading: "Envoi des invitations en cours...",
+          success: `${userIds.length + emails.length} invitation(s) envoyée(s) avec succès`,
+          error: "Erreur lors de l'envoi des invitations",
+        },
+      );
 
       // Vider la liste des nouveaux contributeurs après envoi réussi
       newContributors = [];

@@ -63,6 +63,7 @@ export async function inviteToEvent(
   eventId: string,
   eventName: string,
   emails: string[],
+  userIds: string[] = [],
   message?: string,
 ): Promise<void> {
   try {
@@ -78,6 +79,7 @@ export async function inviteToEvent(
           name: eventName,
         },
         emails,
+        userIds,
         message,
       }),
       async: false,
@@ -142,6 +144,8 @@ export async function inviteToTeam(
 
 /**
  * Accepte une invitation (équipe ou événement)
+ * MAintenant uniquemement pour "team"  on utilise maintenant une fonction client.
+ * TOTO : Migrer aussi pour team ?
  */
 export async function acceptInvitation(
   contextType: "team" | "event",
