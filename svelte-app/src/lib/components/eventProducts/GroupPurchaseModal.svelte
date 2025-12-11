@@ -10,21 +10,21 @@
     User,
     X,
   } from "@lucide/svelte";
-  import { createGroupPurchaseWithSync } from "../services/appwrite-transaction";
-  import { productsStore } from "../stores/ProductsStore.svelte";
-  import { toastService } from "../services/toast.service.svelte";
-  import { globalState } from "../stores/GlobalState.svelte";
-  import type { EnrichedProduct } from "../types/store.types";
-  import { formatDateWdDayMonthShort } from "../utils/date-helpers";
-  import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
-  import InfoCollapse from "./ui/InfoCollapse.svelte";
-  import Suggestions from "./ui/Suggestions.svelte";
-  import QuantityInput from "./ui/QuantityInput.svelte";
-  import StoreInput from "./ui/StoreInput.svelte";
-  import WhoInput from "./ui/WhoInput.svelte";
-  import CommentTextarea from "./ui/CommentTextarea.svelte";
-  import PriceInput from "./ui/PriceInput.svelte";
-  import StatusSelect from "./ui/StatusSelect.svelte";
+  import { createGroupPurchaseWithSync } from "$lib/services/appwrite-transaction";
+  import { productsStore } from "$lib/stores/ProductsStore.svelte";
+  import { toastService } from "$lib/services/toast.service.svelte";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
+  import type { EnrichedProduct } from "$lib/types/store.types";
+  import { formatDateWdDayMonthShort } from "$lib/utils/date-helpers";
+  import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
+  import InfoCollapse from "../ui/InfoCollapse.svelte";
+  import Suggestions from "../ui/Suggestions.svelte";
+  import QuantityInput from "../ui/QuantityInput.svelte";
+  import StoreInput from "../ui/StoreInput.svelte";
+  import WhoInput from "../ui/WhoInput.svelte";
+  import CommentTextarea from "../ui/CommentTextarea.svelte";
+  import PriceInput from "../ui/PriceInput.svelte";
+  import StatusSelect from "../ui/StatusSelect.svelte";
 
   interface Props {
     products: EnrichedProduct[];

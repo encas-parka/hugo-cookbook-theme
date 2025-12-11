@@ -11,12 +11,12 @@
     Thermometer,
     Snowflake,
   } from "@lucide/svelte";
-  import { productsStore } from "../stores/ProductsStore.svelte";
-  import { createManualProduct } from "../services/appwrite-interactions";
-  import Suggestions from "./ui/Suggestions.svelte";
-  import QuantityInput from "./ui/QuantityInput.svelte";
-  import StoreInput from "./ui/StoreInput.svelte";
-  import WhoInput from "./ui/WhoInput.svelte";
+  import { productsStore } from "$lib/stores/ProductsStore.svelte";
+  import { createManualProduct } from "$lib/services/appwrite-interactions";
+  import Suggestions from "../ui/Suggestions.svelte";
+  import QuantityInput from "../ui/QuantityInput.svelte";
+  import StoreInput from "../ui/StoreInput.svelte";
+  import WhoInput from "../ui/WhoInput.svelte";
 
   interface Props {
     open: boolean;

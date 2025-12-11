@@ -1,13 +1,13 @@
-<!-- 
-Modal de récapitulatif des dépenses 
+<!--
+Modal de récapitulatif des dépenses
 -->
 <script lang="ts">
-  import { productsStore } from "../stores/ProductsStore.svelte";
+  import { productsStore } from "$lib/stores/ProductsStore.svelte";
   import {
     createExpensePurchase,
     updatePurchase,
-  } from "../services/appwrite-interactions";
-  import type { Purchases } from "../types/appwrite";
+  } from "$lib/services/appwrite-interactions";
+  import type { Purchases } from "$lib/types/appwrite";
   import {
     BadgeEuro,
     PenLine,
@@ -15,10 +15,10 @@ Modal de récapitulatif des dépenses
     Plus,
     SquarePen,
   } from "@lucide/svelte";
-  import StoreInput from "./ui/StoreInput.svelte";
-  import WhoInput from "./ui/WhoInput.svelte";
-  import PriceInput from "./ui/PriceInput.svelte";
-  import CommentTextarea from "./ui/CommentTextarea.svelte";
+  import StoreInput from "$lib/components/ui/StoreInput.svelte";
+  import WhoInput from "$lib/components/ui/WhoInput.svelte";
+  import PriceInput from "$lib/components/ui/PriceInput.svelte";
+  import CommentTextarea from "$lib/components/ui/CommentTextarea.svelte";
 
   let { isOpen = $bindable(false) } = $props();
 

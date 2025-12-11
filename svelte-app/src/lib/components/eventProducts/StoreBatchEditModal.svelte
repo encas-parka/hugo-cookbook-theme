@@ -1,14 +1,13 @@
 <script lang="ts">
-  import { User, UserPlus, X, Check, TriangleAlert } from "@lucide/svelte";
-  import {
-    batchUpdateWho,
-    type BatchUpdateResult,
-  } from "../services/appwrite-interactions";
-  import { productsStore } from "../stores/ProductsStore.svelte";
-  import { toastService } from "../services/toast.service.svelte";
-  import { globalState } from "../stores/GlobalState.svelte";
-  import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
-  import WhoInput from "./ui/WhoInput.svelte";
+  import { Store, X, Check, TriangleAlert } from "@lucide/svelte";
+  import { batchUpdateStore } from "$lib/services/appwrite-interactions";
+  import { productsStore } from "$lib/stores/ProductsStore.svelte";
+  import { toastService } from "$lib/services/toast.service.svelte";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
+  import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
+  import StoreInput from "../ui/StoreInput.svelte";
+  import CommentTextarea from "../ui/CommentTextarea.svelte";
+  import type { BatchUpdateResult, StoreInfo } from "$lib/types/store.types";
 
   interface Props {
     productIds: string[];
@@ -24,17 +23,24 @@
   let error = $state<string | null>(null);
   let result = $state<BatchUpdateResult | null>(null);
 
-  // État local pour les volontaires
-  let whoNames = $state<string[]>([]);
+  // État local pour les données du magasin
+  let storeName = $state(
+    products.length > 0 && products[0].storeInfo
+      ? products[0].storeInfo.storeName
+      : "",
+  );
 
-  // État local pour le nouveau volontaire
-  let newVolunteerName = $state("");
-
-  // État pour le mode de sélection des produits
-  let selectionMode = $state<"empty" | "all">("empty");
+  let storeComment = $state(
+    products.length > 0 && products[0].storeInfo
+      ? products[0].storeInfo.storeComment || ""
+      : "",
+  );
 
   // État local pour suivre les sélections actuelles (synchronisé avec BtnGroupCheck)
   let currentSelection = $state<Record<string, boolean>>({});
+
+  // État pour le mode de sélection des produits
+  let selectionMode = $state<"empty" | "all">("empty");
 
   // Initialiser la sélection en fonction du mode et des productIds fournis
   $effect(() => {
@@ -42,8 +48,9 @@
     products.forEach((product) => {
       if (productIds.includes(product.$id)) {
         if (selectionMode === "empty") {
-          // Sélectionner les produits sans volontaire attribué
-          newSelection[product.$id] = !product.who || product.who.length === 0;
+          // Sélectionner les produits sans magasin attribué
+          newSelection[product.$id] =
+            !product.storeInfo || !product.storeInfo.storeName;
         } else {
           // Sélectionner tous les produits
           newSelection[product.$id] = true;
@@ -68,25 +75,13 @@
     badgeItems.filter((item) => item.selected),
   );
 
-  // Créer la liste des items pour BtnGroupCheck (qui)
-  const volunteerItems = $derived.by(() => {
-    // Combiner uniqueWho et whoNames, puis dédupliquer
-    const allVolunteers = new Set([...productsStore.uniqueWho, ...whoNames]);
-
-    return Array.from(allVolunteers).map((who) => ({
-      id: who,
-      label: who,
-      selected: whoNames.includes(who),
-    }));
-  });
-
   const title = $derived(
-    `Gérer les volontaires (${selectedBadgeItems.length} produits sélectionnés)`,
+    `Attribuer un magasin (${selectedBadgeItems.length} produits sélectionnés)`,
   );
 
   const isFormValid = $derived.by(() => {
     if (selectedBadgeItems.length === 0) return false;
-    return whoNames.length > 0;
+    return storeName.trim().length > 0;
   });
 
   // Actions
@@ -103,49 +98,54 @@
       selectedProductIds.includes(p.$id),
     );
 
+    // 🚀 UX IMMÉDIAT : Marquer les produits comme "isSyncing"
     productsStore.setSyncStatus(selectedProductIds, true);
 
     // Signaler l'opération en arrière-plan
     globalState.backgroundOperation = {
       isRunning: true,
-      name: `Mise à jour volontaires (${selectedProductIds.length} produits)`,
+      name: `Mise à jour magasin (${selectedProductIds.length} produits)`,
       progress: 0,
     };
 
+    // ⚡ FERMER LE MODAL IMMÉDIATEMENT POUR UX
     onClose();
 
+    const storeInfo: StoreInfo = {
+      storeName: storeName.trim(),
+      storeComment: storeComment.trim(),
+    };
+
+    // Utiliser track() avec des messages statiques pour suivre l'opération après la fermeture du modal
     try {
-      // Utiliser track() pour suivre l'opération après la fermeture du modal
-      await toastService.track(
-        batchUpdateWho(
-          selectedProductIds,
-          selectedProducts,
-          whoNames,
-          "replace", // Mode fixe à "replace"
-        ).then((result) => {
-          // Ajouter les détails dans la console pour le débogage
-          console.log(
-            `[WhoEditModal] Mise à jour groupée: ${result.success ? "succès" : "échec"}, ${result.updatedCount} produits modifiés`,
-          );
+      const updateResult = await toastService.track(
+        batchUpdateStore(selectedProductIds, selectedProducts, storeInfo).then(
+          (result) => {
+            // Ajouter les détails dans la console pour le débogage
+            console.log(
+              `[StoreEditModal] Mise à jour groupée: ${result.success ? "succès" : "échec"}, ${result.updatedCount} produits modifiés`,
+            );
 
-          // Vérifier le succès et gérer les erreurs
-          if (!result.success) {
-            throw new Error(result.error || "Erreur lors de la mise à jour");
-          }
+            // Vérifier le succès et gérer les erreurs
+            if (!result.success) {
+              throw new Error(result.error || "Erreur lors de la mise à jour");
+            }
 
-          // Notifier le succès callback optionnel
-          onSuccess?.(result);
-          return result;
-        }),
+            return result;
+          },
+        ),
         {
-          loading: `Mise à jour des volontaires pour ${selectedProductIds.length} produits...`,
-          success: "Volontaires mis à jour avec succès",
-          error: "Erreur lors de la mise à jour des volontaires",
+          loading: `Mise à jour du magasin pour ${selectedProductIds.length} produits...`,
+          success: "Magasin mis à jour avec succès",
+          error: "Erreur lors de la mise à jour du magasin",
         },
       );
+
+      // Notifier le succès callback optionnel
+      onSuccess?.(updateResult);
     } catch (error) {
       // L'erreur est déjà affichée dans le toast, mais on nettoie l'état
-      console.error("[WhoEditModal] Erreur mise à jour:", error);
+      console.error("[StoreEditModal] Erreur mise à jour:", error);
 
       // 🔧 NETTOYAGE : Retirer le statut "isSyncing" en cas d'erreur
       productsStore.clearSyncStatus();
@@ -163,32 +163,6 @@
   function handleClose() {
     if (loading) return; // Empêcher la fermeture pendant le chargement
     onClose();
-  }
-
-  function handleAddVolunteer(name: string) {
-    const trimmedName = name.trim();
-    if (trimmedName && !whoNames.includes(trimmedName)) {
-      whoNames = [...whoNames, trimmedName];
-    }
-  }
-
-  function handleRemoveVolunteer(volunteer: string) {
-    whoNames = whoNames.filter((v) => v !== volunteer);
-  }
-
-  function handleToggleVolunteer(volunteerId: string) {
-    if (whoNames.includes(volunteerId)) {
-      handleRemoveVolunteer(volunteerId);
-    } else {
-      handleAddVolunteer(volunteerId);
-    }
-  }
-
-  function handleQuickAdd() {
-    if (newVolunteerName.trim()) {
-      handleAddVolunteer(newVolunteerName);
-      newVolunteerName = "";
-    }
   }
 
   function handleToggleProduct(productId: string) {
@@ -220,45 +194,23 @@
         </div>
       {/if}
 
-      <!-- Formulaire Who -->
+      <!-- Formulaire Store -->
       <div class="space-y-4">
-        <!-- Liste des volontaires -->
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <StoreInput
+            bind:value={storeName}
+            suggestions={productsStore.uniqueStores}
+            disabled={loading}
+            id="store-name-input"
+          />
+        </div>
+
         <div>
-          <!-- Ajout rapide -->
-          <div class="flex gap-2">
-            <div class="">
-              <WhoInput
-                bind:value={newVolunteerName}
-                disabled={loading}
-                onkeydown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleQuickAdd();
-                  }
-                }}
-              />
-            </div>
-
-            <button
-              class="btn btn-square btn-primary"
-              onclick={handleQuickAdd}
-              disabled={loading || !newVolunteerName.trim()}
-            >
-              <UserPlus size={16} />
-            </button>
-          </div>
-
-          <!-- Gestion des volontaires avec BtnGroupCheck -->
-          <div>
-            <h5 class="text-base-content/70">Sélection rapide</h5>
-            <BtnGroupCheck
-              items={volunteerItems}
-              onToggleItem={handleToggleVolunteer}
-              showIcon={true}
-              badgeSize="btn-sm"
-              badgeStyle="btn-soft"
-            />
-          </div>
+          <CommentTextarea
+            bind:value={storeComment}
+            disabled={loading}
+            id="store-comment-textarea"
+          />
         </div>
       </div>
 
@@ -272,7 +224,7 @@
           <button
             onclick={() => (selectionMode = "empty")}
             class="tab {selectionMode === 'empty' ? 'tab-active' : ''}"
-            >Produits sans volontaire attribué</button
+            >Produits sans magasin attribué</button
           >
           <button
             onclick={() => (selectionMode = "all")}

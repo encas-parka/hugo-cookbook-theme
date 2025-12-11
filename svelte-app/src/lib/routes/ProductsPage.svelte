@@ -19,14 +19,14 @@
 
   // Components
   import { globalState } from "$lib/stores/GlobalState.svelte";
-  import GroupPurchaseModal from "$lib/components/GroupPurchaseModal.svelte";
-  import AddProductModal from "$lib/components/AddProductModal.svelte";
-  import ProductModal from "$lib/components/ProductModal.svelte";
-  import ProductsFilters from "$lib/components/ProductsFilters.svelte";
-  import ProductsCards from "$lib/components/ProductsCards.svelte";
-  import StoreBatchEditModal from "$lib/components/StoreBatchEditModal.svelte";
-  import WhoBatchEditModal from "$lib/components/WhoBatchEditModal.svelte";
-  import GlobalPurchasesModal from "$lib/components/GlobalPurchasesModal.svelte";
+  import GroupPurchaseModal from "$lib/components/eventProducts/GroupPurchaseModal.svelte";
+  import AddProductModal from "$lib/components/eventProducts/AddProductModal.svelte";
+  import ProductModal from "$lib/components/eventProducts/ProductModal.svelte";
+  import ProductsFilters from "$lib/components/eventProducts/ProductsFilters.svelte";
+  import ProductsCards from "$lib/components/eventProducts/ProductsCards.svelte";
+  import StoreBatchEditModal from "$lib/components/eventProducts/StoreBatchEditModal.svelte";
+  import WhoBatchEditModal from "$lib/components/eventProducts/WhoBatchEditModal.svelte";
+  import GlobalPurchasesModal from "$lib/components/eventProducts/GlobalPurchasesModal.svelte";
   // Services
   import {
     createQuickValidationPurchases,

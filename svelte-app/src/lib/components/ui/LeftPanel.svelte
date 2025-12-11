@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { FunnelIcon, X } from "@lucide/svelte";
-  import { globalState } from "../../stores/GlobalState.svelte";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
 
   let filtersDrawerOpen = $state(false);
 

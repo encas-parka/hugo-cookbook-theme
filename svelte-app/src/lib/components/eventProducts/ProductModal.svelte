@@ -10,7 +10,7 @@
   } from "@lucide/svelte";
 
   // Stores and Global States
-  import { ProductModalState } from "../stores/ProductModalState.svelte";
+  import { ProductModalState } from "$lib/stores/ProductModalState.svelte";
 
   // Components
   import PurchaseManager from "./PurchaseManager.svelte";
@@ -18,7 +18,7 @@
   import VolunteerManager from "./VolunteerManager.svelte";
   import StoreManager from "./StoreManager.svelte";
   import RecipesManager from "./RecipesManager.svelte";
-  import { productsStore } from "../stores/ProductsStore.svelte";
+  import { productsStore } from "$lib/stores/ProductsStore.svelte";
 
   let {
     productId,

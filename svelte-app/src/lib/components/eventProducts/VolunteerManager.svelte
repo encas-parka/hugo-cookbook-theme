@@ -1,8 +1,8 @@
 <script lang="ts">
   import { User, UserPlus, Users, X } from "@lucide/svelte";
-  import type { ProductModalStateType } from "../types/store.types.js";
-  import { productsStore } from "../stores/ProductsStore.svelte.js";
-  import BtnGroupCheck from "./ui/BtnGroupCheck.svelte";
+  import type { ProductModalStateType } from "$lib/types/store.types.js";
+  import { productsStore } from "$lib/stores/ProductsStore.svelte.js";
+  import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
   import ArchiveMessage from "./ArchiveMessage.svelte";
 
   interface Props {

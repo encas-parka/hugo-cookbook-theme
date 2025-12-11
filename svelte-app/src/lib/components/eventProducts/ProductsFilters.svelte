@@ -10,10 +10,10 @@
     User,
     X,
   } from "@lucide/svelte";
-  import { productsStore } from "../stores/ProductsStore.svelte";
-  import { getProductTypeInfo } from "../utils/products-display";
-  import TimelineRange from "./ui/TimelineRange.svelte";
-  import Fieldset from "./ui/Fieldset.svelte";
+  import { productsStore } from "$lib/stores/ProductsStore.svelte";
+  import { getProductTypeInfo } from "$lib/utils/products-display";
+  import TimelineRange from "../ui/TimelineRange.svelte";
+  import Fieldset from "../ui/Fieldset.svelte";
   import { slide } from "svelte/transition";
 
   const filters = $derived(productsStore.filters);

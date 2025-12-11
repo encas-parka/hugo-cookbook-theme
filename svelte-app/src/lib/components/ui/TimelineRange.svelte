@@ -1,8 +1,8 @@
 <script lang="ts">
   import { Cloud, Sun, Moon } from "@lucide/svelte";
-  import { formatDateDayMonthShort } from "../../utils/date-helpers";
-  import { getTimeIcon } from "../../utils/dateRange";
-  import type { DateRangeStore } from "../../stores/DateRangeStore.svelte";
+  import { formatDateDayMonthShort } from "$lib/utils/date-helpers";
+  import { getTimeIcon } from "$lib/utils/dateRange";
+  import type { DateRangeStore } from "$lib/stores/DateRangeStore.svelte";
 
   let {
     dateStore,

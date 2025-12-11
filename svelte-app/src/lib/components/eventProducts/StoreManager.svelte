@@ -1,9 +1,12 @@
 <script lang="ts">
-  import type { StoreInfo, ProductModalStateType } from "../types/store.types";
-  import { productsStore } from "../stores/ProductsStore.svelte";
+  import type {
+    StoreInfo,
+    ProductModalStateType,
+  } from "$lib/types/store.types";
+  import { productsStore } from "$lib/stores/ProductsStore.svelte";
   import ArchiveMessage from "./ArchiveMessage.svelte";
-  import StoreInput from "./ui/StoreInput.svelte";
-  import CommentTextarea from "./ui/CommentTextarea.svelte";
+  import StoreInput from "../ui/StoreInput.svelte";
+  import CommentTextarea from "../ui/CommentTextarea.svelte";
 
   interface Props {
     modalState: ProductModalStateType;

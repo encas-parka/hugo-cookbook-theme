@@ -3,7 +3,7 @@
     toastService,
     type Toast,
     type ToastAction,
-  } from "../../services/toast.service.svelte";
+  } from "$lib/services/toast.service.svelte";
   import { X, LoaderCircle, ChevronDown } from "@lucide/svelte";
 
   interface Props {

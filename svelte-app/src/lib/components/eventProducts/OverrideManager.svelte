@@ -9,9 +9,9 @@
   import type {
     ProductModalStateType,
     TotalNeededOverrideData,
-  } from "../types/store.types.js";
-  import QuantityInput from "./ui/QuantityInput.svelte";
-  import CommentText from "./ui/CommentText.svelte";
+  } from "$lib/types/store.types.js";
+  import QuantityInput from "../ui/QuantityInput.svelte";
+  import CommentText from "../ui/CommentText.svelte";
   import { fade, slide } from "svelte/transition";
 
   interface Props {

@@ -1,15 +1,14 @@
 <script lang="ts">
-  import { productsStore } from "../stores/ProductsStore.svelte";
+  import { productsStore } from "$lib/stores/ProductsStore.svelte";
   // utils
   import {
     getProductTypeInfo,
     formatPurchasesWithBadges,
-  } from "../utils/products-display";
+  } from "$lib/utils/products-display";
 
   // Types
-  import type { EnrichedProduct } from "../types/store.types";
-  import type { ProductRangeStats } from "../types/store.types";
-  import { ProductModel } from "../models/ProductModel.svelte";
+  import type { ProductRangeStats } from "$lib/types/store.types";
+  import { ProductModel } from "$lib/models/ProductModel.svelte";
 
   import {
     Store,
@@ -37,11 +36,11 @@
     ClipboardPenLine,
     CircleAlert,
   } from "@lucide/svelte";
-  import Tooltip from "./ui/Tooltip.svelte";
-  import DateBadge from "./ui/DateBadge.svelte";
-  import { globalState } from "../stores/GlobalState.svelte";
-  import { formatDateWdDayMonthShort } from "../utils/date-helpers";
-  import { calculateDateDisplayInfo } from "../utils/dateRange";
+  import Tooltip from "$lib/components/ui/Tooltip.svelte";
+  import DateBadge from "$lib/components/ui/DateBadge.svelte";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
+  import { formatDateWdDayMonthShort } from "$lib/utils/date-helpers";
+  import { calculateDateDisplayInfo } from "$lib/utils/dateRange";
 
   // Récupérer les icônes de statut depuis le parent pour éviter la duplication
   const statusIcons = {

@@ -8,12 +8,10 @@
     UtensilsCrossed,
   } from "@lucide/svelte";
   import OverrideManager from "./OverrideManager.svelte";
-  import type { ProductModalStateType } from "../types/store.types.js";
-  import { formatDate } from "../utils/products-display.js";
-  import { formatDateWdDayMonthShort } from "../utils/date-helpers.js";
-  import { getTimeIcon } from "../utils/dateRange.js";
-  import { formatSingleQuantity } from "../utils/QuantityFormatter.js";
-  import QuantityInput from "./ui/QuantityInput.svelte";
+  import type { ProductModalStateType } from "$lib/types/store.types.js";
+  import { formatDateWdDayMonthShort } from "$lib/utils/date-helpers.js";
+  import { getTimeIcon } from "$lib/utils/dateRange.js";
+  import { formatSingleQuantity } from "$lib/utils/QuantityFormatter.js";
 
   interface Props {
     modalState: ProductModalStateType;

@@ -12,22 +12,22 @@
     Calendar,
     PackageCheck,
   } from "@lucide/svelte";
-  import type { Purchases } from "../types/appwrite.d.ts";
-  import type { ProductModalStateType } from "../types/store.types.js";
+  import type { Purchases } from "$lib/types/appwrite.d.ts";
+  import type { ProductModalStateType } from "$lib/types/store.types.js";
   import {
     formatDate,
     getStatusBadge,
     formatDateOrNull,
-  } from "../utils/products-display.js";
-  import { formatSingleQuantity } from "../utils/QuantityFormatter.js";
-  import { productsStore } from "../stores/ProductsStore.svelte";
+  } from "$lib/utils/products-display.js";
+  import { formatSingleQuantity } from "$lib/utils/QuantityFormatter.js";
+  import { productsStore } from "$lib/stores/ProductsStore.svelte";
   import ArchiveMessage from "./ArchiveMessage.svelte";
-  import QuantityInput from "./ui/QuantityInput.svelte";
-  import StoreInput from "./ui/StoreInput.svelte";
-  import WhoInput from "./ui/WhoInput.svelte";
-  import CommentTextarea from "./ui/CommentTextarea.svelte";
-  import PriceInput from "./ui/PriceInput.svelte";
-  import StatusSelect from "./ui/StatusSelect.svelte";
+  import QuantityInput from "../ui/QuantityInput.svelte";
+  import StoreInput from "../ui/StoreInput.svelte";
+  import WhoInput from "../ui/WhoInput.svelte";
+  import CommentTextarea from "../ui/CommentTextarea.svelte";
+  import PriceInput from "../ui/PriceInput.svelte";
+  import StatusSelect from "../ui/StatusSelect.svelte";
 
   interface Props {
     modalState: ProductModalStateType;

@@ -1,7 +1,9 @@
 <script lang="ts">
   import { Sun, Moon, Cloud } from "@lucide/svelte";
-  import type { DateDisplayInfo } from "../../types/store.types";
-  import type { RecipeOccurrence } from "../../types/store.types";
+  import type {
+    RecipeOccurrence,
+    DateDisplayInfo,
+  } from "$lib/types/store.types";
 
   interface Props {
     dateDisplayInfo: DateDisplayInfo;

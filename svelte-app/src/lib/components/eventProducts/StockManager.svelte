@@ -1,11 +1,11 @@
 <script lang="ts">
   import { Archive, Package } from "@lucide/svelte";
-  import type { ProductModalStateType } from "../types/store.types.js";
-  import { formatDate } from "../utils/products-display.js";
-  import InfoCollapse from "./ui/InfoCollapse.svelte";
+  import type { ProductModalStateType } from "$lib/types/store.types.js";
+  import { formatDate } from "$lib/utils/products-display.js";
+  import InfoCollapse from "$lib/components/ui/InfoCollapse.svelte";
   import ArchiveMessage from "./ArchiveMessage.svelte";
-  import QuantityInput from "./ui/QuantityInput.svelte";
-  import CommentTextarea from "./ui/CommentTextarea.svelte";
+  import QuantityInput from "$lib/components/ui/QuantityInput.svelte";
+  import CommentTextarea from "$lib/components/ui/CommentTextarea.svelte";
 
   interface Props {
     modalState: ProductModalStateType;
