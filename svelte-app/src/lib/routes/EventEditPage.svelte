@@ -117,21 +117,11 @@
   }
 
   // INVITED OR ACCEPTED
-  // TODO IMPROVE → derived ?
-  let isCurrentUserInvited = $state(false);
-
-  let isCurrentUserAccepted = $state(false);
-
-  $effect(() => {
+  let currentUserStatus = $derived.by(() => {
     const currentUser = contributors.find(
       (contributor) => contributor.id === globalState.userId,
     );
-    if (currentUser && currentUser.status === "accepted") {
-      isCurrentUserAccepted = true;
-    }
-    if (currentUser && currentUser.status === "invited") {
-      isCurrentUserInvited = true;
-    }
+    return currentUser?.status;
   });
 
   async function handleInvitationResponse(accept: boolean) {
@@ -141,9 +131,6 @@
       loading = true;
 
       if (accept) {
-        // Utiliser la fonction distante pour accepter l'invitation
-        await acceptInvitation("event", eventId, globalState.userId);
-
         // Mettre à jour l'état local
         contributors = contributors.map((contributor) =>
           contributor.id === globalState.userId
@@ -153,6 +140,12 @@
                 respondedAt: new Date().toISOString(),
               }
             : contributor,
+        );
+
+        await eventsStore.updateContributorStatus(
+          eventId,
+          globalState.userId,
+          "accepted",
         );
 
         toastService.success("Vous avez accepté l'invitation");
@@ -434,7 +427,7 @@
       <button
         class="btn btn-primary"
         onclick={handleSave}
-        disabled={loading || loadingEvent || !isCurrentUserAccepted}
+        disabled={loading || loadingEvent || currentUserStatus !== "accepted"}
       >
         {#if loading}
           <span class="loading loading-spinner loading-sm"></span>
@@ -447,7 +440,7 @@
   </div>
 
   <!-- Alerte d'invitation pour les utilisateurs invités -->
-  {#if isCurrentUserInvited}
+  {#if currentUserStatus === "invited"}
     <div class="alert alert-info">
       <AlertCircle class="h-6 w-6 shrink-0" />
       <div>
@@ -527,7 +520,7 @@
           <button
             class="btn btn-primary btn-sm"
             onclick={addMeal}
-            disabled={!isCurrentUserAccepted}
+            disabled={currentUserStatus !== "accepted"}
           >
             <Plus class="mr-1 h-4 w-4" />
             Ajouter un repas
@@ -560,7 +553,7 @@
                   onEmptySearchSubmit={() =>
                     meal.id && handleEmptySearchSubmit(meal.id)}
                   onDateChanged={handleDateChanged}
-                  disabled={!isCurrentUserAccepted}
+                  disabled={currentUserStatus !== "accepted"}
                 />
               </div>
             {/each}
@@ -570,7 +563,7 @@
           <button
             class="btn btn-soft btn-primary btn-block mt-4"
             onclick={addMeal}
-            disabled={!isCurrentUserAccepted}
+            disabled={currentUserStatus !== "accepted"}
           >
             <Plus class="mr-1 h-4 w-4" />
             Ajouter un repas

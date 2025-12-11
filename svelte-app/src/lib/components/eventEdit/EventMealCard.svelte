@@ -209,21 +209,19 @@
     }
     if (!isEditing && onEditToggle) {
       onEditToggle();
-      // Déclencher le focus sur le champ de recherche après le passage en mode édition
-      shouldFocusSearch = true;
     }
   }
 
   // Effect pour déclencher le focus quand isEditing change
-  $effect(() => {
-    if (isEditing) {
-      shouldFocusSearch = true;
-      // Réinitialiser après un court délai
-      setTimeout(() => {
-        shouldFocusSearch = false;
-      }, 100);
-    }
-  });
+  // $effect(() => {
+  //   if (isEditing) {
+  //     shouldFocusSearch = true;
+  //     // Réinitialiser après un court délai
+  //     setTimeout(() => {
+  //       shouldFocusSearch = false;
+  //     }, 100);
+  //   }
+  // });
 
   function getRecipeColor(type) {
     if (type === "entree") return "bg-lime-100 border-lime-200";
@@ -251,7 +249,7 @@
   <div class="card-body p-4">
     <!-- Header avec Actions -->
     <div class="mb-2 flex items-start justify-between">
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <span class="text-lg font-medium">
           {meal.date ? formatDateShort(meal.date) : "Date non définie"}
         </span>
@@ -259,10 +257,10 @@
           <TimeIcon size={16} />
           <div>{displayTime ? displayTime.toUpperCase() : "REPAS"}</div>
         </div>
-        <span class="text-base-content/60 flex items-center gap-1 text-sm">
+        <div class="text-base-content/60 flex items-center gap-1 text-sm">
           <Users class="h-3 w-3" />
           {meal.guests} pers.
-        </span>
+        </div>
       </div>
 
       <div class="flex gap-1">
@@ -278,14 +276,14 @@
             valider
           </button>
 
-          <button
+          <!-- <button
             class="btn btn-ghost btn-square"
             onclick={onDuplicate}
             title="Dupliquer"
             {disabled}
           >
             <Copy class="h-4 w-4" />
-          </button>
+          </button> -->
           <button
             class="btn btn-ghost btn-square text-error"
             onclick={onDelete}
