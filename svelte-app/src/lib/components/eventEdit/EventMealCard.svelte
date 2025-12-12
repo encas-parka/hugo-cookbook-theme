@@ -33,26 +33,26 @@
   interface Props {
     meal: EventMeal;
     onDelete: () => void;
-    onDuplicate: () => void;
     defaultGuests?: number;
     isEditing?: boolean;
     onEditToggle?: () => void;
     allDates?: string[];
     onEmptySearchSubmit?: () => void;
     onDateChanged?: (mealId: string, newDate: string) => void;
+    onModified?: () => void;
     disabled?: boolean;
   }
 
   let {
     meal = $bindable(),
     onDelete,
-    onDuplicate,
     defaultGuests = 100,
     isEditing = $bindable(false),
     onEditToggle,
     allDates = [],
     onEmptySearchSubmit,
     onDateChanged,
+    onModified,
     disabled = false,
   }: Props = $props();
 
@@ -169,6 +169,7 @@
         recipe.plates !== meal.guests
       ) {
         recipe.plates = meal.guests;
+        onModified?.(); // Notifie le parent
       }
     });
   });
@@ -191,12 +192,14 @@
 
     // Créer une copie profonde pour éviter les liaisons
     meal.recipes = [...meal.recipes, { ...newRecipe }];
+    onModified?.(); // Notifie le parent
   }
 
   function removeRecipe(recipeUuid: string) {
     meal.recipes = meal.recipes.filter(
       (recipe) => recipe.recipeUuid !== recipeUuid,
     );
+    onModified?.(); // Notifie le parent
   }
 
   function getRecipeIndex(uuid: string) {

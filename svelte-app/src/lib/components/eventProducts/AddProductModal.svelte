@@ -35,7 +35,7 @@
     who: string;
     pFrais: boolean;
     pSurgel: boolean;
-    quantity?: number | null;
+    quantity: number | null;
     unit: string;
   }>({
     productName: "",
@@ -44,7 +44,7 @@
     who: "",
     pFrais: false,
     pSurgel: false,
-    quantity: undefined,
+    quantity: null,
     unit: "",
   });
 

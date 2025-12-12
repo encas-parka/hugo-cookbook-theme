@@ -129,9 +129,19 @@ export class ProductModalState implements ProductModalStateType {
     // Si missingQuantities est vide, on met null
     const firstMissing = model.stats.missingQuantities[0];
 
-    this.forms.purchase.quantity = firstMissing?.q ?? null;
-    this.forms.purchase.unit =
-      firstMissing?.u ?? model.data.totalNeededArray?.[0]?.u ?? "";
+    // Les quantités manquantes sont négatives, mais nous voulons les afficher en positif dans le formulaire
+    // Et nous voulons convertir automatiquement les unités (gr->kg, ml->l) pour >= 1000
+    if (firstMissing) {
+      const { q: convertedQty, u: convertedUnit } = autoConvertUnit(
+        Math.abs(firstMissing.q),
+        firstMissing.u,
+      );
+      this.forms.purchase.quantity = convertedQty;
+      this.forms.purchase.unit = convertedUnit;
+    } else {
+      this.forms.purchase.quantity = null;
+      this.forms.purchase.unit = model.data.totalNeededArray?.[0]?.u ?? "";
+    }
     this.forms.purchase.store = model.data.storeInfo?.storeName ?? "";
     this.forms.purchase.who = globalState.userName() ?? "";
     this.forms.purchase.status = "delivered";
@@ -257,9 +267,23 @@ export class ProductModalState implements ProductModalStateType {
       });
 
       // Reset form
+      // Convertir automatiquement les unités (gr->kg, ml->l) pour >= 1000
+      const firstMissingAfterAdd = this.product!.missingQuantityArray[0];
+      let resetQuantity = null;
+      let resetUnit = this.product!.totalNeededArray[0]?.u ?? "";
+
+      if (firstMissingAfterAdd) {
+        const { q: convertedQty, u: convertedUnit } = autoConvertUnit(
+          Math.abs(firstMissingAfterAdd.q),
+          firstMissingAfterAdd.u,
+        );
+        resetQuantity = convertedQty;
+        resetUnit = convertedUnit;
+      }
+
       this.forms.purchase = {
-        quantity: this.product!.missingQuantityArray[0]?.q ?? null,
-        unit: this.product!.totalNeededArray[0]?.u ?? "",
+        quantity: resetQuantity,
+        unit: resetUnit,
         store: this.forms.purchase.store,
         who: this.forms.purchase.who,
         price: null,

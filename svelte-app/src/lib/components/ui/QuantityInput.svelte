@@ -36,7 +36,7 @@
       {disabled}
       required
     >
-      <option disabled selected value="">Unité</option>
+      <option disabled selected value="">Unité ?</option>
       {#each QUANTITY_UNITS as { value, label }}
         <option {value}>{label}</option>
       {/each}

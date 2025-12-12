@@ -43,18 +43,11 @@
     eventsStore,
     userId = "",
     eventId = "",
-    openModalRequest = false,
   }: Props = $props();
 
   // État local
   let showInviteModal = $state(false);
 
-  // Ouvrir le modal si openModalRequest est true
-  $effect(() => {
-    if (openModalRequest) {
-      showInviteModal = true;
-    }
-  });
   let emailInput = $state("");
   let isChecking = $state(false);
   let inviteError = $state<string | null>(null);
