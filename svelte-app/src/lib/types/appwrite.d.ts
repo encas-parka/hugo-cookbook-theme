@@ -4,10 +4,9 @@ import type { Models } from "appwrite";
 // You can regenerate it by running `appwrite types -l ts ./`.
 
 export enum MainStatus {
-  CREATING = "creating",
   ACTIVE = "active",
-  FAILED = "failed",
   ARCHIVE = "archive",
+  LOCKED = "locked",
 }
 
 export enum RecettesTypeR {

@@ -15,7 +15,7 @@
  */
 
 import { SvelteMap } from "svelte/reactivity";
-import type { Main } from "../types/appwrite.d";
+import type { Main, MainStatus } from "../types/appwrite.d";
 import type {
   CreateEventData,
   UpdateEventData,
@@ -94,7 +94,6 @@ export class EventsStore {
    * Événements en cours (maintenant)
    */
   #currentEvents = $derived.by(() => {
-    const now = new Date();
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Début de la journée actuelle
     const tomorrow = new Date(today);
@@ -106,7 +105,7 @@ export class EventsStore {
 
       // L'événement est considéré comme "en cours" si sa date de fin est aujourd'hui
       // (peu importe l'heure, tant que le dernier jour n'est pas terminé)
-      return end >= today && end < tomorrow;
+      return end >= today;
     });
   });
 
@@ -434,6 +433,43 @@ export class EventsStore {
     return false;
   }
 
+  /**
+   * Vérifie si un utilisateur spécifique peut éditer un événement
+   */
+  canUserEditEvent(
+    eventId: string,
+    userId: string,
+    userTeams?: string[],
+  ): boolean {
+    if (!userId) return false;
+
+    const event = this.#events.get(eventId);
+    if (!event) return false;
+
+    // Créateur
+    if (event.createdBy === userId) return true;
+
+    // Membre d'une équipe autorisée
+    if (event.teams?.length && userTeams?.length) {
+      if (event.teams.some((teamId) => userTeams.includes(teamId))) {
+        return true;
+      }
+    }
+
+    // Contributeur accepté
+    if (event.contributors) {
+      if (
+        event.contributors.some(
+          (c) => c.id === userId && c.status === "accepted",
+        )
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   // =============================================================================
   // API PUBLIQUE - ÉCRITURE
   // =============================================================================
@@ -483,6 +519,27 @@ export class EventsStore {
       return enriched;
     } catch (err) {
       console.error(`[EventsStore] Erreur mise à jour ${eventId}:`, err);
+      throw err;
+    }
+  }
+
+  /**
+   * Met à jour uniquement le statut d'un événement
+   */
+  async updateEventStatus(eventId: string, status: MainStatus): Promise<void> {
+    try {
+      // Utiliser le service appwrite-events pour la cohérence
+      await updateAppwriteEvent(eventId, { status });
+
+      // Mettre à jour le cache local
+      const existingEvent = this.#events.get(eventId);
+      if (existingEvent) {
+        existingEvent.status = status;
+      }
+
+      console.log(`[EventsStore] Statut mis à jour: ${eventId} -> ${status}`);
+    } catch (err) {
+      console.error(`[EventsStore] Erreur mise à jour statut ${eventId}:`, err);
       throw err;
     }
   }

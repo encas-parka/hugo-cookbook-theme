@@ -3,6 +3,10 @@
   import PermissionsManager from "$lib/components/PermissionsManager.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
+  import {
+    eventStatsStore,
+    EventStatsStore,
+  } from "$lib/stores/EventStatsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { teamsStore } from "$lib/stores/TeamsStore.svelte";
   import type {
@@ -10,199 +14,219 @@
     EventContributor,
     EventMeal,
   } from "$lib/types/events";
-  import { AlertCircle, ArrowLeft, Calendar, Plus, Save } from "@lucide/svelte";
+  import {
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    ChartBar,
+    Plus,
+    QrCode,
+    Save,
+    Lock,
+  } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
+  import { MainStatus } from "$lib/types/appwrite.d";
+  import { navigate } from "../services/simple-router.svelte";
+  import { untrack } from "svelte";
 
-  // Props du router
+  // ============================================================================
+  // PROPS & INITIALISATION
+  // ============================================================================
+
   let { params } = $props<{ params?: Record<string, string> }>();
-
   let eventId = $state(params?.id);
 
-  import { acceptInvitation } from "$lib/services/appwrite-functions";
+  // Stats store (LECTURE SEULE - pour les statistiques)
+  let eventStats = $state(new EventStatsStore(eventId));
 
-  // État du formulaire
+  // ============================================================================
+  // ÉTAT LOCAL D'ÉDITION (source de vérité pendant l'édition)
+  // ============================================================================
+
   let eventName = $state("");
-  let selectedTeams = $state<string[]>([]);
-  let contributors = $state<EventContributor[]>([]);
-  let newContributors = $state<EventContributor[]>([]); // Nouveaux contributeurs à inviter
   let meals = $state<EventMeal[]>([]);
+  let contributors = $state<EventContributor[]>([]);
+  let selectedTeams = $state<string[]>([]);
+  let newContributors = $state<EventContributor[]>([]);
+  const allDates = $derived(meals.map((m) => m.date));
 
+  // État UI
   let loading = $state(false);
   let loadingEvent = $state(false);
-  let error = $state<string | null>(null);
-
-  // État pour gérer l'ouverture du modal d'invitation après création
-  let openInviteModal = $state(false);
-
-  // État pour gérer l'édition unique des repas
   let editingMealIndex = $state<string | null>(null);
 
-  // Calculer automatiquement les dates depuis les repas (garder l'heure complète)
-  const allDates = $derived.by(() => {
-    const dates = meals.map((meal) => meal.date).filter(Boolean);
-    return [...new Set(dates)].sort();
+  // État de verrouillage
+  let isModified = $state(false);
+  let hasTriggeredLock = $state(false);
+
+  // ============================================================================
+  // DERIVED STATES
+  // ============================================================================
+
+  const currentEvent = $derived(eventStats.currentEvent);
+
+  const currentUserStatus = $derived.by(() => {
+    const currentUser = contributors.find((c) => c.id === globalState.userId);
+    return currentUser?.status;
   });
 
-  // Les repas sont maintenant maintenus triés par date dans le tableau meals
-  // Pas besoin d'un tableau dérivé sortedMeals
-
-  const dateStart = $derived(allDates.length > 0 ? allDates[0] : "");
-  const dateEnd = $derived(
-    allDates.length > 0 ? allDates[allDates.length - 1] : "",
+  const isLockedByMe = $derived(
+    isModified && currentEvent?.status === MainStatus.LOCKED,
   );
 
-  import { untrack } from "svelte";
-  import { navigate } from "../services/simple-router.svelte";
+  const isLockedByOthers = $derived(
+    !isModified && currentEvent?.status === MainStatus.LOCKED,
+  );
 
-  // Charger l'événement si un ID est fourni ou réinitialiser
+  const canEdit = $derived(
+    !isLockedByOthers && currentUserStatus === "accepted" && !loadingEvent,
+  );
+
+  const hasUnsavedChanges = $derived(isModified);
+
+  // ============================================================================
+  // INITIALISATION DEPUIS LE STORE (une seule fois)
+  // ============================================================================
+
   $effect(() => {
-    // Avec la nouvelle architecture, le store est GARANTI d'être initialisé et chargé
-    const id = eventId;
+    const evt = currentEvent;
 
-    untrack(() => {
-      if (id) {
-        // Récupération synchrone immédiate (plus besoin de fetch manuel ou d'attente)
-        const cachedEvent = eventsStore.getEventById(id);
-
-        if (cachedEvent) {
-          eventName = cachedEvent.name || "";
-          selectedTeams = cachedEvent.teams || [];
-          contributors = cachedEvent.contributors || [];
-          meals = (cachedEvent.meals || []).sort((a, b) =>
-            a.date.localeCompare(b.date),
-          );
-          newContributors = [];
-        } else {
-          // Si vraiment introuvable malgré le chargement complet, c'est que l'ID est invalide
-          toastService.error("Événement introuvable");
-          navigate("/dashboard");
-        }
-      } else {
-        // Mode Création : Réinitialiser le formulaire
-        eventName = "";
-        selectedTeams = [];
-        meals = [];
-        contributors = [];
-        newContributors = [];
+    // Ne synchroniser que si on n'a pas de modifications locales
+    if (evt && !isModified) {
+      eventName = evt.name || "";
+      selectedTeams = evt.teams || [];
+      contributors = evt.contributors || [];
+      meals = [...evt.meals].sort((a, b) => a.date.localeCompare(b.date));
+      newContributors = [];
+    } else if (eventId && !evt) {
+      toastService.error("Événement introuvable");
+      navigate("/dashboard");
+    } else if (!eventId && globalState.userId) {
+      // Mode création: initialiser avec l'utilisateur courant
+      if (contributors.length === 0) {
+        contributors = [
+          {
+            id: globalState.userId,
+            name: globalState.userName(),
+            status: "accepted" as const,
+            invitedAt: new Date().toISOString(),
+            respondedAt: new Date().toISOString(),
+          },
+        ];
       }
+    }
 
-      loadingEvent = false;
-    });
+    loadingEvent = false;
   });
 
-  // Effet séparé pour ajouter l'utilisateur courant comme contributeur en mode création
+  // ============================================================================
+  // TRI AUTOMATIQUE DES MEALS
+  // ============================================================================
+
   $effect(() => {
-    // Si on est en mode création (pas d'eventId) et qu'on a un userId
-    if (!eventId && globalState.userId) {
+    const needsSorting = meals.some(
+      (meal, i) => i > 0 && meal.date < meals[i - 1].date,
+    );
+
+    if (needsSorting) {
       untrack(() => {
-        // Si la liste est vide, on ajoute l'utilisateur
-        if (contributors.length === 0) {
-          contributors = [
-            {
-              id: globalState.userId!,
-              name: globalState.userName(),
-              status: "accepted" as const,
-              invitedAt: new Date().toISOString(),
-              respondedAt: new Date().toISOString(),
-            },
-          ];
-        }
+        meals = [...meals].sort((a, b) => a.date.localeCompare(b.date));
       });
     }
   });
 
-  function goBack() {
-    history.back();
-  }
+  // ============================================================================
+  // VERROUILLAGE AUTOMATIQUE
+  // ============================================================================
 
-  // INVITED OR ACCEPTED
-  let currentUserStatus = $derived.by(() => {
-    const currentUser = contributors.find(
-      (contributor) => contributor.id === globalState.userId,
-    );
-    return currentUser?.status;
-  });
+  async function lockEventIfNeeded() {
+    if (!eventId || hasTriggeredLock || isModified) return;
 
-  async function handleInvitationResponse(accept: boolean) {
-    if (!eventId || !globalState.userId) return;
+    hasTriggeredLock = true;
+    isModified = true;
 
     try {
-      loading = true;
-
-      if (accept) {
-        // Mettre à jour l'état local
-        contributors = contributors.map((contributor) =>
-          contributor.id === globalState.userId
-            ? {
-                ...contributor,
-                status: "accepted",
-                respondedAt: new Date().toISOString(),
-              }
-            : contributor,
-        );
-
-        await eventsStore.updateContributorStatus(
-          eventId,
-          globalState.userId,
-          "accepted",
-        );
-
-        toastService.success("Vous avez accepté l'invitation");
-      } else {
-        // Pour décliner, on peut utiliser updateContributorStatus car c'est juste un changement de statut
-        await eventsStore.updateContributorStatus(
-          eventId,
-          globalState.userId,
-          "declined",
-        );
-
-        // Mettre à jour l'état local
-        contributors = contributors.map((contributor) =>
-          contributor.id === globalState.userId
-            ? {
-                ...contributor,
-                status: "declined",
-                respondedAt: new Date().toISOString(),
-              }
-            : contributor,
-        );
-
-        toastService.success("Vous avez décliné l'invitation");
-      }
-    } catch (error) {
-      console.error("Erreur lors de la réponse à l'invitation:", error);
-      toastService.error("Erreur lors de la réponse à l'invitation");
-    } finally {
-      loading = false;
+      await eventsStore.updateEventStatus(eventId, MainStatus.LOCKED);
+      console.log("🔒 Événement verrouillé automatiquement");
+    } catch (err) {
+      console.error("❌ Erreur verrouillage:", err);
+      hasTriggeredLock = false;
+      isModified = false;
+      toastService.error("Impossible de verrouiller l'événement");
     }
   }
 
-  // Gestion des Repas
+  async function unlockEvent() {
+    if (!eventId || !isModified) return;
+
+    try {
+      await eventsStore.updateEventStatus(eventId, MainStatus.ACTIVE);
+      isModified = false;
+      hasTriggeredLock = false;
+      console.log("🔓 Événement déverrouillé");
+    } catch (err) {
+      console.error("❌ Erreur déverrouillage:", err);
+    }
+  }
+
+  // Gestion du verrouillage externe
+  $effect(() => {
+    if (isModified && isLockedByOthers) {
+      alert(
+        "Un autre utilisateur a pris le contrôle. Vos modifications seront perdues.",
+      );
+      isModified = false;
+      hasTriggeredLock = false;
+    }
+  });
+
+  // Cleanup au démontage
+  $effect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isModified) {
+        e.preventDefault();
+        e.returnValue = "Modifications non sauvegardées";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      if (isModified && eventId) {
+        unlockEvent();
+      }
+    };
+  });
+
+  // ============================================================================
+  // HANDLERS DE MODIFICATION (déclenchent le verrouillage)
+  // ============================================================================
+
+  function handleNameInput(e: Event) {
+    eventName = (e.target as HTMLInputElement).value;
+    lockEventIfNeeded(); // Seulement quand l'USER tape
+  }
+
   function addMeal() {
-    // Générer un UUID court pour identifier ce repas de manière unique
     const mealId = nanoid(6);
 
-    // Déterminer la date/heure par défaut en fonction de la dernière date
+    // Déterminer la date par défaut
     let defaultDateTime: string;
 
-    if (allDates.length === 0) {
-      // S'il n'y a aucune date, utiliser aujourd'hui à midi
+    if (meals.length === 0) {
       const today = new Date();
       today.setHours(12, 0, 0, 0);
       defaultDateTime = today.toISOString();
     } else {
-      // Récupérer la dernière date dans allDates (qui est déjà trié)
-      const lastDateString = allDates[allDates.length - 1];
-      const lastDate = new Date(lastDateString);
+      const lastMeal = meals[meals.length - 1];
+      const lastDate = new Date(lastMeal.date);
       const lastHour = lastDate.getHours();
 
-      // Appliquer notre logique: midi (12h) -> soir (20h) -> lendredi midi
       if (lastHour < 14) {
-        // Si le dernier repas était à midi, proposer le soir du même jour
         lastDate.setHours(20, 0, 0, 0);
       } else {
-        // Si le dernier repas était le soir, proposer midi le lendemain
         lastDate.setDate(lastDate.getDate() + 1);
         lastDate.setHours(12, 0, 0, 0);
       }
@@ -210,136 +234,61 @@
       defaultDateTime = lastDate.toISOString();
     }
 
-    // Vérifier si un repas existe déjà avec cette date+time (doublon)
-    if (meals.some((meal) => meal.date === defaultDateTime)) {
-      toastService.error("Un repas existe déjà à cette date et heure");
-      return;
-    }
+    // Vérifier les doublons
+    // USELESS ?
+    // if (meals.some((m) => m.date === defaultDateTime)) {
+    //   toastService.error("Un repas existe déjà à cette date et heure");
+    //   return;
+    // }
 
     const newMeal: EventMeal = {
-      id: mealId, // Ajouter un UUID court
+      id: mealId,
       date: defaultDateTime,
       guests: 100,
       recipes: [],
     };
 
-    // Ajouter le nouveau repas et trier par date
-    meals = [...meals, newMeal].sort((a, b) => a.date.localeCompare(b.date));
-    // Mettre le nouveau repas en mode édition en utilisant l'UUID
+    // Ajout simple - le tri sera automatique via l'effect
+    meals = [...meals, newMeal];
     editingMealIndex = mealId;
+
+    lockEventIfNeeded();
   }
 
   function removeMeal(mealId: string) {
-    meals = meals.filter((meal) => meal.id !== mealId);
+    meals = meals.filter((m) => m.id !== mealId);
+    lockEventIfNeeded();
   }
 
-  function duplicateMeal(mealId: string) {
-    return; // FIX setDate pour éviter conflit
-    const mealToDuplicate = meals.find((meal) => meal.id === mealId);
-    if (!mealToDuplicate) return;
-
-    // Créer une copie du repas avec un nouvel UUID
-    const duplicatedMeal = {
-      ...JSON.parse(JSON.stringify(mealToDuplicate)),
-      id: nanoid(6), // Générer un nouvel UUID pour le duplicata
-    };
-
-    const originalDate = new Date(mealToDuplicate.date);
-    originalDate.setDate(originalDate.getDate() + 1);
-    duplicatedMeal.date = originalDate.toISOString();
-
-    // Ajouter et trier par date
-    meals = [...meals, duplicatedMeal].sort((a, b) =>
-      a.date.localeCompare(b.date),
-    );
-  }
-
-  // Gestion des équipes
-  function toggleTeam(teamId: string) {
-    if (selectedTeams.includes(teamId)) {
-      selectedTeams = selectedTeams.filter((id) => id !== teamId);
-    } else {
-      selectedTeams = [...selectedTeams, teamId];
-
-      // Ajouter tous les membres de l'équipe comme contributeurs invités
-      const team = teamsStore.getTeamById(teamId);
-      if (team && team.members) {
-        const now = new Date().toISOString();
-        const newContributors: EventContributor[] = team.members
-          .filter((member) => member.id !== globalState.userId) // Ne pas ré-ajouter le créateur
-          .map((member) => ({
-            id: member.id,
-            name: member.name,
-            status: "invited" as const,
-            invitedAt: now,
-            teamId: teamId,
-          }));
-
-        // Ajouter les nouveaux contributeurs sans dupliquer
-        contributors = [
-          ...contributors,
-          ...newContributors.filter(
-            (newContributor) =>
-              !contributors.some(
-                (existing) => existing.id === newContributor.id,
-              ),
-          ),
-        ];
-      }
-    }
+  function handleDateChanged(mealId: string, newDate: string) {
+    // Modification simple - le tri sera automatique
+    meals = meals.map((m) => (m.id === mealId ? { ...m, date: newDate } : m));
+    lockEventIfNeeded();
   }
 
   function toggleEditMeal(mealId: string) {
     editingMealIndex = editingMealIndex === mealId ? null : mealId;
   }
 
-  /* Gestion des keydown 'enter'|'tab' sur l'input searchRecipe */
-  function handleEmptySearchSubmit(currentMealId: string) {
-    // Obtenir l'index du repas dans le tableau
-    const currentIndex = meals.findIndex((meal) => meal.id === currentMealId);
-
-    // Vérifier s'il y a un prochain repas
-    if (currentIndex < meals.length - 1) {
-      // Ouvrir le prochain repas en mode édition
-      const nextMeal = meals[currentIndex + 1];
-      if (nextMeal.id) {
-        editingMealIndex = nextMeal.id;
-      } else {
-        // Si le repas n'a pas d'ID, en générer un
-        nextMeal.id = nanoid(6);
-        editingMealIndex = nextMeal.id;
-      }
-    } else {
-      // Créer un nouveau repas
-      addMeal();
-    }
-  }
-
-  function handleDateChanged(mealId: string, newDate: string) {
-    // Réordonner les repas par date après un changement
-    meals = meals.sort((a, b) => a.date.localeCompare(b.date));
-  }
+  // ============================================================================
+  // SAUVEGARDE
+  // ============================================================================
 
   async function handleSave() {
+    // Validations
     if (!eventName) {
-      toastService.error("Veuillez renseigner le nom de l'événement", {
-        autoCloseDelay: 5000,
-      });
+      toastService.error("Veuillez renseigner le nom de l'événement");
       return;
     }
 
     if (meals.length === 0) {
-      toastService.error("Veuillez ajouter au moins un repas", {
-        autoCloseDelay: 5000,
-      });
+      toastService.error("Veuillez ajouter au moins un repas");
       return;
     }
 
-    // Vérifier s'il y a des invitations en attente
     if (newContributors.length > 0) {
       toastService.warning(
-        `Il y a ${newContributors.length} invitation(s) en attente. Veuillez les envoyer avant de sauvegarder.`,
-        { autoCloseDelay: 5000 },
+        `Il y a ${newContributors.length} invitation(s) en attente.`,
       );
       return;
     }
@@ -347,52 +296,115 @@
     loading = true;
 
     try {
+      // ✅ Calculer allDates UNIQUEMENT ici, au moment de la sauvegarde
+      const uniqueSortedDates = Array.from(
+        new Set(meals.map((m) => m.date)),
+      ).sort();
+
       const eventData: CreateEventData = {
         name: eventName,
-        dateStart,
-        dateEnd,
-        allDates,
+        allDates: uniqueSortedDates,
+        dateStart: uniqueSortedDates[0],
+        dateEnd: uniqueSortedDates[allDates.length - 1],
         teams: selectedTeams,
-        contributors: contributors, // Ne sauvegarder que les contributeurs déjà persistés
+        contributors,
         meals,
       };
 
       let savedEvent;
 
       if (eventId) {
-        // Mise à jour d'un événement existant
+        // Mise à jour
         savedEvent = await toastService.track(
           eventsStore.updateEvent(eventId, eventData),
           {
-            loading: "Mise à jour de l'événement...",
-            success: "Événement mis à jour avec succès",
-            error: "Erreur lors de la mise à jour de l'événement",
+            loading: "Mise à jour...",
+            success: "Événement mis à jour",
+            error: "Erreur lors de la mise à jour",
           },
         );
+
+        await unlockEvent();
       } else {
-        // Création d'un nouvel événement
+        // Création
         savedEvent = await toastService.track(
           eventsStore.createEvent(eventData),
           {
-            loading: "Création de l'événement...",
-            success: "Événement créé avec succès",
-            error: "Erreur lors de la création de l'événement",
+            loading: "Création...",
+            success: "Événement créé",
+            error: "Erreur lors de la création",
           },
         );
+
         eventId = savedEvent.$id;
-        console.log("eventId:", eventId);
+        isModified = false;
+        hasTriggeredLock = false;
       }
-    } catch (err) {
-      console.error("Erreur lors de la sauvegarde de l'événement:", err);
-      toastService.error(
-        "Erreur lors de la sauvegarde de l'événement. Vérifiez votre connexion.",
-      );
-    } finally {
-      loading = false;
 
       navigate(`/eventEdit/${eventId}`);
+    } catch (err) {
+      console.error("Erreur sauvegarde:", err);
+      toastService.error("Erreur lors de la sauvegarde");
+
+      if (eventId) {
+        await unlockEvent();
+      }
+    } finally {
+      loading = false;
     }
   }
+
+  // ============================================================================
+  // AUTRES HANDLERS
+  // ============================================================================
+
+  function goBack() {
+    history.back();
+  }
+
+  async function handleInvitationResponse(accept: boolean) {
+    if (!eventId || !globalState.userId) return;
+
+    try {
+      loading = true;
+
+      const newStatus = accept ? "accepted" : "declined";
+
+      await eventsStore.updateContributorStatus(
+        eventId,
+        globalState.userId,
+        newStatus,
+      );
+
+      contributors = contributors.map((c) =>
+        c.id === globalState.userId
+          ? { ...c, status: newStatus, respondedAt: new Date().toISOString() }
+          : c,
+      );
+
+      toastService.success(
+        accept ? "Invitation acceptée" : "Invitation déclinée",
+      );
+    } catch (error) {
+      console.error("Erreur réponse invitation:", error);
+      toastService.error("Erreur lors de la réponse");
+    } finally {
+      loading = false;
+    }
+  }
+
+  function handleEmptySearchSubmit(currentMealId: string) {
+    const currentIndex = meals.findIndex((m) => m.id === currentMealId);
+
+    if (currentIndex < meals.length - 1) {
+      const nextMeal = meals[currentIndex + 1];
+      editingMealIndex = nextMeal.id || nanoid(6);
+    } else {
+      addMeal();
+    }
+  }
+
+  $inspect("isModified", isModified);
 </script>
 
 <div class="bg-base-200 space-y-6 px-2 pb-20 md:px-36">
@@ -427,7 +439,7 @@
       <button
         class="btn btn-primary"
         onclick={handleSave}
-        disabled={loading || loadingEvent || currentUserStatus !== "accepted"}
+        disabled={!canEdit || loading || loadingEvent}
       >
         {#if loading}
           <span class="loading loading-spinner loading-sm"></span>
@@ -438,6 +450,34 @@
       </button>
     </div>
   </div>
+
+  <!-- Alerte de verrouillage par un autre utilisateur -->
+  {#if isLockedByOthers}
+    <div class="alert alert-warning">
+      <Lock class="h-6 w-6 shrink-0" />
+      <div>
+        <h3 class="font-bold">Événement en cours de modification</h3>
+        <div class="text-xs">
+          Un autre utilisateur est en train de modifier cet événement. Les
+          contrôles sont temporairement désactivés.
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Alerte de modifications non sauvegardées -->
+  {#if hasUnsavedChanges}
+    <div class="alert alert-info">
+      <Save class="h-6 w-6 shrink-0" />
+      <div>
+        <h3 class="font-bold">Modifications non sauvegardées</h3>
+        <div class="text-xs">
+          Vous avez des modifications en cours. L'événement est verrouillé pour
+          éviter les conflits.
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- Alerte d'invitation pour les utilisateurs invités -->
   {#if currentUserStatus === "invited"}
@@ -490,8 +530,10 @@
                     id="event-name"
                     type="text"
                     class="grow"
-                    placeholder="Nom d l'événement"
-                    bind:value={eventName}
+                    placeholder="Nom de l'événement"
+                    value={eventName}
+                    oninput={handleNameInput}
+                    disabled={!canEdit}
                   />
                 </label>
               </div>
@@ -509,18 +551,85 @@
           userId={globalState.userId || ""}
           userTeams={globalState.userTeams || []}
           {eventId}
-          openModalRequest={openInviteModal}
+          disabled={!canEdit}
         />
+
+        <!-- Statistiques de l'événement -->
+        {#if eventStats && eventId}
+          <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+              <h3 class="card-title mb-4 flex items-center gap-2 text-lg">
+                <ChartBar class="text-primary h-5 w-5" />
+                Statistiques
+              </h3>
+
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <div class="stat bg-base-200 rounded-lg p-3 text-center">
+                  <div class="stat-value text-primary">
+                    {eventStats.mealsCount}
+                  </div>
+                  <div class="stat-desc">Repas</div>
+                </div>
+                <div class="stat bg-base-200 rounded-lg p-3 text-center">
+                  <div class="stat-value text-primary">
+                    {eventStats.totalGuests}
+                  </div>
+                  <div class="stat-desc">Invités totaux</div>
+                </div>
+                <div class="stat bg-base-200 rounded-lg p-3 text-center">
+                  <div class="stat-value text-primary">
+                    {eventStats.totalRecipes}
+                  </div>
+                  <div class="stat-desc">Recettes uniques</div>
+                </div>
+                <div class="stat bg-base-200 rounded-lg p-3 text-center">
+                  <div class="stat-value text-primary">
+                    {eventStats.contributorsStats.total}
+                  </div>
+                  <div class="stat-desc">Contributeurs</div>
+                </div>
+              </div>
+
+              <div class="mt-4 space-y-1 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-base-content/60"
+                    >Statut de l'événement:</span
+                  >
+                  <span
+                    class="badge badge-sm badge-{eventStats.eventStatus ===
+                    'active'
+                      ? 'success'
+                      : 'warning'}"
+                  >
+                    {eventStats.eventStatus}
+                  </span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-base-content/60">Statut temporel:</span>
+                  {#if eventStats?.isEventPast}
+                    <span class="badge badge-sm badge-error">Terminé</span>
+                  {:else if eventStats?.isEventCurrent}
+                    <span class="badge badge-sm badge-success">En cours</span>
+                  {:else}
+                    <span class="badge badge-sm badge-info">À venir</span>
+                  {/if}
+                </div>
+              </div>
+            </div>
+          </div>
+        {/if}
       </div>
 
       <!-- Colonne Droite : Repas -->
       <div class="space-y-6 md:px-4 lg:col-span-3">
         <div class="mb-6 flex items-center justify-between">
-          <h3 class="card-title text-lg">Repas & Menus ({meals.length})</h3>
+          <h3 class="card-title text-lg">
+            Repas & Menus ({eventStats?.mealsCount || meals.length})
+          </h3>
           <button
             class="btn btn-primary btn-sm"
             onclick={addMeal}
-            disabled={currentUserStatus !== "accepted"}
+            disabled={!canEdit}
           >
             <Plus class="mr-1 h-4 w-4" />
             Ajouter un repas
@@ -548,12 +657,10 @@
                   isEditing={editingMealIndex === meal.id}
                   onEditToggle={() => meal.id && toggleEditMeal(meal.id)}
                   onDelete={() => meal.id && removeMeal(meal.id)}
-                  onDuplicate={() => meal.id && duplicateMeal(meal.id)}
-                  {allDates}
-                  onEmptySearchSubmit={() =>
-                    meal.id && handleEmptySearchSubmit(meal.id)}
                   onDateChanged={handleDateChanged}
-                  disabled={currentUserStatus !== "accepted"}
+                  onModified={lockEventIfNeeded}
+                  {allDates}
+                  disabled={!canEdit}
                 />
               </div>
             {/each}
@@ -563,7 +670,7 @@
           <button
             class="btn btn-soft btn-primary btn-block mt-4"
             onclick={addMeal}
-            disabled={currentUserStatus !== "accepted"}
+            disabled={!canEdit}
           >
             <Plus class="mr-1 h-4 w-4" />
             Ajouter un repas

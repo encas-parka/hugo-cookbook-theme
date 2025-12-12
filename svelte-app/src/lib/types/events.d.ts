@@ -73,4 +73,5 @@ export interface UpdateEventData {
   meals?: EventMeal[];
   teams?: string[];
   contributors?: EventContributor[]; // Tableau d'objets EventContributor
+  status?: import("./appwrite").MainStatus; // Statut de l'événement (pour le verrouillage collaboratif)
 }

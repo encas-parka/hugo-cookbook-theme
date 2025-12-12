@@ -75,11 +75,13 @@
   let newTimeInput = $state(extractTime(meal.date || ""));
   let newDateTime = $derived(dateToDateTime(newDateInput, newTimeInput));
 
+  // Changement de date d'une meal
   $effect(() => {
     const isValidNewDateTime = !isDateTimeTaken(newDateTime);
     const oldDate = meal.date; // ✅ Stocker l'ancienne date
 
     if (isValidNewDateTime) {
+      onModified?.();
       meal.date = newDateTime;
       hasTryConflictingDate = false;
 
@@ -183,6 +185,8 @@
     const alreadyExists = meal.recipes.some((r) => r.recipeUuid === recipe.u);
     if (alreadyExists) return; // Ignorer silencieusement l'ajout d'une recette déjà présente
 
+    onModified?.(); // Notifie le parent
+
     const defaultPlates = meal.guests; // Utiliser le nombre de guests par défaut
     const newRecipe: EventMealRecipe = {
       recipeUuid: recipe.u,
@@ -192,14 +196,13 @@
 
     // Créer une copie profonde pour éviter les liaisons
     meal.recipes = [...meal.recipes, { ...newRecipe }];
-    onModified?.(); // Notifie le parent
   }
 
   function removeRecipe(recipeUuid: string) {
+    onModified?.(); // Notifie le parent
     meal.recipes = meal.recipes.filter(
       (recipe) => recipe.recipeUuid !== recipeUuid,
     );
-    onModified?.(); // Notifie le parent
   }
 
   function getRecipeIndex(uuid: string) {
@@ -419,6 +422,7 @@
                             bind:value={recipe.plates}
                             min="1"
                             onchange={() => {
+                              onModified?.();
                               manuallyEditedPlates[
                                 getRecipeKey(recipe.recipeUuid)
                               ] = true;
