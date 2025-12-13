@@ -60,12 +60,14 @@ export interface CreateEventData {
   meals?: EventMeal[];
   teams?: string[];
   contributors?: EventContributor[]; // Tableau d'objets EventContributor
+  lockedBy?: string | null; // ID de l'utilisateur qui possède le verrou
 }
 
 /**
  * Données pour mettre à jour un événement
  */
 export interface UpdateEventData {
+  $updatedAt?: Date;
   name?: string;
   dateStart?: string;
   dateEnd?: string;
@@ -73,5 +75,6 @@ export interface UpdateEventData {
   meals?: EventMeal[];
   teams?: string[];
   contributors?: EventContributor[]; // Tableau d'objets EventContributor
-  status?: import("./appwrite").MainStatus; // Statut de l'événement (pour le verrouillage collaboratif)
+  status?: import("./appwrite").MainStatus; // Statut de l'événement (active | archive)
+  lockedBy?: string | null; // ID de l'utilisateur qui possède le verrou
 }

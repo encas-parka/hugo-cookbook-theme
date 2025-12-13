@@ -48,6 +48,7 @@ export type Main = Models.Row & {
   contributors: string[] | null;
   contributorsIds: string[] | null;
   kteams: Kteams[];
+  lockedBy: string | null; // ID de l'utilisateur qui possède le verrou
 };
 
 export type Products = Models.Row & {

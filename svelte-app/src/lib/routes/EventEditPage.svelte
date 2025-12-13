@@ -9,24 +9,19 @@
   } from "$lib/stores/EventStatsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { teamsStore } from "$lib/stores/TeamsStore.svelte";
-  import type {
-    CreateEventData,
-    EventContributor,
-    EventMeal,
-  } from "$lib/types/events";
+  import type { EventContributor, EventMeal } from "$lib/types/events";
+  import type { ValidationResult } from "$lib/types/auto-save.d";
   import {
     AlertCircle,
     ArrowLeft,
     Calendar,
     ChartBar,
     Plus,
-    QrCode,
     Save,
     Lock,
   } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
-  import { MainStatus } from "$lib/types/appwrite.d";
   import { navigate } from "../services/simple-router.svelte";
   import { untrack } from "svelte";
 
@@ -56,9 +51,13 @@
   let loadingEvent = $state(false);
   let editingMealIndex = $state<string | null>(null);
 
-  // État de verrouillage
+  // ============================================================================
+  // GESTION DU LOCK & AUTO-SAVE (LOCAL)
+  // ============================================================================
+
   let isModified = $state(false);
-  let hasTriggeredLock = $state(false);
+  let isSaving = $state(false);
+  let autoSaveIntervalId: number | null = null;
 
   // ============================================================================
   // DERIVED STATES
@@ -71,32 +70,203 @@
     return currentUser?.status;
   });
 
-  const isLockedByMe = $derived(
-    isModified && currentEvent?.status === MainStatus.LOCKED,
-  );
+  const isLockedByOthers = $derived.by(() => {
+    if (!currentEvent?.lockedBy) return false;
+    return currentEvent.lockedBy !== globalState.userId;
+  });
 
-  const isLockedByOthers = $derived(
-    !isModified && currentEvent?.status === MainStatus.LOCKED,
-  );
+  const isLockedByMe = $derived.by(() => {
+    if (!currentEvent?.lockedBy) return false;
+    return currentEvent.lockedBy === globalState.userId;
+  });
 
   const canEdit = $derived(
     !isLockedByOthers && currentUserStatus === "accepted" && !loadingEvent,
   );
 
-  const hasUnsavedChanges = $derived(isModified);
+  // ============================================================================
+  // LOCK MANAGEMENT
+  // ============================================================================
+
+  async function acquireLock(): Promise<boolean> {
+    if (!eventId || !globalState.userId) return false;
+
+    try {
+      // Vérifier si un verrou existe déjà
+      if (currentEvent?.lockedBy) {
+        const lockAge = currentEvent.$updatedAt
+          ? (Date.now() - new Date(currentEvent.$updatedAt).getTime()) /
+            (1000 * 60)
+          : Infinity;
+
+        // Si le verrou est périmé (> 3 min), le libérer
+        if (lockAge > 3) {
+          console.log(`🔓 Verrou périmé détecté (${lockAge.toFixed(1)} min)`);
+          await eventsStore.updateEvent(eventId, { lockedBy: null });
+        } else if (currentEvent.lockedBy !== globalState.userId) {
+          toastService.warning("Un autre utilisateur modifie cet événement");
+          return false;
+        }
+      }
+
+      // Acquérir le verrou
+      await eventsStore.updateEvent(eventId, { lockedBy: globalState.userId });
+      isModified = true;
+
+      console.log("🔒 Verrou acquis");
+      return true;
+    } catch (error) {
+      console.error("❌ Erreur acquisition verrou:", error);
+      toastService.error("Impossible de verrouiller l'événement");
+      return false;
+    }
+  }
+
+  async function releaseLock(): Promise<void> {
+    if (!eventId || !isModified) return;
+
+    try {
+      await eventsStore.updateEvent(eventId, { lockedBy: null });
+      isModified = false;
+      console.log("🔓 Verrou libéré");
+    } catch (error) {
+      console.error("❌ Erreur libération verrou:", error);
+    }
+  }
 
   // ============================================================================
-  // INITIALISATION DEPUIS LE STORE (une seule fois)
+  // AUTO-SAVE
+  // ============================================================================
+
+  function validateEventData(): ValidationResult {
+    if (!eventName) {
+      return {
+        isValid: false,
+        errorMessage: "Veuillez renseigner le nom de l'événement",
+      };
+    }
+
+    if (meals.length === 0) {
+      return {
+        isValid: false,
+        errorMessage: "Veuillez ajouter au moins un repas",
+      };
+    }
+
+    const duplicatedDates = allDates.filter(
+      (date, index, self) => self.indexOf(date) !== index,
+    );
+
+    if (duplicatedDates.length > 0) {
+      const duplicatedDatesFormatted = duplicatedDates.map((date) => {
+        try {
+          return new Date(date).toLocaleString("fr-FR", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        } catch (e) {
+          return date;
+        }
+      });
+
+      return {
+        isValid: false,
+        errorMessage: `Certaines dates sont en double: ${duplicatedDatesFormatted.join(
+          ", ",
+        )}. Veuillez corriger avant de sauvegarder.`,
+      };
+    }
+
+    return { isValid: true };
+  }
+
+  async function performAutoSave(): Promise<void> {
+    if (!eventId || isSaving || !isModified) return;
+
+    isSaving = true;
+    const toastId = toastService.loading("Sauvegarde automatique...");
+
+    try {
+      const validation = validateEventData();
+
+      if (validation.isValid) {
+        // ✅ Données valides → Sauvegarder ET libérer le verrou
+        await eventsStore.updateEvent(eventId, {
+          name: eventName,
+          allDates: Array.from(new Set(meals.map((m) => m.date))).sort(),
+          dateStart: allDates.length > 0 ? allDates[0] : "",
+          dateEnd: allDates.length > 0 ? allDates[allDates.length - 1] : "",
+          teams: selectedTeams,
+          contributors,
+          meals,
+          lockedBy: null, // Libérer le verrou
+        });
+
+        isModified = false;
+
+        toastService.update(toastId, {
+          state: "success",
+          message: "Modifications sauvegardées automatiquement",
+        });
+      } else {
+        // ⚠️ Données invalides → Heartbeat pour maintenir le verrou
+        await eventsStore.updateEvent(eventId, {
+          lockedBy: globalState.userId, // Garder le verrou
+        });
+
+        toastService.update(toastId, {
+          state: "warning",
+          message: `Impossible de sauvegarder : ${validation.errorMessage}`,
+        });
+      }
+    } catch (error) {
+      console.error("Erreur auto-save:", error);
+      toastService.update(toastId, {
+        state: "error",
+        message: "Erreur lors de la sauvegarde automatique",
+      });
+    } finally {
+      isSaving = false;
+      setTimeout(() => toastService.dismiss(toastId), 3000);
+    }
+  }
+
+  function startAutoSave() {
+    if (autoSaveIntervalId) return;
+    autoSaveIntervalId = setInterval(
+      performAutoSave,
+      120000,
+    ) as unknown as number; // 2 min
+    console.log("⏰ Auto-save démarré");
+  }
+
+  function stopAutoSave() {
+    if (autoSaveIntervalId) {
+      clearInterval(autoSaveIntervalId);
+      autoSaveIntervalId = null;
+      console.log("⏰ Auto-save arrêté");
+    }
+  }
+
+  // ============================================================================
+  // EFFET PRINCIPAL : INITIALISATION + CLEANUP
   // ============================================================================
 
   $effect(() => {
     const evt = currentEvent;
 
-    // Ne synchroniser que si on n'a pas de modifications locales
-    if (evt && !isModified) {
-      eventName = evt.name || "";
+    // 1. Chargement initial - SEULEMENT si:
+    //    - On a un event
+    //    - ET on n'a PAS de modifications en cours
+    //    - ET le verrou ne nous appartient PAS (important pour éviter d'écraser nos propres modifs!)
+    if (evt && !isModified && !isLockedByMe) {
+      console.log("📥 Synchronisation avec la DB");
+      eventName = evt.name;
+      contributors = [...evt.contributors];
       selectedTeams = evt.teams || [];
-      contributors = evt.contributors || [];
       meals = [...evt.meals].sort((a, b) => a.date.localeCompare(b.date));
       newContributors = [];
     } else if (eventId && !evt) {
@@ -118,6 +288,38 @@
     }
 
     loadingEvent = false;
+
+    // 2. Démarrer l'auto-save UNE SEULE FOIS (pas à chaque update realtime!)
+    if (eventId && evt && autoSaveIntervalId === null) {
+      startAutoSave();
+    }
+
+    // 3. Alerte si quelqu'un d'autre prend le verrou
+    if (isModified && isLockedByOthers) {
+      toastService.warning(
+        "Un autre utilisateur a pris le contrôle. Vos modifications seront perdues.",
+      );
+      isModified = false;
+      stopAutoSave();
+    }
+
+    // 4. Protection beforeunload
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isModified) {
+        e.preventDefault();
+        e.returnValue = "Modifications non sauvegardées";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // 5. Cleanup
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      stopAutoSave();
+      if (isModified && eventId) {
+        releaseLock();
+      }
+    };
   });
 
   // ============================================================================
@@ -137,76 +339,16 @@
   });
 
   // ============================================================================
-  // VERROUILLAGE AUTOMATIQUE
-  // ============================================================================
-
-  async function lockEventIfNeeded() {
-    if (!eventId || hasTriggeredLock || isModified) return;
-
-    hasTriggeredLock = true;
-    isModified = true;
-
-    try {
-      await eventsStore.updateEventStatus(eventId, MainStatus.LOCKED);
-      console.log("🔒 Événement verrouillé automatiquement");
-    } catch (err) {
-      console.error("❌ Erreur verrouillage:", err);
-      hasTriggeredLock = false;
-      isModified = false;
-      toastService.error("Impossible de verrouiller l'événement");
-    }
-  }
-
-  async function unlockEvent() {
-    if (!eventId || !isModified) return;
-
-    try {
-      await eventsStore.updateEventStatus(eventId, MainStatus.ACTIVE);
-      isModified = false;
-      hasTriggeredLock = false;
-      console.log("🔓 Événement déverrouillé");
-    } catch (err) {
-      console.error("❌ Erreur déverrouillage:", err);
-    }
-  }
-
-  // Gestion du verrouillage externe
-  $effect(() => {
-    if (isModified && isLockedByOthers) {
-      alert(
-        "Un autre utilisateur a pris le contrôle. Vos modifications seront perdues.",
-      );
-      isModified = false;
-      hasTriggeredLock = false;
-    }
-  });
-
-  // Cleanup au démontage
-  $effect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isModified) {
-        e.preventDefault();
-        e.returnValue = "Modifications non sauvegardées";
-      }
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      if (isModified && eventId) {
-        unlockEvent();
-      }
-    };
-  });
-
-  // ============================================================================
-  // HANDLERS DE MODIFICATION (déclenchent le verrouillage)
+  // HANDLERS DE MODIFICATION
   // ============================================================================
 
   function handleNameInput(e: Event) {
     eventName = (e.target as HTMLInputElement).value;
-    lockEventIfNeeded(); // Seulement quand l'USER tape
+
+    // Acquérir le verrou si pas encore fait
+    if (!isModified && eventId) {
+      acquireLock();
+    }
   }
 
   function addMeal() {
@@ -234,13 +376,6 @@
       defaultDateTime = lastDate.toISOString();
     }
 
-    // Vérifier les doublons
-    // USELESS ?
-    // if (meals.some((m) => m.date === defaultDateTime)) {
-    //   toastService.error("Un repas existe déjà à cette date et heure");
-    //   return;
-    // }
-
     const newMeal: EventMeal = {
       id: mealId,
       date: defaultDateTime,
@@ -248,22 +383,35 @@
       recipes: [],
     };
 
-    // Ajout simple - le tri sera automatique via l'effect
     meals = [...meals, newMeal];
     editingMealIndex = mealId;
 
-    lockEventIfNeeded();
+    // Acquérir le verrou si pas encore fait
+    if (!isModified && eventId) {
+      acquireLock();
+    }
   }
 
   function removeMeal(mealId: string) {
     meals = meals.filter((m) => m.id !== mealId);
-    lockEventIfNeeded();
+
+    if (!isModified && eventId) {
+      acquireLock();
+    }
   }
 
   function handleDateChanged(mealId: string, newDate: string) {
-    // Modification simple - le tri sera automatique
     meals = meals.map((m) => (m.id === mealId ? { ...m, date: newDate } : m));
-    lockEventIfNeeded();
+
+    if (!isModified && eventId) {
+      acquireLock();
+    }
+  }
+
+  function handleMealModified() {
+    if (!isModified && eventId) {
+      acquireLock();
+    }
   }
 
   function toggleEditMeal(mealId: string) {
@@ -271,84 +419,45 @@
   }
 
   // ============================================================================
-  // SAUVEGARDE
+  // SAUVEGARDE MANUELLE
   // ============================================================================
 
   async function handleSave() {
-    // Validations
-    if (!eventName) {
-      toastService.error("Veuillez renseigner le nom de l'événement");
-      return;
-    }
-
-    if (meals.length === 0) {
-      toastService.error("Veuillez ajouter au moins un repas");
-      return;
-    }
-
-    if (newContributors.length > 0) {
-      toastService.warning(
-        `Il y a ${newContributors.length} invitation(s) en attente.`,
-      );
-      return;
-    }
-
     loading = true;
 
     try {
-      // ✅ Calculer allDates UNIQUEMENT ici, au moment de la sauvegarde
-      const uniqueSortedDates = Array.from(
-        new Set(meals.map((m) => m.date)),
-      ).sort();
+      const validation = validateEventData();
+      if (!validation.isValid) {
+        toastService.error(validation.errorMessage || "Erreur de validation");
+        return;
+      }
 
-      const eventData: CreateEventData = {
+      const eventData = {
         name: eventName,
-        allDates: uniqueSortedDates,
-        dateStart: uniqueSortedDates[0],
-        dateEnd: uniqueSortedDates[allDates.length - 1],
+        allDates: Array.from(new Set(meals.map((m) => m.date))).sort(),
+        dateStart: allDates.length > 0 ? allDates[0] : "",
+        dateEnd: allDates.length > 0 ? allDates[allDates.length - 1] : "",
         teams: selectedTeams,
         contributors,
         meals,
+        lockedBy: null, // Toujours libérer le verrou
       };
 
-      let savedEvent;
-
       if (eventId) {
-        // Mise à jour
-        savedEvent = await toastService.track(
-          eventsStore.updateEvent(eventId, eventData),
-          {
-            loading: "Mise à jour...",
-            success: "Événement mis à jour",
-            error: "Erreur lors de la mise à jour",
-          },
-        );
-
-        await unlockEvent();
+        await eventsStore.updateEvent(eventId, eventData);
+        isModified = false;
+        toastService.success("Événement mis à jour");
+        navigate(`/eventEdit/${eventId}`);
       } else {
-        // Création
-        savedEvent = await toastService.track(
-          eventsStore.createEvent(eventData),
-          {
-            loading: "Création...",
-            success: "Événement créé",
-            error: "Erreur lors de la création",
-          },
-        );
-
+        const savedEvent = await eventsStore.createEvent(eventData);
         eventId = savedEvent.$id;
         isModified = false;
-        hasTriggeredLock = false;
+        toastService.success("Événement créé");
+        navigate(`/eventEdit/${eventId}`);
       }
-
-      navigate(`/eventEdit/${eventId}`);
     } catch (err) {
       console.error("Erreur sauvegarde:", err);
       toastService.error("Erreur lors de la sauvegarde");
-
-      if (eventId) {
-        await unlockEvent();
-      }
     } finally {
       loading = false;
     }
@@ -403,8 +512,6 @@
       addMeal();
     }
   }
-
-  $inspect("isModified", isModified);
 </script>
 
 <div class="bg-base-200 space-y-6 px-2 pb-20 md:px-36">
@@ -439,7 +546,7 @@
       <button
         class="btn btn-primary"
         onclick={handleSave}
-        disabled={!canEdit || loading || loadingEvent}
+        disabled={!canEdit || loading || loadingEvent || !isModified}
       >
         {#if loading}
           <span class="loading loading-spinner loading-sm"></span>
@@ -466,7 +573,7 @@
   {/if}
 
   <!-- Alerte de modifications non sauvegardées -->
-  {#if hasUnsavedChanges}
+  {#if isModified}
     <div class="alert alert-info">
       <Save class="h-6 w-6 shrink-0" />
       <div>
@@ -551,7 +658,6 @@
           userId={globalState.userId || ""}
           userTeams={globalState.userTeams || []}
           {eventId}
-          disabled={!canEdit}
         />
 
         <!-- Statistiques de l'événement -->
@@ -658,7 +764,7 @@
                   onEditToggle={() => meal.id && toggleEditMeal(meal.id)}
                   onDelete={() => meal.id && removeMeal(meal.id)}
                   onDateChanged={handleDateChanged}
-                  onModified={lockEventIfNeeded}
+                  onModified={handleMealModified}
                   {allDates}
                   disabled={!canEdit}
                 />

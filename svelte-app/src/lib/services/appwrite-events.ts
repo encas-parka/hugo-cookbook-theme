@@ -99,6 +99,7 @@ export async function createEvent(
           ? data.contributors.map((c) => JSON.stringify(c))
           : [],
         contributorsIds, // Ajouter le tableau d'IDs pour le filtrage optimisé
+        lockedBy: data.lockedBy || null, // Ajouter le champ lockedBy
       },
       // Les permissions par défaut sont gérées côté serveur
     });
@@ -140,6 +141,11 @@ export async function updateEvent(
     // S'assurer que allDates est inclus s'il est présent
     if (data.allDates) {
       updateData.allDates = data.allDates;
+    }
+
+    // S'assurer que lockedBy est inclus s'il est présent
+    if (data.lockedBy !== undefined) {
+      updateData.lockedBy = data.lockedBy;
     }
 
     const event = await tables.updateRow({
