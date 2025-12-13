@@ -67,41 +67,34 @@
   let displayDate = $derived(extractDate(meal.date || ""));
   let displayTime = $derived(extractTime(meal.date || ""));
 
-  // État pour savoir si l'utilisateur a essayé de sélectionner une date en conflit
-  let hasTryConflictingDate = $state(false);
-
   // Initialiser les valeurs d'entrée avec les valeurs actuelles
   let newDateInput = $state(extractDate(meal.date || ""));
   let newTimeInput = $state(extractTime(meal.date || ""));
   let newDateTime = $derived(dateToDateTime(newDateInput, newTimeInput));
 
-  // Changement de date d'une meal
-  $effect(() => {
-    const isValidNewDateTime = !isDateTimeTaken(newDateTime);
-    const oldDate = meal.date; // ✅ Stocker l'ancienne date
+  // État pour savoir si la date actuelle du repas est en double dans allDates
+  // On vérifie si meal.date apparaît plus d'une fois dans allDates
+  let isDuplicateDate = $derived.by(() => {
+    if (!meal.date) return false;
 
-    if (isValidNewDateTime) {
-      onModified?.();
-      meal.date = newDateTime;
-      hasTryConflictingDate = false;
+    // Compter combien de fois la date actuelle apparaît dans allDates
+    const dateOccurrences = allDates.filter(
+      (date) => date === meal.date,
+    ).length;
 
-      // ✅ Comparer avec l'ancienne date pour voir si ça a changé
-      if (onDateChanged && meal.id && oldDate !== newDateTime) {
-        // Ne notifier que si le changement affecte l'ordre
-        onDateChanged(meal.id, newDateTime);
-      }
-      hasTryConflictingDate = false;
-    } else {
-      hasTryConflictingDate = true;
-    }
+    // Si la date apparaît plus d'une fois, c'est un doublon
+    return dateOccurrences > 1;
   });
 
-  // Fonction pour valider si une date/heure est déjà utilisée par un autre repas
-  function isDateTimeTaken(newDateTime: string): boolean {
+  function dateChange({ newDate = "", newMoment = "" }) {
     const currentMealDateTime = meal.date || "";
-    return allDates.some(
-      (date) => date !== currentMealDateTime && date === newDateTime,
-    );
+
+    if (newDate || newMoment) {
+      meal.date = newDateTime;
+      console.log("newDateTime:", newDateTime);
+      onModified?.();
+      onDateChanged;
+    }
   }
 
   const TimeIcon: typeof IconType = $derived.by(() => {
@@ -256,10 +249,13 @@
     <!-- Header avec Actions -->
     <div class="mb-2 flex items-start justify-between">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-lg font-medium">
+        <span class="text-lg font-medium {isDuplicateDate && 'text-error'}">
           {meal.date ? formatDateShort(meal.date) : "Date non définie"}
         </span>
-        <div class="font-base flex items-center gap-1">
+        <div
+          class="font-base flex items-center gap-1 {isDuplicateDate &&
+            'text-error'}"
+        >
           <TimeIcon size={16} />
           <div>{displayTime ? displayTime.toUpperCase() : "REPAS"}</div>
         </div>
@@ -320,11 +316,16 @@
         <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
           <!-- Date -->
           <fieldset class="">
-            <label class="input {hasTryConflictingDate ? 'input-error' : ''}">
+            <label class="input {isDuplicateDate ? 'input-error' : ''}">
               <span class="label">Date</span>
-              <input type="date" class="w-full" bind:value={newDateInput} />
+              <input
+                type="date"
+                class="w-full"
+                bind:value={newDateInput}
+                onchange={() => dateChange({ newDate: newDateInput })}
+              />
             </label>
-            {#if hasTryConflictingDate}
+            {#if isDuplicateDate}
               <p class="text-error mt-1 text-xs">
                 Cette date/heure est déjà utilisée
               </p>
@@ -335,8 +336,9 @@
           <label class="select">
             <span class="label"> Moment </span>
             <select
-              class="w-full {hasTryConflictingDate ? 'select-error' : ''}"
+              class="w-full {isDuplicateDate ? 'select-error' : ''}"
               bind:value={newTimeInput}
+              onchange={() => dateChange({ newMoment: newTimeInput })}
             >
               <option value="" disabled selected>Choisir un moment</option>
               <option value="matin">Matin</option>
