@@ -40,12 +40,11 @@ export interface RecipeIndexEntry {
   cu?: boolean; // Cuisson (true/false)
   a?: string; // Auteur de la recette
   d?: boolean; // Draft (true/false)
-  te?: string; // Température (ex: "Froid", "Chaud")
+  serveHot?: boolean; // Température de service (true=Chaud, false=Froid)
   p: string | null; // Path vers recipe.json (null pour recettes Appwrite)
   plates?: number; // Nombre de couverts par défaut de la recette
   q?: string; // Description quantité (ex: "24 parts par gastro")
-  ch?: boolean; // Check validation
-  check?: string; // "Oui" ou "Non" - Recette testée
+  ch?: boolean; // Check validation (true/false)
   checkfor?: number; // Nombre de couverts pour lesquels la recette a été testée
   pd?: string; // Date de publication
   isPublished?: boolean; // true = Hugo, false = Appwrite non-published
@@ -53,6 +52,8 @@ export interface RecipeIndexEntry {
   saison?: string[]; // Saisons (Printemps, Été, Automne, Hiver)
   specialite?: string; // Spécialité (ex: "basque", "italien")
   ingredients?: string[]; // Liste des noms d'ingrédients (pour filtrage)
+  permissionWrite?: string[]; // IDs des utilisateurs/équipes autorisés à éditer
+  lockedBy?: string | null; // ID de l'utilisateur éditant actuellement (null si déverrouillé)
 }
 
 /**
@@ -79,12 +80,30 @@ export interface RecipeData {
   uuid: string;
   title: string;
   plate: number;
+  typeR?: string; // Type de recette (entrée, plat, dessert, etc.)
   materiel?: string[]; // Matériel nécessaire
   ingredients: RecipeIngredient[]; // Liste complète des ingrédients avec conversions
   preparation: string; // Instructions de préparation
   preparation24h?: string; // Préparation à l'avance
   astuces?: Array<{ astuce: string }>; // Astuces
   prepAlt?: Array<{ recetteAlt: string }>; // Recettes alternatives
+  permissionWrite?: string[]; // IDs des utilisateurs/équipes autorisés à éditer
+  lockedBy?: string | null; // ID de l'utilisateur éditant actuellement
+  
+  // Champs additionnels pour l'édition
+  categories?: string[]; // Catégories
+  regime?: string[]; // Régimes alimentaires
+  saison?: string[]; // Saisons
+  specialite?: string; // Spécialité
+  cuisson?: boolean; // Nécessite cuisson
+  serveHot?: boolean; // Température de service
+  
+  // Champs temporaires pour l'édition (input strings)
+  categoriesInput?: string;
+  regimeInput?: string;
+  saisonInput?: string;
+  materielInput?: string;
+  astucesInput?: string;
 }
 
 /**
@@ -136,6 +155,8 @@ export interface CreateRecipeData {
   regime?: string[];
   teams?: string[];
   contributors?: string[];
+  permissionWrite?: string[];
+  lockedBy?: string | null;
 }
 
 /**
@@ -154,4 +175,6 @@ export interface UpdateRecipeData {
   publishedAt?: string;
   teams?: string[];
   contributors?: string[];
+  permissionWrite?: string[];
+  lockedBy?: string | null;
 }

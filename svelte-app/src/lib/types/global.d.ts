@@ -7,6 +7,7 @@ export interface AppwriteConfig {
     accessRequest: string;
     batchUpdate: string;
     usersTeamsManager: string;
+    manageRecipe: string;
   };
   collections: {
     events: string;

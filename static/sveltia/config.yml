@@ -62,7 +62,7 @@ collections:
         pattern: "desserts"
       - label: "non testé"
         field: check
-        pattern: "Non"
+        pattern: "false"
 
     view_groups:
       groups:
@@ -74,8 +74,8 @@ collections:
           field: auteur
         - label: "Cuisson: "
           field: cuisson
-        - label: "Sevice chaud/froid: "
-          field: temperature
+        - label: "Service chaud/froid: "
+          field: serveHot
         - label: "Brouillons"
           name: draft
           field: draft
@@ -164,14 +164,16 @@ collections:
           - { label: "Hiver", value: "hiver" }
       - label: "Cuisson"
         name: "cuisson"
-        widget: "select"
-        required: true
-        options: ["Oui", "Non"]
+        widget: "boolean"
+        required: false
+        default: false
+        hint: "true = avec cuisson, false = sans cuisson"
       - label: "Température de service"
-        name: "temperature"
-        widget: "select"
-        required: true
-        options: ["Chaud", "Froid"]
+        name: "serveHot"
+        widget: "boolean"
+        required: false
+        default: false
+        hint: "true = Chaud, false = Froid"
       - label: "Quantités indiquées prévues pour combien de couverts ?"
         name: "plate"
         widget: "number"
@@ -184,9 +186,10 @@ collections:
         hint: "vous pouvez préciser ici comment sont pensées les quantité. Par ex. : '24 parts par gastro'; '2 nems par personnes', etc."
       - label: "Testé ?"
         name: "check"
-        hint: "Indiquez si vous avez testé la recette pour le nombre de couverts indiqués. C'est mieux si c'est le cas :)"
-        widget: "select"
-        options: ["Oui", "Non"]
+        widget: "boolean"
+        required: false
+        default: false
+        hint: "Indiquez si vous avez testé la recette pour le nombre de couverts indiqués. C'est mieux si c'est le case :)"
       # - label: "Proportions fixes ?"
       #   name: "checkAlwaysOk"
       #   widget: "boolean"

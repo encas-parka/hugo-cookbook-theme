@@ -12,7 +12,7 @@
   "categories": {{ .Params.categories | jsonify }},
   "regime": {{ .Params.regime | jsonify }},
   "cuisson": {{ .Params.cuisson | jsonify }},
-  "temperature": {{ .Params.temperature | jsonify }},
+  "serveHot": {{ .Params.serveHot | jsonify }},
   "plate": {{ .Params.plate }},
   "quantite_desc": {{ .Params.quantite_desc | jsonify }},
   "check": {{ .Params.check | jsonify }},
@@ -70,5 +70,6 @@
   ],
   "preparation": {{ .Params.preparation | jsonify }},
   "prepAlt": {{ .Params.prepAlt | jsonify }},
+  "permissionWrite": {{ .Params.permissionWrite | default (slice) | jsonify }},
   "publishDate": {{ .PublishDate | jsonify }}
 }

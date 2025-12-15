@@ -47,12 +47,11 @@
       "cu" .Params.cuisson
       "a" .Params.auteur
       "d" .Draft
-      "te" .Params.temperature
+      "serveHot" .Params.serveHot
       "p" $relPath
       "plates" .Params.plate
       "q" .Params.quantite_desc
       "ch" .Params.check
-      "check" .Params.check
       "checkfor" .Params.checkfor
       "pd" .Params.PublishDate
       "materiel" .Params.materiel
