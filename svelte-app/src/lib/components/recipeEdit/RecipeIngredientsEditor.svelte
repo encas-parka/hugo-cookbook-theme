@@ -17,6 +17,7 @@
     ChefHat,
     Leaf,
     Refrigerator,
+    ChevronDown,
   } from "@lucide/svelte";
   import { nanoid } from "nanoid";
 
@@ -37,11 +38,14 @@
 
   let searchQuery = $state("");
   let selectedIndex = $state(-1);
+  let isOpen = $state(false);
+  let containerRef: HTMLDivElement | undefined = $state();
+  let inputRef: HTMLInputElement | undefined = $state();
 
   // Filtrage des ingrédients depuis le store
   let filteredIngredients = $derived(
     searchQuery.length > 1
-      ? ingredientsStore.searchIngredients(searchQuery).slice(0, 8)
+      ? ingredientsStore.searchIngredients(searchQuery)
       : [],
   );
 
@@ -76,6 +80,32 @@
     }
   });
 
+  // Réinitialiser l'index surligné quand les options changent
+  $effect(() => {
+    if (
+      filteredIngredients.length > 0 &&
+      selectedIndex >= filteredIngredients.length
+    ) {
+      selectedIndex = 0;
+    }
+  });
+
+  // Gestion du click outside
+  $effect(() => {
+    if (isOpen) {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (containerRef && !containerRef.contains(event.target as Node)) {
+          isOpen = false;
+          searchQuery = "";
+        }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  });
+
   // ============================================================================
   // FONCTIONS
   // ============================================================================
@@ -90,6 +120,7 @@
     );
     if (alreadyExists) {
       searchQuery = "";
+      isOpen = false;
       return;
     }
 
@@ -107,7 +138,29 @@
 
     ingredients = [...ingredients, newIngredient];
     searchQuery = "";
+    isOpen = false;
     selectedIndex = -1;
+  }
+
+  function openDropdown() {
+    if (!disabled) {
+      isOpen = true;
+      selectedIndex = 0;
+    }
+  }
+
+  function closeDropdown() {
+    isOpen = false;
+    searchQuery = "";
+    selectedIndex = -1;
+  }
+
+  function toggleDropdown() {
+    if (isOpen) {
+      closeDropdown();
+    } else {
+      openDropdown();
+    }
   }
 
   function removeIngredient(uuid: string) {
@@ -115,21 +168,45 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (!filteredIngredients.length) return;
+    if (disabled) return;
 
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      selectedIndex = (selectedIndex + 1) % filteredIngredients.length;
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      selectedIndex =
-        selectedIndex <= 0 ? filteredIngredients.length - 1 : selectedIndex - 1;
-    } else if (
-      (event.key === "Enter" || event.key === "Tab") &&
-      selectedIndex >= 0
-    ) {
-      event.preventDefault();
-      addIngredientFromSearch(filteredIngredients[selectedIndex].u);
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        if (!isOpen) {
+          openDropdown();
+        } else if (selectedIndex < filteredIngredients.length - 1) {
+          selectedIndex++;
+        }
+        break;
+
+      case "ArrowUp":
+        event.preventDefault();
+        if (isOpen && selectedIndex > 0) {
+          selectedIndex--;
+        }
+        break;
+
+      case "Enter":
+        event.preventDefault();
+        if (isOpen && filteredIngredients.length > 0) {
+          addIngredientFromSearch(filteredIngredients[selectedIndex].u);
+        } else if (!isOpen) {
+          openDropdown();
+        }
+        break;
+
+      case "Escape":
+        event.preventDefault();
+        closeDropdown();
+        inputRef?.blur();
+        break;
+
+      case "Tab":
+        if (isOpen) {
+          closeDropdown();
+        }
+        break;
     }
   }
 </script>
@@ -143,54 +220,87 @@
         Ajouter un ingrédient
       </h4>
 
-      <div class="mt-2">
-        <label class="input input-accent w-full">
-          <Search class="h-4 w-4 opacity-50" />
-          <input
-            type="text"
-            placeholder="Rechercher un ingrédient..."
-            bind:value={searchQuery}
-            onkeydown={handleKeydown}
-            {disabled}
-          />
-        </label>
-
-        {#if searchQuery.length > 1 && filteredIngredients.length === 0}
-          <div class="text-base-content/60 mt-2 py-2 text-center text-xs">
-            Aucun ingrédient trouvé
+      <div class="mt-2" bind:this={containerRef}>
+        <div class="relative">
+          <!-- Input container -->
+          <div
+            class="input flex w-full items-center gap-2 pr-10 {disabled
+              ? 'input-disabled'
+              : ''}"
+          >
+            <Search class="h-4 w-4 opacity-50" />
+            <input
+              bind:this={inputRef}
+              type="text"
+              bind:value={searchQuery}
+              placeholder="Rechercher un ingrédient..."
+              {disabled}
+              class="w-full bg-transparent outline-none"
+              onfocus={openDropdown}
+              onkeydown={handleKeydown}
+              autocomplete="off"
+              role="combobox"
+              aria-expanded={isOpen}
+              aria-controls="ingredients-list"
+              aria-activedescendant={isOpen
+                ? `ingredient-${selectedIndex}`
+                : undefined}
+            />
           </div>
-        {/if}
 
-        {#if filteredIngredients.length > 0}
-          <ul class="menu bg-base-200/50 rounded-box mt-2 gap-1 p-1">
-            {#each filteredIngredients as ingredient, index (ingredient.u)}
-              <li>
-                <button
-                  class="flex items-center gap-2 py-2 text-left {index ===
-                    selectedIndex && 'ring-accent/40 ring-2'}"
-                  onclick={() => addIngredientFromSearch(ingredient.u)}
-                  {disabled}
-                >
-                  <div class="bg-base-100 rounded p-1">
-                    <Package class="h-3 w-3 opacity-70" />
-                  </div>
-                  <div class="flex-1">
-                    <span class="truncate text-sm">{ingredient.n}</span>
-                    {#if ingredient.a && ingredient.a.length > 0}
-                      <div class="mt-1 flex flex-wrap gap-1">
-                        {#each ingredient.a.slice(0, 3) as allergen}
-                          <span class="badge badge-warning badge-xs">
-                            {allergen}
-                          </span>
-                        {/each}
-                      </div>
-                    {/if}
-                  </div>
-                </button>
-              </li>
-            {/each}
-          </ul>
-        {/if}
+          <!-- Dropdown toggle button -->
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm absolute top-1/2 right-1 -translate-y-1/2"
+            onclick={toggleDropdown}
+            {disabled}
+            aria-label={isOpen ? "Fermer le menu" : "Ouvrir le menu"}
+          >
+            <ChevronDown
+              class="h-4 w-4 transition-transform {isOpen ? 'rotate-180' : ''}"
+            />
+          </button>
+
+          <!-- Dropdown options -->
+          {#if isOpen}
+            <div
+              id="ingredients-list"
+              class="border-base-300 bg-base-100 absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border shadow-lg"
+              role="listbox"
+            >
+              {#if searchQuery.length > 1 && filteredIngredients.length === 0}
+                <div class="text-base-content/50 px-4 py-2 text-sm">
+                  Aucun ingrédient trouvé
+                </div>
+              {:else if filteredIngredients.length > 0}
+                {#each filteredIngredients as ingredient, index (ingredient.u)}
+                  <button
+                    type="button"
+                    id="ingredient-{index}"
+                    class="hover:bg-base-200 flex w-full items-center gap-3 px-4 py-3 text-left hover:cursor-pointer {index ===
+                    selectedIndex
+                      ? 'bg-base-200'
+                      : ''}"
+                    onclick={() => addIngredientFromSearch(ingredient.u)}
+                    onmouseenter={() => (selectedIndex = index)}
+                    role="option"
+                    {disabled}
+                  >
+                    <div class="flex-1">
+                      <span class="truncate text-sm font-medium"
+                        >{ingredient.n}</span
+                      >
+                    </div>
+                  </button>
+                {/each}
+              {:else if searchQuery.length <= 1}
+                <div class="text-base-content/50 px-4 py-2 text-sm">
+                  Tapez au moins 2 caractères pour rechercher
+                </div>
+              {/if}
+            </div>
+          {/if}
+        </div>
       </div>
     </div>
   </div>
