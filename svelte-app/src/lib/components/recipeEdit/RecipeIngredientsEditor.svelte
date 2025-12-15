@@ -71,6 +71,18 @@
     return groups;
   });
 
+  // Initialiser le IngredientsStore si nécessaire
+  $effect(() => {
+    if (!ingredientsStore.isInitialized && !ingredientsStore.loading) {
+      ingredientsStore.initialize().catch((err) => {
+        console.error(
+          "[RecipeIngredientsEditor] Erreur lors de l'initialisation du IngredientsStore:",
+          err,
+        );
+      });
+    }
+  });
+
   // Gérer le selectedIndex de manière réactive
   $effect(() => {
     if (filteredIngredients.length > 0 && selectedIndex === -1) {
@@ -114,16 +126,6 @@
     const ingredientData = ingredientsStore.getIngredientByUuid(ingredientUuid);
     if (!ingredientData) return;
 
-    // Vérifier si déjà ajouté
-    const alreadyExists = ingredients.some(
-      (ing) => ing.name === ingredientData.n,
-    );
-    if (alreadyExists) {
-      searchQuery = "";
-      isOpen = false;
-      return;
-    }
-
     const newIngredient: RecipeIngredient = {
       uuid: nanoid(),
       name: ingredientData.n,
@@ -143,7 +145,7 @@
   }
 
   function openDropdown() {
-    if (!disabled) {
+    if (!disabled && !ingredientsStore.loading && !ingredientsStore.error) {
       isOpen = true;
       selectedIndex = 0;
     }
@@ -212,98 +214,123 @@
 </script>
 
 <div class="space-y-4">
-  <!-- Recherche et ajout d'ingrédient -->
-  <div class="card bg-base-100 border-base-300 border shadow-sm">
-    <div class="card-body gap-3 p-3">
-      <h4 class="flex items-center gap-2 font-bold">
-        <Plus class="text-primary h-4 w-4" />
-        Ajouter un ingrédient
-      </h4>
-
-      <div class="mt-2" bind:this={containerRef}>
-        <div class="relative">
-          <!-- Input container -->
-          <div
-            class="input flex w-full items-center gap-2 pr-10 {disabled
-              ? 'input-disabled'
-              : ''}"
-          >
-            <Search class="h-4 w-4 opacity-50" />
-            <input
-              bind:this={inputRef}
-              type="text"
-              bind:value={searchQuery}
-              placeholder="Rechercher un ingrédient..."
-              {disabled}
-              class="w-full bg-transparent outline-none"
-              onfocus={openDropdown}
-              onkeydown={handleKeydown}
-              autocomplete="off"
-              role="combobox"
-              aria-expanded={isOpen}
-              aria-controls="ingredients-list"
-              aria-activedescendant={isOpen
-                ? `ingredient-${selectedIndex}`
-                : undefined}
-            />
-          </div>
-
-          <!-- Dropdown toggle button -->
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm absolute top-1/2 right-1 -translate-y-1/2"
-            onclick={toggleDropdown}
-            {disabled}
-            aria-label={isOpen ? "Fermer le menu" : "Ouvrir le menu"}
-          >
-            <ChevronDown
-              class="h-4 w-4 transition-transform {isOpen ? 'rotate-180' : ''}"
-            />
-          </button>
-
-          <!-- Dropdown options -->
-          {#if isOpen}
-            <div
-              id="ingredients-list"
-              class="border-base-300 bg-base-100 absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border shadow-lg"
-              role="listbox"
-            >
-              {#if searchQuery.length > 1 && filteredIngredients.length === 0}
-                <div class="text-base-content/50 px-4 py-2 text-sm">
-                  Aucun ingrédient trouvé
-                </div>
-              {:else if filteredIngredients.length > 0}
-                {#each filteredIngredients as ingredient, index (ingredient.u)}
-                  <button
-                    type="button"
-                    id="ingredient-{index}"
-                    class="hover:bg-base-200 flex w-full items-center gap-3 px-4 py-3 text-left hover:cursor-pointer {index ===
-                    selectedIndex
-                      ? 'bg-base-200'
-                      : ''}"
-                    onclick={() => addIngredientFromSearch(ingredient.u)}
-                    onmouseenter={() => (selectedIndex = index)}
-                    role="option"
-                    {disabled}
-                  >
-                    <div class="flex-1">
-                      <span class="truncate text-sm font-medium"
-                        >{ingredient.n}</span
-                      >
-                    </div>
-                  </button>
-                {/each}
-              {:else if searchQuery.length <= 1}
-                <div class="text-base-content/50 px-4 py-2 text-sm">
-                  Tapez au moins 2 caractères pour rechercher
-                </div>
-              {/if}
-            </div>
-          {/if}
+  <!-- Indicateur de chargement -->
+  {#if ingredientsStore.loading}
+    <div class="card bg-base-100 border-base-300 border shadow-sm">
+      <div class="card-body p-4">
+        <div class="flex items-center gap-3">
+          <div class="loading loading-spinner loading-sm"></div>
+          <span class="text-sm">Chargement des ingrédients...</span>
         </div>
       </div>
     </div>
-  </div>
+  {:else if ingredientsStore.error}
+    <div class="card bg-error/10 border-error/20 border shadow-sm">
+      <div class="card-body p-4">
+        <div class="text-error flex items-center gap-3">
+          <AlertTriangle class="h-4 w-4" />
+          <span class="text-sm"
+            >Erreur lors du chargement: {ingredientsStore.error}</span
+          >
+        </div>
+      </div>
+    </div>
+  {:else}
+    <!-- Recherche et ajout d'ingrédient -->
+    <div class="card bg-base-100 border-base-300 border shadow-sm">
+      <div class="card-body gap-3 p-3">
+        <h4 class="flex items-center gap-2 font-bold">
+          <Plus class="text-primary h-4 w-4" />
+          Ajouter un ingrédient
+        </h4>
+
+        <div class="mt-2" bind:this={containerRef}>
+          <div class="relative">
+            <!-- Input container -->
+            <div
+              class="input flex w-full items-center gap-2 pr-10 {disabled
+                ? 'input-disabled'
+                : ''}"
+            >
+              <Search class="h-4 w-4 opacity-50" />
+              <input
+                bind:this={inputRef}
+                type="text"
+                bind:value={searchQuery}
+                placeholder="Rechercher un ingrédient..."
+                {disabled}
+                class="w-full bg-transparent outline-none"
+                onfocus={openDropdown}
+                onkeydown={handleKeydown}
+                autocomplete="off"
+                role="combobox"
+                aria-expanded={isOpen}
+                aria-controls="ingredients-list"
+                aria-activedescendant={isOpen
+                  ? `ingredient-${selectedIndex}`
+                  : undefined}
+              />
+            </div>
+
+            <!-- Dropdown toggle button -->
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm absolute top-1/2 right-1 -translate-y-1/2"
+              onclick={toggleDropdown}
+              {disabled}
+              aria-label={isOpen ? "Fermer le menu" : "Ouvrir le menu"}
+            >
+              <ChevronDown
+                class="h-4 w-4 transition-transform {isOpen
+                  ? 'rotate-180'
+                  : ''}"
+              />
+            </button>
+
+            <!-- Dropdown options -->
+            {#if isOpen}
+              <div
+                id="ingredients-list"
+                class="border-base-300 bg-base-100 absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border shadow-lg"
+                role="listbox"
+              >
+                {#if searchQuery.length > 1 && filteredIngredients.length === 0}
+                  <div class="text-base-content/50 px-4 py-2 text-sm">
+                    Aucun ingrédient trouvé
+                  </div>
+                {:else if filteredIngredients.length > 0}
+                  {#each filteredIngredients as ingredient, index (ingredient.u)}
+                    <button
+                      type="button"
+                      id="ingredient-{index}"
+                      class="hover:bg-base-200 flex w-full items-center gap-3 px-4 py-3 text-left hover:cursor-pointer {index ===
+                      selectedIndex
+                        ? 'bg-base-200'
+                        : ''}"
+                      onclick={() => addIngredientFromSearch(ingredient.u)}
+                      onmouseenter={() => (selectedIndex = index)}
+                      role="option"
+                      {disabled}
+                    >
+                      <div class="flex-1">
+                        <span class="truncate text-sm font-medium"
+                          >{ingredient.n}</span
+                        >
+                      </div>
+                    </button>
+                  {/each}
+                {:else if searchQuery.length <= 1}
+                  <div class="text-base-content/50 px-4 py-2 text-sm">
+                    Tapez au moins 2 caractères pour rechercher
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- Liste des ingrédients groupés par type -->
   {#if ingredients.length > 0}
@@ -314,42 +341,28 @@
       <!-- Card pour le type -->
       <div class="card bg-base-200/50 border-base-300 border shadow-sm">
         <div class="card-body p-2">
-          <h3 class="card-title flex items-center gap-2 px-4">
+          <h3 class="card-title flex items-center gap-2 px-4 font-light">
             <TypeIcon class="h-5 w-5" />
             {typeInfo.displayName}
-            <span class="badge badge-sm badge-primary"
+            <span class="badge badge-xs badge-primary badge-soft"
               >{typeIngredients.length}</span
             >
           </h3>
 
           <!-- Liste des ingrédients de ce type -->
           <div class="space-y-3">
-            {#each typeIngredients as ingredient (ingredient.uuid)}
+            {#each typeIngredients as ingredient, index (index)}
               <div class="card bg-base-100 border-base-200 border shadow-sm">
                 <div class="card-body p-3">
                   <div class="flex items-start justify-between gap-3">
                     <!-- Contenu principal -->
                     <div class="flex-1 space-y-2">
-                      <!-- Ligne 1: Nom et allergènes -->
-                      <div class="flex flex-wrap items-center gap-4">
+                      <!-- Nom + quantité & unit -->
+                      <div class="flex flex-wrap gap-6">
                         <span class="text-base font-medium"
                           >{ingredient.name}</span
                         >
-                        {#if ingredient.allergens && ingredient.allergens.length > 0}
-                          <div class="flex flex-wrap gap-1">
-                            {#each ingredient.allergens as allergen}
-                              <span class="badge badge-warning badge-sm">
-                                {allergen}
-                              </span>
-                            {/each}
-                          </div>
-                        {/if}
-                      </div>
-
-                      <!-- Ligne 2: Quantité et commentaire -->
-                      <div class="flex flex-wrap gap-4">
-                        <!-- Quantité -->
-                        <div class="flex gap-2">
+                        <div class="flex flex-wrap gap-2">
                           <label class="input w-44">
                             <span class="label text-base-content/80"
                               >Quantité</span
@@ -387,19 +400,19 @@
                             </select>
                           </label>
                         </div>
-
-                        <!-- Commentaire -->
-                        <label class="input w-full">
-                          <span class="label opacity-70">Note</span>
-                          <input
-                            type="text"
-                            bind:value={ingredient.comment}
-                            placeholder="Ex: coupées en dés; pour la sauce..."
-                            maxlength="100"
-                            {disabled}
-                          />
-                        </label>
                       </div>
+
+                      <!-- Commentaire -->
+                      <label class="input w-full">
+                        <span class="label">Note</span>
+                        <input
+                          type="text"
+                          bind:value={ingredient.comment}
+                          placeholder="Ex: coupées en dés; pour la sauce..."
+                          maxlength="100"
+                          {disabled}
+                        />
+                      </label>
                     </div>
 
                     <!-- Bouton supprimer -->

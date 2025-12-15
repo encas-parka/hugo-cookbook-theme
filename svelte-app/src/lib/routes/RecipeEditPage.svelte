@@ -55,6 +55,16 @@
   let isSaving = $state(false);
   let lockedBy = $state<string | null>(null);
 
+  // État de validation
+  let validationErrors = $state<{
+    title?: string;
+    typeR?: string;
+    cuisson?: string;
+    serveHot?: string;
+    ingredients?: string;
+    preparation?: string;
+  }>({});
+
   // ============================================================================
   // DERIVED STATES
   // ============================================================================
@@ -138,11 +148,11 @@
     }
 
     if (!allergenList.includes("Gluten")) {
-      regimes.push("sans gluten");
+      regimes.push("sans-gluten");
     }
 
     if (!allergenList.includes("Produit laitier")) {
-      regimes.push("sans lactose");
+      regimes.push("sans-lactose");
     }
 
     return {
@@ -182,40 +192,72 @@
   // VALIDATION & SAVE
   // ============================================================================
 
-  function validateRecipe() {
-    if (!recipe) return { isValid: false, errorMessage: "Aucune recette" };
+  function validateRecipe(): boolean {
+    if (!recipe) return false;
 
+    // Réinitialiser les erreurs
+    validationErrors = {};
+
+    let hasError = false;
+
+    // Validation du titre
     if (!recipe.title?.trim()) {
-      return { isValid: false, errorMessage: "Le titre est obligatoire" };
+      validationErrors.title = "Le titre est obligatoire";
+      hasError = true;
+    } else if (recipe.title.length > 100) {
+      validationErrors.title = "Le titre ne peut pas dépasser 100 caractères";
+      hasError = true;
     }
 
-    if (!recipe.plate || recipe.plate < 1) {
-      return {
-        isValid: false,
-        errorMessage: "Le nombre de couverts doit être supérieur à 0",
-      };
+    // Validation du type
+    if (!recipe.typeR) {
+      validationErrors.typeR = "Le type de recette est obligatoire";
+      hasError = true;
     }
 
+    // Validation de la cuisson
+    if (recipe.cuisson === null || recipe.cuisson === undefined) {
+      validationErrors.cuisson =
+        "Veuillez spécifier si une cuisson est nécessaire";
+      hasError = true;
+    }
+
+    // Validation du service (chaud/froid)
+    if (recipe.serveHot === null || recipe.serveHot === undefined) {
+      validationErrors.serveHot =
+        "Veuillez spécifier la température de service";
+      hasError = true;
+    }
+
+    // Validation des ingrédients
     if (!recipe.ingredients || recipe.ingredients.length === 0) {
-      return {
-        isValid: false,
-        errorMessage: "Au moins un ingrédient est requis",
-      };
+      validationErrors.ingredients = "Au moins un ingrédient est requis";
+      hasError = true;
     }
 
+    // Validation de la préparation
     if (!recipe.preparation?.trim()) {
-      return { isValid: false, errorMessage: "La préparation est obligatoire" };
+      validationErrors.preparation = "La préparation est obligatoire";
+      hasError = true;
     }
 
-    return { isValid: true };
+    // Afficher un toast avec la liste des erreurs
+    if (hasError) {
+      const errorMessages = Object.values(validationErrors);
+      toastService.warning("Veuillez corriger les erreurs suivantes :", {
+        details: errorMessages,
+        autoCloseDelay: 5000,
+      });
+    }
+
+    return !hasError;
   }
 
   async function save(): Promise<void> {
     if (!recipe || isSaving) return;
 
-    const validation = validateRecipe();
-    if (!validation.isValid) {
-      toastService.error(validation.errorMessage || "Données invalides");
+    const isValid = validateRecipe();
+    if (!isValid) {
       return;
     }
 
@@ -322,7 +364,7 @@
         recipe = {
           ...loaded,
           categories: loaded.categories || [],
-          saisons: loaded.saisons || [],
+          saison: loaded.saison || [],
         };
         originalRecipe = { ...recipe };
         lockedBy = loaded.lockedBy || null;
@@ -425,7 +467,9 @@
             <div class="flex flex-wrap gap-4">
               <fieldset class="fieldset w-96">
                 <legend class="fieldset-legend">Titre de la recette</legend>
-                <label class="input">
+                <label
+                  class="input {validationErrors.title ? 'input-error' : ''}"
+                >
                   <BookOpen class="h-4 w-4 opacity-50" />
                   <input
                     id="recipe-title"
@@ -442,6 +486,11 @@
                   <span class="fieldset-label-text-alt opacity-70"
                     >Maximum 100 caractères</span
                   >
+                  {#if validationErrors.title}
+                    <span class="fieldset-label-text-alt text-error"
+                      >{validationErrors.title}</span
+                    >
+                  {/if}
                 </div>
               </fieldset>
 
@@ -472,7 +521,9 @@
             <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
               <fieldset class="fieldset sm:w-auto">
                 <legend class="fieldset-legend">Type de recette</legend>
-                <label class="select">
+                <label
+                  class="select {validationErrors.typeR ? 'select-error' : ''}"
+                >
                   <ChefHat class="h-4 w-4 opacity-50" />
                   <select
                     id="recipe-type"
@@ -480,12 +531,20 @@
                     disabled={!canEdit}
                     aria-describedby="type-help"
                   >
+                    <option value="">Sélectionner un type</option>
                     <option value="entree">Entrée</option>
                     <option value="plat">Plat</option>
                     <option value="dessert">Dessert</option>
                     <option value="accompagnement">Autre</option>
                   </select>
                 </label>
+                {#if validationErrors.typeR}
+                  <div class="fieldset-label">
+                    <span class="fieldset-label-text-alt text-error"
+                      >{validationErrors.typeR}</span
+                    >
+                  </div>
+                {/if}
               </fieldset>
 
               <div class="flex-1 sm:max-w-md">
@@ -509,7 +568,11 @@
                   <Thermometer class="h-4 w-4" />
                   <span>Température de service</span>
                 </div>
-                <label class="select w-full">
+                <label
+                  class="select w-full {validationErrors.serveHot
+                    ? 'select-error'
+                    : ''}"
+                >
                   <select
                     id="recipe-servehot"
                     bind:value={recipe.serveHot}
@@ -520,6 +583,13 @@
                     <option value={false}>Froid</option>
                   </select>
                 </label>
+                {#if validationErrors.serveHot}
+                  <div class="fieldset-label">
+                    <span class="fieldset-label-text-alt text-error"
+                      >{validationErrors.serveHot}</span
+                    >
+                  </div>
+                {/if}
               </div>
 
               <div class="flex-1 sm:max-w-xs">
@@ -527,13 +597,24 @@
                   <Flame class="h-4 w-4" />
                   <span>Nécessite une cuisson</span>
                 </div>
-                <label class="select w-full">
+                <label
+                  class="select w-full {validationErrors.cuisson
+                    ? 'select-error'
+                    : ''}"
+                >
                   <select bind:value={recipe.cuisson} disabled={!canEdit}>
                     <option value={null}>--</option>
                     <option value={true}>Oui</option>
                     <option value={false}>Non</option>
                   </select>
                 </label>
+                {#if validationErrors.cuisson}
+                  <div class="fieldset-label">
+                    <span class="fieldset-label-text-alt text-error"
+                      >{validationErrors.cuisson}</span
+                    >
+                  </div>
+                {/if}
               </div>
             </div>
 
@@ -592,10 +673,14 @@
 
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <!-- Ingrédients -->
-        <div class="card bg-base-100 shadow-xl">
+        <div
+          class="card bg-base-100 shadow-xl {validationErrors.ingredients
+            ? 'ring-error ring-2'
+            : ''}"
+        >
           <div class="card-body">
             <h2 class="card-title mb-4">
-              <Utensils class="h-5 w-5" />
+              <Utensils class="h-5 w-4" />
               Ingrédients
             </h2>
             <!-- Éditeur d'ingrédients -->
@@ -603,6 +688,11 @@
               bind:ingredients={recipe.ingredients}
               disabled={!canEdit}
             />
+            {#if validationErrors.ingredients}
+              <div class="alert alert-error mt-4">
+                <span class="text-sm">{validationErrors.ingredients}</span>
+              </div>
+            {/if}
           </div>
         </div>
 
@@ -618,17 +708,30 @@
               <legend class="fieldset-legend"
                 >Instructions de préparation</legend
               >
-              <label class="textarea h-64 w-full">
+              <label
+                class="textarea h-64 w-full {validationErrors.preparation
+                  ? 'textarea-error'
+                  : ''}"
+              >
                 <textarea
                   id="recipe-preparation"
                   bind:value={recipe.preparation}
                   placeholder="Décrivez les étapes de préparation..."
                   disabled={!canEdit}
-                  class="h-full w-full resize-none bg-transparent outline-none"
+                  class="h-full w-full resize-none bg-transparent outline-none {validationErrors.preparation
+                    ? 'textarea-error'
+                    : ''}"
                   aria-describedby="preparation-help"
                   aria-required="true"
                 ></textarea>
               </label>
+              {#if validationErrors.preparation}
+                <div class="fieldset-label">
+                  <span class="fieldset-label-text-alt text-error"
+                    >{validationErrors.preparation}</span
+                  >
+                </div>
+              {/if}
             </fieldset>
 
             <!-- Préparation 24h -->
