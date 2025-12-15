@@ -316,8 +316,6 @@ export class EventsStore {
 
       console.log("[EventsStore] Activation du Realtime...");
 
-      console.log("[EventsStore] Activation du Realtime...");
-
       subscribeToEvents(
         this.#userId!,
         this.#userTeams,
@@ -326,7 +324,29 @@ export class EventsStore {
             `[EventsStore] ⚡️ Realtime RECEIVED: ${eventType} pour ${event.$id} (User: ${this.#userId})`,
           );
 
-          if (eventType === "create" || eventType === "update") {
+          if (eventType === "create") {
+            // CREATE : toujours mettre à jour
+            const enrichedEvent = this.#enrichEvent(event);
+            this.#events.set(event.$id, enrichedEvent);
+
+            if (this.#cache) {
+              await this.#cache.saveEvent(enrichedEvent);
+            }
+          } else if (eventType === "update") {
+            const existingEvent = this.#events.get(event.$id);
+
+            // ← LA CLÉ KISS : si seulement le lock change, ignorer
+            if (existingEvent?.lockedBy !== event.lockedBy) {
+              console.log(
+                `[EventsStore] Lock changé (${existingEvent?.lockedBy} → ${event.lockedBy}), contenu ignoré`,
+              );
+
+              // Mettre à jour SEULEMENT le lock
+              if (existingEvent) {
+                existingEvent.lockedBy = event.lockedBy;
+              }
+              return; // ← N'ajoute pas à SvelteMap, pas de retrigger
+            }
             const enrichedEvent = this.#enrichEvent(event);
             this.#events.set(event.$id, enrichedEvent);
 

@@ -53,8 +53,7 @@
   }
 
   function createNewRecipe() {
-    // TODO: Implémenter la navigation vers la création de recette
-    console.log("Create new recipe");
+    navigate("/recipes/new");
   }
 </script>
 

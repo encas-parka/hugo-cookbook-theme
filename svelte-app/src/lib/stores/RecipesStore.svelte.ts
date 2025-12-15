@@ -45,6 +45,7 @@ import {
   duplicateRecipe as duplicateAppwriteRecipe,
   markAsPublished,
   subscribeToRecipes,
+  executeManageRecipe,
 } from "../services/appwrite-recipes";
 import { globalState } from "./GlobalState.svelte";
 
@@ -472,7 +473,9 @@ class RecipesStore {
       materiel: appwriteRecipe.materiel || [],
       ingredients: JSON.parse(appwriteRecipe.ingredients),
       preparation: appwriteRecipe.preparation,
-      prepAlt: (appwriteRecipe.prepAlt || []).map(alt => ({ recetteAlt: alt })),
+      prepAlt: (appwriteRecipe.prepAlt || []).map((alt) => ({
+        recetteAlt: alt,
+      })),
     };
   }
 
@@ -569,7 +572,8 @@ class RecipesStore {
    * Filtre les recettes par température (Froid/Chaud)
    */
   getRecipesByTemperature(temperature: string): RecipeIndexEntry[] {
-    return this.recipesIndex.filter((recipe) => recipe.te === temperature);
+    const serveHot = temperature === "Chaud";
+    return this.recipesIndex.filter((recipe) => recipe.serveHot === serveHot);
   }
 
   /**
@@ -614,8 +618,10 @@ class RecipesStore {
         return false;
 
       // Filtre par température
-      if (filters.temperature && recipe.te !== filters.temperature)
-        return false;
+      if (filters.temperature !== undefined) {
+        const serveHot = filters.temperature === "Chaud";
+        if (recipe.serveHot !== serveHot) return false;
+      }
 
       // Filtre par statut brouillon
       if (filters.draft !== undefined && recipe.d !== filters.draft)
@@ -652,7 +658,7 @@ class RecipesStore {
   async canEditRecipe(uuid: string): Promise<boolean> {
     if (!globalState.userId) return false;
 
-    // Recettes Hugo (published) : non éditables
+    // Recettes Hugo (published) : non éditables sauf si on implémente un système de fork/claim
     const indexEntry = this.#recipesIndex.get(uuid);
     if (!indexEntry || indexEntry.isPublished !== false) {
       return false;
@@ -670,6 +676,9 @@ class RecipesStore {
           recipe.teams?.some((teamId) =>
             globalState.userTeams.includes(teamId),
           ),
+        ) || 
+        Boolean(
+            recipe.permissionWrite?.includes(globalState.userId)
         )
       );
     } catch (err) {
@@ -678,6 +687,98 @@ class RecipesStore {
         err,
       );
       return false;
+    }
+  }
+
+  // =============================================================================
+  // API PUBLIQUE - CRUD & LOCKING
+  // =============================================================================
+
+  /**
+   * Met à jour une recette existante
+   * @param uuid - UUID de la recette
+   * @param data - Données à mettre à jour
+   */
+  async updateRecipe(uuid: string, data: UpdateRecipeData): Promise<void> {
+    if (!globalState.userId) throw new Error("Utilisateur non connecté");
+
+    try {
+      // Préparer les données pour Appwrite (conversion JSON string)
+      const dataForAppwrite: any = { ...data };
+      if (data.ingredients && typeof data.ingredients !== 'string') {
+         // Si c'est un tableau/objet, on stringify (si UpdateRecipeData le permet)
+         // Note: UpdateRecipeData type uses string for ingredients usually for appwrite
+         // Mais si c'est Partial<RecipeData>, c'est Ingredient[]
+         // Typiquement RecipesStore reçoit UpdateRecipeData qui a deja ingredients en string ?
+         // Vérifions le type UpdateRecipeData.
+         // Si data vient de RecipeEditorState, c'est Partial<RecipeData> converti.
+         // On s'assure que c'est une string JSON.
+         // Sauf si l'appelant a déjà fait le travail.
+      }
+
+      // 1. Exécuter via Cloud Function 'manage_recipe' pour garantir sync GitHub et Lock
+      const updatedRecipe = await executeManageRecipe("save", uuid, globalState.userId, data);
+
+      // 2. Mise à jour de l'index local
+      this.#recipesIndex.set(uuid, {
+        u: updatedRecipe.$id,
+        n: updatedRecipe.title,
+        t: updatedRecipe.typeR,
+        a: updatedRecipe.createdBy,
+        p: null,
+        plates: updatedRecipe.plate,
+        isPublished: updatedRecipe.isPublished,
+      });
+
+      // 3. Mise à jour du cache détails local (si chargé)
+      if (this.#recipesDetails.has(uuid)) {
+        const currentDetails = this.#recipesDetails.get(uuid)!;
+        
+        // Si ingredients est une string JSON dans la réponse
+        let parsedIngredients = currentDetails.ingredients;
+        if (updatedRecipe.ingredients) {
+            try {
+                parsedIngredients = JSON.parse(updatedRecipe.ingredients);
+            } catch (e) { console.error("Erreur parsing ingredients update", e); }
+        }
+
+        this.#recipesDetails.set(uuid, {
+          ...currentDetails,
+          title: updatedRecipe.title,
+          plate: updatedRecipe.plate,
+          preparation: updatedRecipe.preparation,
+          ingredients: parsedIngredients,
+          lockedBy: updatedRecipe.lockedBy,
+          permissionWrite: updatedRecipe.permissionWrite
+        });
+      }
+
+    } catch (error) {
+      console.error(`[RecipesStore] Erreur lors de la mise à jour de ${uuid}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Met à jour le verrou d'une recette
+   * @param uuid - UUID de la recette
+   * @param lockedBy - ID utilisateur ou null pour déverrouiller
+   */
+  async updateRecipeLock(uuid: string, lockedBy: string | null): Promise<void> {
+    if (!globalState.userId) return;
+
+    // Déterminer l'action : lock ou unlock
+    const action = lockedBy ? "lock" : "unlock";
+    
+    // Si unlock, on vérifie si on force ? Non, simple unlock pour l'instant.
+    // L'UI gérera le force_unlock séparément si besoin.
+
+    await executeManageRecipe(action, uuid, globalState.userId);
+    
+    // La mise à jour locale immédiate pour UX
+    const currentDetails = this.#recipesDetails.get(uuid);
+    if (currentDetails) {
+        this.#recipesDetails.set(uuid, { ...currentDetails, lockedBy });
     }
   }
 
@@ -819,7 +920,7 @@ class RecipesStore {
         ingredients: JSON.stringify(data.ingredients),
         preparation: data.preparation,
         draft: true,
-        type: (data as any).typeR || "plat", // Par défaut entrée
+        typeR: (data as any).typeR || "plat", // Par défaut plat
         categories: [],
         regime: [],
         teams: [],
@@ -849,48 +950,7 @@ class RecipesStore {
     }
   }
 
-  /**
-   * Met à jour une recette existante via Appwrite
-   */
-  async updateRecipe(
-    uuid: string,
-    data: Partial<RecipeData>,
-  ): Promise<RecipeData> {
-    try {
-      // Convertir RecipeData vers UpdateRecipeData
-      const updateData: UpdateRecipeData = {};
-
-      if (data.title) updateData.title = data.title;
-      if (data.plate) updateData.plate = data.plate;
-      if (data.ingredients)
-        updateData.ingredients = JSON.stringify(data.ingredients);
-      if (data.preparation) updateData.preparation = data.preparation;
-
-      const appwriteRecipe = await updateAppwriteRecipe(uuid, updateData);
-
-      // Mettre à jour l'index local
-      this.#recipesIndex.set(appwriteRecipe.$id, {
-        u: appwriteRecipe.$id,
-        n: appwriteRecipe.title,
-        t: appwriteRecipe.typeR,
-        p: null,
-        plates: appwriteRecipe.plate, // Nombre de couverts par défaut de la recette
-        isPublished: appwriteRecipe.isPublished,
-      });
-
-      // Invalider le cache des détails
-      this.#recipesDetails.delete(uuid);
-
-      // Convertir et retourner
-      return this.#convertAppwriteToRecipeData(appwriteRecipe);
-    } catch (err) {
-      console.error(
-        `[RecipesStore] Erreur lors de la mise à jour de ${uuid}:`,
-        err,
-      );
-      throw err;
-    }
-  }
+  // Method removed (duplicate)
 
   /**
    * Supprime une recette via Appwrite

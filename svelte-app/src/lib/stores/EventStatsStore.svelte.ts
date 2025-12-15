@@ -17,13 +17,6 @@ export class EventStatsStore {
   }
 
   /**
-   * Définir l'ID de l'événement à analyser
-   */
-  setEventId(eventId: string | null) {
-    this.#eventId = eventId;
-  }
-
-  /**
    * L'événement enrichi courant
    */
   readonly currentEvent = $derived.by(() => {

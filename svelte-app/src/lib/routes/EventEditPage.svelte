@@ -10,7 +10,6 @@
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { teamsStore } from "$lib/stores/TeamsStore.svelte";
   import type { EventContributor, EventMeal } from "$lib/types/events";
-  import type { ValidationResult } from "$lib/types/auto-save.d";
   import {
     AlertCircle,
     ArrowLeft,
@@ -19,11 +18,13 @@
     Plus,
     Save,
     Lock,
+    PencilLine,
   } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
   import { navigate } from "../services/simple-router.svelte";
   import { untrack } from "svelte";
+  import EventStats from "../components/EventStats.svelte";
 
   // ============================================================================
   // PROPS & INITIALISATION
@@ -50,14 +51,13 @@
   let loading = $state(false);
   let loadingEvent = $state(false);
   let editingMealIndex = $state<string | null>(null);
+  let editingTitle = $state(false);
 
   // ============================================================================
   // GESTION DU LOCK & AUTO-SAVE (LOCAL)
   // ============================================================================
 
-  let isModified = $state(false);
   let isSaving = $state(false);
-  let autoSaveIntervalId: number | null = null;
 
   // ============================================================================
   // DERIVED STATES
@@ -96,7 +96,7 @@
       if (currentEvent?.lockedBy) {
         const lockAge = currentEvent.$updatedAt
           ? (Date.now() - new Date(currentEvent.$updatedAt).getTime()) /
-            (1000 * 60)
+            (1000 * 60 * 10)
           : Infinity;
 
         // Si le verrou est périmé (> 3 min), le libérer
@@ -111,7 +111,7 @@
 
       // Acquérir le verrou
       await eventsStore.updateEvent(eventId, { lockedBy: globalState.userId });
-      isModified = true;
+      scheduleAutoSave();
 
       console.log("🔒 Verrou acquis");
       return true;
@@ -123,11 +123,10 @@
   }
 
   async function releaseLock(): Promise<void> {
-    if (!eventId || !isModified) return;
+    if (!eventId) return;
 
     try {
       await eventsStore.updateEvent(eventId, { lockedBy: null });
-      isModified = false;
       console.log("🔓 Verrou libéré");
     } catch (error) {
       console.error("❌ Erreur libération verrou:", error);
@@ -138,7 +137,7 @@
   // AUTO-SAVE
   // ============================================================================
 
-  function validateEventData(): ValidationResult {
+  function validateEventData() {
     if (!eventName) {
       return {
         isValid: false,
@@ -184,7 +183,7 @@
   }
 
   async function performAutoSave(): Promise<void> {
-    if (!eventId || isSaving || !isModified) return;
+    if (!eventId || isSaving || !isLockedByMe) return;
 
     isSaving = true;
     const toastId = toastService.loading("Sauvegarde automatique...");
@@ -204,8 +203,6 @@
           meals,
           lockedBy: null, // Libérer le verrou
         });
-
-        isModified = false;
 
         toastService.update(toastId, {
           state: "success",
@@ -234,89 +231,73 @@
     }
   }
 
-  function startAutoSave() {
-    if (autoSaveIntervalId) return;
-    autoSaveIntervalId = setInterval(
-      performAutoSave,
-      120000,
-    ) as unknown as number; // 2 min
-    console.log("⏰ Auto-save démarré");
+  function scheduleAutoSave() {
+    // Programmer l'auto-save après 5 secondes
+    setTimeout(
+      () => {
+        performAutoSave();
+      },
+      5 * 60 * 1000,
+    );
+
+    console.log("⏰ Auto-save programmé dans 5 minute secondes");
   }
 
-  function stopAutoSave() {
-    if (autoSaveIntervalId) {
-      clearInterval(autoSaveIntervalId);
-      autoSaveIntervalId = null;
-      console.log("⏰ Auto-save arrêté");
-    }
-  }
-
-  // ============================================================================
-  // EFFET PRINCIPAL : INITIALISATION + CLEANUP
-  // ============================================================================
-
+  // ===================
+  // EFFECT
+  // ===================
+  // Synchronisation avec la DB (quand on n'a pas le lock)
   $effect(() => {
     const evt = currentEvent;
 
-    // 1. Chargement initial - SEULEMENT si:
-    //    - On a un event
-    //    - ET on n'a PAS de modifications en cours
-    //    - ET le verrou ne nous appartient PAS (important pour éviter d'écraser nos propres modifs!)
-    if (evt && !isModified && !isLockedByMe) {
+    if (evt && !isLockedByMe) {
       console.log("📥 Synchronisation avec la DB");
       eventName = evt.name;
       contributors = [...evt.contributors];
       selectedTeams = evt.teams || [];
       meals = [...evt.meals].sort((a, b) => a.date.localeCompare(b.date));
       newContributors = [];
-    } else if (eventId && !evt) {
+    }
+  });
+
+  // Vérifier que l'événement existe (mode édition)
+  $effect(() => {
+    if (eventId && !currentEvent) {
       toastService.error("Événement introuvable");
       navigate("/dashboard");
-    } else if (!eventId && globalState.userId) {
-      // Mode création: initialiser avec l'utilisateur courant
-      if (contributors.length === 0) {
-        contributors = [
-          {
-            id: globalState.userId,
-            name: globalState.userName(),
-            status: "accepted" as const,
-            invitedAt: new Date().toISOString(),
-            respondedAt: new Date().toISOString(),
-          },
-        ];
-      }
     }
+  });
 
-    loadingEvent = false;
-
-    // 2. Démarrer l'auto-save UNE SEULE FOIS (pas à chaque update realtime!)
-    if (eventId && evt && autoSaveIntervalId === null) {
-      startAutoSave();
+  // Initialiser l'utilisateur courant (mode création)
+  $effect(() => {
+    if (!eventId && globalState.userId && contributors.length === 0) {
+      contributors = [
+        {
+          id: globalState.userId,
+          name: globalState.userName(),
+          status: "accepted" as const,
+          invitedAt: new Date().toISOString(),
+          respondedAt: new Date().toISOString(),
+        },
+      ];
     }
+  });
 
-    // 3. Alerte si quelqu'un d'autre prend le verrou
-    if (isModified && isLockedByOthers) {
-      toastService.warning(
-        "Un autre utilisateur a pris le contrôle. Vos modifications seront perdues.",
-      );
-      isModified = false;
-      stopAutoSave();
-    }
-
-    // 4. Protection beforeunload
+  // Protection beforeunload
+  $effect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isModified) {
+      if (isLockedByMe) {
         e.preventDefault();
-        e.returnValue = "Modifications non sauvegardées";
+        e.returnValue =
+          "Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter ?";
       }
     };
+
     window.addEventListener("beforeunload", handleBeforeUnload);
 
-    // 5. Cleanup
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      stopAutoSave();
-      if (isModified && eventId) {
+      if (isLockedByMe && eventId) {
         releaseLock();
       }
     };
@@ -345,8 +326,8 @@
   function handleNameInput(e: Event) {
     eventName = (e.target as HTMLInputElement).value;
 
-    // Acquérir le verrou si pas encore fait
-    if (!isModified && eventId) {
+    // Acquérir le verrou si on ne l'a pas déjà
+    if (!isLockedByMe && eventId) {
       acquireLock();
     }
   }
@@ -386,8 +367,8 @@
     meals = [...meals, newMeal];
     editingMealIndex = mealId;
 
-    // Acquérir le verrou si pas encore fait
-    if (!isModified && eventId) {
+    // Acquérir le verrou si on ne l'a pas déjà
+    if (!isLockedByMe && eventId) {
       acquireLock();
     }
   }
@@ -395,7 +376,7 @@
   function removeMeal(mealId: string) {
     meals = meals.filter((m) => m.id !== mealId);
 
-    if (!isModified && eventId) {
+    if (!isLockedByMe && eventId) {
       acquireLock();
     }
   }
@@ -403,13 +384,13 @@
   function handleDateChanged(mealId: string, newDate: string) {
     meals = meals.map((m) => (m.id === mealId ? { ...m, date: newDate } : m));
 
-    if (!isModified && eventId) {
+    if (!isLockedByMe && eventId) {
       acquireLock();
     }
   }
 
   function handleMealModified() {
-    if (!isModified && eventId) {
+    if (!isLockedByMe && eventId) {
       acquireLock();
     }
   }
@@ -445,13 +426,11 @@
 
       if (eventId) {
         await eventsStore.updateEvent(eventId, eventData);
-        isModified = false;
         toastService.success("Événement mis à jour");
         navigate(`/eventEdit/${eventId}`);
       } else {
         const savedEvent = await eventsStore.createEvent(eventData);
         eventId = savedEvent.$id;
-        isModified = false;
         toastService.success("Événement créé");
         navigate(`/eventEdit/${eventId}`);
       }
@@ -514,7 +493,7 @@
   }
 </script>
 
-<div class="bg-base-200 space-y-6 px-2 pb-20 md:px-36">
+<div class="bg-base-200 min-h-lvh space-y-6 px-2 pb-20 md:px-36">
   <!-- Header -->
   <div
     class="bg-base-200 border-base-200 flex items-center justify-between border-b py-4 backdrop-blur"
@@ -546,7 +525,7 @@
       <button
         class="btn btn-primary"
         onclick={handleSave}
-        disabled={!canEdit || loading || loadingEvent || !isModified}
+        disabled={!canEdit || loading || loadingEvent || !isLockedByMe}
       >
         {#if loading}
           <span class="loading loading-spinner loading-sm"></span>
@@ -556,6 +535,37 @@
         {eventId ? "Enregistrer" : "Créer l'événement"}
       </button>
     </div>
+  </div>
+  <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+    <div class="min-w-80 flex-1 gap-2">
+      {#if editingTitle || !eventId}
+        <input
+          type="text"
+          class="input input-xl min-w-full"
+          value={eventName}
+          oninput={handleNameInput}
+          onblur={() => (editingTitle = false)}
+          disabled={!canEdit}
+          placeholder="Nom de l'événement"
+        />
+      {:else}
+        <button
+          class="btn btn-ghost"
+          onclick={() => (editingTitle = !editingTitle)}
+          disabled={!canEdit}
+        >
+          <div class="flex items-baseline gap-4">
+            <div class="text-4xl font-bold">
+              {eventName || "Nom de l'événement"}
+            </div>
+            <PencilLine class="h-4 w-4" />
+          </div>
+        </button>
+      {/if}
+    </div>
+    {#if eventStats}
+      <EventStats {eventStats} />
+    {/if}
   </div>
 
   <!-- Alerte de verrouillage par un autre utilisateur -->
@@ -567,20 +577,6 @@
         <div class="text-xs">
           Un autre utilisateur est en train de modifier cet événement. Les
           contrôles sont temporairement désactivés.
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  <!-- Alerte de modifications non sauvegardées -->
-  {#if isModified}
-    <div class="alert alert-info">
-      <Save class="h-6 w-6 shrink-0" />
-      <div>
-        <h3 class="font-bold">Modifications non sauvegardées</h3>
-        <div class="text-xs">
-          Vous avez des modifications en cours. L'événement est verrouillé pour
-          éviter les conflits.
         </div>
       </div>
     </div>
@@ -620,34 +616,6 @@
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
       <!-- Colonne Gauche : Infos & Permissions -->
       <div class="space-y-6 lg:col-span-1">
-        <!-- Informations Générales -->
-        <div class="card bg-base-100 shadow-xl">
-          <div class="card-body">
-            <h3 class="card-title mb-4 flex items-center gap-2 text-lg">
-              <Calendar class="text-primary h-5 w-5" />
-              Informations
-            </h3>
-
-            <div class="space-y-4">
-              <!-- Nom de l'événement -->
-              <div class="w-full">
-                <label class="input flex items-center gap-2">
-                  <Calendar class="h-4 w-4 opacity-50" />
-                  <input
-                    id="event-name"
-                    type="text"
-                    class="grow"
-                    placeholder="Nom de l'événement"
-                    value={eventName}
-                    oninput={handleNameInput}
-                    disabled={!canEdit}
-                  />
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Permissions -->
         <PermissionsManager
           bind:selectedTeams
@@ -659,71 +627,6 @@
           userTeams={globalState.userTeams || []}
           {eventId}
         />
-
-        <!-- Statistiques de l'événement -->
-        {#if eventStats && eventId}
-          <div class="card bg-base-100 shadow-xl">
-            <div class="card-body">
-              <h3 class="card-title mb-4 flex items-center gap-2 text-lg">
-                <ChartBar class="text-primary h-5 w-5" />
-                Statistiques
-              </h3>
-
-              <div class="grid grid-cols-2 gap-2 text-sm">
-                <div class="stat bg-base-200 rounded-lg p-3 text-center">
-                  <div class="stat-value text-primary">
-                    {eventStats.mealsCount}
-                  </div>
-                  <div class="stat-desc">Repas</div>
-                </div>
-                <div class="stat bg-base-200 rounded-lg p-3 text-center">
-                  <div class="stat-value text-primary">
-                    {eventStats.totalGuests}
-                  </div>
-                  <div class="stat-desc">Invités totaux</div>
-                </div>
-                <div class="stat bg-base-200 rounded-lg p-3 text-center">
-                  <div class="stat-value text-primary">
-                    {eventStats.totalRecipes}
-                  </div>
-                  <div class="stat-desc">Recettes uniques</div>
-                </div>
-                <div class="stat bg-base-200 rounded-lg p-3 text-center">
-                  <div class="stat-value text-primary">
-                    {eventStats.contributorsStats.total}
-                  </div>
-                  <div class="stat-desc">Contributeurs</div>
-                </div>
-              </div>
-
-              <div class="mt-4 space-y-1 text-sm">
-                <div class="flex justify-between">
-                  <span class="text-base-content/60"
-                    >Statut de l'événement:</span
-                  >
-                  <span
-                    class="badge badge-sm badge-{eventStats.eventStatus ===
-                    'active'
-                      ? 'success'
-                      : 'warning'}"
-                  >
-                    {eventStats.eventStatus}
-                  </span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-base-content/60">Statut temporel:</span>
-                  {#if eventStats?.isEventPast}
-                    <span class="badge badge-sm badge-error">Terminé</span>
-                  {:else if eventStats?.isEventCurrent}
-                    <span class="badge badge-sm badge-success">En cours</span>
-                  {:else}
-                    <span class="badge badge-sm badge-info">À venir</span>
-                  {/if}
-                </div>
-              </div>
-            </div>
-          </div>
-        {/if}
       </div>
 
       <!-- Colonne Droite : Repas -->

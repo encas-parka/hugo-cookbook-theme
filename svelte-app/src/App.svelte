@@ -17,6 +17,7 @@
   import TeamsManagement from "./lib/routes/TeamsManagement.svelte";
   import RecipeDetailPage from "./lib/routes/RecipeDetailPage.svelte";
   import RecipesListPage from "./lib/routes/RecipesListPage.svelte";
+  import RecipeEditPage from "./lib/routes/RecipeEditPage.svelte";
   import ProductsPage from "./lib/routes/ProductsPage.svelte";
   import HomePage from "./lib/routes/HomePage.svelte";
 
@@ -55,6 +56,8 @@
   // Publiques
   router.addRoute("/", HomePage, redirectIfAuth);
   router.addRoute("/recipes", RecipesListPage);
+  router.addRoute("/recipes/new", RecipeEditPage, requireAuth);
+  router.addRoute("/recipes/:uuid/edit", RecipeEditPage, requireAuth);
   router.addRoute("/recipe/:uuid", RecipeDetailPage);
   router.addRoute("/accept-invite", AcceptInvite);
 

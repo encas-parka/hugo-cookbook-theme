@@ -11,7 +11,50 @@ import type { Recettes } from "../types/appwrite.d";
 import type {
   CreateRecipeData,
   UpdateRecipeData,
-} from "../types/appwrite.types";
+  RecipeData,
+} from "../types/recipes.types";
+
+/**
+ * Exécute la Cloud Function manage_recipe
+ */
+export async function executeManageRecipe(
+  action: "save" | "lock" | "unlock" | "force_unlock",
+  recipeId: string,
+  userId: string,
+  data?: any,
+): Promise<any> {
+  try {
+    const { functions, config } = await getAppwriteInstances();
+    const functionId = config.functions.manageRecipe;
+
+    const payload = JSON.stringify({
+      action,
+      recipeId,
+      userId,
+      data,
+    });
+
+    const execution = await functions.createExecution(
+      functionId,
+      payload,
+      false, // async = false pour attendre le résultat
+    );
+
+    if (execution.status !== "completed") {
+      throw new Error(`Function execution failed: ${execution.status} - ${execution.responseBody}`);
+    }
+
+    const response = JSON.parse(execution.responseBody);
+    if (!response.success) {
+      throw new Error(response.error || "Unknown error in manage_recipe");
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error(`[appwrite-recipes] Error executing manage_recipe (${action}):`, error);
+    throw error;
+  }
+}
 
 // =============================================================================
 // CONFIGURATION

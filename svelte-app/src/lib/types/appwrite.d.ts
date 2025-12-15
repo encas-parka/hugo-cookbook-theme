@@ -4,7 +4,9 @@ import type { Models } from "appwrite";
 // You can regenerate it by running `appwrite types -l ts ./`.
 
 export enum MainStatus {
+  CREATING = "creating",
   ACTIVE = "active",
+  FAILED = "failed",
   ARCHIVE = "archive",
   LOCKED = "locked",
 }
@@ -13,6 +15,13 @@ export enum RecettesTypeR {
   ENTREE = "entree",
   PLAT = "plat",
   DESSERT = "dessert",
+}
+
+export enum RecettesSaison {
+  ETE = "ete",
+  AUTOMNE = "automne",
+  HIVER = "hiver",
+  PRINTEMPS = "printemps",
 }
 
 export type InscriptionCampaigns = Models.Row & {
@@ -44,11 +53,11 @@ export type Main = Models.Row & {
   allDates: string[] | null;
   productsId: Products[];
   purchasesId: Purchases[];
-  meals: string[] | null;
   contributors: string[] | null;
-  contributorsIds: string[] | null;
   kteams: Kteams[];
-  lockedBy: string | null; // ID de l'utilisateur qui possède le verrou
+  meals: string[] | null;
+  contributorsIds: string[] | null;
+  lockedBy: string | null;
 };
 
 export type Products = Models.Row & {
@@ -93,7 +102,6 @@ export type Purchases = Models.Row & {
 export type Recettes = Models.Row & {
   title: string;
   plate: number;
-  ingredients: string;
   preparation: string;
   draft: boolean;
   typeR: RecettesTypeR;
@@ -106,6 +114,17 @@ export type Recettes = Models.Row & {
   contributors: string[] | null;
   materiel: string[] | null;
   prepAlt: string[] | null;
+  ingredients: string; // JSON stringifié
+  description: string | null;
+  region: string | null;
+  saison: RecettesSaison | null;
+  cuisson: boolean;
+  quantite_desc: string | null;
+  check: boolean;
+  preparation24h: string | null;
+  astuces: string | null;
+  permissionWrite: string[] | null;
+  serveHot: boolean;
 };
 
 export type Kteams = Models.Row & {

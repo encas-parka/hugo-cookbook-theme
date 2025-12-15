@@ -30,16 +30,6 @@
 
   // Invitations réelles
   const myInvitations = $derived(teamsStore.myPendingInvitations);
-
-  // Fonctions de navigation
-  function onCreateEvent() {
-    navigate("/eventEdit");
-  }
-
-  function onCreateRecipe() {
-    // TODO: Implémenter la navigation vers la création de recette
-    console.log("Navigate to create recipe");
-  }
 </script>
 
 <div class="bg-base-200 min-h-screen">
@@ -63,11 +53,17 @@
 
         <!-- Actions rapides -->
         <div class="flex gap-2">
-          <button class="btn btn-primary" onclick={onCreateEvent}>
+          <button
+            class="btn btn-primary"
+            onclick={() => navigate("/eventEdit")}
+          >
             <Calendar class="h-4 w-4" />
             Nouvel Événement
           </button>
-          <button class="btn btn-secondary" onclick={onCreateRecipe}>
+          <button
+            class="btn btn-secondary"
+            onclick={() => navigate("/recipes/new")}
+          >
             <BookOpen class="h-4 w-4" />
             Créer une Recette
           </button>
