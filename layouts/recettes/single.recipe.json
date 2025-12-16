@@ -1,11 +1,7 @@
-{{- $parentDir := path.Base .File.Dir -}}
-{{- $uuid := replaceRE "^.*_([a-z0-9]+)$" "$1" $parentDir -}}
-{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" -}}
-{{- $byUUID := $ingredientsIndex.byUUID -}}
-
-{{/* Construction manuelle du JSON pour éviter l'aplatissement des tableaux par Hugo */}}
+{{/* Nouveau template simplifié - toutes les données sont déjà dans le frontmatter */}}
 {
-  "uuid": {{ $uuid | jsonify }},
+  "uuid": {{ .Params.uuid | jsonify }},
+  "slug": {{ .Params.slug | jsonify }},
   "title": {{ .Title | lower | title | jsonify }},
   "draft": {{ .Draft | jsonify }},
   "typeR": {{ .Params.typeR | jsonify }},
@@ -18,56 +14,7 @@
   "check": {{ .Params.check | jsonify }},
   "checkAlwaysOk": {{ .Params.checkAlwaysOk | jsonify }},
   "materiel": {{ .Params.materiel | jsonify }},
-  "ingredients": [
-    {{- $first := true -}}
-    {{- range .Params.ingredients -}}
-      {{- if not $first -}},{{ end -}}
-      {{- $first = false -}}
-      {{- $ingUUID := partialCached "functions/extract-uuid-from-slug.html" .ingredient .ingredient -}}
-      {{- $ingData := index $byUUID $ingUUID -}}
-      {{- $ingName := "" -}}
-      {{- if $ingData -}}
-        {{- $ingName = $ingData.title -}}
-      {{- end -}}
-
-      {{/* Gestion des quantités/unités manquantes (ex: sel, poivre) */}}
-      {{- $quantite := 1 -}}
-      {{- $unit := "au goût" -}}
-      {{- if .quantite -}}
-        {{- $quantite = .quantite -}}
-      {{- end -}}
-      {{- if .unit -}}
-        {{- $unit = .unit -}}
-      {{- end -}}
-
-      {{- $conversion := partial "functions/quantite-converter.html" (dict
-        "quantite" $quantite
-        "unit" $unit
-        "ingredient" $ingName
-      ) -}}
-      {{- $allergenes := slice -}}
-      {{- $ingType := "" -}}
-      {{- if $ingData -}}
-        {{- $allergenes = $ingData.allergenes | default (slice) -}}
-        {{- $ingType = $ingData.type | default "" -}}
-      {{- end -}}
-      {{- $comment := "" -}}
-      {{- if .commentaire -}}
-        {{- $comment = .commentaire -}}
-      {{- end -}}
-{
-      "uuid": {{ $ingUUID | jsonify }},
-      "name": {{ $ingName | jsonify }},
-      "originalQuantity": {{ $quantite }},
-      "originalUnit": {{ $unit | lower | jsonify }},
-      "normalizedQuantity": {{ $conversion.quantiteEq }},
-      "normalizedUnit": {{ $conversion.unitEq | lower | jsonify }},
-      "comment": {{ $comment | jsonify }},
-      "allergens": {{ $allergenes | jsonify }},
-      "type": {{ $ingType | jsonify }}
-    }
-    {{- end -}}
-  ],
+  "ingredients": {{ .Params.ingredients | jsonify }},
   "preparation": {{ .Params.preparation | jsonify }},
   "prepAlt": {{ .Params.prepAlt | jsonify }},
   "permissionWrite": {{ .Params.permissionWrite | default (slice) | jsonify }},

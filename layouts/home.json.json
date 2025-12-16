@@ -1,45 +1,18 @@
-{{- $ingredients := slice -}}
-{{- range where .Site.RegularPages "Section" "ingredients" -}}
-  {{- if .Title -}}
-    {{/* Extract UUID from parent directory name (e.g., "abricot_xo0ibs" -> "xo0ibs") */}}
-    {{- $parentDir := path.Base .File.Dir -}}
-    {{- $uuid := replaceRE "^.*_([a-z0-9]+)$" "$1" $parentDir -}}
-
-    {{/* Build ingredient object with abbreviated keys */}}
-    {{- $ing := dict "u" $uuid "n" .Title "t" .Params.type -}}
-
-    {{/* Only include allergens if not empty */}}
-    {{- if .Params.allergenes -}}
-      {{- $ing = merge $ing (dict "a" .Params.allergenes) -}}
-    {{- end -}}
-
-    {{- $ingredients = $ingredients | append $ing -}}
-  {{- end -}}
-{{- end -}}
-
-{{- $ingredientsIndex := partialCached "functions/ingredients-index.html" "ingredients-index" -}}
-{{- $byUUID := $ingredientsIndex.byUUID -}}
-
+{{/* Nouveau template simplifié - toutes les données sont déjà dans le frontmatter */}}
 {{- $recipes := slice -}}
 {{- range where .Site.RegularPages "Section" "recettes" -}}
   {{- if .Title -}}
-    {{- $uuid := replaceRE "^.*_([a-z0-9]+)$" "$1" (path.Base .File.Dir) -}}
-    {{/* Construct relative path to JSON file */}}
-    {{- $relPath := printf "%srecipe.json" .RelPermalink -}}
 
-    {{/* Extraire les noms des ingrédients pour le filtrage */}}
+    {{/* Extraire les noms des ingrédients directement depuis le frontmatter */}}
     {{- $ingredientNames := slice -}}
     {{- range .Params.ingredients -}}
-      {{- $ingUUID := partialCached "functions/extract-uuid-from-slug.html" .ingredient .ingredient -}}
-      {{- $ingData := index $byUUID $ingUUID -}}
-      {{- if $ingData -}}
-        {{- $ingredientNames = $ingredientNames | append $ingData.title -}}
-      {{- end -}}
+      {{- $ingredientNames = $ingredientNames | append .name -}}
     {{- end -}}
 
     {{/* Build recipe object with abbreviated keys - métadonnées essentielles pour l'index */}}
     {{- $recipe := dict
-      "u" $uuid
+      "u" .Params.uuid
+      "s" .Params.slug
       "n" .Title
       "t" .Params.typeR
       "c" .Params.categories
@@ -48,7 +21,6 @@
       "a" .Params.auteur
       "d" .Draft
       "serveHot" .Params.serveHot
-      "p" $relPath
       "plates" .Params.plate
       "q" .Params.quantite_desc
       "ch" .Params.check
@@ -56,7 +28,7 @@
       "pd" .Params.PublishDate
       "materiel" .Params.materiel
       "saison" .Params.saison
-      "specialite" .Params.specialite
+      "region" .Params.region
       "ingredients" $ingredientNames
     -}}
     {{- $recipes = $recipes | append $recipe -}}
@@ -64,4 +36,4 @@
 {{- end -}}
 
 {{/* Generate unified JSON output */}}
-{{- dict "ingredients" $ingredients "recipes" $recipes | jsonify -}}
+{{- dict "recipes" $recipes | jsonify -}}
