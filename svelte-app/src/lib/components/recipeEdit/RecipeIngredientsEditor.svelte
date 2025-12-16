@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { RecipeIngredient } from "$lib/types/recipes.types";
   import QuantityInput from "$lib/components/ui/QuantityInput.svelte";
-  import { ingredientsStore } from "$lib/stores/IngredientsStore.svelte";
+  import { recipeDataStore } from "$lib/stores/RecipeDataStore.svelte";
   import { getProductTypeInfo } from "$lib/utils/products-display";
   import {
     Plus,
@@ -45,7 +45,7 @@
   // Filtrage des ingrédients depuis le store
   let filteredIngredients = $derived(
     searchQuery.length > 1
-      ? ingredientsStore.searchIngredients(searchQuery)
+      ? recipeDataStore.searchIngredients(searchQuery)
       : [],
   );
 
@@ -71,12 +71,12 @@
     return groups;
   });
 
-  // Initialiser le IngredientsStore si nécessaire
+  // Initialiser le recipeDataStore si nécessaire
   $effect(() => {
-    if (!ingredientsStore.isInitialized && !ingredientsStore.loading) {
-      ingredientsStore.initialize().catch((err) => {
+    if (!recipeDataStore.isInitialized && !recipeDataStore.loading) {
+      recipeDataStore.initialize().catch((err) => {
         console.error(
-          "[RecipeIngredientsEditor] Erreur lors de l'initialisation du IngredientsStore:",
+          "[RecipeIngredientsEditor] Erreur lors de l'initialisation du recipeDataStore:",
           err,
         );
       });
@@ -123,7 +123,7 @@
   // ============================================================================
 
   function addIngredientFromSearch(ingredientUuid: string) {
-    const ingredientData = ingredientsStore.getIngredientByUuid(ingredientUuid);
+    const ingredientData = recipeDataStore.getIngredientByUuid(ingredientUuid);
     if (!ingredientData) return;
 
     const newIngredient: RecipeIngredient = {
@@ -145,7 +145,7 @@
   }
 
   function openDropdown() {
-    if (!disabled && !ingredientsStore.loading && !ingredientsStore.error) {
+    if (!disabled && !recipeDataStore.loading && !recipeDataStore.error) {
       isOpen = true;
       selectedIndex = 0;
     }
@@ -215,7 +215,7 @@
 
 <div class="space-y-4">
   <!-- Indicateur de chargement -->
-  {#if ingredientsStore.loading}
+  {#if recipeDataStore.loading}
     <div class="card bg-base-100 border-base-300 border shadow-sm">
       <div class="card-body p-4">
         <div class="flex items-center gap-3">
@@ -224,13 +224,13 @@
         </div>
       </div>
     </div>
-  {:else if ingredientsStore.error}
+  {:else if recipeDataStore.error}
     <div class="card bg-error/10 border-error/20 border shadow-sm">
       <div class="card-body p-4">
         <div class="text-error flex items-center gap-3">
           <AlertTriangle class="h-4 w-4" />
           <span class="text-sm"
-            >Erreur lors du chargement: {ingredientsStore.error}</span
+            >Erreur lors du chargement: {recipeDataStore.error}</span
           >
         </div>
       </div>

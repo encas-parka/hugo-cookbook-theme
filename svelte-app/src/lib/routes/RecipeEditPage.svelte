@@ -244,8 +244,7 @@
     // Afficher un toast avec la liste des erreurs
     if (hasError) {
       const errorMessages = Object.values(validationErrors);
-      toastService.warning("Veuillez corriger les erreurs suivantes :", {
-        details: errorMessages,
+      toastService.error("Veuillez corriger les champs invalides", {
         autoCloseDelay: 5000,
       });
     }
@@ -688,7 +687,7 @@
               bind:ingredients={recipe.ingredients}
               disabled={!canEdit}
             />
-            {#if validationErrors.ingredients}
+            {#if validationErrors.ingredients && recipe.ingredients.length === 0}
               <div class="alert alert-error mt-4">
                 <span class="text-sm">{validationErrors.ingredients}</span>
               </div>

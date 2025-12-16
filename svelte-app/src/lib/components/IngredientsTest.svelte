@@ -1,17 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { ingredientsStore } from "../stores/IngredientsStore.svelte";
+  import { recipeDataStore } from "$lib/stores/RecipeDataStore.svelte";
 
   let searchQuery = $state("");
   let selectedType = $state("");
 
   // Résultats filtrés
   const filteredIngredients = $derived.by(() => {
-    let results = ingredientsStore.ingredients;
+    let results = recipeDataStore.ingredients;
 
     // Filtre par recherche
     if (searchQuery.trim()) {
-      results = ingredientsStore.searchIngredients(searchQuery);
+      results = recipeDataStore.searchIngredients(searchQuery);
     }
 
     // Filtre par type
@@ -24,7 +24,7 @@
 
   onMount(async () => {
     try {
-      await ingredientsStore.initialize();
+      await recipeDataStore.initialize();
     } catch (error) {
       console.error("Erreur d'initialisation:", error);
     }
@@ -32,35 +32,37 @@
 </script>
 
 <div class="container mx-auto p-4">
-  <h1 class="text-2xl font-bold mb-4">Test IngredientsStore</h1>
+  <h1 class="mb-4 text-2xl font-bold">Test recipeDataStore</h1>
 
-  {#if ingredientsStore.loading}
+  {#if recipeDataStore.loading}
     <div class="alert alert-info">
       <span>Chargement des ingrédients...</span>
     </div>
-  {:else if ingredientsStore.error}
+  {:else if recipeDataStore.error}
     <div class="alert alert-error">
-      <span>Erreur: {ingredientsStore.error}</span>
+      <span>Erreur: {recipeDataStore.error}</span>
     </div>
   {:else}
     <!-- Stats -->
-    <div class="stats shadow mb-4">
+    <div class="stats mb-4 shadow">
       <div class="stat">
         <div class="stat-title">Total Ingrédients</div>
-        <div class="stat-value">{ingredientsStore.count}</div>
+        <div class="stat-value">{recipeDataStore.count}</div>
       </div>
       <div class="stat">
         <div class="stat-title">Types</div>
-        <div class="stat-value">{ingredientsStore.availableTypes.length}</div>
+        <div class="stat-value">{recipeDataStore.availableTypes.length}</div>
       </div>
       <div class="stat">
         <div class="stat-title">Allergènes</div>
-        <div class="stat-value">{ingredientsStore.availableAllergens.length}</div>
+        <div class="stat-value">
+          {recipeDataStore.availableAllergens.length}
+        </div>
       </div>
     </div>
 
     <!-- Filtres -->
-    <div class="flex gap-4 mb-4">
+    <div class="mb-4 flex gap-4">
       <input
         type="text"
         placeholder="Rechercher un ingrédient..."
@@ -69,7 +71,7 @@
       />
       <select class="select select-bordered" bind:value={selectedType}>
         <option value="">Tous les types</option>
-        {#each ingredientsStore.availableTypes as type}
+        {#each recipeDataStore.availableTypes as type}
           <option value={type}>{type}</option>
         {/each}
       </select>
@@ -77,7 +79,7 @@
 
     <!-- Liste des ingrédients -->
     <div class="overflow-x-auto">
-      <table class="table table-zebra">
+      <table class="table-zebra table">
         <thead>
           <tr>
             <th>UUID</th>
@@ -97,7 +99,9 @@
               <td>
                 {#if ingredient.a && ingredient.a.length > 0}
                   {#each ingredient.a as allergen}
-                    <span class="badge badge-warning badge-sm mr-1">{allergen}</span>
+                    <span class="badge badge-warning badge-sm mr-1"
+                      >{allergen}</span
+                    >
                   {/each}
                 {:else}
                   <span class="text-gray-400">-</span>
@@ -115,10 +119,10 @@
       </table>
     </div>
 
-    <div class="text-sm text-gray-500 mt-4">
-      Affichage de {filteredIngredients.length} / {ingredientsStore.count} ingrédients
-      {#if ingredientsStore.lastSync}
-        • Dernière sync: {new Date(ingredientsStore.lastSync).toLocaleString()}
+    <div class="mt-4 text-sm text-gray-500">
+      Affichage de {filteredIngredients.length} / {recipeDataStore.count} ingrédients
+      {#if recipeDataStore.lastSync}
+        • Dernière sync: {new Date(recipeDataStore.lastSync).toLocaleString()}
       {/if}
     </div>
   {/if}

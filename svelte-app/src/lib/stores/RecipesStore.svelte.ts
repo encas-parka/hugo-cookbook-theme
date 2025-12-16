@@ -35,6 +35,8 @@ import {
   type RecipesIDBCache,
 } from "../services/recipes-idb-cache";
 import { parseRecipeData } from "../utils/recipeUtils";
+import { generateRecipeSlug } from "../utils/slugUtils";
+import { nanoid } from "nanoid";
 import {
   listAllNonPublishedRecipes,
   listNonPublishedRecipes,
@@ -384,10 +386,10 @@ class RecipesStore {
       appwriteRecipes.forEach((recipe) => {
         this.#recipesIndex.set(recipe.$id, {
           u: recipe.$id,
+          s: recipe.slug,
           n: recipe.title,
           t: recipe.typeR,
           a: recipe.createdBy, // Auteur de la recette
-          p: null, // Pas de path JSON pour les recettes Appwrite
           plates: recipe.plate, // Nombre de couverts par défaut de la recette
           isPublished: false,
         });
@@ -419,10 +421,10 @@ class RecipesStore {
             // Mettre à jour l'index
             this.#recipesIndex.set(recipe.$id, {
               u: recipe.$id,
+              s: recipe.slug,
               n: recipe.title,
               t: recipe.typeR,
               a: recipe.createdBy, // Auteur de la recette
-              p: null,
               plates: recipe.plate, // Nombre de couverts par défaut de la recette
               isPublished: recipe.isPublished,
             });
@@ -468,6 +470,7 @@ class RecipesStore {
   #convertAppwriteToRecipeData(appwriteRecipe: Recettes): RecipeData {
     return {
       uuid: appwriteRecipe.$id,
+      slug: appwriteRecipe.slug,
       title: appwriteRecipe.title,
       plate: appwriteRecipe.plate,
       materiel: appwriteRecipe.materiel || [],
@@ -676,10 +679,8 @@ class RecipesStore {
           recipe.teams?.some((teamId) =>
             globalState.userTeams.includes(teamId),
           ),
-        ) || 
-        Boolean(
-            recipe.permissionWrite?.includes(globalState.userId)
-        )
+        ) ||
+        Boolean(recipe.permissionWrite?.includes(globalState.userId))
       );
     } catch (err) {
       console.error(
@@ -705,27 +706,33 @@ class RecipesStore {
     try {
       // Préparer les données pour Appwrite (conversion JSON string)
       const dataForAppwrite: any = { ...data };
-      if (data.ingredients && typeof data.ingredients !== 'string') {
-         // Si c'est un tableau/objet, on stringify (si UpdateRecipeData le permet)
-         // Note: UpdateRecipeData type uses string for ingredients usually for appwrite
-         // Mais si c'est Partial<RecipeData>, c'est Ingredient[]
-         // Typiquement RecipesStore reçoit UpdateRecipeData qui a deja ingredients en string ?
-         // Vérifions le type UpdateRecipeData.
-         // Si data vient de RecipeEditorState, c'est Partial<RecipeData> converti.
-         // On s'assure que c'est une string JSON.
-         // Sauf si l'appelant a déjà fait le travail.
+      if (data.ingredients && typeof data.ingredients !== "string") {
+        // Si c'est un tableau/objet, on stringify (si UpdateRecipeData le permet)
+        // Note: UpdateRecipeData type uses string for ingredients usually for appwrite
+        // Mais si c'est Partial<RecipeData>, c'est Ingredient[]
+        // Typiquement RecipesStore reçoit UpdateRecipeData qui a deja ingredients en string ?
+        // Vérifions le type UpdateRecipeData.
+        // Si data vient de RecipeEditorState, c'est Partial<RecipeData> converti.
+        // On s'assure que c'est une string JSON.
+        // Sauf si l'appelant a déjà fait le travail.
       }
 
       // 1. Exécuter via Cloud Function 'manage_recipe' pour garantir sync GitHub et Lock
-      const updatedRecipe = await executeManageRecipe("save", uuid, globalState.userId, data);
+      const updatedRecipe = await executeManageRecipe(
+        "save",
+        uuid,
+        globalState.userId,
+        data,
+      );
 
       // 2. Mise à jour de l'index local
+
       this.#recipesIndex.set(uuid, {
         u: updatedRecipe.$id,
+        s: updatedRecipe.slug,
         n: updatedRecipe.title,
         t: updatedRecipe.typeR,
         a: updatedRecipe.createdBy,
-        p: null,
         plates: updatedRecipe.plate,
         isPublished: updatedRecipe.isPublished,
       });
@@ -733,13 +740,15 @@ class RecipesStore {
       // 3. Mise à jour du cache détails local (si chargé)
       if (this.#recipesDetails.has(uuid)) {
         const currentDetails = this.#recipesDetails.get(uuid)!;
-        
+
         // Si ingredients est une string JSON dans la réponse
         let parsedIngredients = currentDetails.ingredients;
         if (updatedRecipe.ingredients) {
-            try {
-                parsedIngredients = JSON.parse(updatedRecipe.ingredients);
-            } catch (e) { console.error("Erreur parsing ingredients update", e); }
+          try {
+            parsedIngredients = JSON.parse(updatedRecipe.ingredients);
+          } catch (e) {
+            console.error("Erreur parsing ingredients update", e);
+          }
         }
 
         this.#recipesDetails.set(uuid, {
@@ -749,12 +758,14 @@ class RecipesStore {
           preparation: updatedRecipe.preparation,
           ingredients: parsedIngredients,
           lockedBy: updatedRecipe.lockedBy,
-          permissionWrite: updatedRecipe.permissionWrite
+          permissionWrite: updatedRecipe.permissionWrite,
         });
       }
-
     } catch (error) {
-      console.error(`[RecipesStore] Erreur lors de la mise à jour de ${uuid}:`, error);
+      console.error(
+        `[RecipesStore] Erreur lors de la mise à jour de ${uuid}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -769,16 +780,16 @@ class RecipesStore {
 
     // Déterminer l'action : lock ou unlock
     const action = lockedBy ? "lock" : "unlock";
-    
+
     // Si unlock, on vérifie si on force ? Non, simple unlock pour l'instant.
     // L'UI gérera le force_unlock séparément si besoin.
 
     await executeManageRecipe(action, uuid, globalState.userId);
-    
+
     // La mise à jour locale immédiate pour UX
     const currentDetails = this.#recipesDetails.get(uuid);
     if (currentDetails) {
-        this.#recipesDetails.set(uuid, { ...currentDetails, lockedBy });
+      this.#recipesDetails.set(uuid, { ...currentDetails, lockedBy });
     }
   }
 
@@ -829,7 +840,7 @@ class RecipesStore {
         }
       }
 
-      // 3. Récupérer le path depuis l'index
+      // 3. Récupérer l'entrée d'index
       const indexEntry = this.#recipesIndex.get(uuid);
       if (!indexEntry) {
         console.warn(`[RecipesStore] Recette ${uuid} non trouvée dans l'index`);
@@ -839,34 +850,18 @@ class RecipesStore {
       // 4. Charger depuis Hugo JSON ou Appwrite
       let recipeData: RecipeData;
 
-      if (indexEntry.p) {
-        // 4a. Recette Hugo : fetch depuis le fichier JSON
-        console.log(
-          `[RecipesStore] Chargement des détails de ${uuid} depuis ${indexEntry.p}...`,
-        );
-        const response = await fetch(indexEntry.p);
-        if (!response.ok) {
-          throw new Error(`Erreur HTTP: ${response.status}`);
-        }
-
-        const rawData = await response.json();
-        recipeData = parseRecipeData(rawData);
-      } else {
-        // 4b. Recette Appwrite : fetch depuis Appwrite
-        console.log(
-          `[RecipesStore] Chargement des détails de ${uuid} depuis Appwrite...`,
-        );
-        const appwriteRecipe = await getAppwriteRecipe(uuid);
-        if (!appwriteRecipe) {
-          console.warn(
-            `[RecipesStore] Recette ${uuid} non trouvée dans Appwrite`,
-          );
-          return null;
-        }
-
-        // Convertir Recettes (Appwrite) vers RecipeData
-        recipeData = this.#convertAppwriteToRecipeData(appwriteRecipe);
+      // 4a. Recette Hugo : construire l'URL à partir du slug
+      const recipePath = `/recettes/${indexEntry.s}/recipe.json`;
+      console.log(
+        `[RecipesStore] Chargement des détails de ${uuid} depuis ${recipePath}...`,
+      );
+      const response = await fetch(recipePath);
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
       }
+
+      const rawData = await response.json();
+      recipeData = parseRecipeData(rawData);
 
       // 5. Mettre en cache
       this.#recipesDetails.set(uuid, recipeData);
@@ -913,6 +908,12 @@ class RecipesStore {
     }
 
     try {
+      // Générer le slug pour la nouvelle recette
+      // Note: Pour les recettes Appwrite, nous utilisons le même format que Hugo
+      // slug = title-slugifié (22 max) + _ + uuid (12 chars)
+      const uuid = nanoid(12); // Générer un UUID de 12 caractères
+      const slug = generateRecipeSlug(data.title, uuid);
+
       // Convertir RecipeData vers CreateRecipeData
       const createData: CreateRecipeData = {
         title: data.title,
@@ -925,6 +926,10 @@ class RecipesStore {
         regime: [],
         teams: [],
         contributors: [],
+        // Ajouter le slug et utiliser l'UUID généré comme $id
+        // Note: Il faut adapter createAppwriteRecipe pour accepter ces champs
+        slug: slug,
+        uuid: uuid,
       };
 
       const appwriteRecipe = await createAppwriteRecipe(
@@ -932,12 +937,11 @@ class RecipesStore {
         globalState.userId,
       );
 
-      // Ajouter à l'index local
       this.#recipesIndex.set(appwriteRecipe.$id, {
         u: appwriteRecipe.$id,
+        s: slug,
         n: appwriteRecipe.title,
         t: appwriteRecipe.typeR,
-        p: null,
         plates: appwriteRecipe.plate, // Nombre de couverts par défaut de la recette
         isPublished: false,
       });

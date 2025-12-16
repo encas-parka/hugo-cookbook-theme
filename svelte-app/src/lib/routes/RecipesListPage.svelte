@@ -7,7 +7,7 @@
   import ActiveFiltersDisplay from "$lib/components/recipes/ActiveFiltersDisplay.svelte";
   import RecipeCard from "$lib/components/recipes/RecipeCard.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
-  import { ingredientsStore } from "$lib/stores/IngredientsStore.svelte";
+  import { recipeDataStore } from "$lib/stores/RecipeDataStore.svelte";
 
   // État des filtres
   interface Filters {
@@ -62,9 +62,7 @@
   ];
 
   const availableIngredients = $derived.by(() => {
-    return ingredientsStore.isInitialized
-      ? ingredientsStore.ingredientNames
-      : [];
+    return recipeDataStore.isInitialized ? recipeDataStore.ingredientNames : [];
   });
 
   // Logique de filtrage
@@ -210,8 +208,8 @@
     if (!recipesStore.isInitialized) {
       await recipesStore.initialize();
     }
-    if (!ingredientsStore.isInitialized) {
-      await ingredientsStore.initialize();
+    if (!recipeDataStore.isInitialized) {
+      await recipeDataStore.initialize();
     }
   });
 </script>

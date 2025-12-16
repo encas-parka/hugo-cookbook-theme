@@ -125,6 +125,7 @@ export type Recettes = Models.Row & {
   astuces: string | null;
   permissionWrite: string[] | null;
   serveHot: boolean;
+  slug: string;
 };
 
 export type Kteams = Models.Row & {

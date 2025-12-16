@@ -525,7 +525,10 @@
       <button
         class="btn btn-primary"
         onclick={handleSave}
-        disabled={!canEdit || loading || loadingEvent || !isLockedByMe}
+        disabled={!canEdit ||
+          loading ||
+          loadingEvent ||
+          (eventId && !isLockedByMe)}
       >
         {#if loading}
           <span class="loading loading-spinner loading-sm"></span>

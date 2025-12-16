@@ -33,6 +33,7 @@ export interface EnrichedIngredient extends Ingredient {
  */
 export interface RecipeIndexEntry {
   u: string; // UUID court
+  s: string; // Slug (identifiant unique pour les URLs)
   n: string; // Nom
   t: string; // Type (ex: "entree", "plat", "dessert")
   c?: string[]; // Categories
@@ -41,7 +42,6 @@ export interface RecipeIndexEntry {
   a?: string; // Auteur de la recette
   d?: boolean; // Draft (true/false)
   serveHot?: boolean; // Température de service (true=Chaud, false=Froid)
-  p: string | null; // Path vers recipe.json (null pour recettes Appwrite)
   plates?: number; // Nombre de couverts par défaut de la recette
   q?: string; // Description quantité (ex: "24 parts par gastro")
   ch?: boolean; // Check validation (true/false)
@@ -72,12 +72,20 @@ export interface RecipeIngredient {
   type: string;
 }
 
+// Recipe Info (depuis recipe-info.json)
+export interface RecipeInfo {
+  materiel: string[];
+  categories: string[];
+  regimes: string[];
+}
+
 /**
  * Détails complets d'une recette (depuis recipe.json)
  * Contient uniquement les données "lourdes" nécessaires pour l'affichage d'une recette
  */
 export interface RecipeData {
   uuid: string;
+  slug: string; // Slug (identifiant unique pour les URLs)
   title: string;
   plate: number;
   typeR?: string; // Type de recette (entrée, plat, dessert, etc.)
@@ -89,7 +97,7 @@ export interface RecipeData {
   prepAlt?: Array<{ recetteAlt: string }>; // Recettes alternatives
   permissionWrite?: string[]; // IDs des utilisateurs/équipes autorisés à éditer
   lockedBy?: string | null; // ID de l'utilisateur éditant actuellement
-  
+
   // Champs additionnels pour l'édition
   categories?: string[]; // Catégories
   regime?: string[]; // Régimes alimentaires
@@ -97,7 +105,7 @@ export interface RecipeData {
   specialite?: string; // Spécialité
   cuisson?: boolean; // Nécessite cuisson
   serveHot?: boolean; // Température de service
-  
+
   // Champs temporaires pour l'édition (input strings)
   categoriesInput?: string;
   regimeInput?: string;
@@ -124,6 +132,12 @@ export interface ScaledIngredient extends RecipeIngredient {
 export interface IngredientsCacheMetadata {
   lastSync: string | null;
   dataJsonHash: string | null; // Hash du fichier data.json
+  ingredientsCount: number;
+}
+
+export interface RecipeDataCacheMetadata {
+  lastSync: string | null;
+  dataJsonHash: string | null;
   ingredientsCount: number;
 }
 
