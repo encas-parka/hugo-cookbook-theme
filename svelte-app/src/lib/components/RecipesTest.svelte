@@ -70,10 +70,7 @@
         <div class="stat-title">Total Recettes</div>
         <div class="stat-value">{recipesStore.count}</div>
       </div>
-      <div class="stat">
-        <div class="stat-title">Détails Chargés</div>
-        <div class="stat-value">{recipesStore.detailsLoadedCount}</div>
-      </div>
+
       <div class="stat">
         <div class="stat-title">Types</div>
         <div class="stat-value">{recipesStore.availableTypes.length}</div>

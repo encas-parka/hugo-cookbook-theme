@@ -6,13 +6,20 @@
     cuisson?: string | boolean;
     regimes?: string[];
     materiel?: string[];
+    allergens?: string[];
   }
 
-  let { temperature, cuisson, regimes = [], materiel = [] }: Props = $props();
+  let {
+    temperature,
+    cuisson,
+    regimes = [],
+    materiel = [],
+    allergens = [],
+  }: Props = $props();
 
   // Normaliser cuisson (peut être "Oui"/"Non" ou boolean)
   const hasCuisson = $derived(
-    cuisson === "Oui" || cuisson === true || cuisson === "true"
+    cuisson === "Oui" || cuisson === true || cuisson === "true",
   );
 </script>
 
@@ -43,5 +50,10 @@
   <!-- Badges Matériel -->
   {#each materiel as item}
     <span class="badge badge-neutral">{item}</span>
+  {/each}
+
+  <!-- Badges Allergènes -->
+  {#each allergens as allergen}
+    <span class="badge badge-error font-bold text-white">{allergen}</span>
   {/each}
 </div>

@@ -4,7 +4,7 @@
  * Architecture:
  * - 1 base: `recipes-cache`
  * - 1 store "recipes-index" pour les RecipeIndexEntry (index léger)
- * - 1 store "recipes-details" pour les RecipeData (détails complets)
+ * - 1 store "recipes-details" pour les Recettes (détails complets)
  * - 1 store "metadata" pour lastSync + indexHash
  *
  * Stratégie:
@@ -13,9 +13,10 @@
  * - Cache persistant pour éviter les fetches répétés
  */
 
+import type { Recettes } from "../types/appwrite";
 import type {
   RecipeIndexEntry,
-  RecipeData,
+  RecipeForDisplay,
   RecipesCacheMetadata,
 } from "../types/recipes.types";
 
@@ -31,9 +32,9 @@ export interface RecipesIDBCache {
   saveRecipesIndex(recipes: Map<string, RecipeIndexEntry>): Promise<void>;
 
   // Détails
-  loadRecipeDetail(uuid: string): Promise<RecipeData | null>;
-  saveRecipeDetail(recipe: RecipeData): Promise<void>;
-  loadAllRecipeDetails(): Promise<Map<string, RecipeData>>;
+  loadRecipeDetail(uuid: string): Promise<Recettes | null>;
+  saveRecipeDetail(recipe: Recettes): Promise<void>;
+  loadAllRecipeDetails(): Promise<Map<string, Recettes>>;
 
   // Metadata
   loadMetadata(): Promise<RecipesCacheMetadata>;
@@ -84,18 +85,18 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
 
-        // Store de l'index (key = u = uuid)
+        // Store de l'index (key = slug)
         if (!db.objectStoreNames.contains(this.RECIPES_INDEX_STORE)) {
           db.createObjectStore(this.RECIPES_INDEX_STORE, {
-            keyPath: "u",
+            keyPath: "slug",
           });
           console.log("[RecipesIDBCache] Object store 'recipes-index' créé");
         }
 
-        // Store des détails (key = uuid)
+        // Store des détails (key = slug)
         if (!db.objectStoreNames.contains(this.RECIPES_DETAILS_STORE)) {
           db.createObjectStore(this.RECIPES_DETAILS_STORE, {
-            keyPath: "uuid",
+            keyPath: "slug",
           });
           console.log("[RecipesIDBCache] Object store 'recipes-details' créé");
         }
@@ -127,7 +128,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       request.onsuccess = () => {
         const recipes = new Map<string, RecipeIndexEntry>();
         (request.result as RecipeIndexEntry[]).forEach((recipe) => {
-          recipes.set(recipe.u, recipe);
+          recipes.set(recipe.slug, recipe);
         });
         console.log(
           `[RecipesIDBCache] ${recipes.size} recettes (index) chargées`,
@@ -175,7 +176,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
   /**
    * Charge les détails d'une recette spécifique
    */
-  async loadRecipeDetail(uuid: string): Promise<RecipeData | null> {
+  async loadRecipeDetail(uuid: string): Promise<Recettes | null> {
     if (!this.db) throw new Error("DB non ouverte");
 
     return new Promise((resolve, reject) => {
@@ -184,7 +185,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       const request = store.get(uuid);
 
       request.onsuccess = () => {
-        const recipe = request.result as RecipeData | undefined;
+        const recipe = request.result as Recettes | undefined;
         if (recipe) {
           console.log(
             `[RecipesIDBCache] Détails de ${uuid} chargés depuis le cache`,
@@ -200,7 +201,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
   /**
    * Sauvegarde les détails d'une recette
    */
-  async saveRecipeDetail(recipe: RecipeData): Promise<void> {
+  async saveRecipeDetail(recipe): Promise<void> {
     if (!this.db) throw new Error("DB non ouverte");
 
     return new Promise((resolve, reject) => {
@@ -209,7 +210,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       const request = store.put(recipe);
 
       request.onsuccess = () => {
-        console.log(`[RecipesIDBCache] Détails de ${recipe.uuid} sauvegardés`);
+        console.log(`[RecipesIDBCache] Détails de ${recipe.slug} sauvegardés`);
         resolve();
       };
 
@@ -220,7 +221,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
   /**
    * Charge tous les détails de recettes (pour debug/export)
    */
-  async loadAllRecipeDetails(): Promise<Map<string, RecipeData>> {
+  async loadAllRecipeDetails(): Promise<Map<string, Recettes>> {
     if (!this.db) throw new Error("DB non ouverte");
 
     return new Promise((resolve, reject) => {
@@ -229,9 +230,9 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       const request = store.getAll();
 
       request.onsuccess = () => {
-        const recipes = new Map<string, RecipeData>();
-        (request.result as RecipeData[]).forEach((recipe) => {
-          recipes.set(recipe.uuid, recipe);
+        const recipes = new Map<string, Recettes>();
+        (request.result as Recettes[]).forEach((recipe) => {
+          recipes.set(recipe.slug, recipe);
         });
         console.log(
           `[RecipesIDBCache] ${recipes.size} détails de recettes chargés`,
@@ -280,13 +281,17 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
         const metadata: RecipesCacheMetadata = {
           lastSync: null,
           indexHash: null,
+          hugoDataHash: null,
           recipesCount: 0,
+          cacheVersion: 1,
         };
 
         allEntries.forEach((entry) => {
           if (entry.key === this.LAST_SYNC_KEY) metadata.lastSync = entry.value;
           else if (entry.key === this.INDEX_HASH_KEY)
             metadata.indexHash = entry.value;
+          else if (entry.key === this.HUGO_DATA_HASH_KEY)
+            metadata.hugoDataHash = entry.value;
           else if (entry.key === this.RECIPES_COUNT_KEY)
             metadata.recipesCount = entry.value;
         });
@@ -313,6 +318,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
 
       store.put({ key: this.LAST_SYNC_KEY, value: metadata.lastSync });
       store.put({ key: this.INDEX_HASH_KEY, value: metadata.indexHash });
+      store.put({ key: this.HUGO_DATA_HASH_KEY, value: metadata.hugoDataHash });
       store.put({ key: this.RECIPES_COUNT_KEY, value: metadata.recipesCount });
 
       tx.oncomplete = () => {

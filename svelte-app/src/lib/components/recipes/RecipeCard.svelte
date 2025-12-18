@@ -11,7 +11,7 @@
   let { recipe, highlightedIngredients = [] }: Props = $props();
 
   function handleClick() {
-    navigate(`/recipe/${recipe.u}`);
+    navigate(`/recipe/${recipe.slug}`);
   }
 
   function getTypeLabel(type: string): string {
@@ -42,22 +42,19 @@
   <!-- Header -->
   <div class="mb-2 flex items-baseline justify-between">
     <div class="flex-1">
-      <h3 class="text-lg font-semibold">{recipe.n}</h3>
+      <h3 class="text-lg font-semibold">{recipe.title}</h3>
       <div class="text-base-content/60 text-sm">
-        {#if recipe.a}
-          <span>de {recipe.a} - </span>
+        {#if recipe.auteur}
+          <span>de {recipe.auteur} - </span>
         {/if}
-        {#if recipe.check === "Oui"}
+        {#if recipe.check}
           <span>
-            testée pour {recipe.checkfor || recipe.plates}
-            {#if recipe.checkfor}
-              à {recipe.checkfor}
-            {/if}
+            testée pour {recipe.plate}
             couverts
           </span>
         {:else}
           <span>
-            théoriquement pour {recipe.plates} couverts
+            théoriquement pour {recipe.plate} couverts
             <strong>(non testée !)</strong>
           </span>
         {/if}
@@ -66,8 +63,8 @@
 
     <!-- Badges catégories et saisons -->
     <div class="flex flex-wrap justify-end gap-1">
-      {#if recipe.c}
-        {#each recipe.c as categorie}
+      {#if recipe.categories}
+        {#each recipe.categories as categorie}
           <span class="badge badge-primary badge-sm">{categorie}</span>
         {/each}
       {/if}
@@ -76,30 +73,30 @@
           <span class="badge badge-accent badge-sm">{saison}</span>
         {/each}
       {/if}
-      {#if recipe.specialite}
-        <span class="text-base-content/60 text-sm">{recipe.specialite}</span>
+      {#if recipe.region}
+        <span class="text-base-content/60 text-sm">{recipe.region}</span>
       {/if}
     </div>
   </div>
 
   <!-- Badges température et cuisson -->
   <div class="mb-2 flex flex-wrap gap-1">
-    {#if recipe.te === "Chaud"}
+    {#if recipe.serveHot}
       <span class="badge badge-error text-white">Servir Chaud</span>
-    {:else if recipe.te === "Froid"}
+    {:else}
       <span class="badge badge-info">Servir Froid</span>
     {/if}
 
-    {#if recipe.cu === true}
+    {#if recipe.cuisson}
       <span class="badge badge-warning">Avec Cuisson</span>
-    {:else if recipe.cu === false}
+    {:else}
       <span class="badge badge-success">Sans Cuisson</span>
     {/if}
 
     <!-- Badges régimes -->
-    {#if recipe.r}
-      {#each recipe.r as regime}
-        <span class="badge badge-secondary badge-sm">{regime}</span>
+    {#if recipe.regime}
+      {#each recipe.regime as r}
+        <span class="badge badge-secondary badge-sm">{r}</span>
       {/each}
     {/if}
   </div>

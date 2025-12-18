@@ -2,7 +2,11 @@
  * Utilitaires pour parser et transformer les données de recettes
  */
 
-import type { RecipeIngredient, RecipeData } from "../types/recipes.types";
+import type {
+  RecipeIngredient,
+  RecipeForDisplay,
+  RecipeIndexEntry,
+} from "../types/recipes.types";
 
 /**
  * Parse un ingrédient depuis le JSON Hugo
@@ -42,9 +46,9 @@ export function parseRecipeIngredient(ingredientData: any): RecipeIngredient {
  * Parse les données complètes d'une recette depuis le JSON Hugo
  *
  * @param rawData - Données brutes depuis recipe.json
- * @returns RecipeData parsé
+ * @returns RecipeForDisplay parsé
  */
-export function parseRecipeData(rawData: any): RecipeData {
+export function parseRecipeData(rawData: any): RecipeForDisplay {
   if (!rawData || typeof rawData !== "object") {
     throw new Error("Données de recette invalides");
   }
@@ -62,10 +66,55 @@ export function parseRecipeData(rawData: any): RecipeData {
   }
 
   return {
-    uuid: rawData.uuid || "",
-    title: rawData.title || "",
-    plate: rawData.plate || 1,
+    ...rawData,
     ingredients,
-    preparation: rawData.preparation || "",
+  };
+}
+
+/**
+ * Parse une entrée d'index depuis le data.json
+ *
+ * @param rawData - Données brutes depuis data.json
+ * @returns RecipeIndexEntry nettoyé et parsé
+ */
+export function parseRecipeIndexEntry(rawData: any): RecipeIndexEntry {
+  if (!rawData || typeof rawData !== "object") {
+    throw new Error("Données d'index de recette invalides");
+  }
+
+  // Nettoyer et convertir les ingrédients en tableau de noms seulement
+  const ingredients: string[] = [];
+  if (Array.isArray(rawData.ingredients)) {
+    rawData.ingredients.forEach((ing: any) => {
+      if (typeof ing === "string") {
+        ingredients.push(ing);
+      } else if (ing && typeof ing.name === "string") {
+        ingredients.push(ing.name);
+      }
+    });
+  }
+
+  return {
+    title: rawData.title || "",
+    typeR: rawData.typeR || "",
+    categories: Array.isArray(rawData.categories) ? rawData.categories : [],
+    regime: rawData.regime || null,
+    draft: rawData.draft ?? false,
+    materiel: Array.isArray(rawData.materiel) ? rawData.materiel : [],
+    region: rawData.region || "",
+    serveHot: rawData.serveHot ?? false,
+    cuisson: rawData.cuisson ?? false,
+    check: rawData.check ?? false,
+    saison: Array.isArray(rawData.saison) ? rawData.saison : [],
+    permissionWrite: Array.isArray(rawData.permissionWrite)
+      ? rawData.permissionWrite
+      : [],
+    isPublished: rawData.isPublished ?? true,
+    lockedBy: rawData.lockedBy || null,
+    plate: rawData.plate ?? 100,
+    slug: rawData.slug || "",
+    ingredients,
+    auteur: rawData.auteur || "",
+    $id: rawData.$id || "",
   };
 }

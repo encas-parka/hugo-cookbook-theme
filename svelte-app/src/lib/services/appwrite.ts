@@ -28,7 +28,7 @@ const APPWRITE_CONFIG: AppwriteConfig = {
     accessRequest: "689cdea5001a4d74549d",
     batchUpdate: "68f00487000c624533a3",
     usersTeamsManager: "692cb2cd000cbb24549c", 
-    manageRecipe: "manage-recipe-placeholder-id", // ID à remplacer après déploiement
+    manageRecipe: "68f00487000c624533a3", // ID fusionné (enka-products)
   },
   collections: {
     events: "events", // Ajouté par déduction, à vérifier si nécessaire

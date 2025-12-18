@@ -2,6 +2,9 @@
  * Types pour le système de recettes et ingrédients
  */
 
+import { type Recettes, RecettesTypeR } from './appwrite.d';
+export { RecettesTypeR };
+
 // =============================================================================
 // INGRÉDIENTS
 // =============================================================================
@@ -25,40 +28,54 @@ export interface EnrichedIngredient extends Ingredient {
 }
 
 // =============================================================================
-// RECETTES
+// RECETTES - Types basés sur Appwrite
+// =============================================================================
+
+/**
+ * Format brut depuis/vers Appwrite
+ * Les ingrédients sont au format string[] (JSON stringifié)
+ * 
+ * @example
+ * const recipe: RecipeFromAppwrite = await getRecipeAppwrite(uuid);
+ */
+export type RecipeFromAppwrite = Recettes;
+
+/**
+ * Format parsé pour affichage dans l'UI
+ * Les ingrédients sont parsés en objets RecipeIngredient[]
+ * 
+ * @example
+ * const recipe: RecipeForDisplay = await recipesStore.getRecipeByUuid(uuid);
+ */
+export type RecipeForDisplay = Omit<Recettes, 'ingredients'> & {
+  ingredients: RecipeIngredient[];
+};
+
+// =============================================================================
+// INDEX DE RECETTES
 // =============================================================================
 
 /**
  * Entrée d'index de recette (depuis data.json ou Appwrite)
+ * Contient uniquement les champs nécessaires pour le filtrage rapide et l'affichage
  */
-export interface RecipeIndexEntry {
-  u: string; // UUID court
-  s: string; // Slug (identifiant unique pour les URLs)
-  n: string; // Nom
-  t: string; // Type (ex: "entree", "plat", "dessert")
-  c?: string[]; // Categories
-  r?: string[]; // Régime (sans-gluten, végétarien, vegan, etc.)
-  cu?: boolean; // Cuisson (true/false)
-  a?: string; // Auteur de la recette
-  d?: boolean; // Draft (true/false)
-  serveHot?: boolean; // Température de service (true=Chaud, false=Froid)
-  plates?: number; // Nombre de couverts par défaut de la recette
-  q?: string; // Description quantité (ex: "24 parts par gastro")
-  ch?: boolean; // Check validation (true/false)
-  checkfor?: number; // Nombre de couverts pour lesquels la recette a été testée
-  pd?: string; // Date de publication
-  isPublished?: boolean; // true = Hugo, false = Appwrite non-published
-  materiel?: string[]; // Matériel nécessaire
-  saison?: string[]; // Saisons (Printemps, Été, Automne, Hiver)
-  specialite?: string; // Spécialité (ex: "basque", "italien")
-  ingredients?: string[]; // Liste des noms d'ingrédients (pour filtrage)
-  permissionWrite?: string[]; // IDs des utilisateurs/équipes autorisés à éditer
-  lockedBy?: string | null; // ID de l'utilisateur éditant actuellement (null si déverrouillé)
-}
+export type RecipeIndexEntry = Pick<Recettes, 
+  'title' | 'typeR' | 'categories' | 'regime' | 'draft' | 
+  'materiel' | 'region' | 'serveHot' | 'cuisson' | 'check' | 
+  'saison' | 'permissionWrite' | 'isPublished' | 'lockedBy' | 'plate' | '$id'
+> & {
+  slug: string; // Identifiant unique (slug-uuid de 35 chars)
+  ingredients: string[]; // Noms des ingrédients uniquement (pour filtrage rapide)
+  auteur?: string; // Auteur de la recette (optionnel)
+};
+
+// =============================================================================
+// INGRÉDIENTS DANS UNE RECETTE
+// =============================================================================
 
 /**
  * Ingrédient dans une recette (depuis recipe.json)
- * Nouveau format : objets nommés pour meilleure lisibilité
+ * Format : objets nommés pour meilleure lisibilité
  */
 export interface RecipeIngredient {
   uuid: string;
@@ -72,54 +89,22 @@ export interface RecipeIngredient {
   type: string;
 }
 
-// Recipe Info (depuis recipe-info.json)
-export interface RecipeInfo {
-  materiel: string[];
-  categories: string[];
-  regimes: string[];
-}
-
-/**
- * Détails complets d'une recette (depuis recipe.json)
- * Contient uniquement les données "lourdes" nécessaires pour l'affichage d'une recette
- */
-export interface RecipeData {
-  uuid: string;
-  slug: string; // Slug (identifiant unique pour les URLs)
-  title: string;
-  plate: number;
-  typeR?: string; // Type de recette (entrée, plat, dessert, etc.)
-  materiel?: string[]; // Matériel nécessaire
-  ingredients: RecipeIngredient[]; // Liste complète des ingrédients avec conversions
-  preparation: string; // Instructions de préparation
-  preparation24h?: string; // Préparation à l'avance
-  astuces?: Array<{ astuce: string }>; // Astuces
-  prepAlt?: Array<{ recetteAlt: string }>; // Recettes alternatives
-  permissionWrite?: string[]; // IDs des utilisateurs/équipes autorisés à éditer
-  lockedBy?: string | null; // ID de l'utilisateur éditant actuellement
-
-  // Champs additionnels pour l'édition
-  categories?: string[]; // Catégories
-  regime?: string[]; // Régimes alimentaires
-  saison?: string[]; // Saisons
-  specialite?: string; // Spécialité
-  cuisson?: boolean; // Nécessite cuisson
-  serveHot?: boolean; // Température de service
-
-  // Champs temporaires pour l'édition (input strings)
-  categoriesInput?: string;
-  regimeInput?: string;
-  saisonInput?: string;
-  materielInput?: string;
-  astucesInput?: string;
-}
-
 /**
  * Ingrédient scalé pour un nombre de convives
  */
 export interface ScaledIngredient extends RecipeIngredient {
   scaledQuantity: number;
   scaleFactor: number;
+}
+
+// =============================================================================
+// RECIPE INFO (depuis recipe-info.json)
+// =============================================================================
+
+export interface RecipeInfo {
+  materiel: string[];
+  categories: string[];
+  regimes: string[];
 }
 
 // =============================================================================
@@ -147,48 +132,23 @@ export interface RecipeDataCacheMetadata {
 export interface RecipesCacheMetadata {
   lastSync: string | null;
   indexHash: string | null;
+  hugoDataHash: string | null; // Hash du fichier data.json
   recipesCount: number;
+  cacheVersion: number; // Version du format de cache
 }
 
 // =============================================================================
-// RECIPES - Types de création/mise à jour
+// TYPES DE CRÉATION/MISE À JOUR
 // =============================================================================
-// Note: Le type Recettes est auto-généré dans appwrite.d.ts
 
 /**
- * Données pour créer une recette
+ * Données pour créer une recette (format Appwrite)
+ * Exclut uniquement les champs auto-générés de Models.Row
  */
-export interface CreateRecipeData {
-  title: string;
-  plate: number;
-  ingredients: string; // JSON stringifié
-  preparation: string;
-  draft?: boolean;
-  typeR: "entree" | "plat" | "dessert";
-  categories?: string[];
-  regime?: string[];
-  teams?: string[];
-  contributors?: string[];
-  permissionWrite?: string[];
-  lockedBy?: string | null;
-}
+export type CreateRecipeData = Omit<Recettes, '$id' | '$createdAt' | '$updatedAt' | '$permissions' | '$databaseId' | '$collectionId' | '$sequence' | '$tableId' | 'createdBy' | 'teams'>;
 
 /**
  * Données pour mettre à jour une recette
+ * Tous les champs sont optionnels
  */
-export interface UpdateRecipeData {
-  title?: string;
-  plate?: number;
-  ingredients?: string;
-  preparation?: string;
-  draft?: boolean;
-  typeR?: "entree" | "plat" | "dessert";
-  categories?: string[];
-  regime?: string[];
-  isPublished?: boolean;
-  publishedAt?: string;
-  teams?: string[];
-  contributors?: string[];
-  permissionWrite?: string[];
-  lockedBy?: string | null;
-}
+export type UpdateRecipeData = Partial<CreateRecipeData>;

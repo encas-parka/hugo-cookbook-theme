@@ -49,11 +49,11 @@
   }
 
   function viewAllRecipes() {
-    navigate("/recipes");
+    navigate("/recipe");
   }
 
   function createNewRecipe() {
-    navigate("/recipes/new");
+    navigate("/recipe/new");
   }
 </script>
 

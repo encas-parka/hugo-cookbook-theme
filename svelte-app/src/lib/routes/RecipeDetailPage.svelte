@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
-  import type { RecipeIndexEntry, RecipeData } from "$lib/types/recipes.types";
+  import type { RecipeForDisplay } from "$lib/types/recipes.types";
   import RecipeHeader from "$lib/components/recipes/RecipeHeader.svelte";
   import RecipeBadges from "$lib/components/recipes/RecipeBadges.svelte";
   import RecipeQuantityControl from "$lib/components/recipes/RecipeQuantityControl.svelte";
@@ -20,9 +20,25 @@
   // État local
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let recipeIndex = $state<RecipeIndexEntry | null>(null);
-  let recipeDetails = $state<RecipeData | null>(null);
+  let recipeDetails = $state<RecipeForDisplay | null>(null);
   let currentServings = $state(4); // Valeur par défaut
+
+  // Réactivité du lock depuis le store (seule info venant de l'index en temps réel)
+  const lockedBy = $derived(
+    recipeDetails ? recipesStore.getRecipeLockStatus(recipeDetails.$id) : null,
+  );
+
+  // Extraire les allergènes des ingrédients
+  const allergens = $derived.by(() => {
+    if (!recipeDetails?.ingredients) return [];
+    const uniqueAllergens = new Set<string>();
+    recipeDetails.ingredients.forEach((ing) => {
+      if (ing.allergens && Array.isArray(ing.allergens)) {
+        ing.allergens.forEach((a) => uniqueAllergens.add(a));
+      }
+    });
+    return Array.from(uniqueAllergens).sort();
+  });
 
   // Charger la recette
   async function loadRecipe(uuid: string) {
@@ -30,15 +46,7 @@
     error = null;
 
     try {
-      // Charger l'index
-      const index = recipesStore.getRecipeIndexByUuid(uuid);
-      if (!index) {
-        error = "Recette non trouvée";
-        return;
-      }
-      recipeIndex = index;
-
-      // Charger les détails
+      // Charger les détails (source unique de vérité)
       const details = await recipesStore.getRecipeByUuid(uuid);
       if (!details) {
         error = "Impossible de charger les détails de la recette";
@@ -71,11 +79,11 @@
     currentServings = servings;
   }
 
-  // Créer un index Map pour RecipeAlternatives
+  // Créer un index Map pour RecipeAlternatives avec les noms
   const recipesIndexMap = $derived.by(() => {
     const map = new Map();
     recipesStore.recipesIndex.forEach((recipe) => {
-      map.set(recipe.u, { n: recipe.n });
+      map.set(recipe.slug, { n: recipe.title });
     });
     return map;
   });
@@ -93,28 +101,31 @@
         <div>{error}</div>
       </div>
     </div>
-  {:else if recipeIndex && recipeDetails}
+  {:else if recipeDetails}
     <!-- En-tête -->
     <RecipeHeader
       title={recipeDetails.title}
-      author={recipeIndex.a}
-      category={recipeIndex.t}
+      author={recipeDetails.auteur || recipeDetails.createdBy || "Inconnu"}
+      category={recipeDetails.typeR}
     />
 
     <!-- Badges -->
     <div class="mb-6">
       <RecipeBadges
-        temperature={recipeIndex.te}
-        cuisson={recipeIndex.cu}
-        regimes={recipeIndex.r}
-        materiel={recipeDetails.materiel}
+        temperature={recipeDetails.serveHot ? "Chaud" : "Froid"}
+        cuisson={recipeDetails.cuisson}
+        regimes={recipeDetails.regime || []}
+        materiel={recipeDetails.materiel || []}
+        {allergens}
       />
     </div>
 
     <!-- Description -->
-    {#if recipeIndex.q}
+    {#if recipeDetails.description}
       <div class="mb-6">
-        <p class="text-base-content/70 text-center italic">{recipeIndex.q}</p>
+        <p class="text-base-content/70 text-center italic">
+          {recipeDetails.description}
+        </p>
       </div>
     {/if}
 
@@ -128,10 +139,10 @@
     </div>
 
     <!-- Alertes de validation -->
-    {#if recipeIndex.ch !== undefined}
+    {#if recipeDetails.check !== undefined}
       <div class="mb-6">
         <RecipeAlerts
-          isChecked={recipeIndex.ch}
+          isChecked={recipeDetails.check}
           defaultServings={recipeDetails.plate}
         />
       </div>
@@ -162,15 +173,19 @@
         </h2>
         <RecipePreparation
           preparation={recipeDetails.preparation}
-          preparation24h={recipeDetails.preparation24h}
-          astuces={recipeDetails.astuces}
+          preparation24h={recipeDetails.preparation24h || undefined}
+          astuces={recipeDetails.astuces
+            ? JSON.parse(recipeDetails.astuces)
+            : []}
         />
 
         <!-- Préparations alternatives -->
         {#if recipeDetails.prepAlt && recipeDetails.prepAlt.length > 0}
           <div class="mt-8">
             <RecipeAlternatives
-              alternatives={recipeDetails.prepAlt}
+              alternatives={recipeDetails.prepAlt.map((id) => ({
+                recetteAlt: id,
+              }))}
               recipesIndex={recipesIndexMap}
             />
           </div>
@@ -180,9 +195,8 @@
 
     <!-- Métadonnées -->
     <div class="text-base-content/60 mt-8 text-right text-sm">
-      {#if recipeIndex.pd}
-        <span class="mr-4">Publié le : {recipeIndex.pd}</span>
-      {/if}
+      <!-- Published Date not available in new simplified index, maybe in details? -->
+      <!-- TODO: Add publishedAt to RecipeForDisplay if needed -->
     </div>
   {/if}
 </div>

@@ -50,7 +50,7 @@
   // Extraire les valeurs uniques pour les filtres
   const availableCategories = $derived.by(() => {
     const cats = new Set<string>();
-    allRecipes.forEach((r) => r.c?.forEach((c) => cats.add(c)));
+    allRecipes.forEach((r) => r.categories?.forEach((c) => cats.add(c)));
     return Array.from(cats).sort();
   });
 
@@ -75,28 +75,28 @@
         .replace(/\p{Diacritic}/gu, "");
 
       return allRecipes.filter((recipe) => {
-        const titleMatch = recipe.n
+        const titleMatch = recipe.title
           .toLowerCase()
           .normalize("NFD")
           .replace(/\p{Diacritic}/gu, "")
           .includes(normalized);
 
         const authorMatch =
-          recipe.a
+          recipe.auteur
             ?.toLowerCase()
             .normalize("NFD")
             .replace(/\p{Diacritic}/gu, "")
             .includes(normalized) || false;
 
         const specialiteMatch =
-          recipe.specialite
+          recipe.region
             ?.toLowerCase()
             .normalize("NFD")
             .replace(/\p{Diacritic}/gu, "")
             .includes(normalized) || false;
 
         // Filtrer sur typeR même pendant la recherche
-        const typeRMatch = !filters.typeR || recipe.t === filters.typeR;
+        const typeRMatch = !filters.typeR || recipe.typeR === filters.typeR;
 
         return (titleMatch || authorMatch || specialiteMatch) && typeRMatch;
       });
@@ -107,28 +107,31 @@
       // Catégories (OU logique)
       const categoryMatch =
         !filters.categories.length ||
-        filters.categories.some((c) => recipe.c?.includes(c));
+        filters.categories.some((c) => recipe.categories?.includes(c));
 
       // Régimes (OU logique)
       const regimeMatch =
         !filters.regimes.length ||
-        filters.regimes.some((r) => recipe.r?.includes(r));
+        filters.regimes.some((r) => recipe.regime?.includes(r));
 
       // Température
       const temperatureMatch =
-        !filters.temperature || recipe.te === filters.temperature;
+        !filters.temperature ||
+        recipe.serveHot === (filters.temperature === "Chaud");
 
       // Cuisson
       const cuissonMatch =
         !filters.cuisson ||
-        (filters.cuisson === "Oui" ? recipe.cu === true : recipe.cu === false);
+        (filters.cuisson === "Oui"
+          ? recipe.cuisson === true
+          : recipe.cuisson === false);
 
       // Saison
       const saisonMatch =
         !filters.saison || recipe.saison?.includes(filters.saison);
 
       // Testé
-      const testedMatch = !filters.onlyTested || recipe.check === "Oui";
+      const testedMatch = !filters.onlyTested || recipe.check;
 
       // Ingrédients (ET logique - tous les ingrédients sélectionnés doivent être présents)
       const ingredientMatch =
@@ -136,7 +139,7 @@
         filters.ingredients.every((ing) => recipe.ingredients?.includes(ing));
 
       // Type de recette
-      const typeRMatch = !filters.typeR || recipe.t === filters.typeR;
+      const typeRMatch = !filters.typeR || recipe.typeR === filters.typeR;
 
       return (
         categoryMatch &&
@@ -284,7 +287,7 @@
       </div>
     {:else}
       <div class="space-y-4">
-        {#each paginatedRecipes as recipe (recipe.u)}
+        {#each paginatedRecipes as recipe (recipe.slug)}
           <RecipeCard {recipe} highlightedIngredients={filters.ingredients} />
         {/each}
       </div>

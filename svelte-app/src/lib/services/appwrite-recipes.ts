@@ -11,17 +11,18 @@ import type { Recettes } from "../types/appwrite.d";
 import type {
   CreateRecipeData,
   UpdateRecipeData,
-  RecipeData,
 } from "../types/recipes.types";
-
+import { generateSlugUuid35 } from "../utils/slugUtils";
+import { globalState } from "../stores/GlobalState.svelte";
 /**
  * Exécute la Cloud Function manage_recipe
  */
-export async function executeManageRecipe(
-  action: "save" | "lock" | "unlock" | "force_unlock",
+export async function executeManageDataRecipe(
+  action: "save_recipe",
   recipeId: string,
   userId: string,
   data?: any,
+  async: boolean = false,
 ): Promise<any> {
   try {
     const { functions, config } = await getAppwriteInstances();
@@ -34,14 +35,24 @@ export async function executeManageRecipe(
       data,
     });
 
-    const execution = await functions.createExecution(
-      functionId,
-      payload,
-      false, // async = false pour attendre le résultat
-    );
+    const execution = await functions.createExecution({
+      functionId: functionId,
+      body: payload,
+      async,
+    });
+
+    // Si asynchrone, on ne peut pas vérifier le corps de réponse ni attendre "completed"
+    if (async) {
+      if (execution.status === "failed") {
+        throw new Error(`Function execution failed to start: ${execution.status}`);
+      }
+      return { success: true, executionId: execution.$id };
+    }
 
     if (execution.status !== "completed") {
-      throw new Error(`Function execution failed: ${execution.status} - ${execution.responseBody}`);
+      throw new Error(
+        `Function execution failed: ${execution.status} - ${execution.responseBody}`,
+      );
     }
 
     const response = JSON.parse(execution.responseBody);
@@ -51,7 +62,10 @@ export async function executeManageRecipe(
 
     return response.data;
   } catch (error) {
-    console.error(`[appwrite-recipes] Error executing manage_recipe (${action}):`, error);
+    console.error(
+      `[appwrite-recipes] Error executing manage_recipe (${action}):`,
+      error,
+    );
     throw error;
   }
 }
@@ -104,7 +118,7 @@ export async function listNonPublishedRecipes(
     return allRecipes.filter((recipe) => {
       return (
         recipe.createdBy === userId ||
-        recipe.contributors?.includes(userId) ||
+        recipe.permissionWrite?.includes(userId) ||
         recipe.teams?.some((teamId) => userTeams.includes(teamId))
       );
     });
@@ -117,7 +131,9 @@ export async function listNonPublishedRecipes(
 /**
  * Récupère une recette par UUID
  */
-export async function getRecipe(uuid: string): Promise<Recettes | null> {
+export async function getRecipeAppwrite(
+  uuid: string,
+): Promise<Recettes | null> {
   try {
     const { tables, config } = await getAppwriteInstances();
     const recipe = await tables.getRow({
@@ -135,57 +151,71 @@ export async function getRecipe(uuid: string): Promise<Recettes | null> {
 
 /**
  * Crée une nouvelle recette
+ * Note: Le realtime se chargera de mettre à jour le store automatiquement
  */
-export async function createRecipe(
+export async function createRecipeAppwrite(
   data: CreateRecipeData,
   userId: string,
 ): Promise<Recettes> {
   try {
-    const { tables, config } = await getAppwriteInstances();
-    const uuid = ID.unique();
+    const { tables, config, account } = await getAppwriteInstances();
+
+    const slugUuid = generateSlugUuid35(data.title);
 
     const permissions = [
-      Permission.read(Role.user(userId)),
+      Permission.read(Role.users()),
       Permission.update(Role.user(userId)),
       Permission.delete(Role.user(userId)),
     ];
 
-    if (data.contributors) {
-      data.contributors.forEach((contributorId) => {
-        permissions.push(Permission.read(Role.user(contributorId)));
-        permissions.push(Permission.update(Role.user(contributorId)));
+    if (data.permissionWrite) {
+      data.permissionWrite.forEach((userId) => {
+        permissions.push(Permission.update(Role.user(userId)));
       });
     }
 
-    if (data.teams) {
-      data.teams.forEach((teamId) => {
-        permissions.push(Permission.read(Role.team(teamId)));
-        permissions.push(Permission.update(Role.team(teamId)));
-      });
-    }
+    const user = await account.get();
+    const userName = user.name;
+
+    // Ajout des valeurs par défaut
+    const recipeData = {
+      title: data.title,
+      plate: data.plate,
+      ingredients: data.ingredients,
+      preparation: data.preparation,
+      draft: data.draft ?? true,
+      typeR: data.typeR,
+      categories: data.categories ?? [],
+      regime: data.regime ?? [],
+      check: data.check ?? false,
+      // Champs unifiés
+      description: data.description ?? null,
+      quantite_desc: data.quantite_desc ?? null,
+      region: data.region ?? null,
+      saison: data.saison ?? [],
+      cuisson: data.cuisson ?? [],
+      serveHot: data.serveHot ?? true,
+      auteur: userName,
+      preparation24h: data.preparation24h ?? null,
+      astuces: data.astuces ?? null,
+      // Date au format Appwrite
+      publishedAt:
+        data.publishedAt ||
+        new Date().toISOString().split("T")[0] + "T00:00:00Z",
+      slug: slugUuid,
+      createdBy: userId,
+      isPublished: false,
+    };
 
     const recipe = await tables.createRow({
       databaseId: config.databaseId,
       tableId: RECIPES_COLLECTION_ID,
-      rowId: uuid,
-      data: {
-        title: data.title,
-        plate: data.plate,
-        ingredients: data.ingredients,
-        preparation: data.preparation,
-        draft: data.draft ?? true,
-        typeR: data.typeR,
-        categories: data.categories ?? [],
-        regime: data.regime ?? [],
-        isPublished: false,
-        createdBy: userId,
-        teams: data.teams ?? [],
-        contributors: data.contributors ?? [],
-      },
+      rowId: slugUuid,
+      data: recipeData,
       permissions,
     });
 
-    console.log(`[appwrite-recipes] Recipe created: ${uuid}`);
+    console.log(`[appwrite-recipes] Recipe created: ${slugUuid}`);
     return recipe as unknown as Recettes;
   } catch (error) {
     console.error("[appwrite-recipes] Error creating recipe:", error);
@@ -195,19 +225,31 @@ export async function createRecipe(
 
 /**
  * Met à jour une recette existante
+ * Note: Le realtime se chargera de mettre à jour le store automatiquement
  */
-export async function updateRecipe(
+export async function updateRecipeAppwrite(
   uuid: string,
   data: UpdateRecipeData,
+  userId?: string,
 ): Promise<Recettes> {
   try {
     const { tables, config } = await getAppwriteInstances();
+
+    // Ajout des valeurs par défaut pour les champs requis
+    const updateData = {
+      ...data,
+      check: data.check ?? false,
+      // Date au format Appwrite si fournie
+      ...(data.publishedAt && { publishedAt: data.publishedAt }),
+    };
+
     const recipe = await tables.updateRow({
       databaseId: config.databaseId,
       tableId: RECIPES_COLLECTION_ID,
       rowId: uuid,
-      data,
+      data: updateData,
     });
+
     console.log(`[appwrite-recipes] Recipe updated: ${uuid}`);
     return recipe as unknown as Recettes;
   } catch (error) {
@@ -219,7 +261,7 @@ export async function updateRecipe(
 /**
  * Supprime une recette
  */
-export async function deleteRecipe(uuid: string): Promise<void> {
+export async function deleteRecipeAppwrite(uuid: string): Promise<void> {
   try {
     const { tables, config } = await getAppwriteInstances();
     await tables.deleteRow({
@@ -242,10 +284,10 @@ export async function duplicateRecipe(
   userId: string,
 ): Promise<Recettes> {
   try {
-    const source = await getRecipe(sourceUuid);
+    const source = await getRecipeAppwrite(sourceUuid);
     if (!source) throw new Error(`Recipe ${sourceUuid} not found`);
 
-    return await createRecipe(
+    return await createRecipeAppwrite(
       {
         title: `${source.title} (copie)`,
         plate: source.plate,
@@ -253,10 +295,16 @@ export async function duplicateRecipe(
         preparation: source.preparation,
         draft: true,
         typeR: source.typeR,
-        categories: source.categories ?? [],
-        regime: source.regime ?? [],
+        categories: source.categories,
+        regime: source.regime,
         teams: [],
-        contributors: [],
+        createdBy: userId,
+        isPublished: false,
+        publishedAt: null,
+        check: false,
+        cuisson: source.cuisson,
+        serveHot: source.serveHot,
+        slug: source.slug,
       },
       userId,
     );
@@ -276,7 +324,7 @@ export async function markAsPublished(
   uuid: string,
   publishedAt?: string,
 ): Promise<Recettes> {
-  return await updateRecipe(uuid, {
+  return await updateRecipeAppwrite(uuid, {
     isPublished: true,
     publishedAt: publishedAt || new Date().toISOString(),
   });
@@ -319,7 +367,7 @@ export function subscribeToRecipes(
 
     const hasAccess =
       recipe.createdBy === userId ||
-      recipe.contributors?.includes(userId) ||
+      recipe.permissionWrite?.includes(userId) ||
       recipe.teams?.some((teamId) => userTeams.includes(teamId));
 
     if (!hasAccess) return;

@@ -62,7 +62,7 @@
           </button>
           <button
             class="btn btn-secondary"
-            onclick={() => navigate("/recipes/new")}
+            onclick={() => navigate("/recipe/new")}
           >
             <BookOpen class="h-4 w-4" />
             Créer une Recette

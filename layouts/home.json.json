@@ -9,27 +9,27 @@
       {{- $ingredientNames = $ingredientNames | append .name -}}
     {{- end -}}
 
+    {{- $permissionWrite := .Params.permissionWrite | default slice -}}
+
     {{/* Build recipe object with abbreviated keys - métadonnées essentielles pour l'index */}}
     {{- $recipe := dict
-      "u" .Params.uuid
-      "s" .Params.slug
-      "n" .Title
-      "t" .Params.typeR
-      "c" .Params.categories
-      "r" .Params.regime
-      "cu" .Params.cuisson
-      "a" .Params.auteur
-      "d" .Draft
+      "slug" .Params.slug
+      "title" .Title
+      "draft" .Draft
+      "typeR" .Params.typeR
+      "categories" .Params.categories
+      "regime" .Params.regime
+      "cuisson" .Params.cuisson
+      "auteur" .Params.auteur
       "serveHot" .Params.serveHot
       "plates" .Params.plate
-      "q" .Params.quantite_desc
-      "ch" .Params.check
-      "checkfor" .Params.checkfor
-      "pd" .Params.PublishDate
+      "check" .Params.check
+      "publishedAt" (.Params.publishedAt | default "2025-01-01T00:00:00Z")
       "materiel" .Params.materiel
       "saison" .Params.saison
       "region" .Params.region
       "ingredients" $ingredientNames
+      "permissionWrite" (.Params.permissionWrite | default (slice) )
     -}}
     {{- $recipes = $recipes | append $recipe -}}
   {{- end -}}

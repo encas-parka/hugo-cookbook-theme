@@ -3,6 +3,7 @@
   import QuantityInput from "$lib/components/ui/QuantityInput.svelte";
   import { recipeDataStore } from "$lib/stores/RecipeDataStore.svelte";
   import { getProductTypeInfo } from "$lib/utils/products-display";
+  import { UnitConverter } from "$lib/utils/UnitConverter";
   import {
     Plus,
     Trash2,
@@ -130,9 +131,9 @@
       uuid: nanoid(),
       name: ingredientData.n,
       originalQuantity: 0,
-      originalUnit: "g",
+      originalUnit: "gr.",
       normalizedQuantity: 0,
-      normalizedUnit: "g",
+      normalizedUnit: "gr.",
       comment: "",
       allergens: ingredientData.a || [],
       type: ingredientData.t || "",
@@ -210,6 +211,35 @@
         }
         break;
     }
+  }
+
+  /**
+   * Fonction utilitaire pour obtenir un aperçu de la normalisation
+   */
+  function getNormalizedPreview(ingredient: RecipeIngredient): string {
+    if (!ingredient.originalQuantity || ingredient.originalQuantity <= 0) {
+      return "";
+    }
+
+    const conversion = UnitConverter.normalize(
+      ingredient.originalQuantity,
+      ingredient.originalUnit || "",
+      ingredient.name,
+    );
+
+    if (!conversion.hasConversion) {
+      return "";
+    }
+
+    return `≈ ${conversion.quantity} ${conversion.unit}`;
+  }
+
+  /**
+   * Gère l'événement onBlur pour afficher un aperçu de la normalisation
+   */
+  function handleQuantityBlur(ingredient: RecipeIngredient) {
+    // La normalisation se fera à la sauvegarde, mais on peut afficher un aperçu ici si besoin
+    // Cette fonction peut être utilisée pour déclencher des effets visuels si nécessaire
   }
 </script>
 
@@ -352,6 +382,8 @@
           <!-- Liste des ingrédients de ce type -->
           <div class="space-y-3">
             {#each typeIngredients as ingredient, index (index)}
+              {@const preview = getNormalizedPreview(ingredient)}
+
               <div class="card bg-base-100 border-base-200 border shadow-sm">
                 <div class="card-body p-3">
                   <div class="flex items-start justify-between gap-3">
@@ -376,6 +408,7 @@
                                 placeholder="0"
                                 class=""
                                 {disabled}
+                                onblur={() => handleQuantityBlur(ingredient)}
                               />
                             </div>
                           </label>
@@ -385,6 +418,7 @@
                             <select
                               bind:value={ingredient.originalUnit}
                               {disabled}
+                              onblur={() => handleQuantityBlur(ingredient)}
                             >
                               <option value="kg">Kg</option>
                               <option value="gr.">gr.</option>
@@ -400,6 +434,12 @@
                             </select>
                           </label>
                         </div>
+                        <!-- Aperçu de la normalisation -->
+                        {#if preview}
+                          <div class="text-base-content/60 text-xs italic">
+                            {preview}
+                          </div>
+                        {/if}
                       </div>
 
                       <!-- Commentaire -->

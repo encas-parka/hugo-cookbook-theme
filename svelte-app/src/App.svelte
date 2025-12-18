@@ -55,9 +55,9 @@
   // Définir les routes
   // Publiques
   router.addRoute("/", HomePage, redirectIfAuth);
-  router.addRoute("/recipes", RecipesListPage);
-  router.addRoute("/recipes/new", RecipeEditPage, requireAuth);
-  router.addRoute("/recipes/:uuid/edit", RecipeEditPage, requireAuth);
+  router.addRoute("/recipe", RecipesListPage);
+  router.addRoute("/recipe/new", RecipeEditPage, requireAuth);
+  router.addRoute("/recipe/:uuid/edit", RecipeEditPage, requireAuth);
   router.addRoute("/recipe/:uuid", RecipeDetailPage);
   router.addRoute("/accept-invite", AcceptInvite);
 
