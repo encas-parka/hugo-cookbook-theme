@@ -15,7 +15,8 @@
     RecettesTypeR,
   } from "$lib/types/recipes.types";
   import { ArrowLeft, Save, Lock } from "@lucide/svelte";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
+  import { navBarStore } from "../stores/NavBarStore.svelte";
   import RecipeHeaderForm from "$lib/components/recipeEdit/RecipeHeaderForm.svelte";
   import RecipePrepaForm from "$lib/components/recipeEdit/RecipePrepaForm.svelte";
   import { UnitConverter } from "$lib/utils/UnitConverter";
@@ -76,7 +77,7 @@
     typeR: RecettesTypeR | "";
     cuisson: boolean | "";
     serveHot: boolean | "";
-    check: boolean | undefined;
+    check: boolean | null;
   }
 
   let recipe = $state<RecipeFormState | null>(null);
@@ -126,6 +127,28 @@
   });
 
   const canEdit = $derived(!isLockedByOthers && !isLoading);
+
+  // ============================================================================
+  // NAVBAR CONFIGURATION
+  // ============================================================================
+
+  $effect(() => {
+    navBarStore.setConfig({
+      breadcrumbs: [
+        { label: "Recettes", path: "/recipe" },
+        {
+          label: isCreating ? "Nouvelle recette" : recipe?.title || "Recette",
+          path: isCreating ? undefined : `/recipe/${recipeId}`,
+        },
+        { label: "Édition" },
+      ],
+      actions: navActions,
+    });
+  });
+
+  onDestroy(() => {
+    navBarStore.reset();
+  });
 
   // ============================================================================
   // LOCK MANAGEMENT
@@ -342,6 +365,12 @@
       hasError = true;
     }
 
+    // Validation du champ "check" (recette testée)
+    if (recipe.check === null || recipe.check === undefined) {
+      validationErrors.check = "Veuillez indiquer si la recette a été testée";
+      hasError = true;
+    }
+
     // Validation des astuces
     if (recipe.astuces && recipe.astuces.length > 0) {
       const astucesErrors: string[] = [];
@@ -395,7 +424,7 @@
         // Création
         // Conversion des astuces en JSON string
 
-        recipe.slug = generateSlugUuid35(recipe.title);
+        recipe.$id = generateSlugUuid35(recipe.title);
 
         const recipeToCreate: CreateRecipeData = {
           ...recipe,
@@ -459,7 +488,7 @@
           prepAlt: recipe.prepAlt,
           check: recipe.check,
           draft: recipe.draft,
-          slug: recipe.slug,
+          $id: recipe.$id,
         };
 
         await updateRecipeAppwrite(recipeId!, recipeData, globalState.userId);
@@ -516,7 +545,7 @@
     if (isCreating) {
       // Mode création : initialiser une recette vide
       recipe = {
-        slug: "new-recipe",
+        $id: "new-recipe",
         title: "",
         plate: 100,
         ingredients: [],
@@ -534,7 +563,7 @@
         quantite_desc: "",
         region: "",
         prepAlt: [],
-        check: undefined,
+        check: null,
         draft: true,
         lockedBy: null,
         auteur: null,
@@ -572,6 +601,7 @@
           prepAlt: loaded.prepAlt || [],
           materiel: loaded.materiel || [],
           regime: loaded.regime || [],
+          check: loaded.check ?? null,
         };
         originalRecipe = { ...recipe };
         lockedBy = loaded.lockedBy || null;
@@ -590,53 +620,37 @@
 </script>
 
 <!-- ============================================================================ -->
+{#snippet navActions()}
+  <div class="flex items-center gap-2">
+    <!-- Lock indicator -->
+    {#if isLockedByOthers}
+      <div class="badge badge-warning gap-2">
+        <Lock class="h-3 w-3" />
+        Verrouillé
+      </div>
+    {:else if isLockedByMe}
+      <div class="badge badge-success gap-2">
+        <Lock class="h-3 w-3" />
+        Vous éditez
+      </div>
+    {/if}
+
+    <!-- Save button -->
+    <button
+      onclick={save}
+      disabled={!canEdit || isSaving || !isDirty}
+      class="btn btn-primary btn-sm"
+    >
+      <Save class="h-4 w-4" />
+      {isSaving ? "Sauvegarde..." : "Sauvegarder"}
+    </button>
+  </div>
+{/snippet}
+
 <!-- TEMPLATE -->
 <!-- ============================================================================ -->
 
 <div class="max-w-9xl container mx-auto px-4 py-8">
-  <!-- Header -->
-  <div class="mb-6 flex items-center justify-between">
-    <div class="flex items-center gap-6">
-      <button
-        onclick={() => navigate("/recipe")}
-        class="btn btn-ghost btn-sm"
-        aria-label="Retour à la liste des recettes"
-        title="Retour à la liste des recettes"
-      >
-        <ArrowLeft class="h-4 w-4" />
-        Retour
-      </button>
-      <h1 class="text-3xl font-bold">
-        {isCreating ? "Nouvelle recette" : `Éditer : ${recipe?.title || ""}`}
-      </h1>
-    </div>
-
-    <div class="flex items-center gap-2">
-      <!-- Lock indicator -->
-      {#if isLockedByOthers}
-        <div class="badge badge-warning gap-2">
-          <Lock class="h-3 w-3" />
-          Verrouillé
-        </div>
-      {:else if isLockedByMe}
-        <div class="badge badge-success gap-2">
-          <Lock class="h-3 w-3" />
-          Vous éditez
-        </div>
-      {/if}
-
-      <!-- Save button -->
-      <button
-        onclick={save}
-        disabled={!canEdit || isSaving || !isDirty}
-        class="btn btn-primary"
-      >
-        <Save class="h-4 w-4" />
-        {isSaving ? "Sauvegarde..." : "Sauvegarder"}
-      </button>
-    </div>
-  </div>
-
   {#if isLoading}
     <div class="flex items-center justify-center py-20">
       <div class="loading loading-spinner loading-lg"></div>
@@ -645,10 +659,11 @@
     <!-- Form -->
     <div class="space-y-6">
       <!-- Métadonnées de base -->
-      <RecipeHeaderForm {recipe} {recipeInfo} {validationErrors} {canEdit} />
+      <!-- FIXIT binding -->
+      <RecipeHeaderForm bind:recipe {recipeInfo} {validationErrors} {canEdit} />
 
       <!-- Ingrédients et Préparation -->
-      <RecipePrepaForm {recipe} {validationErrors} {canEdit} />
+      <RecipePrepaForm bind:recipe {validationErrors} {canEdit} />
     </div>
   {/if}
 </div>

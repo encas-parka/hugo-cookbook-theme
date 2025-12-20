@@ -289,7 +289,7 @@ class RecipesStore {
       // Mettre à jour l'index
       const indexMap = new Map<string, RecipeIndexEntry>();
       recipes.forEach((recipe) => {
-        indexMap.set(recipe.slug, recipe);
+        indexMap.set(recipe.$id, recipe);
       });
 
       this.#recipesIndex = new SvelteMap(indexMap);
@@ -377,7 +377,6 @@ class RecipesStore {
         const ingredientNames = ingredients.map((ing) => ing.name);
 
         this.#recipesIndex.set(recipe.$id, {
-          slug: recipe.slug,
           title: recipe.title,
           typeR: recipe.typeR,
           categories: recipe.categories,
@@ -434,7 +433,6 @@ class RecipesStore {
 
             // 1. Mettre à jour l'index dans la SvelteMap (réactif)
             const indexEntry: RecipeIndexEntry = {
-              slug: recipe.slug,
               title: recipe.title,
               typeR: recipe.typeR,
               categories: recipe.categories,
@@ -520,38 +518,34 @@ class RecipesStore {
   // =============================================================================
 
   /**
-   * Récupère une entrée d'index par UUID
+   * Récupère une entrée d'index par $id
    */
-  getRecipeIndexByUuid(uuid: string): RecipeIndexEntry | null {
-    return this.#recipesIndex.get(uuid) || null;
+  getRecipeIndexByUuid($id: string): RecipeIndexEntry | null {
+    const result = this.#recipesIndex.get($id) || null;
+    return result;
   }
 
   /**
-   * Recherche des recettes par texte (nom, catégories)
+   * Recherche des recettes par texte (mots entiers, début de mots)
    */
   searchRecipes(query: string): RecipeIndexEntry[] {
     if (!query.trim()) {
       return this.recipesIndex;
     }
 
-    const lowerQuery = query.toLowerCase();
+    const searchTerms = query.toLowerCase().trim().split(/\s+/);
+
     return this.recipesIndex.filter((recipe) => {
-      // Recherche dans le nom
-      const nameMatch = recipe.title.toLowerCase().includes(lowerQuery);
+      const recipeTitle = recipe.title.toLowerCase();
 
-      // Recherche dans les catégories
-      const categoryMatch =
-        recipe.categories?.some((cat) =>
-          cat.toLowerCase().includes(lowerQuery),
-        ) || false;
+      // Découper le titre en mots (par espaces, tirets, underscores)
+      const titleWords = recipeTitle.split(/[\s\-_]+/);
 
-      // Recherche dans les ingrédients
-      const ingredientMatch =
-        recipe.ingredients?.some((ing) =>
-          ing.toLowerCase().includes(lowerQuery),
-        ) || false;
-
-      return nameMatch || categoryMatch || ingredientMatch;
+      // Tous les termes de recherche doivent matcher le début d'au moins un mot
+      // Exemple: "lasagne bol" → cherche "lasagne" ET "bol" comme début de mots
+      return searchTerms.every((term) =>
+        titleWords.some((word) => word.startsWith(term)),
+      );
     });
   }
 
@@ -710,7 +704,7 @@ class RecipesStore {
         recipeData = await this.#loadFromAppwrite(uuid);
       } else {
         // 4b. Recette Hugo (publiée)
-        const recipePath = `/recettes/${indexEntry.slug}/recipe.json`;
+        const recipePath = `/recettes/${indexEntry.$id}/recipe.json`;
         console.log(
           `[RecipesStore] Chargement de ${uuid} depuis Hugo JSON: ${recipePath}`,
         );

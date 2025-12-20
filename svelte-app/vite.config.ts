@@ -20,7 +20,6 @@ export default defineConfig({
     },
   },
 
-  // Important pour que les imports fonctionnent correctement
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -61,6 +60,15 @@ export default defineConfig({
         configure: (proxy, _options) => {
           proxy.on("error", (_err, _req, _res) => {
             console.log("[Vite Proxy] Hugo server not available for /data/");
+          });
+        },
+      },
+      "/icons": {
+        target: "http://localhost:1313",
+        changeOrigin: true,
+        configure: (proxy, _options) => {
+          proxy.on("error", (_err, _req, _res) => {
+            console.log("[Vite Proxy] Hugo server not available for /icons/");
           });
         },
       },

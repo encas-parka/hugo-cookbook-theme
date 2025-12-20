@@ -17,7 +17,10 @@
     RefreshCcw,
   } from "@lucide/svelte";
   import type { EventMeal, EventMealRecipe } from "$lib/types/events.d";
-  import type { RecipeIndexEntry } from "$lib/types/recipes.types";
+  import type {
+    RecipeIndexEntry,
+    RecettesTypeR,
+  } from "$lib/types/recipes.types";
   import RecipeSearchCard from "./RecipeSearchCard.svelte";
   import Fieldset from "$lib/components/ui/Fieldset.svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
@@ -62,6 +65,10 @@
   // Initialisation des valeurs par défaut si vide
   if (!meal.guests) meal.guests = defaultGuests;
   if (!meal.recipes) meal.recipes = [];
+
+  // DEBUG: Log meal structure
+  console.log("[EventMealCard] Meal:", meal);
+  console.log("[EventMealCard] Meal.recipes:", meal.recipes);
 
   // Variables dérivées pour l'UI (extraction date et moment depuis meal.date)
   let displayDate = $derived(extractDate(meal.date || ""));
@@ -111,15 +118,15 @@
 
   // Recettes triées par type (entree > plat > dessert)
   const sortedRecipes = $derived.by(() => {
-    const typeOrder: Record<string, number> = {
+    const typeOrder: Record<RecettesTypeR, number> = {
       entree: 1,
       plat: 2,
       dessert: 3,
     };
 
     return [...meal.recipes].sort((a, b) => {
-      const orderA = typeOrder[a.type as string] || 999;
-      const orderB = typeOrder[b.type as string] || 999;
+      const orderA = typeOrder[a.typeR];
+      const orderB = typeOrder[b.typeR];
       return orderA - orderB;
     });
   });
@@ -171,20 +178,20 @@
 
   function handleAddRecipe(
     recipe: RecipeIndexEntry,
-    type: "entree" | "plat" | "dessert",
+    typeR: RecettesTypeR,
     plates: number,
   ) {
     // Vérifier si la recette existe déjà pour éviter les doublons
-    const alreadyExists = meal.recipes.some((r) => r.recipeUuid === recipe.u);
+    const alreadyExists = meal.recipes.some((r) => r.recipeUuid === recipe.$id);
     if (alreadyExists) return; // Ignorer silencieusement l'ajout d'une recette déjà présente
 
     onModified?.(); // Notifie le parent
 
     const defaultPlates = meal.guests; // Utiliser le nombre de guests par défaut
     const newRecipe: EventMealRecipe = {
-      recipeUuid: recipe.u,
+      recipeUuid: recipe.$id,
       plates: defaultPlates,
-      type,
+      typeR: recipe.typeR,
     };
 
     // Créer une copie profonde pour éviter les liaisons
@@ -199,7 +206,9 @@
   }
 
   function getRecipeIndex(uuid: string) {
-    return recipesStore.getRecipeIndexByUuid(uuid);
+    const result = recipesStore.getRecipeIndexByUuid(uuid);
+    console.log(`[EventMealCard] getRecipeIndex(${uuid}):`, result);
+    return result;
   }
 
   function handleCardClick() {
@@ -222,10 +231,10 @@
   //   }
   // });
 
-  function getRecipeColor(type) {
-    if (type === "entree") return "bg-lime-100 border-lime-200";
-    else if (type === "plat") return "bg-orange-100 border-orange-200";
-    else if (type === "dessert") return "bg-pink-100 border-pink-200";
+  function getRecipeColor(typeR: RecettesTypeR) {
+    if (typeR === "entree") return "bg-lime-100 border-lime-200";
+    else if (typeR === "plat") return "bg-orange-100 border-orange-200";
+    else if (typeR === "dessert") return "bg-pink-100 border-pink-200";
     else return "bg-base-200/50";
   }
 </script>
@@ -388,7 +397,7 @@
                   <div class="flex flex-1 items-center gap-2">
                     <div
                       class="{getRecipeColor(
-                        recipe.type,
+                        recipe.typeR,
                       )} rounded-md border-2 p-2"
                     >
                       <ChefHat class="h-5 w-5" />
@@ -397,7 +406,7 @@
                     <!-- Infos Recette -->
                     <div class="min-w-56 flex-1">
                       <div class="font-medium">
-                        {recipeIndex?.n || "Recette inconnue"}
+                        {recipeIndex?.title || "Recette inconnue"}
                       </div>
                     </div>
                   </div>
@@ -405,7 +414,7 @@
                   <!-- Contrôles d'édition -->
                   <div class="me-10 flex items-center gap-2">
                     <!-- Type -->
-                    <select class="select w-24" bind:value={recipe.type}>
+                    <select class="select w-24" bind:value={recipe.typeR}>
                       <option value="entree">Entrée</option>
                       <option value="plat">Plat</option>
                       <option value="dessert">Dessert</option>
@@ -512,11 +521,11 @@
               {@const recipeIndex = getRecipeIndex(recipe.recipeUuid)}
               <div
                 class="badge badge-lg {getRecipeColor(
-                  recipe.type,
+                  recipe.typeR,
                 )} h-auto gap-2 py-1 font-medium"
               >
                 <ChefHat class="h-4 w-4" />
-                <span>{recipeIndex?.n || "..."}</span>
+                <span>{recipeIndex?.title || "..."}</span>
                 <span class="badge badge-sm badge-outline font-normal">
                   {recipe.plates || meal.guests}
                   <Utensils size={12} />

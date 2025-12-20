@@ -32,10 +32,12 @@ export interface EventMeal {
 /**
  * Recette dans un repas d'événement
  */
+import { type RecettesTypeR } from "./recipes.types";
+
 export interface EventMealRecipe {
   recipeUuid: string;
   plates: number; // Nombre de couverts
-  type?: "entree" | "plat" | "dessert";
+  typeR: RecettesTypeR;
 }
 
 import type { Main } from "./appwrite.d";

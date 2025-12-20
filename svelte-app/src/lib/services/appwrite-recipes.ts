@@ -44,7 +44,9 @@ export async function executeManageDataRecipe(
     // Si asynchrone, on ne peut pas vérifier le corps de réponse ni attendre "completed"
     if (async) {
       if (execution.status === "failed") {
-        throw new Error(`Function execution failed to start: ${execution.status}`);
+        throw new Error(
+          `Function execution failed to start: ${execution.status}`,
+        );
       }
       return { success: true, executionId: execution.$id };
     }
@@ -202,7 +204,7 @@ export async function createRecipeAppwrite(
       publishedAt:
         data.publishedAt ||
         new Date().toISOString().split("T")[0] + "T00:00:00Z",
-      slug: slugUuid,
+      $id: slugUuid,
       createdBy: userId,
       isPublished: false,
     };
@@ -278,6 +280,7 @@ export async function deleteRecipeAppwrite(uuid: string): Promise<void> {
 
 /**
  * Duplique une recette
+ * USELESS : on duplique coté client, et on create comme une recette normal ??
  */
 export async function duplicateRecipe(
   sourceUuid: string,
@@ -287,24 +290,17 @@ export async function duplicateRecipe(
     const source = await getRecipeAppwrite(sourceUuid);
     if (!source) throw new Error(`Recipe ${sourceUuid} not found`);
 
+    const newSlug = generateSlugUuid35(source.title);
+
     return await createRecipeAppwrite(
       {
-        title: `${source.title} (copie)`,
-        plate: source.plate,
-        ingredients: source.ingredients,
-        preparation: source.preparation,
+        ...source,
+        title: `${source.title} (${globalState.userName})`,
         draft: true,
-        typeR: source.typeR,
-        categories: source.categories,
-        regime: source.regime,
-        teams: [],
-        createdBy: userId,
         isPublished: false,
         publishedAt: null,
         check: false,
-        cuisson: source.cuisson,
-        serveHot: source.serveHot,
-        slug: source.slug,
+        $id: newSlug,
       },
       userId,
     );

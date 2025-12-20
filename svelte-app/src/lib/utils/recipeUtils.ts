@@ -67,6 +67,8 @@ export function parseRecipeData(rawData: any): RecipeForDisplay {
 
   return {
     ...rawData,
+    // Mapper 'id' depuis Hugo vers '$id' pour notre format interne
+    $id: rawData.$id || rawData.id || "",
     ingredients,
   };
 }
@@ -112,9 +114,9 @@ export function parseRecipeIndexEntry(rawData: any): RecipeIndexEntry {
     isPublished: rawData.isPublished ?? true,
     lockedBy: rawData.lockedBy || null,
     plate: rawData.plate ?? 100,
-    slug: rawData.slug || "",
     ingredients,
     auteur: rawData.auteur || "",
-    $id: rawData.$id || "",
+    // Mapper 'id' depuis Hugo vers '$id' pour notre format interne
+    $id: rawData.$id || rawData.id || "",
   };
 }

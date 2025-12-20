@@ -16,6 +16,8 @@
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
+  import { navBarStore } from "../stores/NavBarStore.svelte";
+  import { onDestroy } from "svelte";
 
   import TeamSummaryCard from "$lib/components/dashboard/TeamSummaryCard.svelte";
   import CurrentEventsCard from "$lib/components/dashboard/CurrentEventsCard.svelte";
@@ -30,45 +32,52 @@
 
   // Invitations réelles
   const myInvitations = $derived(teamsStore.myPendingInvitations);
+
+  // ============================================================================
+  // NAVBAR CONFIGURATION
+  // ============================================================================
+
+  $effect(() => {
+    navBarStore.setConfig({
+      breadcrumbs: [{ label: "Dashboard" }],
+      actions: navActions,
+    });
+  });
+
+  onDestroy(() => {
+    navBarStore.reset();
+  });
 </script>
 
-<div class="bg-base-200 min-h-screen">
-  <!-- Header principal -->
-  <div
-    class="bg-base-100 border-base-200 bg-opacity-90 sticky top-0 z-10 border-b backdrop-blur-sm"
-  >
-    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <div class="flex h-16 items-center justify-between">
-        <div>
-          <h1
-            class="text-base-content flex items-center gap-2 text-2xl font-bold"
-          >
-            <Sparkles class="text-primary h-6 w-6" />
-            Tableau de Bord
-          </h1>
-          <p class="text-base-content/60 text-sm">
-            Bienvenue {globalState.user?.name || ""}
-          </p>
-        </div>
+{#snippet navActions()}
+  <div class="flex gap-2">
+    <button
+      class="btn btn-primary btn-sm"
+      onclick={() => navigate("/dashboard/eventEdit")}
+    >
+      <Calendar class="h-4 w-4" />
+      Nouvel Événement
+    </button>
+    <button
+      class="btn btn-secondary btn-sm"
+      onclick={() => navigate("/recipe/new")}
+    >
+      <BookOpen class="h-4 w-4" />
+      Créer une Recette
+    </button>
+  </div>
+{/snippet}
 
-        <!-- Actions rapides -->
-        <div class="flex gap-2">
-          <button
-            class="btn btn-primary"
-            onclick={() => navigate("/eventEdit")}
-          >
-            <Calendar class="h-4 w-4" />
-            Nouvel Événement
-          </button>
-          <button
-            class="btn btn-secondary"
-            onclick={() => navigate("/recipe/new")}
-          >
-            <BookOpen class="h-4 w-4" />
-            Créer une Recette
-          </button>
-        </div>
-      </div>
+<div class="bg-base-200 min-h-screen">
+  <!-- Greeting -->
+  <div class="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
+    <div class="flex flex-col">
+      <h2 class="text-base-content text-xl font-bold">
+        Bienvenue, {globalState.user?.name || ""}
+      </h2>
+      <p class="text-base-content/60 text-sm">
+        Voici un aperçu de vos activités récentes.
+      </p>
     </div>
   </div>
 

@@ -31,7 +31,15 @@
 
   // Fonction pour scaler un ingrédient
   function getScaledIngredient(ingredient: RecipeIngredient) {
-    const scaled = scaleAndFormatIngredient(
+    // Scaler les quantités originales
+    const scaledOriginal = scaleAndFormatIngredient(
+      ingredient.originalQuantity,
+      ingredient.originalUnit,
+      scaleFactor,
+    );
+
+    // Scaler les quantités normalisées
+    const scaledNormalized = scaleAndFormatIngredient(
       ingredient.normalizedQuantity,
       ingredient.normalizedUnit,
       scaleFactor,
@@ -39,8 +47,14 @@
 
     return {
       ...ingredient,
-      displayQuantity: scaled.formattedNumber, // Version string formatée sans unité
-      displayUnit: scaled.unit,
+      originalDisplayQuantity: scaledOriginal.formattedNumber,
+      originalDisplayUnit: scaledOriginal.unit,
+      normalizedDisplayQuantity: scaledNormalized.formattedNumber,
+      normalizedDisplayUnit: scaledNormalized.unit,
+      // Vérifier si les quantités sont différentes après scaling
+      hasDifferentQuantities:
+        scaledOriginal.formattedNumber !== scaledNormalized.formattedNumber ||
+        scaledOriginal.unit !== scaledNormalized.unit,
     };
   }
 </script>
@@ -48,34 +62,43 @@
 <div class="space-y-6">
   {#each [...groupedIngredients()] as [type, items]}
     <div class="border-base-200 rounded-xl border p-2">
-      {#if type !== "Autres"}
-        <h4 class="text-base-content/80 mb-2 font-semibold capitalize">
-          {type}
-        </h4>
-      {/if}
+      <h4 class="text-base-content/70 mb-2 font-semibold">
+        {type}
+      </h4>
 
-      <ul class="space-y-2">
+      <ul class="space-y-3">
         {#each items as ingredient}
           {@const scaled = getScaledIngredient(ingredient)}
-          <li class="flex flex-wrap items-start gap-2">
-            <div class="flex-1">
-              <span class="font-medium">{ingredient.name} : </span>
-              {#if ingredient.allergens && ingredient.allergens.length > 0}
-                <span class="tooltip">
-                  <TriangleAlert
-                    class="text-warning ml-1 inline h-4 w-4"
-                    data-tooltip="Allergène: {ingredient.allergens.join(', ')}"
-                  />
-                </span>
-              {/if}
-              <span class="text-primary min-w-[80px]">
-                <span class="amount">{scaled.displayQuantity}</span>
-                <span class="unit ml-1">{scaled.displayUnit}</span>
+          <li class="flex flex-wrap items-baseline">
+            <div class="flex flex-wrap">
+              <span class="font-medium"
+                >{ingredient.name}
+                {#if ingredient.allergens && ingredient.allergens.length > 0}
+                  <span class="tooltip">
+                    <TriangleAlert
+                      class="mx-1  h-4 w-4 opacity-70"
+                      data-tooltip="Allergène: {ingredient.allergens.join(
+                        ', ',
+                      )}"
+                    />
+                  </span>
+                {/if} :
+              </span>
+
+              <span class="ms-1 min-w-[80px]">
+                <span class="amount">{scaled.originalDisplayQuantity}</span>
+                <span class="unit ml-1">{scaled.originalDisplayUnit}</span>
+                {#if scaled.hasDifferentQuantities}
+                  <span class="ms-1"
+                    >({scaled.normalizedDisplayQuantity}
+                    {scaled.normalizedDisplayUnit})</span
+                  >
+                {/if}
               </span>
             </div>
 
             {#if ingredient.comment}
-              <div class="text-base-content/60 text-sm">
+              <div class="text-base-content/70 text-sm">
                 ({ingredient.comment})
               </div>
             {/if}

@@ -2,6 +2,7 @@
   import type { RecipeIndexEntry } from "$lib/types/recipes.types";
   import { navigate } from "$lib/services/simple-router.svelte";
   import { Users, ChefHat } from "@lucide/svelte";
+  import RecipeRegimeBadges from "./RecipeRegimeBadges.svelte";
 
   interface Props {
     recipe: RecipeIndexEntry;
@@ -11,7 +12,7 @@
   let { recipe, highlightedIngredients = [] }: Props = $props();
 
   function handleClick() {
-    navigate(`/recipe/${recipe.slug}`);
+    navigate(`/recipe/${recipe.$id}`);
   }
 
   function getTypeLabel(type: string): string {
@@ -40,9 +41,9 @@
   }}
 >
   <!-- Header -->
-  <div class="mb-2 flex items-baseline justify-between">
-    <div class="flex-1">
-      <h3 class="text-lg font-semibold">{recipe.title}</h3>
+  <div class="mb-2 flex flex-wrap items-start justify-between gap-4">
+    <div class="min-w-72 flex-1">
+      <div class="text-primary text-lg font-semibold">{recipe.title}</div>
       <div class="text-base-content/60 text-sm">
         {#if recipe.auteur}
           <span>de {recipe.auteur} - </span>
@@ -60,45 +61,53 @@
         {/if}
       </div>
     </div>
-
-    <!-- Badges catégories et saisons -->
-    <div class="flex flex-wrap justify-end gap-1">
-      {#if recipe.categories}
-        {#each recipe.categories as categorie}
-          <span class="badge badge-primary badge-sm">{categorie}</span>
-        {/each}
-      {/if}
-      {#if recipe.saison}
-        {#each recipe.saison as saison}
-          <span class="badge badge-accent badge-sm">{saison}</span>
-        {/each}
-      {/if}
-      {#if recipe.region}
-        <span class="text-base-content/60 text-sm">{recipe.region}</span>
+    <div>
+      {#if recipe.regime}
+        <RecipeRegimeBadges regimes={recipe.regime} iconOnly />
       {/if}
     </div>
-  </div>
 
-  <!-- Badges température et cuisson -->
-  <div class="mb-2 flex flex-wrap gap-1">
-    {#if recipe.serveHot}
-      <span class="badge badge-error text-white">Servir Chaud</span>
-    {:else}
-      <span class="badge badge-info">Servir Froid</span>
-    {/if}
+    <!-- Badges -->
+    <div class="flex flex-col justify-end gap-2">
+      <div class="flex flex-wrap justify-end gap-1">
+        {#if recipe.categories}
+          {#if recipe.region}
+            <span class="badge badge-ghost badge-sm">{recipe.region}</span>
+          {/if}
+          {#each recipe.categories as categorie}
+            <span class="badge badge-primary badge-soft badge-sm"
+              >{categorie}</span
+            >
+          {/each}
+        {/if}
+      </div>
 
-    {#if recipe.cuisson}
-      <span class="badge badge-warning">Avec Cuisson</span>
-    {:else}
-      <span class="badge badge-success">Sans Cuisson</span>
-    {/if}
+      <div class="mb-2 flex flex-wrap justify-end gap-1">
+        {#if recipe.serveHot}
+          <span class="badge badge-soft badge-sm badge-error">Servir Chaud</span
+          >
+        {:else}
+          <span class="badge badge-soft badge-sm badge-info">Servir Froid</span>
+        {/if}
 
-    <!-- Badges régimes -->
-    {#if recipe.regime}
-      {#each recipe.regime as r}
-        <span class="badge badge-secondary badge-sm">{r}</span>
-      {/each}
-    {/if}
+        {#if recipe.cuisson}
+          <span class="badge badge-soft badge-sm badge-warning"
+            >Avec Cuisson</span
+          >
+        {:else}
+          <span class="badge badge-soft badge-sm badge-success"
+            >Sans Cuisson</span
+          >
+        {/if}
+
+        {#if recipe.saison}
+          {#each recipe.saison as saison}
+            <span class="badge badge-soft badge-accent badge-sm">{saison}</span>
+          {/each}
+        {/if}
+      </div>
+    </div>
+    <!-- Badges température et cuisson -->
   </div>
 
   <!-- Ingrédients -->

@@ -2,7 +2,7 @@
  * Types pour le système de recettes et ingrédients
  */
 
-import { type Recettes, RecettesTypeR } from './appwrite.d';
+import { type Recettes, RecettesTypeR } from "./appwrite.d";
 export { RecettesTypeR };
 
 // =============================================================================
@@ -34,7 +34,7 @@ export interface EnrichedIngredient extends Ingredient {
 /**
  * Format brut depuis/vers Appwrite
  * Les ingrédients sont au format string[] (JSON stringifié)
- * 
+ *
  * @example
  * const recipe: RecipeFromAppwrite = await getRecipeAppwrite(uuid);
  */
@@ -43,11 +43,11 @@ export type RecipeFromAppwrite = Recettes;
 /**
  * Format parsé pour affichage dans l'UI
  * Les ingrédients sont parsés en objets RecipeIngredient[]
- * 
+ *
  * @example
  * const recipe: RecipeForDisplay = await recipesStore.getRecipeByUuid(uuid);
  */
-export type RecipeForDisplay = Omit<Recettes, 'ingredients'> & {
+export type RecipeForDisplay = Omit<Recettes, "ingredients"> & {
   ingredients: RecipeIngredient[];
 };
 
@@ -59,12 +59,25 @@ export type RecipeForDisplay = Omit<Recettes, 'ingredients'> & {
  * Entrée d'index de recette (depuis data.json ou Appwrite)
  * Contient uniquement les champs nécessaires pour le filtrage rapide et l'affichage
  */
-export type RecipeIndexEntry = Pick<Recettes, 
-  'title' | 'typeR' | 'categories' | 'regime' | 'draft' | 
-  'materiel' | 'region' | 'serveHot' | 'cuisson' | 'check' | 
-  'saison' | 'permissionWrite' | 'isPublished' | 'lockedBy' | 'plate' | '$id'
+export type RecipeIndexEntry = Pick<
+  Recettes,
+  | "title"
+  | "typeR"
+  | "categories"
+  | "regime"
+  | "draft"
+  | "materiel"
+  | "region"
+  | "serveHot"
+  | "cuisson"
+  | "check"
+  | "saison"
+  | "permissionWrite"
+  | "isPublished"
+  | "lockedBy"
+  | "plate"
+  | "$id"
 > & {
-  slug: string; // Identifiant unique (slug-uuid de 35 chars)
   ingredients: string[]; // Noms des ingrédients uniquement (pour filtrage rapide)
   auteur?: string; // Auteur de la recette (optionnel)
 };
@@ -145,7 +158,18 @@ export interface RecipesCacheMetadata {
  * Données pour créer une recette (format Appwrite)
  * Exclut uniquement les champs auto-générés de Models.Row
  */
-export type CreateRecipeData = Omit<Recettes, '$id' | '$createdAt' | '$updatedAt' | '$permissions' | '$databaseId' | '$collectionId' | '$sequence' | '$tableId' | 'createdBy' | 'teams'>;
+export type CreateRecipeData = Omit<
+  Recettes,
+  | "$createdAt"
+  | "$updatedAt"
+  | "$permissions"
+  | "$databaseId"
+  | "$collectionId"
+  | "$sequence"
+  | "$tableId"
+  | "createdBy"
+  | "teams"
+>;
 
 /**
  * Données pour mettre à jour une recette

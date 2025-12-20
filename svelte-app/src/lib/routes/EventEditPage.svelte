@@ -11,7 +11,7 @@
   import { teamsStore } from "$lib/stores/TeamsStore.svelte";
   import type { EventContributor, EventMeal } from "$lib/types/events";
   import {
-    AlertCircle,
+    CircleAlert,
     ArrowLeft,
     Calendar,
     ChartBar,
@@ -23,8 +23,9 @@
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
   import { navigate } from "../services/simple-router.svelte";
-  import { untrack } from "svelte";
+  import { untrack, onDestroy } from "svelte";
   import EventStats from "../components/EventStats.svelte";
+  import { navBarStore } from "../stores/NavBarStore.svelte";
 
   // ============================================================================
   // PROPS & INITIALISATION
@@ -83,6 +84,24 @@
   const canEdit = $derived(
     !isLockedByOthers && currentUserStatus === "accepted" && !loadingEvent,
   );
+
+  // ============================================================================
+  // NAVBAR CONFIGURATION
+  // ============================================================================
+
+  $effect(() => {
+    navBarStore.setConfig({
+      breadcrumbs: [
+        { label: "Dashboard", path: "/dashboard" },
+        { label: eventId ? "Éditer l'événement" : "Nouvel événement" },
+      ],
+      actions: navActions,
+    });
+  });
+
+  onDestroy(() => {
+    navBarStore.reset();
+  });
 
   // ============================================================================
   // LOCK MANAGEMENT
@@ -427,12 +446,12 @@
       if (eventId) {
         await eventsStore.updateEvent(eventId, eventData);
         toastService.success("Événement mis à jour");
-        navigate(`/eventEdit/${eventId}`);
+        navigate(`/dashboard/eventEdit/${eventId}`);
       } else {
         const savedEvent = await eventsStore.createEvent(eventData);
         eventId = savedEvent.$id;
         toastService.success("Événement créé");
-        navigate(`/eventEdit/${eventId}`);
+        navigate(`/dashboard/eventEdit/${eventId}`);
       }
     } catch (err) {
       console.error("Erreur sauvegarde:", err);
@@ -493,52 +512,35 @@
   }
 </script>
 
-<div class="bg-base-200 min-h-lvh space-y-6 px-2 pb-20 md:px-36">
-  <!-- Header -->
-  <div
-    class="bg-base-200 border-base-200 flex items-center justify-between border-b py-4 backdrop-blur"
-  >
-    <div class="flex items-center gap-4">
-      <button class="btn btn-ghost btn-circle" onclick={goBack}>
-        <ArrowLeft class="h-6 w-6" />
-      </button>
-      <div>
-        <h2 class="text-2xl font-bold">
-          {eventId ? "Éditer" : "Nouvel"} Événement
-        </h2>
-        <p class="text-base-content/60 text-sm">
-          {eventId
-            ? "Modifier le menu et les repas"
-            : "Créer un menu et planifier les repas"}
-        </p>
-      </div>
-    </div>
-    <div class="flex gap-2">
-      {#if eventId}
-        <button
-          class="btn btn-outline"
-          onclick={() => navigate(`/eventProducts/${eventId}`)}
-        >
-          Voir les produits
-        </button>
-      {/if}
+{#snippet navActions()}
+  <div class="flex gap-2">
+    {#if eventId}
       <button
-        class="btn btn-primary"
-        onclick={handleSave}
-        disabled={!canEdit ||
-          loading ||
-          loadingEvent ||
-          (eventId && !isLockedByMe)}
+        class="btn btn-outline btn-sm"
+        onclick={() => navigate(`/dashboard/eventEdit/${eventId}/products`)}
       >
-        {#if loading}
-          <span class="loading loading-spinner loading-sm"></span>
-        {:else}
-          <Save class="mr-2 h-4 w-4" />
-        {/if}
-        {eventId ? "Enregistrer" : "Créer l'événement"}
+        Voir les produits
       </button>
-    </div>
+    {/if}
+    <button
+      class="btn btn-primary btn-sm"
+      onclick={handleSave}
+      disabled={!canEdit ||
+        loading ||
+        loadingEvent ||
+        (eventId && !isLockedByMe)}
+    >
+      {#if loading}
+        <span class="loading loading-spinner loading-sm"></span>
+      {:else}
+        <Save class="mr-2 h-4 w-4" />
+      {/if}
+      {eventId ? "Enregistrer" : "Créer l'événement"}
+    </button>
   </div>
+{/snippet}
+
+<div class="bg-base-200 min-h-lvh space-y-6 px-2 pb-20 md:px-36">
   <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
     <div class="min-w-80 flex-1 gap-2">
       {#if editingTitle || !eventId}
@@ -588,7 +590,7 @@
   <!-- Alerte d'invitation pour les utilisateurs invités -->
   {#if currentUserStatus === "invited"}
     <div class="alert alert-info">
-      <AlertCircle class="h-6 w-6 shrink-0" />
+      <CircleAlert class="h-6 w-6 shrink-0" />
       <div>
         <h3 class="font-bold">Invitation à participer</h3>
         <div class="text-xs">

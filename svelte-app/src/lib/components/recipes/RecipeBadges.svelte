@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { RecipeIngredient } from "$lib/types/recipes.types";
+  import { ThermometerSnowflake, Flame } from "@lucide/svelte";
+  import RecipeRegimeBadges from "./RecipeRegimeBadges.svelte";
 
   interface Props {
     temperature?: string;
@@ -27,7 +29,7 @@
   <!-- Badge Température -->
   {#if temperature}
     {#if temperature === "Chaud"}
-      <span class="badge badge-warning">Servir Chaud</span>
+      <span class="badge badge-lg badge-soft badge-warning">Servir Chaud</span>
     {:else}
       <span class="badge badge-info">Servir Froid</span>
     {/if}
@@ -36,24 +38,21 @@
   <!-- Badge Cuisson -->
   {#if cuisson !== undefined}
     {#if hasCuisson}
-      <span class="badge badge-warning">Avec Cuisson</span>
+      <span class="badge badge-lg badge-soft badge-warning">Avec Cuisson</span>
     {:else}
-      <span class="badge badge-info">Sans Cuisson</span>
+      <span class="badge badge-lg badge-soft badge-info">Sans Cuisson</span>
     {/if}
   {/if}
 
   <!-- Badges Régimes -->
-  {#each regimes as regime}
-    <span class="badge badge-success">{regime}</span>
-  {/each}
-
+  <RecipeRegimeBadges {regimes} />
   <!-- Badges Matériel -->
   {#each materiel as item}
-    <span class="badge badge-neutral">{item}</span>
+    <span class="badge badge-soft badge-neutral">{item}</span>
   {/each}
 
   <!-- Badges Allergènes -->
   {#each allergens as allergen}
-    <span class="badge badge-error font-bold text-white">{allergen}</span>
+    <span class="badge badge-error badge-soft">{allergen}</span>
   {/each}
 </div>

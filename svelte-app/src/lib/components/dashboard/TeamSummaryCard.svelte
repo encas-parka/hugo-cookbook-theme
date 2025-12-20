@@ -31,7 +31,7 @@
   let selectedTeamId = $state<string | null>(null);
 
   function goToTeamsManagement() {
-    navigate("/teams");
+    navigate("/dashboard/teams");
   }
 
   function openTeamDetailModal(teamId: string) {

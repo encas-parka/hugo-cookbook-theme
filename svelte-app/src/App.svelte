@@ -63,10 +63,14 @@
 
   // Privées (Dashboard & Gestion)
   router.addRoute("/dashboard", DashboardPage, requireAuth);
-  router.addRoute("/teams", TeamsManagement, requireAuth);
-  router.addRoute("/eventEdit", EventEditPage, requireAuth);
-  router.addRoute("/eventEdit/:id", EventEditPage, requireAuth);
-  router.addRoute("/eventProducts/:id", ProductsPage, requireAuth);
+  router.addRoute("/dashboard/teams", TeamsManagement, requireAuth);
+  router.addRoute("/dashboard/eventEdit", EventEditPage, requireAuth);
+  router.addRoute("/dashboard/eventEdit/:id", EventEditPage, requireAuth);
+  router.addRoute(
+    "/dashboard/eventEdit/:id/products",
+    ProductsPage,
+    requireAuth,
+  );
 
   // État du composant actuel
   let currentRoute = $state<any>(null);

@@ -4,6 +4,8 @@
   import { validateInvitation } from "$lib/services/appwrite-teams";
   import { navigate, getQuery } from "$lib/services/simple-router.svelte"; // Adaptez le chemin vers votre fichier router
   import { TriangleAlert } from "@lucide/svelte";
+  import { navBarStore } from "../stores/NavBarStore.svelte";
+  import { onDestroy } from "svelte";
 
   // États (Svelte 5 Runes)
   let loading = $state(true);
@@ -102,6 +104,15 @@
       loading = false;
     }
   }
+  $effect(() => {
+    navBarStore.setConfig({
+      title: "Rejoindre l'équipe",
+    });
+  });
+
+  onDestroy(() => {
+    navBarStore.reset();
+  });
 </script>
 
 <div class="bg-base-200 flex min-h-screen items-center justify-center p-4">

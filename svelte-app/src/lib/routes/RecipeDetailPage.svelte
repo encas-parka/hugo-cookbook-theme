@@ -3,13 +3,23 @@
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import type { RecipeForDisplay } from "$lib/types/recipes.types";
   import RecipeHeader from "$lib/components/recipes/RecipeHeader.svelte";
-  import RecipeBadges from "$lib/components/recipes/RecipeBadges.svelte";
+  import RecipeRegimeBadges from "$lib/components/recipes/RecipeRegimeBadges.svelte";
   import RecipeQuantityControl from "$lib/components/recipes/RecipeQuantityControl.svelte";
   import RecipeIngredientsList from "$lib/components/recipes/RecipeIngredientsList.svelte";
   import RecipePreparation from "$lib/components/recipes/RecipePreparation.svelte";
   import RecipeAlerts from "$lib/components/recipes/RecipeAlerts.svelte";
   import RecipeAlternatives from "$lib/components/recipes/RecipeAlternatives.svelte";
-  import { UtensilsCrossed, ChefHat } from "@lucide/svelte";
+  import {
+    UtensilsCrossed,
+    ChefHat,
+    PencilIcon,
+    ShoppingBasket,
+    CookingPot,
+  } from "@lucide/svelte";
+  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navBarStore } from "../stores/NavBarStore.svelte";
+  import { globalState } from "../stores/GlobalState.svelte";
+  import { onDestroy } from "svelte";
 
   interface Props {
     params?: { uuid?: string };
@@ -83,11 +93,41 @@
   const recipesIndexMap = $derived.by(() => {
     const map = new Map();
     recipesStore.recipesIndex.forEach((recipe) => {
-      map.set(recipe.slug, { n: recipe.title });
+      map.set(recipe.$id, { n: recipe.title });
     });
     return map;
   });
+
+  // ============================================================================
+  // NAVBAR CONFIGURATION
+  // ============================================================================
+
+  $effect(() => {
+    navBarStore.setConfig({
+      breadcrumbs: [
+        { label: "Recettes", path: "/recipe" },
+        { label: recipeDetails?.title || "Recette" },
+      ],
+      actions: navActions,
+    });
+  });
+
+  onDestroy(() => {
+    navBarStore.reset();
+  });
 </script>
+
+{#snippet navActions()}
+  {#if globalState.isAuthenticated && recipeDetails}
+    <button
+      class="btn btn-primary btn-sm"
+      onclick={() => navigate(`/recipe/${recipeDetails?.$id}/edit`)}
+    >
+      <PencilIcon size={18} />
+      Éditer
+    </button>
+  {/if}
+{/snippet}
 
 <div class="container mx-auto max-w-6xl px-4 py-8">
   {#if loading}
@@ -103,21 +143,76 @@
     </div>
   {:else if recipeDetails}
     <!-- En-tête -->
-    <RecipeHeader
-      title={recipeDetails.title}
-      author={recipeDetails.auteur || recipeDetails.createdBy || "Inconnu"}
-      category={recipeDetails.typeR}
-    />
-
-    <!-- Badges -->
-    <div class="mb-6">
-      <RecipeBadges
-        temperature={recipeDetails.serveHot ? "Chaud" : "Froid"}
-        cuisson={recipeDetails.cuisson}
-        regimes={recipeDetails.regime || []}
-        materiel={recipeDetails.materiel || []}
-        {allergens}
+    <div class="mb-4">
+      <RecipeHeader
+        title={recipeDetails.title}
+        author={recipeDetails.auteur || recipeDetails.createdBy}
+        category={recipeDetails.typeR}
       />
+    </div>
+
+    <div class="flex flex-wrap justify-between gap-2">
+      <div class="flex gap-2">
+        <!-- Badges température -->
+        {#if recipeDetails?.serveHot !== undefined}
+          <div class="mb-2">
+            {#if recipeDetails.serveHot}
+              <span class="badge badge-lg badge-soft badge-warning"
+                >Servir Chaud</span
+              >
+            {:else}
+              <span class="badge badge-lg badge-soft badge-info"
+                >Servir Froid</span
+              >
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Badges cuisson -->
+        {#if recipeDetails?.cuisson !== undefined}
+          <div class="mb-2">
+            {#if recipeDetails.cuisson}
+              <span class="badge badge-lg badge-soft badge-warning"
+                >Avec Cuisson</span
+              >
+            {:else}
+              <span class="badge badge-lg badge-soft badge-info"
+                >Sans Cuisson</span
+              >
+            {/if}
+          </div>
+        {/if}
+      </div>
+
+      <!-- Badges régimes -->
+      {#if recipeDetails?.regime && recipeDetails.regime.length > 0}
+        <div class="mb-2">
+          <RecipeRegimeBadges regimes={recipeDetails.regime} />
+        </div>
+      {/if}
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <!-- Badges matériel -->
+      {#if recipeDetails?.materiel && recipeDetails.materiel.length > 0}
+        <div class="mb-2 flex flex-wrap gap-2">
+          {#each recipeDetails.materiel as item}
+            <span class="badge badge-soft badge-neutral">{item}</span>
+          {/each}
+        </div>
+      {/if}
+
+      <!-- Badges allergènes -->
+      {#if allergens.length > 0}
+        <div
+          class="border-error mb-2 flex w-fit flex-wrap gap-2 rounded-xl border px-4 py-2"
+        >
+          <p class="text-base-content/70 font-semibold">Allergenes :</p>
+          {#each allergens as allergen}
+            <span class="badge badge-error badge-soft">{allergen}</span>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     <!-- Description -->
@@ -154,7 +249,7 @@
       <div class="lg:col-span-1">
         <div class="sticky top-4">
           <h2 class="mb-4 flex items-center gap-2 text-2xl font-bold">
-            <UtensilsCrossed class="h-6 w-6" />
+            <ShoppingBasket class="h-6 w-6" />
             Ingrédients
           </h2>
           <RecipeIngredientsList
@@ -168,7 +263,7 @@
       <!-- Préparation (2/3) -->
       <div class="lg:col-span-2">
         <h2 class="mb-4 flex items-center gap-2 text-2xl font-bold">
-          <ChefHat class="h-6 w-6" />
+          <CookingPot class="h-6 w-6" />
           Préparation
         </h2>
         <RecipePreparation

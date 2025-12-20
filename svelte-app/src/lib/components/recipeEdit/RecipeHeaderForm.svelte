@@ -18,7 +18,12 @@
     canEdit: boolean;
   }
 
-  let { recipe, recipeInfo, validationErrors, canEdit }: Props = $props();
+  let {
+    recipe = $bindable(),
+    recipeInfo,
+    validationErrors,
+    canEdit,
+  }: Props = $props();
 </script>
 
 <div class="card bg-base-100 shadow-xl">
@@ -127,6 +132,13 @@
             />
             <span class="text-sm">Non</span>
           </label>
+          {#if validationErrors.check}
+            <div class="fieldset-label">
+              <span class="fieldset-label-text-alt text-error"
+                >{validationErrors.check}</span
+              >
+            </div>
+          {/if}
           <label class="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"

@@ -8,7 +8,7 @@
     canEdit: boolean;
   }
 
-  let { recipe, validationErrors, canEdit }: Props = $props();
+  let { recipe = $bindable(), validationErrors, canEdit }: Props = $props();
 </script>
 
 <div class="grid grid-cols-1 gap-6 md:grid-cols-2">

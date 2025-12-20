@@ -13,7 +13,7 @@
 
     {{/* Build recipe object with abbreviated keys - métadonnées essentielles pour l'index */}}
     {{- $recipe := dict
-      "slug" .Params.slug
+      "id" .Params.id
       "title" .Title
       "draft" .Draft
       "typeR" .Params.typeR

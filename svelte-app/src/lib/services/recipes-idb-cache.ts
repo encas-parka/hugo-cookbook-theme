@@ -54,7 +54,7 @@ export interface RecipesIDBCache {
 class RecipesIndexedDBCache implements RecipesIDBCache {
   private dbName = "recipes-cache";
   private db: IDBDatabase | null = null;
-  private version = 2; // Incrémenter pour forcer la migration des données
+  private version = 3; // Incrémenter pour forcer la migration des données (slug -> $id)
 
   // Noms des object stores
   private readonly RECIPES_INDEX_STORE = "recipes-index";
@@ -85,18 +85,18 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
 
-        // Store de l'index (key = slug)
+        // Store de l'index (key = $id)
         if (!db.objectStoreNames.contains(this.RECIPES_INDEX_STORE)) {
           db.createObjectStore(this.RECIPES_INDEX_STORE, {
-            keyPath: "slug",
+            keyPath: "$id",
           });
           console.log("[RecipesIDBCache] Object store 'recipes-index' créé");
         }
 
-        // Store des détails (key = slug)
+        // Store des détails (key = $id)
         if (!db.objectStoreNames.contains(this.RECIPES_DETAILS_STORE)) {
           db.createObjectStore(this.RECIPES_DETAILS_STORE, {
-            keyPath: "slug",
+            keyPath: "$id",
           });
           console.log("[RecipesIDBCache] Object store 'recipes-details' créé");
         }
@@ -128,7 +128,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       request.onsuccess = () => {
         const recipes = new Map<string, RecipeIndexEntry>();
         (request.result as RecipeIndexEntry[]).forEach((recipe) => {
-          recipes.set(recipe.slug, recipe);
+          recipes.set(recipe.$id, recipe);
         });
         console.log(
           `[RecipesIDBCache] ${recipes.size} recettes (index) chargées`,
@@ -210,7 +210,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       const request = store.put(recipe);
 
       request.onsuccess = () => {
-        console.log(`[RecipesIDBCache] Détails de ${recipe.slug} sauvegardés`);
+        console.log(`[RecipesIDBCache] Détails de ${recipe.$id} sauvegardés`);
         resolve();
       };
 
@@ -232,7 +232,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       request.onsuccess = () => {
         const recipes = new Map<string, Recettes>();
         (request.result as Recettes[]).forEach((recipe) => {
-          recipes.set(recipe.slug, recipe);
+          recipes.set(recipe.$id, recipe);
         });
         console.log(
           `[RecipesIDBCache] ${recipes.size} détails de recettes chargés`,

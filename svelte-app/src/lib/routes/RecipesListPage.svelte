@@ -8,6 +8,11 @@
   import RecipeCard from "$lib/components/recipes/RecipeCard.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
   import { recipeDataStore } from "$lib/stores/RecipeDataStore.svelte";
+  import { navBarStore } from "../stores/NavBarStore.svelte";
+  import { PlusIcon } from "@lucide/svelte";
+  import { navigate } from "$lib/services/simple-router.svelte";
+  import { globalState } from "../stores/GlobalState.svelte";
+  import { onDestroy } from "svelte";
 
   // État des filtres
   interface Filters {
@@ -207,6 +212,21 @@
     currentPage = 1;
   });
 
+  // ============================================================================
+  // NAVBAR CONFIGURATION
+  // ============================================================================
+
+  $effect(() => {
+    navBarStore.setConfig({
+      breadcrumbs: [{ label: "Recettes" }],
+      actions: navActions,
+    });
+  });
+
+  onDestroy(() => {
+    navBarStore.reset();
+  });
+
   onMount(async () => {
     if (!recipesStore.isInitialized) {
       await recipesStore.initialize();
@@ -216,6 +236,18 @@
     }
   });
 </script>
+
+{#snippet navActions()}
+  {#if globalState.isAuthenticated}
+    <button
+      class="btn btn-primary btn-sm"
+      onclick={() => navigate("/recipe/new")}
+    >
+      <PlusIcon size={18} />
+      Nouvelle recette
+    </button>
+  {/if}
+{/snippet}
 
 <!-- Filtres - Sidebar Desktop / Drawer Mobile -->
 <LeftPanel width="100">
@@ -232,8 +264,6 @@
 <!-- Contenu principal -->
 <div class="mx-auto w-full p-4 lg:ml-140">
   <div class=" max-w-4xl">
-    <h1 class="mb-6 text-3xl font-bold">Toutes les recettes</h1>
-
     <!-- Tabs de filtrage par type -->
     <div class="tabs tabs-border tabs-lg mb-6 font-bold">
       <button
@@ -287,7 +317,7 @@
       </div>
     {:else}
       <div class="space-y-4">
-        {#each paginatedRecipes as recipe (recipe.slug)}
+        {#each paginatedRecipes as recipe (recipe.$id)}
           <RecipeCard {recipe} highlightedIngredients={filters.ingredients} />
         {/each}
       </div>

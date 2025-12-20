@@ -5,6 +5,9 @@
   import TeamCard from "$lib/components/teams/TeamCard.svelte";
   import CreateTeamModal from "$lib/components/teams/CreateTeamModal.svelte";
   import TeamDetailModal from "$lib/components/teams/TeamDetailModal.svelte";
+  import { navBarStore } from "../stores/NavBarStore.svelte";
+  import { onDestroy } from "svelte";
+  import { navigate } from "../services/simple-router.svelte";
 
   // État de la page
   let createModalOpen = $state(false);
@@ -35,20 +38,34 @@
     closeCreateModal();
     openTeamDetails(teamId);
   }
+
+  // ============================================================================
+  // NAVBAR CONFIGURATION
+  // ============================================================================
+
+  $effect(() => {
+    navBarStore.setConfig({
+      breadcrumbs: [
+        { label: "Dashboard", path: "/dashboard" },
+        { label: "Mes Équipes" },
+      ],
+      actions: navActions,
+    });
+  });
+
+  onDestroy(() => {
+    navBarStore.reset();
+  });
 </script>
 
-<div class="mx-auto max-w-7xl px-4 py-8">
-  <!-- Header -->
-  <div class="mb-8 flex items-center justify-between">
-    <div>
-      <h1 class="mb-2 text-3xl font-bold">Mes Équipes</h1>
-    </div>
-    <button class="btn btn-primary" onclick={openCreateModal}>
-      <Plus class="ml-2 h-5 w-5" />
-      Créer une équipe
-    </button>
-  </div>
+{#snippet navActions()}
+  <button class="btn btn-primary btn-sm" onclick={openCreateModal}>
+    <Plus class="h-4 w-4" />
+    Créer une équipe
+  </button>
+{/snippet}
 
+<div class="mx-auto max-w-7xl px-4 py-8">
   <!-- Contenu -->
   {#if !globalState.isAuthenticated}
     <div class="alert alert-warning">

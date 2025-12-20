@@ -68,7 +68,7 @@
             {#each currentEvents as event (event.$id)}
               <div
                 class="bg-success/5 border-success/20 hover:bg-success/10 flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors"
-                onclick={() => navigate(`/eventEdit/${event.$id}`)}
+                onclick={() => navigate(`/dashboard/eventEdit/${event.$id}`)}
                 role="button"
                 tabindex="0"
                 title="Voir les détails de {event.name}"
@@ -128,7 +128,7 @@
                       class="btn btn-outline btn-xs"
                       onclick={(e) => {
                         e.stopPropagation();
-                        navigate(`/eventProducts/${event.$id}`);
+                        navigate(`/dashboard/eventEdit/${event.$id}/products`);
                       }}
                     >
                       <ShoppingCart class="h-3 w-3" />
@@ -151,13 +151,13 @@
               <!-- Limiter à 3 événements à venir -->
               <div
                 class="bg-base-200/30 hover:bg-base-200/50 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors"
-                onclick={() => navigate(`/eventEdit/${event.$id}`)}
+                onclick={() => navigate(`/dashboard/eventEdit/${event.$id}`)}
                 role="button"
                 tabindex="0"
                 title="Voir les détails de {event.name}"
                 onkeydown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
-                    navigate(`/eventEdit/${event.$id}`);
+                    navigate(`/dashboard/eventEdit/${event.$id}`);
                   }
                 }}
               >
@@ -226,7 +226,7 @@
       <div class="card-actions border-base-200 mt-4 justify-end border-t pt-4">
         <button
           class="btn btn-primary btn-sm"
-          onclick={() => navigate("/eventEdit")}
+          onclick={() => navigate("/dashboard/eventEdit")}
         >
           <Calendar class="mr-2 h-4 w-4" />
           Créer un événement

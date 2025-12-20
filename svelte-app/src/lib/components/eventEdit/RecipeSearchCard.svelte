@@ -1,13 +1,22 @@
 <script lang="ts">
-  import { Search, Plus, ChefHat, X, LoaderCircle } from "@lucide/svelte";
+  import {
+    Search,
+    Plus,
+    ChefHat,
+    LoaderCircle,
+    ChevronDown,
+  } from "@lucide/svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
-  import type { RecipeData, RecipeIndexEntry } from "$lib/types/recipes.types";
+  import type {
+    RecettesTypeR,
+    RecipeIndexEntry,
+  } from "$lib/types/recipes.types";
   import { keyboardNavigation } from "$lib/attachments/keyboardNavigation.svelte";
 
   interface Props {
     onSelect: (
       recipe: RecipeIndexEntry,
-      type: "entree" | "plat" | "dessert",
+      type: RecettesTypeR,
       plates: number,
     ) => void;
     defaultPlates?: number;
@@ -23,70 +32,158 @@
   }: Props = $props();
 
   let searchQuery = $state("");
-  let selectedType = $state<"entree" | "plat" | "dessert" | "">("");
+  let selectedType = $state<RecettesTypeR>();
   let plates = $state(defaultPlates);
   let selectedRecipe = $state<RecipeIndexEntry | null>(null);
   let isLoadingDetails = $state(false);
-  let selectedIndex = $state(-1); // Index de l'élément sélectionné avec le clavier
+  let selectedIndex = $state(-1);
+  let isOpen = $state(false);
+  let isManuallyOpened = $state(false); // Flag pour distinguer ouverture chevron vs recherche
+  let containerRef: HTMLDivElement | undefined = $state();
+  let listboxRef: HTMLDivElement | undefined = $state();
 
-  // Filtrage des recettes
-  let filteredRecipes = $derived(
-    searchQuery.length > 1
-      ? recipesStore.searchRecipes(searchQuery).slice(0, 5) // Limiter à 5 résultats
-      : [],
-  );
+  // Logique de filtrage révisée
+  let filteredRecipes = $derived.by(() => {
+    // Cas 1: Ouverture via chevron → afficher TOUS les résultats
+    if (isManuallyOpened && !searchQuery.trim()) {
+      return recipesStore.getAllRecipes();
+    }
 
-  // Gérer le selectedIndex de manière réactive
+    // Cas 2: Recherche avec moins de 2 caractères → pas de résultats
+    if (searchQuery.trim().length < 2) {
+      return [];
+    }
+
+    // Cas 3: Recherche normale
+    return recipesStore.searchRecipes(searchQuery);
+  });
+
+  // Le dropdown s'ouvre si y'a des résultats à afficher
+  let shouldOpenDropdown = $derived(filteredRecipes.length > 0);
+
+  // Synchroniser isOpen avec shouldOpenDropdown (mais garder isManuallyOpened)
+  $effect(() => {
+    if (shouldOpenDropdown) {
+      isOpen = true;
+    }
+  });
+
+  // Gérer le selectedIndex réactif
   $effect(() => {
     if (filteredRecipes.length > 0 && selectedIndex === -1) {
-      selectedIndex = 0; // Sélectionner le premier élément par défaut
-    } else if (filteredRecipes.length === 0) {
-      selectedIndex = -1; // Réinitialiser si aucun résultat
+      selectedIndex = 0;
+    } else if (filteredRecipes.length === 0 && selectedIndex !== -1) {
+      selectedIndex = -1;
+    }
+  });
+
+  // Gestion du click outside
+  $effect(() => {
+    if (isOpen) {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (containerRef && !containerRef.contains(event.target as Node)) {
+          closeDropdown();
+        }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
     }
   });
 
   function reset() {
     selectedRecipe = null;
     searchQuery = "";
-    selectedType = "";
     plates = defaultPlates;
     selectedIndex = -1;
+    isOpen = false;
+    isManuallyOpened = false;
+  }
+
+  function openDropdown() {
+    // Ouverture via chevron → afficher tous les résultats
+    isManuallyOpened = true;
+    searchQuery = "";
+    isOpen = true;
+  }
+
+  function closeDropdown() {
+    isManuallyOpened = false;
+    searchQuery = "";
+    selectedIndex = -1;
+    isOpen = false;
+  }
+
+  function toggleDropdown() {
+    if (isOpen) {
+      closeDropdown();
+    } else {
+      openDropdown();
+    }
   }
 
   function handleSelectRecipe(indexEntry: RecipeIndexEntry) {
     selectedRecipe = indexEntry;
-    // Utiliser le type de la recette s'il est disponible, sinon "plat"
-    const typeFromIndex =
-      (indexEntry.t as "entree" | "plat" | "dessert") || "plat";
+    const typeFromIndex = indexEntry.typeR as RecettesTypeR;
     selectedType = selectedType ? selectedType : typeFromIndex;
-    // Auto-confirmation immédiate lorsque la recette est sélectionnée
     onSelect(indexEntry, selectedType, plates);
     reset();
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (!filteredRecipes.length) return;
+    // Escape pour fermer
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeDropdown();
+      return;
+    }
 
-    // Gérer la navigation avec les flèches
+    if (!isOpen || !filteredRecipes.length) {
+      // Ouvrir le dropdown avec Entrée si fermé et recherche active
+      if (
+        event.key === "Enter" &&
+        searchQuery.trim().length > 1 &&
+        !isManuallyOpened
+      ) {
+        event.preventDefault();
+        openDropdown();
+      }
+      return;
+    }
+
+    // Navigation avec les flèches
     if (event.key === "ArrowDown") {
       event.preventDefault();
       selectedIndex = (selectedIndex + 1) % filteredRecipes.length;
+      scrollToSelected();
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       selectedIndex =
         selectedIndex <= 0 ? filteredRecipes.length - 1 : selectedIndex - 1;
+      scrollToSelected();
     }
-    // Gérer la sélection avec Entrée ou Tab
-    else if (
-      (event.key === "Enter" || event.key === "Tab") &&
-      selectedIndex >= 0
-    ) {
+    // Sélection avec Entrée
+    else if (event.key === "Enter" && selectedIndex >= 0) {
       event.preventDefault();
       handleSelectRecipe(filteredRecipes[selectedIndex]);
     }
+    // Tab pour fermer
+    // else if (event.key === "Tab") {
+    //   closeDropdown();
+    // }
   }
 
-  const uniqueId = Math.random().toString(36).slice(2);
+  function scrollToSelected() {
+    if (selectedIndex >= 0 && listboxRef) {
+      const selectedElement = listboxRef.querySelector(
+        `#recipe-${selectedIndex}`,
+      );
+      if (selectedElement) {
+        selectedElement.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }
 </script>
 
 <div class="card bg-base-100 border-base-300 border shadow-sm">
@@ -100,99 +197,80 @@
 
     {#if !selectedRecipe}
       <!-- Mode Recherche -->
-      <div class="mt-2">
-        <label class="input input-accent w-full">
-          <Search class="h-4 w-4 opacity-50" />
-          <input
-            type="text"
-            placeholder="Rechercher une recette..."
-            class=""
-            bind:value={searchQuery}
-            onkeydown={handleKeydown}
-            {@attach keyboardNavigation({
-              shouldFocus: autoFocus,
-              onEmptySubmit: onEmptySubmit,
-            })}
-          />
-          {#if isLoadingDetails}
-            <div class="absolute top-1/2 right-3 -translate-y-1/2">
-              <LoaderCircle class="text-primary h-4 w-4 animate-spin" />
-            </div>
-          {/if}
-        </label>
-
-        {#if searchQuery.length > 1 && filteredRecipes.length === 0}
-          <div class="text-base-content/60 mt-2 py-2 text-center text-xs">
-            Aucune recette trouvée
+      <div class="mt-2" bind:this={containerRef}>
+        <div class="relative">
+          <!-- Input container -->
+          <div class="input flex w-full items-center gap-2 pr-10">
+            <Search class="h-4 w-4 opacity-50" />
+            <input
+              type="text"
+              placeholder="Rechercher une recette..."
+              class="w-full bg-transparent outline-none"
+              bind:value={searchQuery}
+              onkeydown={handleKeydown}
+              {@attach keyboardNavigation({
+                shouldFocus: autoFocus,
+                onEmptySubmit: onEmptySubmit,
+              })}
+              autocomplete="off"
+              role="combobox"
+              aria-expanded={isOpen}
+              aria-controls="recipes-list"
+              aria-activedescendant={isOpen
+                ? `recipe-${selectedIndex}`
+                : undefined}
+            />
+            {#if isLoadingDetails}
+              <div class="absolute top-1/2 right-10 -translate-y-1/2">
+                <LoaderCircle class="text-primary h-4 w-4 animate-spin" />
+              </div>
+            {/if}
           </div>
-        {/if}
 
-        {#if filteredRecipes.length > 0}
-          <ul class="menu bg-base-200/50 rounded-box mt-2 gap-1 p-1">
-            {#each filteredRecipes as recipe, index (recipe.u)}
-              <li>
+          <!-- Dropdown toggle button -->
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm absolute top-1/2 right-1 -translate-y-1/2"
+            onclick={toggleDropdown}
+            aria-label={isOpen ? "Fermer le menu" : "Ouvrir le menu"}
+          >
+            <ChevronDown
+              class="h-4 w-4 transition-transform {isOpen ? 'rotate-180' : ''}"
+            />
+          </button>
+
+          <!-- Dropdown results -->
+          {#if isOpen && filteredRecipes.length > 0}
+            <div
+              id="recipes-list"
+              bind:this={listboxRef}
+              class="border-base-300 bg-base-100 absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border shadow-lg"
+              role="listbox"
+            >
+              {#each filteredRecipes as recipe, index (recipe.$id)}
                 <button
-                  class="flex items-center gap-2 py-2 text-left {index ===
-                    selectedIndex && 'ring-accent/40 ring-2'} "
+                  type="button"
+                  id="recipe-{index}"
+                  class="hover:bg-base-200 flex w-full items-center gap-2 px-4 py-3 text-left hover:cursor-pointer {index ===
+                  selectedIndex
+                    ? 'bg-base-200'
+                    : ''}"
                   onclick={() => handleSelectRecipe(recipe)}
+                  onmouseenter={() => (selectedIndex = index)}
+                  role="option"
+                  aria-selected={index === selectedIndex}
                   disabled={isLoadingDetails}
                 >
-                  <div class="bg-base-100 rounded p-1">
-                    <ChefHat class="h-3 w-3 opacity-70" />
+                  <div class="bg-base-200 rounded p-1">
+                    <ChefHat class="h-4 w-4 opacity-70" />
                   </div>
-                  <span class="truncate text-sm">{recipe.n}</span>
+                  <span class="truncate text-sm font-medium"
+                    >{recipe.title}</span
+                  >
                 </button>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </div>
-    {:else}
-      <!-- Mode Configuration -->
-      <div class="bg-base-200/50 space-y-3 rounded-lg p-3">
-        <div class="flex items-start gap-3">
-          <div class="bg-primary/10 text-primary rounded-lg p-2">
-            <ChefHat class="h-5 w-5" />
-          </div>
-          <div class="min-w-0 flex-1">
-            <div class="truncate font-medium">{selectedRecipe.n}</div>
-            <button
-              class="text-primary mt-0.5 text-xs hover:underline"
-              onclick={() => (selectedRecipe = null)}
-            >
-              Changer de recette
-            </button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div class="">
-            <label class="label py-1 text-xs" for={`type-${uniqueId}`}
-              >Type</label
-            >
-            <select
-              id={`type-${uniqueId}`}
-              class="select select-bordered select-xs w-full"
-              bind:value={selectedType}
-            >
-              <option value="" disabled selected>Sélectionner un type</option>
-              <option value="entree">Entrée</option>
-              <option value="plat">Plat</option>
-              <option value="dessert">Dessert</option>
-            </select>
-          </div>
-          <div class="">
-            <label class="label py-1 text-xs" for={`plates-${uniqueId}`}
-              >Couverts</label
-            >
-            <input
-              id={`plates-${uniqueId}`}
-              type="number"
-              class="input w-full"
-              bind:value={plates}
-              min="1"
-            />
-          </div>
+              {/each}
+            </div>
+          {/if}
         </div>
       </div>
     {/if}

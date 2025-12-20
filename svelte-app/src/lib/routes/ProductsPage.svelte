@@ -36,8 +36,10 @@
 
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
 
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
+  import { navBarStore } from "../stores/NavBarStore.svelte";
+  import { navigate } from "../services/simple-router.svelte";
 
   // Dont work properly
   const PANEL_WIDTH = "100";
@@ -217,6 +219,29 @@
   let GlobalPurchasesModalisOpen = $state(false);
 
   // =========================================================================
+  // NAVBAR CONFIGURATION
+  // =========================================================================
+
+  $effect(() => {
+    const event = eventsStore.getEventById(eventId);
+    navBarStore.setConfig({
+      breadcrumbs: [
+        { label: "Dashboard", path: "/dashboard" },
+        {
+          label: event?.name || "Événement",
+          path: `/dashboard/eventEdit/${eventId}`,
+        },
+        { label: "Gestion des Produits" },
+      ],
+      actions: navActions,
+    });
+  });
+
+  onDestroy(() => {
+    navBarStore.reset();
+  });
+
+  // =========================================================================
   // INITIALISATION
   // =========================================================================
 
@@ -251,6 +276,27 @@
   });
 </script>
 
+{#snippet navActions()}
+  <div class="flex gap-2">
+    <button
+      class="btn btn-outline btn-ghost btn-sm"
+      onclick={() => (GlobalPurchasesModalisOpen = true)}
+      title="Ajouter une dépense générale"
+    >
+      <BadgeEuro class="mr-1 h-4 w-4" />
+      Dépense
+    </button>
+
+    <button
+      class="btn btn-primary btn-sm"
+      onclick={handleOpenAddProductModal}
+      title="Ajouter un produit manuellement"
+    >
+      <Plus class="mr-1 h-4 w-4" />
+      Produit
+    </button>
+  </div>
+{/snippet}
 <LeftPanel width={PANEL_WIDTH}>
   <ProductsFilters />
 </LeftPanel>
@@ -266,24 +312,6 @@
       <LayoutList class="mr-1 h-4 w-4" />
       {stats.total}
     </div>
-
-    <button
-      class="btn btn-sm btn-outline btn-ghost"
-      onclick={() => (GlobalPurchasesModalisOpen = true)}
-      title="Ajouter une dépense générale"
-    >
-      <BadgeEuro class="mr-1 h-4 w-4" />
-      Dépense
-    </button>
-
-    <button
-      class="btn btn-sm btn-primary"
-      onclick={handleOpenAddProductModal}
-      title="Ajouter un produit manuellement"
-    >
-      <Plus class="mr-1 h-4 w-4" />
-      Produit
-    </button>
   </div>
 
   <ProductsCards
