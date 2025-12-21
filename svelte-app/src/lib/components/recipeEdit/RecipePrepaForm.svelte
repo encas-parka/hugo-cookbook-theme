@@ -1,5 +1,6 @@
 <script lang="ts">
   import RecipeIngredientsEditor from "$lib/components/recipeEdit/RecipeIngredientsEditor.svelte";
+  import MarkdownEditor from "$lib/components/MarkdownEditor.svelte";
   import { Utensils, FileText, Clock, Lightbulb } from "@lucide/svelte";
 
   interface Props {
@@ -44,84 +45,27 @@
         Préparation
       </h2>
 
-      <fieldset class="fieldset">
-        <legend class="fieldset-legend">Instructions de préparation</legend>
-        <label
-          class="textarea h-64 w-full {validationErrors.preparation
-            ? 'textarea-error'
-            : ''}"
-        >
-          <textarea
-            id="recipe-preparation"
-            bind:value={recipe.preparation}
-            placeholder="Décrivez les étapes de préparation..."
-            disabled={!canEdit}
-            maxlength="15000"
-            class="h-full w-full resize-none bg-transparent outline-none {validationErrors.preparation
-              ? 'textarea-error'
-              : ''}"
-            aria-describedby="preparation-help"
-            aria-required="true"
-          ></textarea>
-        </label>
-        {#if validationErrors.preparation}
-          <div class="fieldset-label">
-            <span class="fieldset-label-text-alt text-error"
-              >{validationErrors.preparation}</span
-            >
-          </div>
-        {/if}
-        <div class="fieldset-label justify-end">
-          <span
-            class="fieldset-label-text-alt {recipe.preparation.length > 15000
-              ? 'text-error'
-              : 'opacity-70'}"
-          >
-            {recipe.preparation.length} / 15 000
-          </span>
-        </div>
-      </fieldset>
+      <div class="space-y-6">
+        <MarkdownEditor
+          id="recipe-preparation"
+          label="Instructions de préparation"
+          bind:value={recipe.preparation}
+          error={validationErrors.preparation}
+          placeholder="Décrivez les étapes de préparation..."
+        />
 
-      <fieldset class="fieldset mt-4">
-        <legend class="fieldset-legend">
-          <Clock class="inline h-4 w-4" />
-          Préparation à l'avance (optionnel)
-        </legend>
-        <label
-          class="textarea h-fit w-full {validationErrors.preparation24h
-            ? 'textarea-error'
-            : ''}"
-        >
-          <textarea
-            id="recipe-preparation24h"
-            bind:value={recipe.preparation24h}
-            placeholder="Étapes à réaliser avant le jour j (précisez combien de temps à l'avance)..."
-            disabled={!canEdit}
-            maxlength="15000"
-            class="h-full w-full resize-none bg-transparent outline-none"
-          ></textarea>
-        </label>
-        <div class="fieldset-label flex justify-between">
-          <div>
-            Sera mis en évidence au dessus des autres étape de préparation.
-          </div>
-          {#if validationErrors.preparation24h}
-            <span class="fieldset-label-text-alt text-error"
-              >{validationErrors.preparation24h}</span
-            >
-          {:else}
-            <span></span>
-          {/if}
-          <span
-            class="fieldset-label-text-alt {(recipe.preparation24h?.length ||
-              0) > 15000
-              ? 'text-error'
-              : 'opacity-70'}"
-          >
-            {recipe.preparation24h?.length || 0} / 15 000
-          </span>
-        </div>
-      </fieldset>
+        <MarkdownEditor
+          id="recipe-preparation24h"
+          label="Préparation à l'avance (optionnel)"
+          bind:value={recipe.preparation24h}
+          error={validationErrors.preparation24h}
+          placeholder="Étapes à réaliser avant le jour j..."
+        />
+        <p class="text-xs opacity-60">
+          La préparation à l'avance sera mise en évidence au dessus des autres
+          étapes.
+        </p>
+      </div>
 
       <div class="divider"></div>
 

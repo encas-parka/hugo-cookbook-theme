@@ -4,6 +4,7 @@
     another --default,
     dark --another-dark;
 }
+@plugin "@tailwindcss/typography";
 
 @theme {
   --color-lavender: oklch(0.8051 0.0952 298.69);
