@@ -46,6 +46,7 @@ import {
   markAsPublished,
   subscribeToRecipes,
   updateRecipeAppwrite,
+  listUpdatedRecipes,
 } from "../services/appwrite-recipes";
 import { globalState } from "./GlobalState.svelte";
 
@@ -69,6 +70,7 @@ class RecipesStore {
   #error = $state<string | null>(null);
   #lastSync = $state<string | null>(null);
   #isInitialized = $state(false);
+  #versionTimestamp = $state<number | null>(null);
 
   // Cache IndexedDB
   #cache: RecipesIDBCache | null = null;
@@ -172,7 +174,7 @@ class RecipesStore {
         // C. Charger l'index depuis data.json (recettes published)
         // Cette étape est cruciale - si elle échoue, on initialise avec le cache existant
         try {
-          await this.#loadIndexFromDataJson();
+          await this.#loadIndexFromDataJson(cachedMetadata);
         } catch (err) {
           console.error(
             "[RecipesStore] Erreur lors du chargement depuis data.json:",
@@ -200,16 +202,29 @@ class RecipesStore {
           }
         }
 
-        // E. Charger les recettes non-published depuis Appwrite
+        // E. Sync Incrémentiel Appwrite (Recettes modifiées depuis lastSync)
+        if (globalState.userId) {
+          try {
+            await this.#incrementalSync(cachedMetadata);
+          } catch (err) {
+            console.warn(
+              "[RecipesStore] Erreur lors de la sync incrémentielle Appwrite:",
+              err,
+            );
+            // Non-bloquant, on continue avec ce qu'on a
+          }
+        }
+
+        // F. Fallback: Charger TOUTES les recettes non-published depuis Appwrite
+        // (Juste au cas où, pour garantir qu'on a bien les drafts, même anciens)
         if (globalState.userId) {
           try {
             await this.#loadAppwriteRecipes();
           } catch (err) {
             console.warn(
-              "[RecipesStore] Erreur lors du chargement des recettes Appwrite:",
+              "[RecipesStore] Erreur lors du chargement des recettes non-publiées:",
               err,
             );
-            // Ne pas bloquer l'initialisation pour cette étape
           }
         }
 
@@ -253,81 +268,87 @@ class RecipesStore {
   }
 
   /**
-   * Charge l'index des recettes depuis /api/data.json
+   * Charge l'index (`data.json`).
+   * Vérifie le timestamp inclus dans `meta` pour savoir si le cache doit être mis à jour.
    */
-  async #loadIndexFromDataJson(): Promise<void> {
+  async #loadIndexFromDataJson(cachedMetadata: any): Promise<void> {
     try {
-      console.log("[RecipesStore] Chargement de l'index depuis data.json...");
+      console.log("[RecipesStore] Chargement data.json...");
 
+      // 1. Fetch data.json
       const response = await fetch(DATA_JSON_URL);
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
       const data = await response.json();
-      const rawRecipes = data.recipes;
 
-      if (!Array.isArray(rawRecipes)) {
-        throw new Error(
-          "Format de données invalide: recipes n'est pas un tableau",
-        );
+      // 2. Vérification structure & Timestamp
+      if (!Array.isArray(data.recipes)) {
+        throw new Error("Format invalide: recipes n'est pas un tableau");
       }
-
-      // Parser et nettoyer chaque recette
-      const recipes = rawRecipes.map((recipe) => parseRecipeIndexEntry(recipe));
-
-      // Calculer un hash de l'index
-      const indexHash = await this.#calculateHash(JSON.stringify(recipes));
-
-      // Vérifier si l'index a changé
-      const cachedMetadata = await this.#cache!.loadMetadata();
-      if (cachedMetadata.indexHash === indexHash) {
-        console.log("[RecipesStore] Index inchangé, utilisation du cache");
+      
+      const remoteTimestamp = data.meta?.timestamp;
+      this.#versionTimestamp = remoteTimestamp; // Toujours stocker le dernier timestamp vu
+      
+      if (
+        remoteTimestamp &&
+        cachedMetadata && 
+        cachedMetadata.buildTimestamp &&
+        cachedMetadata.buildTimestamp >= remoteTimestamp
+      ) {
+        console.log(`[RecipesStore] Cache à jour (Ts: ${cachedMetadata.buildTimestamp} >= ${remoteTimestamp})`);
+        
+        // Même si le cache est à jour par rapport au build, on peut vouloir 
+        // mettre à jour l'index en mémoire si on n'avait rien (premier chargement)
+        // Mais ici on suppose que loadRecipesIndex a déjà rempli this.#recipesIndex
         return;
       }
 
-      // Mettre à jour l'index
-      const indexMap = new Map<string, RecipeIndexEntry>();
-      recipes.forEach((recipe) => {
-        indexMap.set(recipe.$id, recipe);
+      console.log(`[RecipesStore] Nouvelle version détectée ou cache manquant (Ts: ${remoteTimestamp}), Traitement...`);
+
+      // 3. Smart Merge (Index en mémoire vs Nouvelles données)
+      const recipes = data.recipes.map((r: any) => parseRecipeIndexEntry(r));
+      let updatedCount = 0;
+
+      recipes.forEach((newRecipe: RecipeIndexEntry) => {
+        const existing = this.#recipesIndex.get(newRecipe.$id);
+
+        let shouldUpdate = false;
+        if (!existing) {
+          shouldUpdate = true; // Nouveau
+        } else {
+          // Si existant, comparer les dates de mise à jour pour éviter d'écraser un changement Appwrite récent
+          // non encore buildé par Hugo.
+          const newDate = new Date(newRecipe.$updatedAt).getTime();
+          const existingDate = new Date(existing.$updatedAt).getTime();
+          if (newDate > existingDate) {
+            shouldUpdate = true;
+          }
+        }
+
+        if (shouldUpdate) {
+          this.#recipesIndex.set(newRecipe.$id, newRecipe);
+          updatedCount++;
+        }
       });
 
-      this.#recipesIndex = new SvelteMap(indexMap);
       this.#lastSync = new Date().toISOString();
+      console.log(`[RecipesStore] Smart Merge: ${updatedCount} recettes mises à jour/ajoutées.`);
 
-      // Sauvegarder dans le cache
+      // 4. Mise à jour du cache
       if (this.#cache) {
-        await this.#cache.saveRecipesIndex(indexMap);
+        // Sauvegarder l'index complet (mémoire)
+        await this.#cache.saveRecipesIndex(this.#recipesIndex);
         await this.#cache.saveMetadata({
+          ...cachedMetadata, 
           lastSync: this.#lastSync,
-          indexHash,
-          hugoDataHash: indexHash, // Utiliser le même hash ou un hash spécifique au fichier
-          recipesCount: indexMap.size,
+          buildTimestamp: remoteTimestamp || Date.now() / 1000, // Fallback si pas de meta
+          recipesCount: this.#recipesIndex.size,
           cacheVersion: 1,
         });
       }
-
-      console.log(
-        `[RecipesStore] ${indexMap.size} recettes (index) chargées depuis data.json`,
-      );
     } catch (err) {
-      console.error(
-        "[RecipesStore] Erreur lors du chargement de l'index:",
-        err,
-      );
+      console.error("[RecipesStore] Erreur loadIndexFromDataJson:", err);
       throw err;
     }
-  }
-
-  /**
-   * Calcule un hash simple du contenu
-   */
-  async #calculateHash(content: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(content);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
   /**
@@ -416,6 +437,105 @@ class RecipesStore {
       console.error("[RecipesStore] Erreur lors du chargement Appwrite:", err);
       // Ne pas bloquer l'initialisation
     }
+  }
+
+  /**
+   * Sync Incrémentiel avec Appwrite
+   * Récupère toutes les recettes (published ou draft) modifiées après la dernière sync réussie.
+   */
+  async #incrementalSync(cachedMetadata: any): Promise<void> {
+    console.log("[RecipesStore] Sync incrémentiel Appwrite...");
+    
+    // Déterminer le point de départ
+    let since = cachedMetadata?.lastAppwriteSync;
+    
+    // Si pas de lastAppwriteSync, on utilise le timestamp du build Hugo comme approximation safe
+    if (!since && this.#versionTimestamp) {
+        since = new Date(this.#versionTimestamp * 1000).toISOString();
+    }
+    
+    // Si toujours rien (cache vide, pas de build?), on prend une date arbitraire très ancienne
+    if (!since) {
+        since = "1970-01-01T00:00:00.000Z";
+    }
+
+    const updatedRecipes = await listUpdatedRecipes(since);
+    
+    if (updatedRecipes.length === 0) {
+        console.log("[RecipesStore] Aucune mise à jour Appwrite détectée.");
+        return;
+    }
+
+    console.log(`[RecipesStore] ${updatedRecipes.length} recettes mises à jour depuis Appwrite.`);
+
+    let updatedCount = 0;
+    updatedRecipes.forEach(recipe => {
+        // Parsing unifié
+        const indexEntry = this.#parseAppwriteRecipeToIndexEntry(recipe);
+        
+        // Upsert inconstestable (Appwrite est la source de vérité pour les modifs récentes)
+        this.#recipesIndex.set(indexEntry.$id, indexEntry);
+        
+        // Si la recette est publiée, on met aussi à jour le cache de détails si possible ? 
+        // Non, on laisse le lazy loading faire, sauf si on veut être proactif.
+        // Pour l'instant on met juste à jour l'index.
+        updatedCount++;
+    });
+
+    // Mettre à jour lastAppwriteSync
+    const now = new Date().toISOString();
+    
+    if (this.#cache) {
+        await this.#cache.saveRecipesIndex(this.#recipesIndex);
+        await this.#cache.saveMetadata({
+            ...cachedMetadata,
+            lastAppwriteSync: now
+        });
+    }
+    
+    console.log(`[RecipesStore] Sync incrémentiel terminé (${updatedCount} mises à jour).`);
+  }
+
+  /**
+   * Convertit une recette Appwrite (Recettes) en entrée d'index (RecipeIndexEntry)
+   */
+  #parseAppwriteRecipeToIndexEntry(recipe: any): RecipeIndexEntry {
+    // Extraire les noms d'ingrédients
+    let ingredientNames: string[] = [];
+    if (recipe.ingredients) {
+        const ingredients = ingredientsFromAppwrite(recipe.ingredients);
+        ingredientNames = ingredients.map((ing) => ing.name);
+    }
+
+    return {
+      title: recipe.title,
+      typeR: recipe.typeR,
+      categories: recipe.categories,
+      regime: recipe.regime,
+      draft: recipe.draft || false,
+      saison: recipe.saison,
+
+      // Champs de filtrage rapide
+      ingredients: ingredientNames,
+      materiel: recipe.materiel,
+      region: recipe.region || null,
+      serveHot: recipe.serveHot,
+      cuisson: recipe.cuisson,
+      check: recipe.check,
+      auteur: recipe.auteur || recipe.createdBy,
+
+      // Champs de permission
+      permissionWrite: recipe.permissionWrite,
+
+      // Champs de gestion
+      isPublished: recipe.isPublished,
+      lockedBy: recipe.lockedBy || null,
+      $id: recipe.$id,
+      $createdAt: recipe.$createdAt,
+      $updatedAt: recipe.$updatedAt,
+      createdBy: recipe.createdBy,
+      plate: recipe.plate,
+    };
   }
 
   /**

@@ -5,7 +5,7 @@
  * - 1 base: `recipes-cache`
  * - 1 store "recipes-index" pour les RecipeIndexEntry (index léger)
  * - 1 store "recipes-details" pour les Recettes (détails complets)
- * - 1 store "metadata" pour lastSync + indexHash
+ * - 1 store "metadata" pour lastSync + buildTimestamp
  *
  * Stratégie:
  * - L'index est chargé au démarrage (léger)
@@ -36,10 +36,8 @@ export interface RecipesIDBCache {
   saveRecipeDetail(recipe: Recettes): Promise<void>;
   loadAllRecipeDetails(): Promise<Map<string, Recettes>>;
 
-  // Metadata
   loadMetadata(): Promise<RecipesCacheMetadata>;
   saveMetadata(metadata: RecipesCacheMetadata): Promise<void>;
-  updateIndexHash(hash: string | null): Promise<void>;
 
   // Utilitaires
   deleteRecipeDetail(uuid: string): Promise<void>;
@@ -54,7 +52,7 @@ export interface RecipesIDBCache {
 class RecipesIndexedDBCache implements RecipesIDBCache {
   private dbName = "recipes-cache";
   private db: IDBDatabase | null = null;
-  private version = 3; // Incrémenter pour forcer la migration des données (slug -> $id)
+  private version = 4; // Incrément de version pour format de métadonnées simplifié
 
   // Noms des object stores
   private readonly RECIPES_INDEX_STORE = "recipes-index";
@@ -63,7 +61,8 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
 
   // Clés pour les métadonnées
   private readonly LAST_SYNC_KEY = "lastSync";
-  private readonly INDEX_HASH_KEY = "indexHash";
+  private readonly BUILD_TIMESTAMP_KEY = "buildTimestamp";
+  private readonly LAST_APPWRITE_SYNC_KEY = "lastAppwriteSync";
   private readonly RECIPES_COUNT_KEY = "recipesCount";
 
   /**
@@ -280,24 +279,24 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
 
         const metadata: RecipesCacheMetadata = {
           lastSync: null,
-          indexHash: null,
-          hugoDataHash: null,
+          buildTimestamp: null,
+          lastAppwriteSync: null,
           recipesCount: 0,
           cacheVersion: 1,
         };
 
         allEntries.forEach((entry) => {
           if (entry.key === this.LAST_SYNC_KEY) metadata.lastSync = entry.value;
-          else if (entry.key === this.INDEX_HASH_KEY)
-            metadata.indexHash = entry.value;
-          else if (entry.key === this.HUGO_DATA_HASH_KEY)
-            metadata.hugoDataHash = entry.value;
           else if (entry.key === this.RECIPES_COUNT_KEY)
             metadata.recipesCount = entry.value;
+          else if (entry.key === this.BUILD_TIMESTAMP_KEY)
+            metadata.buildTimestamp = entry.value;
+          else if (entry.key === this.LAST_APPWRITE_SYNC_KEY)
+            metadata.lastAppwriteSync = entry.value;
         });
 
         console.log(
-          `[RecipesIDBCache] Metadata chargées: count=${metadata.recipesCount}, hash=${metadata.indexHash}`,
+          `[RecipesIDBCache] Metadata chargées: count=${metadata.recipesCount}, build=${metadata.buildTimestamp}, sync=${metadata.lastAppwriteSync}`,
         );
         resolve(metadata);
       };
@@ -317,8 +316,14 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       const store = tx.objectStore(this.METADATA_STORE);
 
       store.put({ key: this.LAST_SYNC_KEY, value: metadata.lastSync });
-      store.put({ key: this.INDEX_HASH_KEY, value: metadata.indexHash });
-      store.put({ key: this.HUGO_DATA_HASH_KEY, value: metadata.hugoDataHash });
+      store.put({
+        key: this.BUILD_TIMESTAMP_KEY,
+        value: metadata.buildTimestamp,
+      });
+      store.put({
+        key: this.LAST_APPWRITE_SYNC_KEY,
+        value: metadata.lastAppwriteSync,
+      });
       store.put({ key: this.RECIPES_COUNT_KEY, value: metadata.recipesCount });
 
       tx.oncomplete = () => {
@@ -329,27 +334,6 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       tx.onerror = () => reject(tx.error);
     });
   }
-
-  /**
-   * Met à jour uniquement le hash de l'index
-   */
-  async updateIndexHash(hash: string | null): Promise<void> {
-    if (!this.db) throw new Error("DB non ouverte");
-
-    return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction(this.METADATA_STORE, "readwrite");
-      const store = tx.objectStore(this.METADATA_STORE);
-      const request = store.put({ key: this.INDEX_HASH_KEY, value: hash });
-
-      request.onsuccess = () => {
-        console.log(`[RecipesIDBCache] indexHash mis à jour: ${hash}`);
-        resolve();
-      };
-
-      request.onerror = () => reject(request.error);
-    });
-  }
-
   // =============================================================================
   // UTILITAIRES
   // =============================================================================

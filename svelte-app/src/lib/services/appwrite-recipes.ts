@@ -104,6 +104,30 @@ export async function listAllNonPublishedRecipes(): Promise<Recettes[]> {
     throw error;
   }
 }
+/**
+ * Liste les recettes modifiées depuis une certaine date (Sync incrémentiel)
+ */
+export async function listUpdatedRecipes(since: string): Promise<Recettes[]> {
+  try {
+    const { tables, config } = await getAppwriteInstances();
+
+    const queries = [Query.greaterThan("$updatedAt", since)];
+
+    const response = await tables.listRows({
+      databaseId: config.databaseId,
+      tableId: RECIPES_COLLECTION_ID,
+      queries,
+    });
+
+    return response.rows as unknown as Recettes[];
+  } catch (error) {
+    console.error(
+      `[appwrite-recipes] Error listing updated recipes since ${since}:`,
+      error,
+    );
+    throw error;
+  }
+}
 
 /**
  * Liste les recettes non-published ÉDITABLES par l'utilisateur

@@ -38,5 +38,7 @@
   {{- end -}}
 {{- end -}}
 
+
 {{/* Generate unified JSON output */}}
-{{- dict "recipes" $recipes | jsonify -}}
+{{- $meta := dict "timestamp" now.Unix "date" (now.Format "2006-01-02T15:04:05Z07:00") -}}
+{{- dict "meta" $meta "recipes" $recipes | jsonify -}}

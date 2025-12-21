@@ -449,7 +449,7 @@
         // On nettoie les champs pour Hugo (id, createdAt, updatedAt)
         const hugoData = {
           ...recipeToCreate,
-          id: created.$id,
+          $id: created.$id,
           createdAt: created.$createdAt,
           updatedAt: created.$updatedAt,
           createdBy: created.createdBy,

@@ -147,8 +147,8 @@ export interface RecipeDataCacheMetadata {
  */
 export interface RecipesCacheMetadata {
   lastSync: string | null;
-  indexHash: string | null;
-  hugoDataHash: string | null; // Hash du fichier data.json
+  buildTimestamp: number | null; // Timestamp du dernier build Hugo traité
+  lastAppwriteSync: string | null; // Timestamp de la dernière sync Appwrite réussie
   recipesCount: number;
   cacheVersion: number; // Version du format de cache
 }
