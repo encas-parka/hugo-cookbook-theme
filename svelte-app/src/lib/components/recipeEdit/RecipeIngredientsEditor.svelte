@@ -243,7 +243,7 @@
   }
 </script>
 
-<div class="space-y-4">
+<div class="space-y-4" id="recipe-ingredients-editor">
   <!-- Indicateur de chargement -->
   {#if recipeDataStore.loading}
     <div class="card bg-base-100 border-base-300 border shadow-sm">

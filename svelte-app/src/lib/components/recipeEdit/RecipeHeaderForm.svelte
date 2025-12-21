@@ -33,36 +33,67 @@
       Informations générales
     </h2>
 
-    <div class="flex flex-col gap-6">
-      <!-- Titre et Couverts -->
-      <fieldset class="fieldset w-96">
-        <legend class="fieldset-legend">Titre de la recette</legend>
-        <label class="input {validationErrors.title ? 'input-error' : ''}">
-          <BookOpen class="h-4 w-4 opacity-50" />
-          <input
-            id="recipe-title"
-            type="text"
-            bind:value={recipe.title}
-            placeholder="Ex: Houmous maison"
-            disabled={!canEdit}
-            maxlength="100"
-            aria-describedby="title-help"
-            aria-required="true"
-          />
-        </label>
-        <div class="fieldset-label" id="title-help">
-          <span class="fieldset-label-text-alt opacity-70"
-            >Maximum 100 caractères</span
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-wrap gap-x-10 gap-y-2">
+        <!-- Titre et description -->
+        <fieldset class="fieldset w-96">
+          <legend class="fieldset-legend">Titre de la recette</legend>
+          <label
+            class="input w-full {validationErrors.title ? 'input-error' : ''}"
           >
-          {#if validationErrors.title}
-            <span class="fieldset-label-text-alt text-error"
-              >{validationErrors.title}</span
+            <BookOpen class="h-4 w-4 opacity-50" />
+            <input
+              id="recipe-title"
+              type="text"
+              bind:value={recipe.title}
+              placeholder="Ex: Houmous maison"
+              disabled={!canEdit}
+              maxlength="100"
+              aria-describedby="title-help"
+              aria-required="true"
+            />
+          </label>
+          <div class="fieldset-label" id="title-help">
+            <span class="fieldset-label-text-alt opacity-70"
+              >{recipe.title?.length || 0}/100 caractères</span
             >
-          {/if}
-        </div>
-      </fieldset>
+            {#if validationErrors.title}
+              <span class="fieldset-label-text-alt text-error"
+                >{validationErrors.title}</span
+              >
+            {/if}
+          </div>
+        </fieldset>
+
+        <fieldset class="fieldset min-w-2xs flex-1">
+          <legend class="fieldset-legend">Description</legend>
+          <input
+            type="text"
+            name="description"
+            id="description"
+            maxlength="200"
+            bind:value={recipe.description}
+            placeholder="Brève description de la recette"
+            disabled={!canEdit}
+            class="input w-full {validationErrors.description
+              ? 'input-error'
+              : ''}"
+          />
+          <span class="fieldset-label">
+            <span class="fieldset-label-text-alt opacity-70"
+              >{recipe.description?.length || 0}/200 caractères</span
+            >
+            {#if validationErrors.description}
+              <span class="fieldset-label-text-alt text-error"
+                >{validationErrors.description}</span
+              >
+            {/if}
+          </span>
+        </fieldset>
+      </div>
+
       <div class="flex flex-wrap justify-between gap-10">
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-wrap gap-x-10 gap-y-2">
           <fieldset class="fieldset">
             <legend class="fieldset-legend">Nombre de couverts</legend>
             <label class="input {validationErrors.plate ? 'input-error' : ''}">
@@ -109,7 +140,7 @@
             </label>
             <div class="fieldset-label">
               <span class="fieldset-label-text-alt opacity-70"
-                >Précision sur les quantités / parts</span
+                >{recipe.quantite_desc?.length || 0}/100 caractères</span
               >
               {#if validationErrors.quantite_desc}
                 <span class="fieldset-label-text-alt text-error"
@@ -119,93 +150,10 @@
             </div>
           </fieldset>
         </div>
-
-        <fieldset
-          class="fieldset w-fit space-y-4 self-start rounded-xl border-2 p-6 {validationErrors.check
-            ? 'border-error'
-            : 'border-base-300'}"
-        >
-          <label class="flex cursor-pointer items-center gap-2">
-            <span class="me-2"
-              >Avez-vous testé la recette pour le nombre de couverts indiqué ?</span
-            >
-            <input
-              type="radio"
-              name="check"
-              checked={recipe?.check === true}
-              onchange={() => recipe && (recipe.check = true)}
-              disabled={!canEdit}
-              class="radio radio-primary radio-sm"
-            />
-            <span class="text-sm">Oui</span>
-            <input
-              type="radio"
-              name="check"
-              checked={recipe?.check === false}
-              onchange={() => recipe && (recipe.check = false)}
-              disabled={!canEdit}
-              class="radio radio-primary radio-sm"
-            />
-            <span class="text-sm">Non</span>
-          </label>
-          {#if validationErrors.check}
-            <div class="fieldset-label">
-              <span class="fieldset-label-text-alt text-error"
-                >{validationErrors.check}</span
-              >
-            </div>
-          {/if}
-          <label class="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
-              class="checkbox checkbox-primary checkbox-sm mt-1"
-              bind:checked={recipe.draft}
-              disabled={!canEdit || recipe.check !== true}
-            />
-            <div class="flex max-w-md flex-col">
-              <p class="text-sm font-medium">Brouillon</p>
-              <p class="opacity-70">
-                Les brouillons sont visibles uniquement pour les
-                utilisateur·ices inscrite, mais peuvent tout de même être
-                ajoutés à vos événements.
-              </p>
-              {#if recipe.check !== true}
-                <p class="text-warning/70">
-                  Une recette non testée est forcément conservée en brouillon.
-                </p>
-              {/if}
-            </div>
-          </label>
-        </fieldset>
       </div>
 
-      <fieldset class="fieldset w-full">
-        <legend class="fieldset-legend">Description</legend>
-        <textarea
-          name="description"
-          id="description"
-          maxlength="200"
-          bind:value={recipe.description}
-          placeholder="Brève description de la recette"
-          disabled={!canEdit}
-          class="textarea w-full {validationErrors.description
-            ? 'textarea-error'
-            : ''}"
-        ></textarea>
-        <span class="fieldset-label">
-          <span class="fieldset-label-text-alt opacity-70"
-            >Maximum 200 charactères</span
-          >
-          {#if validationErrors.description}
-            <span class="fieldset-label-text-alt text-error"
-              >{validationErrors.description}</span
-            >
-          {/if}
-        </span>
-      </fieldset>
-
       <!-- Type et Catégories -->
-      <div class="flex flex-col gap-6 sm:flex-row sm:items-start">
+      <div class="flex flex-col gap-x-10 gap-y-2 sm:flex-row sm:items-start">
         <fieldset class="fieldset sm:w-auto">
           <legend class="fieldset-legend">Type de recette</legend>
           <label class="select {validationErrors.typeR ? 'select-error' : ''}">
@@ -247,7 +195,7 @@
       </div>
 
       <!-- Température et Cuisson -->
-      <div class="flex flex-col gap-6 sm:flex-row sm:items-start">
+      <div class="flex flex-col gap-x-10 gap-y-2 sm:flex-row sm:items-start">
         <fieldset class="fieldset flex-1 sm:max-w-xs">
           <legend class="fieldset-legend pe-4">
             <Thermometer class="h-4 w-4" />
@@ -287,7 +235,11 @@
               ? 'select-error'
               : ''}"
           >
-            <select bind:value={recipe.cuisson} disabled={!canEdit}>
+            <select
+              id="recipe-cuisson"
+              bind:value={recipe.cuisson}
+              disabled={!canEdit}
+            >
               <option value="" disabled selected>--</option>
               <option value={true}>Oui</option>
               <option value={false}>Non</option>
@@ -333,6 +285,7 @@
           <label class="input {validationErrors.region ? 'input-error' : ''}">
             <MapPin class="h-4 w-4 opacity-50" />
             <input
+              id="recipe-region"
               type="text"
               bind:value={recipe.region}
               placeholder="Ex: Basque, Italien"
@@ -344,6 +297,12 @@
             <div class="fieldset-label">
               <span class="fieldset-label-text-alt text-error"
                 >{validationErrors.region}</span
+              >
+            </div>
+          {:else}
+            <div class="fieldset-label">
+              <span class="fieldset-label-text-alt opacity-70"
+                >{recipe.region?.length || 0}/50 caractères</span
               >
             </div>
           {/if}
@@ -362,6 +321,71 @@
             />
           </div>
         {/if}
+      </div>
+      <div
+        id="recipe-check-fieldset"
+        class=" flex w-full flex-wrap space-y-6 rounded-xl border-1 p-4 {validationErrors.check
+          ? 'border-error'
+          : 'border-base-300'}"
+      >
+        <div class="flex w-full flex-wrap gap-x-6 gap-y-2">
+          <div>
+            Avez-vous testé la recette pour le nombre de couverts indiqué ?
+          </div>
+          <div class="flex gap-4">
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="check"
+                checked={recipe?.check === true}
+                onchange={() => recipe && (recipe.check = true)}
+                disabled={!canEdit}
+                class="radio radio-primary radio-sm"
+              />
+              <span class="text-sm">Oui</span>
+            </label>
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="check"
+                checked={recipe?.check === false}
+                onchange={() => recipe && (recipe.check = false)}
+                disabled={!canEdit}
+                class="radio radio-primary radio-sm"
+              />
+              <span class="text-sm">Non</span>
+            </label>
+          </div>
+        </div>
+        {#if validationErrors.check}
+          <div class="fieldset-label">
+            <span class="fieldset-label-text-alt text-error"
+              >{validationErrors.check}</span
+            >
+          </div>
+        {/if}
+        <label class="flex w-full cursor-pointer gap-3">
+          <input
+            type="checkbox"
+            class="checkbox checkbox-primary checkbox-sm mt-1"
+            bind:checked={recipe.draft}
+            disabled={!canEdit || recipe.check !== true}
+          />
+          <div class="flex flex-col">
+            <p class="text-sm font-medium">Brouillon</p>
+            <p class="opacity-70">
+              Les brouillons sont visibles uniquement pour les utilisateur·ices
+              inscrite, mais peuvent tout de même être ajoutés à vos événements.
+              Le status "brouillon" vous permettra de retrouver facilement les
+              recettes que vous n'avez pas finalisé.
+            </p>
+            {#if recipe.check !== true}
+              <p class="text-warning/70">
+                Une recette non testée est forcément conservée en brouillon.
+              </p>
+            {/if}
+          </div>
+        </label>
       </div>
     </div>
   </div>

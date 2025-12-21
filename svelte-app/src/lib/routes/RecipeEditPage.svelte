@@ -97,6 +97,7 @@
   let isLoading = $state(false);
   let isSaving = $state(false);
   let lockedBy = $state<string | null>(null);
+  let heartbeatInterval: any = null;
 
   // Logique réactive pour le brouillon
   $effect(() => {
@@ -154,9 +155,50 @@
     });
   });
 
-  onDestroy(() => {
+  onDestroy(async () => {
     navBarStore.reset();
+    stopHeartbeat();
+    if (isLockedByMe && !isSaving) {
+      await releaseLock();
+    }
+    window.removeEventListener("beforeunload", handleBeforeUnload);
   });
+
+  function handleBeforeUnload(e: BeforeUnloadEvent) {
+    if (isDirty) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  }
+
+  $effect(() => {
+    if (isDirty) {
+      window.addEventListener("beforeunload", handleBeforeUnload);
+    } else {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    }
+  });
+
+  function startHeartbeat() {
+    stopHeartbeat();
+    if (!recipeId || !isLockedByMe) return;
+
+    heartbeatInterval = setInterval(async () => {
+      try {
+        console.log("💓 Heartbeat: Refreshing lock...");
+        await recipesStore.updateRecipeLock(recipeId!, globalState.userId);
+      } catch (error) {
+        console.error("❌ Heartbeat failed:", error);
+      }
+    }, 120000); // 2 minutes
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+  }
 
   // ============================================================================
   // LOCK MANAGEMENT
@@ -283,12 +325,36 @@
   }
 
   async function acquireLock(): Promise<boolean> {
-    if (!recipeId || !globalState.userId) return false;
+    if (!recipeId || !globalState.userId || !recipe) return false;
+
+    // Smart Lock: On ne verrouille que s'il y a plus d'un contributeur potentiel
+    const contributors = recipe.permissionWrite || [];
+    if (contributors.length <= 1) {
+      console.log("ℹ️ Verrou ignoré (contributeur unique)");
+      return true;
+    }
 
     try {
+      // Vérifier si le verrou actuel est expiré (plus de 5 minutes)
+      const currentLockedBy = recipe.lockedBy;
+      const lastUpdate = recipe.$updatedAt ? new Date(recipe.$updatedAt) : null;
+      const isExpired =
+        lastUpdate && Date.now() - lastUpdate.getTime() > 300000; // 5 min
+
+      if (currentLockedBy && currentLockedBy !== globalState.userId) {
+        if (isExpired) {
+          console.log("⏳ Verrou précédent expiré, reprise de contrôle...");
+          toastService.info("Verrou précédent expiré, vous prenez le contrôle");
+        } else {
+          toastService.warning("Cette recette est déjà en cours d'édition");
+          return false;
+        }
+      }
+
       await recipesStore.updateRecipeLock(recipeId, globalState.userId);
       lockedBy = globalState.userId;
       console.log("🔒 Verrou acquis");
+      startHeartbeat();
       return true;
     } catch (error) {
       console.error("❌ Erreur acquisition verrou:", error);
@@ -299,6 +365,7 @@
 
   async function releaseLock(): Promise<void> {
     if (!recipeId) return;
+    stopHeartbeat();
 
     try {
       await recipesStore.updateRecipeLock(recipeId, null);
@@ -436,11 +503,46 @@
       }
     }
 
-    // Afficher un toast avec la liste des erreurs
+    // Afficher un toast avec la liste des erreurs et scroller vers la première
     if (hasError) {
       toastService.error("Veuillez corriger les champs invalides", {
         autoCloseDelay: 5000,
       });
+
+      // Scroll vers la première erreur
+      setTimeout(() => {
+        const firstErrorKey = Object.keys(validationErrors)[0];
+        const errorIdMap: Record<string, string> = {
+          title: "recipe-title",
+          typeR: "recipe-type",
+          cuisson: "recipe-cuisson",
+          serveHot: "recipe-servehot",
+          plate: "recipe-plate",
+          quantite_desc: "recipe-quantite-desc",
+          description: "description",
+          region: "recipe-region",
+          check: "recipe-check-fieldset",
+          ingredients: "recipe-ingredients-editor", // Nécessite l'ajout de cet ID
+          preparation: "recipe-preparation",
+          preparation24h: "recipe-preparation24h",
+        };
+
+        const targetId = errorIdMap[firstErrorKey];
+        if (targetId) {
+          const element = document.getElementById(targetId);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+            // Si c'est un input/select, on lui donne le focus
+            if (
+              element.tagName === "INPUT" ||
+              element.tagName === "SELECT" ||
+              element.tagName === "TEXTAREA"
+            ) {
+              element.focus();
+            }
+          }
+        }
+      }, 100);
     }
 
     // autoFormat
