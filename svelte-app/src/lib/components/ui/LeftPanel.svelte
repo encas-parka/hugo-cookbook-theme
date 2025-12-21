@@ -20,7 +20,7 @@
   <div
     class="{bgClass} {panelWidth
       ? panelWidth
-      : 'w-100'} fixed top-10 left-0 z-40 h-screen overflow-y-auto p-4"
+      : 'w-100'} fixed top-10 left-0 z-40 h-screen overflow-y-auto p-4 print:hidden"
   >
     {@render children?.()}
   </div>
@@ -43,7 +43,7 @@
   </div>
 
   <!-- FAB flottant pour mobile -->
-  <div class="fixed bottom-4 left-4 z-50">
+  <div class="fixed bottom-4 left-4 z-50 print:hidden">
     <label
       for="filters-drawer"
       class="btn btn-primary btn-circle btn-lg shadow-lg"

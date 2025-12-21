@@ -108,14 +108,14 @@
   );
 </script>
 
-<div class="space-y-4 rounded-lg">
+<div class="space-y-4 rounded-lg print:hidden">
   {#each Object.entries(groupedFilteredProducts) as [groupKey, gProducts] (groupKey)}
     {@const groupProducts : ProductModel[] = gProducts}
     {#if groupKey !== ""}
       <!-- Header de groupe sticky -->
       {@const groupTypeInfo = getProductTypeInfo(groupKey)}
       <div
-        class="bg-primary @container sticky top-16 z-2 flex flex-wrap items-center justify-between rounded-lg px-4 py-2 shadow-lg brightness-100 drop-shadow-xl @md:flex-nowrap"
+        class="bg-primary @container sticky top-16 z-2 flex flex-wrap items-center justify-between rounded-lg px-4 py-2 shadow-lg brightness-100 drop-shadow-xl @md:flex-nowrap print:shadow-none"
       >
         <!-- Nom du groupe -->
         <div class="flex items-center gap-2 font-bold md:text-lg @md:min-w-48">
@@ -540,6 +540,115 @@
         </div>
         <!-- <div class="divider my-0.5 py-0"></div> -->
       {/each}
+    </div>
+  {/each}
+</div>
+
+<!-- Vue TABLEAU pour l'impression (Alternative compacte) -->
+<div class="hidden w-full print:block">
+  {#each Object.entries(groupedFilteredProducts) as [groupKey, groupProducts] (groupKey)}
+    <div class="break-inside-avoid">
+      {#if groupKey !== ""}
+        <div class="mt-6 mb-2">
+          <div class="border-b-2 border-gray-800 pb-1 font-bold uppercase">
+            {groupKey === "Non défini" ? "Groupe inconnu" : groupKey}
+            <span class="ml-2 text-sm font-normal normal-case opacity-70"
+              >({groupProducts.length} produits)</span
+            >
+            <span class="float-right ml-auto text-xs font-normal opacity-50">
+              {#if productsStore.dateStore.isFullRange}
+                Toute la période
+              {:else if productsStore.dateStore.start !== productsStore.dateStore.end}
+                du {formatedStartDateRange} au {formatedEndDateRange}
+              {:else}
+                le {formatedStartDateRange}
+              {/if}
+            </span>
+          </div>
+        </div>
+      {/if}
+
+      <table class="table-compact table w-full border-collapse">
+        <thead>
+          <tr class="border-b border-gray-400 bg-gray-100 text-left">
+            <th class="w-1/12 border px-2 py-1">Check</th>
+            <th class="w-4/12 border px-2 py-1">Produit</th>
+            <th class="w-2/12 border px-2 py-1">Besoin</th>
+            {#if filters.groupBy === "store"}
+              <th class="w-3/12 border px-2 py-1">Qui / Type</th>
+            {:else}
+              <th class="w-3/12 border px-2 py-1">Store / Qui</th>
+            {/if}
+            <th class="w-2/12 border px-2 py-1 text-right">Acheté</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each groupProducts as productModel (productModel.data.$id)}
+            {@const product = productModel.data}
+            {@const productInDateRange = productModel.stats}
+
+            <tr class="break-inside-avoid border-b border-gray-300">
+              <td class="border px-2 py-1 text-center">
+                <div class="mx-auto h-4 w-4 border border-gray-400"></div>
+              </td>
+              <td class="border px-2 py-1 font-medium">
+                {product.productName}
+                {#if product.previousNames && product.previousNames.length > 0}
+                  <span class="block text-[9pt] font-normal opacity-60"
+                    >(Ancien: {product.previousNames[0]})</span
+                  >
+                {/if}
+              </td>
+              <td class="border px-2 py-1 text-sm font-bold">
+                {#if product.totalNeededOverrideParsed?.totalOverride}
+                  {product.totalNeededOverrideParsed.totalOverride.q}
+                  {product.totalNeededOverrideParsed.totalOverride.u}
+                {:else}
+                  {productInDateRange.formattedQuantities}
+                {/if}
+              </td>
+              <td class="border px-2 py-1 text-sm">
+                {#if filters.groupBy === "store"}
+                  <!-- Si groupé par STORE, on montre WHO et TYPE -->
+                  <div class="flex flex-col gap-0.5">
+                    {#if product.who?.length}
+                      <div class="font-medium">👤 {product.who.join(", ")}</div>
+                    {/if}
+                    <div class="text-[9pt] opacity-70">
+                      📦 {product.productType || "Autre"}
+                    </div>
+                  </div>
+                {:else}
+                  <!-- Sinon (groupé par TYPE ou aucun), on montre STORE et WHO -->
+                  <div class="flex flex-col gap-0.5">
+                    {#if product.storeInfo?.storeName}
+                      <div class="font-medium">
+                        🏪 {product.storeInfo.storeName}
+                      </div>
+                    {/if}
+                    {#if product.who?.length}
+                      <div class="text-[9pt] opacity-70">
+                        👤 {product.who.join(", ")}
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+              </td>
+              <td class="border px-2 py-1 text-right text-sm">
+                {#if product.purchases?.length}
+                  <div class="flex flex-col items-end gap-0.5">
+                    {#each product.purchases as p}
+                      <div class="text-nowrap">{p.quantity} {p.unit}</div>
+                    {/each}
+                  </div>
+                {:else}
+                  <span class="opacity-30">—</span>
+                {/if}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     </div>
   {/each}
 </div>

@@ -300,9 +300,13 @@
   <ProductsFilters />
 </LeftPanel>
 
-<div class="space-y-6 {globalState.isMobile ? '' : 'ml-110'} md:px-16">
+<div
+  class="space-y-6 {globalState.isMobile ? '' : 'ml-110 print:ml-0'} md:px-16"
+>
   <!-- Stats -->
-  <div class="flex justify-end py-5"><EventStats {eventStats} /></div>
+  <div class="flex justify-end py-5 print:hidden">
+    <EventStats {eventStats} />
+  </div>
   <ProductsCards
     onOpenModal={openModal}
     onOpenGroupEditModal={openGroupEditModal}

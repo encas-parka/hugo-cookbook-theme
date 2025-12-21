@@ -67,7 +67,7 @@
 <AuthModal bind:isOpen={showAuthModal} onAuthSuccess={handleLoginSuccess} />
 
 <div
-  class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] border-b px-4 py-0 shadow-sm"
+  class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] border-b px-4 py-0 shadow-sm print:hidden"
 >
   <div class="navbar-start gap-1">
     <!-- Brand -->
