@@ -19,6 +19,7 @@
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import RecipeHeaderForm from "$lib/components/recipeEdit/RecipeHeaderForm.svelte";
   import RecipePrepaForm from "$lib/components/recipeEdit/RecipePrepaForm.svelte";
+  import RecipePermissionsManager from "$lib/components/recipeEdit/RecipePermissionsManager.svelte";
   import { UnitConverter } from "$lib/utils/UnitConverter";
   import { generateSlugUuid35 } from "../utils/slugUtils";
 
@@ -69,6 +70,7 @@
       | "cuisson"
       | "serveHot"
       | "check"
+      | "$id"
     > {
     $id?: string;
     ingredients: RecipeIngredient[];
@@ -81,6 +83,11 @@
     $createdAt?: string;
     $updatedAt?: string;
     createdBy?: string;
+    plate: number;
+    quantite_desc: string | null;
+    description: string | null;
+    region: string | null;
+    draft: boolean;
   }
 
   let recipe = $state<RecipeFormState | null>(null);
@@ -104,6 +111,11 @@
     typeR?: string;
     cuisson?: string;
     serveHot?: string;
+    plate?: string;
+    quantite_desc?: string;
+    description?: string;
+    region?: string;
+    check?: string;
     ingredients?: string;
     preparation?: string;
     preparation24h?: string;
@@ -316,6 +328,18 @@
     } else if (recipe.title.length > 100) {
       validationErrors.title = "Le titre ne peut pas dépasser 100 caractères";
       hasError = true;
+    } else {
+      // Vérifier l'unicité du titre
+      const normalizedTitle = recipe.title.trim().toLowerCase();
+      const duplicate = recipesStore.recipesIndex.find(
+        (r) =>
+          r.title.trim().toLowerCase() === normalizedTitle &&
+          r.$id !== recipe.$id,
+      );
+      if (duplicate) {
+        validationErrors.title = "Une recette porte déjà ce nom";
+        hasError = true;
+      }
     }
 
     // Validation du type
@@ -335,6 +359,37 @@
     if (recipe.serveHot === null || recipe.serveHot === undefined) {
       validationErrors.serveHot =
         "Veuillez spécifier la température de service";
+      hasError = true;
+    }
+
+    // Validation du nombre de couverts (plate)
+    if (!recipe.plate || recipe.plate < 1) {
+      validationErrors.plate = "Le nombre de couverts doit être d'au moins 1";
+      hasError = true;
+    } else if (recipe.plate > 10000) {
+      validationErrors.plate =
+        "Le nombre de couverts ne peut pas dépasser 10 000";
+      hasError = true;
+    }
+
+    // Validation de la description des quantités
+    if (recipe.quantite_desc && recipe.quantite_desc.length > 100) {
+      validationErrors.quantite_desc =
+        "La description des quantités ne peut pas dépasser 100 caractères";
+      hasError = true;
+    }
+
+    // Validation de la description
+    if (recipe.description && recipe.description.length > 200) {
+      validationErrors.description =
+        "La description ne peut pas dépasser 200 caractères";
+      hasError = true;
+    }
+
+    // Validation de la spécialité (region)
+    if (recipe.region && recipe.region.length > 50) {
+      validationErrors.region =
+        "La spécialité ne peut pas dépasser 50 caractères";
       hasError = true;
     }
 
@@ -434,6 +489,10 @@
           cuisson: recipe.cuisson === "" ? false : recipe.cuisson,
           serveHot: recipe.serveHot === "" ? true : recipe.serveHot,
           check: recipe.check,
+          permissionWrite:
+            recipe.permissionWrite && recipe.permissionWrite.length > 0
+              ? recipe.permissionWrite
+              : [globalState.userId],
         };
 
         const created = await createRecipeAppwrite(
@@ -446,14 +505,21 @@
         });
 
         // Appel async pour synchroniser vers GitHub
-        // On nettoie les champs pour Hugo (id, createdAt, updatedAt)
+        // On nettoie les champs pour Hugo (pas de $)
         const hugoData = {
           ...recipeToCreate,
-          $id: created.$id,
+          ingredients: recipe.ingredients, // On renvoie les objets ingrédients pour Hugo
+          id: created.$id,
           createdAt: created.$createdAt,
           updatedAt: created.$updatedAt,
           createdBy: created.createdBy,
         };
+        // @ts-ignore - On retire les clés avec $ pour Hugo
+        delete hugoData.$id;
+        // @ts-ignore
+        delete hugoData.$createdAt;
+        // @ts-ignore
+        delete hugoData.$updatedAt;
 
         executeManageDataRecipe(
           "save_recipe",
@@ -492,6 +558,7 @@
           prepAlt: recipe.prepAlt,
           check: recipe.check,
           draft: recipe.draft,
+          permissionWrite: recipe.permissionWrite,
           $id: recipe.$id,
         };
 
@@ -505,14 +572,17 @@
         originalRecipe = { ...recipe };
 
         // Appel async pour synchroniser vers GitHub
-        // On nettoie les champs pour Hugo (id, createdAt, updatedAt)
+        // On nettoie les champs pour Hugo (pas de $)
         const hugoUpdateData = {
           ...recipeData,
+          ingredients: recipe.ingredients, // On renvoie les objets ingrédients pour Hugo
           id: updated.$id,
           createdAt: updated.$createdAt,
           updatedAt: updated.$updatedAt,
           createdBy: updated.createdBy,
         };
+        // @ts-ignore
+        delete hugoUpdateData.$id;
 
         executeManageDataRecipe(
           "save_recipe",
@@ -585,6 +655,7 @@
         auteur: null,
         isPublished: false,
         publishedAt: null,
+        createdBy: globalState.userId,
         permissionWrite: [globalState.userId],
       } as unknown as RecipeFormState;
       originalRecipe = { ...recipe };
@@ -684,6 +755,13 @@
 
       <!-- Ingrédients et Préparation -->
       <RecipePrepaForm bind:recipe {validationErrors} {canEdit} />
+
+      <!-- Permissions / Collaborateurs -->
+      <RecipePermissionsManager
+        bind:permissionWrite={recipe.permissionWrite}
+        createdBy={recipe.createdBy}
+        {canEdit}
+      />
 
       <!-- Métadonnées système -->
       {#if !isCreating && recipe.$createdAt}

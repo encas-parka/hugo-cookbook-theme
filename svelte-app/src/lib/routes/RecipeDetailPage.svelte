@@ -127,7 +127,7 @@
   {#if globalState.isAuthenticated && recipeDetails}
     <button
       class="btn btn-primary btn-sm"
-      onclick={() => navigate(`/recipe/${recipeDetails?.slug}/edit`)}
+      onclick={() => navigate(`/recipe/${recipeDetails?.$id}/edit`)}
     >
       <PencilIcon size={18} />
       Éditer

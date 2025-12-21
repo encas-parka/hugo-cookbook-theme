@@ -1,6 +1,6 @@
 {{/* Nouveau template simplifié - toutes les données sont déjà dans le frontmatter */}}
 {
-  "id": {{ .Params.id | jsonify }},
+  "id": {{ .Params.id  | jsonify }},
   "title": {{ .Title | lower | title | jsonify }},
   "draft": {{ .Draft | jsonify }},
   "typeR": {{ .Params.typeR | jsonify }},

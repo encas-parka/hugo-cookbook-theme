@@ -85,7 +85,7 @@
       <fieldset class="fieldset mt-4">
         <legend class="fieldset-legend">
           <Clock class="inline h-4 w-4" />
-          Préparation 24h à l'avance (optionnel)
+          Préparation à l'avance (optionnel)
         </legend>
         <label
           class="textarea h-fit w-full {validationErrors.preparation24h
@@ -95,13 +95,16 @@
           <textarea
             id="recipe-preparation24h"
             bind:value={recipe.preparation24h}
-            placeholder="Étapes à réaliser la veille..."
+            placeholder="Étapes à réaliser avant le jour j (précisez combien de temps à l'avance)..."
             disabled={!canEdit}
             maxlength="15000"
             class="h-full w-full resize-none bg-transparent outline-none"
           ></textarea>
         </label>
         <div class="fieldset-label flex justify-between">
+          <div>
+            Sera mis en évidence au dessus des autres étape de préparation.
+          </div>
           {#if validationErrors.preparation24h}
             <span class="fieldset-label-text-alt text-error"
               >{validationErrors.preparation24h}</span

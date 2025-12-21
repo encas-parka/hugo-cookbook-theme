@@ -194,12 +194,6 @@ export async function createRecipeAppwrite(
       Permission.delete(Role.user(userId)),
     ];
 
-    if (data.permissionWrite) {
-      data.permissionWrite.forEach((userId) => {
-        permissions.push(Permission.update(Role.user(userId)));
-      });
-    }
-
     const user = await account.get();
     const userName = user.name;
 
@@ -230,6 +224,7 @@ export async function createRecipeAppwrite(
         new Date().toISOString().split("T")[0] + "T00:00:00Z",
       $id: slugUuid,
       createdBy: userId,
+      permissionWrite: data.permissionWrite || [userId],
       isPublished: false,
     };
 

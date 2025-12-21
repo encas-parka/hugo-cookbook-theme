@@ -65,14 +65,14 @@
         <div class="flex flex-col gap-2">
           <fieldset class="fieldset">
             <legend class="fieldset-legend">Nombre de couverts</legend>
-            <label class="input">
+            <label class="input {validationErrors.plate ? 'input-error' : ''}">
               <Utensils class="h-4 w-4 opacity-50" />
               <input
                 id="recipe-plate"
                 type="number"
                 bind:value={recipe.plate}
                 min="1"
-                max="10000"
+                max="80000"
                 disabled={!canEdit}
                 aria-describedby="plate-help"
                 aria-required="true"
@@ -82,12 +82,21 @@
               <span class="fieldset-label-text-alt opacity-70"
                 >Quantités indiquées pour combien ?</span
               >
+              {#if validationErrors.plate}
+                <span class="fieldset-label-text-alt text-error"
+                  >{validationErrors.plate}</span
+                >
+              {/if}
             </div>
           </fieldset>
 
           <fieldset class="fieldset flex-1">
             <legend class="fieldset-legend">Description des quantités</legend>
-            <label class="input w-lg">
+            <label
+              class="input w-lg {validationErrors.quantite_desc
+                ? 'input-error'
+                : ''}"
+            >
               <FileText class="h-4 w-4 opacity-50" />
               <input
                 id="recipe-quantite-desc"
@@ -102,12 +111,19 @@
               <span class="fieldset-label-text-alt opacity-70"
                 >Précision sur les quantités / parts</span
               >
+              {#if validationErrors.quantite_desc}
+                <span class="fieldset-label-text-alt text-error"
+                  >{validationErrors.quantite_desc}</span
+                >
+              {/if}
             </div>
           </fieldset>
         </div>
 
         <fieldset
-          class="fieldset bg-base-200/70 w-fit space-y-4 self-start rounded-xl p-6"
+          class="fieldset w-fit space-y-4 self-start rounded-xl border-2 p-6 {validationErrors.check
+            ? 'border-error'
+            : 'border-base-300'}"
         >
           <label class="flex cursor-pointer items-center gap-2">
             <span class="me-2"
@@ -172,9 +188,20 @@
           bind:value={recipe.description}
           placeholder="Brève description de la recette"
           disabled={!canEdit}
-          class="textarea w-full"
+          class="textarea w-full {validationErrors.description
+            ? 'textarea-error'
+            : ''}"
         ></textarea>
-        <span class="fieldset-label">Maximum 200 charactères</span>
+        <span class="fieldset-label">
+          <span class="fieldset-label-text-alt opacity-70"
+            >Maximum 200 charactères</span
+          >
+          {#if validationErrors.description}
+            <span class="fieldset-label-text-alt text-error"
+              >{validationErrors.description}</span
+            >
+          {/if}
+        </span>
       </fieldset>
 
       <!-- Type et Catégories -->
@@ -221,11 +248,11 @@
 
       <!-- Température et Cuisson -->
       <div class="flex flex-col gap-6 sm:flex-row sm:items-start">
-        <div class="flex-1 sm:max-w-xs">
-          <div class="label flex gap-1">
+        <fieldset class="fieldset flex-1 sm:max-w-xs">
+          <legend class="fieldset-legend pe-4">
             <Thermometer class="h-4 w-4" />
             <span>Température de service</span>
-          </div>
+          </legend>
           <label
             class="select w-full {validationErrors.serveHot
               ? 'select-error'
@@ -248,13 +275,13 @@
               >
             </div>
           {/if}
-        </div>
+        </fieldset>
 
-        <div class="flex-1 sm:max-w-xs">
-          <div class="label flex gap-1">
+        <fieldset class="fieldset flex-1 sm:max-w-xs">
+          <legend class="fieldset-legend pe-4">
             <Flame class="h-4 w-4" />
             <span>Nécessite une cuisson</span>
-          </div>
+          </legend>
           <label
             class="select w-full {validationErrors.cuisson
               ? 'select-error'
@@ -273,7 +300,7 @@
               >
             </div>
           {/if}
-        </div>
+        </fieldset>
       </div>
 
       <!-- Le reste -->
@@ -303,7 +330,7 @@
         <!-- Spécialité -->
         <fieldset class="fieldset">
           <legend class="fieldset-legend">Spécialité</legend>
-          <label class="input">
+          <label class="input {validationErrors.region ? 'input-error' : ''}">
             <MapPin class="h-4 w-4 opacity-50" />
             <input
               type="text"
@@ -313,6 +340,13 @@
               maxlength="50"
             />
           </label>
+          {#if validationErrors.region}
+            <div class="fieldset-label">
+              <span class="fieldset-label-text-alt text-error"
+                >{validationErrors.region}</span
+              >
+            </div>
+          {/if}
         </fieldset>
 
         <!-- Matériel nécessaire -->
