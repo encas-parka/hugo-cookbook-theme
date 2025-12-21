@@ -13,6 +13,7 @@
   import { navigate } from "$lib/services/simple-router.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
   import { onDestroy } from "svelte";
+  import { router } from "$lib/services/simple-router.svelte";
 
   // État des filtres
   interface Filters {
@@ -24,6 +25,7 @@
     onlyTested: boolean;
     ingredients: string[];
     typeR: string;
+    scope: "all" | "mine" | "drafts";
   }
 
   let searchQuery = $state("");
@@ -36,6 +38,7 @@
     onlyTested: false,
     ingredients: [],
     typeR: "",
+    scope: "all",
   });
 
   // Pagination
@@ -146,6 +149,15 @@
       // Type de recette
       const typeRMatch = !filters.typeR || recipe.typeR === filters.typeR;
 
+      // Scope (Tout / Mes recettes / Mes brouillons)
+      let scopeMatch = true;
+      if (filters.scope === "mine") {
+        scopeMatch = recipe.createdBy === globalState.userId;
+      } else if (filters.scope === "drafts") {
+        scopeMatch =
+          recipe.createdBy === globalState.userId && recipe.draft === true;
+      }
+
       return (
         categoryMatch &&
         regimeMatch &&
@@ -154,7 +166,8 @@
         saisonMatch &&
         testedMatch &&
         ingredientMatch &&
-        typeRMatch
+        typeRMatch &&
+        scopeMatch
       );
     });
   });
@@ -182,6 +195,7 @@
       onlyTested: false,
       ingredients: [],
       typeR: "",
+      scope: filters.scope, // Garder le scope actuel lors du reset des filtres techniques
     };
   }
 
@@ -212,13 +226,30 @@
     currentPage = 1;
   });
 
+  // Synchronisation du scope avec la route
+  $effect(() => {
+    const path = router.path;
+    if (path === "/recipe/my/draft") {
+      filters.scope = "drafts";
+    } else if (path === "/recipe/my") {
+      filters.scope = "mine";
+    } else {
+      filters.scope = "all";
+    }
+  });
+
   // ============================================================================
   // NAVBAR CONFIGURATION
   // ============================================================================
 
   $effect(() => {
     navBarStore.setConfig({
-      breadcrumbs: [{ label: "Recettes" }],
+      title:
+        filters.scope === "mine"
+          ? "Mes recettes"
+          : filters.scope === "drafts"
+            ? "Mes brouillons"
+            : "Recettes",
       actions: navActions,
     });
   });
@@ -262,8 +293,8 @@
 </LeftPanel>
 
 <!-- Contenu principal -->
-<div class="mx-auto w-full p-4 lg:ml-140">
-  <div class=" max-w-4xl">
+<div class="p-4 lg:ml-100">
+  <div class="mx-auto max-w-4xl">
     <!-- Tabs de filtrage par type -->
     <div class="tabs tabs-border tabs-lg mb-6 font-bold">
       <button

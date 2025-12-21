@@ -116,7 +116,10 @@ export function parseRecipeIndexEntry(rawData: any): RecipeIndexEntry {
     plate: rawData.plate ?? 100,
     ingredients,
     auteur: rawData.auteur || "",
+    createdBy: rawData.createdBy || "",
     // Mapper 'id' depuis Hugo vers '$id' pour notre format interne
     $id: rawData.$id || rawData.id || "",
+    $createdAt: rawData.$createdAt || rawData.createdAt || "",
+    $updatedAt: rawData.$updatedAt || rawData.updatedAt || "",
   };
 }

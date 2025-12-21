@@ -32,10 +32,12 @@
   // ============================================================================
 
   let { params } = $props<{ params?: Record<string, string> }>();
-  let eventId = $state(params?.id);
+
+  // Rendre eventId entièrement réactif aux changements de params
+  let eventId = $derived(params?.id);
 
   // Stats store (LECTURE SEULE - pour les statistiques)
-  let eventStats = $state(new EventStatsStore(eventId));
+  let eventStats = $derived.by(() => new EventStatsStore(eventId));
 
   // ============================================================================
   // ÉTAT LOCAL D'ÉDITION (source de vérité pendant l'édition)
@@ -91,10 +93,8 @@
 
   $effect(() => {
     navBarStore.setConfig({
-      breadcrumbs: [
-        { label: "Dashboard", path: "/dashboard" },
-        { label: eventId ? "Éditer l'événement" : "Nouvel événement" },
-      ],
+      eventId: eventId || undefined,
+      activeTab: eventId ? 0 : undefined, // Éditer l'événement = onglet 0
       actions: navActions,
     });
   });
@@ -446,12 +446,12 @@
       if (eventId) {
         await eventsStore.updateEvent(eventId, eventData);
         toastService.success("Événement mis à jour");
-        navigate(`/dashboard/eventEdit/${eventId}`);
       } else {
         const savedEvent = await eventsStore.createEvent(eventData);
-        eventId = savedEvent.$id;
         toastService.success("Événement créé");
-        navigate(`/dashboard/eventEdit/${eventId}`);
+
+        // Navigation simple - le $derived fera le reste
+        navigate(`/dashboard/eventEdit/${savedEvent.$id}`);
       }
     } catch (err) {
       console.error("Erreur sauvegarde:", err);
@@ -464,10 +464,6 @@
   // ============================================================================
   // AUTRES HANDLERS
   // ============================================================================
-
-  function goBack() {
-    history.back();
-  }
 
   async function handleInvitationResponse(accept: boolean) {
     if (!eventId || !globalState.userId) return;
@@ -499,29 +495,10 @@
       loading = false;
     }
   }
-
-  function handleEmptySearchSubmit(currentMealId: string) {
-    const currentIndex = meals.findIndex((m) => m.id === currentMealId);
-
-    if (currentIndex < meals.length - 1) {
-      const nextMeal = meals[currentIndex + 1];
-      editingMealIndex = nextMeal.id || nanoid(6);
-    } else {
-      addMeal();
-    }
-  }
 </script>
 
 {#snippet navActions()}
   <div class="flex gap-2">
-    {#if eventId}
-      <button
-        class="btn btn-outline btn-sm"
-        onclick={() => navigate(`/dashboard/eventEdit/${eventId}/products`)}
-      >
-        Voir les produits
-      </button>
-    {/if}
     <button
       class="btn btn-primary btn-sm"
       onclick={handleSave}
@@ -540,13 +517,13 @@
   </div>
 {/snippet}
 
-<div class="bg-base-200 min-h-lvh space-y-6 px-2 pb-20 md:px-36">
+<div class="bg-base-200 min-h-lvh space-y-6 px-2 pt-4 pb-20 md:px-20">
   <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
     <div class="min-w-80 flex-1 gap-2">
       {#if editingTitle || !eventId}
         <input
           type="text"
-          class="input input-xl min-w-full"
+          class="input input-lg min-w-full shadow-md"
           value={eventName}
           oninput={handleNameInput}
           onblur={() => (editingTitle = false)}
@@ -682,7 +659,7 @@
         {/if}
         <div class="flex">
           <button
-            class="btn btn-soft btn-primary btn-block mt-4"
+            class="btn btn-outline btn-primary btn-block mt-4"
             onclick={addMeal}
             disabled={!canEdit}
           >

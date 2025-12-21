@@ -30,7 +30,7 @@
 </script>
 
 <div
-  class="card bg-base-200/30 hover:bg-base-200/60 cursor-pointer p-4 shadow-sm transition-shadow"
+  class="card bg-base-100 cursor-pointer p-4 shadow-sm transition-shadow hover:shadow-md"
   onclick={handleClick}
   role="button"
   tabindex="0"

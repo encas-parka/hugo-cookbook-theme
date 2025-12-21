@@ -301,7 +301,9 @@ class RecipesStore {
         await this.#cache.saveMetadata({
           lastSync: this.#lastSync,
           indexHash,
+          hugoDataHash: indexHash, // Utiliser le même hash ou un hash spécifique au fichier
           recipesCount: indexMap.size,
+          cacheVersion: 1,
         });
       }
 
@@ -400,6 +402,9 @@ class RecipesStore {
           isPublished: false,
           lockedBy: recipe.lockedBy || null,
           $id: recipe.$id,
+          $createdAt: recipe.$createdAt,
+          $updatedAt: recipe.$updatedAt,
+          createdBy: recipe.createdBy,
           plate: recipe.plate,
         });
       });
@@ -456,6 +461,9 @@ class RecipesStore {
               isPublished: recipe.isPublished,
               lockedBy: recipe.lockedBy || null,
               $id: recipe.$id,
+              $createdAt: recipe.$createdAt,
+              $updatedAt: recipe.$updatedAt,
+              createdBy: recipe.createdBy,
               plate: recipe.plate,
             };
 
@@ -470,7 +478,8 @@ class RecipesStore {
             // 3. Mettre à jour les détails dans le cache IndexedDB uniquement
             if (this.#cache) {
               try {
-                // Si c'est juste un lock update (optimisation possible mais pour l'instant on update tout)
+                // On enregistre les détails Appwrite (format Recettes) dans le cache
+                // @ts-ignore - recipeData is RecipeForDisplay but store expects Recettes
                 await this.#cache.saveRecipeDetail(recipeData);
                 console.log(
                   `[RecipesStore] Détails de ${recipe.$id} mis à jour dans le cache`,
@@ -566,12 +575,6 @@ class RecipesStore {
   async canEditRecipe(uuid: string): Promise<boolean> {
     if (!globalState.userId) return false;
 
-    // Recettes Hugo (published) : non éditables sauf si on implémente un système de fork/claim
-    const indexEntry = this.#recipesIndex.get(uuid);
-    if (!indexEntry || indexEntry.isPublished !== false) {
-      return false;
-    }
-
     // Recettes Appwrite : vérifier permissions
     try {
       const recipe = await getAppwriteRecipe(uuid);
@@ -584,8 +587,7 @@ class RecipesStore {
           recipe.teams?.some((teamId) =>
             globalState.userTeams.includes(teamId),
           ),
-        ) ||
-        Boolean(recipe.permissionWrite?.includes(globalState.userId))
+        )
       );
     } catch (err) {
       console.error(
@@ -667,9 +669,9 @@ class RecipesStore {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
       // Une fois le chargement parallèle fini, on retente la lecture IDB
-      if (this.#cache) {
-        return (await this.#cache.loadRecipeDetail(uuid)) || null;
-      }
+        if (this.#cache) {
+          return ((await this.#cache.loadRecipeDetail(uuid)) as unknown as RecipeForDisplay) || null;
+        }
       // Fallback si pas de cache (peu probable ici)
       return null;
     }
@@ -682,9 +684,9 @@ class RecipesStore {
         const cachedDetail = await this.#cache.loadRecipeDetail(uuid);
         if (cachedDetail) {
           console.log(
-            `[RecipesStore] Détails de ${uuid} chargés depuis IndexedDB`,
+            `[RecipesStore] Détails de ${uuid} chargés depuis le cache`,
           );
-          return cachedDetail;
+          return cachedDetail as unknown as RecipeForDisplay;
         }
       }
 
@@ -719,7 +721,8 @@ class RecipesStore {
       }
 
       // 5. Mettre en cache dans IndexedDB
-      if (this.#cache) {
+      if (this.#cache && recipeData) {
+        // @ts-ignore - recipeData is RecipeForDisplay but store expects Recettes
         await this.#cache.saveRecipeDetail(recipeData);
       }
 

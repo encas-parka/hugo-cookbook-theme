@@ -27,6 +27,8 @@
   import StoreBatchEditModal from "$lib/components/eventProducts/StoreBatchEditModal.svelte";
   import WhoBatchEditModal from "$lib/components/eventProducts/WhoBatchEditModal.svelte";
   import GlobalPurchasesModal from "$lib/components/eventProducts/GlobalPurchasesModal.svelte";
+  import EventStats from "$lib/components/EventStats.svelte";
+
   // Services
   import {
     createQuickValidationPurchases,
@@ -38,7 +40,9 @@
 
   import { onMount, onDestroy } from "svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
+  import { EventStatsStore } from "$lib/stores/EventStatsStore.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
+
   import { navigate } from "../services/simple-router.svelte";
 
   // Dont work properly
@@ -60,6 +64,7 @@
 
   // Accès réactif aux valeurs dérivées du store
   const stats = $derived(productsStore.stats);
+  const eventStats = $derived.by(() => new EventStatsStore(eventId));
 
   // État local : quel produit a son modal ouvert, et sur quel onglet
   let openModalProductId = $state<string | null>(null);
@@ -225,14 +230,8 @@
   $effect(() => {
     const event = eventsStore.getEventById(eventId);
     navBarStore.setConfig({
-      breadcrumbs: [
-        { label: "Dashboard", path: "/dashboard" },
-        {
-          label: event?.name || "Événement",
-          path: `/dashboard/eventEdit/${eventId}`,
-        },
-        { label: "Gestion des Produits" },
-      ],
+      eventId: eventId || undefined,
+      activeTab: eventId ? 1 : undefined, // Voir les produits = onglet 1
       actions: navActions,
     });
   });
@@ -301,19 +300,9 @@
   <ProductsFilters />
 </LeftPanel>
 
-<div
-  class="space-y-6 {globalState.isMobile
-    ? ''
-    : 'ml-100'} bg-base-200 px-28 py-20"
->
+<div class="space-y-6 {globalState.isMobile ? '' : 'ml-110'} md:px-16">
   <!-- Stats -->
-  <div class="flex flex-wrap items-center gap-2">
-    <div class="badge badge-neutral badge-lg">
-      <LayoutList class="mr-1 h-4 w-4" />
-      {stats.total}
-    </div>
-  </div>
-
+  <div class="flex justify-end py-5"><EventStats {eventStats} /></div>
   <ProductsCards
     onOpenModal={openModal}
     onOpenGroupEditModal={openGroupEditModal}

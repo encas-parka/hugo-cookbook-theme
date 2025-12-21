@@ -18,7 +18,7 @@
     {/if}
   </div>
 {:else}
-  <div class="alert alert-error shadow-sm">
+  <div class="alert alert-error alert-soft">
     <CircleAlert class="h-5 w-5" />
     <div class="text-sm">
       Les auteur·ices de la recette ne l'ont <strong>pas testé</strong> pour le

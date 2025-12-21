@@ -30,6 +30,9 @@
       "region" .Params.region
       "ingredients" $ingredientNames
       "permissionWrite" (.Params.permissionWrite | default (slice) )
+      "createdAt" (.Params.createdAt | default .Params.publishDate | default "2025-01-01T00:00:00Z")
+      "updatedAt" (.Params.updatedAt | default .Params.publishDate | default "2025-01-01T00:00:00Z")
+      "createdBy" (.Params.createdBy | default .Params.auteur | default "")
     -}}
     {{- $recipes = $recipes | append $recipe -}}
   {{- end -}}

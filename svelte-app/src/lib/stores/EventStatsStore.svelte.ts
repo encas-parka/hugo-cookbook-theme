@@ -1,6 +1,8 @@
 import type { EnrichedEvent, EventContributor } from "../types/events";
 import type { EventMeal } from "../types/events";
 import { eventsStore } from "./EventsStore.svelte";
+import { recipesStore } from "./RecipesStore.svelte";
+
 
 /**
  * EventStatsStore - Responsabilités :
@@ -65,6 +67,32 @@ export class EventStatsStore {
 
     return allRecipeIds.size;
   });
+
+  /**
+   * Nombre total d'ingrédients uniques dans l'événement
+   */
+  readonly totalIngredients = $derived.by(() => {
+    const event = this.currentEvent;
+    if (!event?.meals) return 0;
+
+    const allIngredients = new Set<string>();
+
+    event.meals.forEach((meal) => {
+      if (meal.recipes) {
+        meal.recipes.forEach((mealRecipe) => {
+          const recipeIndex = recipesStore.getRecipeIndexByUuid(
+            mealRecipe.recipeUuid,
+          );
+          if (recipeIndex?.ingredients) {
+            recipeIndex.ingredients.forEach((ing) => allIngredients.add(ing));
+          }
+        });
+      }
+    });
+
+    return allIngredients.size;
+  });
+
 
   /**
    * Liste des contributeurs avec leur statut
@@ -251,7 +279,9 @@ export class EventStatsStore {
     mealsCount: this.mealsCount,
     totalGuests: this.totalGuests,
     totalRecipes: this.totalRecipes,
+    totalIngredients: this.totalIngredients,
     contributorsCount: this.contributorsStats.total,
+
     acceptedCount: this.contributorsStats.accepted,
     declinedCount: this.contributorsStats.declined,
     pendingCount: this.contributorsStats.pending,

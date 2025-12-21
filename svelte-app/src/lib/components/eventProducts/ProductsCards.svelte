@@ -115,18 +115,18 @@
       <!-- Header de groupe sticky -->
       {@const groupTypeInfo = getProductTypeInfo(groupKey)}
       <div
-        class="bg-primary @container sticky top-10 z-2 flex flex-wrap items-center justify-between rounded-lg px-4 py-2 shadow-lg brightness-100 drop-shadow-xl @md:flex-nowrap"
+        class="bg-primary @container sticky top-16 z-2 flex flex-wrap items-center justify-between rounded-lg px-4 py-2 shadow-lg brightness-100 drop-shadow-xl @md:flex-nowrap"
       >
         <!-- Nom du groupe -->
-        <div class="flex items-center gap-2 text-lg font-bold @md:min-w-48">
+        <div class="flex items-center gap-2 font-bold md:text-lg @md:min-w-48">
           {#if filters.groupBy === "store"}
             <div class="text-primary-content flex items-center gap-2">
-              <Store size={20} />
+              <Store class="size-4 md:size-5" />
               {groupKey} ({groupProducts!.length})
             </div>
           {:else if filters.groupBy === "productType"}
             <div class="text-primary-content flex items-center gap-2">
-              <groupTypeInfo.icon size={20} />
+              <groupTypeInfo.icon class="size-4 md:size-5" />
               <span>{groupTypeInfo.displayName}</span>
               <span class="text-sm opacity-70">({groupProducts!.length})</span>
             </div>
@@ -148,7 +148,7 @@
 
         <!-- Actions groupées -->
         {#if shouldShowActionButtons}
-          <div class="flex flex-wrap items-center justify-end gap-2">
+          <div class="ms-auto flex flex-wrap items-center justify-end gap-2">
             <button
               class="btn btn-sm btn-primary btn-soft"
               onclick={() =>

@@ -11,6 +11,7 @@
   import Fieldset from "$lib/components/ui/Fieldset.svelte";
   import AutocompleteInput from "$lib/components/ui/AutocompleteInput.svelte";
   import BadgeList from "$lib/components/ui/BadgeList.svelte";
+  import { globalState } from "../../stores/GlobalState.svelte";
 
   interface Filters {
     categories: string[];
@@ -78,7 +79,7 @@
   );
 </script>
 
-<div class="space-y-4" class:opacity-30={disabled}>
+<div class="mt-16 space-y-4" class:opacity-30={disabled}>
   <div class="mb-4 flex items-center justify-between">
     <h4 class="text-lg font-bold">Filtres</h4>
     <button class="btn btn-warning btn-sm" onclick={onReset} {disabled}>

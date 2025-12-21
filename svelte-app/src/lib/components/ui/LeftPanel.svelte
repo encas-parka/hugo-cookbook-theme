@@ -20,7 +20,7 @@
   <div
     class="{bgClass} {panelWidth
       ? panelWidth
-      : 'w-100'} fixed top-0 left-0 z-40 h-screen overflow-y-auto p-4"
+      : 'w-100'} fixed top-10 left-0 z-40 h-screen overflow-y-auto p-4"
   >
     {@render children?.()}
   </div>

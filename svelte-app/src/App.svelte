@@ -24,8 +24,8 @@
   // États de l'application
   type AppState =
     | "BOOTING"
-    | "LOADING_PUBLIC"
     | "LOADING_PRIVATE"
+    | "LOADING_PUBLIC"
     | "READY"
     | "ERROR";
   let appState = $state<AppState>("BOOTING");
@@ -56,6 +56,8 @@
   // Publiques
   router.addRoute("/", HomePage, redirectIfAuth);
   router.addRoute("/recipe", RecipesListPage);
+  router.addRoute("/recipe/my", RecipesListPage, requireAuth);
+  router.addRoute("/recipe/my/draft", RecipesListPage, requireAuth);
   router.addRoute("/recipe/new", RecipeEditPage, requireAuth);
   router.addRoute("/recipe/:uuid/edit", RecipeEditPage, requireAuth);
   router.addRoute("/recipe/:uuid", RecipeDetailPage);
@@ -67,7 +69,7 @@
   router.addRoute("/dashboard/eventEdit", EventEditPage, requireAuth);
   router.addRoute("/dashboard/eventEdit/:id", EventEditPage, requireAuth);
   router.addRoute(
-    "/dashboard/eventEdit/:id/products",
+    "/dashboard/eventEdit/products/:id",
     ProductsPage,
     requireAuth,
   );
@@ -154,7 +156,7 @@
 <HeaderNav />
 
 <!-- Rendu Principal -->
-<div class="mt-7 min-h-screen">
+<div class="bg-base-200 min-h-screen">
   {#if appState === "READY" && currentRoute}
     {@const Component = currentRoute.component}
     <Component params={currentRoute.params} query={currentRoute.query} />
@@ -184,7 +186,7 @@
 
 <!-- Modales globales (visibles uniquement si connecté et app prête) -->
 {#if globalState.isAuthenticated && appState === "READY"}
-  {#if displayError && appState !== "ERROR"}
+  {#if displayError}
     <!-- Erreurs non fatales (ex: store products) -->
     <ErrorAlert message={displayError} />
   {/if}

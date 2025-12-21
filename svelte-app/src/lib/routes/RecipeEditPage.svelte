@@ -78,6 +78,9 @@
     cuisson: boolean | "";
     serveHot: boolean | "";
     check: boolean | null;
+    $createdAt?: string;
+    $updatedAt?: string;
+    createdBy?: string;
   }
 
   let recipe = $state<RecipeFormState | null>(null);
@@ -134,14 +137,7 @@
 
   $effect(() => {
     navBarStore.setConfig({
-      breadcrumbs: [
-        { label: "Recettes", path: "/recipe" },
-        {
-          label: isCreating ? "Nouvelle recette" : recipe?.title || "Recette",
-          path: isCreating ? undefined : `/recipe/${recipeId}`,
-        },
-        { label: "Édition" },
-      ],
+      title: isCreating ? "Nouvelle recette" : "Édition de recette",
       actions: navActions,
     });
   });
@@ -450,15 +446,23 @@
         });
 
         // Appel async pour synchroniser vers GitHub
+        // On nettoie les champs pour Hugo (id, createdAt, updatedAt)
+        const hugoData = {
+          ...recipeToCreate,
+          id: created.$id,
+          createdAt: created.$createdAt,
+          updatedAt: created.$updatedAt,
+          createdBy: created.createdBy,
+        };
+
         executeManageDataRecipe(
           "save_recipe",
           created.$id,
           globalState.userId,
-          recipeToCreate,
+          hugoData,
           true,
         ).catch((error) => {
           console.error("Sync vers GitHub échouée:", error);
-          // Optionnel: afficher un toast non-bloquant
         });
         // Rediriger vers l'édition
         navigate(`/recipe/${created.$id}/edit`);
@@ -491,21 +495,33 @@
           $id: recipe.$id,
         };
 
-        await updateRecipeAppwrite(recipeId!, recipeData, globalState.userId);
+        const updated = await updateRecipeAppwrite(
+          recipeId!,
+          recipeData,
+          globalState.userId,
+        );
 
         // Mettre à jour originalRecipe
         originalRecipe = { ...recipe };
 
         // Appel async pour synchroniser vers GitHub
+        // On nettoie les champs pour Hugo (id, createdAt, updatedAt)
+        const hugoUpdateData = {
+          ...recipeData,
+          id: updated.$id,
+          createdAt: updated.$createdAt,
+          updatedAt: updated.$updatedAt,
+          createdBy: updated.createdBy,
+        };
+
         executeManageDataRecipe(
           "save_recipe",
           recipeId!,
           globalState.userId,
-          recipeData,
+          hugoUpdateData,
           true,
         ).catch((error) => {
           console.error("Sync vers GitHub échouée:", error);
-          // Optionnel: afficher un toast non-bloquant
         });
 
         toastService.update(toastId, {
@@ -570,7 +586,7 @@
         isPublished: false,
         publishedAt: null,
         permissionWrite: [globalState.userId],
-      };
+      } as unknown as RecipeFormState;
       originalRecipe = { ...recipe };
     } else {
       // Mode édition : charger la recette
@@ -584,25 +600,29 @@
         }
 
         // Vérifier les permissions
-        const canEditRecipe = await recipesStore.canEditRecipe(recipeId!);
-        if (!canEditRecipe) {
-          toastService.error("Vous n'avez pas les droits d'édition");
-          navigate(`/recipe/${recipeId}`);
-          return;
-        }
+        // const canEditRecipe = await recipesStore.canEditRecipe(recipeId!);
+        // if (!canEditRecipe) {
+        //   toastService.error("Vous n'avez pas les droits d'édition", {
+        //     autoCloseDelay: 7000,
+        //   });
+        //   navigate(`/recipe/${recipeId}`);
+        //   return;
+        // }
 
         recipe = {
           ...loaded,
           categories: loaded.categories || [],
           saison: loaded.saison || [],
           ingredients: loaded.ingredients ?? [],
-          // @ts-ignore - astuces mismatch type on load but handled
           astuces: loaded.astuces ? formatAstuces(loaded.astuces) : [],
           prepAlt: loaded.prepAlt || [],
           materiel: loaded.materiel || [],
           regime: loaded.regime || [],
           check: loaded.check ?? null,
-        };
+          $createdAt: loaded.$createdAt,
+          $updatedAt: loaded.$updatedAt,
+          createdBy: loaded.createdBy,
+        } as unknown as RecipeFormState;
         originalRecipe = { ...recipe };
         lockedBy = loaded.lockedBy || null;
 
@@ -664,6 +684,40 @@
 
       <!-- Ingrédients et Préparation -->
       <RecipePrepaForm bind:recipe {validationErrors} {canEdit} />
+
+      <!-- Métadonnées système -->
+      {#if !isCreating && recipe.$createdAt}
+        <div class="bg-base-200/50 rounded-box mt-12 p-6 text-sm opacity-60">
+          <div
+            class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          >
+            <div>
+              <span class="font-semibold">Auteur :</span>
+              {recipe.auteur || recipe.createdBy || "Inconnu"}
+            </div>
+            <div>
+              <span class="font-semibold">ID :</span>
+              <span class="font-mono">{recipe.$id}</span>
+            </div>
+            <div>
+              <span class="font-semibold">Créé le :</span>
+              {new Intl.DateTimeFormat("fr-FR", {
+                dateStyle: "long",
+                timeStyle: "short",
+              }).format(new Date(recipe.$createdAt))}
+            </div>
+            {#if recipe.$updatedAt && recipe.$updatedAt !== recipe.$createdAt}
+              <div>
+                <span class="font-semibold">Modifié le :</span>
+                {new Intl.DateTimeFormat("fr-FR", {
+                  dateStyle: "long",
+                  timeStyle: "short",
+                }).format(new Date(recipe.$updatedAt))}
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
     </div>
   {/if}
 </div>

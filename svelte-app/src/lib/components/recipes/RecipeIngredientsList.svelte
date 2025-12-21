@@ -1,7 +1,9 @@
 <script lang="ts">
   import type { RecipeIngredient } from "$lib/types/recipes.types";
   import { scaleAndFormatIngredient } from "$lib/utils/QuantityFormatter";
+  import { getProductTypeInfo } from "$lib/utils/products-display";
   import { TriangleAlert } from "@lucide/svelte";
+  import { SvelteMap } from "svelte/reactivity";
 
   interface Props {
     ingredients: RecipeIngredient[];
@@ -15,7 +17,7 @@
   const scaleFactor = $derived(servings / defaultServings);
 
   // Grouper les ingrédients par type
-  const groupedIngredients = $derived(() => {
+  const groupedIngredients = $derived.by(() => {
     const groups = new Map<string, RecipeIngredient[]>();
 
     ingredients.forEach((ingredient) => {
@@ -60,14 +62,18 @@
 </script>
 
 <div class="space-y-6">
-  {#each [...groupedIngredients()] as [type, items]}
-    <div class="border-base-200 rounded-xl border p-2">
-      <h4 class="text-base-content/70 mb-2 font-semibold">
-        {type}
+  {#each [...groupedIngredients] as [type, items] (type)}
+    {@const typeInfo = getProductTypeInfo(type)}
+    <div class="border-base-300 bg-base-100 rounded-xl border p-4">
+      <h4
+        class="text-base-content/70 mb-2 flex items-center gap-2 font-semibold"
+      >
+        <typeInfo.icon class="h-4 w-4" />
+        {typeInfo.displayName}
       </h4>
 
-      <ul class="space-y-3">
-        {#each items as ingredient}
+      <ul class="space-y-2">
+        {#each items as ingredient, index (index)}
           {@const scaled = getScaledIngredient(ingredient)}
           <li class="flex flex-wrap items-baseline">
             <div class="flex flex-wrap">

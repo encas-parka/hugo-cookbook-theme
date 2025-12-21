@@ -76,7 +76,10 @@ export type RecipeIndexEntry = Pick<
   | "isPublished"
   | "lockedBy"
   | "plate"
+  | "createdBy"
   | "$id"
+  | "$createdAt"
+  | "$updatedAt"
 > & {
   ingredients: string[]; // Noms des ingrédients uniquement (pour filtrage rapide)
   auteur?: string; // Auteur de la recette (optionnel)

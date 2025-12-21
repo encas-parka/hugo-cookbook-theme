@@ -4,7 +4,7 @@
   import type { RecipeForDisplay } from "$lib/types/recipes.types";
   import RecipeHeader from "$lib/components/recipes/RecipeHeader.svelte";
   import RecipeRegimeBadges from "$lib/components/recipes/RecipeRegimeBadges.svelte";
-  import RecipeQuantityControl from "$lib/components/recipes/RecipeQuantityControl.svelte";
+  import { Users } from "@lucide/svelte";
   import RecipeIngredientsList from "$lib/components/recipes/RecipeIngredientsList.svelte";
   import RecipePreparation from "$lib/components/recipes/RecipePreparation.svelte";
   import RecipeAlerts from "$lib/components/recipes/RecipeAlerts.svelte";
@@ -89,6 +89,15 @@
     currentServings = servings;
   }
 
+  // Gérer l'input des servings
+  function handleServingsInput(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const value = parseInt(target.value);
+    if (!isNaN(value) && value > 0) {
+      currentServings = value;
+    }
+  }
+
   // Créer un index Map pour RecipeAlternatives avec les noms
   const recipesIndexMap = $derived.by(() => {
     const map = new Map();
@@ -104,10 +113,7 @@
 
   $effect(() => {
     navBarStore.setConfig({
-      breadcrumbs: [
-        { label: "Recettes", path: "/recipe" },
-        { label: recipeDetails?.title || "Recette" },
-      ],
+      title: recipeDetails?.title || "Recette",
       actions: navActions,
     });
   });
@@ -121,7 +127,7 @@
   {#if globalState.isAuthenticated && recipeDetails}
     <button
       class="btn btn-primary btn-sm"
-      onclick={() => navigate(`/recipe/${recipeDetails?.$id}/edit`)}
+      onclick={() => navigate(`/recipe/${recipeDetails?.slug}/edit`)}
     >
       <PencilIcon size={18} />
       Éditer
@@ -225,23 +231,30 @@
     {/if}
 
     <!-- Contrôle des quantités -->
-    <div class="mb-6">
-      <RecipeQuantityControl
-        defaultServings={recipeDetails.plate}
-        {currentServings}
-        onServingsChange={handleServingsChange}
-      />
-    </div>
+    <div class="my-6 flex flex-wrap items-center justify-between gap-6">
+      <div class="flex items-center gap-4">
+        <label for="servings-input" class="flex items-center gap-2 font-medium">
+          <Users class="h-5 w-5" />
+          Nombre de couverts à servir :
+        </label>
+        <input
+          id="servings-input"
+          type="number"
+          min="1"
+          value={currentServings}
+          oninput={handleServingsInput}
+          class="input input-bordered input-primary w-24"
+        />
+      </div>
 
-    <!-- Alertes de validation -->
-    {#if recipeDetails.check !== undefined}
-      <div class="mb-6">
+      <!-- Alertes de validation -->
+      {#if recipeDetails.check !== undefined}
         <RecipeAlerts
           isChecked={recipeDetails.check}
           defaultServings={recipeDetails.plate}
         />
-      </div>
-    {/if}
+      {/if}
+    </div>
 
     <!-- Contenu principal : Ingrédients + Préparation -->
     <div class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">

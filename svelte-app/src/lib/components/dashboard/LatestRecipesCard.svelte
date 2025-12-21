@@ -12,23 +12,20 @@
       return [];
     }
 
-    // Filtrer les recettes publiées et trier par date de publication
-    const published = recipesStore.recipesIndex.filter(
-      (recipe) => recipe.isPublished !== false && recipe.pd,
-    );
-
     // Trier par date de publication (plus récent en premier)
-    return published
+    return recipesStore.recipesIndex
       .sort((a, b) => {
-        const dateA = a.pd ? new Date(a.pd).getTime() : 0;
-        const dateB = b.pd ? new Date(b.pd).getTime() : 0;
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       })
       .slice(0, 5); // Limiter à 5 recettes
   });
 
   function formatRecipeDate(recipe: RecipeIndexEntry) {
-    return recipe.pd ? formatDateRelative(recipe.pd) : "Date inconnue";
+    return recipe.createdAt
+      ? formatDateRelative(recipe.createdAt)
+      : "Date inconnue";
   }
 
   function getRecipeTypeLabel(type: string): string {
@@ -116,20 +113,20 @@
       </div>
     {:else}
       <div class="space-y-3">
-        {#each latestRecipes as recipe (recipe.u)}
+        {#each latestRecipes as recipe (recipe.$id)}
           <div
             class="bg-base-200/30 hover:bg-base-200/50 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors"
-            onclick={() => viewRecipe(recipe.u)}
+            onclick={() => viewRecipe(recipe.$id)}
             role="button"
             tabindex="0"
             onkeydown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
-                viewRecipe(recipe.u);
+                viewRecipe(recipe.$id);
               }
             }}
           >
             <div class="min-w-0 flex-1">
-              <div class="truncate text-sm font-medium">{recipe.n}</div>
+              <div class="truncate text-sm font-medium">{recipe.title}</div>
 
               <!-- Type de plat -->
               <div
@@ -140,10 +137,10 @@
                 </span>
 
                 <!-- Categories -->
-                {#if recipe.c && recipe.c.length > 0}
+                {#if recipe.categories && recipe.categories.length > 0}
                   <span class="text-xs opacity-70">
-                    {recipe.c.slice(0, 2).join(", ")}
-                    {recipe.c.length > 2 ? "..." : ""}
+                    {recipe.categories.slice(0, 2).join(", ")}
+                    {recipe.categories.length > 2 ? "..." : ""}
                   </span>
                 {/if}
               </div>
@@ -152,10 +149,10 @@
               <div
                 class="text-base-content/50 mt-2 flex items-center gap-3 text-xs"
               >
-                {#if recipe.plates}
+                {#if recipe.plate}
                   <div class="flex items-center gap-1">
                     <Users class="h-3 w-3" />
-                    <span>{recipe.plates} pers</span>
+                    <span>{recipe.plate} pers</span>
                   </div>
                 {/if}
                 <div class="flex items-center gap-1">

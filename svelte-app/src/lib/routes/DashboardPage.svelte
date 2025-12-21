@@ -27,7 +27,6 @@
 
   // Traitement des événements - utiliser les derived properties du store
   const currentEvents = $derived(eventsStore.currentEvents);
-  const upcomingEvents = $derived(eventsStore.upcomingEvents);
   const pastEventsCount = $derived(eventsStore.pastEventsCount);
 
   // Invitations réelles
@@ -39,7 +38,7 @@
 
   $effect(() => {
     navBarStore.setConfig({
-      breadcrumbs: [{ label: "Dashboard" }],
+      title: "Dashboard",
       actions: navActions,
     });
   });
@@ -128,7 +127,6 @@
           <!-- Événements -->
           <CurrentEventsCard
             {currentEvents}
-            {upcomingEvents}
             {pastEventsCount}
             loading={eventsStore.loading}
           />

@@ -4,30 +4,24 @@ export interface BreadcrumbItem {
   label: string;
   path?: string;
   action?: () => void;
+  active?: boolean;
 }
 
 export interface NavBarConfig {
-  breadcrumbs?: BreadcrumbItem[];
   title?: string;
   backAction?: () => void;
   actions?: Snippet;
+  tabs?: BreadcrumbItem[]; // On garde BreadcrumbItem pour l'interface des onglets
+  eventId?: string;
+  activeTab?: number;
 }
 
 class NavBarStore {
   #config = $state<NavBarConfig>({
-    breadcrumbs: [],
     title: "",
   });
 
-  get breadcrumbs() {
-    return this.#config.breadcrumbs || [];
-  }
-
   get title() {
-    // Si on a des breadcrumbs, on peut retourner le dernier label comme titre de secours
-    if (this.#config.breadcrumbs && this.#config.breadcrumbs.length > 0) {
-      return this.#config.breadcrumbs[this.#config.breadcrumbs.length - 1].label;
-    }
     return this.#config.title || "ENKA Cookbook";
   }
 
@@ -39,6 +33,18 @@ class NavBarStore {
     return this.#config.actions;
   }
 
+  get tabs() {
+    return this.#config.tabs || [];
+  }
+
+  get eventId() {
+    return this.#config.eventId;
+  }
+
+  get activeTab() {
+    return this.#config.activeTab || 0;
+  }
+
   setConfig(config: NavBarConfig) {
     this.#config = {
       ...config,
@@ -47,7 +53,6 @@ class NavBarStore {
 
   reset() {
     this.#config = {
-      breadcrumbs: [],
       title: "",
     };
   }

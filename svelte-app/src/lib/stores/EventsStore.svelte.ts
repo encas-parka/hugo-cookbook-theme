@@ -102,29 +102,8 @@ export class EventsStore {
     return Array.from(this.#events.values()).filter((event) => {
       if (!event.dateStart || !event.dateEnd) return false;
       const end = new Date(event.dateEnd);
-
-      // L'événement est considéré comme "en cours" si sa date de fin est aujourd'hui
-      // (peu importe l'heure, tant que le dernier jour n'est pas terminé)
       return end >= today;
     });
-  });
-
-  /**
-   * Événements à venir (futurs)
-   */
-  #upcomingEvents = $derived.by(() => {
-    const now = new Date();
-    return Array.from(this.#events.values())
-      .filter((event) => {
-        if (!event.dateStart) return false;
-        const start = new Date(event.dateStart);
-        return start > now;
-      })
-      .sort((a, b) => {
-        const dateA = new Date(a.dateStart!).getTime();
-        const dateB = new Date(b.dateStart!).getTime();
-        return dateA - dateB;
-      });
   });
 
   /**
@@ -144,10 +123,6 @@ export class EventsStore {
    */
   get currentEvents() {
     return this.#currentEvents;
-  }
-
-  get upcomingEvents() {
-    return this.#upcomingEvents;
   }
 
   get pastEvents() {

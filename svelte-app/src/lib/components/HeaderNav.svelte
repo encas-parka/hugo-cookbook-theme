@@ -2,6 +2,7 @@
   import { globalState } from "../stores/GlobalState.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
+  import EventTabs from "./eventEdit/EventTabs.svelte";
 
   import {
     LogInIcon,
@@ -11,6 +12,8 @@
     BookOpenIcon,
     ChevronLeftIcon,
     PlusIcon,
+    SearchIcon,
+    CircleStar,
   } from "@lucide/svelte";
   import AuthModal from "./AuthModal.svelte";
 
@@ -64,73 +67,79 @@
 <AuthModal bind:isOpen={showAuthModal} onAuthSuccess={handleLoginSuccess} />
 
 <div
-  class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] min-h-[4rem] border-b px-4 shadow-sm"
+  class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] border-b px-4 py-0 shadow-sm"
 >
-  <div class="navbar-start gap-2">
+  <div class="navbar-start gap-1">
     <!-- Brand -->
     <button class="btn btn-ghost px-2" onclick={() => navigate("/")}>
-      <img src="/favicon-96x96.png" alt="logo" class="h-8 w-8" />
+      <img src="data/favicon-96x96.png" alt="logo" class="h-8 w-8" />
     </button>
 
-    <!-- Back button -->
+    <!-- Permanent Nav Buttons -->
+    <div class="flex items-center gap-1">
+      {#if globalState.isAuthenticated}
+        <button
+          class="btn btn-ghost btn-sm gap-2"
+          onclick={() => navigate("/dashboard")}
+        >
+          <LayoutDashboardIcon size={18} />
+          <span class="hidden md:inline">Tableau de bord</span>
+        </button>
+      {/if}
+
+      <button
+        class="btn btn-ghost btn-sm gap-2"
+        onclick={() => navigate("/recipe")}
+      >
+        <SearchIcon size={18} />
+        <span class="hidden md:inline">Recettes</span>
+      </button>
+    </div>
+
+    <!-- Back button (Keep if really needed by some specific page logic) -->
     {#if navBarStore.backAction}
       <button
-        class="btn btn-ghost btn-circle btn-sm"
+        class="btn btn-ghost btn-circle btn-sm ml-2"
         onclick={navBarStore.backAction}
       >
         <ChevronLeftIcon size={20} />
       </button>
     {/if}
-
-    <!-- Breadcrumbs -->
-    <div class="breadcrumbs ml-2 hidden text-sm lg:block">
-      <ul>
-        {#each navBarStore.breadcrumbs as item, i}
-          <li>
-            {#if i < navBarStore.breadcrumbs.length - 1 && (item.path || item.action)}
-              <button
-                class="hover:text-primary cursor-pointer transition-colors"
-                onclick={item.path ? () => navigate(item.path) : item.action}
-              >
-                {item.label}
-              </button>
-            {:else}
-              <span class="text-base-content font-semibold">{item.label}</span>
-            {/if}
-          </li>
-        {/each}
-        {#if navBarStore.breadcrumbs.length === 0}
-          <li>
-            <span class="text-base-content font-semibold"
-              >{navBarStore.title}</span
-            >
-          </li>
-        {/if}
-      </ul>
-    </div>
   </div>
 
   <div class="navbar-center">
+    {#if navBarStore.eventId !== undefined}
+      <EventTabs
+        eventId={navBarStore.eventId}
+        activeTab={navBarStore.activeTab}
+      />
+    {:else if navBarStore.tabs.length > 0}
+      <div class="tabs tabs-box">
+        {#each navBarStore.tabs as tab, index (index)}
+          <button
+            class="tab {tab.active ? 'tab-active' : ''}"
+            onclick={() => navigate(tab.path)}
+          >
+            {tab.label}
+          </button>
+        {/each}
+      </div>
+    {:else}
+      <h1 class="text-sm font-bold tracking-wider uppercase opacity-70">
+        {navBarStore.title}
+      </h1>
+    {/if}
+  </div>
+
+  <div class="navbar-end gap-2">
+    <!-- Actions -->
     {#if navBarStore.actions}
       <div class="flex items-center gap-2">
         {@render navBarStore.actions()}
       </div>
-    {:else}
-      <div class="hidden gap-2 sm:flex">
-        {#if globalState.isAuthenticated}
-          <button
-            class="btn btn-ghost btn-sm"
-            onclick={() => navigate("/dashboard")}>Tableau de bord</button
-          >
-        {/if}
-        <button class="btn btn-ghost btn-sm" onclick={() => navigate("/recipe")}
-          >Recettes</button
-        >
-      </div>
     {/if}
-  </div>
 
-  <div class="navbar-end">
+    <!-- User dropdown -->
     {#if globalState.isAuthenticated}
       <div class="dropdown dropdown-end">
         <div

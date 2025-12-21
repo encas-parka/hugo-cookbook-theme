@@ -18,8 +18,8 @@
 <div class="space-y-4">
   <!-- Alerte préparation 24h -->
   {#if preparation24h}
-    <div class="alert alert-warning">
-      <div>
+    <div class="bg-base-100 card border-accent border-2">
+      <div class="card-body p-4">
         <h5 class="font-bold">A prévoir à l'avance !</h5>
         <div class="prose prose-sm max-w-none">
           <SvelteMarkdown source={preparation24h} />
@@ -29,7 +29,9 @@
   {/if}
 
   <!-- Instructions de préparation -->
-  <div class="prose max-w-none">
+  <div
+    class="prose card card-body bg-base-100 border-base-300 max-w-none border"
+  >
     <SvelteMarkdown source={preparation} />
   </div>
 

@@ -45,10 +45,7 @@
 
   $effect(() => {
     navBarStore.setConfig({
-      breadcrumbs: [
-        { label: "Dashboard", path: "/dashboard" },
-        { label: "Mes Équipes" },
-      ],
+      title: "Équipes",
       actions: navActions,
     });
   });

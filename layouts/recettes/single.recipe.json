@@ -22,5 +22,8 @@
   "astuces": {{ .Params.astuces | jsonify }},
   "prepAlt": {{ .Params.prepAlt | jsonify }},
   "permissionWrite": {{ .Params.permissionWrite | default (slice) | jsonify }},
-  "publishedAt": {{ .Params.publishedAt | default "2025-01-01T00:00:00Z" | jsonify }}
+  "publishedAt": {{ .Params.publishedAt | default "2025-01-01T00:00:00Z" | jsonify }},
+  "createdAt": {{ .Params.createdAt | default .Params.publishDate | default "2025-01-01T00:00:00Z" | jsonify }},
+  "updatedAt": {{ .Params.updatedAt | default .Params.publishDate | default "2025-01-01T00:00:00Z" | jsonify }},
+  "createdBy": {{ .Params.createdBy | default .Params.auteur | default "" | jsonify }}
 }

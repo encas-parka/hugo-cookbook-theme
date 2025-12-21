@@ -66,10 +66,6 @@
   if (!meal.guests) meal.guests = defaultGuests;
   if (!meal.recipes) meal.recipes = [];
 
-  // DEBUG: Log meal structure
-  console.log("[EventMealCard] Meal:", meal);
-  console.log("[EventMealCard] Meal.recipes:", meal.recipes);
-
   // Variables dérivées pour l'UI (extraction date et moment depuis meal.date)
   let displayDate = $derived(extractDate(meal.date || ""));
   let displayTime = $derived(extractTime(meal.date || ""));
@@ -122,6 +118,7 @@
       entree: 1,
       plat: 2,
       dessert: 3,
+      autre: 4,
     };
 
     return [...meal.recipes].sort((a, b) => {
@@ -207,7 +204,6 @@
 
   function getRecipeIndex(uuid: string) {
     const result = recipesStore.getRecipeIndexByUuid(uuid);
-    console.log(`[EventMealCard] getRecipeIndex(${uuid}):`, result);
     return result;
   }
 
@@ -235,6 +231,7 @@
     if (typeR === "entree") return "bg-lime-100 border-lime-200";
     else if (typeR === "plat") return "bg-orange-100 border-orange-200";
     else if (typeR === "dessert") return "bg-pink-100 border-pink-200";
+    else if (typeR === "autre") return "bg-purple-100 border-purple-200";
     else return "bg-base-200/50";
   }
 </script>
@@ -418,6 +415,7 @@
                       <option value="entree">Entrée</option>
                       <option value="plat">Plat</option>
                       <option value="dessert">Dessert</option>
+                      <option value="autre">Autre</option>
                     </select>
 
                     <!-- Couverts -->
