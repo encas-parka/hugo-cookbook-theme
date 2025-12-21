@@ -30,22 +30,26 @@
 
   <!-- Instructions de préparation -->
   <div
-    class="prose card card-body bg-base-100 border-base-300 max-w-none border"
+    class="prose card card-body bg-base-100 border-base-300 print:card-normal max-w-none border print:border-none print:p-0"
   >
     <SvelteMarkdown source={preparation} />
   </div>
 
   <!-- Astuces -->
   {#if astuces.length > 0}
-    <div class="space-y-2">
+    <div class="space-y-2 print:space-y-1">
       {#each astuces as { astuce }}
-        <div class="card bg-base-200">
-          <div class="card-body p-4">
+        <div
+          class="card bg-base-100 print:card-normal border print:border-black print:bg-white"
+        >
+          <div class="card-body p-4 print:p-2">
             <div class="flex items-start gap-2">
-              <Lightbulb class="text-warning mt-0.5 h-5 w-5 flex-shrink-0" />
+              <Lightbulb
+                class="text-warning mt-0.5 h-5 w-5 flex-shrink-0 print:hidden"
+              />
               <div>
-                <div class="text-sm font-semibold">Astuce :</div>
-                <div class="text-sm">{astuce}</div>
+                <div class="text-sm font-semibold print:text-xs">Astuce :</div>
+                <div class="text-sm print:text-xs">{astuce}</div>
               </div>
             </div>
           </div>

@@ -163,11 +163,12 @@
         {#if recipeDetails?.serveHot !== undefined}
           <div class="mb-2">
             {#if recipeDetails.serveHot}
-              <span class="badge badge-lg badge-soft badge-warning"
+              <span
+                class="badge badge-lg print:badge-md badge-soft badge-warning"
                 >Servir Chaud</span
               >
             {:else}
-              <span class="badge badge-lg badge-soft badge-info"
+              <span class="badge badge-lg print:badge-md badge-soft badge-info"
                 >Servir Froid</span
               >
             {/if}
@@ -178,11 +179,12 @@
         {#if recipeDetails?.cuisson !== undefined}
           <div class="mb-2">
             {#if recipeDetails.cuisson}
-              <span class="badge badge-lg badge-soft badge-warning"
+              <span
+                class="badge badge-lg badge-soft print:badge-md badge-warning"
                 >Avec Cuisson</span
               >
             {:else}
-              <span class="badge badge-lg badge-soft badge-info"
+              <span class="badge badge-lg badge-soft print:badge-md badge-info"
                 >Sans Cuisson</span
               >
             {/if}
@@ -201,7 +203,7 @@
     <div class="flex flex-wrap items-center justify-between gap-2">
       <!-- Badges matériel -->
       {#if recipeDetails?.materiel && recipeDetails.materiel.length > 0}
-        <div class="mb-2 flex flex-wrap gap-2">
+        <div class="mb-2 flex flex-wrap gap-2 print:mb-0">
           {#each recipeDetails.materiel as item}
             <span class="badge badge-soft badge-neutral">{item}</span>
           {/each}
@@ -211,9 +213,9 @@
       <!-- Badges allergènes -->
       {#if allergens.length > 0}
         <div
-          class="border-error mb-2 flex w-fit flex-wrap gap-2 rounded-xl border px-4 py-2"
+          class="mb-2 flex w-fit flex-wrap items-center gap-2 rounded-xl px-4 py-2 print:mb-0"
         >
-          <p class="text-base-content/70 font-semibold">Allergenes :</p>
+          <span class="text-base-content/70 font-semibold">Allergenes :</span>
           {#each allergens as allergen}
             <span class="badge badge-error badge-soft">{allergen}</span>
           {/each}
@@ -223,15 +225,27 @@
 
     <!-- Description -->
     {#if recipeDetails.description}
-      <div class="mb-6">
-        <p class="text-base-content/70 text-center italic">
+      <div class="mb-6 print:hidden">
+        <p class="text-base-content/70 text-center italic print:text-sm">
           {recipeDetails.description}
         </p>
       </div>
     {/if}
 
+    <!-- Récapitulatif Impression (Invisible à l'écran) -->
+    <div class="print-only mb-2 pb-2 text-center">
+      <p class="font-medium">
+        Quantité pour {currentServings} couverts
+      </p>
+      {#if recipeDetails.quantite_desc}
+        <p class="text-sm">{recipeDetails.quantite_desc}</p>
+      {/if}
+    </div>
+
     <!-- Contrôle des quantités -->
-    <div class="my-6 flex flex-wrap items-center justify-between gap-6">
+    <div
+      class="my-6 flex flex-wrap items-center justify-between gap-6 print:hidden"
+    >
       <div class="flex items-center gap-4">
         <label for="servings-input" class="flex items-center gap-2 font-medium">
           <Users class="h-5 w-5" />
@@ -257,12 +271,16 @@
     </div>
 
     <!-- Contenu principal : Ingrédients + Préparation -->
-    <div class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
-      <!-- Ingrédients (1/3) -->
-      <div class="lg:col-span-1">
-        <div class="sticky top-4">
-          <h2 class="mb-4 flex items-center gap-2 text-2xl font-bold">
-            <ShoppingBasket class="h-6 w-6" />
+    <div
+      class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3 print:mt-2 print:grid-cols-10 print:gap-4"
+    >
+      <!-- Ingrédients (1/3 à l'écran, 3/10 à l'impression) -->
+      <div class="lg:col-span-1 print:col-span-3">
+        <div class="sticky top-4 print:static">
+          <h2
+            class="mb-4 flex items-center gap-2 text-2xl font-bold print:mb-2 print:hidden"
+          >
+            <ShoppingBasket class="h-6 w-6 print:h-5 print:w-5" />
             Ingrédients
           </h2>
           <RecipeIngredientsList
@@ -273,10 +291,12 @@
         </div>
       </div>
 
-      <!-- Préparation (2/3) -->
-      <div class="lg:col-span-2">
-        <h2 class="mb-4 flex items-center gap-2 text-2xl font-bold">
-          <CookingPot class="h-6 w-6" />
+      <!-- Préparation (2/3 à l'écran, 7/10 à l'impression) -->
+      <div class="lg:col-span-2 print:col-span-7">
+        <h2
+          class="mb-4 flex items-center gap-2 text-2xl font-bold print:mb-2 print:hidden"
+        >
+          <CookingPot class="h-6 w-6 print:h-5 print:w-5" />
           Préparation
         </h2>
         <RecipePreparation
@@ -289,7 +309,7 @@
 
         <!-- Préparations alternatives -->
         {#if recipeDetails.prepAlt && recipeDetails.prepAlt.length > 0}
-          <div class="mt-8">
+          <div class="mt-8 print:hidden">
             <RecipeAlternatives
               alternatives={recipeDetails.prepAlt.map((id) => ({
                 recetteAlt: id,

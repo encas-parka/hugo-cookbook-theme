@@ -28,7 +28,7 @@
     <span
       class=" {iconOnly
         ? 'text-success'
-        : 'badge-lg badge badge-soft badge-success'}  flex items-center {iconOnly
+        : 'badge-lg print:badge-sm badge badge-soft badge-success'}  flex items-center {iconOnly
         ? ''
         : 'gap-1'}"
     >

@@ -61,23 +61,25 @@
   }
 </script>
 
-<div class="space-y-6">
+<div class="space-y-6 print:space-y-2">
   {#each [...groupedIngredients] as [type, items] (type)}
     {@const typeInfo = getProductTypeInfo(type)}
-    <div class="border-base-300 bg-base-100 rounded-xl border p-4">
-      <h4
-        class="text-base-content/70 mb-2 flex items-center gap-2 font-semibold"
+    <div
+      class="border-base-300 bg-base-100 rounded-xl border p-4 print:border-0 print:p-2"
+    >
+      <div
+        class="text-base-content/70 print:text-base-content mb-2 flex items-center gap-2 font-light print:border-b-2 print:border-gray-500 print:text-sm"
       >
         <typeInfo.icon class="h-4 w-4" />
         {typeInfo.displayName}
-      </h4>
+      </div>
 
-      <ul class="space-y-2">
+      <ul class="space-y-2 print:space-y-1">
         {#each items as ingredient, index (index)}
           {@const scaled = getScaledIngredient(ingredient)}
           <li class="flex flex-wrap items-baseline">
             <div class="flex flex-wrap">
-              <span class="font-medium"
+              <span class="font-medium print:font-normal"
                 >{ingredient.name}
                 {#if ingredient.allergens && ingredient.allergens.length > 0}
                   <span class="tooltip">
