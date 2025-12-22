@@ -289,9 +289,7 @@
             <RecipePreparation
               preparation={recipeDetails.preparation}
               preparation24h={recipeDetails.preparation24h || undefined}
-              astuces={recipeDetails.astuces
-                ? JSON.parse(recipeDetails.astuces)
-                : []}
+              astuces={recipeDetails.astuces || []}
             />
 
             <!-- Préparations alternatives -->

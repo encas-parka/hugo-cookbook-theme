@@ -46,19 +46,15 @@
   {#if astuces.length > 0}
     <div class="space-y-2 print:space-y-1">
       {#each astuces as { astuce }}
-        <div class="card bg-base-100 border print:border-black print:bg-white">
-          <div class="card-body p-4 print:p-2">
-            <div class="flex items-start gap-2">
-              <Lightbulb
-                class="text-warning mt-0.5 h-5 w-5 flex-shrink-0 print:hidden"
-              />
-              <div>
-                <div class="text-sm font-semibold print:text-xs">Astuce :</div>
-                <div class="text-sm print:text-xs">{astuce}</div>
-              </div>
-            </div>
+        <Fieldset
+          legend="Astuces"
+          iconComponent={Lightbulb}
+          legendSize="text-sm"
+        >
+          <div class="flex items-start gap-2">
+            <div class="text-sm">{astuce}</div>
           </div>
-        </div>
+        </Fieldset>
       {/each}
     </div>
   {/if}
