@@ -3,15 +3,17 @@ import type { EventMeal } from "../types/events";
 import { eventsStore } from "./EventsStore.svelte";
 import { recipesStore } from "./RecipesStore.svelte";
 
-
 /**
  * EventStatsStore - Responsabilités :
  * 1. Centraliser les calculs de statistiques pour un événement donné
  * 2. Fournir des derived réactives optimisées
  * 3. Éviter les recalculs multiples dans différents composants
  * 4. Offrir une interface simple pour accéder aux données d'un événement
+ * 5. Fournir un cache statique pour partager les instances entre composants
  */
 export class EventStatsStore {
+  // Cache statique partagé entre toutes les instances
+  static #cache = new Map<string, EventStatsStore>();
   readonly #eventId = $state<string | null>(null);
 
   constructor(eventId: string | null = null) {
@@ -92,7 +94,6 @@ export class EventStatsStore {
 
     return allIngredients.size;
   });
-
 
   /**
    * Liste des contributeurs avec leur statut
@@ -291,6 +292,50 @@ export class EventStatsStore {
     isCurrent: this.isEventCurrent,
     isFuture: this.isEventFuture,
   });
+
+  // =============================================================================
+  // MÉTHODES STATIQUES DE CACHE
+  // =============================================================================
+
+  /**
+   * Récupère ou crée une instance partagée pour un eventId.
+   * C'est la méthode recommandée pour obtenir un EventStatsStore.
+   * Permet de partager les mêmes données entre EventEditPage, EventRecipesPage et ProductsPage.
+   */
+  static getForEvent(eventId: string | null): EventStatsStore | null {
+    if (!eventId) return null;
+
+    if (!this.#cache.has(eventId)) {
+      this.#cache.set(eventId, new EventStatsStore(eventId));
+    }
+    return this.#cache.get(eventId)!;
+  }
+
+  /**
+   * Nettoie le cache pour un événement spécifique ou tout le cache.
+   * @param eventId - L'ID de l'événement à supprimer du cache. Si non fourni, vide tout le cache.
+   */
+  static clearCache(eventId?: string): void {
+    if (eventId) {
+      this.#cache.delete(eventId);
+    } else {
+      this.#cache.clear();
+    }
+  }
+
+  /**
+   * Vérifie si une instance en cache existe pour un eventId donné.
+   */
+  static hasCached(eventId: string): boolean {
+    return this.#cache.has(eventId);
+  }
+
+  /**
+   * Retourne la taille du cache (utile pour le debug).
+   */
+  static getCacheSize(): number {
+    return this.#cache.size;
+  }
 }
 
 // Instance par défaut qui peut être partagée entre composants
@@ -298,6 +343,7 @@ export const eventStatsStore = new EventStatsStore();
 
 /**
  * Helper pour créer une nouvelle instance de EventStatsStore pour un événement spécifique
+ * @deprecated Préférez utiliser EventStatsStore.getForEvent(eventId) pour bénéficier du cache
  */
 export function createEventStats(eventId: string): EventStatsStore {
   return new EventStatsStore(eventId);

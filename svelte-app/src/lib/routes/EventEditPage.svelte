@@ -3,10 +3,7 @@
   import PermissionsManager from "$lib/components/PermissionsManager.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
-  import {
-    eventStatsStore,
-    EventStatsStore,
-  } from "$lib/stores/EventStatsStore.svelte";
+  import { EventStatsStore } from "$lib/stores/EventStatsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { teamsStore } from "$lib/stores/TeamsStore.svelte";
   import type { EventContributor, EventMeal } from "$lib/types/events";
@@ -36,8 +33,8 @@
   // Rendre eventId entièrement réactif aux changements de params
   let eventId = $derived(params?.id);
 
-  // Stats store (LECTURE SEULE - pour les statistiques)
-  let eventStats = $derived.by(() => new EventStatsStore(eventId));
+  // Stats store avec cache statique partagé entre toutes les pages d'événement
+  let eventStats = $derived(EventStatsStore.getForEvent(eventId));
 
   // ============================================================================
   // ÉTAT LOCAL D'ÉDITION (source de vérité pendant l'édition)
@@ -66,7 +63,7 @@
   // DERIVED STATES
   // ============================================================================
 
-  const currentEvent = $derived(eventStats.currentEvent);
+  const currentEvent = $derived(eventStats?.currentEvent ?? null);
 
   const currentUserStatus = $derived.by(() => {
     const currentUser = contributors.find((c) => c.id === globalState.userId);
@@ -94,7 +91,6 @@
   $effect(() => {
     navBarStore.setConfig({
       eventId: eventId || undefined,
-      activeTab: eventId ? 0 : undefined, // Éditer l'événement = onglet 0
       actions: navActions,
     });
   });

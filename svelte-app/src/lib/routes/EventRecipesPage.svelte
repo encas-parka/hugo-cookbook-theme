@@ -2,12 +2,10 @@
   import { onMount } from "svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
-  import { createEventStats } from "$lib/stores/EventStatsStore.svelte";
+  import { EventStatsStore } from "$lib/stores/EventStatsStore.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
-  import { navBarStore } from "../stores/NavBarStore.svelte";
   import { onDestroy } from "svelte";
   import EventStats from "$lib/components/EventStats.svelte";
-  import { EventStatsStore } from "$lib/stores/EventStatsStore.svelte";
   import EventRecipeCard from "$lib/components/eventEdit/EventRecipeCard.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
   import AutocompleteInput from "$lib/components/ui/AutocompleteInput.svelte";
@@ -23,6 +21,7 @@
   } from "@lucide/svelte";
   import { extractTime, formatDateWdDayMonth } from "../utils/date-helpers";
   import { globalState } from "../stores/GlobalState.svelte";
+  import { navBarStore } from "../stores/NavBarStore.svelte";
 
   interface Props {
     params?: { id?: string };
@@ -35,8 +34,8 @@
   let error = $state<string | null>(null);
   let eventId = $state<string | null>(null);
 
-  // Stores
-  let eventStats = $derived.by(() => new EventStatsStore(eventId || ""));
+  // Stats store avec cache statique partagé entre toutes les pages d'événement
+  let eventStats = $derived(EventStatsStore.getForEvent(eventId));
   let eventMeals = $state<any[]>([]);
   let recipesDetails = $state<any[]>([]);
 
@@ -138,11 +137,11 @@
   });
 
   // Calculer les informations de l'événement
-  const eventName = $derived(eventStats.eventName);
-  const startDate = $derived(eventStats.startDate);
-  const endDate = $derived(eventStats.endDate);
-  const totalGuests = $derived(eventStats.totalGuests);
-  const totalRecipes = $derived(eventStats.totalRecipes);
+  const eventName = $derived(eventStats?.eventName ?? "");
+  const startDate = $derived(eventStats?.startDate ?? null);
+  const endDate = $derived(eventStats?.endDate ?? null);
+  const totalGuests = $derived(eventStats?.totalGuests ?? 0);
+  const totalRecipes = $derived(eventStats?.totalRecipes ?? 0);
 
   // Extraire l'ID de l'URL depuis les params ou l'URL actuelle
   const extractedId = $derived(() => {
@@ -159,8 +158,7 @@
     error = null;
 
     try {
-      // Initialiser le store d'événement
-      eventStats = createEventStats(currentEventId);
+      // L'eventId est stocké localement pour déclencher le derived eventStats
       eventId = currentEventId;
 
       // Attendre que les stores soient prêts
@@ -220,34 +218,10 @@
   // NAVBAR CONFIGURATION
   // ============================================================================
 
-  // Configuration des onglets pour les pages d'événement
-  const eventTabs = [
-    { label: "Éditer l'événement", path: "/dashboard/eventEdit" },
-    { label: "Voir les recettes", path: "/dashboard/eventEdit/recipes" },
-    { label: "Listes des produits", path: "/dashboard/eventEdit" },
-  ];
-
-  function navigateToTab(index: number) {
-    if (!eventId) return;
-
-    if (index === 1) {
-      // Onglet "Voir les recettes" - on est déjà sur cette page
-      return;
-    } else if (index === 2) {
-      // Onglet "Voir les produits" - nouvelle route /products
-      navigate(`/dashboard/eventEdit/products/${eventId}`);
-    } else {
-      // Onglet "Éditer l'événement"
-      navigate(`/dashboard/eventEdit/${eventId}`);
-    }
-  }
-
   $effect(() => {
     navBarStore.setConfig({
-      title: eventName || "Recettes de l'événement",
+      eventId: eventId || undefined,
       actions: navActions,
-      tabs: eventTabs,
-      activeTab: 1, // Index 1 pour "Voir les recettes"
     });
   });
 

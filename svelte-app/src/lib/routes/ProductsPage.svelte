@@ -42,9 +42,9 @@
   import { onMount, onDestroy } from "svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { EventStatsStore } from "$lib/stores/EventStatsStore.svelte";
-  import { navBarStore } from "../stores/NavBarStore.svelte";
 
   import { navigate } from "../services/simple-router.svelte";
+  import { navBarStore } from "../stores/NavBarStore.svelte";
 
   // Dont work properly
   const PANEL_WIDTH = "100";
@@ -65,7 +65,9 @@
 
   // Accès réactif aux valeurs dérivées du store
   const stats = $derived(productsStore.stats);
-  const eventStats = $derived.by(() => new EventStatsStore(eventId));
+
+  // Stats store avec cache statique partagé entre toutes les pages d'événement
+  const eventStats = $derived(EventStatsStore.getForEvent(eventId));
 
   // État local : quel produit a son modal ouvert, et sur quel onglet
   let openModalProductId = $state<string | null>(null);
@@ -232,10 +234,8 @@
   // =========================================================================
 
   $effect(() => {
-    const event = eventsStore.getEventById(eventId);
     navBarStore.setConfig({
       eventId: eventId || undefined,
-      activeTab: eventId ? 1 : undefined, // Voir les produits = onglet 1
       actions: navActions,
     });
   });
@@ -326,9 +326,11 @@
   {:else}
     <!-- Contenu une fois chargé -->
     <!-- Stats -->
-    <div class="flex justify-end py-5 print:hidden">
-      <EventStats {eventStats} />
-    </div>
+    {#if eventStats}
+      <div class="flex justify-end py-5 print:hidden">
+        <EventStats {eventStats} />
+      </div>
+    {/if}
     <ProductsCards
       onOpenModal={openModal}
       onOpenGroupEditModal={openGroupEditModal}

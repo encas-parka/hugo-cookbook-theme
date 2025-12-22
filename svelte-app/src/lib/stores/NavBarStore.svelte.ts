@@ -11,7 +11,7 @@ export interface NavBarConfig {
   title?: string;
   backAction?: () => void;
   actions?: Snippet;
-  tabs?: BreadcrumbItem[]; // On garde BreadcrumbItem pour l'interface des onglets
+  tabs?: BreadcrumbItem[];
   eventId?: string;
   activeTab?: number;
 }

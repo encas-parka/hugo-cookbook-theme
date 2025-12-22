@@ -109,10 +109,7 @@
 
   <div class="navbar-center">
     {#if navBarStore.eventId !== undefined}
-      <EventTabs
-        eventId={navBarStore.eventId}
-        activeTab={navBarStore.activeTab}
-      />
+      <EventTabs eventId={navBarStore.eventId} />
     {:else if navBarStore.tabs.length > 0}
       <div class="tabs tabs-box">
         {#each navBarStore.tabs as tab, index (index)}
@@ -125,7 +122,9 @@
         {/each}
       </div>
     {:else}
-      <h1 class="text-sm font-bold tracking-wider uppercase opacity-70">
+      <h1
+        class="truncate text-sm font-bold tracking-wider uppercase opacity-70"
+      >
         {navBarStore.title}
       </h1>
     {/if}

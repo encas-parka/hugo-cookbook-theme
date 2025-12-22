@@ -1,29 +1,43 @@
 <script lang="ts">
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate, router } from "$lib/services/simple-router.svelte";
 
-  // Props pour recevoir l'eventId et l'onglet actif
-  let { eventId, activeTab = 0 }: { eventId: string; activeTab?: number } =
-    $props();
+  // Props : eventId uniquement, l'onglet actif est déterminé par l'URL
+  let { eventId }: { eventId: string } = $props();
 
   // Configuration des onglets pour les pages d'événement
   const eventTabs = [
     { label: "Éditer l'événement", path: "/dashboard/eventEdit" },
     { label: "Voir les recettes", path: "/dashboard/eventEdit/recipes" },
-    { label: "Listes des produits", path: "/dashboard/eventEdit" },
+    { label: "Listes des produits", path: "/dashboard/eventEdit/products" },
   ];
+
+  // Déterminer l'onglet actif depuis l'URL courante
+  const activeTab = $derived.by(() => {
+    const currentPath = router.path;
+
+    // Pattern matching pour déterminer l'onglet
+    if (currentPath.includes("/eventEdit/recipes/")) return 1;
+    if (currentPath.includes("/eventEdit/products/")) return 2;
+    // Par défaut, si on est sur /dashboard/eventEdit/:id (sans /recipes ou /products)
+    if (currentPath.includes("/eventEdit/") && eventId) {
+      // Vérifier que le path contient bien l'eventId
+      const eventEditPattern = new RegExp(
+        `/dashboard/eventEdit/${eventId}(/?$)`,
+      );
+      if (eventEditPattern.test(currentPath)) return 0;
+    }
+
+    return 0; // Défaut
+  });
 
   function navigateToTab(index: number) {
     if (!eventId) return;
 
-    const tab = eventTabs[index];
     if (index === 1) {
-      // Onglet "Voir les recettes" - nouvelle route /recipes
       navigate(`/dashboard/eventEdit/recipes/${eventId}`);
     } else if (index === 2) {
-      // Onglet "Voir les produits" - nouvelle route /products
       navigate(`/dashboard/eventEdit/products/${eventId}`);
     } else {
-      // Onglet "Éditer l'événement"
       navigate(`/dashboard/eventEdit/${eventId}`);
     }
   }
