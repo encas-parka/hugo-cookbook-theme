@@ -10,16 +10,16 @@
   import { EventStatsStore } from "$lib/stores/EventStatsStore.svelte";
   import EventRecipeCard from "$lib/components/eventEdit/EventRecipeCard.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
+  import AutocompleteInput from "$lib/components/ui/AutocompleteInput.svelte";
   import { formatDateShort } from "$lib/utils/products-display";
   import {
     ArrowLeft,
     Calendar,
     CookingPot,
     Utensils,
-    Search,
-    X,
     Eye,
-    Library,
+    X,
+    Funnel,
   } from "@lucide/svelte";
   import { extractTime, formatDateWdDayMonth } from "../utils/date-helpers";
   import { globalState } from "../stores/GlobalState.svelte";
@@ -43,13 +43,34 @@
   // Pour éviter les rechargements en boucle
   let isLoading = $state(false);
 
-  // État pour la recherche par ingrédients
-  let searchQuery = $state("");
+  // État pour la recherche par ingrédient (un seul à la fois)
+  let selectedIngredient = $state<string>("");
+  let ingredientSearch = $state("");
+
+  // Extraire tous les ingrédients uniques des recettes de l'événement
+  const availableIngredients = $derived.by(() => {
+    const ingredientsSet = new Set<string>();
+    recipesDetails.forEach((recipe) => {
+      recipe.ingredients?.forEach((ingredient: any) => {
+        if (ingredient.name) {
+          ingredientsSet.add(ingredient.name);
+        }
+      });
+    });
+    return Array.from(ingredientsSet).sort();
+  });
+
+  // Ingrédients disponibles pour l'autocomplétion (exclut celui déjà sélectionné)
+  const availableIngredientsForAutocomplete = $derived(
+    selectedIngredient
+      ? availableIngredients.filter((ing) => ing !== selectedIngredient)
+      : availableIngredients,
+  );
 
   // État pour les filtres de date, moment et recette individuelle
   let selectedDateFilter = $state<string | null>(null);
   let selectedTimeFilter = $state<string | null>(null);
-  let selectedRecipeFilter = $state<string | null>(null);
+  let selectedMealRecipeFilter = $state<string | null>(null); // Format: "mealId-recipeIndex"
 
   // Repas filtrés par date et moment (pour l'affichage principal)
   const filteredMeals = $derived.by(() => {
@@ -67,19 +88,17 @@
   });
 
   // Recettes filtrées par ingrédients ET par filtres de date/moment
-  const filteredRecipes = $derived(() => {
+  const filteredRecipes = $derived.by(() => {
     let recipes = recipesDetails;
 
-    // Filtrer par la recherche d'ingrédients
-    if (searchQuery) {
-      recipes = recipes.filter(
-        (recipe) =>
-          recipe.ingredients &&
-          recipe.ingredients.some(
-            (ingredient: any) =>
-              ingredient.name &&
-              ingredient.name.toLowerCase().includes(searchQuery.toLowerCase()),
-          ),
+    // Filtrer par la recherche d'ingrédient
+    if (selectedIngredient) {
+      recipes = recipes.filter((recipe) =>
+        recipe.ingredients?.some(
+          (ingredient: any) =>
+            ingredient.name &&
+            ingredient.name.toLowerCase() === selectedIngredient.toLowerCase(),
+        ),
       );
     }
 
@@ -94,13 +113,6 @@
 
       recipes = recipes.filter((recipe: any) =>
         filteredMealRecipes.has(recipe.$id),
-      );
-    }
-
-    // Filtrer par recette individuelle
-    if (selectedRecipeFilter) {
-      recipes = recipes.filter(
-        (recipe: any) => recipe.$id === selectedRecipeFilter,
       );
     }
 
@@ -249,6 +261,19 @@
       navigate(`/dashboard/eventEdit/${eventId}`);
     }
   }
+
+  // Gestion de l'ingrédient sélectionné
+  function selectIngredient(ingredient: string) {
+    selectedIngredient = ingredient;
+    // Reset les filtres de date/recette
+    selectedDateFilter = null;
+    selectedTimeFilter = null;
+    selectedMealRecipeFilter = null;
+  }
+
+  function resetIngredientFilter() {
+    selectedIngredient = "";
+  }
 </script>
 
 {#snippet navActions()}
@@ -264,39 +289,46 @@
   <!-- LeftPanel avec recherche et sommaire -->
   <div class="print:hidden">
     <LeftPanel>
-      <!-- Champ de recherche par ingrédients -->
-      <div class="mb-6">
+      <!-- Champ de recherche par ingrédient avec autocomplétion -->
+      <div class="mt-16 mb-6">
         <h3 class="mb-3 text-lg font-semibold">Rechercher par ingrédient</h3>
-        <div class="input flex items-center gap-2">
-          <Search class="h-4 w-4" />
-          <input
-            type="text"
-            placeholder="Nom de l'ingrédient..."
-            class="grow"
-            bind:value={searchQuery}
+
+        <div class="relative">
+          <AutocompleteInput
+            items={availableIngredientsForAutocomplete}
+            onSelect={selectIngredient}
+            placeholder={selectedIngredient || "Filtrer par ingrédients..."}
+            minQueryLength={1}
+            bind:value={ingredientSearch}
           />
-          <button
-            class="btn btn-sm btn-circle btn-error btn-outline opacity-60"
-            onclick={() => (searchQuery = "")}
-            disabled={!searchQuery}
-          >
-            <X class="h-4 w-4" />
-          </button>
+          {#if selectedIngredient}
+            <button
+              class="btn btn-circle btn-error btn-outline btn-xs absolute top-1/2 right-2 z-10 -translate-y-1/2 opacity-60 hover:opacity-100"
+              onclick={resetIngredientFilter}
+              aria-label="Effacer la recherche"
+            >
+              <X size={14} />
+            </button>
+          {/if}
         </div>
       </div>
+
+      <div class="divider my-4"></div>
 
       <!-- Sommaire réactif des recettes avec filtrage -->
       <ul class="menu bg-base-100 rounded-box w-100 drop-shadow-lg">
         {#each Array.from(mealsByDate.entries()) as [date, times] (date)}
           <li>
             <button
-              class="btn btn-sm btn-ghost justify-start"
-              class:btn-accent={selectedDateFilter === date &&
-                !selectedTimeFilter}
+              class="btn btn-sm justify-start {selectedDateFilter === date &&
+              !selectedTimeFilter
+                ? 'btn-accent'
+                : 'btn-ghost'}"
               onclick={() => {
-                selectedDateFilter = selectedDateFilter === date ? null : date;
                 selectedTimeFilter = null; // Réinitialiser le filtre de temps
-                selectedRecipeFilter = null; // Réinitialiser le filtre de recette
+                selectedMealRecipeFilter = null; // Réinitialiser le filtre de recette
+                selectedIngredient = ""; // Réinitialiser le filtre d'ingrédient
+                selectedDateFilter = selectedDateFilter === date ? null : date;
               }}
             >
               <span>{date}</span>
@@ -304,17 +336,19 @@
           </li>
 
           <ul>
-            {#each Array.from(times.entries()) as [time, meals] (time)}
+            {#each Array.from((times as Map<string, any[]>).entries()) as [time, meals] (time)}
               <li>
                 <button
-                  class="btn btn-sm btn-ghost justify-start pl-4"
-                  class:btn-accent={selectedDateFilter === date &&
-                    selectedTimeFilter === time}
+                  class="btn btn-sm justify-start pl-4 {selectedDateFilter ===
+                    date && selectedTimeFilter === time
+                    ? 'btn-accent'
+                    : 'btn-ghost '}"
                   onclick={() => {
                     selectedDateFilter = date;
                     selectedTimeFilter =
                       selectedTimeFilter === time ? null : time;
-                    selectedRecipeFilter = null; // Réinitialiser le filtre de recette
+                    selectedMealRecipeFilter = null; // Réinitialiser le filtre de recette
+                    selectedIngredient = ""; // Réinitialiser le filtre d'ingrédient
                   }}
                 >
                   <span class="flex w-full items-center justify-between">
@@ -326,22 +360,27 @@
                 </button>
               </li>
               <ul>
-                {#each meals[0].recipes as mealRecipe (mealRecipe.recipeUuid)}
+                {#each meals[0].recipes as mealRecipe, recipeIndex (mealRecipe.recipeUuid + "-" + recipeIndex)}
                   {@const recipe = recipesDetails.find(
                     (r) => r.$id === mealRecipe.recipeUuid,
                   )}
+                  {@const mealRecipeKey =
+                    (meals[0].id || meals[0].date) + "-" + recipeIndex}
                   {#if recipe}
                     <li>
                       <button
-                        class="btn btn-sm btn-ghost ml-8 justify-start"
-                        class:btn-accent={selectedRecipeFilter === recipe.$id}
+                        class="btn btn-sm ml-8 justify-start {selectedMealRecipeFilter ===
+                        mealRecipeKey
+                          ? 'btn-accent'
+                          : 'btn-ghost'}"
                         onclick={() => {
-                          selectedDateFilter = date;
-                          selectedTimeFilter = time;
-                          selectedRecipeFilter =
-                            selectedRecipeFilter === recipe.$id
+                          selectedDateFilter = null;
+                          selectedTimeFilter = null;
+                          selectedMealRecipeFilter =
+                            selectedMealRecipeFilter === mealRecipeKey
                               ? null
-                              : recipe.$id;
+                              : mealRecipeKey;
+                          selectedIngredient = ""; // Réinitialiser le filtre d'ingrédient
                         }}
                       >
                         <span class="max-w-[300px] truncate text-left">
@@ -357,14 +396,14 @@
         {/each}
       </ul>
 
-      {#if selectedDateFilter || selectedTimeFilter || selectedRecipeFilter}
+      {#if selectedDateFilter || selectedTimeFilter || selectedMealRecipeFilter}
         <div class="my-4">
           <button
             class="btn btn-dash btn-block btn-primary"
             onclick={() => {
               selectedDateFilter = null;
               selectedTimeFilter = null;
-              selectedRecipeFilter = null;
+              selectedMealRecipeFilter = null;
             }}
             aria-label="Afficher toutes les recettes"
           >
@@ -418,93 +457,194 @@
             <EventStats {eventStats} />
           </div>
 
-          {#if selectedDateFilter || selectedTimeFilter || selectedRecipeFilter}
-            <div class="mb-4">
+          {#if selectedDateFilter || selectedTimeFilter || selectedMealRecipeFilter || selectedIngredient}
+            <div class="m-4 flex items-center justify-center gap-2">
+              <div class="badge badge-xl badge-primary">
+                <Funnel class="mr-1 h-4 w-4" />
+                filtre :
+                {#if selectedDateFilter}
+                  <span class="mr-1">{selectedDateFilter}</span>
+                {/if}
+                {#if selectedTimeFilter}
+                  <span class="mr-1">{selectedTimeFilter}</span>
+                {/if}
+                {#if selectedMealRecipeFilter}
+                  <span class="mr-1"> recette</span>
+                {/if}
+                {#if selectedIngredient}
+                  <span>🧂 {selectedIngredient}</span>
+                {/if}
+              </div>
               <button
-                class="btn btn-dash btn-block btn-primary"
+                class="btn btn-dash btn-sm"
                 onclick={() => {
                   selectedDateFilter = null;
                   selectedTimeFilter = null;
-                  selectedRecipeFilter = null;
+                  selectedMealRecipeFilter = null;
+                  selectedIngredient = "";
                 }}
                 aria-label="Afficher toutes les recettes"
               >
-                ✕ Annuler tous les filtres
+                <Eye class="h-4 w-4" />
+                Afficher toutes les recettes
               </button>
             </div>
           {/if}
         </div>
 
         <!-- Grille des recettes -->
-        {#if filteredMeals.length === 0 && (selectedDateFilter || selectedTimeFilter)}
-          <div
-            class="bg-base-100 border-base-300 rounded-xl border p-8 text-center"
-          >
-            <p class="text-base-content/60 text-lg">
-              Aucune recette ne correspond aux filtres sélectionnés.
-            </p>
-            <button
-              class="btn btn-primary mt-4"
-              onclick={() => {
-                selectedDateFilter = null;
-                selectedTimeFilter = null;
-              }}
+        {#if selectedIngredient}
+          <!-- Mode recherche par ingrédient : afficher les recettes filtrées -->
+          {#if filteredRecipes.length === 0}
+            <div
+              class="bg-base-100 border-base-300 rounded-xl border p-8 text-center"
             >
-              Réinitialiser les filtres
-            </button>
-          </div>
-        {:else}
-          <div class="space-y-8">
-            {#each filteredMeals as meal, mealIndex (meal.id || mealIndex)}
-              <!-- Date break -->
-              <div
-                id="meal-{meal.date}"
-                class="card bg-accent text-accent-content flex flex-row items-center justify-center gap-6 p-4 text-lg font-black print:hidden"
-              >
-                <div class="">
-                  {formatDateWdDayMonth(meal.date)}
-                </div>
-                <div>{extractTime(meal.date)}</div>
-                <div class="badge badge-outline">
-                  <Utensils size={16} />
-                  {meal.guests}
-                </div>
-                <div class="badge badge-outline">
-                  <CookingPot size={16} />
-                  {meal.recipes.length}
-                </div>
-              </div>
-
-              <!-- Recettes -->
-              {#each meal.recipes as mealRecipe, recipeIndex ((meal.id || mealIndex) + "-" + mealRecipe.recipeUuid + "-" + recipeIndex)}
-                {@const recipe = recipesDetails.find(
-                  (r) => r.$id === mealRecipe.recipeUuid,
+              <p class="text-base-content/60 text-lg">
+                Aucune recette ne contient l'ingrédient "{selectedIngredient}".
+              </p>
+            </div>
+          {:else}
+            <div class="space-y-8">
+              {#each eventMeals as meal, mealIndex (meal.id || mealIndex)}
+                {@const recipesMatchingSearch = meal.recipes.filter((mr: any) =>
+                  filteredRecipes.some((fr) => fr.$id === mr.recipeUuid),
                 )}
-                <div class="break-after-page">
-                  {#if recipe}
-                    <EventRecipeCard
-                      {recipe}
-                      {meal}
-                      {mealRecipe}
-                      {totalGuests}
-                    />
-                  {/if}
-                </div>
+                {#if recipesMatchingSearch.length > 0}
+                  <!-- Date break -->
+                  <div
+                    id="meal-{meal.date}"
+                    class="card bg-accent text-accent-content flex flex-row items-center justify-center gap-6 p-4 text-lg font-black print:hidden"
+                  >
+                    <div class="">
+                      {formatDateWdDayMonth(meal.date)}
+                    </div>
+                    <div>{extractTime(meal.date)}</div>
+                    <div class="badge badge-outline">
+                      <Utensils size={16} />
+                      {meal.guests}
+                    </div>
+                    <div class="badge badge-outline">
+                      <CookingPot size={16} />
+                      {recipesMatchingSearch.length}
+                    </div>
+                  </div>
+
+                  <!-- Recettes qui correspondent à la recherche -->
+                  {#each recipesMatchingSearch as mealRecipe, recipeIndex ((meal.id || mealIndex) + "-" + mealRecipe.recipeUuid + "-" + recipeIndex)}
+                    {@const recipe = recipesDetails.find(
+                      (r) => r.$id === mealRecipe.recipeUuid,
+                    )}
+                    <div class="break-after-page">
+                      {#if recipe}
+                        <EventRecipeCard
+                          {recipe}
+                          {meal}
+                          {mealRecipe}
+                          {totalGuests}
+                        />
+                      {/if}
+                    </div>
+                  {/each}
+                {/if}
               {/each}
-            {/each}
-          </div>
+            </div>
+          {/if}
+        {:else}
+          <!-- Mode normal : afficher les repas filtrés par date/moment/recette -->
+          {#if filteredMeals.length === 0 && (selectedDateFilter || selectedTimeFilter)}
+            <div
+              class="bg-base-100 border-base-300 rounded-xl border p-8 text-center"
+            >
+              <p class="text-base-content/60 text-lg">
+                Aucune recette ne correspond aux filtres sélectionnés.
+              </p>
+              <button
+                class="btn btn-primary mt-4"
+                onclick={() => {
+                  selectedDateFilter = null;
+                  selectedTimeFilter = null;
+                  selectedMealRecipeFilter = null;
+                }}
+              >
+                Réinitialiser les filtres
+              </button>
+            </div>
+          {:else}
+            <div class="space-y-8">
+              {#each filteredMeals as meal, mealIndex (meal.id || mealIndex)}
+                <!-- Filtrer les recettes individuellement si sélectionné -->
+                {@const mealRecipesToDisplay = selectedMealRecipeFilter
+                  ? (() => {
+                      const [mealId, recipeIndex] =
+                        selectedMealRecipeFilter.split("-");
+                      const currentMealId = meal.id || meal.date;
+                      if (mealId !== currentMealId.toString()) return [];
+                      return meal.recipes.filter(
+                        (_mr: any, idx: number) =>
+                          idx === parseInt(recipeIndex),
+                      );
+                    })()
+                  : meal.recipes}
+
+                {#if mealRecipesToDisplay.length > 0}
+                  <!-- Date break -->
+                  <div
+                    id="meal-{meal.date}"
+                    class="card bg-accent text-accent-content flex flex-row items-center justify-center gap-6 p-4 text-lg font-black print:hidden"
+                  >
+                    <div class="">
+                      {formatDateWdDayMonth(meal.date)}
+                    </div>
+                    <div>{extractTime(meal.date)}</div>
+                    <div class="badge badge-outline">
+                      <Utensils size={16} />
+                      {meal.guests}
+                    </div>
+                    <div class="badge badge-outline">
+                      <CookingPot size={16} />
+                      {mealRecipesToDisplay.length}
+                    </div>
+                  </div>
+
+                  <!-- Recettes -->
+                  {#each mealRecipesToDisplay as mealRecipe, recipeIndex ((meal.id || mealIndex) + "-" + mealRecipe.recipeUuid + "-" + recipeIndex)}
+                    {@const recipe = recipesDetails.find(
+                      (r) => r.$id === mealRecipe.recipeUuid,
+                    )}
+                    <div class="break-after-page">
+                      {#if recipe}
+                        <EventRecipeCard
+                          {recipe}
+                          {meal}
+                          {mealRecipe}
+                          {totalGuests}
+                        />
+                      {/if}
+                    </div>
+                  {/each}
+                {/if}
+              {/each}
+            </div>
+            {#if selectedDateFilter || selectedTimeFilter || selectedMealRecipeFilter}
+              <button
+                class="btn btn-dash btn-block my-5"
+                onclick={() => {
+                  selectedDateFilter = null;
+                  selectedTimeFilter = null;
+                  selectedMealRecipeFilter = null;
+                  selectedIngredient = "";
+                }}
+                aria-label="Afficher toutes les recettes"
+              >
+                <Eye class="h-4 w-4" />
+                Afficher toutes les recettes
+              </button>
+            {/if}
+          {/if}
         {/if}
 
-        <!-- Message si pas de recettes -->
-        {#if filteredRecipes.length === 0 && searchQuery}
-          <div
-            class="bg-base-100 border-base-300 rounded-xl border p-8 text-center"
-          >
-            <p class="text-base-content/60 text-lg">
-              Aucune recette ne contient l'ingrédient "{searchQuery}".
-            </p>
-          </div>
-        {:else if recipesDetails.length === 0}
+        <!-- Message si pas de recettes du tout -->
+        {#if !selectedIngredient && recipesDetails.length === 0 && !loading}
           <div
             class="bg-base-100 border-base-300 rounded-xl border p-8 text-center"
           >

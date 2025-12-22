@@ -1,7 +1,6 @@
 <script lang="ts">
   import { Search } from "@lucide/svelte";
   import { keyboardNavigation } from "$lib/attachments/keyboardNavigation.svelte";
-  import { clickOutside } from "$lib/attachments/clickOutside.svelte";
 
   interface Props<T> {
     value?: string;
@@ -16,6 +15,7 @@
     maxResults?: number;
     id?: string;
     showAllOnFocus?: boolean;
+    inputSize?: string;
   }
 
   let {
@@ -31,12 +31,12 @@
     maxResults = undefined,
     id,
     showAllOnFocus = true,
+    inputSize = "",
   }: Props<T> = $props();
 
   let selectedIndex = $state(-1);
   let isFocused = $state(false);
-  let wrapperElement: HTMLDivElement;
-  let inputElement: HTMLInputElement;
+  let inputElement: HTMLInputElement | undefined;
 
   let filteredItems = $derived.by(() => {
     // Si focus et pas de texte, montrer tous les éléments si showAllOnFocus est true
@@ -59,15 +59,6 @@
     return isFocused && filteredItems.length > 0;
   });
 
-  // Gérer le selectedIndex de manière réactive
-  $effect(() => {
-    if (filteredItems.length > 0 && selectedIndex === -1) {
-      selectedIndex = 0;
-    } else if (filteredItems.length === 0) {
-      selectedIndex = -1;
-    }
-  });
-
   function handleSelectItem(item: T) {
     onSelect?.(item);
     value = "";
@@ -87,7 +78,8 @@
         selectedIndex <= 0 ? filteredItems.length - 1 : selectedIndex - 1;
     } else if (
       (event.key === "Enter" || event.key === "Tab") &&
-      selectedIndex >= 0
+      selectedIndex >= 0 &&
+      selectedIndex < filteredItems.length
     ) {
       event.preventDefault();
       handleSelectItem(filteredItems[selectedIndex]);
@@ -99,6 +91,10 @@
 
   function handleFocus() {
     isFocused = true;
+    // Initialiser selectedIndex si des résultats sont disponibles
+    if (filteredItems.length > 0 && selectedIndex === -1) {
+      selectedIndex = 0;
+    }
   }
 
   function handleBlur() {
@@ -115,12 +111,8 @@
   }
 </script>
 
-<div
-  class="relative"
-  bind:this={wrapperElement}
-  {@attach clickOutside(handleClickOutside)}
->
-  <label class="input input-sm input-bordered w-full">
+<div class="relative">
+  <label class="input w-full {inputSize}">
     <Search class="h-4 w-4 opacity-50" />
     <input
       type="text"
@@ -132,7 +124,6 @@
       onfocus={handleFocus}
       onblur={handleBlur}
       {disabled}
-      bind:this={inputElement}
       {@attach keyboardNavigation({
         shouldFocus: autoFocus,
       })}
