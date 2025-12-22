@@ -2,20 +2,13 @@
   import { onMount } from "svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import type { RecipeForDisplay } from "$lib/types/recipes.types";
-  import RecipeHeader from "$lib/components/recipes/RecipeHeader.svelte";
   import RecipeRegimeBadges from "$lib/components/recipes/RecipeRegimeBadges.svelte";
   import { Users } from "@lucide/svelte";
   import RecipeIngredientsList from "$lib/components/recipes/RecipeIngredientsList.svelte";
   import RecipePreparation from "$lib/components/recipes/RecipePreparation.svelte";
   import RecipeAlerts from "$lib/components/recipes/RecipeAlerts.svelte";
   import RecipeAlternatives from "$lib/components/recipes/RecipeAlternatives.svelte";
-  import {
-    UtensilsCrossed,
-    ChefHat,
-    PencilIcon,
-    ShoppingBasket,
-    CookingPot,
-  } from "@lucide/svelte";
+  import { ChefHat, PencilIcon } from "@lucide/svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
@@ -148,176 +141,172 @@
       </div>
     </div>
   {:else if recipeDetails}
-    <!-- En-tête -->
-    <div class="mb-4">
-      <RecipeHeader
-        title={recipeDetails.title}
-        author={recipeDetails.auteur || recipeDetails.createdBy}
-        category={recipeDetails.typeR}
-      />
-    </div>
+    <div class="card bg-base-100">
+      <div class="card-body">
+        <!-- En-tête -->
+        <div class="mb-4 print:mb-2">
+          <div class="flex items-center justify-between gap-x-10 gap-y-4">
+            <h1
+              class="flex items-center gap-3 text-2xl font-bold print:text-xl"
+            >
+              <ChefHat class="text-primary  print:hidden" />
+              {recipeDetails.title}
+            </h1>
 
-    <div class="flex flex-wrap justify-between gap-2">
-      <div class="flex gap-2">
-        <!-- Badges température -->
-        {#if recipeDetails?.serveHot !== undefined}
-          <div class="mb-2">
-            {#if recipeDetails.serveHot}
-              <span
-                class="badge badge-lg print:badge-md badge-soft badge-warning"
-                >Servir Chaud</span
-              >
-            {:else}
-              <span class="badge badge-lg print:badge-md badge-soft badge-info"
-                >Servir Froid</span
-              >
+            <!-- Badges régimes -->
+            {#if recipeDetails?.regime && recipeDetails.regime.length > 0}
+              <div class="">
+                <RecipeRegimeBadges
+                  regimes={recipeDetails.regime}
+                  iconOnly={true}
+                />
+              </div>
             {/if}
+          </div>
+          {#if recipeDetails.auteur}
+            <p class="text-base-content/60 text-lg print:text-sm">
+              une recette de {recipeDetails.auteur}
+            </p>
+          {/if}
+        </div>
+
+        <!-- Description -->
+        {#if recipeDetails.description}
+          <div class="mb-6 p-6 print:hidden">
+            <p class="text-base-content/70 text-center italic print:text-sm">
+              {recipeDetails.description}
+            </p>
           </div>
         {/if}
 
-        <!-- Badges cuisson -->
-        {#if recipeDetails?.cuisson !== undefined}
-          <div class="mb-2">
-            {#if recipeDetails.cuisson}
-              <span
-                class="badge badge-lg badge-soft print:badge-md badge-warning"
-                >Avec Cuisson</span
-              >
-            {:else}
-              <span class="badge badge-lg badge-soft print:badge-md badge-info"
-                >Sans Cuisson</span
-              >
+        <!-- badge info -->
+        <div class="border-base-300 mb-6 border-b pb-4 print:mb-1 print:pb-2">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <!-- Badges allergènes -->
+
+            <div class="flex gap-2">
+              <!-- Badges température -->
+              {#if recipeDetails?.serveHot !== undefined}
+                <div class="mb-2">
+                  {#if recipeDetails.serveHot}
+                    <span class="badge badge-warning">Servir Chaud</span>
+                  {:else}
+                    <span class="badge badge-info">Servir Froid</span>
+                  {/if}
+                </div>
+              {/if}
+
+              <!-- Badges cuisson -->
+              {#if recipeDetails?.cuisson !== undefined}
+                <div class="mb-2">
+                  {#if recipeDetails.cuisson}
+                    <span class="badge badge-warning">Avec Cuisson</span>
+                  {:else}
+                    <span class="badge badge-info">Sans Cuisson</span>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+
+            {#if allergens.length > 0}
+              <div class="flex w-fit flex-wrap items-center gap-2">
+                <span class="text-base-content/70 font-semibold"
+                  >Allergenes :</span
+                >
+                {#each allergens as allergen}
+                  <span class="badge badge-error">{allergen}</span>
+                {/each}
+              </div>
+            {/if}
+            <!-- Badges matériel -->
+            {#if recipeDetails?.materiel && recipeDetails.materiel.length > 0}
+              <div class="flex flex-wrap gap-2">
+                {#each recipeDetails.materiel as item}
+                  <span class="badge">{item}</span>
+                {/each}
+              </div>
             {/if}
           </div>
-        {/if}
-      </div>
-
-      <!-- Badges régimes -->
-      {#if recipeDetails?.regime && recipeDetails.regime.length > 0}
-        <div class="mb-2">
-          <RecipeRegimeBadges regimes={recipeDetails.regime} />
         </div>
-      {/if}
-    </div>
 
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <!-- Badges matériel -->
-      {#if recipeDetails?.materiel && recipeDetails.materiel.length > 0}
-        <div class="mb-2 flex flex-wrap gap-2 print:mb-0">
-          {#each recipeDetails.materiel as item}
-            <span class="badge badge-soft badge-neutral">{item}</span>
-          {/each}
-        </div>
-      {/if}
-
-      <!-- Badges allergènes -->
-      {#if allergens.length > 0}
+        <!-- Contrôle des quantités -->
         <div
-          class="mb-2 flex w-fit flex-wrap items-center gap-2 rounded-xl px-4 py-2 print:mb-0"
+          class="my-6 flex flex-wrap items-center justify-between gap-6 print:hidden"
         >
-          <span class="text-base-content/70 font-semibold">Allergenes :</span>
-          {#each allergens as allergen}
-            <span class="badge badge-error badge-soft">{allergen}</span>
-          {/each}
-        </div>
-      {/if}
-    </div>
-
-    <!-- Description -->
-    {#if recipeDetails.description}
-      <div class="mb-6 print:hidden">
-        <p class="text-base-content/70 text-center italic print:text-sm">
-          {recipeDetails.description}
-        </p>
-      </div>
-    {/if}
-
-    <!-- Récapitulatif Impression (Invisible à l'écran) -->
-    <div class="print-only mb-2 pb-2 text-center">
-      <p class="font-medium">
-        Quantité pour {currentServings} couverts
-      </p>
-      {#if recipeDetails.quantite_desc}
-        <p class="text-sm">{recipeDetails.quantite_desc}</p>
-      {/if}
-    </div>
-
-    <!-- Contrôle des quantités -->
-    <div
-      class="my-6 flex flex-wrap items-center justify-between gap-6 print:hidden"
-    >
-      <div class="flex items-center gap-4">
-        <label for="servings-input" class="flex items-center gap-2 font-medium">
-          <Users class="h-5 w-5" />
-          Nombre de couverts à servir :
-        </label>
-        <input
-          id="servings-input"
-          type="number"
-          min="1"
-          value={currentServings}
-          oninput={handleServingsInput}
-          class="input input-bordered input-primary w-24"
-        />
-      </div>
-
-      <!-- Alertes de validation -->
-      {#if recipeDetails.check !== undefined}
-        <RecipeAlerts
-          isChecked={recipeDetails.check}
-          defaultServings={recipeDetails.plate}
-        />
-      {/if}
-    </div>
-
-    <!-- Contenu principal : Ingrédients + Préparation -->
-    <div
-      class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3 print:mt-2 print:grid-cols-10 print:gap-4"
-    >
-      <!-- Ingrédients (1/3 à l'écran, 3/10 à l'impression) -->
-      <div class="lg:col-span-1 print:col-span-3">
-        <div class="sticky top-4 print:static">
-          <h2
-            class="mb-4 flex items-center gap-2 text-2xl font-bold print:mb-2 print:hidden"
-          >
-            <ShoppingBasket class="h-6 w-6 print:h-5 print:w-5" />
-            Ingrédients
-          </h2>
-          <RecipeIngredientsList
-            ingredients={recipeDetails.ingredients}
-            servings={currentServings}
-            defaultServings={recipeDetails.plate}
-          />
-        </div>
-      </div>
-
-      <!-- Préparation (2/3 à l'écran, 7/10 à l'impression) -->
-      <div class="lg:col-span-2 print:col-span-7">
-        <h2
-          class="mb-4 flex items-center gap-2 text-2xl font-bold print:mb-2 print:hidden"
-        >
-          <CookingPot class="h-6 w-6 print:h-5 print:w-5" />
-          Préparation
-        </h2>
-        <RecipePreparation
-          preparation={recipeDetails.preparation}
-          preparation24h={recipeDetails.preparation24h || undefined}
-          astuces={recipeDetails.astuces
-            ? JSON.parse(recipeDetails.astuces)
-            : []}
-        />
-
-        <!-- Préparations alternatives -->
-        {#if recipeDetails.prepAlt && recipeDetails.prepAlt.length > 0}
-          <div class="mt-8 print:hidden">
-            <RecipeAlternatives
-              alternatives={recipeDetails.prepAlt.map((id) => ({
-                recetteAlt: id,
-              }))}
-              recipesIndex={recipesIndexMap}
+          <div class="flex items-center gap-4">
+            <label
+              for="servings-input"
+              class="flex items-center gap-2 font-medium"
+            >
+              <Users class="h-5 w-5" />
+              Nombre de couverts à servir :
+            </label>
+            <input
+              id="servings-input"
+              type="number"
+              min="1"
+              value={currentServings}
+              oninput={handleServingsInput}
+              class="input input-bordered input-primary w-24"
             />
           </div>
-        {/if}
+
+          <!-- Alertes de validation -->
+          {#if recipeDetails.check !== undefined}
+            <RecipeAlerts
+              isChecked={recipeDetails.check}
+              defaultServings={recipeDetails.plate}
+            />
+          {/if}
+        </div>
+
+        <div class="flex justify-between">
+          <p class="print-only font-medium">
+            Quantité pour {currentServings} couverts
+          </p>
+          {#if recipeDetails.quantite_desc}
+            <p class="text-end text-base">{recipeDetails.quantite_desc}</p>
+          {/if}
+        </div>
+        <!-- Contenu principal : Ingrédients + Préparation -->
+        <div
+          class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3 print:mt-2 print:grid-cols-10 print:gap-4"
+          style="break-before: avoid;"
+        >
+          <!-- Ingrédients (1/3 à l'écran, 3/10 à l'impression) -->
+          <div class=" lg:col-span-1 print:col-span-4">
+            <div class="sticky top-4 print:static">
+              <RecipeIngredientsList
+                ingredients={recipeDetails.ingredients}
+                servings={currentServings}
+                defaultServings={recipeDetails.plate}
+              />
+            </div>
+          </div>
+
+          <!-- Préparation (2/3 à l'écran, 7/10 à l'impression) -->
+          <div class="lg:col-span-2 print:col-span-6">
+            <RecipePreparation
+              preparation={recipeDetails.preparation}
+              preparation24h={recipeDetails.preparation24h || undefined}
+              astuces={recipeDetails.astuces
+                ? JSON.parse(recipeDetails.astuces)
+                : []}
+            />
+
+            <!-- Préparations alternatives -->
+            {#if recipeDetails.prepAlt && recipeDetails.prepAlt.length > 0}
+              <div class="mt-8 print:hidden">
+                <RecipeAlternatives
+                  alternatives={recipeDetails.prepAlt.map((id) => ({
+                    recetteAlt: id,
+                  }))}
+                  recipesIndex={recipesIndexMap}
+                />
+              </div>
+            {/if}
+          </div>
+        </div>
       </div>
     </div>
 

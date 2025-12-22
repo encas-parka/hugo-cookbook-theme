@@ -8,9 +8,20 @@
 
 @theme {
   --color-lavender: oklch(0.8051 0.0952 298.69);
-  --color-lavender-content: oklch(0.415 0.1018 298.69)
-    --color-peach: oklch(88% 0.055 45.47);
+  --color-lavender-content: oklch(0.415 0.1018 298.69);
+  --color-peach: oklch(88% 0.055 45.47);
   --color-cream: oklch(94% 0.035 85.43); /* Cream plus intense - jaune clair */
+}
+
+@layer components {
+  .prose p {
+    @apply leading-snug;
+    margin-top: 0.8rem !important;
+    margin-bottom: 0.8rem !important;
+  }
+  .prose li {
+    @apply leading-snug;
+  }
 }
 
 @plugin "daisyui/theme" {
@@ -133,8 +144,8 @@
   body {
     background: white !important;
     color: black !important;
-    font-size: 11pt;
-    line-height: 1;
+    font-size: 10pt;
+    line-height: 1.1;
   }
 
   .container {
@@ -176,7 +187,7 @@
     line-height: 1.2 !important;
     margin-top: 0.2rem !important;
     margin-bottom: 0.5rem !important;
-    font-size: 11pt !important;
+    font-size: 10pt !important;
   }
 
   p,
@@ -198,8 +209,33 @@
     break-inside: avoid;
   }
 
+  .print-break-auto {
+    break-inside: auto;
+  }
+
+  .page-break-after {
+    break-after: always !important;
+  }
+
+  .page-break-before {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+
+  /* Ne pas séparer l'en-tête du début du contenu */
+  h1,
+  h2,
+  h3,
+  h4 {
+    break-after: avoid;
+  }
+
   .print-only {
     display: block !important;
+  }
+
+  * .print-xs {
+    font-size: 8pt !important;
   }
 }
 

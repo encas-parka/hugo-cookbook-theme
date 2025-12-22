@@ -4,6 +4,7 @@
   import { getProductTypeInfo } from "$lib/utils/products-display";
   import { TriangleAlert } from "@lucide/svelte";
   import { SvelteMap } from "svelte/reactivity";
+  import Fieldset from "../ui/Fieldset.svelte";
 
   interface Props {
     ingredients: RecipeIngredient[];
@@ -64,25 +65,16 @@
 <div class="space-y-6 print:space-y-2">
   {#each [...groupedIngredients] as [type, items] (type)}
     {@const typeInfo = getProductTypeInfo(type)}
-    <div
-      class="border-base-300 bg-base-100 rounded-xl border p-4 print:border-0 print:p-2"
-    >
-      <div
-        class="text-base-content/70 print:text-base-content mb-2 flex items-center gap-2 font-light print:border-b-2 print:border-gray-500 print:text-sm"
-      >
-        <typeInfo.icon class="h-4 w-4" />
-        {typeInfo.displayName}
-      </div>
-
-      <ul class="space-y-2 print:space-y-1">
+    <Fieldset legend={typeInfo.displayName} iconComponent={typeInfo.icon}>
+      <ul class="break-inside-avoid space-y-2 print:space-y-1">
         {#each items as ingredient, index (index)}
           {@const scaled = getScaledIngredient(ingredient)}
           <li class="flex flex-wrap items-baseline">
-            <div class="flex flex-wrap">
-              <span class="font-medium print:font-normal"
+            <div class=" flex flex-wrap items-baseline">
+              <span class=" font-medium"
                 >{ingredient.name}
                 {#if ingredient.allergens && ingredient.allergens.length > 0}
-                  <span class="tooltip">
+                  <span class="tooltip print:hidden">
                     <TriangleAlert
                       class="mx-1  h-4 w-4 opacity-70"
                       data-tooltip="Allergène: {ingredient.allergens.join(
@@ -97,7 +89,7 @@
                 <span class="amount">{scaled.originalDisplayQuantity}</span>
                 <span class="unit ml-1">{scaled.originalDisplayUnit}</span>
                 {#if scaled.hasDifferentQuantities}
-                  <span class="ms-1"
+                  <span class=" ms-1"
                     >({scaled.normalizedDisplayQuantity}
                     {scaled.normalizedDisplayUnit})</span
                   >
@@ -106,14 +98,14 @@
             </div>
 
             {#if ingredient.comment}
-              <div class="text-base-content/70 text-sm">
+              <div class="text-base-content/70 print-xs ms-auto text-sm">
                 ({ingredient.comment})
               </div>
             {/if}
           </li>
         {/each}
       </ul>
-    </div>
+    </Fieldset>
   {/each}
 
   <div class="text-base-content/60 flex items-center gap-1 text-sm">

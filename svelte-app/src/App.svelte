@@ -13,6 +13,7 @@
   import { router, navigate } from "./lib/services/simple-router.svelte";
   import DashboardPage from "./lib/routes/DashboardPage.svelte";
   import EventEditPage from "./lib/routes/EventEditPage.svelte";
+  import EventRecipesPage from "./lib/routes/EventRecipesPage.svelte";
   import AcceptInvite from "./lib/routes/AcceptInvite.svelte";
   import TeamsManagement from "./lib/routes/TeamsManagement.svelte";
   import RecipeDetailPage from "./lib/routes/RecipeDetailPage.svelte";
@@ -68,6 +69,11 @@
   router.addRoute("/dashboard/teams", TeamsManagement, requireAuth);
   router.addRoute("/dashboard/eventEdit", EventEditPage, requireAuth);
   router.addRoute("/dashboard/eventEdit/:id", EventEditPage, requireAuth);
+  router.addRoute(
+    "/dashboard/eventEdit/recipes/:id",
+    EventRecipesPage,
+    requireAuth,
+  );
   router.addRoute(
     "/dashboard/eventEdit/products/:id",
     ProductsPage,

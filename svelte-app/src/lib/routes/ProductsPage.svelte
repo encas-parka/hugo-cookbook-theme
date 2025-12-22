@@ -6,6 +6,7 @@
     ClipboardCheck,
     Clock,
     LayoutList,
+    Loader2,
     MessageCircleQuestionMark,
     Package,
     PackageCheck,
@@ -82,6 +83,9 @@
 
   // État local pour le modal d'ajout de produit
   let isAddProductModalOpen = $state(false);
+
+  // État de chargement
+  let isLoading = $state(true);
 
   // Fonctions pour contrôler l'ouverture/fermeture
   function openModal(productId: string, tab: string = "recettes") {
@@ -249,29 +253,37 @@
   let eventId = $state(params?.id);
 
   onMount(async () => {
-    if (!eventId) {
-      console.error("[ProductsPage] eventId est requis");
-      return;
-    }
+    try {
+      if (!eventId) {
+        console.error("[ProductsPage] eventId est requis");
+        isLoading = false;
+        return;
+      }
 
-    // S'assurer que EventsStore est initialisé
-    if (!eventsStore.isInitialized) {
-      console.log("[ProductsPage] Initialisation d'EventsStore...");
-      await eventsStore.initialize();
-    }
+      // S'assurer que EventsStore est initialisé
+      if (!eventsStore.isInitialized) {
+        console.log("[ProductsPage] Initialisation d'EventsStore...");
+        await eventsStore.initialize();
+      }
 
-    // Vérifier que l'événement existe
-    const event = eventsStore.getEventById(eventId);
-    if (!event) {
-      console.error(`[ProductsPage] Événement ${eventId} introuvable`);
-      return;
-    }
+      // Vérifier que l'événement existe
+      const event = eventsStore.getEventById(eventId);
+      if (!event) {
+        console.error(`[ProductsPage] Événement ${eventId} introuvable`);
+        isLoading = false;
+        return;
+      }
 
-    // Initialiser ProductsStore
-    console.log(
-      `[ProductsPage] Initialisation de ProductsStore pour événement ${event.name}`,
-    );
-    await productsStore.initialize(eventId);
+      // Initialiser ProductsStore
+      console.log(
+        `[ProductsPage] Initialisation de ProductsStore pour événement ${event.name}`,
+      );
+      await productsStore.initialize(eventId);
+    } catch (error) {
+      console.error("[ProductsPage] Erreur lors de l'initialisation:", error);
+    } finally {
+      isLoading = false;
+    }
   });
 </script>
 
@@ -303,16 +315,27 @@
 <div
   class="space-y-6 {globalState.isMobile ? '' : 'ml-110 print:ml-0'} md:px-16"
 >
-  <!-- Stats -->
-  <div class="flex justify-end py-5 print:hidden">
-    <EventStats {eventStats} />
-  </div>
-  <ProductsCards
-    onOpenModal={openModal}
-    onOpenGroupEditModal={openGroupEditModal}
-    onOpenGroupPurchaseModal={openGroupPurchaseModal}
-    onQuickValidation={handleQuickValidation}
-  />
+  {#if isLoading}
+    <!-- Loader pendant le chargement -->
+    <div class="flex min-h-96 items-center justify-center">
+      <div class="flex flex-col items-center gap-4">
+        <Loader2 class="text-primary h-12 w-12 animate-spin" />
+        <p class="text-base-content/60 text-sm">Chargement des produits...</p>
+      </div>
+    </div>
+  {:else}
+    <!-- Contenu une fois chargé -->
+    <!-- Stats -->
+    <div class="flex justify-end py-5 print:hidden">
+      <EventStats {eventStats} />
+    </div>
+    <ProductsCards
+      onOpenModal={openModal}
+      onOpenGroupEditModal={openGroupEditModal}
+      onOpenGroupPurchaseModal={openGroupPurchaseModal}
+      onQuickValidation={handleQuickValidation}
+    />
+  {/if}
 
   <!-- Vue Mobile Cards -->
 

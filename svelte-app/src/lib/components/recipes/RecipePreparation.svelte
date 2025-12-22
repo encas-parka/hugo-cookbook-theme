@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { Lightbulb } from "@lucide/svelte";
-  import SvelteMarkdown from "svelte-markdown";
+  import { CircleAlert, CookingPot, Lightbulb } from "@lucide/svelte";
+  import SvelteMarkdown from "@humanspeak/svelte-markdown";
+  import Fieldset from "../ui/Fieldset.svelte";
 
   interface Astuce {
     astuce: string;
@@ -18,30 +19,34 @@
 <div class="space-y-4">
   <!-- Alerte préparation 24h -->
   {#if preparation24h}
-    <div class="bg-base-100 card border-accent border-2">
-      <div class="card-body p-4">
-        <h5 class="font-bold">A prévoir à l'avance !</h5>
-        <div class="prose prose-sm max-w-none">
-          <SvelteMarkdown source={preparation24h} />
-        </div>
+    <Fieldset
+      legend="Préparation à l'avance"
+      iconComponent={CircleAlert}
+      legendSize="text-lg"
+      iconSize={18}
+    >
+      <div class="prose max-w-none">
+        <SvelteMarkdown source={preparation24h} />
       </div>
-    </div>
+    </Fieldset>
   {/if}
 
   <!-- Instructions de préparation -->
-  <div
-    class="prose card card-body bg-base-100 border-base-300 print:card-normal max-w-none border print:border-none print:p-0"
+  <Fieldset
+    legend="Préparation"
+    iconComponent={CookingPot}
+    legendSize="text-lg"
   >
-    <SvelteMarkdown source={preparation} />
-  </div>
+    <div class="prose max-w-none">
+      <SvelteMarkdown source={preparation} />
+    </div>
+  </Fieldset>
 
   <!-- Astuces -->
   {#if astuces.length > 0}
     <div class="space-y-2 print:space-y-1">
       {#each astuces as { astuce }}
-        <div
-          class="card bg-base-100 print:card-normal border print:border-black print:bg-white"
-        >
+        <div class="card bg-base-100 border print:border-black print:bg-white">
           <div class="card-body p-4 print:p-2">
             <div class="flex items-start gap-2">
               <Lightbulb

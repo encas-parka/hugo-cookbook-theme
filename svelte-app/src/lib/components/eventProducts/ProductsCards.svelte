@@ -610,25 +610,25 @@
               <td class="border px-2 py-1 text-sm">
                 {#if filters.groupBy === "store"}
                   <!-- Si groupé par STORE, on montre WHO et TYPE -->
-                  <div class="flex flex-col gap-0.5">
+                  <div class="flex gap-6">
                     {#if product.who?.length}
-                      <div class="font-medium">👤 {product.who.join(", ")}</div>
+                      <div class="font-medium">{product.who.join(", ")}</div>
                     {/if}
                     <div class="text-[9pt] opacity-70">
-                      📦 {product.productType || "Autre"}
+                      {product.productType || "Autre"}
                     </div>
                   </div>
                 {:else}
                   <!-- Sinon (groupé par TYPE ou aucun), on montre STORE et WHO -->
-                  <div class="flex flex-col gap-0.5">
+                  <div class="flex gap-6">
                     {#if product.storeInfo?.storeName}
                       <div class="font-medium">
-                        🏪 {product.storeInfo.storeName}
+                        {product.storeInfo.storeName}
                       </div>
                     {/if}
                     {#if product.who?.length}
                       <div class="text-[9pt] opacity-70">
-                        👤 {product.who.join(", ")}
+                        {product.who.join(", ")}
                       </div>
                     {/if}
                   </div>
@@ -641,8 +641,6 @@
                       <div class="text-nowrap">{p.quantity} {p.unit}</div>
                     {/each}
                   </div>
-                {:else}
-                  <span class="opacity-30">—</span>
                 {/if}
               </td>
             </tr>

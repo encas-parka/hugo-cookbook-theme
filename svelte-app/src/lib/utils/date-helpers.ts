@@ -81,3 +81,11 @@ export function formatDateWdDayMonthShort(dateStr: string | null): string {
     month: "short",
   });
 }
+export function formatDateWdDayMonth(dateStr: string | null): string {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+  });
+}

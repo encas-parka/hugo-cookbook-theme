@@ -8,6 +8,7 @@
   // Configuration des onglets pour les pages d'événement
   const eventTabs = [
     { label: "Éditer l'événement", path: "/dashboard/eventEdit" },
+    { label: "Voir les recettes", path: "/dashboard/eventEdit/recipes" },
     { label: "Listes des produits", path: "/dashboard/eventEdit" },
   ];
 
@@ -16,6 +17,9 @@
 
     const tab = eventTabs[index];
     if (index === 1) {
+      // Onglet "Voir les recettes" - nouvelle route /recipes
+      navigate(`/dashboard/eventEdit/recipes/${eventId}`);
+    } else if (index === 2) {
       // Onglet "Voir les produits" - nouvelle route /products
       navigate(`/dashboard/eventEdit/products/${eventId}`);
     } else {
