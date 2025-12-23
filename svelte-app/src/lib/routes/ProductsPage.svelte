@@ -14,6 +14,7 @@
     ShoppingCart,
     SquarePen,
     Plus,
+    Calendar,
   } from "@lucide/svelte";
   // Store and global state
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
@@ -45,6 +46,7 @@
 
   import { navigate } from "../services/simple-router.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
+  import { formatDateShort } from "../utils/products-display";
 
   // Dont work properly
   const PANEL_WIDTH = "100";
@@ -66,9 +68,6 @@
   // Accès réactif aux valeurs dérivées du store
   const stats = $derived(productsStore.stats);
 
-  // Stats store avec cache statique partagé entre toutes les pages d'événement
-  const eventStats = $derived(EventStatsStore.getForEvent(eventId));
-
   // État local : quel produit a son modal ouvert, et sur quel onglet
   let openModalProductId = $state<string | null>(null);
   let openModalTab = $state<string>("recettes");
@@ -88,6 +87,55 @@
 
   // État de chargement
   let isLoading = $state(true);
+
+  // =========================================================================
+  // INITIALISATION
+  // =========================================================================
+
+  // Récupérer l'eventId depuis les paramètres de route
+  let { params } = $props<{ params?: Record<string, string> }>();
+  let eventId = $state(params?.id);
+  // Stats store avec cache statique partagé entre toutes les pages d'événement
+  const eventStats = $derived(EventStatsStore.getForEvent(eventId));
+
+  // Calculer les informations de l'événement
+  const eventName = $derived(eventStats?.eventName ?? "");
+  const startDate = $derived(eventStats?.startDate ?? null);
+  const endDate = $derived(eventStats?.endDate ?? null);
+
+  onMount(async () => {
+    try {
+      if (!eventId) {
+        console.error("[ProductsPage] eventId est requis");
+        isLoading = false;
+        return;
+      }
+
+      // S'assurer que EventsStore est initialisé
+      if (!eventsStore.isInitialized) {
+        console.log("[ProductsPage] Initialisation d'EventsStore...");
+        await eventsStore.initialize();
+      }
+
+      // Vérifier que l'événement existe
+      const event = eventsStore.getEventById(eventId);
+      if (!event) {
+        console.error(`[ProductsPage] Événement ${eventId} introuvable`);
+        isLoading = false;
+        return;
+      }
+
+      // Initialiser ProductsStore
+      console.log(
+        `[ProductsPage] Initialisation de ProductsStore pour événement ${event.name}`,
+      );
+      await productsStore.initialize(eventId);
+    } catch (error) {
+      console.error("[ProductsPage] Erreur lors de l'initialisation:", error);
+    } finally {
+      isLoading = false;
+    }
+  });
 
   // Fonctions pour contrôler l'ouverture/fermeture
   function openModal(productId: string, tab: string = "recettes") {
@@ -244,47 +292,7 @@
     navBarStore.reset();
   });
 
-  // =========================================================================
-  // INITIALISATION
-  // =========================================================================
-
-  // Récupérer l'eventId depuis les paramètres de route
-  let { params } = $props<{ params?: Record<string, string> }>();
-  let eventId = $state(params?.id);
-
-  onMount(async () => {
-    try {
-      if (!eventId) {
-        console.error("[ProductsPage] eventId est requis");
-        isLoading = false;
-        return;
-      }
-
-      // S'assurer que EventsStore est initialisé
-      if (!eventsStore.isInitialized) {
-        console.log("[ProductsPage] Initialisation d'EventsStore...");
-        await eventsStore.initialize();
-      }
-
-      // Vérifier que l'événement existe
-      const event = eventsStore.getEventById(eventId);
-      if (!event) {
-        console.error(`[ProductsPage] Événement ${eventId} introuvable`);
-        isLoading = false;
-        return;
-      }
-
-      // Initialiser ProductsStore
-      console.log(
-        `[ProductsPage] Initialisation de ProductsStore pour événement ${event.name}`,
-      );
-      await productsStore.initialize(eventId);
-    } catch (error) {
-      console.error("[ProductsPage] Erreur lors de l'initialisation:", error);
-    } finally {
-      isLoading = false;
-    }
-  });
+  //
 </script>
 
 {#snippet navActions()}
@@ -313,7 +321,9 @@
 </LeftPanel>
 
 <div
-  class="space-y-6 {globalState.isMobile ? '' : 'ml-110 print:ml-0'} md:px-16"
+  class="space-y-6 {globalState.isMobile
+    ? ''
+    : 'ml-110 print:ml-0'} pt-16 md:px-16"
 >
   {#if isLoading}
     <!-- Loader pendant le chargement -->
@@ -325,9 +335,21 @@
     </div>
   {:else}
     <!-- Contenu une fois chargé -->
+    <div>
+      <h1 class="text-3xl font-bold">{eventName}</h1>
+      <div class="text-base-content/60 text-sm">
+        {#if startDate && endDate}
+          <Calendar class="inline h-4 w-4" />
+          {formatDateShort(startDate)} au {formatDateShort(endDate)}
+        {:else if startDate}
+          <Calendar class="inline h-4 w-4" />
+          {formatDateShort(startDate)}
+        {/if}
+      </div>
+    </div>
     <!-- Stats -->
     {#if eventStats}
-      <div class="flex justify-end py-5 print:hidden">
+      <div class="flex justify-end py-4 print:hidden">
         <EventStats {eventStats} />
       </div>
     {/if}

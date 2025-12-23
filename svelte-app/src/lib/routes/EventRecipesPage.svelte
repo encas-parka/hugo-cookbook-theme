@@ -248,13 +248,6 @@
     navBarStore.reset();
   });
 
-  // Retour à l'édition de l'événement
-  function handleBackToEvent() {
-    if (eventId) {
-      navigate(`/dashboard/eventEdit/${eventId}`);
-    }
-  }
-
   // Gestion de l'ingrédient sélectionné
   function selectIngredient(ingredient: string) {
     selectedIngredient = ingredient;
@@ -270,12 +263,7 @@
 </script>
 
 {#snippet navActions()}
-  <div class="flex gap-2">
-    <button class="btn btn-outline btn-sm" onclick={handleBackToEvent}>
-      <ArrowLeft class="h-4 w-4" />
-      Retour à l'événement
-    </button>
-  </div>
+  <div class="flex gap-2"></div>
 {/snippet}
 
 <div class="bg-base-200 min-h-screen">
@@ -305,8 +293,6 @@
           {/if}
         </div>
       </div>
-
-      <div class="divider my-4"></div>
 
       <!-- Sommaire réactif des recettes avec filtrage -->
       <ul class="menu bg-base-100 rounded-box w-100 drop-shadow-lg">
@@ -438,15 +424,10 @@
                 {/if}
               </div>
             </div>
-
-            <button class="btn btn-outline" onclick={handleBackToEvent}>
-              <ArrowLeft class="h-4 w-4" />
-              Retour à l'événement
-            </button>
           </div>
 
           <!-- Statistiques -->
-          <div class="border-base-300 bg-base-100 rounded-xl border p-6">
+          <div class="flex justify-end p-4">
             <EventStats {eventStats} />
           </div>
 

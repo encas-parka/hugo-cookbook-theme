@@ -23,30 +23,46 @@
 
   // Interface des props
   interface Props {
-    selectedTeams: string[];
-    contributors: EventContributor[]; // Contributeurs DÉJÀ enregistrés (persistés)
-    newContributors: EventContributor[]; // Nouveaux contributeurs (en attente de sauvegarde)
+    contributors: EventContributor[]; // Contributeurs DÉJÀ enregistrés (lecture seule)
     teamsStore: TeamsStore;
     eventsStore: EventsStore;
     userId: string;
     userTeams: string[];
     eventId?: string;
-    openModalRequest?: boolean;
   }
 
   // Props
   let {
-    selectedTeams = $bindable(),
-    contributors = $bindable(), // Read-only en pratique ici, sauf pour updates de statut si besoin
-    newContributors = $bindable(),
+    contributors, // Lecture seule - vient du parent via $derived
     teamsStore,
     eventsStore,
     userId = "",
     eventId = "",
   }: Props = $props();
 
-  // État local
+  // État local - géré entièrement dans ce composant
+  let selectedTeams = $state<string[]>([]);
+  let newContributors = $state<EventContributor[]>([]);
+
+  // État local pour le modal
   let showInviteModal = $state(false);
+
+  // Synchroniser selectedTeams depuis l'événement courant
+  $effect(() => {
+    if (eventId) {
+      const event = eventsStore.getEventById(eventId);
+      if (event) {
+        selectedTeams = event.teams || [];
+      }
+    }
+  });
+
+  // Reset newContributors quand le modal se ferme
+  $effect(() => {
+    if (!showInviteModal) {
+      newContributors = [];
+    }
+  });
 
   let emailInput = $state("");
   let isChecking = $state(false);

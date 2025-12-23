@@ -37,14 +37,15 @@
   let eventStats = $derived(EventStatsStore.getForEvent(eventId));
 
   // ============================================================================
-  // ÉTAT LOCAL D'ÉDITION (source de vérité pendant l'édition)
+  // ÉTAT LOCAL D'ÉDITION (modifiable)
   // ============================================================================
 
-  let eventName = $state("");
+  // Les meals doivent être éditables → $state
   let meals = $state<EventMeal[]>([]);
-  let contributors = $state<EventContributor[]>([]);
-  let selectedTeams = $state<string[]>([]);
-  let newContributors = $state<EventContributor[]>([]);
+
+  // pendingEventName pour l'édition du nom (modifiable pendant l'édition)
+  let pendingEventName = $state("");
+
   const allDates = $derived(meals.map((m) => m.date));
 
   // État UI
@@ -64,6 +65,11 @@
   // ============================================================================
 
   const currentEvent = $derived(eventStats?.currentEvent ?? null);
+
+  // DONNÉES RÉACTIVES DÉRIVÉES EN LECTURE SEULE (Single Source of Truth depuis currentEvent)
+  const eventName = $derived(currentEvent?.name ?? "");
+  const contributors = $derived(currentEvent?.contributors ?? []);
+  const selectedTeams = $derived(currentEvent?.teams ?? []);
 
   const currentUserStatus = $derived.by(() => {
     const currentUser = contributors.find((c) => c.id === globalState.userId);
@@ -153,7 +159,8 @@
   // ============================================================================
 
   function validateEventData() {
-    if (!eventName) {
+    const nameToValidate = pendingEventName || eventName;
+    if (!nameToValidate) {
       return {
         isValid: false,
         errorMessage: "Veuillez renseigner le nom de l'événement",
@@ -205,11 +212,12 @@
 
     try {
       const validation = validateEventData();
+      const nameToSave = pendingEventName || eventName;
 
       if (validation.isValid) {
         // ✅ Données valides → Sauvegarder ET libérer le verrou
         await eventsStore.updateEvent(eventId, {
-          name: eventName,
+          name: nameToSave,
           allDates: Array.from(new Set(meals.map((m) => m.date))).sort(),
           dateStart: allDates.length > 0 ? allDates[0] : "",
           dateEnd: allDates.length > 0 ? allDates[allDates.length - 1] : "",
@@ -259,19 +267,18 @@
   }
 
   // ===================
-  // EFFECT
+  // EFFECTS
   // ===================
-  // Synchronisation avec la DB (quand on n'a pas le lock)
-  $effect(() => {
-    const evt = currentEvent;
 
-    if (evt && !isLockedByMe) {
+  // Synchroniser pendingEventName et meals depuis currentEvent (quand on n'a pas le lock)
+  // Note: contributors et selectedTeams sont des $derived, donc se mettent à jour automatiquement depuis currentEvent
+  $effect(() => {
+    if (currentEvent && !isLockedByMe) {
       console.log("📥 Synchronisation avec la DB");
-      eventName = evt.name;
-      contributors = [...evt.contributors];
-      selectedTeams = evt.teams || [];
-      meals = [...evt.meals].sort((a, b) => a.date.localeCompare(b.date));
-      newContributors = [];
+      pendingEventName = currentEvent.name;
+      meals = [...currentEvent.meals].sort((a, b) =>
+        a.date.localeCompare(b.date),
+      );
     }
   });
 
@@ -280,21 +287,6 @@
     if (eventId && !currentEvent) {
       toastService.error("Événement introuvable");
       navigate("/dashboard");
-    }
-  });
-
-  // Initialiser l'utilisateur courant (mode création)
-  $effect(() => {
-    if (!eventId && globalState.userId && contributors.length === 0) {
-      contributors = [
-        {
-          id: globalState.userId,
-          name: globalState.userName(),
-          status: "accepted" as const,
-          invitedAt: new Date().toISOString(),
-          respondedAt: new Date().toISOString(),
-        },
-      ];
     }
   });
 
@@ -339,7 +331,7 @@
   // ============================================================================
 
   function handleNameInput(e: Event) {
-    eventName = (e.target as HTMLInputElement).value;
+    pendingEventName = (e.target as HTMLInputElement).value;
 
     // Acquérir le verrou si on ne l'a pas déjà
     if (!isLockedByMe && eventId) {
@@ -428,13 +420,28 @@
         return;
       }
 
+      const nameToSave = pendingEventName || eventName;
+
+      // En mode création, initialiser contributors avec l'utilisateur courant
+      const contributorsToSave = eventId
+        ? contributors
+        : [
+            {
+              id: globalState.userId,
+              name: globalState.userName(),
+              status: "accepted" as const,
+              invitedAt: new Date().toISOString(),
+              respondedAt: new Date().toISOString(),
+            },
+          ];
+
       const eventData = {
-        name: eventName,
+        name: nameToSave,
         allDates: Array.from(new Set(meals.map((m) => m.date))).sort(),
         dateStart: allDates.length > 0 ? allDates[0] : "",
         dateEnd: allDates.length > 0 ? allDates[allDates.length - 1] : "",
         teams: selectedTeams,
-        contributors,
+        contributors: contributorsToSave,
         meals,
         lockedBy: null, // Toujours libérer le verrou
       };
@@ -475,11 +482,8 @@
         newStatus,
       );
 
-      contributors = contributors.map((c) =>
-        c.id === globalState.userId
-          ? { ...c, status: newStatus, respondedAt: new Date().toISOString() }
-          : c,
-      );
+      // Note: contributors est un $derived, il sera mis à jour automatiquement
+      // via le realtime quand currentEvent sera mis à jour dans le store
 
       toastService.success(
         accept ? "Invitation acceptée" : "Invitation déclinée",
@@ -517,7 +521,7 @@
         <input
           type="text"
           class="input input-lg min-w-full shadow-md"
-          value={eventName}
+          value={pendingEventName || eventName}
           oninput={handleNameInput}
           onblur={() => (editingTitle = false)}
           disabled={!canEdit}
@@ -531,7 +535,7 @@
         >
           <div class="flex items-baseline gap-4">
             <div class="text-4xl font-bold">
-              {eventName || "Nom de l'événement"}
+              {pendingEventName || eventName || "Nom de l'événement"}
             </div>
             <PencilLine class="h-4 w-4" />
           </div>
@@ -593,9 +597,7 @@
       <div class="space-y-6 lg:col-span-1">
         <!-- Permissions -->
         <PermissionsManager
-          bind:selectedTeams
-          bind:contributors
-          bind:newContributors
+          {contributors}
           {teamsStore}
           {eventsStore}
           userId={globalState.userId || ""}
