@@ -9,6 +9,17 @@ import type {
 } from "../types/recipes.types";
 
 /**
+ * Normalise les astuces depuis Hugo (array) ou Appwrite (string[] | null)
+ * Le store doit toujours renvoyer un array cohérent pour les composants
+ */
+export function normalizeAstuces(astuces: any): any[] {
+  if (Array.isArray(astuces)) {
+    return astuces; // Déjà un array (Hugo ou Appwrite)
+  }
+  return []; // null, undefined, ou autre → array vide
+}
+
+/**
  * Parse un ingrédient depuis le JSON Hugo
  *
  * Format : {uuid, name, originalQuantity, originalUnit, ...}
@@ -70,6 +81,8 @@ export function parseRecipeData(rawData: any): RecipeForDisplay {
     // Mapper 'id' depuis Hugo vers '$id' pour notre format interne
     $id: rawData.$id || rawData.id || "",
     ingredients,
+    // NORMALISER: astuces doit toujours être un array
+    astuces: normalizeAstuces(rawData.astuces),
   };
 }
 

@@ -204,7 +204,7 @@
         <RecipePreparation
           preparation={recipe.preparation}
           preparation24h={recipe.preparation24h || undefined}
-          astuces={recipe.astuces ? JSON.parse(recipe.astuces) : []}
+          astuces={recipe.astuces || []}
         />
       </div>
     </div>

@@ -37,7 +37,7 @@ import {
   createRecipesIDBCache,
   type RecipesIDBCache,
 } from "../services/recipes-idb-cache";
-import { parseRecipeIndexEntry } from "../utils/recipeUtils";
+import { parseRecipeIndexEntry, normalizeAstuces } from "../utils/recipeUtils";
 import { parseRecipeData } from "../utils/recipeUtils";
 import { ingredientsFromAppwrite } from "../utils/ingredientUtils";
 import {
@@ -284,25 +284,29 @@ class RecipesStore {
       if (!Array.isArray(data.recipes)) {
         throw new Error("Format invalide: recipes n'est pas un tableau");
       }
-      
+
       const remoteTimestamp = data.meta?.timestamp;
       this.#versionTimestamp = remoteTimestamp; // Toujours stocker le dernier timestamp vu
-      
+
       if (
         remoteTimestamp &&
-        cachedMetadata && 
+        cachedMetadata &&
         cachedMetadata.buildTimestamp &&
         cachedMetadata.buildTimestamp >= remoteTimestamp
       ) {
-        console.log(`[RecipesStore] Cache à jour (Ts: ${cachedMetadata.buildTimestamp} >= ${remoteTimestamp})`);
-        
-        // Même si le cache est à jour par rapport au build, on peut vouloir 
+        console.log(
+          `[RecipesStore] Cache à jour (Ts: ${cachedMetadata.buildTimestamp} >= ${remoteTimestamp})`,
+        );
+
+        // Même si le cache est à jour par rapport au build, on peut vouloir
         // mettre à jour l'index en mémoire si on n'avait rien (premier chargement)
         // Mais ici on suppose que loadRecipesIndex a déjà rempli this.#recipesIndex
         return;
       }
 
-      console.log(`[RecipesStore] Nouvelle version détectée ou cache manquant (Ts: ${remoteTimestamp}), Traitement...`);
+      console.log(
+        `[RecipesStore] Nouvelle version détectée ou cache manquant (Ts: ${remoteTimestamp}), Traitement...`,
+      );
 
       // 3. Smart Merge (Index en mémoire vs Nouvelles données)
       const recipes = data.recipes.map((r: any) => parseRecipeIndexEntry(r));
@@ -331,14 +335,16 @@ class RecipesStore {
       });
 
       this.#lastSync = new Date().toISOString();
-      console.log(`[RecipesStore] Smart Merge: ${updatedCount} recettes mises à jour/ajoutées.`);
+      console.log(
+        `[RecipesStore] Smart Merge: ${updatedCount} recettes mises à jour/ajoutées.`,
+      );
 
       // 4. Mise à jour du cache
       if (this.#cache) {
         // Sauvegarder l'index complet (mémoire)
         await this.#cache.saveRecipesIndex(this.#recipesIndex);
         await this.#cache.saveMetadata({
-          ...cachedMetadata, 
+          ...cachedMetadata,
           lastSync: this.#lastSync,
           buildTimestamp: remoteTimestamp || Date.now() / 1000, // Fallback si pas de meta
           recipesCount: this.#recipesIndex.size,
@@ -445,55 +451,59 @@ class RecipesStore {
    */
   async #incrementalSync(cachedMetadata: any): Promise<void> {
     console.log("[RecipesStore] Sync incrémentiel Appwrite...");
-    
+
     // Déterminer le point de départ
     let since = cachedMetadata?.lastAppwriteSync;
-    
+
     // Si pas de lastAppwriteSync, on utilise le timestamp du build Hugo comme approximation safe
     if (!since && this.#versionTimestamp) {
-        since = new Date(this.#versionTimestamp * 1000).toISOString();
+      since = new Date(this.#versionTimestamp * 1000).toISOString();
     }
-    
+
     // Si toujours rien (cache vide, pas de build?), on prend une date arbitraire très ancienne
     if (!since) {
-        since = "1970-01-01T00:00:00.000Z";
+      since = "1970-01-01T00:00:00.000Z";
     }
 
     const updatedRecipes = await listUpdatedRecipes(since);
-    
+
     if (updatedRecipes.length === 0) {
-        console.log("[RecipesStore] Aucune mise à jour Appwrite détectée.");
-        return;
+      console.log("[RecipesStore] Aucune mise à jour Appwrite détectée.");
+      return;
     }
 
-    console.log(`[RecipesStore] ${updatedRecipes.length} recettes mises à jour depuis Appwrite.`);
+    console.log(
+      `[RecipesStore] ${updatedRecipes.length} recettes mises à jour depuis Appwrite.`,
+    );
 
     let updatedCount = 0;
-    updatedRecipes.forEach(recipe => {
-        // Parsing unifié
-        const indexEntry = this.#parseAppwriteRecipeToIndexEntry(recipe);
-        
-        // Upsert inconstestable (Appwrite est la source de vérité pour les modifs récentes)
-        this.#recipesIndex.set(indexEntry.$id, indexEntry);
-        
-        // Si la recette est publiée, on met aussi à jour le cache de détails si possible ? 
-        // Non, on laisse le lazy loading faire, sauf si on veut être proactif.
-        // Pour l'instant on met juste à jour l'index.
-        updatedCount++;
+    updatedRecipes.forEach((recipe) => {
+      // Parsing unifié
+      const indexEntry = this.#parseAppwriteRecipeToIndexEntry(recipe);
+
+      // Upsert inconstestable (Appwrite est la source de vérité pour les modifs récentes)
+      this.#recipesIndex.set(indexEntry.$id, indexEntry);
+
+      // Si la recette est publiée, on met aussi à jour le cache de détails si possible ?
+      // Non, on laisse le lazy loading faire, sauf si on veut être proactif.
+      // Pour l'instant on met juste à jour l'index.
+      updatedCount++;
     });
 
     // Mettre à jour lastAppwriteSync
     const now = new Date().toISOString();
-    
+
     if (this.#cache) {
-        await this.#cache.saveRecipesIndex(this.#recipesIndex);
-        await this.#cache.saveMetadata({
-            ...cachedMetadata,
-            lastAppwriteSync: now
-        });
+      await this.#cache.saveRecipesIndex(this.#recipesIndex);
+      await this.#cache.saveMetadata({
+        ...cachedMetadata,
+        lastAppwriteSync: now,
+      });
     }
-    
-    console.log(`[RecipesStore] Sync incrémentiel terminé (${updatedCount} mises à jour).`);
+
+    console.log(
+      `[RecipesStore] Sync incrémentiel terminé (${updatedCount} mises à jour).`,
+    );
   }
 
   /**
@@ -503,8 +513,8 @@ class RecipesStore {
     // Extraire les noms d'ingrédients
     let ingredientNames: string[] = [];
     if (recipe.ingredients) {
-        const ingredients = ingredientsFromAppwrite(recipe.ingredients);
-        ingredientNames = ingredients.map((ing) => ing.name);
+      const ingredients = ingredientsFromAppwrite(recipe.ingredients);
+      ingredientNames = ingredients.map((ing) => ing.name);
     }
 
     return {
@@ -789,9 +799,13 @@ class RecipesStore {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
       // Une fois le chargement parallèle fini, on retente la lecture IDB
-        if (this.#cache) {
-          return ((await this.#cache.loadRecipeDetail(uuid)) as unknown as RecipeForDisplay) || null;
-        }
+      if (this.#cache) {
+        return (
+          ((await this.#cache.loadRecipeDetail(
+            uuid,
+          )) as unknown as RecipeForDisplay) || null
+        );
+      }
       // Fallback si pas de cache (peu probable ici)
       return null;
     }
@@ -879,8 +893,8 @@ class RecipesStore {
       return {
         ...appwriteRecipe,
         ingredients,
-        // S'assurer que les champs optionnels ont les bons types
-        astuces: appwriteRecipe.astuces || null,
+        // NORMALISER: astuces doit toujours être un array
+        astuces: normalizeAstuces(appwriteRecipe.astuces),
         prepAlt: appwriteRecipe.prepAlt || null,
         categories: appwriteRecipe.categories,
         regime: appwriteRecipe.regime,

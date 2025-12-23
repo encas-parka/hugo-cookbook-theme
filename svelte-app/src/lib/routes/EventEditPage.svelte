@@ -247,7 +247,7 @@
   }
 
   function scheduleAutoSave() {
-    // Programmer l'auto-save après 5 secondes
+    // Programmer l'auto-save après 5 minutes
     setTimeout(
       () => {
         performAutoSave();
@@ -255,7 +255,7 @@
       5 * 60 * 1000,
     );
 
-    console.log("⏰ Auto-save programmé dans 5 minute secondes");
+    console.log("⏰ Auto-save programmé dans 5 minutes");
   }
 
   // ===================
@@ -498,10 +498,7 @@
     <button
       class="btn btn-primary btn-sm"
       onclick={handleSave}
-      disabled={!canEdit ||
-        loading ||
-        loadingEvent ||
-        (eventId && !isLockedByMe)}
+      disabled={!canEdit || loading}
     >
       {#if loading}
         <span class="loading loading-spinner loading-sm"></span>

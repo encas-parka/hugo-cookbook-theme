@@ -214,6 +214,25 @@
     }
   });
 
+  // Surveiller les changements realtime de l'événement
+  $effect(() => {
+    if (!eventId) return;
+
+    const currentEvent = eventsStore.getEventById(eventId);
+    if (!currentEvent) return;
+
+    // Comparer les meals pour éviter les boucles infinies
+    const currentMealsJson = JSON.stringify(currentEvent.meals);
+    const localMealsJson = JSON.stringify(eventMeals);
+
+    if (currentMealsJson !== localMealsJson && !isLoading) {
+      console.log(
+        "[EventRecipesPage] Meals mis à jour via realtime, rafraîchissement...",
+      );
+      loadEventData(eventId);
+    }
+  });
+
   // ============================================================================
   // NAVBAR CONFIGURATION
   // ============================================================================

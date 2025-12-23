@@ -121,13 +121,12 @@ export type Recettes = Models.Row & {
     quantite_desc: string | null;
     check: boolean;
     preparation24h: string | null;
-    astuces: string | null;
     permissionWrite: string[] | null;
     serveHot: boolean;
     lockedBy: string | null;
-    slug: string;
     saison: string[] | null;
     auteur: string | null;
+    astuces: string[] | null;
 }
 
 export type Kteams = Models.Row & {

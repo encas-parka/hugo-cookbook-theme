@@ -310,18 +310,38 @@ export class EventsStore {
           } else if (eventType === "update") {
             const existingEvent = this.#events.get(event.$id);
 
-            // ← LA CLÉ KISS : si seulement le lock change, ignorer
+            // Si le lock change, vérifier si c'est un release (lock → null)
+            // Si c'est un release, il faut mettre à jour tout le contenu
+            // Si c'est une acquisition (null → userId), on peut ignorer le contenu
             if (existingEvent?.lockedBy !== event.lockedBy) {
-              console.log(
-                `[EventsStore] Lock changé (${existingEvent?.lockedBy} → ${event.lockedBy}), contenu ignoré`,
-              );
+              const isLockRelease = existingEvent?.lockedBy && !event.lockedBy;
 
-              // Mettre à jour SEULEMENT le lock
-              if (existingEvent) {
-                existingEvent.lockedBy = event.lockedBy;
+              if (isLockRelease) {
+                // Lock libéré : une édition vient d'être sauvegardée, on met tout à jour
+                console.log(
+                  `[EventsStore] Lock libéré (${existingEvent.lockedBy} → null), mise à jour complète`,
+                );
+              } else {
+                // Lock acquis : ignorer le contenu pour éviter les conflits
+                console.log(
+                  `[EventsStore] Lock acquis (${existingEvent?.lockedBy} → ${event.lockedBy}), contenu ignoré`,
+                );
+
+                // ✅ CRÉER UN NOUVEL OBJET ENRICHI AVEC LE NOUVEAU LOCK (réactif)
+                const enrichedWithLock = {
+                  ...existingEvent,
+                  lockedBy: event.lockedBy,
+                };
+                this.#events.set(event.$id, enrichedWithLock);
+
+                // Mettre à jour le cache
+                if (this.#cache) {
+                  await this.#cache.saveEvent(enrichedWithLock);
+                }
+                return;
               }
-              return; // ← N'ajoute pas à SvelteMap, pas de retrigger
             }
+
             const enrichedEvent = this.#enrichEvent(event);
             this.#events.set(event.$id, enrichedEvent);
 
