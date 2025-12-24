@@ -36,10 +36,6 @@
   function hasInvitation(eventId: string) {
     return eventsStore.getContributorStatus(eventId) === "invited";
   }
-
-  function isParticipant(eventId: string) {
-    return eventsStore.getContributorStatus(eventId) === "accepted";
-  }
 </script>
 
 <div class="card bg-base-100 border-base-200 border shadow-xl">

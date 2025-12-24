@@ -209,6 +209,10 @@ export async function subscribeToEvent(
 
 /**
  * Subscribe à tous les événements (filtrage côté client)
+ *
+ * IMPORTANT: Appwrite Realtime envoie tous les documents pour lesquels l'utilisateur
+ * a des permissions de lecture au niveau de la base de données. Le filtrage métier
+ * (contributorsIds) doit donc être fait côté client dans le callback.
  */
 export async function subscribeToEvents(
   userId: string,
@@ -220,9 +224,6 @@ export async function subscribeToEvents(
 
   return subscribe([channel], async (response: any) => {
     const event = response.payload as unknown as Main;
-
-    // Note: Appwrite Realtime gère déjà les permissions (read access),
-    // donc pas besoin de filtrer manuellement ici.
 
     let type = "update";
     if (response.events.some((e: string) => e.includes(".create"))) {

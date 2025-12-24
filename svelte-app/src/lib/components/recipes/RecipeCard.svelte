@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { RecipeIndexEntry } from "$lib/types/recipes.types";
   import { navigate } from "$lib/services/simple-router.svelte";
-  import { Users, ChefHat } from "@lucide/svelte";
   import RecipeRegimeBadges from "./RecipeRegimeBadges.svelte";
+  import { getTypeDisplay } from "$lib/utils/recipeUtils";
 
   interface Props {
     recipe: RecipeIndexEntry;
@@ -15,18 +15,8 @@
     navigate(`/recipe/${recipe.$id}`);
   }
 
-  function getTypeLabel(type: string): string {
-    switch (type) {
-      case "entree":
-        return "Entrée";
-      case "plat":
-        return "Plat";
-      case "dessert":
-        return "Dessert";
-      default:
-        return type;
-    }
-  }
+  // Récupérer l'affichage avec la priorité : catégorie > type
+  const typeDisplay = getTypeDisplay(recipe.typeR, recipe.categories);
 </script>
 
 <div
@@ -43,7 +33,14 @@
   <!-- Header -->
   <div class="mb-2 flex flex-wrap items-start justify-between gap-4">
     <div class="min-w-72 flex-1">
-      <div class="text-primary text-lg font-semibold">{recipe.title}</div>
+      <div
+        class="text-primary flex items-center-safe gap-2 text-lg font-semibold"
+      >
+        <svg class="size-6">
+          <use href={`/icons/type/types-sprite.svg#${typeDisplay.iconId}`} />
+        </svg>
+        {recipe.title}
+      </div>
       <div class="text-base-content/60 text-sm">
         {#if recipe.auteur}
           <span>de {recipe.auteur} - </span>

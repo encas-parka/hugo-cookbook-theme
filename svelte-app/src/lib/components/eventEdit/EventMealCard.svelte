@@ -112,20 +112,33 @@
     return Moon;
   });
 
-  // Recettes triées par type (entree > plat > dessert)
-  const sortedRecipes = $derived.by(() => {
-    const typeOrder: Record<RecettesTypeR, number> = {
-      entree: 1,
-      plat: 2,
-      dessert: 3,
-      autre: 4,
-    };
+  // Ordre des types de recettes pour le tri
+  const typeOrder: Record<RecettesTypeR, number> = {
+    entree: 1,
+    plat: 2,
+    dessert: 3,
+    autre: 4,
+  };
 
-    return [...meal.recipes].sort((a, b) => {
+  // Fonction pour trier les recettes par type
+  function sortRecipesByType(recipes: EventMealRecipe[]) {
+    return [...recipes].sort((a, b) => {
       const orderA = typeOrder[a.typeR];
       const orderB = typeOrder[b.typeR];
       return orderA - orderB;
     });
+  }
+
+  // Effect pour maintenir les recettes triées dans meal.recipes
+  $effect(() => {
+    const sorted = sortRecipesByType(meal.recipes);
+    // Vérifier si le tri est nécessaire
+    const needsSort = meal.recipes.some(
+      (recipe, i) => recipe.recipeUuid !== sorted[i]?.recipeUuid,
+    );
+    if (needsSort) {
+      meal.recipes = sorted;
+    }
   });
 
   // État pour suivre si les couverts d'une recette ont été modifiés manuellement
@@ -384,7 +397,7 @@
 
           {#if meal.recipes.length >= 1}
             <div class="mb-4 space-y-2">
-              {#each sortedRecipes as recipe, i (recipe.recipeUuid)}
+              {#each meal.recipes as recipe, i (recipe.recipeUuid)}
                 {@const recipeIndex = getRecipeIndex(recipe.recipeUuid)}
                 <div
                   animate:flip={{ duration: 200 }}
@@ -513,9 +526,9 @@
     {:else}
       <!-- Mode Preview -->
       <div class="space-y-2">
-        {#if sortedRecipes.length > 0}
+        {#if meal.recipes.length > 0}
           <div class="flex flex-wrap gap-2">
-            {#each sortedRecipes as recipe, i (recipe.recipeUuid)}
+            {#each meal.recipes as recipe, i (recipe.recipeUuid)}
               {@const recipeIndex = getRecipeIndex(recipe.recipeUuid)}
               <div
                 class="badge badge-lg {getRecipeColor(

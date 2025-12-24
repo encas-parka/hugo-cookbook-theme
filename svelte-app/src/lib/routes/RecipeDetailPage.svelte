@@ -13,6 +13,7 @@
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
   import { onDestroy } from "svelte";
+  import { getTypeDisplay } from "$lib/utils/recipeUtils";
 
   interface Props {
     params?: { uuid?: string };
@@ -114,6 +115,13 @@
   onDestroy(() => {
     navBarStore.reset();
   });
+
+  // Récupérer l'affichage avec la priorité : catégorie > type
+  const typeDisplay = $derived.by(() =>
+    recipeDetails
+      ? getTypeDisplay(recipeDetails.typeR, recipeDetails.categories)
+      : { label: "", iconId: "no-cat" },
+  );
 </script>
 
 {#snippet navActions()}
@@ -149,7 +157,11 @@
             <h1
               class="flex items-center gap-3 text-2xl font-bold print:text-xl"
             >
-              <ChefHat class="text-primary  print:hidden" />
+              <svg class="me-2 size-9">
+                <use
+                  href={`/icons/type/types-sprite.svg#${typeDisplay.iconId}`}
+                />
+              </svg>
               {recipeDetails.title}
             </h1>
 

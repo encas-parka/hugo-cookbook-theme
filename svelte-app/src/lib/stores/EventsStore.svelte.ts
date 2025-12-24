@@ -92,6 +92,7 @@ export class EventsStore {
 
   /**
    * Événements en cours (maintenant)
+   * Filtrés par date ET par accessibilité (contributorsIds)
    */
   #currentEvents = $derived.by(() => {
     const today = new Date();
@@ -102,19 +103,22 @@ export class EventsStore {
     return Array.from(this.#events.values()).filter((event) => {
       if (!event.dateStart || !event.dateEnd) return false;
       const end = new Date(event.dateEnd);
-      return end >= today;
+      // Filtrer par date ET par accessibilité
+      return end >= today && this.#isEventAccessible(event);
     });
   });
 
   /**
    * Événements passés
+   * Filtrés par date ET par accessibilité (contributorsIds)
    */
   #pastEvents = $derived.by(() => {
     const now = new Date();
     return Array.from(this.#events.values()).filter((event) => {
       if (!event.dateEnd) return false;
       const end = new Date(event.dateEnd);
-      return end < now;
+      // Filtrer par date ET par accessibilité
+      return end < now && this.#isEventAccessible(event);
     });
   });
 
@@ -279,6 +283,24 @@ export class EventsStore {
   }
 
   /**
+   * Vérifie si l'utilisateur actuel a accès à un événement
+   * L'accès est autorisé si :
+   * - L'utilisateur est le créateur
+   * - L'utilisateur est dans contributorsIds
+   */
+  #isEventAccessible(event: Main | EnrichedEvent): boolean {
+    if (!this.#userId) return false;
+
+    // Créateur
+    if (event.createdBy === this.#userId) return true;
+
+    // Dans contributorsIds (logique métier)
+    if (event.contributorsIds?.includes(this.#userId)) return true;
+
+    return false;
+  }
+
+  /**
    * Configure le realtime pour les événements
    */
   #setupRealtime(): void {
@@ -298,6 +320,24 @@ export class EventsStore {
           console.log(
             `[EventsStore] ⚡️ Realtime RECEIVED: ${eventType} pour ${event.$id} (User: ${this.#userId})`,
           );
+
+          // ⚠️ Vérifier l'accessibilité avant de traiter l'événement
+          // Le realtime Appwrite envoie tous les events avec permissions de lecture DB,
+          // mais on doit filtrer par la logique métier contributorsIds
+          if (!this.#isEventAccessible(event)) {
+            console.log(
+              `[EventsStore] Event ${event.$id} ignoré (utilisateur non autorisé - pas dans contributorsIds)`,
+            );
+            // Si l'event est déjà présent et qu'on reçoit un update/delete,
+            // on le retire car l'utilisateur n'a plus accès
+            if (eventType === "update" || eventType === "delete") {
+              this.#events.delete(event.$id);
+              if (this.#cache) {
+                await this.#cache.deleteEvent(event.$id);
+              }
+            }
+            return;
+          }
 
           if (eventType === "create") {
             // CREATE : toujours mettre à jour

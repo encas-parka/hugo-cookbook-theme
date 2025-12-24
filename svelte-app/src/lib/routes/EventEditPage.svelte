@@ -87,7 +87,8 @@
   });
 
   const canEdit = $derived(
-    !isLockedByOthers && currentUserStatus === "accepted" && !loadingEvent,
+    !eventId ||
+      (!isLockedByOthers && currentUserStatus === "accepted" && !loadingEvent),
   );
 
   // ============================================================================

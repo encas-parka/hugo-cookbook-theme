@@ -7,6 +7,7 @@
     updateRecipeAppwrite,
   } from "$lib/services/appwrite-recipes";
   import { ingredientsToAppwrite } from "$lib/utils/ingredientUtils";
+  import { astucesToAppwrite } from "$lib/utils/recipeUtils";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
   import {
@@ -15,7 +16,8 @@
     RecettesTypeR,
   } from "$lib/types/recipes.types";
   import { ArrowLeft, Save, Lock } from "@lucide/svelte";
-  import { onMount, onDestroy } from "svelte";
+  import { onDestroy } from "svelte";
+  import { SvelteSet } from "svelte/reactivity";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import RecipeHeaderForm from "$lib/components/recipeEdit/RecipeHeaderForm.svelte";
   import RecipePrepaForm from "$lib/components/recipeEdit/RecipePrepaForm.svelte";
@@ -23,30 +25,12 @@
   import { UnitConverter } from "$lib/utils/UnitConverter";
   import { generateSlugUuid35 } from "../utils/slugUtils";
 
-  function formatAstuces(astucesJson: string | null): { astuce: string }[] {
-    if (!astucesJson) return [];
-    try {
-      const parsed = JSON.parse(astucesJson);
-      if (Array.isArray(parsed)) {
-        return parsed.map((item: any) => {
-          if (typeof item === "string") return { astuce: item };
-          return item;
-        });
-      }
-      return [];
-    } catch (e) {
-      console.error("Erreur parsing astuces:", e);
-      return [];
-    }
-  }
-
   // ============================================================================
   // PROPS & INITIALISATION
   // ============================================================================
 
   let { params } = $props<{ params?: Record<string, string> }>();
-  let recipeId = $state(params?.uuid);
-  const isCreating = $derived(!recipeId);
+  const recipeId = $derived(params?.uuid);
 
   // Données de référence pour les listes déroulantes
   let recipeInfo = $state<{
@@ -90,12 +74,42 @@
     draft: boolean;
   }
 
+  // Recette par défaut pour le mode création
+  const defaultRecipe: RecipeFormState = {
+    title: "",
+    plate: 100,
+    ingredients: [],
+    preparation: "",
+    materiel: [],
+    preparation24h: "",
+    astuces: [],
+    categories: [],
+    saison: [],
+    typeR: "",
+    cuisson: "",
+    serveHot: "",
+    regime: [],
+    description: "",
+    quantite_desc: "",
+    region: "",
+    prepAlt: [],
+    check: null,
+    draft: true,
+    lockedBy: null,
+    auteur: null,
+    isPublished: false,
+    publishedAt: null,
+    createdBy: globalState.userId || "",
+    permissionWrite: [globalState.userId || ""],
+  };
+
   let recipe = $state<RecipeFormState | null>(null);
-  let originalRecipe = $state<RecipeFormState | null>(null);
 
   // État UI
+  let loaded = $state(false);
   let isLoading = $state(false);
   let isSaving = $state(false);
+  let isDirty = $state(false);
   let lockedBy = $state<string | null>(null);
   let heartbeatInterval: any = null;
 
@@ -127,10 +141,7 @@
   // DERIVED STATES
   // ============================================================================
 
-  const isDirty = $derived.by(() => {
-    if (!recipe || !originalRecipe) return false;
-    return JSON.stringify(recipe) !== JSON.stringify(originalRecipe);
-  });
+  const isCreating = $derived(!recipeId);
 
   const isLockedByOthers = $derived.by(() => {
     if (!lockedBy) return false;
@@ -143,6 +154,82 @@
   });
 
   const canEdit = $derived(!isLockedByOthers && !isLoading);
+
+  // ============================================================================
+  // AUTO-EFFECTS
+  // ============================================================================
+
+  // Charger les données de référence
+  $effect(async () => {
+    if (!recipeInfo) {
+      await loadRecipeInfo();
+    }
+  });
+
+  // Initialiser la recette (mode création vs édition)
+  $effect(() => {
+    // Vérifier que l'utilisateur est connecté
+    if (!globalState.userId) {
+      toastService.error("Vous devez être connecté");
+      navigate("/");
+      return;
+    }
+
+    // Mode création : initialiser avec la recette par défaut
+    if (!recipeId && !loaded) {
+      recipe = { ...defaultRecipe, $id: "new-recipe" } as RecipeFormState;
+      loaded = true;
+      return;
+    }
+
+    // Mode édition : charger depuis le store
+    if (recipeId && !loaded && !isLoading) {
+      isLoading = true;
+      recipesStore
+        .getRecipeByUuid(recipeId)
+        .then(async (data) => {
+          if (data) {
+            recipe = {
+              ...data,
+              categories: data.categories || [],
+              saison: data.saison || [],
+              ingredients: data.ingredients ?? [],
+              astuces: data.astuces ?? [],
+              prepAlt: data.prepAlt || [],
+              materiel: data.materiel || [],
+              regime: data.regime || [],
+              check: data.check ?? null,
+              $createdAt: data.$createdAt,
+              $updatedAt: data.$updatedAt,
+              createdBy: data.createdBy,
+            } as unknown as RecipeFormState;
+            lockedBy = data.lockedBy || null;
+            loaded = true;
+
+            // Acquérir le verrou après chargement
+            await acquireLock();
+          } else {
+            toastService.error("Recette introuvable");
+            navigate("/recipe");
+          }
+        })
+        .catch((error) => {
+          console.error("Erreur chargement:", error);
+          toastService.error("Erreur lors du chargement");
+          navigate("/recipe");
+        })
+        .finally(() => {
+          isLoading = false;
+        });
+    }
+  });
+
+  // Détecter les modifications (isDirty) après le chargement initial
+  $effect(() => {
+    if (recipe && loaded && !isDirty) {
+      isDirty = true;
+    }
+  });
 
   // ============================================================================
   // NAVBAR CONFIGURATION
@@ -227,7 +314,7 @@
     regimes: string[];
   } {
     // Collecter tous les allergènes uniques
-    const allAllergens = new Set<string>();
+    const allAllergens = new SvelteSet<string>();
     let hasAnimalProducts = false;
 
     ingredients.forEach((ingredient) => {
@@ -401,7 +488,7 @@
       const duplicate = recipesStore.recipesIndex.find(
         (r) =>
           r.title.trim().toLowerCase() === normalizedTitle &&
-          r.$id !== recipe.$id,
+          r.$id !== recipe!.$id,
       );
       if (duplicate) {
         validationErrors.title = "Une recette porte déjà ce nom";
@@ -582,10 +669,7 @@
         const recipeToCreate: CreateRecipeData = {
           ...recipe,
           ingredients: ingredientsToAppwrite(recipe.ingredients),
-          astuces:
-            recipe.astuces && recipe.astuces.length > 0
-              ? JSON.stringify(recipe.astuces)
-              : null,
+          astuces: astucesToAppwrite(recipe.astuces),
           prepAlt: recipe.prepAlt,
           typeR: recipe.typeR as RecettesTypeR,
           cuisson: recipe.cuisson === "" ? false : recipe.cuisson,
@@ -653,10 +737,7 @@
           quantite_desc: recipe.quantite_desc,
           auteur: recipe.auteur,
           preparation24h: recipe.preparation24h,
-          astuces:
-            recipe.astuces && recipe.astuces.length > 0
-              ? JSON.stringify(recipe.astuces)
-              : null,
+          astuces: astucesToAppwrite(recipe.astuces),
           prepAlt: recipe.prepAlt,
           check: recipe.check,
           draft: recipe.draft,
@@ -670,8 +751,8 @@
           globalState.userId,
         );
 
-        // Mettre à jour originalRecipe
-        originalRecipe = { ...recipe };
+        // Réinitialiser isDirty après sauvegarde réussie
+        isDirty = false;
 
         // Appel async pour synchroniser vers GitHub
         // On nettoie les champs pour Hugo (pas de $)
@@ -715,101 +796,6 @@
       setTimeout(() => toastService.dismiss(toastId), 3000);
     }
   }
-
-  // ============================================================================
-  // LIFECYCLE
-  // ============================================================================
-
-  onMount(async () => {
-    if (!globalState.userId) {
-      toastService.error("Vous devez être connecté");
-      navigate("/");
-      return;
-    }
-
-    // Charger les données de référence
-    await loadRecipeInfo();
-
-    if (isCreating) {
-      // Mode création : initialiser une recette vide
-      recipe = {
-        $id: "new-recipe",
-        title: "",
-        plate: 100,
-        ingredients: [],
-        preparation: "",
-        materiel: [],
-        preparation24h: "",
-        astuces: [],
-        categories: [],
-        saison: [],
-        typeR: "",
-        cuisson: "",
-        serveHot: "",
-        regime: [],
-        description: "",
-        quantite_desc: "",
-        region: "",
-        prepAlt: [],
-        check: null,
-        draft: true,
-        lockedBy: null,
-        auteur: null,
-        isPublished: false,
-        publishedAt: null,
-        createdBy: globalState.userId,
-        permissionWrite: [globalState.userId],
-      } as unknown as RecipeFormState;
-      originalRecipe = { ...recipe };
-    } else {
-      // Mode édition : charger la recette
-      isLoading = true;
-      try {
-        const loaded = await recipesStore.getRecipeByUuid(recipeId!);
-        if (!loaded) {
-          toastService.error("Recette introuvable");
-          navigate("/recipe");
-          return;
-        }
-
-        // Vérifier les permissions
-        // const canEditRecipe = await recipesStore.canEditRecipe(recipeId!);
-        // if (!canEditRecipe) {
-        //   toastService.error("Vous n'avez pas les droits d'édition", {
-        //     autoCloseDelay: 7000,
-        //   });
-        //   navigate(`/recipe/${recipeId}`);
-        //   return;
-        // }
-
-        recipe = {
-          ...loaded,
-          categories: loaded.categories || [],
-          saison: loaded.saison || [],
-          ingredients: loaded.ingredients ?? [],
-          astuces: loaded.astuces ? formatAstuces(loaded.astuces) : [],
-          prepAlt: loaded.prepAlt || [],
-          materiel: loaded.materiel || [],
-          regime: loaded.regime || [],
-          check: loaded.check ?? null,
-          $createdAt: loaded.$createdAt,
-          $updatedAt: loaded.$updatedAt,
-          createdBy: loaded.createdBy,
-        } as unknown as RecipeFormState;
-        originalRecipe = { ...recipe };
-        lockedBy = loaded.lockedBy || null;
-
-        // Acquérir le verrou
-        await acquireLock();
-      } catch (error) {
-        console.error("Erreur chargement:", error);
-        toastService.error("Erreur lors du chargement");
-        navigate("/recipe");
-      } finally {
-        isLoading = false;
-      }
-    }
-  });
 </script>
 
 <!-- ============================================================================ -->
@@ -819,7 +805,7 @@
     {#if isLockedByOthers}
       <div class="badge badge-warning gap-2">
         <Lock class="h-3 w-3" />
-        Verrouillé
+        Vérouillé : document en cours d'édition par un·e autre utilisateur·ice.
       </div>
     {:else if isLockedByMe}
       <div class="badge badge-success gap-2">

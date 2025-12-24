@@ -37,7 +37,10 @@ import {
   createRecipesIDBCache,
   type RecipesIDBCache,
 } from "../services/recipes-idb-cache";
-import { parseRecipeIndexEntry, normalizeAstuces } from "../utils/recipeUtils";
+import {
+  parseRecipeIndexEntry,
+  astucesFromAppwrite,
+} from "../utils/recipeUtils";
 import { parseRecipeData } from "../utils/recipeUtils";
 import { ingredientsFromAppwrite } from "../utils/ingredientUtils";
 import {
@@ -894,7 +897,7 @@ class RecipesStore {
         ...appwriteRecipe,
         ingredients,
         // NORMALISER: astuces doit toujours être un array
-        astuces: normalizeAstuces(appwriteRecipe.astuces),
+        astuces: astucesFromAppwrite(appwriteRecipe.astuces),
         prepAlt: appwriteRecipe.prepAlt || null,
         categories: appwriteRecipe.categories,
         regime: appwriteRecipe.regime,

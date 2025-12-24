@@ -3,14 +3,10 @@
   import SvelteMarkdown from "@humanspeak/svelte-markdown";
   import Fieldset from "../ui/Fieldset.svelte";
 
-  interface Astuce {
-    astuce: string;
-  }
-
   interface Props {
     preparation: string;
     preparation24h?: string;
-    astuces?: Astuce[];
+    astuces?: string[];
   }
 
   let { preparation, preparation24h, astuces = [] }: Props = $props();
