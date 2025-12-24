@@ -431,6 +431,7 @@
             <EventStats {eventStats} />
           </div>
 
+          <!-- filtre en cours -->
           {#if selectedDateFilter || selectedTimeFilter || selectedMealRecipeFilter || selectedIngredient}
             <div class="m-4 flex items-center justify-center gap-2">
               <div class="badge badge-xl badge-primary">
@@ -446,7 +447,7 @@
                   <span class="mr-1"> recette</span>
                 {/if}
                 {#if selectedIngredient}
-                  <span>🧂 {selectedIngredient}</span>
+                  <span>{selectedIngredient}</span>
                 {/if}
               </div>
               <button
