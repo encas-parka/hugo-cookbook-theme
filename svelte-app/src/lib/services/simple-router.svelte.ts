@@ -6,39 +6,44 @@
  * - Paramètres d'URL multiples
  * - Query strings
  * - Support du bouton retour
- * - Protection d'authentification
+ * - Guards de route (beforeLeave, beforeEnter)
  */
 
 type RouteParams = Record<string, string>;
 type QueryParams = Record<string, string>;
 
-interface RouteMatch {
-  component: any;
+interface RouteInfo {
+  path: string;
   params: RouteParams;
   query: QueryParams;
+}
+
+interface RouteGuards {
+  beforeLeave?: (from: RouteInfo, to: RouteInfo) => boolean | Promise<boolean>;
+  beforeEnter?: (to: RouteInfo, from: RouteInfo) => boolean | Promise<boolean>;
 }
 
 interface RouteDefinition {
   path: string | RegExp;
   component: any;
-  guard?: () => boolean | Promise<boolean>;
+  guards?: RouteGuards;
 }
 
-/**
- * Guard de navigation
- * Retourne true pour autoriser la navigation, false pour l'annuler
- */
-export type NavigationGuard = (
-  targetPath: string,
-  targetQuery?: QueryParams,
-) => boolean | Promise<boolean>;
+interface RouteMatch {
+  component: any;
+  params: RouteParams;
+  query: QueryParams;
+  guards?: RouteGuards;
+}
 
 class SimpleRouter {
   private routes: RouteDefinition[] = [];
   private currentPath = $state("");
   private currentParams = $state<RouteParams>({});
   private currentQuery = $state<QueryParams>({});
-  private navigationGuards: Map<string, NavigationGuard> = new Map();
+  private currentRouteMatch: RouteMatch | null = null;
+  private isNavigating = false;
+  private dynamicGuards: Map<string, RouteGuards> = new Map();
 
   constructor() {
     // Initialiser le path depuis le hash
@@ -47,95 +52,220 @@ class SimpleRouter {
 
     // Écouter les changements de hash
     window.addEventListener("hashchange", () => {
-      this.currentPath = this.getHashPath();
-      this.updateQueryParams();
+      const newPath = this.getHashPath();
+      this.handleHashChange(newPath);
     });
-  }
-
-  /**
-   * Enregistrer un guard de navigation
-   * @param name Identifiant unique du guard
-   * @param guard Fonction appelée avant chaque navigation
-   */
-  registerGuard(name: string, guard: NavigationGuard) {
-    this.navigationGuards.set(name, guard);
-  }
-
-  /**
-   * Supprimer un guard de navigation
-   * @param name Identifiant du guard à supprimer
-   */
-  unregisterGuard(name: string) {
-    this.navigationGuards.delete(name);
   }
 
   /**
    * Définir les routes
    */
-  addRoute(
-    path: string | RegExp,
-    component: any,
-    guard?: () => boolean | Promise<boolean>,
-  ) {
-    this.routes.push({ path, component, guard });
+  addRoute(path: string | RegExp, component: any, guards?: RouteGuards) {
+    this.routes.push({ path, component, guards });
+  }
+
+  /**
+   * Enregistrer dynamiquement un guard pour une route
+   * @param routeKey Clé identifiant la route (ex: '/dashboard/eventEdit/123')
+   * @param guards Guards à appliquer
+   * @returns Fonction de cleanup
+   */
+  registerRouteGuard(routeKey: string, guards: RouteGuards): () => void {
+    this.dynamicGuards.set(routeKey, guards);
+
+    // Retourner la fonction de cleanup
+    return () => {
+      this.dynamicGuards.delete(routeKey);
+    };
+  }
+
+  /**
+   * Gérer les changements de hash (incluant bouton précédent/suivant)
+   */
+  private async handleHashChange(newPath: string) {
+    if (this.isNavigating) return;
+
+    // Mettre à jour la query string
+    this.updateQueryParams();
+
+    // Construire les infos de route
+    const from: RouteInfo = {
+      path: this.currentPath,
+      params: this.currentParams,
+      query: this.currentQuery,
+    };
+
+    const to: RouteInfo = {
+      path: newPath,
+      params: {}, // Sera rempli après matching
+      query: this.currentQuery,
+    };
+
+    // Priorité 1 : Vérifier les guards dynamiques enregistrés pour la route actuelle
+    const dynamicGuard = this.dynamicGuards.get(from.path);
+    if (dynamicGuard?.beforeLeave) {
+      try {
+        const canLeave = await dynamicGuard.beforeLeave(from, to);
+        if (!canLeave) {
+          console.log(
+            "[Router] Navigation annulée par beforeLeave (guard dynamique)",
+          );
+          window.location.hash = from.path;
+          return;
+        }
+      } catch (error) {
+        console.error(
+          "[Router] Erreur dans beforeLeave (guard dynamique):",
+          error,
+        );
+      }
+    }
+
+    // Priorité 2 : Vérifier les guards statiques de la route actuelle
+    if (this.currentRouteMatch?.guards?.beforeLeave) {
+      try {
+        const canLeave = await this.currentRouteMatch.guards.beforeLeave(
+          from,
+          to,
+        );
+        if (!canLeave) {
+          console.log(
+            "[Router] Navigation annulée par beforeLeave (guard statique)",
+          );
+          window.location.hash = from.path;
+          return;
+        }
+      } catch (error) {
+        console.error(
+          "[Router] Erreur dans beforeLeave (guard statique):",
+          error,
+        );
+      }
+    }
+
+    // Trouver la nouvelle route
+    const newMatch = this.findRouteMatch(newPath);
+    if (!newMatch) {
+      // Route non trouvée, autoriser la navigation (page 404)
+      this.currentPath = newPath;
+      this.currentParams = {};
+      this.currentRouteMatch = null;
+      return;
+    }
+
+    // Mettre à jour les params dans "to"
+    to.params = newMatch.params;
+
+    // Vérifier le guard beforeEnter de la nouvelle route
+    if (newMatch.guards?.beforeEnter) {
+      try {
+        const canEnter = await newMatch.guards.beforeEnter(to, from);
+        if (!canEnter) {
+          console.log("[Router] Navigation annulée par beforeEnter");
+          // Rétablir l'ancien hash
+          window.location.hash = from.path;
+          return;
+        }
+      } catch (error) {
+        console.error("[Router] Erreur dans beforeEnter:", error);
+      }
+    }
+
+    // Navigation autorisée : mettre à jour l'état
+    this.currentPath = newPath;
+    this.currentParams = newMatch.params;
+    this.currentRouteMatch = newMatch;
   }
 
   /**
    * Naviguer vers un path
    */
   async navigate(path: string, query?: QueryParams) {
-    // Exécuter tous les guards de navigation avant de changer de route
-    for (const [name, guard] of this.navigationGuards) {
-      try {
-        const canNavigate = await guard(path, query);
-        if (!canNavigate) {
-          console.log(`[Router] Navigation annulée par le guard: ${name}`);
-          return; // Annuler la navigation
+    if (this.isNavigating) return;
+
+    this.isNavigating = true;
+
+    try {
+      // Construire les infos de route
+      const from: RouteInfo = {
+        path: this.currentPath,
+        params: this.currentParams,
+        query: this.currentQuery,
+      };
+
+      // Trouver la nouvelle route pour avoir les params
+      const tempMatch = this.findRouteMatch(path);
+      const to: RouteInfo = {
+        path,
+        params: tempMatch?.params || {},
+        query: query || {},
+      };
+
+      // Vérifier beforeLeave de la route actuelle
+      if (this.currentRouteMatch?.guards?.beforeLeave) {
+        const canLeave = await this.currentRouteMatch.guards.beforeLeave(
+          from,
+          to,
+        );
+        if (!canLeave) {
+          console.log("[Router] Navigation annulée par beforeLeave");
+          return;
         }
-      } catch (error) {
-        console.error(`[Router] Erreur dans le guard ${name}:`, error);
-        // En cas d'erreur, on autorise quand même la navigation pour ne pas bloquer l'application
+      }
+
+      // Vérifier beforeEnter de la nouvelle route
+      if (tempMatch?.guards?.beforeEnter) {
+        const canEnter = await tempMatch.guards.beforeEnter(to, from);
+        if (!canEnter) {
+          console.log("[Router] Navigation annulée par beforeEnter");
+          return;
+        }
+      }
+
+      // Construire le hash : #/path?query
+      const queryString = query
+        ? "?" + new URLSearchParams(query).toString()
+        : "";
+      const fullHash =
+        "#" + (path.startsWith("/") ? path : "/" + path) + queryString;
+
+      // Effectuer la navigation
+      window.location.hash = fullHash;
+
+      // Note : la mise à jour de l'état se fera via hashchange
+    } finally {
+      this.isNavigating = false;
+    }
+  }
+
+  /**
+   * Trouver la route correspondant au path
+   */
+  private findRouteMatch(path: string): RouteMatch | null {
+    for (const route of this.routes) {
+      const match = this.matchRoute(route.path, path);
+      if (match) {
+        return {
+          component: route.component,
+          params: match.params,
+          query: this.currentQuery,
+          guards: route.guards,
+        };
       }
     }
-
-    // Construire le hash : #/path?query
-    const queryString = query
-      ? "?" + new URLSearchParams(query).toString()
-      : "";
-    const fullHash =
-      "#" + (path.startsWith("/") ? path : "/" + path) + queryString;
-
-    window.location.hash = fullHash;
-    // La mise à jour de l'état se fera via l'événement hashchange
+    return null;
   }
 
   /**
    * Obtenir le composant actuel et ses paramètres
    */
   async match(): Promise<RouteMatch | null> {
-    for (const route of this.routes) {
-      const match = this.matchRoute(route.path, this.currentPath);
-
-      if (match) {
-        // Vérifier le guard si présent
-        if (route.guard) {
-          const allowed = await route.guard();
-          if (!allowed) {
-            return null;
-          }
-        }
-
-        this.currentParams = match.params;
-
-        return {
-          component: route.component,
-          params: match.params,
-          query: this.currentQuery,
-        };
-      }
+    const match = this.findRouteMatch(this.currentPath);
+    if (match) {
+      this.currentParams = match.params;
+      this.currentRouteMatch = match;
     }
-
-    return null;
+    return match;
   }
 
   /**
@@ -239,3 +369,14 @@ export function getParam(name: string): string | undefined {
 export function getQuery(name: string): string | undefined {
   return router.query[name];
 }
+
+/**
+ * Types exportés
+ */
+export type {
+  RouteParams,
+  QueryParams,
+  RouteInfo,
+  RouteGuards,
+  RouteDefinition,
+};

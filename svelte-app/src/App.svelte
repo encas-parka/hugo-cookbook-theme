@@ -10,7 +10,11 @@
   import OverrideConflictModal from "./lib/components/OverrideConflictModal.svelte";
   import { globalState } from "./lib/stores/GlobalState.svelte";
 
-  import { router, navigate } from "./lib/services/simple-router.svelte";
+  import {
+    router,
+    navigate,
+    type RouteGuards,
+  } from "./lib/services/simple-router.svelte";
   import DashboardPage from "./lib/routes/DashboardPage.svelte";
   import EventEditPage from "./lib/routes/EventEditPage.svelte";
   import EventRecipesPage from "./lib/routes/EventRecipesPage.svelte";
@@ -32,25 +36,29 @@
   let appState = $state<AppState>("BOOTING");
   let initError: string | null = $state(null);
 
-  // Guard: Requiert l'authentification
-  const requireAuth = async () => {
-    // Si l'utilisateur n'est pas connecté, rediriger vers l'accueil
-    if (!globalState.isAuthenticated) {
-      console.log("[Router] Accès refusé > Redirection /");
-      navigate("/");
-      return false;
-    }
-    return true;
+  // Guards: Requiert l'authentification
+  const requireAuth: RouteGuards = {
+    beforeEnter: async () => {
+      // Si l'utilisateur n'est pas connecté, rediriger vers l'accueil
+      if (!globalState.isAuthenticated) {
+        console.log("[Router] Accès refusé > Redirection /");
+        navigate("/");
+        return false;
+      }
+      return true;
+    },
   };
 
   // Guard: Redirige vers le dashboard si déjà connecté
-  const redirectIfAuth = async () => {
-    if (globalState.isAuthenticated) {
-      console.log("[Router] Déjà connecté > Redirection /dashboard");
-      navigate("/dashboard");
-      return false;
-    }
-    return true;
+  const redirectIfAuth: RouteGuards = {
+    beforeEnter: async () => {
+      if (globalState.isAuthenticated) {
+        console.log("[Router] Déjà connecté > Redirection /dashboard");
+        navigate("/dashboard");
+        return false;
+      }
+      return true;
+    },
   };
 
   // Définir les routes

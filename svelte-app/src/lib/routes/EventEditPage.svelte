@@ -638,25 +638,18 @@
 
 {#snippet navActions()}
   <div class="flex items-center gap-2">
-    {#if isDirty && !isLockedByOthers}
-      <button
-        class="btn btn-primary btn-sm"
-        onclick={handleSave}
-        disabled={isBusy || (eventId && !canEdit)}
-      >
-        {#if isBusy}
-          <span class="loading loading-spinner loading-xs text-primary"></span>
-        {:else}
-          <Save size={18} class="mr-1" />
-        {/if}
-        <span class="font-bold">{eventId ? "Enregistrer" : "Créer"}</span>
-      </button>
-    {:else}
-      <button class="btn btn-sm btn-ghost gap-2 opacity-50" disabled>
+    <button
+      class="btn btn-primary btn-sm"
+      onclick={handleSave}
+      disabled={isBusy || (eventId && !isDirty) || (eventId && !canEdit)}
+    >
+      {#if isBusy}
+        <span class="loading loading-spinner loading-xs text-primary"></span>
+      {:else}
         <Save size={18} class="mr-1" />
-        <span class="font-bold">{eventId ? "Enregistré" : "Créer"}</span>
-      </button>
-    {/if}
+      {/if}
+      <span class="font-bold">{eventId ? "Enregistrer" : "Créer"}</span>
+    </button>
   </div>
 {/snippet}
 
