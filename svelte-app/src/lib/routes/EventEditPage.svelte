@@ -135,9 +135,9 @@
   });
 
   // ============================================================================
-  // INITIALISATION (une seule fois)
+  // INITIALISATION
   // ============================================================================
-  let initialized = false;
+  let initialized = $state(false);
 
   $effect(() => {
     if (eventId && !initialized && !isBusy) {
@@ -450,25 +450,13 @@
   }
 
   // ============================================================================
-  // Vérifier que l'événement existe (mode édition)
-  // ============================================================================
-  $effect(() => {
-    if (eventId && !currentEvent) {
-      toastService.error("Événement introuvable");
-      navigate("/dashboard");
-    }
-  });
-
-  // ============================================================================
   // Synchronisation depuis currentEvent (realtime)
   // ============================================================================
   $effect(() => {
     // Ne synchroniser que si :
     // - currentEvent est disponible
     // - Initialisé
-    // - PAS de modifications locales en cours
-    // - PAS le lock détenu
-    if (!currentEvent || !initialized || isDirty || isLockedByMe) {
+    if (!currentEvent || !initialized) {
       return;
     }
 
