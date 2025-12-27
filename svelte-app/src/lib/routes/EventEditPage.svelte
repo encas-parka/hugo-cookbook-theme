@@ -62,15 +62,6 @@
   let activeLock = $state<AppwriteLock | null>(null);
   let lockUnsub: (() => void) | null = null;
 
-  // État du modal de confirmation de navigation
-  let showUnsavedChangesModal = $state(false);
-  let pendingNavigation = $state<{
-    path: string;
-    query?: Record<string, string>;
-  } | null>(null);
-  let isSavingAndNavigating = $state(false);
-  let navigationGuardResolve: ((value: boolean) => void) | null = null;
-
   // Détection des changements
   function markDirtyAndAcquireLock() {
     if (!eventId || isBusy || isAcquiringLock) return;
@@ -251,66 +242,12 @@
   // ============================================================================
 
   /**
-   * Guard de navigation pour protéger les modifications non sauvegardées
-   */
-  $effect(() => {
-    if (!eventId) return;
-
-    const navigationGuard = async (
-      targetPath: string,
-      targetQuery?: Record<string, string>,
-    ): Promise<boolean> => {
-      // Si pas de modifications ni de lock, autoriser la navigation
-      if (!isDirty && !isLockedByMe) {
-        return true;
-      }
-
-      console.log(
-        `[NavigationGuard] Navigation interceptée vers ${targetPath}`,
-      );
-
-      // Stocker les détails de la navigation en attente
-      pendingNavigation = { path: targetPath, query: targetQuery };
-
-      // Afficher le modal de confirmation
-      showUnsavedChangesModal = true;
-
-      // Retourner une Promise qui sera résolue quand l'utilisateur choisira
-      return new Promise<boolean>((resolve) => {
-        navigationGuardResolve = resolve;
-      });
-    };
-
-    // Enregistrer le guard
-    router.registerGuard("eventEdit", navigationGuard);
-
-    // Cleanup : supprimer le guard quand le composant est démonté
-    return () => {
-      router.unregisterGuard("eventEdit");
-    };
-  });
-
-  /**
    * Handler pour "Quitter sans sauvegarder"
    */
   async function handleLeaveWithoutSave() {
-    showUnsavedChangesModal = false;
-
     // Libérer le lock si on l'a
     if (isLockedByMe) {
       await releaseLock();
-    }
-
-    // Autoriser la navigation
-    if (navigationGuardResolve) {
-      navigationGuardResolve(true);
-      navigationGuardResolve = null;
-    }
-
-    // Effectuer la navigation
-    if (pendingNavigation) {
-      navigate(pendingNavigation.path, pendingNavigation.query);
-      pendingNavigation = null;
     }
   }
 
@@ -318,52 +255,14 @@
    * Handler pour "Enregistrer et quitter"
    */
   async function handleSaveAndLeave() {
-    isSavingAndNavigating = true;
-
     const success = await saveEventData();
 
     if (success) {
       await releaseLock();
-
-      // Fermer le modal
-      showUnsavedChangesModal = false;
-
-      // Autoriser la navigation
-      if (navigationGuardResolve) {
-        navigationGuardResolve(true);
-        navigationGuardResolve = null;
-      }
-
-      // Effectuer la navigation
-      if (pendingNavigation) {
-        // Cas spécial : création d'un nouvel événement
-        if (!eventId) {
-          // La navigation a déjà été faite dans saveEventData()
-          pendingNavigation = null;
-        } else {
-          navigate(pendingNavigation.path, pendingNavigation.query);
-          pendingNavigation = null;
-        }
-      }
-
       toastService.success("Modifications sauvegardées");
     }
 
-    isSavingAndNavigating = false;
-  }
-
-  /**
-   * Handler pour "Rester" (annuler la navigation)
-   */
-  function handleCancelNavigation() {
-    showUnsavedChangesModal = false;
-    pendingNavigation = null;
-
-    // Refuser la navigation
-    if (navigationGuardResolve) {
-      navigationGuardResolve(false);
-      navigationGuardResolve = null;
-    }
+    return success;
   }
 
   // ============================================================================
@@ -544,7 +443,7 @@
       () => {
         performAutoSave();
       },
-      30 * 1000, // test (30s). Restore 5 * 60 * 1000
+      5 * 60 * 1000, // test (30s). Restore 5 * 60 * 1000
     );
 
     console.log("⏰ Auto-save programmé dans 30 secondes");
@@ -916,9 +815,9 @@
 
 <!-- Modal de confirmation pour modifications non sauvegardées -->
 <UnsavedChangesModal
-  isOpen={showUnsavedChangesModal}
-  onConfirm={handleLeaveWithoutSave}
+  guardId="eventEdit"
+  shouldProtect={() => isDirty || isLockedByMe}
+  onLeaveWithoutSave={handleLeaveWithoutSave}
   onSaveAndLeave={handleSaveAndLeave}
-  onCancel={handleCancelNavigation}
-  isSaving={isSavingAndNavigating}
+  message="Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter ?"
 />
