@@ -80,6 +80,18 @@
   // Initialiser les valeurs d'entrée avec les valeurs actuelles
   let newDateInput = $state(extractDate(meal.date || ""));
   let newTimeInput = $state(extractTime(meal.date || ""));
+
+  // Synchronisation interne si meal.date change de l'extérieur (ex: sync distante)
+  $effect(() => {
+    if (meal.date) {
+      const extDate = extractDate(meal.date);
+      const extTime = extractTime(meal.date);
+      // On ne met à jour que si les valeurs diffèrent pour ne pas perturber l'édition locale
+      if (extDate !== newDateInput) newDateInput = extDate;
+      if (extTime !== newTimeInput) newTimeInput = extTime;
+    }
+  });
+
   let newDateTime = $derived(dateToDateTime(newDateInput, newTimeInput));
 
   // État pour savoir si la date actuelle du repas est en double dans allDates

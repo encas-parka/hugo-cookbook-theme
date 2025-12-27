@@ -61,6 +61,7 @@
   // État du verrou externe (via locksService)
   let activeLock = $state<AppwriteLock | null>(null);
   let lockUnsub: (() => void) | null = null;
+  let isLeaveModalOpen = $state(false);
 
   // Détection des changements
   function markDirtyAndAcquireLock() {
@@ -137,10 +138,10 @@
   // ============================================================================
   // INITIALISATION
   // ============================================================================
-  let initialized = $state(false);
+  let isInitialised = $state(false);
 
   $effect(() => {
-    if (eventId && !initialized && !isBusy) {
+    if (eventId && !isInitialised && !isBusy) {
       untrack(async () => {
         isBusy = true;
         try {
@@ -163,11 +164,22 @@
             activeLock = lock;
           });
 
-          initialized = true;
+          isInitialised = true;
         } finally {
           isBusy = false;
         }
       });
+    }
+  });
+
+  // Synchronisation store -> local (QUE si pas de modifications en cours)
+  $effect(() => {
+    if (currentEvent && isInitialised && !isDirty && !isLockedByMe) {
+      // On utilise snapshot pour se détacher des références du store
+      const eventData = $state.snapshot(currentEvent);
+      meals = eventData.meals || [];
+      pendingEventName = eventData.name || "";
+      console.log("🔄 Synchronisation store -> local effectuée");
     }
   });
 
@@ -249,6 +261,17 @@
     if (isLockedByMe) {
       await releaseLock();
     }
+    isDirty = false;
+    isLeaveModalOpen = false;
+    navigate("/dashboard");
+  }
+
+  async function handleGoBack() {
+    if (isDirty || isLockedByMe) {
+      isLeaveModalOpen = true;
+    } else {
+      navigate("/dashboard");
+    }
   }
 
   /**
@@ -260,9 +283,8 @@
     if (success) {
       await releaseLock();
       toastService.success("Modifications sauvegardées");
+      navigate("/dashboard");
     }
-
-    return success;
   }
 
   // ============================================================================
@@ -456,7 +478,7 @@
     // Ne synchroniser que si :
     // - currentEvent est disponible
     // - Initialisé
-    if (!currentEvent || !initialized) {
+    if (!currentEvent || !isInitialised) {
       return;
     }
 
@@ -621,11 +643,14 @@
 </script>
 
 {$inspect("isBusy", isBusy)}
-{$inspect("initialized", initialized)}
+{$inspect("isInitialised", isInitialised)}
 {$inspect("isDirty", isDirty)}
 
 {#snippet navActions()}
   <div class="flex items-center gap-2">
+    <button class="btn btn-ghost btn-sm" onclick={handleGoBack} title="Retour">
+      <ArrowLeft size={18} />
+    </button>
     <button
       class="btn btn-primary btn-sm"
       onclick={handleSave}
@@ -711,7 +736,7 @@
     </div>
   {/if}
 
-  {#if isBusy && !initialized}
+  {#if isBusy && !isInitialised}
     <div class="flex items-center justify-center py-20">
       <div class="flex flex-col items-center gap-4">
         <span class="loading loading-spinner loading-lg text-primary"></span>
@@ -796,9 +821,9 @@
 
 <!-- Modal de confirmation pour modifications non sauvegardées -->
 <UnsavedChangesModal
-  guardId="eventEdit"
-  shouldProtect={() => isDirty || isLockedByMe}
+  isOpen={isLeaveModalOpen}
   onLeaveWithoutSave={handleLeaveWithoutSave}
   onSaveAndLeave={handleSaveAndLeave}
+  onCancel={() => (isLeaveModalOpen = false)}
   message="Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter ?"
 />
