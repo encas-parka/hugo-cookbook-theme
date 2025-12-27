@@ -57,6 +57,10 @@
   let editingMealIndex = $state<string | null>(null);
   let editingTitle = $state(false);
 
+  // État du verrou externe (via locksService)
+  let activeLock = $state<AppwriteLock | null>(null);
+  let lockUnsub: (() => void) | null = null;
+
   // isDirty est maintenant calculé par comparaison JSON (Single Source of Truth)
   const isDirty = $derived.by(() => {
     if (!isInitialised || !currentEvent) return false;
@@ -71,32 +75,20 @@
     return localMealsJson !== storeMealsJson;
   });
 
-  // Détection des changements pour le verrou
-  $effect(() => {
-    if (isDirty && !isBusy && !isAcquiringLock) {
-      untrack(() => {
-        if (!isLockedByMe) {
-          console.log("📝 Changements détectés, acquisition du verrou...");
-          acquireLock();
-        } else {
-          scheduleAutoSave();
-        }
-      });
-    }
-  });
-
-  // État du verrou externe (via locksService)
-  let activeLock = $state<AppwriteLock | null>(null);
-  let lockUnsub: (() => void) | null = null;
-
-  // Géré par l'effet ci-dessus maintenant
+  // Détection des changements (Manuelle pour l'acquisition du verrou)
   function markDirtyAndAcquireLock() {
-    // Cette fonction est conservée pour compatibilité mais l'action réelle est dans l'$effect(isDirty)
-    console.log("🛠 markDirtyAndAcquireLock appelé");
+    if (!eventId || isBusy || isAcquiringLock || isLockedByOthers) return;
+
+    // Si on n'a pas le verrou, on tente de l'acquérir
+    if (!isLockedByMe) {
+      console.log("📝 Intention d'éditer détectée, acquisition du verrou...");
+      acquireLock();
+    } else {
+      // Si on a déjà le verrou, on s'assure que l'auto-save est programmé
+      scheduleAutoSave();
+    }
   }
 
-  // ============================================================================
-  // GESTION DU LOCK & AUTO-SAVE (LOCAL)
   // ============================================================================
 
   // Suppression de isSaving (fusionné dans isBusy)
