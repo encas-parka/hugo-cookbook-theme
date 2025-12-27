@@ -51,31 +51,48 @@
   const allDates = $derived(meals.map((m) => m.date));
 
   // État UI
+  let isInitialised = $state(false);
   let isBusy = $state(false); // Quand on sauvegarde/charge
-  let isDirty = $state(false); // Quand on a des modifs non sauvegardées
   let isAcquiringLock = $state(false); // Quand on acquiert le lock
   let editingMealIndex = $state<string | null>(null);
   let editingTitle = $state(false);
+
+  // isDirty est maintenant calculé par comparaison JSON (Single Source of Truth)
+  const isDirty = $derived.by(() => {
+    if (!isInitialised || !currentEvent) return false;
+
+    // Comparaison du nom
+    if (pendingEventName !== currentEvent.name) return true;
+
+    // Comparaison des repas (via JSON pour la profondeur)
+    const localMealsJson = JSON.stringify(meals);
+    const storeMealsJson = JSON.stringify(eventStats?.sortedMeals || []);
+
+    return localMealsJson !== storeMealsJson;
+  });
+
+  // Détection des changements pour le verrou
+  $effect(() => {
+    if (isDirty && !isBusy && !isAcquiringLock) {
+      untrack(() => {
+        if (!isLockedByMe) {
+          console.log("📝 Changements détectés, acquisition du verrou...");
+          acquireLock();
+        } else {
+          scheduleAutoSave();
+        }
+      });
+    }
+  });
 
   // État du verrou externe (via locksService)
   let activeLock = $state<AppwriteLock | null>(null);
   let lockUnsub: (() => void) | null = null;
 
-  // Détection des changements
+  // Géré par l'effet ci-dessus maintenant
   function markDirtyAndAcquireLock() {
-    if (!eventId || isBusy || isAcquiringLock) return;
-
-    if (!isDirty) {
-      console.log("📝 Première modification détectée");
-      isDirty = true;
-    }
-
-    // Gérer le verrou et l'auto-save
-    if (!isLockedByMe) {
-      acquireLock();
-    } else {
-      scheduleAutoSave();
-    }
+    // Cette fonction est conservée pour compatibilité mais l'action réelle est dans l'$effect(isDirty)
+    console.log("🛠 markDirtyAndAcquireLock appelé");
   }
 
   // ============================================================================
@@ -136,7 +153,6 @@
   // ============================================================================
   // INITIALISATION
   // ============================================================================
-  let isInitialised = $state(false);
 
   $effect(() => {
     if (eventId && !isInitialised && !isBusy) {
@@ -175,15 +191,20 @@
 
   // Synchronisation store -> local (QUE si pas de modifications en cours)
   $effect(() => {
-    if (currentEvent && isInitialised && !isDirty && !isLockedByMe) {
-      // On utilise snapshot pour se détacher des références du store
-      const eventData = $state.snapshot(currentEvent);
-      pendingEventName = eventData.name || "";
-      // On utilise les repas triés du store
-      meals = [...(eventStats?.sortedMeals || [])].map((m) =>
-        $state.snapshot(m),
-      );
-      console.log("🔄 Synchronisation store -> local effectuée");
+    // Si on n'a pas le verrou OU si on n'a pas de changements locaux, on synchronise
+    // Cela permet aux observateurs (User B) d'être toujours à jour,
+    // et à l'éditeur (User A) de récupérer les normalisations après save.
+    if (currentEvent && isInitialised && (!isLockedByMe || !isDirty)) {
+      untrack(() => {
+        // On utilise snapshot pour se détacher des références du store
+        const eventData = $state.snapshot(currentEvent);
+        pendingEventName = eventData.name || "";
+        // On utilise les repas triés du store
+        meals = [...(eventStats?.sortedMeals || [])].map((m) =>
+          $state.snapshot(m),
+        );
+        console.log("🔄 Synchronisation store -> local effectuée");
+      });
     }
   });
 
@@ -265,7 +286,7 @@
     if (isLockedByMe) {
       await releaseLock();
     }
-    isDirty = false;
+    // Plus besoin de reset isDirty manuellement, le $derived s'en charge
   }
 
   /**
@@ -345,8 +366,8 @@
 
     const nameToSave = pendingEventName || eventName;
 
-    // IMPORTANT : Reset isDirty AVANT la sauvegarde pour éviter le rechargement realtime
-    isDirty = false;
+    // Plus besoin de reset isDirty manuellement, le calcul $derived le fera
+    // une fois que le store sera mis à jour.
 
     // En mode création, initialiser contributors avec l'utilisateur courant
     const contributorsToSave = eventId
@@ -384,8 +405,6 @@
     } catch (error) {
       console.error("Erreur sauvegarde:", error);
       toastService.error("Erreur lors de la sauvegarde");
-      // Réinitialiser isDirty en cas d'erreur
-      isDirty = true;
       return false;
     }
   }
@@ -462,24 +481,7 @@
     console.log("⏰ Auto-save programmé dans 30 secondes");
   }
 
-  // ============================================================================
-  // Synchronisation depuis currentEvent (realtime)
-  // ============================================================================
-  $effect(() => {
-    // Ne synchroniser que si :
-    // - currentEvent est disponible
-    // - Initialisé
-    if (!currentEvent || !isInitialised) {
-      return;
-    }
-
-    console.log("📥 Synchronisation depuis currentEvent (realtime)");
-
-    pendingEventName = currentEvent.name;
-    meals = [...currentEvent.meals].sort((a, b) =>
-      a.date.localeCompare(b.date),
-    );
-  });
+  // Nettoyage de l'ancien effet de synchronisation simplifié fusionné dans celui du haut
 
   // Protection beforeunload - Avertir l'utilisateur s'il a des modifications non sauvegardées
   $effect(() => {
