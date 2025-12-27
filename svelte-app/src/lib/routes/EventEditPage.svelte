@@ -10,7 +10,6 @@
   import type { EventContributor, EventMeal } from "$lib/types/events";
   import {
     CircleAlert,
-    ArrowLeft,
     Calendar,
     ChartBar,
     Plus,
@@ -25,7 +24,7 @@
   import EventStats from "../components/EventStats.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { locksService, type AppwriteLock } from "../services/appwrite-locks";
-  import UnsavedChangesModal from "../components/ui/UnsavedChangesModal.svelte";
+  import UnsavedChangesGuard from "../components/ui/UnsavedChangesGuard.svelte";
 
   // ============================================================================
   // PROPS & INITIALISATION
@@ -61,7 +60,6 @@
   // État du verrou externe (via locksService)
   let activeLock = $state<AppwriteLock | null>(null);
   let lockUnsub: (() => void) | null = null;
-  let isLeaveModalOpen = $state(false);
 
   // Détection des changements
   function markDirtyAndAcquireLock() {
@@ -262,28 +260,15 @@
       await releaseLock();
     }
     isDirty = false;
-    isLeaveModalOpen = false;
-    navigate("/dashboard");
-  }
-
-  async function handleGoBack() {
-    if (isDirty || isLockedByMe) {
-      isLeaveModalOpen = true;
-    } else {
-      navigate("/dashboard");
-    }
   }
 
   /**
    * Handler pour "Enregistrer et quitter"
    */
   async function handleSaveAndLeave() {
-    const success = await saveEventData();
-
-    if (success) {
+    await saveEventData();
+    if (isLockedByMe) {
       await releaseLock();
-      toastService.success("Modifications sauvegardées");
-      navigate("/dashboard");
     }
   }
 
@@ -648,9 +633,6 @@
 
 {#snippet navActions()}
   <div class="flex items-center gap-2">
-    <button class="btn btn-ghost btn-sm" onclick={handleGoBack} title="Retour">
-      <ArrowLeft size={18} />
-    </button>
     <button
       class="btn btn-primary btn-sm"
       onclick={handleSave}
@@ -819,11 +801,13 @@
   {/if}
 </div>
 
-<!-- Modal de confirmation pour modifications non sauvegardées -->
-<UnsavedChangesModal
-  isOpen={isLeaveModalOpen}
+<!-- Guard de navigation pour modifications non sauvegardées -->
+<UnsavedChangesGuard
+  routeKey={eventId
+    ? `/dashboard/eventEdit/${eventId}`
+    : "/dashboard/eventEdit"}
+  shouldProtect={() => isDirty || isLockedByMe}
   onLeaveWithoutSave={handleLeaveWithoutSave}
   onSaveAndLeave={handleSaveAndLeave}
-  onCancel={() => (isLeaveModalOpen = false)}
-  message="Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter ?"
+  message="Vous avez des modifications non sauvegardées ou vous détenez le verrou. Voulez-vous vraiment quitter ?"
 />
