@@ -820,9 +820,9 @@ class RecipesStore {
       if (this.#cache) {
         const cachedDetail = await this.#cache.loadRecipeDetail(uuid);
         if (cachedDetail) {
-          console.log(
-            `[RecipesStore] Détails de ${uuid} chargés depuis le cache`,
-          );
+          // console.log(
+          //   `[RecipesStore] Détails de ${uuid} chargés depuis le cache`,
+          // );
           return cachedDetail as unknown as RecipeForDisplay;
         }
       }

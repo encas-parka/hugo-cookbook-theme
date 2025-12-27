@@ -14,6 +14,9 @@ export interface NavBarConfig {
   tabs?: BreadcrumbItem[];
   eventId?: string;
   activeTab?: number;
+  isLockedByOthers?: boolean;
+  lockedByUserName?: string;
+  hasUnsavedChanges?: boolean;
 }
 
 class NavBarStore {
@@ -43,6 +46,18 @@ class NavBarStore {
 
   get activeTab() {
     return this.#config.activeTab || 0;
+  }
+
+  get isLockedByOthers() {
+    return this.#config.isLockedByOthers || false;
+  }
+
+  get lockedByUserName() {
+    return this.#config.lockedByUserName || "";
+  }
+
+  get hasUnsavedChanges() {
+    return this.#config.hasUnsavedChanges || false;
   }
 
   setConfig(config: NavBarConfig) {

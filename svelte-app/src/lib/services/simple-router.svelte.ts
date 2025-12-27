@@ -1,6 +1,6 @@
 /**
  * Router Simple pour Svelte 5 (Mode Hash)
- * 
+ *
  * Fonctionnalités :
  * - Navigation via Hash (#)
  * - Paramètres d'URL multiples
@@ -24,11 +24,21 @@ interface RouteDefinition {
   guard?: () => boolean | Promise<boolean>;
 }
 
+/**
+ * Guard de navigation
+ * Retourne true pour autoriser la navigation, false pour l'annuler
+ */
+export type NavigationGuard = (
+  targetPath: string,
+  targetQuery?: QueryParams,
+) => boolean | Promise<boolean>;
+
 class SimpleRouter {
   private routes: RouteDefinition[] = [];
-  private currentPath = $state('');
+  private currentPath = $state("");
   private currentParams = $state<RouteParams>({});
   private currentQuery = $state<QueryParams>({});
+  private navigationGuards: Map<string, NavigationGuard> = new Map();
 
   constructor() {
     // Initialiser le path depuis le hash
@@ -36,27 +46,65 @@ class SimpleRouter {
     this.updateQueryParams();
 
     // Écouter les changements de hash
-    window.addEventListener('hashchange', () => {
+    window.addEventListener("hashchange", () => {
       this.currentPath = this.getHashPath();
       this.updateQueryParams();
     });
   }
 
   /**
+   * Enregistrer un guard de navigation
+   * @param name Identifiant unique du guard
+   * @param guard Fonction appelée avant chaque navigation
+   */
+  registerGuard(name: string, guard: NavigationGuard) {
+    this.navigationGuards.set(name, guard);
+  }
+
+  /**
+   * Supprimer un guard de navigation
+   * @param name Identifiant du guard à supprimer
+   */
+  unregisterGuard(name: string) {
+    this.navigationGuards.delete(name);
+  }
+
+  /**
    * Définir les routes
    */
-  addRoute(path: string | RegExp, component: any, guard?: () => boolean | Promise<boolean>) {
+  addRoute(
+    path: string | RegExp,
+    component: any,
+    guard?: () => boolean | Promise<boolean>,
+  ) {
     this.routes.push({ path, component, guard });
   }
 
   /**
    * Naviguer vers un path
    */
-  navigate(path: string, query?: QueryParams) {
+  async navigate(path: string, query?: QueryParams) {
+    // Exécuter tous les guards de navigation avant de changer de route
+    for (const [name, guard] of this.navigationGuards) {
+      try {
+        const canNavigate = await guard(path, query);
+        if (!canNavigate) {
+          console.log(`[Router] Navigation annulée par le guard: ${name}`);
+          return; // Annuler la navigation
+        }
+      } catch (error) {
+        console.error(`[Router] Erreur dans le guard ${name}:`, error);
+        // En cas d'erreur, on autorise quand même la navigation pour ne pas bloquer l'application
+      }
+    }
+
     // Construire le hash : #/path?query
-    const queryString = query ? '?' + new URLSearchParams(query).toString() : '';
-    const fullHash = '#' + (path.startsWith('/') ? path : '/' + path) + queryString;
-    
+    const queryString = query
+      ? "?" + new URLSearchParams(query).toString()
+      : "";
+    const fullHash =
+      "#" + (path.startsWith("/") ? path : "/" + path) + queryString;
+
     window.location.hash = fullHash;
     // La mise à jour de l'état se fera via l'événement hashchange
   }
@@ -67,7 +115,7 @@ class SimpleRouter {
   async match(): Promise<RouteMatch | null> {
     for (const route of this.routes) {
       const match = this.matchRoute(route.path, this.currentPath);
-      
+
       if (match) {
         // Vérifier le guard si présent
         if (route.guard) {
@@ -78,22 +126,25 @@ class SimpleRouter {
         }
 
         this.currentParams = match.params;
-        
+
         return {
           component: route.component,
           params: match.params,
-          query: this.currentQuery
+          query: this.currentQuery,
         };
       }
     }
-    
+
     return null;
   }
 
   /**
    * Matcher un path contre une définition de route
    */
-  private matchRoute(routePath: string | RegExp, currentPath: string): { params: RouteParams } | null {
+  private matchRoute(
+    routePath: string | RegExp,
+    currentPath: string,
+  ): { params: RouteParams } | null {
     if (routePath instanceof RegExp) {
       const match = currentPath.match(routePath);
       if (match) {
@@ -105,7 +156,7 @@ class SimpleRouter {
     const paramNames: string[] = [];
     const regexPattern = routePath.replace(/:([^/]+)/g, (_, paramName) => {
       paramNames.push(paramName);
-      return '([^/]+)';
+      return "([^/]+)";
     });
 
     const regex = new RegExp(`^${regexPattern}$`);
@@ -128,8 +179,8 @@ class SimpleRouter {
    */
   private getHashPath(): string {
     const hash = window.location.hash.slice(1); // Enlever le #
-    const path = hash.split('?')[0]; // Enlever la query string
-    return path || '/'; // Par défaut /
+    const path = hash.split("?")[0]; // Enlever la query string
+    return path || "/"; // Par défaut /
   }
 
   /**
@@ -137,16 +188,16 @@ class SimpleRouter {
    */
   private updateQueryParams() {
     const hash = window.location.hash.slice(1);
-    const queryPart = hash.split('?')[1];
+    const queryPart = hash.split("?")[1];
     const query: QueryParams = {};
-    
+
     if (queryPart) {
       const params = new URLSearchParams(queryPart);
       params.forEach((value, key) => {
         query[key] = value;
       });
     }
-    
+
     this.currentQuery = query;
   }
 

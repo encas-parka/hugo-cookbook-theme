@@ -37,6 +37,7 @@ const APPWRITE_CONFIG: AppwriteConfig = {
     purchases: "purchases",
     products: "products",
     kteams: "kteams", // Collection custom pour gérer les équipes
+    locks: "locks",
   },
 };
 

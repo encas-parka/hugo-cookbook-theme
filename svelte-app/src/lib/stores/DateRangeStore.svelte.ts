@@ -198,4 +198,15 @@ export class DateRangeStore {
       `[DateRangeStore] Initialized: ${this.#start} - ${this.#end}`,
     );
   }
+
+  /**
+   * Réinitialise complètement le store.
+   * Appelée lors du changement d'événement.
+   */
+  reset() {
+    this.#availableDates = [];
+    this.#start = null;
+    this.#end = null;
+    console.log("[DateRangeStore] Reset");
+  }
 }

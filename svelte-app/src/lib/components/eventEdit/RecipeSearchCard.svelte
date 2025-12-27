@@ -22,6 +22,7 @@
     defaultPlates?: number;
     autoFocus?: boolean;
     onEmptySubmit?: () => void;
+    disabled?: boolean;
   }
 
   let {
@@ -29,6 +30,7 @@
     defaultPlates = 4,
     autoFocus = false,
     onEmptySubmit,
+    disabled = false,
   }: Props = $props();
 
   let searchQuery = $state("");
@@ -212,6 +214,7 @@
                 shouldFocus: autoFocus,
                 onEmptySubmit: onEmptySubmit,
               })}
+              {disabled}
               autocomplete="off"
               role="combobox"
               aria-expanded={isOpen}
@@ -232,6 +235,7 @@
             type="button"
             class="btn btn-ghost btn-sm absolute top-1/2 right-1 -translate-y-1/2"
             onclick={toggleDropdown}
+            {disabled}
             aria-label={isOpen ? "Fermer le menu" : "Ouvrir le menu"}
           >
             <ChevronDown

@@ -59,6 +59,13 @@
     disabled = false,
   }: Props = $props();
 
+  // Forcer le mode preview si disabled
+  $effect(() => {
+    if (disabled && isEditing) {
+      isEditing = false;
+    }
+  });
+
   // État pour le focus automatique sur le champ de recherche
   let shouldFocusSearch = $state(false);
 
@@ -377,6 +384,7 @@
                 type="number"
                 class="w-full"
                 bind:value={meal.guests}
+                oninput={() => onModified?.()}
                 min="1"
               />
             </label>
@@ -424,7 +432,11 @@
                   <!-- Contrôles d'édition -->
                   <div class="me-10 flex items-center gap-2">
                     <!-- Type -->
-                    <select class="select w-24" bind:value={recipe.typeR}>
+                    <select
+                      class="select w-24"
+                      bind:value={recipe.typeR}
+                      onchange={() => onModified?.()}
+                    >
                       <option value="entree">Entrée</option>
                       <option value="plat">Plat</option>
                       <option value="dessert">Dessert</option>
@@ -471,6 +483,7 @@
                               getRecipeKey(recipe.recipeUuid)
                             ] = false;
                             recipe.plates = meal.guests;
+                            onModified?.();
                           }}
                           title="Revenir au nombre de couvert du repas ({meal.guests})"
                         >
@@ -520,6 +533,7 @@
             defaultPlates={meal.guests}
             autoFocus={shouldFocusSearch}
             onEmptySubmit={onEmptySearchSubmit}
+            {disabled}
           />
         </div>
       </div>

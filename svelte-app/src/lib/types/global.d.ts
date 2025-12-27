@@ -16,6 +16,7 @@ export interface AppwriteConfig {
     purchases: string;
     products: string;
     kteams: string;
+    locks: string;
   };
 }
 

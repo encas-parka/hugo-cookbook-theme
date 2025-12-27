@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import EventMealCard from "$lib/components/eventEdit/EventMealCard.svelte";
   import PermissionsManager from "$lib/components/PermissionsManager.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
@@ -19,10 +20,12 @@
   } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
-  import { navigate } from "../services/simple-router.svelte";
-  import { untrack, onDestroy } from "svelte";
+  import { navigate, router } from "../services/simple-router.svelte";
+  import { untrack, onDestroy, onMount } from "svelte";
   import EventStats from "../components/EventStats.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
+  import { locksService, type AppwriteLock } from "../services/appwrite-locks";
+  import UnsavedChangesModal from "../components/ui/UnsavedChangesModal.svelte";
 
   // ============================================================================
   // PROPS & INITIALISATION
@@ -49,16 +52,47 @@
   const allDates = $derived(meals.map((m) => m.date));
 
   // État UI
-  let loading = $state(false);
-  let loadingEvent = $state(false);
+  let isBusy = $state(false); // Quand on sauvegarde/charge
+  let isDirty = $state(false); // Quand on a des modifs non sauvegardées
+  let isAcquiringLock = $state(false); // Quand on acquiert le lock
   let editingMealIndex = $state<string | null>(null);
   let editingTitle = $state(false);
+
+  // État du verrou externe (via locksService)
+  let activeLock = $state<AppwriteLock | null>(null);
+  let lockUnsub: (() => void) | null = null;
+
+  // État du modal de confirmation de navigation
+  let showUnsavedChangesModal = $state(false);
+  let pendingNavigation = $state<{
+    path: string;
+    query?: Record<string, string>;
+  } | null>(null);
+  let isSavingAndNavigating = $state(false);
+  let navigationGuardResolve: ((value: boolean) => void) | null = null;
+
+  // Détection des changements
+  function markDirtyAndAcquireLock() {
+    if (!eventId || isBusy || isAcquiringLock) return;
+
+    if (!isDirty) {
+      console.log("📝 Première modification détectée");
+      isDirty = true;
+    }
+
+    // Gérer le verrou et l'auto-save
+    if (!isLockedByMe) {
+      acquireLock();
+    } else {
+      scheduleAutoSave();
+    }
+  }
 
   // ============================================================================
   // GESTION DU LOCK & AUTO-SAVE (LOCAL)
   // ============================================================================
 
-  let isSaving = $state(false);
+  // Suppression de isSaving (fusionné dans isBusy)
 
   // ============================================================================
   // DERIVED STATES
@@ -77,18 +111,22 @@
   });
 
   const isLockedByOthers = $derived.by(() => {
-    if (!currentEvent?.lockedBy) return false;
-    return currentEvent.lockedBy !== globalState.userId;
+    if (!activeLock) return false;
+    return activeLock.userId !== globalState.userId;
   });
 
   const isLockedByMe = $derived.by(() => {
-    if (!currentEvent?.lockedBy) return false;
-    return currentEvent.lockedBy === globalState.userId;
+    if (!activeLock) return false;
+    return activeLock.userId === globalState.userId;
   });
 
   const canEdit = $derived(
     !eventId ||
-      (!isLockedByOthers && currentUserStatus === "accepted" && !loadingEvent),
+      (!isLockedByOthers && currentUserStatus === "accepted" && !isBusy),
+  );
+
+  const lockedByUserName = $derived(
+    activeLock?.userName || "un autre utilisateur",
   );
 
   // ============================================================================
@@ -99,11 +137,56 @@
     navBarStore.setConfig({
       eventId: eventId || undefined,
       actions: navActions,
+      isLockedByOthers,
+      lockedByUserName,
+      hasUnsavedChanges: isDirty && !isLockedByOthers,
     });
+  });
+
+  // ============================================================================
+  // INITIALISATION (une seule fois)
+  // ============================================================================
+  let initialized = false;
+
+  $effect(() => {
+    if (eventId && !initialized && !isBusy) {
+      untrack(async () => {
+        isBusy = true;
+        try {
+          await eventsStore.initialize();
+
+          // Charger les données initiales depuis currentEvent
+          if (currentEvent) {
+            pendingEventName = currentEvent.name;
+            meals = [...currentEvent.meals].sort((a, b) =>
+              a.date.localeCompare(b.date),
+            );
+          }
+
+          // Initialiser l'état du verrou
+          activeLock = await locksService.getLock(eventId);
+
+          // S'abonner aux changements du verrou
+          lockUnsub = await locksService.subscribeToLock(eventId, (lock) => {
+            console.log("[LocksRealtime] Verrou mis à jour:", lock);
+            activeLock = lock;
+          });
+
+          initialized = true;
+        } finally {
+          isBusy = false;
+        }
+      });
+    }
   });
 
   onDestroy(() => {
     navBarStore.reset();
+    if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+    if (lockUnsub) {
+      lockUnsub();
+      lockUnsub = null;
+    }
   });
 
   // ============================================================================
@@ -111,52 +194,184 @@
   // ============================================================================
 
   async function acquireLock(): Promise<boolean> {
-    if (!eventId || !globalState.userId) return false;
+    if (!eventId || !globalState.userId || isBusy || isAcquiringLock)
+      return false;
 
+    isAcquiringLock = true;
     try {
-      // Vérifier si un verrou existe déjà
-      if (currentEvent?.lockedBy) {
-        const lockAge = currentEvent.$updatedAt
-          ? (Date.now() - new Date(currentEvent.$updatedAt).getTime()) /
-            (1000 * 60 * 10)
-          : Infinity;
+      const success = await locksService.acquireLock(
+        eventId,
+        globalState.userId,
+        globalState.userName(),
+      );
 
-        // Si le verrou est périmé (> 3 min), le libérer
-        if (lockAge > 3) {
-          console.log(`🔓 Verrou périmé détecté (${lockAge.toFixed(1)} min)`);
-          await eventsStore.updateEvent(eventId, { lockedBy: null });
-        } else if (currentEvent.lockedBy !== globalState.userId) {
-          toastService.warning("Un autre utilisateur modifie cet événement");
-          return false;
-        }
+      if (success) {
+        // Optimistic update : activer le lock immédiatement pour l'UI
+        // Le realtime écrasera avec la vraie valeur du serveur
+        activeLock = {
+          $id: eventId,
+          userId: globalState.userId,
+          userName: globalState.userName(),
+          expiresAt: new Date(Date.now() + 7 * 60 * 1000).toISOString(),
+          $updatedAt: new Date().toISOString(),
+        } as AppwriteLock;
+
+        scheduleAutoSave();
+        console.log("🔒 Verrou acquis via service");
+        return true;
+      } else {
+        toastService.warning(
+          `Cet événement est en cours de modification par ${lockedByUserName}`,
+        );
+        return false;
       }
-
-      // Acquérir le verrou
-      await eventsStore.updateEvent(eventId, { lockedBy: globalState.userId });
-      scheduleAutoSave();
-
-      console.log("🔒 Verrou acquis");
-      return true;
     } catch (error) {
       console.error("❌ Erreur acquisition verrou:", error);
       toastService.error("Impossible de verrouiller l'événement");
       return false;
+    } finally {
+      isAcquiringLock = false;
     }
   }
 
   async function releaseLock(): Promise<void> {
-    if (!eventId) return;
+    if (!eventId || !globalState.userId) return;
 
     try {
-      await eventsStore.updateEvent(eventId, { lockedBy: null });
-      console.log("🔓 Verrou libéré");
+      await locksService.releaseLock(eventId, globalState.userId);
+      activeLock = null;
+      console.log("🔓 Verrou libéré via service");
     } catch (error) {
       console.error("❌ Erreur libération verrou:", error);
     }
   }
 
   // ============================================================================
+  // NAVIGATION GUARD
+  // ============================================================================
+
+  /**
+   * Guard de navigation pour protéger les modifications non sauvegardées
+   */
+  $effect(() => {
+    if (!eventId) return;
+
+    const navigationGuard = async (
+      targetPath: string,
+      targetQuery?: Record<string, string>,
+    ): Promise<boolean> => {
+      // Si pas de modifications ni de lock, autoriser la navigation
+      if (!isDirty && !isLockedByMe) {
+        return true;
+      }
+
+      console.log(
+        `[NavigationGuard] Navigation interceptée vers ${targetPath}`,
+      );
+
+      // Stocker les détails de la navigation en attente
+      pendingNavigation = { path: targetPath, query: targetQuery };
+
+      // Afficher le modal de confirmation
+      showUnsavedChangesModal = true;
+
+      // Retourner une Promise qui sera résolue quand l'utilisateur choisira
+      return new Promise<boolean>((resolve) => {
+        navigationGuardResolve = resolve;
+      });
+    };
+
+    // Enregistrer le guard
+    router.registerGuard("eventEdit", navigationGuard);
+
+    // Cleanup : supprimer le guard quand le composant est démonté
+    return () => {
+      router.unregisterGuard("eventEdit");
+    };
+  });
+
+  /**
+   * Handler pour "Quitter sans sauvegarder"
+   */
+  async function handleLeaveWithoutSave() {
+    showUnsavedChangesModal = false;
+
+    // Libérer le lock si on l'a
+    if (isLockedByMe) {
+      await releaseLock();
+    }
+
+    // Autoriser la navigation
+    if (navigationGuardResolve) {
+      navigationGuardResolve(true);
+      navigationGuardResolve = null;
+    }
+
+    // Effectuer la navigation
+    if (pendingNavigation) {
+      navigate(pendingNavigation.path, pendingNavigation.query);
+      pendingNavigation = null;
+    }
+  }
+
+  /**
+   * Handler pour "Enregistrer et quitter"
+   */
+  async function handleSaveAndLeave() {
+    isSavingAndNavigating = true;
+
+    const success = await saveEventData();
+
+    if (success) {
+      await releaseLock();
+
+      // Fermer le modal
+      showUnsavedChangesModal = false;
+
+      // Autoriser la navigation
+      if (navigationGuardResolve) {
+        navigationGuardResolve(true);
+        navigationGuardResolve = null;
+      }
+
+      // Effectuer la navigation
+      if (pendingNavigation) {
+        // Cas spécial : création d'un nouvel événement
+        if (!eventId) {
+          // La navigation a déjà été faite dans saveEventData()
+          pendingNavigation = null;
+        } else {
+          navigate(pendingNavigation.path, pendingNavigation.query);
+          pendingNavigation = null;
+        }
+      }
+
+      toastService.success("Modifications sauvegardées");
+    }
+
+    isSavingAndNavigating = false;
+  }
+
+  /**
+   * Handler pour "Rester" (annuler la navigation)
+   */
+  function handleCancelNavigation() {
+    showUnsavedChangesModal = false;
+    pendingNavigation = null;
+
+    // Refuser la navigation
+    if (navigationGuardResolve) {
+      navigationGuardResolve(false);
+      navigationGuardResolve = null;
+    }
+  }
+
+  // ============================================================================
   // AUTO-SAVE
+  // ============================================================================
+
+  // ============================================================================
+  // SAUVEGARDE
   // ============================================================================
 
   function validateEventData() {
@@ -205,85 +420,139 @@
     return { isValid: true };
   }
 
-  async function performAutoSave(): Promise<void> {
-    if (!eventId || isSaving || !isLockedByMe) return;
+  /**
+   * Fonction générique de sauvegarde de l'événement
+   * @returns true si succès, false si échec
+   */
+  async function saveEventData(): Promise<boolean> {
+    const validation = validateEventData();
+    if (!validation.isValid) {
+      toastService.error(validation.errorMessage || "Erreur de validation");
+      return false;
+    }
 
-    isSaving = true;
-    const toastId = toastService.loading("Sauvegarde automatique...");
+    const nameToSave = pendingEventName || eventName;
+
+    // IMPORTANT : Reset isDirty AVANT la sauvegarde pour éviter le rechargement realtime
+    isDirty = false;
+
+    // En mode création, initialiser contributors avec l'utilisateur courant
+    const contributorsToSave = eventId
+      ? contributors
+      : [
+          {
+            id: globalState.userId || "",
+            name: globalState.userName(),
+            status: "accepted" as const,
+            invitedAt: new Date().toISOString(),
+            respondedAt: new Date().toISOString(),
+          },
+        ];
+
+    const eventData = {
+      name: nameToSave,
+      allDates: Array.from(new Set(meals.map((m) => m.date))).sort(),
+      dateStart: allDates.length > 0 ? allDates[0] : "",
+      dateEnd: allDates.length > 0 ? allDates[allDates.length - 1] : "",
+      teams: selectedTeams,
+      contributors: contributorsToSave,
+      meals,
+    };
 
     try {
-      const validation = validateEventData();
-      const nameToSave = pendingEventName || eventName;
-
-      if (validation.isValid) {
-        // ✅ Données valides → Sauvegarder ET libérer le verrou
-        await eventsStore.updateEvent(eventId, {
-          name: nameToSave,
-          allDates: Array.from(new Set(meals.map((m) => m.date))).sort(),
-          dateStart: allDates.length > 0 ? allDates[0] : "",
-          dateEnd: allDates.length > 0 ? allDates[allDates.length - 1] : "",
-          teams: selectedTeams,
-          contributors,
-          meals,
-          lockedBy: null, // Libérer le verrou
-        });
-
-        toastService.update(toastId, {
-          state: "success",
-          message: "Modifications sauvegardées automatiquement",
-        });
+      if (eventId) {
+        await eventsStore.updateEvent(eventId, eventData);
       } else {
-        // ⚠️ Données invalides → Heartbeat pour maintenir le verrou
-        await eventsStore.updateEvent(eventId, {
-          lockedBy: globalState.userId, // Garder le verrou
-        });
-
-        toastService.update(toastId, {
-          state: "warning",
-          message: `Impossible de sauvegarder : ${validation.errorMessage}`,
-        });
+        const savedEvent = await eventsStore.createEvent(eventData);
+        // Naviguer vers le nouvel événement créé
+        navigate(`/dashboard/eventEdit/${savedEvent.$id}`);
       }
+
+      return true;
     } catch (error) {
-      console.error("Erreur auto-save:", error);
-      toastService.update(toastId, {
-        state: "error",
-        message: "Erreur lors de la sauvegarde automatique",
-      });
-    } finally {
-      isSaving = false;
-      setTimeout(() => toastService.dismiss(toastId), 3000);
+      console.error("Erreur sauvegarde:", error);
+      toastService.error("Erreur lors de la sauvegarde");
+      // Réinitialiser isDirty en cas d'erreur
+      isDirty = true;
+      return false;
     }
   }
 
+  /**
+   * Sauvegarde avec libération du lock (pour auto-save)
+   */
+  async function performAutoSave(): Promise<void> {
+    if (!eventId || isBusy || !isLockedByMe) return;
+
+    isBusy = true;
+    const toastId = toastService.loading("Sauvegarde automatique...");
+
+    const success = await saveEventData();
+
+    if (success) {
+      await releaseLock();
+      toastService.update(toastId, {
+        state: "success",
+        message: "Modifications sauvegardées automatiquement",
+      });
+    } else {
+      // ⚠️ Données invalides ou erreur → Heartbeat pour maintenir le verrou
+      if (eventId && globalState.userId) {
+        try {
+          await locksService.acquireLock(
+            eventId,
+            globalState.userId,
+            globalState.userName(),
+          );
+        } catch (e) {
+          console.error("Erreur heartbeat lock:", e);
+        }
+      }
+
+      toastService.update(toastId, {
+        state: "warning",
+        message: "Impossible de sauvegarder : modifications invalides",
+      });
+    }
+
+    isBusy = false;
+    setTimeout(() => toastService.dismiss(toastId), 3000);
+  }
+
+  /**
+   * Sauvegarde manuelle avec libération du lock
+   */
+  async function handleSave() {
+    isBusy = true;
+
+    const success = await saveEventData();
+
+    if (success) {
+      await releaseLock();
+      toastService.success(eventId ? "Événement mis à jour" : "Événement créé");
+    }
+
+    isBusy = false;
+  }
+
+  let autoSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+
   function scheduleAutoSave() {
-    // Programmer l'auto-save après 5 minutes
-    setTimeout(
+    if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+
+    autoSaveTimeout = setTimeout(
       () => {
         performAutoSave();
       },
-      5 * 60 * 1000,
+      30 * 1000, // test (30s). Restore 5 * 60 * 1000
     );
 
-    console.log("⏰ Auto-save programmé dans 5 minutes");
+    console.log("⏰ Auto-save programmé dans 30 secondes");
   }
 
-  // ===================
-  // EFFECTS
-  // ===================
-
-  // Synchroniser pendingEventName et meals depuis currentEvent (quand on n'a pas le lock)
-  // Note: contributors et selectedTeams sont des $derived, donc se mettent à jour automatiquement depuis currentEvent
-  $effect(() => {
-    if (currentEvent && !isLockedByMe) {
-      console.log("📥 Synchronisation avec la DB");
-      pendingEventName = currentEvent.name;
-      meals = [...currentEvent.meals].sort((a, b) =>
-        a.date.localeCompare(b.date),
-      );
-    }
-  });
-
+  // ============================================================================
   // Vérifier que l'événement existe (mode édition)
+  // ============================================================================
   $effect(() => {
     if (eventId && !currentEvent) {
       toastService.error("Événement introuvable");
@@ -291,10 +560,35 @@
     }
   });
 
-  // Protection beforeunload
+  // ============================================================================
+  // Synchronisation depuis currentEvent (realtime)
+  // ============================================================================
   $effect(() => {
+    // Ne synchroniser que si :
+    // - currentEvent est disponible
+    // - Initialisé
+    // - PAS de modifications locales en cours
+    // - PAS le lock détenu
+    if (!currentEvent || !initialized || isDirty || isLockedByMe) {
+      return;
+    }
+
+    console.log("📥 Synchronisation depuis currentEvent (realtime)");
+
+    pendingEventName = currentEvent.name;
+    meals = [...currentEvent.meals].sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
+  });
+
+  // Protection beforeunload - Avertir l'utilisateur s'il a des modifications non sauvegardées
+  $effect(() => {
+    // Capturer la valeur actuelle pour éviter les dépendances dynamiques dans le handler
+    const hasLock = isLockedByMe;
+    const dirty = isDirty;
+
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isLockedByMe) {
+      if (hasLock || dirty) {
         e.preventDefault();
         e.returnValue =
           "Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter ?";
@@ -305,10 +599,24 @@
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      if (isLockedByMe && eventId) {
-        releaseLock();
-      }
     };
+  });
+
+  // Libération du lock au démontage du composant (navigation away)
+  // IMPORTANT: Utiliser onDestroy au lieu du cleanup d'$effect pour éviter
+  // les appels prématurés à chaque changement de dépendance
+  onDestroy(() => {
+    // Annuler l'auto-save en cours
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout);
+      autoSaveTimeout = null;
+    }
+
+    // Libérer le lock si on l'a
+    if (eventId && isLockedByMe) {
+      console.log("🚪 Démontage du composant, libération du lock...");
+      releaseLock();
+    }
   });
 
   // ============================================================================
@@ -333,11 +641,7 @@
 
   function handleNameInput(e: Event) {
     pendingEventName = (e.target as HTMLInputElement).value;
-
-    // Acquérir le verrou si on ne l'a pas déjà
-    if (!isLockedByMe && eventId) {
-      acquireLock();
-    }
+    markDirtyAndAcquireLock();
   }
 
   function addMeal() {
@@ -375,94 +679,25 @@
     meals = [...meals, newMeal];
     editingMealIndex = mealId;
 
-    // Acquérir le verrou si on ne l'a pas déjà
-    if (!isLockedByMe && eventId) {
-      acquireLock();
-    }
+    markDirtyAndAcquireLock();
   }
 
   function removeMeal(mealId: string) {
     meals = meals.filter((m) => m.id !== mealId);
-
-    if (!isLockedByMe && eventId) {
-      acquireLock();
-    }
+    markDirtyAndAcquireLock();
   }
 
   function handleDateChanged(mealId: string, newDate: string) {
     meals = meals.map((m) => (m.id === mealId ? { ...m, date: newDate } : m));
-
-    if (!isLockedByMe && eventId) {
-      acquireLock();
-    }
+    markDirtyAndAcquireLock();
   }
 
   function handleMealModified() {
-    if (!isLockedByMe && eventId) {
-      acquireLock();
-    }
+    markDirtyAndAcquireLock();
   }
 
   function toggleEditMeal(mealId: string) {
     editingMealIndex = editingMealIndex === mealId ? null : mealId;
-  }
-
-  // ============================================================================
-  // SAUVEGARDE MANUELLE
-  // ============================================================================
-
-  async function handleSave() {
-    loading = true;
-
-    try {
-      const validation = validateEventData();
-      if (!validation.isValid) {
-        toastService.error(validation.errorMessage || "Erreur de validation");
-        return;
-      }
-
-      const nameToSave = pendingEventName || eventName;
-
-      // En mode création, initialiser contributors avec l'utilisateur courant
-      const contributorsToSave = eventId
-        ? contributors
-        : [
-            {
-              id: globalState.userId,
-              name: globalState.userName(),
-              status: "accepted" as const,
-              invitedAt: new Date().toISOString(),
-              respondedAt: new Date().toISOString(),
-            },
-          ];
-
-      const eventData = {
-        name: nameToSave,
-        allDates: Array.from(new Set(meals.map((m) => m.date))).sort(),
-        dateStart: allDates.length > 0 ? allDates[0] : "",
-        dateEnd: allDates.length > 0 ? allDates[allDates.length - 1] : "",
-        teams: selectedTeams,
-        contributors: contributorsToSave,
-        meals,
-        lockedBy: null, // Toujours libérer le verrou
-      };
-
-      if (eventId) {
-        await eventsStore.updateEvent(eventId, eventData);
-        toastService.success("Événement mis à jour");
-      } else {
-        const savedEvent = await eventsStore.createEvent(eventData);
-        toastService.success("Événement créé");
-
-        // Navigation simple - le $derived fera le reste
-        navigate(`/dashboard/eventEdit/${savedEvent.$id}`);
-      }
-    } catch (err) {
-      console.error("Erreur sauvegarde:", err);
-      toastService.error("Erreur lors de la sauvegarde");
-    } finally {
-      loading = false;
-    }
   }
 
   // ============================================================================
@@ -473,7 +708,7 @@
     if (!eventId || !globalState.userId) return;
 
     try {
-      loading = true;
+      isBusy = true;
 
       const newStatus = accept ? "accepted" : "declined";
 
@@ -493,25 +728,36 @@
       console.error("Erreur réponse invitation:", error);
       toastService.error("Erreur lors de la réponse");
     } finally {
-      loading = false;
+      isBusy = false;
     }
   }
 </script>
 
+{$inspect("isBusy", isBusy)}
+{$inspect("initialized", initialized)}
+{$inspect("isDirty", isDirty)}
+
 {#snippet navActions()}
-  <div class="flex gap-2">
-    <button
-      class="btn btn-primary btn-sm"
-      onclick={handleSave}
-      disabled={!canEdit || loading}
-    >
-      {#if loading}
-        <span class="loading loading-spinner loading-sm"></span>
-      {:else}
-        <Save class="mr-2 h-4 w-4" />
-      {/if}
-      {eventId ? "Enregistrer" : "Créer l'événement"}
-    </button>
+  <div class="flex items-center gap-2">
+    {#if isDirty && !isLockedByOthers}
+      <button
+        class="btn btn-primary btn-sm"
+        onclick={handleSave}
+        disabled={isBusy || (eventId && !canEdit)}
+      >
+        {#if isBusy}
+          <span class="loading loading-spinner loading-xs text-primary"></span>
+        {:else}
+          <Save size={18} class="mr-1" />
+        {/if}
+        <span class="font-bold">{eventId ? "Enregistrer" : "Créer"}</span>
+      </button>
+    {:else}
+      <button class="btn btn-sm btn-ghost gap-2 opacity-50" disabled>
+        <Save size={18} class="mr-1" />
+        <span class="font-bold">{eventId ? "Enregistré" : "Créer"}</span>
+      </button>
+    {/if}
   </div>
 {/snippet}
 
@@ -577,7 +823,7 @@
         <button
           class="btn"
           onclick={() => handleInvitationResponse(true)}
-          disabled={loading}
+          disabled={isBusy}
         >
           Accepter
         </button>
@@ -585,7 +831,7 @@
     </div>
   {/if}
 
-  {#if loadingEvent}
+  {#if isBusy && !initialized}
     <div class="flex items-center justify-center py-20">
       <div class="flex flex-col items-center gap-4">
         <span class="loading loading-spinner loading-lg text-primary"></span>
@@ -667,3 +913,12 @@
     </div>
   {/if}
 </div>
+
+<!-- Modal de confirmation pour modifications non sauvegardées -->
+<UnsavedChangesModal
+  isOpen={showUnsavedChangesModal}
+  onConfirm={handleLeaveWithoutSave}
+  onSaveAndLeave={handleSaveAndLeave}
+  onCancel={handleCancelNavigation}
+  isSaving={isSavingAndNavigating}
+/>

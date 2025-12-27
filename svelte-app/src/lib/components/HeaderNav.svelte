@@ -14,6 +14,7 @@
     PlusIcon,
     SearchIcon,
     CircleStar,
+    LockIcon,
   } from "@lucide/svelte";
   import AuthModal from "./AuthModal.svelte";
 
@@ -115,7 +116,7 @@
         {#each navBarStore.tabs as tab, index (index)}
           <button
             class="tab {tab.active ? 'tab-active' : ''}"
-            onclick={() => navigate(tab.path)}
+            onclick={() => navigate(tab.path || "/")}
           >
             {tab.label}
           </button>
@@ -131,6 +132,14 @@
   </div>
 
   <div class="navbar-end gap-2">
+    {#if navBarStore.isLockedByOthers}
+      <div class="badge badge-warning flex items-center gap-1 py-3 font-medium">
+        <LockIcon size={14} />
+        <span class="text-xs">
+          Édition par {navBarStore.lockedByUserName}
+        </span>
+      </div>
+    {/if}
     <!-- Actions -->
     {#if navBarStore.actions}
       <div class="flex items-center gap-2">
@@ -153,7 +162,6 @@
           </div>
         </div>
         <ul
-          tabindex="0"
           class="menu menu-sm dropdown-content bg-base-100 border-base-200 z-[1] mt-3 w-56 rounded-xl border p-2 shadow-xl"
         >
           <li class="border-base-100 mb-1 border-b px-4 py-2">

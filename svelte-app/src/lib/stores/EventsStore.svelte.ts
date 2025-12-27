@@ -288,8 +288,18 @@ export class EventsStore {
    * - L'utilisateur est le créateur
    * - L'utilisateur est dans contributorsIds
    */
-  #isEventAccessible(event: Main | EnrichedEvent): boolean {
+  #isEventAccessible(event: any): boolean {
     if (!this.#userId) return false;
+
+    // Si le payload est partiel (manque createdBy et contributorsIds),
+    // on vérifie si on a déjà l'événement dans le store.
+    // Si oui, on assume qu'il est toujours accessible sauf preuve du contraire.
+    const hasAccessibilityFields =
+      "createdBy" in event || "contributorsIds" in event;
+
+    if (!hasAccessibilityFields && this.#events.has(event.$id)) {
+      return true;
+    }
 
     // Créateur
     if (event.createdBy === this.#userId) return true;
@@ -348,48 +358,14 @@ export class EventsStore {
               await this.#cache.saveEvent(enrichedEvent);
             }
           } else if (eventType === "update") {
-            const existingEvent = this.#events.get(event.$id);
-
-            // Si le lock change, vérifier si c'est un release (lock → null)
-            // Si c'est un release, il faut mettre à jour tout le contenu
-            // Si c'est une acquisition (null → userId), on peut ignorer le contenu
-            if (existingEvent?.lockedBy !== event.lockedBy) {
-              const isLockRelease = existingEvent?.lockedBy && !event.lockedBy;
-
-              if (isLockRelease) {
-                // Lock libéré : une édition vient d'être sauvegardée, on met tout à jour
-                console.log(
-                  `[EventsStore] Lock libéré (${existingEvent.lockedBy} → null), mise à jour complète`,
-                );
-              } else {
-                // Lock acquis : ignorer le contenu pour éviter les conflits
-                console.log(
-                  `[EventsStore] Lock acquis (${existingEvent?.lockedBy} → ${event.lockedBy}), contenu ignoré`,
-                );
-
-                // ✅ CRÉER UN NOUVEL OBJET ENRICHI AVEC LE NOUVEAU LOCK (réactif)
-                const enrichedWithLock = {
-                  ...existingEvent,
-                  lockedBy: event.lockedBy,
-                };
-                this.#events.set(event.$id, enrichedWithLock);
-
-                // Mettre à jour le cache
-                if (this.#cache) {
-                  await this.#cache.saveEvent(enrichedWithLock);
-                }
-                return;
-              }
-            }
-
             const enrichedEvent = this.#enrichEvent(event);
             this.#events.set(event.$id, enrichedEvent);
 
-            // Sauvegarder dans le cache
             if (this.#cache) {
               await this.#cache.saveEvent(enrichedEvent);
             }
-          } else if (eventType === "delete") {
+          }
+ else if (eventType === "delete") {
             this.#events.delete(event.$id);
 
             // Supprimer du cache

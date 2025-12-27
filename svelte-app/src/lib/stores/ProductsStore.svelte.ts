@@ -445,6 +445,14 @@ class ProductsStore {
       return;
     }
 
+    // Si on change d'événement, nettoyer l'état précédent
+    if (this.#isInitialized && this.#currentEventId !== eventId) {
+      console.log(
+        `[ProductsStore] Changement d'événement: ${this.#currentEventId} → ${eventId}, reset...`,
+      );
+      this.reset();
+    }
+
     console.log(`[ProductsStore] Initialisation avec eventId: ${eventId}`);
 
     // Récupérer l'événement depuis EventsStore
@@ -458,6 +466,12 @@ class ProductsStore {
       // Définir les IDs pour les méthodes de sync
       this.#currentEventId = event.$id;
       this.#currentMainId = event.$id; // mainId = eventId dans la nouvelle architecture
+
+      // 0. Initialiser le cache IndexedDB
+      console.log(
+        `[ProductsStore] Initialisation du cache IDB pour mainId: ${this.#currentMainId}`,
+      );
+      this.#idbCache = await createIDBCache(this.#currentMainId);
 
       // 1. Charger depuis le cache si disponible
       await this.#loadFromCache();
@@ -1373,6 +1387,63 @@ class ProductsStore {
         `[ProductsStore] Nettoyage de ${productsToReset.length} produits en statut "isSyncing"`,
       );
     }
+  }
+
+  /**
+   * Réinitialise le store pour un nouvel événement.
+   * Nettoie l'état interne sans fermer les ressources globales.
+   * Appelée automatiquement lors du changement d'eventId.
+   */
+  reset() {
+    console.log(`[ProductsStore] Reset pour eventId: ${this.#currentEventId}`);
+
+    // 1. Désabonner du realtime
+    this.#unsubscribe?.();
+    this.#unsubscribe = null;
+
+    // 2. Cleanup de l'effet réactif
+    if (this.#cleanupSyncEffect) {
+      this.#cleanupSyncEffect();
+      this.#cleanupSyncEffect = null;
+    }
+
+    // 3. Fermer le cache IDB (spécifique à l'event)
+    if (this.#idbCache) {
+      this.#idbCache.close();
+      this.#idbCache = null;
+    }
+
+    // 4. Vider les données
+    this.#enrichedProducts.clear();
+    this.#orphanPurchases.clear();
+
+    // 5. Reset des métadonnées
+    this.#currentMainId = null;
+    this.#currentEventId = null;
+    this.#isInitialized = false;
+    this.#loading = false;
+    this.#error = null;
+    this.#syncing = false;
+    this.#realtimeConnected = false;
+    this.#lastSync = null;
+    this.#lastMealsHash = "";
+
+    // 6. Reset du dateStore
+    this.dateStore.reset();
+
+    // 7. Reset des filtres
+    this.#filters = {
+      searchQuery: "",
+      selectedStores: [],
+      selectedWho: [],
+      selectedProductTypes: [],
+      selectedTemperatures: [],
+      groupBy: "productType",
+      sortColumn: "",
+      sortDirection: "asc",
+    };
+
+    console.log("[ProductsStore] Reset terminé");
   }
 
   destroy() {
