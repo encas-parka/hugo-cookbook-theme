@@ -219,6 +219,12 @@ export async function subscribeToEvents(
   return subscribe([channel], async (response: any) => {
     const event = response.payload as unknown as Main;
 
+    console.log("[appwrite-events] Realtime RAW Payload:", {
+      events: response.events,
+      eventId: event.$id,
+      updatedAt: event?.$updatedAt
+    });
+
     let type = "update";
     if (response.events.some((e: string) => e.includes(".create"))) {
       type = "create";

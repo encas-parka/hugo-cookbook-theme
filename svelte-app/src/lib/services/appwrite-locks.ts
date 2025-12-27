@@ -19,9 +19,6 @@ const LOCK_DURATION_MINUTES = 7;
  * Service de gestion des verrous (Lock System)
  */
 export const locksService = {
-  /**
-   * Récupère le verrou pour un document donné
-   */
   async getLock(resourceId: string): Promise<AppwriteLock | null> {
     const { tables } = await getAppwriteInstances();
     try {
@@ -31,12 +28,12 @@ export const locksService = {
         rowId: resourceId,
       });
 
-      // Vérifier si le verrou est périmé
-      if (new Date(lock.expiresAt) < new Date()) {
+      // Vérifier si le verrou est vide ou périmé
+      if (!lock.userId || new Date(lock.expiresAt) < new Date()) {
         return null;
       }
 
-      return lock as AppwriteLock;
+      return lock as unknown as AppwriteLock;
     } catch (error: any) {
       if (error.code === 404) return null;
       throw error;
@@ -44,7 +41,7 @@ export const locksService = {
   },
 
   /**
-   * Acquiert ou rafraîchit un verrou
+   * Acquiert ou rafraîchit un verrou (Permanent UPSERT)
    */
   async acquireLock(
     resourceId: string,
@@ -56,71 +53,76 @@ export const locksService = {
       Date.now() + LOCK_DURATION_MINUTES * 60 * 1000,
     ).toISOString();
 
+    const data = {
+      userId,
+      userName,
+      expiresAt,
+    };
+
+    const permissions = [
+      Permission.read(Role.any()),
+      Permission.update(Role.user(userId)),
+    ];
+
     try {
-      const existingLock = await this.getLock(resourceId);
-
-      if (existingLock) {
-        if (existingLock.userId !== userId) {
-          return false; // Verrouillé par quelqu'un d'autre
-        }
-
-        // Rafraîchir notre propre verrou
-        await tables.updateRow({
-          databaseId: getDatabaseId(),
-          tableId: getCollectionId("locks"),
-          rowId: resourceId,
-          data: { expiresAt },
-          permissions: [
-            Permission.read(Role.any()),
-            Permission.update(Role.user(userId)),
-            Permission.delete(Role.user(userId)),
-          ],
-        });
-      } else {
-        // Créer un nouveau verrou
-        // On utilise resourceId comme ID du document pour faciliter le fetch
-        await tables.createRow({
-          databaseId: getDatabaseId(),
-          tableId: getCollectionId("locks"),
-          rowId: resourceId,
-          data: {
-            userId,
-            userName,
-            expiresAt,
-          },
-          permissions: [
-            Permission.read(Role.any()),
-            Permission.update(Role.user(userId)),
-            Permission.delete(Role.user(userId)),
-          ],
-        });
-      }
+      // 1. Tenter une mise à jour (Si le document existe déjà)
+      await tables.updateRow({
+        databaseId: getDatabaseId(),
+        tableId: getCollectionId("locks"),
+        rowId: resourceId,
+        data,
+        permissions,
+      });
       return true;
     } catch (error: any) {
-      console.error("[locksService] Erreur acquisition verrou:", error);
+      // 2. Si non trouvé (404), créer le document
+      if (error.code === 404) {
+        try {
+          await tables.createRow({
+            databaseId: getDatabaseId(),
+            tableId: getCollectionId("locks"),
+            rowId: resourceId,
+            data,
+            permissions,
+          });
+          return true;
+        } catch (createError: any) {
+          console.error("[locksService] Erreur création verrou:", createError);
+          return false;
+        }
+      }
+      
+      // 3. Si erreur de permission (déjà verrouillé par un autre)
+      console.warn("[locksService] Acquisition refusée (peut-être déjà verrouillé):", error.message);
       return false;
     }
   },
 
   /**
-   * Libère un verrou
+   * Libère un verrou (Marque comme libre sans supprimer le document)
    */
   async releaseLock(resourceId: string, userId: string): Promise<void> {
     const { tables } = await getAppwriteInstances();
     try {
-      const lock = await this.getLock(resourceId);
-      if (lock && lock.userId === userId) {
-        await tables.deleteRow({
-          databaseId: getDatabaseId(),
-          tableId: getCollectionId("locks"),
-          rowId: resourceId,
-        });
-      }
+      // On vide les champs. Le document reste présent pour le Realtime.
+      await tables.updateRow({
+        databaseId: getDatabaseId(),
+        tableId: getCollectionId("locks"),
+        rowId: resourceId,
+        data: {
+          userId: "",
+          userName: "",
+          expiresAt: new Date(0).toISOString(), // Date dans le passé
+        },
+        // On remet les permissions à n'importe qui pour que le prochain puisse verrouiller
+        permissions: [
+          Permission.read(Role.any()),
+          Permission.update(Role.any()), 
+        ],
+      });
+      console.log(`[locksService] Verrou libéré (permanent) pour ${resourceId}`);
     } catch (error: any) {
-      // Ignorer si déjà supprimé
-      if (error.code !== 404) {
-        console.error("[locksService] Erreur libération verrou:", error);
-      }
+      console.error("[locksService] Erreur libération verrou:", error);
     }
   },
 
@@ -140,10 +142,12 @@ export const locksService = {
         `databases.${databaseId}.collections.${collectionId}.documents.${resourceId}`,
       ],
       (response: any) => {
-        if (response.events.some((e: string) => e.includes(".delete"))) {
+        const payload = response.payload as AppwriteLock;
+        // Si userId est vide, on considère le verrou comme libre
+        if (!payload.userId) {
           callback(null);
         } else {
-          callback(response.payload as AppwriteLock);
+          callback(payload);
         }
       },
     );

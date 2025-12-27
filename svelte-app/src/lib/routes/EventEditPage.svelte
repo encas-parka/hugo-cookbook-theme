@@ -90,15 +90,14 @@
 
   const currentEvent = $derived(eventStats?.currentEvent ?? null);
 
-  // DONNÉES RÉACTIVES DÉRIVÉES EN LECTURE SEULE (Single Source of Truth depuis currentEvent)
-  const eventName = $derived(currentEvent?.name ?? "");
-  const contributors = $derived(currentEvent?.contributors ?? []);
-  const selectedTeams = $derived(currentEvent?.teams ?? []);
+  // DONNÉES RÉACTIVES DÉRIVÉES EN LECTURE SEULE (Single Source of Truth depuis eventStats)
+  const eventName = $derived(eventStats?.eventName ?? "");
+  const contributors = $derived(eventStats?.contributors ?? []);
+  const selectedTeams = $derived(eventStats?.teams ?? []);
 
-  const currentUserStatus = $derived.by(() => {
-    const currentUser = contributors.find((c) => c.id === globalState.userId);
-    return currentUser?.status;
-  });
+  const currentUserStatus = $derived(
+    eventStats?.getContributorStatus(globalState.userId || ""),
+  );
 
   const isLockedByOthers = $derived.by(() => {
     if (!activeLock) return false;
@@ -111,8 +110,9 @@
   });
 
   const canEdit = $derived(
-    !eventId ||
-      (!isLockedByOthers && currentUserStatus === "accepted" && !isBusy),
+    (eventStats?.canEdit(globalState.userId || "") ?? false) &&
+      !isLockedByOthers &&
+      !isBusy,
   );
 
   const lockedByUserName = $derived(
@@ -146,11 +146,10 @@
           await eventsStore.initialize();
 
           // Charger les données initiales depuis currentEvent
+          // Charger les données initiales depuis le store
           if (currentEvent) {
             pendingEventName = currentEvent.name;
-            meals = [...currentEvent.meals].sort((a, b) =>
-              a.date.localeCompare(b.date),
-            );
+            meals = [...(eventStats?.sortedMeals || [])];
           }
 
           // Initialiser l'état du verrou
@@ -158,7 +157,11 @@
 
           // S'abonner aux changements du verrou
           lockUnsub = await locksService.subscribeToLock(eventId, (lock) => {
-            console.log("[LocksRealtime] Verrou mis à jour:", lock);
+            console.log("[EventEditPage] 🔒 Verrou mis à jour (Realtime):", {
+              lockedBy: lock?.userName,
+              userId: lock?.userId,
+              expiresAt: lock?.expiresAt,
+            });
             activeLock = lock;
           });
 
@@ -175,8 +178,11 @@
     if (currentEvent && isInitialised && !isDirty && !isLockedByMe) {
       // On utilise snapshot pour se détacher des références du store
       const eventData = $state.snapshot(currentEvent);
-      meals = eventData.meals || [];
       pendingEventName = eventData.name || "";
+      // On utilise les repas triés du store
+      meals = [...(eventStats?.sortedMeals || [])].map((m) =>
+        $state.snapshot(m),
+      );
       console.log("🔄 Synchronisation store -> local effectuée");
     }
   });

@@ -298,15 +298,27 @@ export class EventsStore {
       "createdBy" in event || "contributorsIds" in event;
 
     if (!hasAccessibilityFields && this.#events.has(event.$id)) {
+      console.log(`[EventsStore] Accessibilité confirmée (mémoire) pour ${event.$id}`);
       return true;
     }
 
     // Créateur
-    if (event.createdBy === this.#userId) return true;
+    if (event.createdBy === this.#userId) {
+      console.log(`[EventsStore] Accessibilité confirmée (créateur) pour ${event.$id}`);
+      return true;
+    }
 
     // Dans contributorsIds (logique métier)
-    if (event.contributorsIds?.includes(this.#userId)) return true;
+    if (event.contributorsIds?.includes(this.#userId)) {
+      console.log(`[EventsStore] Accessibilité confirmée (contributeur) pour ${event.$id}`);
+      return true;
+    }
 
+    console.warn(`[EventsStore] Accessibilité REFUSÉE pour ${event.$id}`, { 
+      userId: this.#userId, 
+      createdBy: event.createdBy, 
+      contributorsIds: event.contributorsIds 
+    });
     return false;
   }
 
@@ -328,7 +340,8 @@ export class EventsStore {
         this.#userTeams,
         async (event, eventType) => {
           console.log(
-            `[EventsStore] ⚡️ Realtime RECEIVED: ${eventType} pour ${event.$id} (User: ${this.#userId})`,
+            `[EventsStore] ⚡️ Realtime RECEIVED: ${eventType} pour ${event.$id}`,
+            { name: event.name, updatedAt: event.$updatedAt }
           );
 
           // ⚠️ Vérifier l'accessibilité avant de traiter l'événement
