@@ -154,25 +154,6 @@
       hasUnsavedChanges: isDirty && !isLockedByOthers,
     });
   });
-  /*
-   * Synchronise l'état local depuis le store ou un événement fourni.
-   * Obsolète dans le nouveau paradigme "Draft", mais gardée pour la transition si besoin.
-   */
-  function syncLocalFromStore(eventOverride: EnrichedEvent | null = null) {
-    const targetEvent = eventOverride || currentEvent;
-    if (!targetEvent) return;
-
-    draft = $state.snapshot(targetEvent);
-    // S'assurer que les repas sont triés
-    if (draft && eventStats?.sortedMeals) {
-      draft.meals = $state.snapshot(eventStats.sortedMeals);
-    }
-
-    console.log(
-      `🔄 Brouillon mis à jour (${eventOverride ? "Direct API" : "Store"})`,
-    );
-  }
-
   // ============================================================================
   // INITIALISATION
   // ============================================================================
@@ -213,15 +194,11 @@
     }
   });
 
-  // Synchronisation automatique : Mode "Esclave" (Observateur)
+  // Synchronisation automatique : Mode Vue
   $effect(() => {
-    // Si on n'est pas en train d'éditer (!draft), l'UI suit naturellement le store.
-    // On n'a plus besoin d'effet de synchro manuelle ici, car l'UI pointera
-    // directement vers currentEvent si draft est null.
-    if (isInitialised && !draft && isLockedByMe) {
-      // Cas rare : on a le verrou mais pas encore de draft (ex: refresh page)
-      ensureLockAndCreateDraft();
-    }
+    // Si on n'est pas en train d'éditer (!draft), l'UI suit naturellement le store via currentEvent.
+    // Plus de création automatique de draft ici pour éviter d'injecter des données
+    // potentiellement obsolètes du store lors d'un refresh ou d'un retour sur page.
   });
 
   onDestroy(() => {
@@ -262,8 +239,6 @@
 
         scheduleAutoSave();
         // Le mode Draft sera activé par ensureLockAndCreateDraft
-        return true;
-        console.log("🔒 Verrou acquis via service");
         return true;
       } else {
         toastService.warning(
@@ -312,10 +287,12 @@
    * Handler pour "Enregistrer et quitter"
    */
   async function handleSaveAndLeave() {
-    await saveEventData();
-    if (isLockedByMe) {
+    const success = await saveEventData();
+    if (success) {
+      // On libère le verrou impérativement après le succès de la sauvegarde
       await releaseLock();
     }
+    return success;
   }
 
   // ============================================================================
@@ -415,10 +392,9 @@
     };
     try {
       if (eventId) {
-        const updatedEvent = await eventsStore.updateEvent(eventId, eventData);
-        // RÉCONCILIATION DIRECTE : On utilise le retour de l'API pour mettre à jour le local.
-        // Cela évite d'attendre que le store Singleton se mette à jour via ses effets.
-        syncLocalFromStore(updatedEvent);
+        await eventsStore.updateEvent(eventId, eventData);
+        // RÉCONCILIATION : Le store Singleton recevra la mise à jour via Realtime.
+        // Le mode Draft s'arrêtera juste après, laissant le composant à la merci du store.
       } else {
         const savedEvent = await eventsStore.createEvent(eventData);
         // Naviguer vers le nouvel événement créé
@@ -626,11 +602,6 @@
     }
   }
 
-  function handleMealModified() {
-    // Dans le mode Draft, les liaisons bind:meal s'occupent de tout.
-    // Plus besoin de markDirty manuel.
-  }
-
   function toggleEditMeal(mealId: string) {
     editingMealIndex = editingMealIndex === mealId ? null : mealId;
   }
@@ -828,7 +799,6 @@
                     const mId = meal.id;
                     if (mId) removeMeal(mId);
                   }}
-                  onModified={handleMealModified}
                   {allDates}
                   disabled={!canEdit || isLockedByOthers}
                 />

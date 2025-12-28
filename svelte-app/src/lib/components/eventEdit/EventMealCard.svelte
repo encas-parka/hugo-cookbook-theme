@@ -41,7 +41,6 @@
     onEditToggle?: () => void;
     allDates?: string[];
     onEmptySearchSubmit?: () => void;
-    onModified?: () => void; // Optionnel : pour d'autres usages futurs
     disabled?: boolean;
   }
 
@@ -53,7 +52,6 @@
     onEditToggle,
     allDates = [],
     onEmptySearchSubmit,
-    onModified,
     disabled = false,
   }: Props = $props();
 
@@ -111,7 +109,6 @@
 
     if (newDate || newMoment) {
       meal.date = newDateTime;
-      onModified?.();
     }
   }
 
@@ -196,7 +193,6 @@
         recipe.plates !== meal.guests
       ) {
         recipe.plates = meal.guests;
-        onModified?.(); // Notifie le parent
       }
     });
   });
@@ -209,8 +205,6 @@
     // Vérifier si la recette existe déjà pour éviter les doublons
     const alreadyExists = meal.recipes.some((r) => r.recipeUuid === recipe.$id);
     if (alreadyExists) return; // Ignorer silencieusement l'ajout d'une recette déjà présente
-
-    onModified?.(); // Notifie le parent
 
     const defaultPlates = meal.guests; // Utiliser le nombre de guests par défaut
     const newRecipe: EventMealRecipe = {
@@ -391,7 +385,6 @@
                 type="number"
                 class="w-full"
                 bind:value={meal.guests}
-                oninput={() => onModified?.()}
                 min="1"
               />
             </label>
@@ -442,7 +435,10 @@
                     <select
                       class="select w-24"
                       bind:value={recipe.typeR}
-                      onchange={() => onModified?.()}
+                      onchange={() => {
+                        manuallyEditedPlates[getRecipeKey(recipe.recipeUuid)] =
+                          true;
+                      }}
                     >
                       <option value="entree">Entrée</option>
                       <option value="plat">Plat</option>
@@ -463,7 +459,6 @@
                             bind:value={recipe.plates}
                             min="1"
                             onchange={() => {
-                              onModified?.();
                               manuallyEditedPlates[
                                 getRecipeKey(recipe.recipeUuid)
                               ] = true;
@@ -490,7 +485,6 @@
                               getRecipeKey(recipe.recipeUuid)
                             ] = false;
                             recipe.plates = meal.guests;
-                            onModified?.();
                           }}
                           title="Revenir au nombre de couvert du repas ({meal.guests})"
                         >

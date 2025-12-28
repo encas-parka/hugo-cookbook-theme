@@ -104,24 +104,18 @@ export const locksService = {
   async releaseLock(resourceId: string, userId: string): Promise<void> {
     const { tables } = await getAppwriteInstances();
     try {
-      // On vide les champs. Le document reste présent pour le Realtime.
-      await tables.updateRow({
+      // Suppression réelle du document pour une libération propre
+      await tables.deleteRow({
         databaseId: getDatabaseId(),
         tableId: getCollectionId("locks"),
         rowId: resourceId,
-        data: {
-          userId: "",
-          userName: "",
-          expiresAt: new Date(0).toISOString(), // Date dans le passé
-        },
-        // On remet les permissions à n'importe qui pour que le prochain puisse verrouiller
-        permissions: [
-          Permission.read(Role.any()),
-          Permission.update(Role.any()), 
-        ],
       });
-      console.log(`[locksService] Verrou libéré (permanent) pour ${resourceId}`);
+      console.log(`[locksService] Verrou libéré (supprimé) pour ${resourceId}`);
     } catch (error: any) {
+      if (error.code === 404) {
+        console.log(`[locksService] Verrou déjà libéré pour ${resourceId}`);
+        return;
+      }
       console.error("[locksService] Erreur libération verrou:", error);
     }
   },
@@ -142,9 +136,12 @@ export const locksService = {
         `databases.${databaseId}.collections.${collectionId}.documents.${resourceId}`,
       ],
       (response: any) => {
+        if (response.events.some((e: string) => e.endsWith(".delete"))) {
+          callback(null);
+          return;
+        }
         const payload = response.payload as AppwriteLock;
-        // Si userId est vide, on considère le verrou comme libre
-        if (!payload.userId) {
+        if (!payload.userId || new Date(payload.expiresAt) < new Date()) {
           callback(null);
         } else {
           callback(payload);

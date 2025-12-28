@@ -72,7 +72,16 @@
 
     try {
       // Exécuter le handler de sauvegarde du parent
-      await onSaveAndLeave();
+      // On attend un retour explicite (true/false) ou void (considéré comme succès)
+      const result = await onSaveAndLeave();
+
+      // Si le handler retourne explicitement false, on annule le départ
+      if (result === false) {
+        console.log(
+          "[UnsavedChangesGuard] Sauvegarde échouée, navigation annulée",
+        );
+        return;
+      }
 
       // Fermer le modal
       showGuardModal = false;
@@ -82,6 +91,12 @@
         guardResolve(true);
         guardResolve = null;
       }
+    } catch (error) {
+      console.error(
+        "[UnsavedChangesGuard] Erreur lors de la sauvegarde:",
+        error,
+      );
+      // On reste sur la page en cas d'erreur bloquante
     } finally {
       isSaving = false;
     }
