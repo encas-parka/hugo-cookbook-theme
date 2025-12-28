@@ -91,32 +91,52 @@ export const locksService = {
           return false;
         }
       }
-      
+
       // 3. Si erreur de permission (déjà verrouillé par un autre)
-      console.warn("[locksService] Acquisition refusée (peut-être déjà verrouillé):", error.message);
+      console.warn(
+        "[locksService] Acquisition refusée (peut-être déjà verrouillé):",
+        error.message,
+      );
       return false;
     }
   },
 
   /**
-   * Libère un verrou (Marque comme libre sans supprimer le document)
+   * Libère un verrou (Réinitialise les valeurs pour le rendre disponible)
    */
   async releaseLock(resourceId: string, userId: string): Promise<void> {
     const { tables } = await getAppwriteInstances();
     try {
-      // Suppression réelle du document pour une libération propre
-      await tables.deleteRow({
+      // Réinitialiser le verrou au lieu de supprimer la row
+      // Plus robuste : évite les erreurs 401 si les permissions changent
+      await tables.updateRow({
         databaseId: getDatabaseId(),
         tableId: getCollectionId("locks"),
         rowId: resourceId,
+        data: {
+          userId: "", // Vide = aucun utilisateur
+          userName: "",
+          expiresAt: new Date(0).toISOString(), // Date passée = verrou expiré
+        },
+        permissions: [
+          Permission.read(Role.any()),
+          Permission.update(Role.any()), // Réinitialiser les permissions pour permettre à任何人 de prendre le lock
+        ],
       });
-      console.log(`[locksService] Verrou libéré (supprimé) pour ${resourceId}`);
+      console.log(
+        `[locksService] Verrou libéré (réinitialisé) pour ${resourceId}`,
+      );
     } catch (error: any) {
       if (error.code === 404) {
         console.log(`[locksService] Verrou déjà libéré pour ${resourceId}`);
         return;
       }
-      console.error("[locksService] Erreur libération verrou:", error);
+      // En cas d'erreur (401, 403, etc.), on logue mais on ne bloque pas
+      // Le cleanup local se fera dans EventEditPage anyway
+      console.warn(
+        "[locksService] Impossible de libérer le verrou sur le serveur:",
+        error.message,
+      );
     }
   },
 
