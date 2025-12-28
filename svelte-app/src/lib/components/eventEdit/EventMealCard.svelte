@@ -41,8 +41,7 @@
     onEditToggle?: () => void;
     allDates?: string[];
     onEmptySearchSubmit?: () => void;
-    onDateChanged?: (mealId: string, newDate: string) => void;
-    onModified?: () => void;
+    onModified?: () => void; // Optionnel : pour d'autres usages futurs
     disabled?: boolean;
   }
 
@@ -54,7 +53,6 @@
     onEditToggle,
     allDates = [],
     onEmptySearchSubmit,
-    onDateChanged,
     onModified,
     disabled = false,
   }: Props = $props();
@@ -113,9 +111,7 @@
 
     if (newDate || newMoment) {
       meal.date = newDateTime;
-      console.log("newDateTime:", newDateTime);
       onModified?.();
-      onDateChanged;
     }
   }
 
@@ -228,7 +224,6 @@
   }
 
   function removeRecipe(recipeUuid: string) {
-    onModified?.(); // Notifie le parent
     meal.recipes = meal.recipes.filter(
       (recipe) => recipe.recipeUuid !== recipeUuid,
     );

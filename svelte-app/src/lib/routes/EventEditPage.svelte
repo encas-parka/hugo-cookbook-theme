@@ -7,7 +7,11 @@
   import { EventStatsStore } from "$lib/stores/EventStatsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { teamsStore } from "$lib/stores/TeamsStore.svelte";
-  import type { EventContributor, EventMeal } from "$lib/types/events";
+  import type {
+    EnrichedEvent,
+    EventContributor,
+    EventMeal,
+  } from "$lib/types/events";
   import {
     CircleAlert,
     Calendar,
@@ -38,21 +42,14 @@
   // Stats store avec cache statique partagé entre toutes les pages d'événement
   let eventStats = $derived(EventStatsStore.getForEvent(eventId));
 
-  // ============================================================================
-  // ÉTAT LOCAL D'ÉDITION (modifiable)
-  // ============================================================================
+  // Brouillon local d'édition (Zéro écho)
+  let draft = $state<EnrichedEvent | null>(null);
 
-  // Les meals doivent être éditables → $state
-  let meals = $state<EventMeal[]>([]);
-
-  // pendingEventName pour l'édition du nom (modifiable pendant l'édition)
-  let pendingEventName = $state("");
-
-  const allDates = $derived(meals.map((m) => m.date));
+  const allDates = $derived(draft?.meals?.map((m) => m.date) || []);
 
   // État UI
   let isInitialised = $state(false);
-  let isBusy = $state(false); // Quand on sauvegarde/charge
+  let isBusy = $state(false); // Quand on sauvegarde/charge (maître)
   let isAcquiringLock = $state(false); // Quand on acquiert le lock
   let editingMealIndex = $state<string | null>(null);
   let editingTitle = $state(false);
@@ -61,32 +58,48 @@
   let activeLock = $state<AppwriteLock | null>(null);
   let lockUnsub: (() => void) | null = null;
 
-  // isDirty est maintenant calculé par comparaison JSON (Single Source of Truth)
+  // isDirty est maintenant calculé par comparaison JSON avec le store
   const isDirty = $derived.by(() => {
-    if (!isInitialised || !currentEvent) return false;
+    if (!isInitialised || !currentEvent || !draft) return false;
 
-    // Comparaison du nom
-    if (pendingEventName !== currentEvent.name) return true;
+    // Comparaison du brouillon vs store
+    const draftJson = JSON.stringify({
+      name: draft.name,
+      meals: draft.meals,
+    });
+    const storeJson = JSON.stringify({
+      name: currentEvent.name,
+      meals: eventStats?.sortedMeals || [],
+    });
 
-    // Comparaison des repas (via JSON pour la profondeur)
-    const localMealsJson = JSON.stringify(meals);
-    const storeMealsJson = JSON.stringify(eventStats?.sortedMeals || []);
-
-    return localMealsJson !== storeMealsJson;
+    return draftJson !== storeJson;
   });
 
-  // Détection des changements (Manuelle pour l'acquisition du verrou)
-  function markDirtyAndAcquireLock() {
-    if (!eventId || isBusy || isAcquiringLock || isLockedByOthers) return;
+  /**
+   * Assure que le verrou est acquis et crée le brouillon (Draft).
+   * C'est le point de passage unique avant TOUTE modification.
+   */
+  async function ensureLockAndCreateDraft(): Promise<boolean> {
+    if (draft) return true; // Déjà en édition
 
-    // Si on n'a pas le verrou, on tente de l'acquérir
-    if (!isLockedByMe) {
-      console.log("📝 Intention d'éditer détectée, acquisition du verrou...");
-      acquireLock();
-    } else {
-      // Si on a déjà le verrou, on s'assure que l'auto-save est programmé
-      scheduleAutoSave();
+    if (isLockedByOthers) {
+      toastService.warning(
+        `Cet événement est verrouillé par ${lockedByUserName}`,
+      );
+      return false;
     }
+
+    const success = await acquireLock();
+    if (success && currentEvent) {
+      // Création du Snapshot initial
+      draft = $state.snapshot(currentEvent);
+      // S'assurer que les repas du draft sont triés pour la comparaison isDirty
+      if (draft && eventStats?.sortedMeals) {
+        draft.meals = $state.snapshot(eventStats.sortedMeals);
+      }
+      return true;
+    }
+    return false;
   }
 
   // ============================================================================
@@ -141,6 +154,24 @@
       hasUnsavedChanges: isDirty && !isLockedByOthers,
     });
   });
+  /*
+   * Synchronise l'état local depuis le store ou un événement fourni.
+   * Obsolète dans le nouveau paradigme "Draft", mais gardée pour la transition si besoin.
+   */
+  function syncLocalFromStore(eventOverride: EnrichedEvent | null = null) {
+    const targetEvent = eventOverride || currentEvent;
+    if (!targetEvent) return;
+
+    draft = $state.snapshot(targetEvent);
+    // S'assurer que les repas sont triés
+    if (draft && eventStats?.sortedMeals) {
+      draft.meals = $state.snapshot(eventStats.sortedMeals);
+    }
+
+    console.log(
+      `🔄 Brouillon mis à jour (${eventOverride ? "Direct API" : "Store"})`,
+    );
+  }
 
   // ============================================================================
   // INITIALISATION
@@ -153,12 +184,13 @@
         try {
           await eventsStore.initialize();
 
-          // Charger les données initiales depuis currentEvent
-          // Charger les données initiales depuis le store
-          if (currentEvent) {
-            pendingEventName = currentEvent.name;
-            meals = [...(eventStats?.sortedMeals || [])];
-          }
+          // CRITICAL: Force refresh from server to ensure data is fresh
+          // (Realtime might have missed events while on another page)
+          await eventsStore.fetchEvent(eventId);
+
+          // Mode Vue par défaut (pas de draft initial)
+          draft = null;
+          console.log("📥 Données initiales chargées (Observateur)");
 
           // Initialiser l'état du verrou
           activeLock = await locksService.getLock(eventId);
@@ -181,22 +213,14 @@
     }
   });
 
-  // Synchronisation store -> local (QUE si pas de modifications en cours)
+  // Synchronisation automatique : Mode "Esclave" (Observateur)
   $effect(() => {
-    // Si on n'a pas le verrou OU si on n'a pas de changements locaux, on synchronise
-    // Cela permet aux observateurs (User B) d'être toujours à jour,
-    // et à l'éditeur (User A) de récupérer les normalisations après save.
-    if (currentEvent && isInitialised && (!isLockedByMe || !isDirty)) {
-      untrack(() => {
-        // On utilise snapshot pour se détacher des références du store
-        const eventData = $state.snapshot(currentEvent);
-        pendingEventName = eventData.name || "";
-        // On utilise les repas triés du store
-        meals = [...(eventStats?.sortedMeals || [])].map((m) =>
-          $state.snapshot(m),
-        );
-        console.log("🔄 Synchronisation store -> local effectuée");
-      });
+    // Si on n'est pas en train d'éditer (!draft), l'UI suit naturellement le store.
+    // On n'a plus besoin d'effet de synchro manuelle ici, car l'UI pointera
+    // directement vers currentEvent si draft est null.
+    if (isInitialised && !draft && isLockedByMe) {
+      // Cas rare : on a le verrou mais pas encore de draft (ex: refresh page)
+      ensureLockAndCreateDraft();
     }
   });
 
@@ -232,11 +256,13 @@
           $id: eventId,
           userId: globalState.userId,
           userName: globalState.userName(),
-          expiresAt: new Date(Date.now() + 7 * 60 * 1000).toISOString(),
+          expiresAt: new Date(Date.now() + 3 * 60 * 1000).toISOString(),
           $updatedAt: new Date().toISOString(),
         } as AppwriteLock;
 
         scheduleAutoSave();
+        // Le mode Draft sera activé par ensureLockAndCreateDraft
+        return true;
         console.log("🔒 Verrou acquis via service");
         return true;
       } else {
@@ -260,7 +286,8 @@
     try {
       await locksService.releaseLock(eventId, globalState.userId);
       activeLock = null;
-      console.log("🔓 Verrou libéré via service");
+      draft = null; // Sortie du mode édition
+      console.log("🔓 Verrou libéré et brouillon détruit");
     } catch (error) {
       console.error("❌ Erreur libération verrou:", error);
     }
@@ -300,7 +327,8 @@
   // ============================================================================
 
   function validateEventData() {
-    const nameToValidate = pendingEventName || eventName;
+    if (!draft) return { isValid: false, errorMessage: "Pas de brouillon" };
+    const nameToValidate = draft.name;
     if (!nameToValidate) {
       return {
         isValid: false,
@@ -308,7 +336,7 @@
       };
     }
 
-    if (meals.length === 0) {
+    if ((draft?.meals?.length || 0) === 0) {
       return {
         isValid: false,
         errorMessage: "Veuillez ajouter au moins un repas",
@@ -356,7 +384,7 @@
       return false;
     }
 
-    const nameToSave = pendingEventName || eventName;
+    const nameToSave = draft?.name || eventName;
 
     // Plus besoin de reset isDirty manuellement, le calcul $derived le fera
     // une fois que le store sera mis à jour.
@@ -376,23 +404,28 @@
 
     const eventData = {
       name: nameToSave,
-      allDates: Array.from(new Set(meals.map((m) => m.date))).sort(),
+      allDates: Array.from(
+        new Set((draft?.meals || []).map((m) => m.date)),
+      ).sort() as string[],
       dateStart: allDates.length > 0 ? allDates[0] : "",
       dateEnd: allDates.length > 0 ? allDates[allDates.length - 1] : "",
       teams: selectedTeams,
       contributors: contributorsToSave,
-      meals,
+      meals: draft?.meals || [],
     };
-
     try {
       if (eventId) {
-        await eventsStore.updateEvent(eventId, eventData);
+        const updatedEvent = await eventsStore.updateEvent(eventId, eventData);
+        // RÉCONCILIATION DIRECTE : On utilise le retour de l'API pour mettre à jour le local.
+        // Cela évite d'attendre que le store Singleton se mette à jour via ses effets.
+        syncLocalFromStore(updatedEvent);
       } else {
         const savedEvent = await eventsStore.createEvent(eventData);
         // Naviguer vers le nouvel événement créé
         navigate(`/dashboard/eventEdit/${savedEvent.$id}`);
       }
 
+      draft = null; // Succès -> Retour mode Vue
       return true;
     } catch (error) {
       console.error("Erreur sauvegarde:", error);
@@ -467,7 +500,7 @@
       () => {
         performAutoSave();
       },
-      5 * 60 * 1000, // test (30s). Restore 5 * 60 * 1000
+      2 * 60 * 1000, // test (30s). Restore 5 * 60 * 1000
     );
 
     console.log("⏰ Auto-save programmé dans 30 secondes");
@@ -477,6 +510,7 @@
 
   // Protection beforeunload - Avertir l'utilisateur s'il a des modifications non sauvegardées
   $effect(() => {
+    // Capturer la valeur actuelle pour éviter les dépendances dynamiques dans le handler
     // Capturer la valeur actuelle pour éviter les dépendances dynamiques dans le handler
     const hasLock = isLockedByMe;
     const dirty = isDirty;
@@ -507,8 +541,8 @@
     }
 
     // Libérer le lock si on l'a
-    if (eventId && isLockedByMe) {
-      console.log("🚪 Démontage du composant, libération du lock...");
+    if (eventId && draft) {
+      console.log("🚪 Démontage du composant, libération du lock et draft...");
       releaseLock();
     }
   });
@@ -518,13 +552,15 @@
   // ============================================================================
 
   $effect(() => {
-    const needsSorting = meals.some(
-      (meal, i) => i > 0 && meal.date < meals[i - 1].date,
+    const d = draft;
+    if (!d) return;
+    const needsSorting = d.meals.some(
+      (meal, i) => i > 0 && meal.date < d.meals[i - 1].date,
     );
 
     if (needsSorting) {
       untrack(() => {
-        meals = [...meals].sort((a, b) => a.date.localeCompare(b.date));
+        d.meals = [...d.meals].sort((a, b) => a.date.localeCompare(b.date));
       });
     }
   });
@@ -533,23 +569,25 @@
   // HANDLERS DE MODIFICATION
   // ============================================================================
 
-  function handleNameInput(e: Event) {
-    pendingEventName = (e.target as HTMLInputElement).value;
-    markDirtyAndAcquireLock();
+  async function handleNameInput(e: Event) {
+    if (await ensureLockAndCreateDraft()) {
+      if (draft) draft.name = (e.target as HTMLInputElement).value;
+    }
   }
 
-  function addMeal() {
+  async function addMeal() {
+    if (!(await ensureLockAndCreateDraft()) || !draft) return;
     const mealId = nanoid(6);
 
     // Déterminer la date par défaut
     let defaultDateTime: string;
 
-    if (meals.length === 0) {
+    if (draft.meals.length === 0) {
       const today = new Date();
       today.setHours(12, 0, 0, 0);
       defaultDateTime = today.toISOString();
     } else {
-      const lastMeal = meals[meals.length - 1];
+      const lastMeal = draft.meals[draft.meals.length - 1];
       const lastDate = new Date(lastMeal.date);
       const lastHour = lastDate.getHours();
 
@@ -570,24 +608,27 @@
       recipes: [],
     };
 
-    meals = [...meals, newMeal];
+    draft.meals = [...draft.meals, newMeal];
     editingMealIndex = mealId;
-
-    markDirtyAndAcquireLock();
   }
 
   function removeMeal(mealId: string) {
-    meals = meals.filter((m) => m.id !== mealId);
-    markDirtyAndAcquireLock();
+    if (draft) {
+      draft.meals = draft.meals.filter((m) => m.id !== mealId);
+    }
   }
 
   function handleDateChanged(mealId: string, newDate: string) {
-    meals = meals.map((m) => (m.id === mealId ? { ...m, date: newDate } : m));
-    markDirtyAndAcquireLock();
+    if (draft) {
+      draft.meals = draft.meals.map((m) =>
+        m.id === mealId ? { ...m, date: newDate } : m,
+      );
+    }
   }
 
   function handleMealModified() {
-    markDirtyAndAcquireLock();
+    // Dans le mode Draft, les liaisons bind:meal s'occupent de tout.
+    // Plus besoin de markDirty manuel.
   }
 
   function toggleEditMeal(mealId: string) {
@@ -655,8 +696,9 @@
         <input
           type="text"
           class="input input-lg min-w-full shadow-md"
-          value={pendingEventName || eventName}
+          value={draft?.name || eventName}
           oninput={handleNameInput}
+          onfocus={ensureLockAndCreateDraft}
           onblur={() => (editingTitle = false)}
           disabled={!canEdit}
           placeholder="Nom de l'événement"
@@ -669,7 +711,7 @@
         >
           <div class="flex items-baseline gap-4">
             <div class="text-4xl font-bold">
-              {pendingEventName || eventName || "Nom de l'événement"}
+              {draft?.name || eventName || "Nom de l'événement"}
             </div>
             <PencilLine class="h-4 w-4" />
           </div>
@@ -744,7 +786,8 @@
       <div class="space-y-6 md:px-4 lg:col-span-3">
         <div class="mb-6 flex items-center justify-between">
           <h3 class="card-title text-lg">
-            Repas & Menus ({eventStats?.mealsCount || meals.length})
+            Repas & Menus ({eventStats?.mealsCount ||
+              (draft ? draft.meals.length : currentEvent?.meals?.length || 0)})
           </h3>
           <button
             class="btn btn-primary btn-sm"
@@ -756,7 +799,7 @@
           </button>
         </div>
 
-        {#if meals.length === 0}
+        {#if (draft ? draft.meals.length : currentEvent?.meals?.length || 0) === 0}
           <div
             class="text-base-content/60 bg-base-200/30 rounded-box border-base-200 flex flex-col items-center justify-center border-2 border-dashed py-12"
           >
@@ -770,17 +813,24 @@
           </div>
         {:else}
           <div class="space-y-4">
-            {#each meals as meal, $index (meal.id)}
+            {#each draft ? draft.meals : eventStats?.sortedMeals || [] as meal, $index (meal.id)}
               <div animate:flip={{ delay: 100, duration: 400 }}>
                 <EventMealCard
-                  bind:meal={meals[$index]}
+                  meal={draft ? draft.meals[$index] : meal}
                   isEditing={editingMealIndex === meal.id}
-                  onEditToggle={() => meal.id && toggleEditMeal(meal.id)}
-                  onDelete={() => meal.id && removeMeal(meal.id)}
-                  onDateChanged={handleDateChanged}
+                  onEditToggle={async () => {
+                    const mId = meal.id;
+                    if (mId && (await ensureLockAndCreateDraft())) {
+                      toggleEditMeal(mId);
+                    }
+                  }}
+                  onDelete={() => {
+                    const mId = meal.id;
+                    if (mId) removeMeal(mId);
+                  }}
                   onModified={handleMealModified}
                   {allDates}
-                  disabled={!canEdit}
+                  disabled={!canEdit || isLockedByOthers}
                 />
               </div>
             {/each}
