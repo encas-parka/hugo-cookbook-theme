@@ -44,6 +44,10 @@
 
   // Brouillon local d'édition (Zéro écho)
   let draft = $state<EnrichedEvent | null>(null);
+  let initialSnapshot = $state<EnrichedEvent | null>(null);
+
+  // Copie mutable des meals en mode lecture (pour éviter l'erreur ownership_invalid_mutation)
+  let mutableMeals = $state<EventMeal[]>([]);
 
   const allDates = $derived(draft?.meals?.map((m) => m.date) || []);
 
@@ -58,21 +62,21 @@
   let activeLock = $state<AppwriteLock | null>(null);
   let lockUnsub: (() => void) | null = null;
 
-  // isDirty est maintenant calculé par comparaison JSON avec le store
+  // isDirty est maintenant calculé par comparaison avec l'état initial (snapshot)
   const isDirty = $derived.by(() => {
-    if (!isInitialised || !currentEvent || !draft) return false;
+    if (!draft || !initialSnapshot) return false;
 
-    // Comparaison du brouillon vs store
+    // Comparaison du brouillon vs l'état initial (pas vs le store actuel)
     const draftJson = JSON.stringify({
       name: draft.name,
       meals: draft.meals,
     });
-    const storeJson = JSON.stringify({
-      name: currentEvent.name,
-      meals: eventStats?.sortedMeals || [],
+    const initialJson = JSON.stringify({
+      name: initialSnapshot.name,
+      meals: initialSnapshot.meals || [],
     });
 
-    return draftJson !== storeJson;
+    return draftJson !== initialJson;
   });
 
   /**
@@ -91,6 +95,8 @@
 
     const success = await acquireLock();
     if (success && currentEvent) {
+      // Capturer l'état initial pour la comparaison isDirty
+      initialSnapshot = $state.snapshot(currentEvent);
       // Création du Snapshot initial
       draft = $state.snapshot(currentEvent);
       // S'assurer que les repas du draft sont triés pour la comparaison isDirty
@@ -202,12 +208,26 @@
   });
 
   onDestroy(() => {
-    navBarStore.reset();
-    if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+    // 1. Annuler l'auto-save planifié
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout);
+      autoSaveTimeout = null;
+    }
+
+    // 2. Désabonner du realtime des locks
     if (lockUnsub) {
       lockUnsub();
       lockUnsub = null;
     }
+
+    // 3. Libérer le lock si détenu
+    if (eventId && isLockedByMe) {
+      console.log("🚪 Démontage du composant, libération du lock...");
+      releaseLock();
+    }
+
+    // 4. Reset de la navbar
+    navBarStore.reset();
   });
 
   // ============================================================================
@@ -227,16 +247,7 @@
       );
 
       if (success) {
-        // Optimistic update : activer le lock immédiatement pour l'UI
-        // Le realtime écrasera avec la vraie valeur du serveur
-        activeLock = {
-          $id: eventId,
-          userId: globalState.userId,
-          userName: globalState.userName(),
-          expiresAt: new Date(Date.now() + 3 * 60 * 1000).toISOString(),
-          $updatedAt: new Date().toISOString(),
-        } as AppwriteLock;
-
+        // On laisse le realtime mettre à jour activeLock (pas d'optimistic update)
         scheduleAutoSave();
         // Le mode Draft sera activé par ensureLockAndCreateDraft
         return true;
@@ -260,11 +271,14 @@
 
     try {
       await locksService.releaseLock(eventId, globalState.userId);
-      activeLock = null;
-      draft = null; // Sortie du mode édition
       console.log("🔓 Verrou libéré et brouillon détruit");
     } catch (error) {
       console.error("❌ Erreur libération verrou:", error);
+    } finally {
+      // Cleanup local même en cas d'erreur réseau
+      activeLock = null;
+      draft = null; // Sortie du mode édition
+      initialSnapshot = null;
     }
   }
 
@@ -507,40 +521,6 @@
   });
 
   // Libération du lock au démontage du composant (navigation away)
-  // IMPORTANT: Utiliser onDestroy au lieu du cleanup d'$effect pour éviter
-  // les appels prématurés à chaque changement de dépendance
-  onDestroy(() => {
-    // Annuler l'auto-save en cours
-    if (autoSaveTimeout) {
-      clearTimeout(autoSaveTimeout);
-      autoSaveTimeout = null;
-    }
-
-    // Libérer le lock si on l'a
-    if (eventId && draft) {
-      console.log("🚪 Démontage du composant, libération du lock et draft...");
-      releaseLock();
-    }
-  });
-
-  // ============================================================================
-  // TRI AUTOMATIQUE DES MEALS
-  // ============================================================================
-
-  $effect(() => {
-    const d = draft;
-    if (!d) return;
-    const needsSorting = d.meals.some(
-      (meal, i) => i > 0 && meal.date < d.meals[i - 1].date,
-    );
-
-    if (needsSorting) {
-      untrack(() => {
-        d.meals = [...d.meals].sort((a, b) => a.date.localeCompare(b.date));
-      });
-    }
-  });
-
   // ============================================================================
   // HANDLERS DE MODIFICATION
   // ============================================================================
@@ -826,8 +806,8 @@
   routeKey={eventId
     ? `/dashboard/eventEdit/${eventId}`
     : "/dashboard/eventEdit"}
-  shouldProtect={() => isDirty || isLockedByMe}
+  shouldProtect={() => isDirty}
   onLeaveWithoutSave={handleLeaveWithoutSave}
   onSaveAndLeave={handleSaveAndLeave}
-  message="Vous avez des modifications non sauvegardées ou vous détenez le verrou. Voulez-vous vraiment quitter ?"
+  message="Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter ?"
 />
