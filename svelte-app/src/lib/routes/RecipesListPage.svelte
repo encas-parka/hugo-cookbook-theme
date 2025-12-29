@@ -46,6 +46,11 @@
   let currentPage = $state(1);
   let sentinel = $state<HTMLElement | undefined>();
 
+  // Tri
+  type SortBy = "title" | "$createdAt" | "$updatedAt";
+  let sortBy = $state<SortBy>("title");
+  let sortOrder = $state<"asc" | "desc">("asc");
+
   // Récupérer toutes les recettes depuis le store
   const allRecipes = $derived.by(() => {
     // Retourner un tableau vide si le store n'est pas initialisé
@@ -172,9 +177,27 @@
     });
   });
 
+  // Tri des recettes filtrées
+  const sortedRecipes = $derived.by(() => {
+    const recipes = [...filteredRecipes];
+    return recipes.sort((a, b) => {
+      if (sortBy === "title") {
+        return sortOrder === "asc"
+          ? a.title.localeCompare(b.title, "fr")
+          : b.title.localeCompare(a.title, "fr");
+      } else if (sortBy === "$createdAt") {
+        const diff = new Date(b.$createdAt || 0).getTime() - new Date(a.$createdAt || 0).getTime();
+        return sortOrder === "asc" ? -diff : diff;
+      } else {
+        const diff = new Date(b.$updatedAt || 0).getTime() - new Date(a.$updatedAt || 0).getTime();
+        return sortOrder === "asc" ? -diff : diff;
+      }
+    });
+  });
+
   // Pagination
   const paginatedRecipes = $derived(
-    filteredRecipes.slice(0, currentPage * pageSize),
+    sortedRecipes.slice(0, currentPage * pageSize),
   );
 
   // Désactiver les filtres si recherche active
@@ -221,8 +244,10 @@
 
   // Reset pagination quand les filtres changent
   $effect(() => {
-    // Dépendances : filteredRecipes
+    // Dépendances : filteredRecipes, sortBy, sortOrder
     filteredRecipes;
+    sortBy;
+    sortOrder;
     currentPage = 1;
   });
 
@@ -335,6 +360,57 @@
         resultCount={filteredRecipes.length}
         onResetFilters={resetFilters}
       />
+    </div>
+
+    <!-- Boutons de tri -->
+    <div class="mb-6 flex items-center gap-2">
+      <span class="text-sm font-semibold">Trier par :</span>
+      <div class="btn-group">
+        <button
+          class="btn btn-sm {sortBy === 'title' ? 'btn-active' : ''}"
+          onclick={() => {
+            sortBy = "title";
+            sortOrder = "asc";
+          }}
+        >
+          Titre
+        </button>
+        <button
+          class="btn btn-sm {sortBy === '$createdAt' ? 'btn-active' : ''}"
+          onclick={() => {
+            sortBy = "$createdAt";
+            sortOrder = "desc";
+          }}
+        >
+          Date de création
+        </button>
+        <button
+          class="btn btn-sm {sortBy === '$updatedAt' ? 'btn-active' : ''}"
+          onclick={() => {
+            sortBy = "$updatedAt";
+            sortOrder = "desc";
+          }}
+        >
+          Date de modification
+        </button>
+      </div>
+
+      {#if sortBy !== "title"}
+        <div class="btn-group ml-2">
+          <button
+            class="btn btn-sm {sortOrder === 'asc' ? 'btn-active' : ''}"
+            onclick={() => (sortOrder = "asc")}
+          >
+            ↑
+          </button>
+          <button
+            class="btn btn-sm {sortOrder === 'desc' ? 'btn-active' : ''}"
+            onclick={() => (sortOrder = "desc")}
+          >
+            ↓
+          </button>
+        </div>
+      {/if}
     </div>
 
     <!-- Liste des recettes -->
