@@ -4,7 +4,10 @@
   import PermissionsManager from "$lib/components/PermissionsManager.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
-  import { EventStatsStore } from "$lib/stores/EventStatsStore.svelte";
+  import {
+    getContributors,
+    getContributorStatus,
+  } from "$lib/utils/event-stats-helpers";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { teamsStore } from "$lib/stores/TeamsStore.svelte";
   import type {
@@ -38,9 +41,6 @@
 
   // Rendre eventId entièrement réactif aux changements de params
   let eventId = $derived(params?.id);
-
-  // Stats store avec cache statique partagé entre toutes les pages d'événement
-  let eventStats = $derived(EventStatsStore.getForEvent(eventId));
 
   // Shadow Draft permanent (jamais null)
   // NOTE: meals est un $state brut (non trié) pour permettre les mutations
@@ -116,15 +116,18 @@
   // DERIVED STATES
   // ============================================================================
 
-  const currentEvent = $derived(eventStats?.currentEvent ?? null);
+  // currentEvent directement depuis eventsStore (pas de cache pour éviter les problèmes de sync)
+  const currentEvent = $derived(
+    eventId ? eventsStore.getEventById(eventId) : null,
+  );
 
-  // DONNÉES RÉACTIVES DÉRIVÉES EN LECTURE SEULE (Single Source of Truth depuis eventStats)
+  // DONNÉES RÉACTIVES DÉRIVÉES EN LECTURE SEULE (Single Source of Truth depuis currentEvent)
   // Note: eventName est maintenant un $state local (shadow draft), pas un $derived
-  const contributors = $derived(eventStats?.contributors ?? []);
-  const selectedTeams = $derived(eventStats?.teams ?? []);
+  const contributors = $derived(getContributors(currentEvent));
+  const selectedTeams = $derived(currentEvent?.teams ?? []);
 
   const currentUserStatus = $derived(
-    eventStats?.getContributorStatus(globalState.userId || ""),
+    getContributorStatus(currentEvent, globalState.userId || ""),
   );
 
   const isLockedByOthers = $derived.by(() => {
@@ -138,7 +141,7 @@
   });
 
   const canEdit = $derived(
-    (eventStats?.canEdit(globalState.userId || "") ?? false) &&
+    eventsStore.canUserEditEvent(eventId, globalState.userId || "") &&
       !isLockedByOthers &&
       !isBusy,
   );
@@ -152,8 +155,7 @@
   // ============================================================================
 
   $effect(() => {
-    // Guard strict : NE synchronise QUE si on n'a PAS le verrou // TEST no
-    if (currentEvent) {
+    if (currentEvent && isInitialised) {
       // Mode Preview : Shadow draft suit currentEvent
       meals = $state.snapshot(currentEvent.meals || []);
       eventName = currentEvent.name || "";
@@ -188,13 +190,10 @@
 
           // CRITICAL: Force refresh from server to ensure data is fresh
           // (Realtime might have missed events while on another page)
-          await eventsStore.fetchEvent(eventId);
+          // await eventsStore.fetchEvent(eventId);
 
-          // ✅ INITIALISER LE SHADOW DRAFT ICI
-          meals = $state.snapshot(eventStats?.sortedMeals || []);
-          eventName = eventStats?.eventName || "";
-
-          console.log("📥 Données initiales chargées (Observateur)");
+          // meals = $state.snapshot(eventStats?.sortedMeals || []);
+          // eventName = eventStats?.eventName || "";
 
           // Initialiser l'état du verrou
           activeLock = await locksService.getLock(eventId);
@@ -500,7 +499,6 @@
   // Protection beforeunload - Avertir l'utilisateur s'il a des modifications non sauvegardées
   $effect(() => {
     // Capturer la valeur actuelle pour éviter les dépendances dynamiques dans le handler
-    // Capturer la valeur actuelle pour éviter les dépendances dynamiques dans le handler
     const hasLock = isLockedByMe;
     const dirty = isDirty;
 
@@ -595,9 +593,6 @@
         newStatus,
       );
 
-      // Note: contributors est un $derived, il sera mis à jour automatiquement
-      // via le realtime quand currentEvent sera mis à jour dans le store
-
       toastService.success(
         accept ? "Invitation acceptée" : "Invitation déclinée",
       );
@@ -609,6 +604,8 @@
     }
   }
 </script>
+
+{$inspect("isDirty", isDirty)}
 
 {#snippet navActions()}
   <div class="flex items-center gap-2">
@@ -656,8 +653,8 @@
         </button>
       {/if}
     </div>
-    {#if eventStats}
-      <EventStats {eventStats} />
+    {#if currentEvent}
+      <EventStats {currentEvent} />
     {/if}
   </div>
 
@@ -750,7 +747,7 @@
           </div>
         {:else}
           <div class="space-y-4">
-            {#each sortedMeals as meal, index (meal.id)}
+            {#each sortedMeals as meal (meal.id + "-" + currentEvent?.$updatedAt)}
               <div animate:flip={{ delay: 100, duration: 400 }}>
                 <EventMealCard
                   bind:meal={meals[meals.findIndex((m) => m.id === meal.id)]}
@@ -760,7 +757,7 @@
                     toggleEditMeal(meal.id);
                   }}
                   onDelete={() => removeMeal(meal.id)}
-                  allDates={sortedMeals.map((m) => m.date)}
+                  allDates={meals.map((m) => m.date)}
                   disabled={!canEdit || isLockedByOthers}
                 />
               </div>

@@ -2,7 +2,10 @@
   import { onMount } from "svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
-  import { EventStatsStore } from "$lib/stores/EventStatsStore.svelte";
+  import {
+    getTotalGuests,
+    getTotalRecipes,
+  } from "$lib/utils/event-stats-helpers";
   import { navigate } from "$lib/services/simple-router.svelte";
   import { onDestroy } from "svelte";
   import EventStats from "$lib/components/EventStats.svelte";
@@ -34,8 +37,9 @@
   let error = $state<string | null>(null);
   let eventId = $state<string | null>(null);
 
-  // Stats store avec cache statique partagé entre toutes les pages d'événement
-  let eventStats = $derived(EventStatsStore.getForEvent(eventId));
+  const currentEvent = $derived(
+    eventId ? eventsStore.getEventById(eventId) : null,
+  );
   let eventMeals = $state<any[]>([]);
   let recipesDetails = $state<any[]>([]);
 
@@ -137,11 +141,11 @@
   });
 
   // Calculer les informations de l'événement
-  const eventName = $derived(eventStats?.eventName ?? "");
-  const startDate = $derived(eventStats?.startDate ?? null);
-  const endDate = $derived(eventStats?.endDate ?? null);
-  const totalGuests = $derived(eventStats?.totalGuests ?? 0);
-  const totalRecipes = $derived(eventStats?.totalRecipes ?? 0);
+  const eventName = $derived(currentEvent?.name ?? "");
+  const startDate = $derived(currentEvent?.dateStart ?? null);
+  const endDate = $derived(currentEvent?.dateEnd ?? null);
+  const totalGuests = $derived(getTotalGuests(currentEvent));
+  const totalRecipes = $derived(getTotalRecipes(currentEvent));
 
   // Extraire l'ID de l'URL depuis les params ou l'URL actuelle
   const extractedId = $derived(() => {
@@ -428,7 +432,7 @@
 
           <!-- Statistiques -->
           <div class="flex justify-end p-4">
-            <EventStats {eventStats} />
+            <EventStats {currentEvent} />
           </div>
 
           <!-- filtre en cours -->

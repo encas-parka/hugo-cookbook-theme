@@ -42,7 +42,6 @@
 
   import { onMount, onDestroy } from "svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
-  import { EventStatsStore } from "$lib/stores/EventStatsStore.svelte";
 
   import { navigate } from "../services/simple-router.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
@@ -95,13 +94,14 @@
   // Récupérer l'eventId depuis les paramètres de route
   let { params } = $props<{ params?: Record<string, string> }>();
   let eventId = $state(params?.id);
-  // Stats store avec cache statique partagé entre toutes les pages d'événement
-  const eventStats = $derived(EventStatsStore.getForEvent(eventId));
+  const currentEvent = $derived(
+    eventId ? eventsStore.getEventById(eventId) : null,
+  );
 
   // Calculer les informations de l'événement
-  const eventName = $derived(eventStats?.eventName ?? "");
-  const startDate = $derived(eventStats?.startDate ?? null);
-  const endDate = $derived(eventStats?.endDate ?? null);
+  const eventName = $derived(currentEvent?.name ?? "");
+  const startDate = $derived(currentEvent?.dateStart ?? null);
+  const endDate = $derived(currentEvent?.dateEnd ?? null);
 
   onMount(async () => {
     try {
@@ -348,9 +348,9 @@
       </div>
     </div>
     <!-- Stats -->
-    {#if eventStats}
+    {#if currentEvent}
       <div class="flex justify-end py-4 print:hidden">
-        <EventStats {eventStats} />
+        <EventStats {currentEvent} />
       </div>
     {/if}
     <ProductsCards
