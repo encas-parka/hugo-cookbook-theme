@@ -14,11 +14,13 @@ export function keyboardNavigation(options: {
   shouldFocus?: boolean;
 }): Attachment {
   return (element) => {
+    const htmlElement = element as HTMLElement;
+
     // Focus automatique si demandé
     if (options.shouldFocus) {
       // Utiliser requestAnimationFrame pour s'assurer que le DOM est prêt
       requestAnimationFrame(() => {
-        element.focus();
+        htmlElement.focus();
       });
     }
 
@@ -27,8 +29,8 @@ export function keyboardNavigation(options: {
       // Vérifier si le champ est vide et si Entrée ou Tab est pressé
       if (
         (event.key === "Enter" || event.key === "Tab") &&
-        element instanceof HTMLInputElement &&
-        element.value.trim() === ""
+        htmlElement instanceof HTMLInputElement &&
+        htmlElement.value.trim() === ""
       ) {
         event.preventDefault();
         options.onEmptySubmit?.();
@@ -36,11 +38,14 @@ export function keyboardNavigation(options: {
     };
 
     // Ajouter l'écouteur d'événements
-    element.addEventListener("keydown", handleKeydown);
+    htmlElement.addEventListener("keydown", handleKeydown as EventListener);
 
     // Fonction de nettoyage
     return () => {
-      element.removeEventListener("keydown", handleKeydown);
+      htmlElement.removeEventListener(
+        "keydown",
+        handleKeydown as EventListener,
+      );
     };
   };
 }

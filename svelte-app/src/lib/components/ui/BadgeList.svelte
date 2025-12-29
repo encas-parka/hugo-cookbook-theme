@@ -1,4 +1,4 @@
-<script lang="ts">
+<script lang="ts" generics="T">
   import { X } from "@lucide/svelte";
 
   interface Props<T> {

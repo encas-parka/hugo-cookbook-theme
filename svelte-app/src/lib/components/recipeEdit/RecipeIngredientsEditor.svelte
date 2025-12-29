@@ -372,7 +372,7 @@
       <div class="card bg-base-200/50 border-base-300 border shadow-sm">
         <div class="card-body p-2">
           <div
-            class="card-title flex items-center gap-2 px-4 text-sm font-light"
+            class="card-title text-secondary/80 flex items-center gap-2 px-4 text-sm font-semibold"
           >
             <TypeIcon class="h-4 w-4" />
             {typeInfo.displayName}

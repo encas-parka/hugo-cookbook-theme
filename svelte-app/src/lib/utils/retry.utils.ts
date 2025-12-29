@@ -94,13 +94,15 @@ export function executeWithRetry<T>(
           toastService.update(toastId, {
             state: "error",
             message: `Échec ${operationName}: ${errMessage}`,
-            actions: {
-              label: "Réessayer",
-              onClick: () => {
-                toastService.dismiss(toastId!);
-                tryOperation(true);
+            actions: [
+              {
+                label: "Réessayer",
+                onClick: () => {
+                  toastService.dismiss(toastId!);
+                  tryOperation(true);
+                },
               },
-            },
+            ],
           });
         }
 

@@ -27,7 +27,7 @@
     label,
     error,
     id,
-  } = $props<Props>();
+  }: Props = $props();
 
   let element = $state<HTMLElement | null>(null);
   let editor = $state<Editor | null>(null);
@@ -61,10 +61,9 @@
           },
         },
         onUpdate: ({ editor }) => {
-          const markdown = editor.storage.markdown.getMarkdown();
+          const markdown = (editor.storage as any).markdown.getMarkdown();
           if (value !== markdown) {
             value = markdown;
-            if (onchange) onchange(markdown);
           }
         },
         onSelectionUpdate: () => {
@@ -112,7 +111,7 @@
           type="button"
           class="btn btn-ghost btn-square btn-sm"
           class:btn-active={updateTrigger >= 0 && editor.isActive("bold")}
-          onclick={() => editor.chain().focus().toggleBold().run()}
+          onclick={() => editor!.chain().focus().toggleBold().run()}
           title="Gras"
         >
           <Bold class="h-4 w-4" />
@@ -121,7 +120,7 @@
           type="button"
           class="btn btn-ghost btn-square btn-sm"
           class:btn-active={updateTrigger >= 0 && editor.isActive("italic")}
-          onclick={() => editor.chain().focus().toggleItalic().run()}
+          onclick={() => editor!.chain().focus().toggleItalic().run()}
           title="Italique"
         >
           <Italic class="h-4 w-4" />
@@ -131,7 +130,7 @@
           type="button"
           class="btn btn-ghost btn-square btn-sm"
           class:btn-active={updateTrigger >= 0 && editor.isActive("bulletList")}
-          onclick={() => editor.chain().focus().toggleBulletList().run()}
+          onclick={() => editor!.chain().focus().toggleBulletList().run()}
           title="Liste à puces"
         >
           <List class="h-4 w-4" />
@@ -141,7 +140,7 @@
           class="btn btn-ghost btn-square btn-sm"
           class:btn-active={updateTrigger >= 0 &&
             editor.isActive("orderedList")}
-          onclick={() => editor.chain().focus().toggleOrderedList().run()}
+          onclick={() => editor!.chain().focus().toggleOrderedList().run()}
           title="Liste ordonnée"
         >
           <ListOrdered class="h-4 w-4" />
@@ -150,7 +149,7 @@
         <button
           type="button"
           class="btn btn-ghost btn-square btn-sm"
-          onclick={() => editor.chain().focus().undo().run()}
+          onclick={() => editor!.chain().focus().undo().run()}
           disabled={!(updateTrigger >= 0 && editor.can().undo())}
           title="Annuler"
         >
@@ -159,7 +158,7 @@
         <button
           type="button"
           class="btn btn-ghost btn-square btn-sm"
-          onclick={() => editor.chain().focus().redo().run()}
+          onclick={() => editor!.chain().focus().redo().run()}
           disabled={!(updateTrigger >= 0 && editor.can().redo())}
           title="Rétablir"
         >
@@ -173,9 +172,9 @@
   </div>
 
   {#if error}
-    <label class="label">
+    <div class="label">
       <span class="text-error">{error}</span>
-    </label>
+    </div>
   {/if}
 </div>
 

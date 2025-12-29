@@ -22,6 +22,7 @@
   import RecipeHeaderForm from "$lib/components/recipeEdit/RecipeHeaderForm.svelte";
   import RecipePrepaForm from "$lib/components/recipeEdit/RecipePrepaForm.svelte";
   import RecipePermissionsManager from "$lib/components/recipeEdit/RecipePermissionsManager.svelte";
+  import UnsavedChangesGuard from "$lib/components/ui/UnsavedChangesGuard.svelte";
   import { UnitConverter } from "$lib/utils/UnitConverter";
   import { generateSlugUuid35 } from "../utils/slugUtils";
 
@@ -110,12 +111,50 @@
   let loaded = $state(false);
   let isLoading = $state(false);
   let isSaving = $state(false);
-  let isDirty = $state(false);
   let lockedBy = $state<string | null>(null);
   let heartbeatInterval: any = null;
 
+  // Snapshot pour le calcul de isDirty (Single Source of Truth)
+  let initialRecipeSnapshot = $state<string | null>(null);
+
+  // Calcul de isDirty par comparaison avec le snapshot initial
+  const isDirty = $derived.by(() => {
+    if (!recipe || !initialRecipeSnapshot) return false;
+
+    // Comparer uniquement les champs qui nous intéressent
+    const currentData = JSON.stringify({
+      title: recipe.title,
+      description: recipe.description,
+      plate: recipe.plate,
+      preparation: recipe.preparation,
+      preparation24h: recipe.preparation24h,
+      cuisson: recipe.cuisson,
+      serveHot: recipe.serveHot,
+      typeR: recipe.typeR,
+      categories: recipe.categories,
+      regime: recipe.regime,
+      saison: recipe.saison,
+      ingredients: recipe.ingredients,
+      quantite_desc: recipe.quantite_desc,
+      auteur: recipe.auteur,
+      astuces: recipe.astuces,
+      prepAlt: recipe.prepAlt,
+      check: recipe.check,
+      draft: recipe.draft,
+      permissionWrite: recipe.permissionWrite,
+      materiel: recipe.materiel,
+      region: recipe.region,
+    });
+
+    return currentData !== initialRecipeSnapshot;
+  });
+
   // Logique réactive pour le brouillon
-  // REMOVED: Ce $effect causait une boucle infinie en modifiant recipe dans l'effet
+  $effect(() => {
+    if (recipe && recipe.check !== true) {
+      recipe.draft = true;
+    }
+  });
   // La logique du draft est maintenant gérée directement dans validateRecipe()
   // et lors du chargement initial de la recette
 
@@ -159,9 +198,9 @@
   // ============================================================================
 
   // Charger les données de référence
-  $effect(async () => {
+  $effect(() => {
     if (!recipeInfo) {
-      await loadRecipeInfo();
+      loadRecipeInfo();
     }
   });
 
@@ -191,7 +230,7 @@
             const userName = globalState.userName() || "utilisateur";
             recipe = {
               ...data,
-              title: `${data.title} (${userName})`,
+              title: `${data.title} (v-${userName})`,
               $id: "new-recipe",
               $createdAt: undefined,
               $updatedAt: undefined,
@@ -205,7 +244,8 @@
               prepAlt: data.prepAlt || [],
               materiel: data.materiel || [],
               regime: data.regime || [],
-              check: data.check ?? null,
+              check: null,
+              draft: true,
             } as unknown as RecipeFormState;
             loaded = true;
           } else {
@@ -266,10 +306,32 @@
     }
   });
 
-  // Détecter les modifications (isDirty) après le chargement initial
+  // Capturer le snapshot initial quand la recette est chargée
   $effect(() => {
-    if (recipe && loaded && !isDirty) {
-      isDirty = true;
+    if (recipe && loaded && !initialRecipeSnapshot) {
+      initialRecipeSnapshot = JSON.stringify({
+        title: recipe.title,
+        description: recipe.description,
+        plate: recipe.plate,
+        preparation: recipe.preparation,
+        preparation24h: recipe.preparation24h,
+        cuisson: recipe.cuisson,
+        serveHot: recipe.serveHot,
+        typeR: recipe.typeR,
+        categories: recipe.categories,
+        regime: recipe.regime,
+        saison: recipe.saison,
+        ingredients: recipe.ingredients,
+        quantite_desc: recipe.quantite_desc,
+        auteur: recipe.auteur,
+        astuces: recipe.astuces,
+        prepAlt: recipe.prepAlt,
+        check: recipe.check,
+        draft: recipe.draft,
+        permissionWrite: recipe.permissionWrite,
+        materiel: recipe.materiel,
+        region: recipe.region,
+      });
     }
   });
 
@@ -511,6 +573,50 @@
   }
 
   // ============================================================================
+  // NORMALISATION POUR APPWRITE
+  // ============================================================================
+
+  /**
+   * Normalise l'état du formulaire vers les types stricts Appwrite
+   * Doit être appelée APRÈS validateRecipe() donc toutes les valeurs nécessaires sont remplies
+   */
+  function normalizeRecipeForAppwrite(
+    recipe: RecipeFormState,
+  ): CreateRecipeData {
+    return {
+      // Conversions explicites des types UI → types Appwrite
+      title: recipe.title,
+      plate: recipe.plate,
+      preparation: recipe.preparation,
+      cuisson: recipe.cuisson === "" ? false : (recipe.cuisson as boolean),
+      serveHot: recipe.serveHot === "" ? true : (recipe.serveHot as boolean),
+      check: recipe.check ?? false,
+      typeR: recipe.typeR as RecettesTypeR,
+      permissionWrite:
+        recipe.permissionWrite && recipe.permissionWrite.length > 0
+          ? recipe.permissionWrite
+          : [globalState.userId],
+      draft: recipe.draft ?? true,
+      categories: recipe.categories || [],
+      regime: recipe.regime || [],
+      saison: recipe.saison || [],
+      materiel: recipe.materiel || [],
+      quantite_desc: recipe.quantite_desc || null,
+      description: recipe.description || null,
+      region: recipe.region || null,
+      auteur: recipe.auteur || null,
+      preparation24h: recipe.preparation24h || null,
+      // Les champs ingredients, astuces, prepAlt sont ajoutés séparément dans save()
+      ingredients: [] as string[],
+      astuces: null,
+      prepAlt: null,
+      lockedBy: null,
+      isPublished: false,
+      publishedAt: null,
+    } as CreateRecipeData;
+  }
+
+  // ============================================================================
   // VALIDATION & SAVE
   // ============================================================================
 
@@ -709,23 +815,16 @@
     try {
       if (isCreating) {
         // Création
-        // Conversion des astuces en JSON string
-
         recipe.$id = generateSlugUuid35(recipe.title);
 
+        // Normaliser les types UI vers types Appwrite
+        const normalized = normalizeRecipeForAppwrite(recipe);
+
         const recipeToCreate: CreateRecipeData = {
-          ...recipe,
+          ...normalized,
           ingredients: ingredientsToAppwrite(recipe.ingredients),
           astuces: astucesToAppwrite(recipe.astuces),
           prepAlt: recipe.prepAlt,
-          typeR: recipe.typeR as RecettesTypeR,
-          cuisson: recipe.cuisson === "" ? false : recipe.cuisson,
-          serveHot: recipe.serveHot === "" ? true : recipe.serveHot,
-          check: recipe.check,
-          permissionWrite:
-            recipe.permissionWrite && recipe.permissionWrite.length > 0
-              ? recipe.permissionWrite
-              : [globalState.userId],
         };
 
         const created = await createRecipeAppwrite(
@@ -772,14 +871,11 @@
         // Mise à jour
         const { regimes } = determineAllergensAndRegimes(recipe.ingredients);
 
+        // Normaliser les types UI vers types Appwrite
+        const normalized = normalizeRecipeForAppwrite(recipe);
+
         const recipeData: Partial<CreateRecipeData> = {
-          title: recipe.title,
-          description: recipe.description,
-          plate: recipe.plate,
-          preparation: recipe.preparation,
-          cuisson: recipe.cuisson === "" ? false : recipe.cuisson,
-          serveHot: recipe.serveHot === "" ? true : recipe.serveHot,
-          typeR: recipe.typeR as RecettesTypeR,
+          ...normalized,
           categories: recipe.categories,
           regime: regimes,
           saison: recipe.saison,
@@ -789,9 +885,6 @@
           preparation24h: recipe.preparation24h,
           astuces: astucesToAppwrite(recipe.astuces),
           prepAlt: recipe.prepAlt,
-          check: recipe.check,
-          draft: recipe.draft,
-          permissionWrite: recipe.permissionWrite,
           $id: recipe.$id,
         };
 
@@ -801,8 +894,30 @@
           globalState.userId,
         );
 
-        // Réinitialiser isDirty après sauvegarde réussie
-        isDirty = false;
+        // Réinitialiser isDirty après sauvegarde réussie en recapturant le snapshot
+        initialRecipeSnapshot = JSON.stringify({
+          title: recipe.title,
+          description: recipe.description,
+          plate: recipe.plate,
+          preparation: recipe.preparation,
+          preparation24h: recipe.preparation24h,
+          cuisson: recipe.cuisson,
+          serveHot: recipe.serveHot,
+          typeR: recipe.typeR,
+          categories: recipe.categories,
+          regime: recipe.regime,
+          saison: recipe.saison,
+          ingredients: recipe.ingredients,
+          quantite_desc: recipe.quantite_desc,
+          auteur: recipe.auteur,
+          astuces: recipe.astuces,
+          prepAlt: recipe.prepAlt,
+          check: recipe.check,
+          draft: recipe.draft,
+          permissionWrite: recipe.permissionWrite,
+          materiel: recipe.materiel,
+          region: recipe.region,
+        });
 
         // Appel async pour synchroniser vers GitHub
         // On nettoie les champs pour Hugo (pas de $)
@@ -847,6 +962,8 @@
     }
   }
 </script>
+
+{$inspect("isDirty", isDirty)}
 
 <!-- ============================================================================ -->
 {#snippet navActions()}
@@ -937,3 +1054,21 @@
     </div>
   {/if}
 </div>
+
+<!-- Guard de navigation pour modifications non sauvegardées -->
+<UnsavedChangesGuard
+  routeKey={recipeId ? `/recipe/${recipeId}/edit` : "/recipe/new"}
+  shouldProtect={() => isDirty}
+  onLeaveWithoutSave={async () => {
+    // Libérer le lock si on le détient
+    if (isLockedByMe) {
+      await releaseLock();
+    }
+  }}
+  onSaveAndLeave={async () => {
+    // Sauvegarder et autoriser la navigation
+    await save();
+    // Le guard sera notifié du succès via le return implicite
+  }}
+  message="Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter ?"
+/>

@@ -1,6 +1,5 @@
 import { MediaQuery } from "svelte/reactivity";
 import { toastService } from "../services/toast.service.svelte";
-import type { OverrideConflict } from "../services/hugo-sync-json";
 import { getAppwriteInstances, clearAppwriteCache } from "../services/appwrite";
 import { getUserTeamIds } from "../services/appwrite-teams";
 import type { Models } from "appwrite";
@@ -217,7 +216,7 @@ class GlobalState {
 
   modalOverride = $state({
     isOpen: false,
-    conflicts: [] as OverrideConflict[],
+    conflicts: [],
   });
 
   modal = $state({

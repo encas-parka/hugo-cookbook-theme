@@ -3,6 +3,7 @@
  */
 
 import { type Recettes, RecettesTypeR } from "./appwrite.d";
+import type { Astuce } from "../utils/recipeUtils";
 export { RecettesTypeR };
 
 // =============================================================================
@@ -47,9 +48,16 @@ export type RecipeFromAppwrite = Recettes;
  * @example
  * const recipe: RecipeForDisplay = await recipesStore.getRecipeByUuid(uuid);
  */
-export type RecipeForDisplay = Omit<Recettes, "ingredients"> & {
+export type RecipeForDisplay = Omit<Recettes, "ingredients" | "astuces"> & {
   ingredients: RecipeIngredient[];
+  astuces: Astuce[];
 };
+
+/**
+ * Alias pour RecipeForDisplay pour compatibilité
+ * @deprecated Utiliser RecipeForDisplay à la place
+ */
+export type RecipeData = RecipeForDisplay;
 
 // =============================================================================
 // INDEX DE RECETTES

@@ -15,16 +15,16 @@
     // Trier par date de publication (plus récent en premier)
     return recipesStore.recipesIndex
       .sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        const dateA = a.$createdAt ? new Date(a.$createdAt).getTime() : 0;
+        const dateB = b.$createdAt ? new Date(b.$createdAt).getTime() : 0;
         return dateB - dateA;
       })
       .slice(0, 5); // Limiter à 5 recettes
   });
 
   function formatRecipeDate(recipe: RecipeIndexEntry) {
-    return recipe.createdAt
-      ? formatDateRelative(recipe.createdAt)
+    return recipe.$createdAt
+      ? formatDateRelative(recipe.$createdAt)
       : "Date inconnue";
   }
 
@@ -133,7 +133,7 @@
                 class="text-base-content/60 mt-1 flex items-center gap-2 text-xs"
               >
                 <span class="badge badge-ghost badge-sm capitalize">
-                  {getRecipeTypeLabel(recipe.t)}
+                  {getRecipeTypeLabel(recipe.typeR)}
                 </span>
 
                 <!-- Categories -->

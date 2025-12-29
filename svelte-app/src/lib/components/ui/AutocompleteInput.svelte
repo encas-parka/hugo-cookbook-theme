@@ -1,4 +1,4 @@
-<script lang="ts">
+<script lang="ts" generics="T">
   import { Search } from "@lucide/svelte";
   import { keyboardNavigation } from "$lib/attachments/keyboardNavigation.svelte";
 

@@ -2,9 +2,10 @@
   import { onMount } from "svelte";
   import { recipesStore } from "../stores/RecipesStore.svelte";
   import type { RecipeData } from "../types/recipes.types";
+  import { RecettesTypeR } from "../types/recipes.types";
 
   let searchQuery = $state("");
-  let selectedType = $state<number | "">("");
+  let selectedType = $state<RecettesTypeR | "">("");
   let selectedRecipe = $state<RecipeData | null>(null);
   let loadingDetail = $state(false);
 
@@ -19,7 +20,7 @@
 
     // Filtre par type
     if (selectedType !== "") {
-      results = results.filter((recipe) => recipe.t === selectedType);
+      results = results.filter((recipe) => recipe.typeR === selectedType);
     }
 
     return results;
@@ -27,9 +28,9 @@
 
   // Types de recettes
   const recipeTypes = [
-    { value: 0, label: "Entrée" },
-    { value: 1, label: "Plat" },
-    { value: 2, label: "Dessert" },
+    { value: RecettesTypeR.ENTREE, label: "Entrée" },
+    { value: RecettesTypeR.PLAT, label: "Plat" },
+    { value: RecettesTypeR.DESSERT, label: "Dessert" },
   ];
 
   async function loadRecipeDetails(uuid: string) {
@@ -110,22 +111,22 @@
               </tr>
             </thead>
             <tbody>
-              {#each filteredRecipes as recipe (recipe.u)}
+              {#each filteredRecipes as recipe (recipe.$id)}
                 <tr>
-                  <td class="font-medium">{recipe.n}</td>
+                  <td class="font-medium">{recipe.title}</td>
                   <td>
                     <span class="badge badge-sm badge-outline">
-                      {recipeTypes.find((t) => t.value === recipe.t)?.label ||
-                        recipe.t}
+                      {recipeTypes.find((t) => t.value === recipe.typeR)
+                        ?.label || recipe.typeR}
                     </span>
                   </td>
                   <td>
-                    <code class="text-xs">{recipe.u.substring(0, 6)}</code>
+                    <code class="text-xs">{recipe.$id.substring(0, 6)}</code>
                   </td>
                   <td>
                     <button
                       class="btn btn-xs btn-primary"
-                      onclick={() => loadRecipeDetails(recipe.u)}
+                      onclick={() => loadRecipeDetails(recipe.$id)}
                     >
                       Détails
                     </button>
@@ -164,7 +165,7 @@
               <div class="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <span class="font-semibold">UUID:</span>
-                  <code class="ml-2 text-xs">{selectedRecipe.uuid}</code>
+                  <code class="ml-2 text-xs">{selectedRecipe.$id}</code>
                 </div>
                 <div>
                   <span class="font-semibold">Couverts:</span>

@@ -119,14 +119,17 @@
   // Récupérer l'affichage avec la priorité : catégorie > type
   const typeDisplay = $derived.by(() =>
     recipeDetails
-      ? getTypeDisplay(recipeDetails.typeR, recipeDetails.categories)
+      ? getTypeDisplay(
+          recipeDetails.typeR,
+          recipeDetails.categories || undefined,
+        )
       : { label: "", iconId: "no-cat" },
   );
 </script>
 
 {#snippet navActions()}
   {#if globalState.isAuthenticated && recipeDetails}
-    {#if recipeDetails.permissionWrite?.includes(globalState.userId) || recipeDetails.createdBy === globalState.userId}
+    {#if recipeDetails.permissionWrite?.includes(globalState.userId) || (recipeDetails.createdBy && recipeDetails.createdBy === globalState.userId)}
       <button
         class="btn btn-primary btn-sm"
         onclick={() => navigate(`/recipe/${recipeDetails?.$id}/edit`)}

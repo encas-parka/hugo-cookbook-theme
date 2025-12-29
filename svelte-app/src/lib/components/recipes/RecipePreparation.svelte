@@ -2,11 +2,12 @@
   import { CircleAlert, CookingPot, Lightbulb } from "@lucide/svelte";
   import SvelteMarkdown from "@humanspeak/svelte-markdown";
   import Fieldset from "../ui/Fieldset.svelte";
+  import type { Astuce } from "$lib/utils/recipeUtils";
 
   interface Props {
     preparation: string;
     preparation24h?: string;
-    astuces?: string[];
+    astuces?: Astuce[];
   }
 
   let { preparation, preparation24h, astuces = [] }: Props = $props();
@@ -41,7 +42,7 @@
   <!-- Astuces -->
   {#if astuces.length > 0}
     <div class="space-y-2 print:space-y-1">
-      {#each astuces as { astuce }}
+      {#each astuces as astuce}
         <Fieldset
           legend="Astuces"
           iconComponent={Lightbulb}

@@ -19,8 +19,8 @@
   import { fade } from "svelte/transition";
 
   interface Props {
-    permissionWrite: string[];
-    createdBy: string;
+    permissionWrite: string[] | null;
+    createdBy: string | undefined;
     canEdit: boolean;
   }
 

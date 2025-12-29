@@ -192,7 +192,9 @@ export async function acceptInvitation(
         "[appwrite-functions] Corps de la réponse:",
         response.responseBody,
       );
-      throw new Error(`Réponse invalide du serveur: ${parseError.message}`);
+      const errorMessage =
+        parseError instanceof Error ? parseError.message : String(parseError);
+      throw new Error(`Réponse invalide du serveur: ${errorMessage}`);
     }
 
     if (!result.success) {

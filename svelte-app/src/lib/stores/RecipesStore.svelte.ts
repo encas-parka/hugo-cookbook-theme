@@ -606,6 +606,7 @@ class RecipesStore {
             const recipeData: RecipeForDisplay = {
               ...recipe,
               ingredients: ingredients, // Ingrédients complets avec conversion
+              astuces: astucesFromAppwrite(recipe.astuces),
             };
 
             // 3. Mettre à jour les détails dans le cache IndexedDB uniquement

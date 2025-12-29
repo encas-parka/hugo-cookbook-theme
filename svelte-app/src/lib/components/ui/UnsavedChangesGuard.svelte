@@ -11,7 +11,7 @@
     routeKey: string;
     shouldProtect: () => boolean;
     onLeaveWithoutSave: () => void | Promise<void>;
-    onSaveAndLeave: () => void | Promise<void>;
+    onSaveAndLeave: () => boolean | void | Promise<boolean | void>;
     message?: string;
   }
 
@@ -76,7 +76,8 @@
       const result = await onSaveAndLeave();
 
       // Si le handler retourne explicitement false, on annule le départ
-      if (result === false) {
+      // Note: void sera casté en undefined ici
+      if (result === (false as boolean | undefined)) {
         console.log(
           "[UnsavedChangesGuard] Sauvegarde échouée, navigation annulée",
         );

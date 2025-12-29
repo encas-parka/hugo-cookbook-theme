@@ -605,7 +605,9 @@
   }
 </script>
 
-{$inspect("isDirty", isDirty)}
+<!-- {#debug}
+  {$inspect("isDirty", isDirty)}
+{/debug} -->
 
 {#snippet navActions()}
   <div class="flex items-center gap-2">
@@ -754,9 +756,9 @@
                   isEditing={editingMealIndex === meal.id}
                   onEditToggle={async () => {
                     if (!(await startEditing())) return;
-                    toggleEditMeal(meal.id);
+                    toggleEditMeal(meal.id || "");
                   }}
-                  onDelete={() => removeMeal(meal.id)}
+                  onDelete={() => removeMeal(meal.id || "")}
                   allDates={meals.map((m) => m.date)}
                   disabled={!canEdit || isLockedByOthers}
                 />

@@ -90,25 +90,30 @@ export class TeamsStore {
    */
   get myPendingInvitations() {
     if (!globalState.userEmail) return [];
-    
+
     // Rechercher dans toutes les équipes les invitations correspondant à l'email de l'utilisateur
-    const pendingInvites: Array<{teamId: string, teamName: string, invitation: KTeamInvitation}> = [];
-    
-    this.#teams.forEach(team => {
+    const pendingInvites: Array<{
+      teamId: string;
+      teamName: string;
+      invitation: KTeamInvitation;
+    }> = [];
+
+    this.#teams.forEach((team) => {
       // Use fallback empty string to avoid undefined checks if email isn't critical here
-      const userEmail = globalState.userEmail || '';
+      const userEmail = globalState.userEmail || "";
       if (!userEmail) return;
 
-      const myInvite = team.invited?.find(inv => 
-        inv.email.toLowerCase() === userEmail.toLowerCase() && 
-        inv.status === 'invited'
+      const myInvite = team.invited?.find(
+        (inv) =>
+          inv.email.toLowerCase() === userEmail.toLowerCase() &&
+          inv.status === "invited",
       );
-      
+
       if (myInvite) {
         pendingInvites.push({
           teamId: team.$id,
           teamName: team.name,
-          invitation: myInvite
+          invitation: myInvite,
         });
       }
     });
@@ -174,11 +179,15 @@ export class TeamsStore {
       for (const team of response.teams) {
         try {
           // Parser les membres
-          const parsedMembers: KTeamMember[] = team.members.map(memberStr => this.#safeParseMember(memberStr));
+          const parsedMembers: KTeamMember[] = team.members.map((memberStr) =>
+            this.#safeParseMember(memberStr),
+          );
 
           // Parser les invitations
           const parsedInvited: KTeamInvitation[] = team.invited
-            ? team.invited.map(inviteStr => this.#safeParseInvitation(inviteStr))
+            ? team.invited.map((inviteStr) =>
+                this.#safeParseInvitation(inviteStr),
+              )
             : [];
 
           const enrichedTeam: EnrichedTeam = {
@@ -215,13 +224,15 @@ export class TeamsStore {
         id: parsed.id || "unknown",
         name: parsed.name || "Inconnu",
         role: parsed.role || "member",
-        joinedAt: parsed.joinedAt || new Date().toISOString()
+        joinedAt: parsed.joinedAt || new Date().toISOString(),
       };
     } catch (e) {
       // Fallback pour les anciens formats ou données corrompues
       return {
         id: "unknown",
-        name: memberStr.includes("@") ? memberStr.split("@")[0] : (memberStr || "Inconnu"),
+        name: memberStr.includes("@")
+          ? memberStr.split("@")[0]
+          : memberStr || "Inconnu",
         role: "member",
         joinedAt: new Date().toISOString(),
       };
@@ -240,7 +251,7 @@ export class TeamsStore {
         status: parsed.status || "invited",
         invitedAt: parsed.invitedAt || new Date().toISOString(),
         invitedBy: parsed.invitedBy || "unknown",
-        name: parsed.name
+        name: parsed.name,
       };
     } catch (e) {
       return {
@@ -275,11 +286,15 @@ export class TeamsStore {
 
       if (team) {
         // Parser les membres
-        const parsedMembers: KTeamMember[] = team.members.map(memberStr => this.#safeParseMember(memberStr));
+        const parsedMembers: KTeamMember[] = team.members.map((memberStr) =>
+          this.#safeParseMember(memberStr),
+        );
 
         // Parser les invitations
         const parsedInvited: KTeamInvitation[] = team.invited
-          ? team.invited.map(inviteStr => this.#safeParseInvitation(inviteStr))
+          ? team.invited.map((inviteStr) =>
+              this.#safeParseInvitation(inviteStr),
+            )
           : [];
 
         const enrichedTeam: EnrichedTeam = {
@@ -379,7 +394,9 @@ export class TeamsStore {
       } else {
         // Fallback parsing si pas en cache (rare)
         members = team.members.map((m) => this.#safeParseMember(m));
-        invited = team.invited ? team.invited.map((i) => this.#safeParseInvitation(i)) : [];
+        invited = team.invited
+          ? team.invited.map((i) => this.#safeParseInvitation(i))
+          : [];
       }
 
       const enrichedTeam: EnrichedTeam = {
@@ -464,7 +481,7 @@ export class TeamsStore {
     userEmail?: string,
   ): Promise<void> {
     try {
-      await addMember(teamId, userId, userEmail);
+      await addMember(teamId, userId, userEmail || "");
 
       // Recharger l'équipe pour mettre à jour la liste des membres
       await this.fetchTeam(teamId);

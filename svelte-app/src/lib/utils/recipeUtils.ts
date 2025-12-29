@@ -155,13 +155,17 @@ export function astucesFromAppwrite(
  * // → ['{"astuce":"Conseil 1"}', '{"astuce":"Conseil 2"}']
  */
 export function astucesToAppwrite(
-  astuces: string[] | null | undefined,
+  astuces: string[] | { astuce: string }[] | null | undefined,
 ): string[] | null {
   if (!astuces || !Array.isArray(astuces) || astuces.length === 0) {
     return null;
   }
 
-  return astuces.map((astuce) => JSON.stringify(astuce));
+  return astuces.map((astuce) =>
+    typeof astuce === "string"
+      ? JSON.stringify({ astuce })
+      : JSON.stringify(astuce),
+  );
 }
 
 /**

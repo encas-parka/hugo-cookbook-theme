@@ -70,7 +70,7 @@
 
   // Contributeurs des équipes sélectionnées (pour le modal d'invitation)
   let kteamMembers = $derived.by(() => {
-    const members = [];
+    const members: Array<{ id: string; label: string; selected: boolean }> = [];
     for (const team of teamsStore.teams) {
       if (team.members) {
         for (const member of team.members) {

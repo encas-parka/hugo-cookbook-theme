@@ -14,7 +14,11 @@ import type {
   ByDateEntry,
 } from "../types/store.types";
 import type { EnrichedEvent, EventMeal } from "../types/events.d";
-import type { RecipeData, RecipeIngredient } from "../types/recipes.types";
+import type {
+  RecipeForDisplay,
+  RecipeIngredient,
+  RecipeData,
+} from "../types/recipes.types";
 import {
   calculateTotalQuantityArray,
   transformPurchasesToNumericQuantity,
