@@ -93,7 +93,7 @@
     <div class="flex flex-wrap gap-3">
       {#each availableCategories as category}
         <label
-          class="label bg-base-200/50 hover:bg-base-200 cursor-pointer justify-start gap-2 rounded-full px-2 py-0.5"
+          class="label bg-secondary/10 hover:bg-secondary/5 cursor-pointer justify-start gap-2 rounded-full px-2 py-0.5"
         >
           <input
             type="checkbox"
@@ -102,7 +102,7 @@
             onchange={() => toggleArrayItem(filters.categories, category)}
             {disabled}
           />
-          <span class="label-text">{category}</span>
+          <span class="">{category}</span>
         </label>
       {/each}
     </div>
@@ -113,7 +113,7 @@
     <div class="flex flex-wrap gap-3">
       {#each availableRegimes as regime}
         <label
-          class="label bg-base-200/50 hover:bg-base-200 cursor-pointer justify-start gap-2 rounded-full px-2 py-0.5"
+          class="label bg-secondary/10 hover:bg-secondary/5 cursor-pointer justify-start gap-2 rounded-full px-2 py-0.5"
         >
           <input
             type="checkbox"

@@ -391,7 +391,7 @@
               <!-- Besoins -->
               <div
                 id="needs-card"
-                class="bg-base-200/40 hover:bg-base-200/50 relative flex min-w-[200px] flex-1 cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg p-3 transition-colors hover:shadow-sm"
+                class="bg-base-200 hover:bg-base-300 relative flex min-w-[200px] flex-1 cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg p-3 transition-colors hover:shadow-sm"
                 role="button"
                 tabindex="0"
                 onclick={() => onOpenModal(product.$id, "recettes")}
@@ -485,7 +485,7 @@
 
               <!-- Achats -->
               <div
-                class="group bg-base-200/40 hover:bg-base-200/50 hover:ring-accent/60 relative flex min-w-[200px] flex-1 cursor-pointer items-center justify-between gap-2 rounded-lg p-3 transition-colors hover:ring-2"
+                class="group bg-base-200 hover:bg-base-300 hover:ring-accent/60 relative flex min-w-[200px] flex-1 cursor-pointer items-center justify-between gap-2 rounded-lg p-3 transition-colors hover:ring-2"
                 role="button"
                 tabindex="0"
                 onclick={() => onOpenModal(product.$id, "achats")}

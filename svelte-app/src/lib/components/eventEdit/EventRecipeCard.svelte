@@ -92,7 +92,7 @@
     else if (typeR === "plat") return "bg-orange-100 border-orange-200";
     else if (typeR === "dessert") return "bg-pink-100 border-pink-200";
     else if (typeR === "autre") return "bg-purple-100 border-purple-200";
-    else return "bg-base-200/50";
+    else return "bg-base-200";
   }
 
   // Date formatée pour l'affichage

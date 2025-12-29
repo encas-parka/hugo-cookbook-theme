@@ -79,7 +79,7 @@
   {:else if teamsStore.count === 0}
     <!-- Empty state -->
     <div
-      class="bg-base-200/50 rounded-box border-base-200 border-2 border-dashed py-20 text-center"
+      class="bg-base-200 rounded-box border-base-200 border-2 border-dashed py-20 text-center"
     >
       <div class="bg-base-200 mb-4 inline-block rounded-full p-4">
         <Users class="h-8 w-8 opacity-50" />

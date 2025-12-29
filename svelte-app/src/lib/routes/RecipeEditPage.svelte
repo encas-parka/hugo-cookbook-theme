@@ -10,13 +10,14 @@
   import { astucesToAppwrite } from "$lib/utils/recipeUtils";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { navigate, router } from "$lib/services/simple-router.svelte";
-  import { Save, Lock } from "@lucide/svelte";
+  import { Save, Lock, Copy } from "@lucide/svelte";
   import { onDestroy } from "svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import RecipeHeaderForm from "$lib/components/recipeEdit/RecipeHeaderForm.svelte";
   import RecipePrepaForm from "$lib/components/recipeEdit/RecipePrepaForm.svelte";
   import RecipePermissionsManager from "$lib/components/recipeEdit/RecipePermissionsManager.svelte";
   import UnsavedChangesGuard from "$lib/components/ui/UnsavedChangesGuard.svelte";
+  import RecipeMetadata from "$lib/components/recipes/RecipeMetadata.svelte";
   import { generateSlugUuid35 } from "$lib/utils/slugUtils";
   import {
     type RecipeFormState,
@@ -460,6 +461,22 @@
       setTimeout(() => toastService.dismiss(toastId), 3000);
     }
   }
+
+  // ============================================================================
+  // DUPLICATE
+  // ============================================================================
+
+  async function duplicate(): Promise<void> {
+    if (!recipe || isSaving) return;
+
+    // Créer une nouvelle recette basée sur l'actuelle
+    const userName = globalState.userName() || "utilisateur";
+    const duplicatedTitle = `${recipe.title} (copie-${userName})`;
+
+    loaded = false;
+    // Rediriger vers le mode création avec les données dupliquées
+    navigate(`/recipe/${recipeId}/duplicate`);
+  }
 </script>
 
 {$inspect("isDirty", isDirty)}
@@ -478,6 +495,18 @@
         <Lock class="h-3 w-3" />
         Vous éditez
       </div>
+    {/if}
+
+    <!-- Duplicate button -->
+    {#if !isCreating}
+      <button
+        onclick={duplicate}
+        disabled={!canEdit || isSaving}
+        class="btn btn-secondary btn-soft btn-sm"
+      >
+        <Copy class="h-4 w-4" />
+        Créer une version alternative
+      </button>
     {/if}
 
     <!-- Save button -->
@@ -528,36 +557,13 @@
 
       <!-- Métadonnées système -->
       {#if !isCreating && recipe.$createdAt}
-        <div class="bg-base-200/50 rounded-box mt-12 p-6 text-sm opacity-60">
-          <div
-            class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          >
-            <div>
-              <span class="font-semibold">Auteur :</span>
-              {recipe.auteur || recipe.createdBy || "Inconnu"}
-            </div>
-            <div>
-              <span class="font-semibold">ID :</span>
-              <span class="font-mono">{recipe.$id}</span>
-            </div>
-            <div>
-              <span class="font-semibold">Créé le :</span>
-              {new Intl.DateTimeFormat("fr-FR", {
-                dateStyle: "long",
-                timeStyle: "short",
-              }).format(new Date(recipe.$createdAt))}
-            </div>
-            {#if recipe.$updatedAt && recipe.$updatedAt !== recipe.$createdAt}
-              <div>
-                <span class="font-semibold">Modifié le :</span>
-                {new Intl.DateTimeFormat("fr-FR", {
-                  dateStyle: "long",
-                  timeStyle: "short",
-                }).format(new Date(recipe.$updatedAt))}
-              </div>
-            {/if}
-          </div>
-        </div>
+        <RecipeMetadata
+          auteur={recipe.auteur}
+          createdBy={recipe.createdBy}
+          id={recipe.$id}
+          createdAt={recipe.$createdAt}
+          updatedAt={recipe.$updatedAt}
+        />
       {/if}
     </div>
   {/if}

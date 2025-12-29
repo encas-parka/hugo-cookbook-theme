@@ -105,7 +105,7 @@
     <!-- Toolbar -->
     {#if editor}
       <div
-        class="border-base-200 bg-base-200/50 flex flex-wrap items-center gap-1 border-b p-1"
+        class="border-base-200 bg-base-200 flex flex-wrap items-center gap-1 border-b p-1"
       >
         <button
           type="button"

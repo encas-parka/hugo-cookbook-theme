@@ -115,7 +115,7 @@
       <div class="space-y-3">
         {#each latestRecipes as recipe (recipe.$id)}
           <div
-            class="bg-base-200/30 hover:bg-base-200/50 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors"
+            class="bg-base-200 hover:bg-base-300 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors"
             onclick={() => viewRecipe(recipe.$id)}
             role="button"
             tabindex="0"

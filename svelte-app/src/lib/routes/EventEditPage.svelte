@@ -737,7 +737,7 @@
 
         {#if sortedMeals.length === 0}
           <div
-            class="text-base-content/60 bg-base-200/30 rounded-box border-base-200 flex flex-col items-center justify-center border-2 border-dashed py-12"
+            class="text-base-content/60 bg-base-200 rounded-box border-base-200 flex flex-col items-center justify-center border-2 border-dashed py-12"
           >
             <div class="bg-base-200 mb-4 rounded-full p-4">
               <Calendar class="h-8 w-8 opacity-50" />

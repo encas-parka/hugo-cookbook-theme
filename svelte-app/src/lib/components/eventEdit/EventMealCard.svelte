@@ -249,7 +249,7 @@
     else if (typeR === "plat") return "bg-orange-100 border-orange-200";
     else if (typeR === "dessert") return "bg-pink-100 border-pink-200";
     else if (typeR === "autre") return "bg-purple-100 border-purple-200";
-    else return "bg-base-200/50";
+    else return "bg-base-200";
   }
 </script>
 
@@ -405,7 +405,7 @@
                 {@const recipeIndex = getRecipeIndex(recipe.recipeUuid)}
                 <div
                   animate:flip={{ duration: 200 }}
-                  class="bg-base-200/40 flex flex-wrap items-center gap-3 rounded-lg p-3"
+                  class="bg-base-200 flex flex-wrap items-center gap-3 rounded-lg p-3"
                 >
                   <!-- Icône -->
                   <div class="flex flex-1 items-center gap-2">

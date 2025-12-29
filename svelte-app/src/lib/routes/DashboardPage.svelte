@@ -58,7 +58,7 @@
       Nouvel Événement
     </button>
     <button
-      class="btn btn-secondary btn-sm"
+      class="btn btn-primary btn-sm"
       onclick={() => navigate("/recipe/new")}
     >
       <BookOpen class="h-4 w-4" />

@@ -101,7 +101,7 @@
             <div class="space-y-2">
               {#each teams as team}
                 <div
-                  class="bg-base-200/50 hover:bg-base-200/70 flex cursor-pointer items-center justify-between rounded-lg p-2 transition-colors"
+                  class="bg-base-200 hover:bg-base-300 flex cursor-pointer items-center justify-between rounded-lg p-2 transition-colors"
                   onclick={() => openTeamDetailModal(team.$id)}
                   role="button"
                   tabindex="0"
@@ -122,7 +122,7 @@
                       </div>
                     {/if}
                   </div>
-                  <div class="badge badge-primary badge-sm">Membre</div>
+                  <div class="badge badge-secondary badge-sm">Membre</div>
                 </div>
               {/each}
             </div>

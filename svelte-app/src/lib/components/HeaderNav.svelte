@@ -131,7 +131,7 @@
     {/if}
   </div>
 
-  <div class="navbar-end gap-2">
+  <div class="navbar-end gap-4">
     {#if navBarStore.isLockedByOthers}
       <div class="badge badge-warning flex items-center gap-1 py-3 font-medium">
         <LockIcon size={14} />

@@ -61,7 +61,7 @@
           <div class="space-y-3">
             {#each currentEvents as event (event.$id)}
               <div
-                class="bg-base-200/50 hover:bg-base-200 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors"
+                class="bg-base-200 hover:bg-base-300 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors"
                 onclick={() => navigate(`/dashboard/eventEdit/${event.$id}`)}
                 role="button"
                 tabindex="0"
@@ -74,10 +74,10 @@
               >
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-4">
-                    <div class="truncate text-lg font-semibold">
+                    <div class="text-primary truncate text-lg font-semibold">
                       {event.name}
                     </div>
-                    <div class="badge font-medium">
+                    <div class="badge badge-soft badge-secondary font-medium">
                       {#if event.allDates && event.allDates.length > 1 && event.dateStart && event.dateEnd}
                         <Calendar class="h-4 w-4" />
                         {formatDateShort(event.dateStart)} au {formatDateShort(
@@ -140,7 +140,7 @@
       <!-- Événements passés (compteur) -->
       {#if pastEventsCount > 0}
         <button
-          class="text-base-content/50 bg-base-200/30 hover:bg-base-300/30 cursor-pointer rounded p-3 text-center text-sm"
+          class="text-base-content/50 bg-base-200 hover:bg-base-300 cursor-pointer rounded p-3 text-center text-sm"
           onclick={() => navigate(`/eventList`)}
         >
           {pastEventsCount} événement{pastEventsCount > 1 ? "s" : ""} passé{pastEventsCount >

@@ -8,12 +8,13 @@
   import RecipePreparation from "$lib/components/recipes/RecipePreparation.svelte";
   import RecipeAlerts from "$lib/components/recipes/RecipeAlerts.svelte";
   import RecipeAlternatives from "$lib/components/recipes/RecipeAlternatives.svelte";
-  import { ChefHat, PencilIcon } from "@lucide/svelte";
+  import { ChefHat, PencilIcon, Copy } from "@lucide/svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
   import { onDestroy } from "svelte";
   import { getTypeDisplay } from "$lib/utils/recipeUtils";
+  import RecipeMetadata from "$lib/components/recipes/RecipeMetadata.svelte";
 
   interface Props {
     params?: { uuid?: string };
@@ -129,23 +130,27 @@
 
 {#snippet navActions()}
   {#if globalState.isAuthenticated && recipeDetails}
-    {#if (recipeDetails.permissionWrite && globalState.userId && recipeDetails.permissionWrite.includes(globalState.userId)) || (recipeDetails.createdBy && recipeDetails.createdBy === globalState.userId)}
-      <button
-        class="btn btn-primary btn-sm"
-        onclick={() => navigate(`/recipe/${recipeDetails?.$id}/edit`)}
-      >
-        <PencilIcon size={18} />
-        Éditer
-      </button>
-    {:else}
+    <div class="flex items-center gap-4">
+      <!-- Bouton Créer une version alternative (disponible pour tous) -->
       <button
         class="btn btn-secondary btn-sm"
         onclick={() => navigate(`/recipe/${recipeDetails?.$id}/duplicate`)}
       >
-        <PencilIcon size={18} />
+        <Copy size={18} />
         Créer une version alternative
       </button>
-    {/if}
+
+      <!-- Bouton Éditer (réservé aux utilisateurs avec droits d'écriture) -->
+      {#if (recipeDetails.permissionWrite && globalState.userId && recipeDetails.permissionWrite.includes(globalState.userId)) || (recipeDetails.createdBy && recipeDetails.createdBy === globalState.userId)}
+        <button
+          class="btn btn-primary btn-sm"
+          onclick={() => navigate(`/recipe/${recipeDetails?.$id}/edit`)}
+        >
+          <PencilIcon size={18} />
+          Éditer
+        </button>
+      {/if}
+    </div>
   {/if}
 {/snippet}
 
@@ -334,9 +339,12 @@
     </div>
 
     <!-- Métadonnées -->
-    <div class="text-base-content/60 mt-8 text-right text-sm">
-      <!-- Published Date not available in new simplified index, maybe in details? -->
-      <!-- TODO: Add publishedAt to RecipeForDisplay if needed -->
-    </div>
+    <RecipeMetadata
+      auteur={recipeDetails.auteur}
+      createdBy={recipeDetails.createdBy}
+      id={recipeDetails.$id}
+      createdAt={recipeDetails.$createdAt}
+      updatedAt={recipeDetails.$updatedAt}
+    />
   {/if}
 </div>
