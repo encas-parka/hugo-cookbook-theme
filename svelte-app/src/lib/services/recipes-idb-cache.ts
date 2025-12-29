@@ -5,7 +5,7 @@
  * - 1 base: `recipes-cache`
  * - 1 store "recipes-index" pour les RecipeIndexEntry (index léger)
  * - 1 store "recipes-details" pour les Recettes (détails complets)
- * - 1 store "metadata" pour lastSync + buildTimestamp
+ * - 1 store "metadata" pour buildTimestamp + lastAppwriteSync
  *
  * Stratégie:
  * - L'index est chargé au démarrage (léger)
@@ -52,7 +52,7 @@ export interface RecipesIDBCache {
 class RecipesIndexedDBCache implements RecipesIDBCache {
   private dbName = "recipes-cache";
   private db: IDBDatabase | null = null;
-  private version = 4; // Incrément de version pour format de métadonnées simplifié
+  private version = 5; // Incrément de version pour suppression de lastSync
 
   // Noms des object stores
   private readonly RECIPES_INDEX_STORE = "recipes-index";
@@ -60,7 +60,6 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
   private readonly METADATA_STORE = "metadata";
 
   // Clés pour les métadonnées
-  private readonly LAST_SYNC_KEY = "lastSync";
   private readonly BUILD_TIMESTAMP_KEY = "buildTimestamp";
   private readonly LAST_APPWRITE_SYNC_KEY = "lastAppwriteSync";
   private readonly RECIPES_COUNT_KEY = "recipesCount";
@@ -278,7 +277,6 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
         const allEntries = request.result;
 
         const metadata: RecipesCacheMetadata = {
-          lastSync: null,
           buildTimestamp: null,
           lastAppwriteSync: null,
           recipesCount: 0,
@@ -286,8 +284,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
         };
 
         allEntries.forEach((entry) => {
-          if (entry.key === this.LAST_SYNC_KEY) metadata.lastSync = entry.value;
-          else if (entry.key === this.RECIPES_COUNT_KEY)
+          if (entry.key === this.RECIPES_COUNT_KEY)
             metadata.recipesCount = entry.value;
           else if (entry.key === this.BUILD_TIMESTAMP_KEY)
             metadata.buildTimestamp = entry.value;
@@ -315,7 +312,6 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       const tx = this.db!.transaction(this.METADATA_STORE, "readwrite");
       const store = tx.objectStore(this.METADATA_STORE);
 
-      store.put({ key: this.LAST_SYNC_KEY, value: metadata.lastSync });
       store.put({
         key: this.BUILD_TIMESTAMP_KEY,
         value: metadata.buildTimestamp,

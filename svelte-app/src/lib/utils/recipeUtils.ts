@@ -7,6 +7,7 @@ import type {
   RecipeForDisplay,
   RecipeIndexEntry,
 } from "../types/recipes.types";
+import { ingredientsFromAppwrite } from "./ingredientUtils";
 
 // =============================================================================
 // TYPE DE RECETTE - Labels et Icônes (Sprite SVG)
@@ -283,5 +284,49 @@ export function parseRecipeIndexEntry(rawData: any): RecipeIndexEntry {
     $id: rawData.$id || rawData.id || "",
     $createdAt: rawData.$createdAt || rawData.createdAt || "",
     $updatedAt: rawData.$updatedAt || rawData.updatedAt || "",
+  };
+}
+
+/**
+ * Convertit une recette Appwrite (Recettes) en entrée d'index (RecipeIndexEntry)
+ *
+ * @param recipe - Recette brute depuis Appwrite
+ * @returns RecipeIndexEntry pour l'index
+ */
+export function parseAppwriteRecipeToIndexEntry(recipe: any): RecipeIndexEntry {
+  // Extraire les noms d'ingrédients
+  let ingredientNames: string[] = [];
+  if (recipe.ingredients) {
+    const ingredients = ingredientsFromAppwrite(recipe.ingredients);
+    ingredientNames = ingredients.map((ing) => ing.name);
+  }
+
+  return {
+    title: recipe.title,
+    typeR: recipe.typeR,
+    categories: recipe.categories,
+    regime: recipe.regime,
+    draft: recipe.draft || false,
+    saison: recipe.saison,
+
+    // Champs de filtrage rapide
+    ingredients: ingredientNames,
+    materiel: recipe.materiel,
+    region: recipe.region || null,
+    serveHot: recipe.serveHot,
+    cuisson: recipe.cuisson,
+    check: recipe.check,
+    auteur: recipe.auteur || recipe.createdBy,
+
+    // Champs de permission
+    permissionWrite: recipe.permissionWrite,
+
+    // Champs de gestion
+    lockedBy: recipe.lockedBy || null,
+    $id: recipe.$id,
+    $createdAt: recipe.$createdAt,
+    $updatedAt: recipe.$updatedAt,
+    createdBy: recipe.createdBy,
+    plate: recipe.plate,
   };
 }

@@ -2,6 +2,7 @@
   import { globalState } from "../stores/GlobalState.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
+  import { recipesStore } from "../stores/RecipesStore.svelte";
   import EventTabs from "./eventEdit/EventTabs.svelte";
 
   import {
@@ -15,11 +16,13 @@
     SearchIcon,
     CircleStar,
     LockIcon,
+    RefreshCwIcon,
   } from "@lucide/svelte";
   import AuthModal from "./AuthModal.svelte";
 
   let showDropdown = $state(false);
   let showAuthModal = $state(false);
+  let isReloading = $state(false);
 
   function toggleDropdown() {
     showDropdown = !showDropdown;
@@ -41,6 +44,21 @@
   function handleLogin() {
     showAuthModal = true;
     console.log("showAuthModal", showAuthModal);
+  }
+
+  async function handleReloadRecipes() {
+    if (!globalState.userId) return;
+
+    isReloading = true;
+    try {
+      await recipesStore.forceReloadAllRecipes();
+      closeDropdown();
+    } catch (error) {
+      console.error("Erreur lors du rechargement des recettes:", error);
+      alert("Erreur lors du rechargement des recettes");
+    } finally {
+      isReloading = false;
+    }
   }
 
   // Fermer le dropdown au clic extérieur
@@ -190,6 +208,19 @@
             <button onclick={() => navigate("/recipe")}
               ><BookOpenIcon size={16} /> Recettes</button
             >
+          </li>
+          <li>
+            <button
+              onclick={handleReloadRecipes}
+              disabled={isReloading}
+              class="disabled:opacity-50"
+            >
+              <RefreshCwIcon
+                size={16}
+                class={isReloading ? "animate-spin" : ""}
+              />
+              {isReloading ? "Chargement..." : "Recharger les recettes"}
+            </button>
           </li>
           <li class="border-base-100 my-1 border-t"></li>
           <li>

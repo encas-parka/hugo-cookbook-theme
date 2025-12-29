@@ -83,19 +83,16 @@ const RECIPES_COLLECTION_ID = "recettes";
 // =============================================================================
 
 /**
- * Liste TOUTES les recettes non-published (accès global en lecture)
- * Utilisé pour : duplication, ajout à événement, consultation
+ * Liste TOUTES les recettes Appwrite (accès global en lecture)
+ * Utilisé pour : duplication, ajout à événement, consultation, rechargement forcé
  */
-export async function listAllNonPublishedRecipes(): Promise<Recettes[]> {
+export async function forceReloadAllAppwriteRecipes(): Promise<Recettes[]> {
   try {
     const { tables, config } = await getAppwriteInstances();
-
-    const queries = [Query.equal("isPublished", false)];
 
     const response = await tables.listRows({
       databaseId: config.databaseId,
       tableId: RECIPES_COLLECTION_ID,
-      queries,
     });
 
     return response.rows as unknown as Recettes[];
@@ -139,7 +136,7 @@ export async function listNonPublishedRecipes(
   userTeams: string[],
 ): Promise<Recettes[]> {
   try {
-    const allRecipes = await listAllNonPublishedRecipes();
+    const allRecipes = await forceReloadAllAppwriteRecipes();
 
     // Filtrage côté client pour permissions d'édition
     return allRecipes.filter((recipe) => {

@@ -37,12 +37,13 @@ import {
 } from "../services/recipes-idb-cache";
 import {
   parseRecipeIndexEntry,
+  parseAppwriteRecipeToIndexEntry,
   astucesFromAppwrite,
 } from "../utils/recipeUtils";
 import { parseRecipeData } from "../utils/recipeUtils";
 import { ingredientsFromAppwrite } from "../utils/ingredientUtils";
 import {
-  listAllNonPublishedRecipes,
+  forceReloadAllAppwriteRecipes,
   getRecipeAppwrite as getAppwriteRecipe,
   subscribeToRecipes,
   updateRecipeAppwrite,
@@ -68,7 +69,6 @@ class RecipesStore {
   // État UI
   #loading = $state(false);
   #error = $state<string | null>(null);
-  #lastSync = $state<string | null>(null);
   #isInitialized = $state(false);
   #versionTimestamp = $state<number | null>(null);
 
@@ -91,10 +91,6 @@ class RecipesStore {
 
   get error() {
     return this.#error;
-  }
-
-  get lastSync() {
-    return this.#lastSync;
   }
 
   get isInitialized() {
@@ -168,7 +164,6 @@ class RecipesStore {
             `[RecipesStore] ${cachedIndex.size} recettes (index) chargées depuis le cache`,
           );
           this.#recipesIndex = new SvelteMap(cachedIndex);
-          this.#lastSync = cachedMetadata.lastSync;
         }
 
         // C. Charger l'index depuis data.json (recettes published)
@@ -189,7 +184,7 @@ class RecipesStore {
           console.log("[RecipesStore] Continuation avec les données du cache");
         }
 
-        // D. Sync Incrémentiel Appwrite (Recettes modifiées depuis lastSync)
+        // D. Sync Incrémentiel Appwrite (Recettes modifiées depuis lastAppwriteSync)
         if (globalState.userId) {
           try {
             await this.#incrementalSync(cachedMetadata);
@@ -202,20 +197,7 @@ class RecipesStore {
           }
         }
 
-        // E. Fallback: Charger TOUTES les recettes non-published depuis Appwrite
-        // (Juste au cas où, pour garantir qu'on a bien les drafts, même anciens)
-        if (globalState.userId) {
-          try {
-            await this.#loadAppwriteRecipes();
-          } catch (err) {
-            console.warn(
-              "[RecipesStore] Erreur lors du chargement des recettes non-publiées:",
-              err,
-            );
-          }
-        }
-
-        // F. Activer le realtime
+        // E. Activer le realtime
         if (globalState.userId) {
           try {
             this.#setupRealtime();
@@ -228,7 +210,7 @@ class RecipesStore {
           }
         }
 
-        // G. Vérification finale: s'assurer qu'on a bien des données
+        // F. Vérification finale: s'assurer qu'on a bien des données
         if (this.#recipesIndex.size === 0) {
           const message = "Aucune recette disponible après initialisation";
           this.#error = message;
@@ -321,7 +303,6 @@ class RecipesStore {
         }
       });
 
-      this.#lastSync = new Date().toISOString();
       console.log(
         `[RecipesStore] Smart Merge: ${updatedCount} recettes mises à jour/ajoutées.`,
       );
@@ -332,8 +313,7 @@ class RecipesStore {
         await this.#cache.saveRecipesIndex(this.#recipesIndex);
         await this.#cache.saveMetadata({
           ...cachedMetadata,
-          lastSync: this.#lastSync,
-          buildTimestamp: remoteTimestamp || Date.now() / 1000, // Fallback si pas de meta
+          buildTimestamp: remoteTimestamp || Date.now() / 1000,
           recipesCount: this.#recipesIndex.size,
           cacheVersion: 1,
         });
@@ -345,61 +325,57 @@ class RecipesStore {
   }
 
   /**
-   * Cleanup : marque les recettes Appwrite comme published si présentes dans Hugo
+   * Recharge manuellement toutes les recettes depuis Appwrite
+   * À utiliser via le bouton "Recharger les recettes" dans l'UI
    */
-  /**
-   * Charge les recettes non-published depuis Appwrite
-   * Accès global en lecture pour toutes les recettes (duplication, ajout à événement)
-   */
-  async #loadAppwriteRecipes(): Promise<void> {
+  async forceReloadAllRecipes(): Promise<void> {
+    if (!globalState.userId) {
+      throw new Error("Utilisateur non connecté");
+    }
+
+    this.#loading = true;
+    this.#error = null;
+
     try {
-      console.log("[RecipesStore] Chargement des recettes Appwrite...");
+      console.log("[RecipesStore] Rechargement forcé des recettes Appwrite...");
 
-      // Charger TOUTES les recettes non-published (accès global en lecture)
-      const appwriteRecipes = await listAllNonPublishedRecipes();
+      // Charger TOUTES les recettes Appwrite
+      const appwriteRecipes = await forceReloadAllAppwriteRecipes();
 
-      // Ajouter à l'index
+      // Ajouter à l'index via la méthode de parsing existante
       appwriteRecipes.forEach((recipe) => {
-        // Extrait les noms d'ingrédients depuis le format Appwrite
-        const ingredients = ingredientsFromAppwrite(recipe.ingredients);
-        const ingredientNames = ingredients.map((ing) => ing.name);
-
-        this.#recipesIndex.set(recipe.$id, {
-          title: recipe.title,
-          typeR: recipe.typeR,
-          categories: recipe.categories,
-          regime: recipe.regime,
-          draft: recipe.draft || false,
-          saison: recipe.saison,
-
-          // Champs de filtrage rapide
-          ingredients: ingredientNames, // Noms des ingrédients uniquement
-          materiel: recipe.materiel,
-          region: recipe.region || null,
-          serveHot: recipe.serveHot,
-          cuisson: recipe.cuisson,
-          check: recipe.check,
-          auteur: recipe.auteur || recipe.createdBy,
-
-          // Champs de permission
-          permissionWrite: recipe.permissionWrite,
-
-          // Champs de gestion
-          lockedBy: recipe.lockedBy || null,
-          $id: recipe.$id,
-          $createdAt: recipe.$createdAt,
-          $updatedAt: recipe.$updatedAt,
-          createdBy: recipe.createdBy,
-          plate: recipe.plate,
-        });
+        this.#recipesIndex.set(
+          recipe.$id,
+          parseAppwriteRecipeToIndexEntry(recipe),
+        );
       });
 
       console.log(
         `[RecipesStore] ${appwriteRecipes.length} recettes Appwrite chargées`,
       );
+
+      // Mettre à jour le cache
+      if (this.#cache) {
+        const cachedMetadata = await this.#cache.loadMetadata();
+        const now = new Date().toISOString();
+        await this.#cache.saveRecipesIndex(this.#recipesIndex);
+        await this.#cache.saveMetadata({
+          ...cachedMetadata,
+          lastAppwriteSync: now,
+          recipesCount: this.#recipesIndex.size,
+          cacheVersion: 1,
+        });
+      }
+
+      console.log("[RecipesStore] Rechargement forcé terminé");
     } catch (err) {
-      console.error("[RecipesStore] Erreur lors du chargement Appwrite:", err);
-      // Ne pas bloquer l'initialisation
+      const message =
+        err instanceof Error ? err.message : "Erreur lors du rechargement";
+      this.#error = message;
+      console.error("[RecipesStore] Erreur rechargement forcé:", err);
+      throw err;
+    } finally {
+      this.#loading = false;
     }
   }
 
@@ -437,14 +413,11 @@ class RecipesStore {
     let updatedCount = 0;
     updatedRecipes.forEach((recipe) => {
       // Parsing unifié
-      const indexEntry = this.#parseAppwriteRecipeToIndexEntry(recipe);
+      const indexEntry = parseAppwriteRecipeToIndexEntry(recipe);
 
       // Upsert inconstestable (Appwrite est la source de vérité pour les modifs récentes)
       this.#recipesIndex.set(indexEntry.$id, indexEntry);
 
-      // Si la recette est publiée, on met aussi à jour le cache de détails si possible ?
-      // Non, on laisse le lazy loading faire, sauf si on veut être proactif.
-      // Pour l'instant on met juste à jour l'index.
       updatedCount++;
     });
 
@@ -462,47 +435,6 @@ class RecipesStore {
     console.log(
       `[RecipesStore] Sync incrémentiel terminé (${updatedCount} mises à jour).`,
     );
-  }
-
-  /**
-   * Convertit une recette Appwrite (Recettes) en entrée d'index (RecipeIndexEntry)
-   */
-  #parseAppwriteRecipeToIndexEntry(recipe: any): RecipeIndexEntry {
-    // Extraire les noms d'ingrédients
-    let ingredientNames: string[] = [];
-    if (recipe.ingredients) {
-      const ingredients = ingredientsFromAppwrite(recipe.ingredients);
-      ingredientNames = ingredients.map((ing) => ing.name);
-    }
-
-    return {
-      title: recipe.title,
-      typeR: recipe.typeR,
-      categories: recipe.categories,
-      regime: recipe.regime,
-      draft: recipe.draft || false,
-      saison: recipe.saison,
-
-      // Champs de filtrage rapide
-      ingredients: ingredientNames,
-      materiel: recipe.materiel,
-      region: recipe.region || null,
-      serveHot: recipe.serveHot,
-      cuisson: recipe.cuisson,
-      check: recipe.check,
-      auteur: recipe.auteur || recipe.createdBy,
-
-      // Champs de permission
-      permissionWrite: recipe.permissionWrite,
-
-      // Champs de gestion
-      lockedBy: recipe.lockedBy || null,
-      $id: recipe.$id,
-      $createdAt: recipe.$createdAt,
-      $updatedAt: recipe.$updatedAt,
-      createdBy: recipe.createdBy,
-      plate: recipe.plate,
-    };
   }
 
   /**

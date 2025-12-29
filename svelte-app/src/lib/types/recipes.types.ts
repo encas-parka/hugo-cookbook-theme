@@ -153,7 +153,6 @@ export interface RecipeDataCacheMetadata {
  * Métadonnées du cache IndexedDB pour les recettes
  */
 export interface RecipesCacheMetadata {
-  lastSync: string | null;
   buildTimestamp: number | null; // Timestamp du dernier build Hugo traité
   lastAppwriteSync: string | null; // Timestamp de la dernière sync Appwrite réussie
   recipesCount: number;
