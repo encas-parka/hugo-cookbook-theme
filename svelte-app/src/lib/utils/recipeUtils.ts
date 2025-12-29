@@ -229,6 +229,9 @@ export function parseRecipeData(rawData: any): RecipeForDisplay {
     ...rawData,
     // Mapper 'id' depuis Hugo vers '$id' pour notre format interne
     $id: rawData.$id || rawData.id || "",
+    // Mapper 'createdAt'/'updatedAt' depuis Hugo vers '$createdAt'/'$updatedAt' pour notre format interne
+    $createdAt: rawData.$createdAt || rawData.createdAt || "",
+    $updatedAt: rawData.$updatedAt || rawData.updatedAt || "",
     ingredients,
   };
 }
