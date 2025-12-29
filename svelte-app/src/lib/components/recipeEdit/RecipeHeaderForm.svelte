@@ -54,14 +54,12 @@
             />
           </label>
           <div class="fieldset-label" id="title-help">
-            <span class="fieldset-label-text-alt opacity-70"
+            {#if validationErrors.title}
+              <span class="text-error">{validationErrors.title}</span>
+            {/if}
+            <span class="fieldset-label ms-auto italic"
               >{recipe.title?.length || 0}/100 caractères</span
             >
-            {#if validationErrors.title}
-              <span class="fieldset-label-text-alt text-error"
-                >{validationErrors.title}</span
-              >
-            {/if}
           </div>
         </fieldset>
 
@@ -80,13 +78,11 @@
               : ''}"
           />
           <span class="fieldset-label">
-            <span class="fieldset-label-text-alt opacity-70"
+            <span class="ms-auto italic"
               >{recipe.description?.length || 0}/200 caractères</span
             >
             {#if validationErrors.description}
-              <span class="fieldset-label-text-alt text-error"
-                >{validationErrors.description}</span
-              >
+              <span class="text-error">{validationErrors.description}</span>
             {/if}
           </span>
         </fieldset>
@@ -110,13 +106,9 @@
               />
             </label>
             <div class="fieldset-label" id="plate-help">
-              <span class="fieldset-label-text-alt opacity-70"
-                >Quantités indiquées pour combien ?</span
-              >
+              <span class="italic">Quantités indiquées pour combien ?</span>
               {#if validationErrors.plate}
-                <span class="fieldset-label-text-alt text-error"
-                  >{validationErrors.plate}</span
-                >
+                <span class="text-error">{validationErrors.plate}</span>
               {/if}
             </div>
           </fieldset>
@@ -139,14 +131,12 @@
               />
             </label>
             <div class="fieldset-label">
-              <span class="fieldset-label-text-alt opacity-70"
+              {#if validationErrors.quantite_desc}
+                <span class="text-error">{validationErrors.quantite_desc}</span>
+              {/if}
+              <span class="ms-auto italic"
                 >{recipe.quantite_desc?.length || 0}/100 caractères</span
               >
-              {#if validationErrors.quantite_desc}
-                <span class="fieldset-label-text-alt text-error"
-                  >{validationErrors.quantite_desc}</span
-                >
-              {/if}
             </div>
           </fieldset>
         </div>
@@ -173,9 +163,7 @@
           </label>
           {#if validationErrors.typeR}
             <div class="fieldset-label">
-              <span class="fieldset-label-text-alt text-error"
-                >{validationErrors.typeR}</span
-              >
+              <span class="text-error">{validationErrors.typeR}</span>
             </div>
           {/if}
         </fieldset>
@@ -218,9 +206,7 @@
           </label>
           {#if validationErrors.serveHot}
             <div class="fieldset-label">
-              <span class="fieldset-label-text-alt text-error"
-                >{validationErrors.serveHot}</span
-              >
+              <span class="text-error">{validationErrors.serveHot}</span>
             </div>
           {/if}
         </fieldset>
@@ -247,9 +233,7 @@
           </label>
           {#if validationErrors.cuisson}
             <div class="fieldset-label">
-              <span class="fieldset-label-text-alt text-error"
-                >{validationErrors.cuisson}</span
-              >
+              <span class="text-error">{validationErrors.cuisson}</span>
             </div>
           {/if}
         </fieldset>
@@ -274,13 +258,13 @@
               </label>
             {/each}
           </div>
-          <div class="fieldset-label opacity-70">
+          <div class="fieldset-label italic">
             Si certains ingrédients ne se trouvent qu'à certaines saisons...
           </div>
         </fieldset>
 
         <!-- Spécialité -->
-        <fieldset class="fieldset">
+        <fieldset class="fieldset flex-1">
           <legend class="fieldset-legend">Spécialité</legend>
           <label class="input {validationErrors.region ? 'input-error' : ''}">
             <MapPin class="h-4 w-4 opacity-50" />
@@ -295,15 +279,7 @@
           </label>
           {#if validationErrors.region}
             <div class="fieldset-label">
-              <span class="fieldset-label-text-alt text-error"
-                >{validationErrors.region}</span
-              >
-            </div>
-          {:else}
-            <div class="fieldset-label">
-              <span class="fieldset-label-text-alt opacity-70"
-                >{recipe.region?.length || 0}/50 caractères</span
-              >
+              <span class="text-error">{validationErrors.region}</span>
             </div>
           {/if}
         </fieldset>
@@ -359,9 +335,7 @@
         </div>
         {#if validationErrors.check}
           <div class="fieldset-label">
-            <span class="fieldset-label-text-alt text-error"
-              >{validationErrors.check}</span
-            >
+            <span class="text-error">{validationErrors.check}</span>
           </div>
         {/if}
         <label class="flex w-full cursor-pointer gap-3">

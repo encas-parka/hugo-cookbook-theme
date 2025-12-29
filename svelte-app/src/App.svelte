@@ -69,6 +69,7 @@
   router.addRoute("/recipe/my/draft", RecipesListPage, requireAuth);
   router.addRoute("/recipe/new", RecipeEditPage, requireAuth);
   router.addRoute("/recipe/:uuid/edit", RecipeEditPage, requireAuth);
+  router.addRoute("/recipe/:uuid/duplicate", RecipeEditPage, requireAuth);
   router.addRoute("/recipe/:uuid", RecipeDetailPage);
   router.addRoute("/accept-invite", AcceptInvite);
 

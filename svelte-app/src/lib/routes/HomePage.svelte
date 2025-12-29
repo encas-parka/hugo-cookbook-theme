@@ -13,7 +13,7 @@
         repas collaborativement.
       </p>
       <div class="flex justify-center gap-4">
-        <button class="btn btn-primary" onclick={() => navigate("/recipes")}>
+        <button class="btn btn-primary" onclick={() => navigate("/recipe")}>
           <ChefHat class="mr-2 h-5 w-5" />
           Voir les recettes
         </button>

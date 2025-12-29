@@ -371,13 +371,15 @@
       <!-- Card pour le type -->
       <div class="card bg-base-200/50 border-base-300 border shadow-sm">
         <div class="card-body p-2">
-          <h3 class="card-title flex items-center gap-2 px-4 font-light">
-            <TypeIcon class="h-5 w-5" />
+          <div
+            class="card-title flex items-center gap-2 px-4 text-sm font-light"
+          >
+            <TypeIcon class="h-4 w-4" />
             {typeInfo.displayName}
             <span class="badge badge-xs badge-primary badge-soft"
               >{typeIngredients.length}</span
             >
-          </h3>
+          </div>
 
           <!-- Liste des ingrédients de ce type -->
           <div class="space-y-3">
@@ -395,7 +397,7 @@
                           >{ingredient.name}</span
                         >
                         <div class="flex flex-wrap gap-2">
-                          <label class="input w-44">
+                          <label class="input input-sm w-44">
                             <span class="label text-base-content/80"
                               >Quantité</span
                             >
@@ -412,7 +414,7 @@
                               />
                             </div>
                           </label>
-                          <label class="select w-44">
+                          <label class="select select-sm w-44">
                             <span class="label text-base-content/80">unité</span
                             >
                             <select
@@ -443,7 +445,7 @@
                       </div>
 
                       <!-- Commentaire -->
-                      <label class="input w-full">
+                      <label class="input input-sm w-full">
                         <span class="label">Note</span>
                         <input
                           type="text"
