@@ -54,17 +54,19 @@
           placeholder="Décrivez les étapes de préparation..."
         />
 
-        <MarkdownEditor
-          id="recipe-preparation24h"
-          label="Préparation à l'avance (optionnel)"
-          bind:value={recipe.preparation24h}
-          error={validationErrors.preparation24h}
-          placeholder="Étapes à réaliser avant le jour j..."
-        />
-        <p class="text-xs opacity-60">
-          La préparation à l'avance sera mise en évidence au dessus des autres
-          étapes.
-        </p>
+        <div>
+          <MarkdownEditor
+            id="recipe-preparation24h"
+            label="Préparation à l'avance (optionnel)"
+            bind:value={recipe.preparation24h}
+            error={validationErrors.preparation24h}
+            placeholder="Étapes à réaliser avant le jour j..."
+          />
+          <p class="text-end text-xs italic opacity-60">
+            La préparation à l'avance sera mise en évidence au dessus des autres
+            étapes.
+          </p>
+        </div>
       </div>
 
       <div class="divider"></div>

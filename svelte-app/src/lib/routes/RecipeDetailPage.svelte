@@ -126,13 +126,23 @@
 
 {#snippet navActions()}
   {#if globalState.isAuthenticated && recipeDetails}
-    <button
-      class="btn btn-primary btn-sm"
-      onclick={() => navigate(`/recipe/${recipeDetails?.$id}/edit`)}
-    >
-      <PencilIcon size={18} />
-      Éditer
-    </button>
+    {#if recipeDetails.permissionWrite?.includes(globalState.userId) || recipeDetails.createdBy === globalState.userId}
+      <button
+        class="btn btn-primary btn-sm"
+        onclick={() => navigate(`/recipe/${recipeDetails?.$id}/edit`)}
+      >
+        <PencilIcon size={18} />
+        Éditer
+      </button>
+    {:else}
+      <button
+        class="btn btn-secondary btn-sm"
+        onclick={() => navigate(`/recipe/${recipeDetails?.$id}/duplicate`)}
+      >
+        <PencilIcon size={18} />
+        Créer une version alternative
+      </button>
+    {/if}
   {/if}
 {/snippet}
 

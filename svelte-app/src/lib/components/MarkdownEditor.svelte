@@ -15,7 +15,6 @@
 
   interface Props {
     value: string;
-    onchange: (value: string) => void;
     placeholder?: string;
     label?: string;
     error?: string;
@@ -24,7 +23,6 @@
 
   let {
     value = $bindable(),
-    onchange,
     placeholder = "Commencez à rédiger...",
     label,
     error,
@@ -87,12 +85,9 @@
     }
   });
 
-  // Synchronisation descendante si le parent change la valeur (ex: reset form)
-  $effect(() => {
-    if (editor && value !== editor.storage.markdown.getMarkdown()) {
-      editor.commands.setContent(value, false);
-    }
-  });
+  // NOTE: Pas besoin de $effect pour la synchronisation descendante
+  // value utilise $bindable() qui gère déjà la synchro automatiquement
+  // Un $effect ici créerait une boucle infinie avec onUpdate -> onTransaction -> updateTrigger
 </script>
 
 <div class="form-control w-full">
@@ -179,7 +174,7 @@
 
   {#if error}
     <label class="label">
-      <span class="label-text-alt text-error">{error}</span>
+      <span class="text-error">{error}</span>
     </label>
   {/if}
 </div>

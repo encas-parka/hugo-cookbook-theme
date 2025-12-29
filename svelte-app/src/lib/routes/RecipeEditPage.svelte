@@ -9,7 +9,7 @@
   import { ingredientsToAppwrite } from "$lib/utils/ingredientUtils";
   import { astucesToAppwrite } from "$lib/utils/recipeUtils";
   import { toastService } from "$lib/services/toast.service.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate, router } from "$lib/services/simple-router.svelte";
   import {
     type RecipeIngredient,
     type CreateRecipeData,
@@ -31,6 +31,7 @@
 
   let { params } = $props<{ params?: Record<string, string> }>();
   const recipeId = $derived(params?.uuid);
+  const isAlternativeVersion = $derived(router.path.endsWith("/duplicate"));
 
   // Données de référence pour les listes déroulantes
   let recipeInfo = $state<{
@@ -114,11 +115,9 @@
   let heartbeatInterval: any = null;
 
   // Logique réactive pour le brouillon
-  $effect(() => {
-    if (recipe && recipe.check !== true) {
-      recipe.draft = true;
-    }
-  });
+  // REMOVED: Ce $effect causait une boucle infinie en modifiant recipe dans l'effet
+  // La logique du draft est maintenant gérée directement dans validateRecipe()
+  // et lors du chargement initial de la recette
 
   // État de validation
   let validationErrors = $state<{
@@ -141,7 +140,7 @@
   // DERIVED STATES
   // ============================================================================
 
-  const isCreating = $derived(!recipeId);
+  const isCreating = $derived(!recipeId || isAlternativeVersion);
 
   const isLockedByOthers = $derived.by(() => {
     if (!lockedBy) return false;
@@ -166,7 +165,7 @@
     }
   });
 
-  // Initialiser la recette (mode création vs édition)
+  // Initialiser la recette (mode création vs édition vs alternative)
   $effect(() => {
     // Vérifier que l'utilisateur est connecté
     if (!globalState.userId) {
@@ -182,8 +181,51 @@
       return;
     }
 
+    // Mode version alternative : charger la recette originale et préparer une nouvelle version
+    if (recipeId && isAlternativeVersion && !loaded && !isLoading) {
+      isLoading = true;
+      recipesStore
+        .getRecipeByUuid(recipeId)
+        .then((data) => {
+          if (data) {
+            const userName = globalState.userName() || "utilisateur";
+            recipe = {
+              ...data,
+              title: `${data.title} (${userName})`,
+              $id: "new-recipe",
+              $createdAt: undefined,
+              $updatedAt: undefined,
+              lockedBy: null,
+              createdBy: globalState.userId || "",
+              permissionWrite: [globalState.userId || ""],
+              categories: data.categories || [],
+              saison: data.saison || [],
+              ingredients: data.ingredients ?? [],
+              astuces: data.astuces ?? [],
+              prepAlt: data.prepAlt || [],
+              materiel: data.materiel || [],
+              regime: data.regime || [],
+              check: data.check ?? null,
+            } as unknown as RecipeFormState;
+            loaded = true;
+          } else {
+            toastService.error("Recette introuvable");
+            navigate("/recipe");
+          }
+        })
+        .catch((error) => {
+          console.error("Erreur chargement:", error);
+          toastService.error("Erreur lors du chargement");
+          navigate("/recipe");
+        })
+        .finally(() => {
+          isLoading = false;
+        });
+      return;
+    }
+
     // Mode édition : charger depuis le store
-    if (recipeId && !loaded && !isLoading) {
+    if (recipeId && !isAlternativeVersion && !loaded && !isLoading) {
       isLoading = true;
       recipesStore
         .getRecipeByUuid(recipeId)
@@ -235,9 +277,14 @@
   // NAVBAR CONFIGURATION
   // ============================================================================
 
+  const navTitle = $derived(() => {
+    if (isAlternativeVersion) return "Nouvelle version de recette";
+    return isCreating ? "Nouvelle recette" : "Édition de recette";
+  });
+
   $effect(() => {
     navBarStore.setConfig({
-      title: isCreating ? "Nouvelle recette" : "Édition de recette",
+      title: navTitle(),
       actions: navActions,
     });
   });
@@ -716,6 +763,9 @@
         ).catch((error) => {
           console.error("Sync vers GitHub échouée:", error);
         });
+        // forcer l'$effect d'initialisation
+        loaded = false;
+
         // Rediriger vers l'édition
         navigate(`/recipe/${created.$id}/edit`);
       } else {
