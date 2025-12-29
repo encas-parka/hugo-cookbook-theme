@@ -43,6 +43,9 @@
           <use href={`/icons/type/types-sprite.svg#${typeDisplay.iconId}`} />
         </svg>
         {recipe.title}
+        {#if recipe.draft}
+          <div class="badge badge-accent badge-outline badge-sm">brouillon</div>
+        {/if}
       </div>
       <div class="text-base-content/60 text-sm">
         {#if recipe.auteur}

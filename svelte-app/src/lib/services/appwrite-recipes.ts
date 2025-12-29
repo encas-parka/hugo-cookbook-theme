@@ -104,6 +104,7 @@ export async function listAllNonPublishedRecipes(): Promise<Recettes[]> {
     throw error;
   }
 }
+
 /**
  * Liste les recettes modifiées depuis une certaine date (Sync incrémentiel)
  */
@@ -225,7 +226,6 @@ export async function createRecipeAppwrite(
       $id: slugUuid,
       createdBy: userId,
       permissionWrite: data.permissionWrite || [userId],
-      isPublished: false,
     };
 
     const recipe = await tables.createRow({
@@ -316,7 +316,6 @@ export async function duplicateRecipe(
         ...source,
         title: `${source.title} (${globalState.userName})`,
         draft: true,
-        isPublished: false,
         publishedAt: null,
         check: false,
         $id: newSlug,
@@ -330,19 +329,6 @@ export async function duplicateRecipe(
     );
     throw error;
   }
-}
-
-/**
- * Marque une recette comme publiée
- */
-export async function markAsPublished(
-  uuid: string,
-  publishedAt?: string,
-): Promise<Recettes> {
-  return await updateRecipeAppwrite(uuid, {
-    isPublished: true,
-    publishedAt: publishedAt || new Date().toISOString(),
-  });
 }
 
 /**

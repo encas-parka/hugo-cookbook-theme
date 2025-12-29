@@ -2,19 +2,17 @@
  * RecipesStore - Store de gestion des recettes avec Svelte 5
  *
  * Architecture:
- * 1. Chargement de l'index léger depuis data.json (recettes published)
- * 2. Chargement des recettes non-published depuis Appwrite
- * 3. Fusion dans un index unifié avec flag isPublished
- * 4. Lazy loading des détails depuis /recettes/.../recipe.json ou Appwrite
+ * 1. Chargement de l'index léger depuis data.json (recettes publiées)
+ * 2. Chargement des recettes drafts depuis Appwrite
+ * 3. Fusion dans un index unifié
+ * 4. Lazy loading des détails depuis /recettes/.../recipe.json ou Appwrite avec fallback automatique
  * 5. Cache IndexedDB pour performance
- * 6. Cleanup automatique (marquer isPublished: true après build Hugo)
  *
  * Responsabilités:
  * - Charger et fusionner recettes Hugo + Appwrite
  * - Lazy-load les détails de recettes à la demande
  * - Fournir une API de recherche/filtrage
  * - Gérer le cache IndexedDB (stratégie, pas l'implémentation)
- * - Cleanup des recettes publiées
  * - Realtime pour les recettes Appwrite
  * - Gérer les verrous d'édition
  *
@@ -46,7 +44,6 @@ import { ingredientsFromAppwrite } from "../utils/ingredientUtils";
 import {
   listAllNonPublishedRecipes,
   getRecipeAppwrite as getAppwriteRecipe,
-  markAsPublished,
   subscribeToRecipes,
   updateRecipeAppwrite,
   listUpdatedRecipes,
@@ -192,20 +189,7 @@ class RecipesStore {
           console.log("[RecipesStore] Continuation avec les données du cache");
         }
 
-        // D. Cleanup : marquer les recettes Appwrite comme published
-        if (globalState.userId) {
-          try {
-            await this.#cleanupPublishedRecipes();
-          } catch (err) {
-            console.warn(
-              "[RecipesStore] Erreur lors du cleanup des recettes publiées:",
-              err,
-            );
-            // Ne pas bloquer l'initialisation pour cette étape
-          }
-        }
-
-        // E. Sync Incrémentiel Appwrite (Recettes modifiées depuis lastSync)
+        // D. Sync Incrémentiel Appwrite (Recettes modifiées depuis lastSync)
         if (globalState.userId) {
           try {
             await this.#incrementalSync(cachedMetadata);
@@ -218,7 +202,7 @@ class RecipesStore {
           }
         }
 
-        // F. Fallback: Charger TOUTES les recettes non-published depuis Appwrite
+        // E. Fallback: Charger TOUTES les recettes non-published depuis Appwrite
         // (Juste au cas où, pour garantir qu'on a bien les drafts, même anciens)
         if (globalState.userId) {
           try {
@@ -363,34 +347,6 @@ class RecipesStore {
   /**
    * Cleanup : marque les recettes Appwrite comme published si présentes dans Hugo
    */
-  async #cleanupPublishedRecipes(): Promise<void> {
-    try {
-      console.log("[RecipesStore] Cleanup des recettes publiées...");
-
-      // Récupérer TOUTES les recettes non-published (accès global)
-      const appwriteRecipes = await listAllNonPublishedRecipes();
-
-      let cleanedCount = 0;
-      for (const appwriteRecipe of appwriteRecipes) {
-        // Vérifier si la recette existe dans l'index Hugo
-        if (this.#recipesIndex.has(appwriteRecipe.$id)) {
-          // Marquer comme published dans Appwrite
-          await markAsPublished(appwriteRecipe.$id);
-          cleanedCount++;
-        }
-      }
-
-      if (cleanedCount > 0) {
-        console.log(
-          `[RecipesStore] ${cleanedCount} recettes marquées comme published`,
-        );
-      }
-    } catch (err) {
-      console.error("[RecipesStore] Erreur lors du cleanup:", err);
-      // Ne pas bloquer l'initialisation
-    }
-  }
-
   /**
    * Charge les recettes non-published depuis Appwrite
    * Accès global en lecture pour toutes les recettes (duplication, ajout à événement)
@@ -402,7 +358,7 @@ class RecipesStore {
       // Charger TOUTES les recettes non-published (accès global en lecture)
       const appwriteRecipes = await listAllNonPublishedRecipes();
 
-      // Ajouter à l'index avec flag isPublished: false
+      // Ajouter à l'index
       appwriteRecipes.forEach((recipe) => {
         // Extrait les noms d'ingrédients depuis le format Appwrite
         const ingredients = ingredientsFromAppwrite(recipe.ingredients);
@@ -429,7 +385,6 @@ class RecipesStore {
           permissionWrite: recipe.permissionWrite,
 
           // Champs de gestion
-          isPublished: false,
           lockedBy: recipe.lockedBy || null,
           $id: recipe.$id,
           $createdAt: recipe.$createdAt,
@@ -541,7 +496,6 @@ class RecipesStore {
       permissionWrite: recipe.permissionWrite,
 
       // Champs de gestion
-      isPublished: recipe.isPublished,
       lockedBy: recipe.lockedBy || null,
       $id: recipe.$id,
       $createdAt: recipe.$createdAt,
@@ -591,7 +545,6 @@ class RecipesStore {
               permissionWrite: recipe.permissionWrite,
 
               // Champs de gestion
-              isPublished: recipe.isPublished,
               lockedBy: recipe.lockedBy || null,
               $id: recipe.$id,
               $createdAt: recipe.$createdAt,
@@ -612,8 +565,7 @@ class RecipesStore {
             // 3. Mettre à jour les détails dans le cache IndexedDB uniquement
             if (this.#cache) {
               try {
-                // On enregistre les détails Appwrite (format Recettes) dans le cache
-                // @ts-ignore - recipeData is RecipeForDisplay but store expects Recettes
+                // On enregistre les détails Appwrite parsés dans le cache
                 await this.#cache.saveRecipeDetail(recipeData);
                 console.log(
                   `[RecipesStore] Détails de ${recipe.$id} mis à jour dans le cache`,
@@ -810,7 +762,6 @@ class RecipesStore {
           )) as unknown as RecipeForDisplay) || null
         );
       }
-      // Fallback si pas de cache (peu probable ici)
       return null;
     }
 
@@ -821,52 +772,68 @@ class RecipesStore {
       if (this.#cache) {
         const cachedDetail = await this.#cache.loadRecipeDetail(uuid);
         if (cachedDetail) {
-          // console.log(
-          //   `[RecipesStore] Détails de ${uuid} chargés depuis le cache`,
-          // );
-          return cachedDetail as unknown as RecipeForDisplay;
+          return cachedDetail;
         }
       }
 
-      // 3. Récupérer l'entrée d'index pour déterminer la source
-      const indexEntry = this.#recipesIndex.get(uuid);
-      if (!indexEntry) {
-        console.warn(`[RecipesStore] Recette ${uuid} non trouvée dans l'index`);
-        return null;
-      }
-
-      // 4. Charger depuis la source appropriée avec détection intelligente
+      // 3. Stratégie de chargement avec fallback automatique
+      // On tente Hugo en premier (plus rapide, pas d'auth),
+      // si ça échoue, on tente Appwrite
       let recipeData: RecipeForDisplay | null = null;
 
-      if (indexEntry.isPublished === false) {
-        // 4a. Recette Appwrite (non-publiée)
-        console.log(`[RecipesStore] Chargement de ${uuid} depuis Appwrite...`);
-        recipeData = await this.#loadFromAppwrite(uuid);
-      } else {
-        // 4b. Recette Hugo (publiée)
-        const recipePath = `/recettes/${indexEntry.$id}/recipe.json`;
-        console.log(
-          `[RecipesStore] Chargement de ${uuid} depuis Hugo JSON: ${recipePath}`,
-        );
-        recipeData = await this.#loadFromHugo(recipePath);
+      // 3a. Tenter Hugo (recette publiée)
+      try {
+        const recipePath = `/recettes/${uuid}/recipe.json`;
+        const response = await fetch(recipePath);
+        if (response.ok) {
+          const rawData = await response.json();
+          recipeData = parseRecipeData(rawData);
+          console.log(`[RecipesStore] ${uuid} chargée depuis Hugo`);
+        }
+      } catch (err) {
+        console.log(`[RecipesStore] ${uuid} non trouvée dans Hugo`);
       }
 
-      if (!recipeData) {
-        console.warn(
-          `[RecipesStore] Impossible de charger les détails de ${uuid}`,
-        );
-        return null;
+      // 3b. Fallback Appwrite (si Hugo échoue ET utilisateur connecté)
+      if (!recipeData && globalState.userId) {
+        try {
+          const appwriteRecipe = await getAppwriteRecipe(uuid);
+          if (appwriteRecipe) {
+            // Convertir les ingrédients Appwrite au format RecipeIngredient[]
+            const ingredients = ingredientsFromAppwrite(
+              appwriteRecipe.ingredients || [],
+            );
+
+            recipeData = {
+              ...appwriteRecipe,
+              ingredients,
+              // NORMALISER: astuces doit toujours être un array
+              astuces: astucesFromAppwrite(appwriteRecipe.astuces),
+              prepAlt: appwriteRecipe.prepAlt || null,
+              categories: appwriteRecipe.categories,
+              regime: appwriteRecipe.regime,
+              saison: appwriteRecipe.saison,
+              teams: appwriteRecipe.teams,
+              permissionWrite: appwriteRecipe.permissionWrite,
+            };
+            console.log(
+              `[RecipesStore] ${uuid} chargée depuis Appwrite (fallback)`,
+            );
+          }
+        } catch (err) {
+          console.log(`[RecipesStore] ${uuid} non trouvée dans Appwrite`);
+        }
       }
 
-      // 5. Mettre en cache dans IndexedDB
-      if (this.#cache && recipeData) {
-        // @ts-ignore - recipeData is RecipeForDisplay but store expects Recettes
+      // 4. Mettre en cache si trouvé
+      if (recipeData && this.#cache) {
         await this.#cache.saveRecipeDetail(recipeData);
       }
 
-      console.log(
-        `[RecipesStore] Détails de ${uuid} chargés et mis en cache IDB avec succès`,
-      );
+      if (!recipeData) {
+        console.warn(`[RecipesStore] ${uuid} non trouvée (Hugo ni Appwrite)`);
+      }
+
       return recipeData;
     } catch (err) {
       console.error(
@@ -876,65 +843,6 @@ class RecipesStore {
       return null;
     } finally {
       this.#loadingDetails.delete(uuid);
-    }
-  }
-
-  /**
-   * Charge une recette depuis Appwrite
-   */
-  async #loadFromAppwrite(uuid: string): Promise<RecipeForDisplay | null> {
-    try {
-      const appwriteRecipe = await getAppwriteRecipe(uuid);
-      if (!appwriteRecipe) {
-        return null;
-      }
-
-      // Convertir les ingrédients Appwrite au format RecipeData
-      const ingredients = ingredientsFromAppwrite(
-        appwriteRecipe.ingredients || [],
-      );
-
-      return {
-        ...appwriteRecipe,
-        ingredients,
-        // NORMALISER: astuces doit toujours être un array
-        astuces: astucesFromAppwrite(appwriteRecipe.astuces),
-        prepAlt: appwriteRecipe.prepAlt || null,
-        categories: appwriteRecipe.categories,
-        regime: appwriteRecipe.regime,
-        saison: appwriteRecipe.saison,
-        teams: appwriteRecipe.teams,
-        permissionWrite: appwriteRecipe.permissionWrite,
-      };
-    } catch (error) {
-      console.error(
-        `[RecipesStore] Erreur chargement Appwrite ${uuid}:`,
-        error,
-      );
-      return null;
-    }
-  }
-
-  /**
-   * Charge une recette depuis Hugo JSON
-   */
-  async #loadFromHugo(recipePath: string): Promise<RecipeForDisplay | null> {
-    try {
-      const response = await fetch(recipePath);
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-
-      const rawData = await response.json();
-      const recipeData = parseRecipeData(rawData);
-
-      return recipeData;
-    } catch (error) {
-      console.error(
-        `[RecipesStore] Erreur chargement Hugo ${recipePath}:`,
-        error,
-      );
-      return null;
     }
   }
 

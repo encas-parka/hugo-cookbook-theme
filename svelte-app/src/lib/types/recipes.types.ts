@@ -81,7 +81,6 @@ export type RecipeIndexEntry = Pick<
   | "check"
   | "saison"
   | "permissionWrite"
-  | "isPublished"
   | "lockedBy"
   | "plate"
   | "createdBy"
@@ -180,6 +179,7 @@ export type CreateRecipeData = Omit<
   | "$tableId"
   | "createdBy"
   | "teams"
+  | "isPublished"
 >;
 
 /**

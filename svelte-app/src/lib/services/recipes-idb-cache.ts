@@ -32,9 +32,9 @@ export interface RecipesIDBCache {
   saveRecipesIndex(recipes: Map<string, RecipeIndexEntry>): Promise<void>;
 
   // Détails
-  loadRecipeDetail(uuid: string): Promise<Recettes | null>;
-  saveRecipeDetail(recipe: Recettes): Promise<void>;
-  loadAllRecipeDetails(): Promise<Map<string, Recettes>>;
+  loadRecipeDetail(uuid: string): Promise<RecipeForDisplay | null>;
+  saveRecipeDetail(recipe: RecipeForDisplay): Promise<void>;
+  loadAllRecipeDetails(): Promise<Map<string, RecipeForDisplay>>;
 
   loadMetadata(): Promise<RecipesCacheMetadata>;
   saveMetadata(metadata: RecipesCacheMetadata): Promise<void>;
@@ -175,7 +175,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
   /**
    * Charge les détails d'une recette spécifique
    */
-  async loadRecipeDetail(uuid: string): Promise<Recettes | null> {
+  async loadRecipeDetail(uuid: string): Promise<RecipeForDisplay | null> {
     if (!this.db) throw new Error("DB non ouverte");
 
     return new Promise((resolve, reject) => {
@@ -184,7 +184,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       const request = store.get(uuid);
 
       request.onsuccess = () => {
-        const recipe = request.result as Recettes | undefined;
+        const recipe = request.result as RecipeForDisplay | undefined;
         if (recipe) {
           console.log(
             `[RecipesIDBCache] Détails de ${uuid} chargés depuis le cache`,
@@ -200,7 +200,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
   /**
    * Sauvegarde les détails d'une recette
    */
-  async saveRecipeDetail(recipe): Promise<void> {
+  async saveRecipeDetail(recipe: RecipeForDisplay): Promise<void> {
     if (!this.db) throw new Error("DB non ouverte");
 
     return new Promise((resolve, reject) => {
@@ -220,7 +220,7 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
   /**
    * Charge tous les détails de recettes (pour debug/export)
    */
-  async loadAllRecipeDetails(): Promise<Map<string, Recettes>> {
+  async loadAllRecipeDetails(): Promise<Map<string, RecipeForDisplay>> {
     if (!this.db) throw new Error("DB non ouverte");
 
     return new Promise((resolve, reject) => {
@@ -229,8 +229,8 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       const request = store.getAll();
 
       request.onsuccess = () => {
-        const recipes = new Map<string, Recettes>();
-        (request.result as Recettes[]).forEach((recipe) => {
+        const recipes = new Map<string, RecipeForDisplay>();
+        (request.result as RecipeForDisplay[]).forEach((recipe) => {
           recipes.set(recipe.$id, recipe);
         });
         console.log(

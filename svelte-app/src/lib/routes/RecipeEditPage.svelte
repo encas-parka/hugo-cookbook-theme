@@ -560,7 +560,7 @@
         <RecipeMetadata
           auteur={recipe.auteur}
           createdBy={recipe.createdBy}
-          id={recipe.$id}
+          id={recipe.$id ?? ""}
           createdAt={recipe.$createdAt}
           updatedAt={recipe.$updatedAt}
         />

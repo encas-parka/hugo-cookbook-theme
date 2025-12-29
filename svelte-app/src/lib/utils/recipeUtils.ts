@@ -274,7 +274,6 @@ export function parseRecipeIndexEntry(rawData: any): RecipeIndexEntry {
     permissionWrite: Array.isArray(rawData.permissionWrite)
       ? rawData.permissionWrite
       : [],
-    isPublished: rawData.isPublished ?? true,
     lockedBy: rawData.lockedBy || null,
     plate: rawData.plate ?? 100,
     ingredients,

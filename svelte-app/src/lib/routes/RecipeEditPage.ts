@@ -121,7 +121,6 @@ export function createDefaultRecipe(): RecipeFormState {
     draft: true,
     lockedBy: null,
     auteur: null,
-    isPublished: false,
     publishedAt: null,
     createdBy: globalState.userId || "",
     permissionWrite: [globalState.userId || ""],
@@ -192,7 +191,6 @@ export function normalizeRecipeForAppwrite(
     astuces: null,
     prepAlt: null,
     lockedBy: null,
-    isPublished: false,
     publishedAt: null,
   } as CreateRecipeData;
 }

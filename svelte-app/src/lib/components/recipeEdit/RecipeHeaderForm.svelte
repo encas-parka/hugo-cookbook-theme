@@ -36,10 +36,12 @@
     <div class="flex flex-col gap-4">
       <div class="flex flex-wrap gap-x-10 gap-y-2">
         <!-- Titre et description -->
-        <fieldset class="fieldset w-96">
+        <fieldset class="fieldset w-full">
           <legend class="fieldset-legend">Titre de la recette</legend>
           <label
-            class="input w-full {validationErrors.title ? 'input-error' : ''}"
+            class="input input-lg w-full {validationErrors.title
+              ? 'input-error'
+              : ''}"
           >
             <BookOpen class="h-4 w-4 opacity-50" />
             <input
