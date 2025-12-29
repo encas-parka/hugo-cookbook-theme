@@ -269,7 +269,7 @@ export class ProductModalState implements ProductModalStateType {
       // Reset form
       // Convertir automatiquement les unités (gr->kg, ml->l) pour >= 1000
       const firstMissingAfterAdd = this.product!.missingQuantityArray[0];
-      let resetQuantity = null;
+      let resetQuantity: number | null = null;
       let resetUnit = this.product!.totalNeededArray[0]?.u ?? "";
 
       if (firstMissingAfterAdd) {

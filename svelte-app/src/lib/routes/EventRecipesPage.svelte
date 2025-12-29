@@ -569,7 +569,7 @@
                   <!-- Date break -->
                   <div
                     id="meal-{meal.date}"
-                    class="card bg-accent text-accent-content flex flex-row items-center justify-center gap-6 p-4 text-lg font-black print:hidden"
+                    class="card bg-primary text-primary-content flex flex-row items-center justify-center gap-6 p-4 text-lg font-black print:hidden"
                   >
                     <div class="">
                       {formatDateWdDayMonth(meal.date)}

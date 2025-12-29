@@ -340,6 +340,7 @@
                       onclick={() => addIngredientFromSearch(ingredient.u)}
                       onmouseenter={() => (selectedIndex = index)}
                       role="option"
+                      aria-selected={index === selectedIndex}
                       {disabled}
                     >
                       <div class="flex-1">

@@ -185,10 +185,11 @@
 
   <!-- Message personnalisé -->
   <div>
-    <label class="label">
+    <label class="label" for="invite-message">
       <span class="label-text">Message personnalisé (optionnel)</span>
     </label>
     <textarea
+      id="invite-message"
       class="textarea textarea-bordered w-full"
       bind:value={customMessage}
       placeholder="Ajoutez un message pour les personnes invitées..."
@@ -196,11 +197,9 @@
       maxlength="200"
       disabled={loading}
     ></textarea>
-    <label class="label">
-      <span class="label-text-alt opacity-50"
-        >{customMessage.length}/200 caractères</span
-      >
-    </label>
+    <span class="label label-text-alt opacity-50"
+      >{customMessage.length}/200 caractères</span
+    >
   </div>
 
   <!-- Bouton d'envoi -->

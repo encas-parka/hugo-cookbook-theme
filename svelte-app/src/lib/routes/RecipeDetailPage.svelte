@@ -129,7 +129,7 @@
 
 {#snippet navActions()}
   {#if globalState.isAuthenticated && recipeDetails}
-    {#if recipeDetails.permissionWrite?.includes(globalState.userId) || (recipeDetails.createdBy && recipeDetails.createdBy === globalState.userId)}
+    {#if (recipeDetails.permissionWrite && globalState.userId && recipeDetails.permissionWrite.includes(globalState.userId)) || (recipeDetails.createdBy && recipeDetails.createdBy === globalState.userId)}
       <button
         class="btn btn-primary btn-sm"
         onclick={() => navigate(`/recipe/${recipeDetails?.$id}/edit`)}
@@ -149,7 +149,7 @@
   {/if}
 {/snippet}
 
-<div class="container mx-auto max-w-6xl px-4 py-8">
+<div class="mx-auto max-w-7xl px-4 py-8">
   {#if loading}
     <div class="flex items-center justify-center py-20">
       <div class="loading loading-spinner loading-lg"></div>

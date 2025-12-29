@@ -2,9 +2,10 @@
   interface Props {
     value: string | null;
     disabled?: boolean;
+    id?: string;
   }
 
-  let { value = $bindable(), disabled = false }: Props = $props();
+  let { value = $bindable(), disabled = false, id }: Props = $props();
 </script>
 
 <textarea
@@ -14,4 +15,5 @@
   rows="2"
   maxlength="250"
   {disabled}
+  {id}
 ></textarea>

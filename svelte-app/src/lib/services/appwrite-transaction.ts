@@ -106,7 +106,7 @@ async function prepareBatchData(
     }));
 
   // Récupérer l'utilisateur connecté
-  let currentUserId = null;
+  let currentUserId: string | null = null;
   try {
     const { account } = await getAppwriteInstances();
     const user = await account.get();
@@ -251,7 +251,6 @@ export async function createGroupPurchaseWithSync(
   let totalPurchasesCreated = 0;
   let totalExpensesCreated = 0;
 
-
   // ... (inside createGroupPurchaseWithSync loop)
   for (let i = 0; i < batches.length; i++) {
     const batch = batches[i];
@@ -261,7 +260,7 @@ export async function createGroupPurchaseWithSync(
 
     try {
       const batchData = await prepareBatchData(batch, invoiceData);
-      
+
       // 🔄 RETRY LOGIC
       const result = await executeWithRetry(
         () => executeGroupPurchaseBatch(batchData),
@@ -269,11 +268,11 @@ export async function createGroupPurchaseWithSync(
           operationName: `Lot ${i + 1}/${batches.length}`,
           maxAutoRetries: 1,
           autoRetryDelay: 2000,
-        }
+        },
       );
 
       if (!result) {
-         throw new Error("Opération annulée ou échouée après tentatives");
+        throw new Error("Opération annulée ou échouée après tentatives");
       }
 
       results.push(result);
@@ -353,13 +352,11 @@ async function executeGroupPurchaseBatch(batchData: {
       JSON.stringify(payload),
       false, // async = false pour attendre le résultat
       "/",
-      "POST",
+      "POST" as any,
     );
 
     if (execution.status !== "completed") {
-      throw new Error(
-        `Exécution échouée avec statut: ${execution.status}. Erreur: ${execution.stderr}`,
-      );
+      throw new Error(`Exécution échouée avec statut: ${execution.status}.`);
     }
 
     const result = JSON.parse(execution.responseBody) as GroupPurchaseResult;

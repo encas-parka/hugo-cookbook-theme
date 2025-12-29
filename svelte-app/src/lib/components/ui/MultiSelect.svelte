@@ -32,7 +32,7 @@
   let searchQuery = $state("");
   let isOpen = $state(false);
   let highlightedIndex = $state(0);
-  let containerRef: HTMLDivElement | undefined = $state();
+  let containerRef: any = $state();
   let inputRef: HTMLInputElement | undefined = $state();
 
   let filteredOptions = $derived(

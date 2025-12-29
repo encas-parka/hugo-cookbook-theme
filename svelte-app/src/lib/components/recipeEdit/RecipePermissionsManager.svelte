@@ -94,10 +94,10 @@
       const userInfo = result[email];
 
       if (userInfo) {
-        if (permissionWrite.includes(userInfo.id)) {
+        if (permissionWrite?.includes(userInfo.id)) {
           inviteError = "Cet utilisateur a déjà les droits d'écriture.";
         } else {
-          permissionWrite = [...permissionWrite, userInfo.id];
+          permissionWrite = [...(permissionWrite || []), userInfo.id];
           memberNames[userInfo.id] = userInfo.name || email;
           emailInput = "";
           toastService.success(
@@ -117,16 +117,16 @@
   }
 
   function toggleMember(memberId: string) {
-    if (permissionWrite.includes(memberId)) {
-      permissionWrite = permissionWrite.filter((id) => id !== memberId);
+    if (permissionWrite?.includes(memberId)) {
+      permissionWrite = (permissionWrite || []).filter((id) => id !== memberId);
     } else {
-      permissionWrite = [...permissionWrite, memberId];
+      permissionWrite = [...(permissionWrite || []), memberId];
     }
   }
 
   function removeContributor(id: string) {
     if (id === createdBy) return; // Impossible de supprimer le propriétaire
-    permissionWrite = permissionWrite.filter((p) => p !== id);
+    permissionWrite = (permissionWrite || []).filter((p) => p !== id);
   }
 </script>
 
@@ -146,13 +146,16 @@
       <!-- Propriétaire -->
       <div class="badge badge-lg badge-soft badge-info gap-2 p-4">
         <Lock size={14} />
-        <span class="font-bold">{memberNames[createdBy] || "Propriétaire"}</span
+        <span class="font-bold"
+          >{createdBy
+            ? memberNames[createdBy] || "Propriétaire"
+            : "Propriétaire"}</span
         >
         <div class="badge badge-xs">Auteur</div>
       </div>
 
       <!-- Autres collaborateurs -->
-      {#each permissionWrite.filter((id) => id !== createdBy) as contributorId}
+      {#each (permissionWrite || []).filter((id) => createdBy !== undefined && id !== createdBy) as contributorId}
         <div
           class="badge badge-lg badge-soft gap-2 p-4"
           transition:fade={{ duration: 200 }}
@@ -271,5 +274,13 @@
       </button>
     </div>
   </div>
-  <div class="modal-backdrop" onclick={() => (showInviteModal = false)}></div>
+  <div
+    class="modal-backdrop"
+    role="button"
+    tabindex="0"
+    aria-label="Fermer"
+    onclick={() => (showInviteModal = false)}
+    onkeydown={(e) =>
+      e.key === "Enter" || e.key === " " ? (showInviteModal = false) : null}
+  ></div>
 </div>

@@ -69,39 +69,38 @@
       <ul class="break-inside-avoid space-y-2 print:space-y-1">
         {#each items as ingredient, index (index)}
           {@const scaled = getScaledIngredient(ingredient)}
-          <li class="flex flex-wrap items-baseline">
-            <div class=" flex flex-wrap items-baseline">
-              <span class=" font-medium"
-                >{ingredient.name}
-                {#if ingredient.allergens && ingredient.allergens.length > 0}
-                  <span class="tooltip print:hidden">
-                    <TriangleAlert
-                      class="mx-1  h-4 w-4 opacity-70"
-                      data-tooltip="Allergène: {ingredient.allergens.join(
-                        ', ',
-                      )}"
-                    />
-                  </span>
-                {/if} :
-              </span>
+          <li class="grid grid-cols-[auto_1fr] items-baseline gap-x-2 gap-y-0">
+            <!-- Nom de l'ingrédient avec allergène -->
+            <span class="truncate font-medium" title={ingredient.name}>
+              {ingredient.name}
+              {#if ingredient.allergens && ingredient.allergens.length > 0}
+                <span class="ml-1 inline-flex align-middle print:hidden">
+                  <TriangleAlert class="h-4 w-4 opacity-70" />
+                </span>
+              {/if}
+            </span>
 
-              <span class="ms-1 min-w-[80px]">
-                <span class="amount">{scaled.originalDisplayQuantity}</span>
-                <span class="unit ml-1">{scaled.originalDisplayUnit}</span>
+            <!-- Quantités et commentaire -->
+            <div class="flex flex-wrap items-baseline gap-x-1">
+              <span>
+                <span class="tabular-nums"
+                  >{scaled.originalDisplayQuantity}</span
+                >
+                <span class="ml-1">{scaled.originalDisplayUnit}</span>
                 {#if scaled.hasDifferentQuantities}
-                  <span class=" ms-1"
-                    >({scaled.normalizedDisplayQuantity}
-                    {scaled.normalizedDisplayUnit})</span
-                  >
+                  <span class="text-base-content/70 ml-1">
+                    ({scaled.normalizedDisplayQuantity}
+                    {scaled.normalizedDisplayUnit})
+                  </span>
                 {/if}
               </span>
-            </div>
 
-            {#if ingredient.comment}
-              <div class="text-base-content/70 print-xs ms-auto text-sm">
-                ({ingredient.comment})
-              </div>
-            {/if}
+              {#if ingredient.comment}
+                <span class="text-base-content/70 print-xs text-sm before:mx-1">
+                  ({ingredient.comment})
+                </span>
+              {/if}
+            </div>
           </li>
         {/each}
       </ul>

@@ -110,7 +110,7 @@
       // Reset form but keep some values
       if (keepOpen) {
         formData.productName = "";
-        formData.quantity = undefined;
+        formData.quantity = null;
         formData.unit = "";
         formData.pFrais = false;
         formData.pSurgel = false;
@@ -129,7 +129,7 @@
           who: "",
           pFrais: false,
           pSurgel: false,
-          quantity: undefined,
+          quantity: null,
           unit: "",
         };
       }
@@ -150,7 +150,7 @@
       who: "",
       pFrais: false,
       pSurgel: false,
-      quantity: undefined,
+      quantity: null,
       unit: "",
     };
     error = null;

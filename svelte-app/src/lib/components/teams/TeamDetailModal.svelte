@@ -202,10 +202,11 @@
             <!-- Paramètres -->
             <div class="space-y-4">
               <div>
-                <label class="label">
+                <label class="label" for="team-name-input">
                   <span class="label-text">Nom de l'équipe</span>
                 </label>
                 <input
+                  id="team-name-input"
                   type="text"
                   class="input input-bordered w-full"
                   bind:value={editName}
@@ -216,10 +217,11 @@
               </div>
 
               <div>
-                <label class="label">
+                <label class="label" for="team-description-input">
                   <span class="label-text">Description</span>
                 </label>
                 <textarea
+                  id="team-description-input"
                   class="textarea textarea-bordered w-full"
                   bind:value={editDescription}
                   placeholder="Description de l'équipe"

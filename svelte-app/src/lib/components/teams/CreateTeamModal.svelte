@@ -102,10 +102,11 @@
       <div class="space-y-4">
         <!-- Nom de l'équipe -->
         <div>
-          <label class="label">
+          <label class="label" for="create-team-name">
             <span class="label-text">Nom de l'équipe *</span>
           </label>
           <input
+            id="create-team-name"
             type="text"
             class="input input-bordered w-full"
             bind:value={teamName}
@@ -113,21 +114,19 @@
             maxlength="50"
             disabled={loading}
             onkeydown={handleKeydown}
-            autofocus
           />
-          <label class="label">
-            <span class="label-text-alt opacity-50"
-              >{teamName.length}/50 caractères</span
-            >
-          </label>
+          <span class="label label-text-alt opacity-50"
+            >{teamName.length}/50 caractères</span
+          >
         </div>
 
         <!-- Description -->
         <div>
-          <label class="label">
+          <label class="label" for="create-team-description">
             <span class="label-text">Description (optionnel)</span>
           </label>
           <textarea
+            id="create-team-description"
             class="textarea textarea-bordered w-full"
             bind:value={teamDescription}
             placeholder="Décrivez l'objectif de cette équipe..."
@@ -135,11 +134,9 @@
             maxlength="200"
             disabled={loading}
           ></textarea>
-          <label class="label">
-            <span class="label-text-alt opacity-50"
-              >{teamDescription.length}/200 caractères</span
-            >
-          </label>
+          <span class="label label-text-alt opacity-50"
+            >{teamDescription.length}/200 caractères</span
+          >
         </div>
 
         <!-- Message d'erreur -->
