@@ -360,15 +360,45 @@ export function subscribeToRecipes(
   const config = getAppwriteConfig();
   const channel = `databases.${config.APPWRITE_CONFIG.databaseId}.collections.${RECIPES_COLLECTION_ID}.documents`;
 
+  console.log(`[appwrite-recipes] Subscribe au channel: ${channel}`);
+  console.log(
+    `[appwrite-recipes] userId: ${userId}, userTeams: ${userTeams.join(", ")}`,
+  );
+
   return subscribe([channel], (response: any) => {
     const recipe = response.payload as Recettes;
 
-    const hasAccess =
-      recipe.createdBy === userId ||
-      recipe.permissionWrite?.includes(userId) ||
-      recipe.teams?.some((teamId) => userTeams.includes(teamId));
+    // Logique de réception des events :
+    // 1. Les recettes publiées (draft = false) sont reçues par tout le monde
+    // 2. Les recettes brouillons (draft = true) sont reçues uniquement par :
+    //    - Le créateur
+    //    - Les utilisateurs avec permissionWrite explicite
+    //    - Les membres des équipes listées
 
-    if (!hasAccess) return;
+    // const isPublished = !recipe.draft; // draft = false → publié
+
+    // const hasEditAccess =
+    //   recipe.createdBy === userId ||
+    //   recipe.permissionWrite?.includes(userId) ||
+    //   recipe.teams?.some((teamId) => userTeams.includes(teamId));
+
+    // // Filtrer : on garde si publié OU si on a les droits d'édition
+    // const shouldReceive = isPublished || hasEditAccess;
+
+    // console.log(`[appwrite-recipes] Event reçu pour ${recipe.$id}:`, {
+    //   draft: recipe.draft,
+    //   isPublished,
+    //   hasEditAccess,
+    //   shouldReceive,
+    //   createdBy: recipe.createdBy,
+    //   permissionWrite: recipe.permissionWrite,
+    //   teams: recipe.teams,
+    // });
+
+    // if (!shouldReceive) {
+    //   console.log(`[appwrite-recipes] Event ignoré (draft sans permissions)`);
+    //   return;
+    // }
 
     let eventType = "update";
     if (response.events.some((e: string) => e.includes(".create"))) {
@@ -377,6 +407,7 @@ export function subscribeToRecipes(
       eventType = "delete";
     }
 
+    console.log(`[appwrite-recipes] Callback déclenché: ${eventType}`);
     callback(recipe, eventType);
   });
 }

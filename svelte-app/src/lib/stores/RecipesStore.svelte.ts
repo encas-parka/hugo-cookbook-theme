@@ -451,43 +451,12 @@ class RecipesStore {
           );
 
           if (eventType === "create" || eventType === "update") {
-            // Extraire les noms d'ingrédients depuis Appwrite
-            const ingredients = ingredientsFromAppwrite(recipe.ingredients);
-            const ingredientNames = ingredients.map((ing) => ing.name);
-
             // 1. Mettre à jour l'index dans la SvelteMap (réactif)
-            const indexEntry: RecipeIndexEntry = {
-              title: recipe.title,
-              typeR: recipe.typeR,
-              categories: recipe.categories,
-              regime: recipe.regime,
-              draft: recipe.draft || false,
-              saison: recipe.saison,
-
-              // Champs de filtrage rapide
-              ingredients: ingredientNames,
-              materiel: recipe.materiel,
-              region: recipe.region,
-              serveHot: recipe.serveHot,
-              cuisson: recipe.cuisson,
-              check: recipe.check,
-              auteur: recipe.auteur || recipe.createdBy,
-
-              // Champs de permission
-              permissionWrite: recipe.permissionWrite,
-
-              // Champs de gestion
-              lockedBy: recipe.lockedBy || null,
-              $id: recipe.$id,
-              $createdAt: recipe.$createdAt,
-              $updatedAt: recipe.$updatedAt,
-              createdBy: recipe.createdBy,
-              plate: recipe.plate,
-            };
-
+            const indexEntry = parseAppwriteRecipeToIndexEntry(recipe);
             this.#recipesIndex.set(recipe.$id, indexEntry);
 
             // 2. Préparer les détails complets de la recette
+            const ingredients = ingredientsFromAppwrite(recipe.ingredients);
             const recipeData: RecipeForDisplay = {
               ...recipe,
               ingredients: ingredients, // Ingrédients complets avec conversion
@@ -497,7 +466,6 @@ class RecipesStore {
             // 3. Mettre à jour les détails dans le cache IndexedDB uniquement
             if (this.#cache) {
               try {
-                // On enregistre les détails Appwrite parsés dans le cache
                 await this.#cache.saveRecipeDetail(recipeData);
                 console.log(
                   `[RecipesStore] Détails de ${recipe.$id} mis à jour dans le cache`,
