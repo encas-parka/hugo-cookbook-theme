@@ -32,6 +32,7 @@
     dateToDateTime,
   } from "$lib/utils/date-helpers";
   import { flip } from "svelte/animate";
+  import { untrack } from "svelte";
 
   interface Props {
     meal: EventMeal;
@@ -70,7 +71,6 @@
   if (!meal.recipes) meal.recipes = [];
 
   // Variables dérivées pour l'UI (extraction date et moment depuis meal.date)
-  let displayDate = $derived(extractDate(meal.date || ""));
   let displayTime = $derived(extractTime(meal.date || ""));
 
   // Initialiser les valeurs d'entrée avec les valeurs actuelles
@@ -78,15 +78,16 @@
   let newTimeInput = $state(extractTime(meal.date || ""));
 
   // Synchronisation interne si meal.date change de l'extérieur (ex: sync distante)
-  $effect(() => {
-    if (meal.date) {
-      const extDate = extractDate(meal.date);
-      const extTime = extractTime(meal.date);
-      // On ne met à jour que si les valeurs diffèrent pour ne pas perturber l'édition locale
-      if (extDate !== newDateInput) newDateInput = extDate;
-      if (extTime !== newTimeInput) newTimeInput = extTime;
-    }
-  });
+  // USELESS  GARBAGE : un seul editeur possede le verrou
+  // $effect(() => {
+  //   if (meal.date) {
+  //     const extDate = extractDate(meal.date);
+  //     const extTime = extractTime(meal.date);
+  //     // On ne met à jour que si les valeurs diffèrent pour ne pas perturber l'édition locale
+  //     if (extDate !== newDateInput) newDateInput = extDate;
+  //     if (extTime !== newTimeInput) newTimeInput = extTime;
+  //   }
+  // });
 
   let newDateTime = $derived(dateToDateTime(newDateInput, newTimeInput));
 
@@ -141,7 +142,7 @@
     });
   }
 
-  // Effect pour maintenir les recettes triées dans meal.recipes
+  // Effect pour maintenir les recettes triées par type dans meal.recipes
   $effect(() => {
     const sorted = sortRecipesByType(meal.recipes);
     // Vérifier si le tri est nécessaire
@@ -149,16 +150,14 @@
       (recipe, i) => recipe.recipeUuid !== sorted[i]?.recipeUuid,
     );
     if (needsSort) {
-      meal.recipes = sorted;
+      untrack(() => {
+        meal.recipes = sorted;
+      });
     }
   });
 
   // État pour suivre si les couverts d'une recette ont été modifiés manuellement
-  // On utilise un identifiant composite meal.id-recipeUuid pour une identification unique
-  let manuallyEditedPlates = $state<Record<string, boolean>>({});
-
   // État pour savoir si les couverts d'une recette sont en mode édition
-  // On utilise un identifiant composite meal.id-recipeUuid pour une identification unique
   let editablePlates = $state<Record<string, boolean>>({});
 
   // Fonction helper pour générer une clé unique pour une recette dans un repas
@@ -166,51 +165,48 @@
     return `${meal.id}-${recipeUuid}`;
   }
 
-  // Initialiser editablePlates et manuallyEditedPlates pour les recettes existantes
+  // Initialiser editablePlates
   $effect(() => {
     meal.recipes.forEach((recipe) => {
       const key = getRecipeKey(recipe.recipeUuid);
       if (editablePlates[key] === undefined) {
         editablePlates[key] = false;
       }
-      // Initialiser manuallyEditedPlates uniquement si non défini
-      // et détecter si la recette a déjà des valeurs différentes au chargement
-      if (manuallyEditedPlates[key] === undefined) {
-        manuallyEditedPlates[key] = recipe.plates !== meal.guests;
-      }
     });
   });
 
-  // Effect pour synchroniser recipe.plates avec meal.guests uniquement pour les recettes non modifiées manuellement
+  // Effect pour synchroniser recipe.plates avec meal.guests
+  // IMPORTANT : Utilise recipe.hasOwnPlatesNb (persisté) au lieu d'un state local
   $effect(() => {
+    const targetGuests = meal.guests;
+
     meal.recipes.forEach((recipe) => {
-      const key = getRecipeKey(recipe.recipeUuid);
-      // Synchroniser uniquement si la recette n'est pas marquée comme modifiée manuellement
-      // et n'est pas en mode édition
+      // Synchroniser uniquement si :
+      // - Pas marqué comme modifié manuellement (champ persisté)
+      // - Pas en mode édition
+      // - La valeur actuelle est différente de meal.guests
       if (
-        !manuallyEditedPlates[key] &&
-        !editablePlates[key] &&
-        recipe.plates !== meal.guests
+        !recipe.hasOwnPlatesNb &&
+        !editablePlates[getRecipeKey(recipe.recipeUuid)] &&
+        recipe.plates !== targetGuests
       ) {
-        recipe.plates = meal.guests;
+        untrack(() => {
+          recipe.plates = targetGuests;
+        });
       }
     });
   });
 
-  function handleAddRecipe(
-    recipe: RecipeIndexEntry,
-    typeR: RecettesTypeR,
-    plates: number,
-  ) {
+  function handleAddRecipe(recipe: RecipeIndexEntry) {
     // Vérifier si la recette existe déjà pour éviter les doublons
     const alreadyExists = meal.recipes.some((r) => r.recipeUuid === recipe.$id);
     if (alreadyExists) return; // Ignorer silencieusement l'ajout d'une recette déjà présente
 
-    const defaultPlates = meal.guests; // Utiliser le nombre de guests par défaut
     const newRecipe: EventMealRecipe = {
       recipeUuid: recipe.$id,
-      plates: defaultPlates,
+      plates: meal.guests,
       typeR: recipe.typeR,
+      hasOwnPlatesNb: false, // Auto-sync par défaut pour les nouvelles recettes
     };
 
     // Créer une copie profonde pour éviter les liaisons
@@ -432,14 +428,7 @@
                   <!-- Contrôles d'édition -->
                   <div class="me-10 flex items-center gap-2">
                     <!-- Type -->
-                    <select
-                      class="select w-24"
-                      bind:value={recipe.typeR}
-                      onchange={() => {
-                        manuallyEditedPlates[getRecipeKey(recipe.recipeUuid)] =
-                          true;
-                      }}
-                    >
+                    <select class="select w-24" bind:value={recipe.typeR}>
                       <option value="entree">Entrée</option>
                       <option value="plat">Plat</option>
                       <option value="dessert">Dessert</option>
@@ -458,11 +447,6 @@
                             class="w-full text-center"
                             bind:value={recipe.plates}
                             min="1"
-                            onchange={() => {
-                              manuallyEditedPlates[
-                                getRecipeKey(recipe.recipeUuid)
-                              ] = true;
-                            }}
                           />
                         </div>
 
@@ -481,9 +465,7 @@
                           onclick={() => {
                             editablePlates[getRecipeKey(recipe.recipeUuid)] =
                               false;
-                            manuallyEditedPlates[
-                              getRecipeKey(recipe.recipeUuid)
-                            ] = false;
+                            recipe.hasOwnPlatesNb = false;
                             recipe.plates = meal.guests;
                           }}
                           title="Revenir au nombre de couvert du repas ({meal.guests})"
@@ -493,19 +475,19 @@
                       </div>
                     {:else}
                       <button
-                        class="btn {recipe.plates === meal.guests
+                        class="btn {!recipe.hasOwnPlatesNb
                           ? 'btn-ghost'
                           : 'btn-soft btn-warning'}"
                         onclick={() => {
-                          editablePlates[getRecipeKey(recipe.recipeUuid)] =
-                            true;
+                          const key = getRecipeKey(recipe.recipeUuid);
+                          editablePlates[key] = true;
+                          recipe.hasOwnPlatesNb = true;
                         }}
                         title="Éditer les couverts"
                       >
                         <span class="font-normal">
-                          {manuallyEditedPlates[getRecipeKey(recipe.recipeUuid)]
-                            ? recipe.plates
-                            : meal.guests} pers.
+                          {recipe.plates}
+                          pers.
                         </span>
                         <PencilLine
                           size={14}
@@ -543,7 +525,7 @@
       <div class="space-y-2">
         {#if meal.recipes.length > 0}
           <div class="flex flex-wrap gap-2">
-            {#each meal.recipes as recipe, i (recipe.recipeUuid)}
+            {#each meal.recipes as recipe (recipe.recipeUuid)}
               {@const recipeIndex = getRecipeIndex(recipe.recipeUuid)}
               <div
                 class="badge badge-lg {getRecipeColor(
@@ -553,7 +535,7 @@
                 <ChefHat class="h-4 w-4" />
                 <span>{recipeIndex?.title || "..."}</span>
                 <span class="badge badge-sm badge-outline font-normal">
-                  {recipe.plates || meal.guests}
+                  {recipe.plates}
                   <Utensils size={12} />
                 </span>
               </div>

@@ -38,6 +38,7 @@ export interface EventMealRecipe {
   recipeUuid: string;
   plates: number; // Nombre de couverts
   typeR: RecettesTypeR;
+  hasOwnPlatesNb?: boolean; // Si true, ne pas auto-sync avec meal.guests
 }
 
 import type { Main } from "./appwrite.d";
