@@ -391,6 +391,12 @@ function addIngredientToAggregation(
       ? ingredient.normalizedQuantity
       : ingredient.normalizedQuantity * scaleFactor;
 
+  // Scale également la quantité originale (pour affichage quand u différent de uEq)
+  const scaledOriginalQuantity =
+    ingredient.normalizedUnit === "au goût"
+      ? ingredient.originalQuantity
+      : ingredient.originalQuantity * scaleFactor;
+
   // Initialisation de l'entrée pour cette date
   if (!aggregation.byDate[date]) {
     aggregation.byDate[date] = {
@@ -411,7 +417,7 @@ function addIngredientToAggregation(
   // 2. Ajouter l'occurrence de recette (Traçabilité)
   entry.recipes.push({
     r: recipeName,
-    q: ingredient.originalQuantity,
+    q: scaledOriginalQuantity,
     u: ingredient.originalUnit,
     qEq: scaledQuantity,
     uEq: ingredient.normalizedUnit,

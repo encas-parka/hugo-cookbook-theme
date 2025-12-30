@@ -52,6 +52,8 @@
   {:else}
     <div class="mt-4 space-y-3">
       {#each recipes as recipe, index (index)}
+        {@const q_u = getRecipeQty(recipe.q, recipe.u)}
+        {@const q_uEq = getRecipeQty(recipe.qEq, recipe.uEq)}
         <div class="card card-bordered bg-base-100 shadow-sm">
           <div class="card-body p-3">
             <div
@@ -80,7 +82,7 @@
                   >{getRecipeQty(recipe.qEq, recipe.uEq)}</span
                 >
 
-                {#if recipe.q && recipe.u && recipe.u !== recipe.uEq}
+                {#if q_u !== q_uEq}
                   <span class="text-base-content/70">
                     ({getRecipeQty(recipe.q, recipe.u)})
                   </span>
