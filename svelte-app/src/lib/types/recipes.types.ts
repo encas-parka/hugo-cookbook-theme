@@ -18,6 +18,9 @@ export interface Ingredient {
   n: string; // Nom (ex: "Abricot")
   t: string; // Type (ex: "legumes", "epices", etc.)
   a?: string[]; // Allergènes optionnels (ex: ["Sésame"])
+  pFrais?: boolean; // Produit frais
+  pSurgel?: boolean; // Produit surgelé
+  saisons?: string[]; // Saisons (ex: ["printemps", "ete"])
 }
 
 /**
@@ -186,3 +189,15 @@ export type CreateRecipeData = Omit<
  * Tous les champs sont optionnels
  */
 export type UpdateRecipeData = Partial<CreateRecipeData>;
+
+/**
+ * Données pour créer un nouvel ingrédient
+ */
+export interface CreateIngredientData {
+  name: string;
+  type: string;
+  allergens: string[];
+  pFrais: boolean;
+  pSurgel: boolean;
+  saisons?: string[];
+}

@@ -1,26 +1,17 @@
 <script lang="ts">
-  import type { RecipeIngredient } from "$lib/types/recipes.types";
-  import QuantityInput from "$lib/components/ui/QuantityInput.svelte";
+  import type { RecipeIngredient, Ingredient } from "$lib/types/recipes.types";
   import { recipeDataStore } from "$lib/stores/RecipeDataStore.svelte";
   import { getProductTypeInfo } from "$lib/utils/products-display";
   import { UnitConverter } from "$lib/utils/UnitConverter";
   import {
     Plus,
     Trash2,
-    AlertTriangle,
+    TriangleAlert,
     Search,
-    Package,
-    Bean,
-    Beef,
-    Carrot,
-    CandyCane,
-    Egg,
-    ChefHat,
-    Leaf,
-    Refrigerator,
     ChevronDown,
   } from "@lucide/svelte";
   import { nanoid } from "nanoid";
+  import CreateIngredientModal from "./CreateIngredientModal.svelte";
 
   // ============================================================================
   // PROPS
@@ -42,6 +33,10 @@
   let isOpen = $state(false);
   let containerRef: HTMLDivElement | undefined = $state();
   let inputRef: HTMLInputElement | undefined = $state();
+
+  // Modal de création
+  let showCreateModal = $state(false);
+  let searchQueryForModal = $state("");
 
   // Filtrage des ingrédients depuis le store
   let filteredIngredients = $derived(
@@ -241,6 +236,23 @@
     // La normalisation se fera à la sauvegarde, mais on peut afficher un aperçu ici si besoin
     // Cette fonction peut être utilisée pour déclencher des effets visuels si nécessaire
   }
+
+  /**
+   * Ouvre la modal de création d'ingrédient
+   */
+  function openCreateModal() {
+    searchQueryForModal = searchQuery.trim();
+    showCreateModal = true;
+    closeDropdown();
+  }
+
+  /**
+   * Gère la création d'un ingrédient et l'ajoute à la recette
+   */
+  function handleIngredientCreated(newIngredient: Ingredient) {
+    // Ajouter automatiquement l'ingrédient créé à la recette
+    addIngredientFromSearch(newIngredient.u);
+  }
 </script>
 
 <div class="space-y-4" id="recipe-ingredients-editor">
@@ -258,7 +270,7 @@
     <div class="card bg-error/10 border-error/20 border shadow-sm">
       <div class="card-body p-4">
         <div class="text-error flex items-center gap-3">
-          <AlertTriangle class="h-4 w-4" />
+          <TriangleAlert class="h-4 w-4" />
           <span class="text-sm"
             >Erreur lors du chargement: {recipeDataStore.error}</span
           >
@@ -328,6 +340,26 @@
                   <div class="text-base-content/50 px-4 py-2 text-sm">
                     Aucun ingrédient trouvé
                   </div>
+
+                  <!-- Option "Créer" même si aucun résultat -->
+                  {#if searchQuery.trim().length > 0}
+                    <div class="border-base-300 mt-1 border-t pt-1">
+                      <button
+                        type="button"
+                        class="hover:bg-primary/20 text-primary flex w-full items-center gap-3 px-4 py-3 text-left hover:cursor-pointer"
+                        onclick={() => openCreateModal()}
+                        {disabled}
+                      >
+                        <Plus class="h-4 w-4" />
+                        <span class="text-sm font-medium"
+                          >Créer un nouvel ingrédient...</span
+                        >
+                        <span class="text-base-content/50 text-xs"
+                          >"{searchQuery}"</span
+                        >
+                      </button>
+                    </div>
+                  {/if}
                 {:else if filteredIngredients.length > 0}
                   {#each filteredIngredients as ingredient, index (ingredient.u)}
                     <button
@@ -350,6 +382,23 @@
                       </div>
                     </button>
                   {/each}
+
+                  <!-- Option "Créer" après les résultats -->
+                  {#if searchQuery.trim().length > 0}
+                    <div class="border-base-300 mt-1 border-t pt-1">
+                      <button
+                        type="button"
+                        class="hover:bg-primary/20 text-primary flex w-full items-center gap-3 px-4 py-3 text-left hover:cursor-pointer"
+                        onclick={() => openCreateModal()}
+                        {disabled}
+                      >
+                        <Plus class="h-4 w-4" />
+                        <span class="text-sm font-medium"
+                          >Créer un nouvel ingrédient...</span
+                        >
+                      </button>
+                    </div>
+                  {/if}
                 {:else if searchQuery.length <= 1}
                   <div class="text-base-content/50 px-4 py-2 text-sm">
                     Tapez au moins 2 caractères pour rechercher
@@ -477,3 +526,10 @@
     {/each}
   {/if}
 </div>
+
+<!-- Modal de création d'ingrédient -->
+<CreateIngredientModal
+  bind:open={showCreateModal}
+  initialName={searchQueryForModal}
+  onIngredientCreated={handleIngredientCreated}
+/>

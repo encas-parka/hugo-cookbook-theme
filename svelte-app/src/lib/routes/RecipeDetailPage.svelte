@@ -201,9 +201,14 @@
         </div>
 
         <!-- Description -->
-        {#if recipeDetails.description}
-          <div class="mb-6 p-6 print:hidden">
-            <p class="text-base-content/70 text-center italic print:text-sm">
+        {#if recipeDetails.description || (recipeDetails.categories && recipeDetails.categories.length > 0)}
+          <div class="mb-2 flex flex-wrap gap-2 print:hidden">
+            {#each recipeDetails.categories as category}
+              <div class="mb-2">
+                <span class="badge badge-primary badge-soft">{category}</span>
+              </div>
+            {/each}
+            <p class="text-base-content/70 text-base italic">
               {recipeDetails.description}
             </p>
           </div>

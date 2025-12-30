@@ -186,10 +186,14 @@
           ? a.title.localeCompare(b.title, "fr")
           : b.title.localeCompare(a.title, "fr");
       } else if (sortBy === "$createdAt") {
-        const diff = new Date(b.$createdAt || 0).getTime() - new Date(a.$createdAt || 0).getTime();
+        const diff =
+          new Date(b.$createdAt || 0).getTime() -
+          new Date(a.$createdAt || 0).getTime();
         return sortOrder === "asc" ? -diff : diff;
       } else {
-        const diff = new Date(b.$updatedAt || 0).getTime() - new Date(a.$updatedAt || 0).getTime();
+        const diff =
+          new Date(b.$updatedAt || 0).getTime() -
+          new Date(a.$updatedAt || 0).getTime();
         return sortOrder === "asc" ? -diff : diff;
       }
     });
@@ -423,7 +427,7 @@
         <span>Erreur : {recipesStore.error}</span>
       </div>
     {:else}
-      <div class="space-y-4">
+      <div class="space-y-8">
         {#each paginatedRecipes as recipe (recipe.$id)}
           <RecipeCard {recipe} highlightedIngredients={filters.ingredients} />
         {/each}

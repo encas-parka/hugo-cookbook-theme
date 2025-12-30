@@ -1,15 +1,15 @@
 <script lang="ts">
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
+  import { recipeDataStore } from "$lib/stores/RecipeDataStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import {
-    createRecipeAppwrite,
     executeManageDataRecipe,
     updateRecipeAppwrite,
   } from "$lib/services/appwrite-recipes";
   import { ingredientsToAppwrite } from "$lib/utils/ingredientUtils";
   import { astucesToAppwrite } from "$lib/utils/recipeUtils";
   import { toastService } from "$lib/services/toast.service.svelte";
-  import { navigate, router } from "$lib/services/simple-router.svelte";
+  import { navigate } from "$lib/services/simple-router.svelte";
   import { Save, Lock, Copy } from "@lucide/svelte";
   import { onDestroy } from "svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
@@ -18,11 +18,9 @@
   import RecipePermissionsManager from "$lib/components/recipeEdit/RecipePermissionsManager.svelte";
   import UnsavedChangesGuard from "$lib/components/ui/UnsavedChangesGuard.svelte";
   import RecipeMetadata from "$lib/components/recipes/RecipeMetadata.svelte";
-  import { generateSlugUuid35 } from "$lib/utils/slugUtils";
   import {
     type RecipeFormState,
     type ValidationError,
-    createDefaultRecipe,
     transformStoreDataToForm,
     createRecipeSnapshot,
     normalizeRecipeForAppwrite,
@@ -38,14 +36,12 @@
 
   let { params } = $props<{ params?: Record<string, string> }>();
   const recipeId = $derived(params?.uuid);
-  const isAlternativeVersion = $derived(router.path.endsWith("/duplicate"));
 
-  // Données de référence pour les listes déroulantes
-  let recipeInfo = $state<{
-    materiel: string[];
-    categories: string[];
-    regimes: string[];
-  } | null>(null);
+  if (!recipeId) {
+    toastService.error("ID de recette manquant");
+    navigate("/recipe");
+    throw new Error("recipeId is required");
+  }
 
   // ============================================================================
   // ÉTAT LOCAL
@@ -53,7 +49,7 @@
 
   let recipe = $state<RecipeFormState | null>(null);
   let loaded = $state(false);
-  let isLoading = $state(false);
+  let isLoading = $state(true);
   let isSaving = $state(false);
   let lockedBy = $state<string | null>(null);
   let heartbeatInterval: any = null;
@@ -81,7 +77,6 @@
   // DERIVED STATES
   // ============================================================================
 
-  const isCreating = $derived(!recipeId || isAlternativeVersion);
   const isLockedByOthers = $derived.by(
     () => !!lockedBy && lockedBy !== globalState.userId,
   );
@@ -90,75 +85,37 @@
   );
   const canEdit = $derived(!isLockedByOthers && !isLoading);
 
+  // Données de référence depuis RecipeDataStore
+  const recipeInfo = $derived.by(() => ({
+    materiel: recipeDataStore.materiel,
+    categories: recipeDataStore.categories,
+    regimes: recipeDataStore.regimes,
+  }));
+
   // ============================================================================
   // AUTO-EFFECTS
   // ============================================================================
 
-  // Charger les données de référence
+  // Vérifier que l'utilisateur est connecté
   $effect(() => {
-    if (!recipeInfo) {
-      loadRecipeInfo();
-    }
-  });
-
-  // Initialiser la recette (mode création vs édition vs alternative)
-  $effect(() => {
-    // Vérifier que l'utilisateur est connecté
     if (!globalState.userId) {
       toastService.error("Vous devez être connecté");
       navigate("/");
       return;
     }
+  });
 
-    // Mode création : initialiser avec la recette par défaut
-    if (!recipeId && !loaded) {
-      recipe = {
-        ...createDefaultRecipe(),
-        $id: "new-recipe",
-      } as RecipeFormState;
-      loaded = true;
-      return;
+  // Charger la recette depuis le store
+  $effect(() => {
+    if (recipeId && !loaded && !isLoading) {
+      return; // Déjà en cours de chargement
     }
 
-    // Mode version alternative : charger la recette originale et préparer une nouvelle version
-    if (recipeId && isAlternativeVersion && !loaded && !isLoading) {
-      isLoading = true;
-      recipesStore
-        .getRecipeByUuid(recipeId)
-        .then((data) => {
-          if (data) {
-            const userName = globalState.userName() || "utilisateur";
-            recipe = transformStoreDataToForm(data, {
-              title: `${data.title} (v-${userName})`,
-              $id: "new-recipe",
-              $createdAt: undefined,
-              $updatedAt: undefined,
-              lockedBy: null,
-              createdBy: globalState.userId || "",
-              permissionWrite: [globalState.userId || ""],
-              check: null,
-              draft: true,
-            });
-            loaded = true;
-          } else {
-            toastService.error("Recette introuvable");
-            navigate("/recipe");
-          }
-        })
-        .catch((error) => {
-          console.error("Erreur chargement:", error);
-          toastService.error("Erreur lors du chargement");
-          navigate("/recipe");
-        })
-        .finally(() => {
-          isLoading = false;
-        });
-      return;
+    if (recipeId && loaded) {
+      return; // Déjà chargé
     }
 
-    // Mode édition : charger depuis le store
-    if (recipeId && !isAlternativeVersion && !loaded && !isLoading) {
-      isLoading = true;
+    if (recipeId && !loaded && isLoading) {
       recipesStore
         .getRecipeByUuid(recipeId)
         .then(async (data) => {
@@ -170,6 +127,7 @@
             });
             lockedBy = data.lockedBy || null;
             loaded = true;
+            isLoading = false;
 
             // Acquérir le verrou après chargement
             await acquireLock();
@@ -200,14 +158,9 @@
   // NAVBAR CONFIGURATION
   // ============================================================================
 
-  const navTitle = $derived(() => {
-    if (isAlternativeVersion) return "Nouvelle version de recette";
-    return isCreating ? "Nouvelle recette" : "Édition de recette";
-  });
-
   $effect(() => {
     navBarStore.setConfig({
-      title: navTitle(),
+      title: recipe?.title || "Édition de recette",
       actions: navActions,
     });
   });
@@ -243,7 +196,7 @@
     heartbeatInterval = setInterval(async () => {
       try {
         console.log("💓 Heartbeat: Refreshing lock...");
-        await recipesStore.updateRecipeLock(recipeId!, globalState.userId);
+        await recipesStore.updateRecipeLock(recipeId, globalState.userId);
       } catch (error) {
         console.error("❌ Heartbeat failed:", error);
       }
@@ -260,25 +213,6 @@
   // ============================================================================
   // LOCK MANAGEMENT
   // ============================================================================
-
-  async function loadRecipeInfo(): Promise<void> {
-    try {
-      const response = await fetch("/data/recipe-info.json");
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      recipeInfo = await response.json();
-    } catch (error) {
-      console.error("Erreur chargement recipe-info.json:", error);
-      toastService.error("Impossible de charger les données de référence");
-      // En cas d'erreur, utiliser des valeurs par défaut
-      recipeInfo = {
-        materiel: [],
-        categories: [],
-        regimes: [],
-      };
-    }
-  }
 
   async function acquireLock(): Promise<boolean> {
     if (!recipeId || !globalState.userId || !recipe) return false;
@@ -348,108 +282,60 @@
     const toastId = toastService.loading("Sauvegarde en cours...");
 
     try {
-      if (isCreating) {
-        // Création
-        recipe.$id = generateSlugUuid35(recipe.title);
+      // Déterminer les régimes automatiquement
+      const { regimes } = determineAllergensAndRegimes(recipe.ingredients);
 
-        // Normaliser les types UI vers types Appwrite
-        const normalized = normalizeRecipeForAppwrite(recipe);
+      // Normaliser les types UI vers types Appwrite
+      const normalized = normalizeRecipeForAppwrite(recipe);
 
-        const recipeToCreate: any = {
-          ...normalized,
-          ingredients: ingredientsToAppwrite(recipe.ingredients),
-          astuces: astucesToAppwrite(recipe.astuces),
-          prepAlt: recipe.prepAlt,
-        };
+      const recipeData: any = {
+        ...normalized,
+        categories: recipe.categories,
+        regime: regimes,
+        saison: recipe.saison,
+        ingredients: ingredientsToAppwrite(recipe.ingredients),
+        quantite_desc: recipe.quantite_desc,
+        auteur: recipe.auteur,
+        preparation24h: recipe.preparation24h,
+        astuces: astucesToAppwrite(recipe.astuces),
+        prepAlt: recipe.prepAlt,
+        $id: recipe.$id,
+      };
 
-        const created = await createRecipeAppwrite(
-          recipeToCreate,
-          globalState.userId,
-        );
-        toastService.update(toastId, {
-          state: "success",
-          message: "Recette créée avec succès !",
-        });
+      const updated = await updateRecipeAppwrite(
+        recipeId,
+        recipeData,
+        globalState.userId,
+      );
 
-        // Appel async pour synchroniser vers GitHub
-        const hugoData = prepareHugoData(recipe, recipeToCreate, {
-          id: created.$id,
-          createdAt: created.$createdAt,
-          updatedAt: created.$updatedAt,
-          createdBy: created.createdBy,
-        });
+      // Réinitialiser isDirty après sauvegarde réussie en recapturant le snapshot
+      initialRecipeSnapshot = createRecipeSnapshot(recipe);
 
-        executeManageDataRecipe(
-          "save_recipe",
-          created.$id,
-          globalState.userId,
-          hugoData,
-          true,
-        ).catch((error) => {
-          console.error("Sync vers GitHub échouée:", error);
-        });
+      // Appel async pour synchroniser vers GitHub
+      const hugoUpdateData = prepareHugoData(recipe, recipeData, {
+        id: updated.$id,
+        createdAt: updated.$createdAt,
+        updatedAt: updated.$updatedAt,
+        createdBy: updated.createdBy,
+      });
 
-        // forcer l'$effect d'initialisation
-        loaded = false;
+      executeManageDataRecipe(
+        "save_recipe",
+        recipeId,
+        globalState.userId,
+        hugoUpdateData,
+        true,
+      ).catch((error) => {
+        console.error("Sync vers GitHub échouée:", error);
+      });
 
-        // Rediriger vers l'édition
-        navigate(`/recipe/${created.$id}/edit`);
-      } else {
-        // Mise à jour
-        const { regimes } = determineAllergensAndRegimes(recipe.ingredients);
+      toastService.update(toastId, {
+        state: "success",
+        message: "Recette sauvegardée !",
+      });
 
-        // Normaliser les types UI vers types Appwrite
-        const normalized = normalizeRecipeForAppwrite(recipe);
-
-        const recipeData: any = {
-          ...normalized,
-          categories: recipe.categories,
-          regime: regimes,
-          saison: recipe.saison,
-          ingredients: ingredientsToAppwrite(recipe.ingredients),
-          quantite_desc: recipe.quantite_desc,
-          auteur: recipe.auteur,
-          preparation24h: recipe.preparation24h,
-          astuces: astucesToAppwrite(recipe.astuces),
-          prepAlt: recipe.prepAlt,
-          $id: recipe.$id,
-        };
-
-        const updated = await updateRecipeAppwrite(
-          recipeId!,
-          recipeData,
-          globalState.userId,
-        );
-
-        // Réinitialiser isDirty après sauvegarde réussie en recapturant le snapshot
-        initialRecipeSnapshot = createRecipeSnapshot(recipe);
-
-        // Appel async pour synchroniser vers GitHub
-        const hugoUpdateData = prepareHugoData(recipe, recipeData, {
-          id: updated.$id,
-          createdAt: updated.$createdAt,
-          updatedAt: updated.$updatedAt,
-          createdBy: updated.createdBy,
-        });
-
-        executeManageDataRecipe(
-          "save_recipe",
-          recipeId!,
-          globalState.userId,
-          hugoUpdateData,
-          true,
-        ).catch((error) => {
-          console.error("Sync vers GitHub échouée:", error);
-        });
-
-        toastService.update(toastId, {
-          state: "success",
-          message: "Recette sauvegardée !",
-        });
-
-        // Libérer le verrou
-        await releaseLock();
-      }
+      // Libérer le verrou
+      await releaseLock();
     } catch (error) {
       console.error("Erreur sauvegarde:", error);
       toastService.update(toastId, {
@@ -466,15 +352,9 @@
   // DUPLICATE
   // ============================================================================
 
-  async function duplicate(): Promise<void> {
-    if (!recipe || isSaving) return;
-
-    // Créer une nouvelle recette basée sur l'actuelle
-    const userName = globalState.userName() || "utilisateur";
-    const duplicatedTitle = `${recipe.title} (copie-${userName})`;
-
-    loaded = false;
-    // Rediriger vers le mode création avec les données dupliquées
+  function duplicate(): void {
+    if (!recipe) return;
+    // Rediriger vers le mode duplication
     navigate(`/recipe/${recipeId}/duplicate`);
   }
 </script>
@@ -498,16 +378,14 @@
     {/if}
 
     <!-- Duplicate button -->
-    {#if !isCreating}
-      <button
-        onclick={duplicate}
-        disabled={!canEdit || isSaving}
-        class="btn btn-secondary btn-soft btn-sm"
-      >
-        <Copy class="h-4 w-4" />
-        Créer une version alternative
-      </button>
-    {/if}
+    <button
+      onclick={duplicate}
+      disabled={!canEdit || isSaving}
+      class="btn btn-secondary btn-soft btn-sm"
+    >
+      <Copy class="h-4 w-4" />
+      Créer une version alternative
+    </button>
 
     <!-- Save button -->
     <button
@@ -533,7 +411,6 @@
     <!-- Form -->
     <div class="space-y-6">
       <!-- Métadonnées de base -->
-      <!-- FIXIT binding -->
       <RecipeHeaderForm
         bind:recipe
         {recipeInfo}
@@ -556,7 +433,7 @@
       />
 
       <!-- Métadonnées système -->
-      {#if !isCreating && recipe.$createdAt}
+      {#if recipe.$createdAt}
         <RecipeMetadata
           auteur={recipe.auteur}
           createdBy={recipe.createdBy}
@@ -571,7 +448,7 @@
 
 <!-- Guard de navigation pour modifications non sauvegardées -->
 <UnsavedChangesGuard
-  routeKey={recipeId ? `/recipe/${recipeId}/edit` : "/recipe/new"}
+  routeKey={`/recipe/${recipeId}/edit`}
   shouldProtect={() => isDirty}
   onLeaveWithoutSave={async () => {
     // Libérer le lock si on le détient

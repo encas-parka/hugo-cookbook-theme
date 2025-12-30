@@ -3,6 +3,7 @@
   import { navigate } from "$lib/services/simple-router.svelte";
   import RecipeRegimeBadges from "./RecipeRegimeBadges.svelte";
   import { getTypeDisplay } from "$lib/utils/recipeUtils";
+  import { globalState } from "@/lib/stores/GlobalState.svelte";
 
   interface Props {
     recipe: RecipeIndexEntry;
@@ -33,20 +34,55 @@
     }
   }}
 >
+  <!-- Absolute top @md -->
+  {#if globalState.isDesktop}
+    <div
+      class="text-primary bg-base-100 rounded-t-box border-t-base-300 absolute -top-4 left-0 flex max-w-4/5 items-center-safe gap-2 border-t-1 py-0.5 ps-4 pe-6 text-lg font-semibold"
+    >
+      <svg class="size-6">
+        <use href={`/icons/type/types-sprite.svg#${typeDisplay.iconId}`} />
+      </svg>
+      {recipe.title}
+      {#if recipe.draft}
+        <div class="badge badge-accent badge-outline badge-sm">brouillon</div>
+      {/if}
+    </div>
+
+    <div
+      class="bg-base-100 rounded-t-box border-base-300 absolute -top-4 right-0 border-t-1 p-0.5"
+    >
+      {#if recipe.regime}
+        <RecipeRegimeBadges regimes={recipe.regime} iconOnly />
+      {/if}
+    </div>
+  {/if}
   <!-- Header -->
-  <div class="mb-2 flex flex-wrap items-start justify-between gap-4">
+  <div class=" flex flex-wrap items-start justify-between gap-4 @md:my-2">
     <div class="min-w-72 flex-1">
-      <div
-        class="text-primary flex items-center-safe gap-2 text-lg font-semibold"
-      >
-        <svg class="size-6">
-          <use href={`/icons/type/types-sprite.svg#${typeDisplay.iconId}`} />
-        </svg>
-        {recipe.title}
-        {#if recipe.draft}
-          <div class="badge badge-accent badge-outline badge-sm">brouillon</div>
-        {/if}
-      </div>
+      <!-- title mobile-->
+      {#if !globalState.isDesktop}
+        <div class="flex gap-4">
+          <div
+            class="text-primary mb-2 inline-flex items-center-safe gap-2 text-lg font-semibold"
+          >
+            <svg class="size-6">
+              <use
+                href={`/icons/type/types-sprite.svg#${typeDisplay.iconId}`}
+              />
+            </svg>
+            {recipe.title}
+            {#if recipe.draft}
+              <div class="badge badge-accent badge-outline badge-sm">
+                brouillon
+              </div>
+            {/if}
+          </div>
+          {#if recipe.regime}
+            <RecipeRegimeBadges regimes={recipe.regime} iconOnly />
+          {/if}
+        </div>
+      {/if}
+
       <div class="text-base-content/60 text-sm">
         {#if recipe.auteur}
           <span>de {recipe.auteur} - </span>
@@ -59,20 +95,15 @@
         {:else}
           <span>
             théoriquement pour {recipe.plate} couverts
-            <strong>(non testée !)</strong>
+            <strong>(non testée)</strong>
           </span>
         {/if}
       </div>
     </div>
-    <div>
-      {#if recipe.regime}
-        <RecipeRegimeBadges regimes={recipe.regime} iconOnly />
-      {/if}
-    </div>
 
     <!-- Badges -->
-    <div class="flex flex-col justify-end gap-2">
-      <div class="flex flex-wrap justify-end gap-1">
+    <div class="ms-auto flex flex-col justify-end gap-2">
+      <div class=" flex flex-wrap justify-end gap-1 pt-1">
         {#if recipe.categories}
           {#if recipe.region}
             <span class="badge badge-ghost badge-sm">{recipe.region}</span>
@@ -115,7 +146,7 @@
 
   <!-- Ingrédients -->
   {#if recipe.ingredients && recipe.ingredients.length > 0}
-    <div class="text-sm">
+    <div class="my-1 text-sm">
       <span class="font-semibold">Ingrédients : </span>
       {#each recipe.ingredients as ingredient, index}
         <span

@@ -239,7 +239,7 @@ export function normalizeIngredientQuantity(
     return {
       ...ingredient,
       normalizedQuantity: 0,
-      normalizedUnit: ingredient.originalUnit || "g",
+      normalizedUnit: ingredient.originalUnit || "gr.",
     };
   }
 

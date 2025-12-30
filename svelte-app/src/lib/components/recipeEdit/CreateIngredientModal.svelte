@@ -1,0 +1,519 @@
+<script lang="ts">
+  import {
+    Plus,
+    X,
+    TriangleAlert,
+    Thermometer,
+    Snowflake,
+    Refrigerator,
+    PackagePlus,
+  } from "@lucide/svelte";
+  import { recipeDataStore } from "$lib/stores/RecipeDataStore.svelte";
+  import { toastService } from "$lib/services/toast.service.svelte";
+  import type { Ingredient } from "$lib/types/recipes.types";
+
+  // ============================================================================
+  // PROPS
+  // ============================================================================
+
+  interface Props {
+    open: boolean;
+    initialName?: string;
+    onIngredientCreated?: (ingredient: Ingredient) => void;
+  }
+
+  let {
+    open = $bindable(false),
+    initialName = "",
+    onIngredientCreated,
+  }: Props = $props();
+
+  // ============================================================================
+  // ÉTAT DU FORMULAIRE
+  // ============================================================================
+
+  let formData = $state<{
+    name: string;
+    type: string;
+    allergens: string[];
+    pFrais: boolean | null;
+    pSurgel: boolean | null;
+    saisons: string[];
+  }>({
+    name: initialName,
+    type: "",
+    allergens: [],
+    pFrais: null,
+    pSurgel: null,
+    saisons: [],
+  });
+
+  let loading = $state(false);
+  let showErrors = $state(false);
+  let serverError = $state<string | null>(null);
+  let validationErrors = $state<{
+    name?: string;
+    type?: string;
+    allergens?: string;
+    pFrais?: string;
+    pSurgel?: string;
+  }>({});
+
+  // ============================================================================
+  // CONSTANTES
+  // ============================================================================
+
+  const INGREDIENT_TYPES = [
+    { value: "frais", label: "Produits Frais (beurre, fromage, yahourt..." },
+    {
+      value: "legumes",
+      label: "Fruits et Légumes (frais, concerves, surgelés, etc.",
+    },
+    { value: "lof", label: "LOF : Laits, oeuf, farines, huiles..." },
+    { value: "sucres", label: "Sucrés (jus, sirop, confiture ...)" },
+    { value: "epices", label: "Assaisonnements (épices, herbes, sauces...)" },
+    { value: "sec", label: "Sec (riz, pâtes, lentilles...)" },
+    { value: "animaux", label: "Viandes et Poissons" },
+    { value: "autres", label: "Autres" },
+  ];
+
+  const ALLERGENS = [
+    "Aucun",
+    "Produit laitier",
+    "Gluten",
+    "Crustacé",
+    "Oeuf",
+    "Poisson",
+    "Viande",
+    "Porc",
+    "Arachides",
+    "Soja",
+    "Fruits à coque",
+    "Céleri",
+    "Moutarde",
+    "Sésame",
+    "Sulfites",
+    "Lupin",
+    "Mollusque",
+    "Alcool",
+    "Vérifier emballage",
+  ];
+
+  const SAISONS = [
+    { value: "printemps", label: "Printemps" },
+    { value: "ete", label: "Eté" },
+    { value: "automne", label: "Automne" },
+    { value: "hiver", label: "Hiver" },
+  ];
+
+  // ============================================================================
+  // VALIDATION
+  // ============================================================================
+
+  function validateForm(): {
+    name?: string;
+    type?: string;
+    allergens?: string;
+    pFrais?: string;
+    pSurgel?: string;
+  } {
+    const errors: {
+      name?: string;
+      type?: string;
+      allergens?: string;
+      pFrais?: string;
+      pSurgel?: string;
+    } = {};
+
+    if (!formData.name.trim()) {
+      errors.name = "Le nom est requis";
+    }
+    if (!formData.type.trim()) {
+      errors.type = "Le type est requis";
+    }
+    if (formData.allergens.length === 0) {
+      errors.allergens =
+        "Cochez 'Aucun' si l'ingrédient ne contient aucun allergène";
+    }
+    if (formData.pFrais === null) {
+      errors.pFrais = "Indiquez si c'est un produit frais";
+    }
+    if (formData.pSurgel === null) {
+      errors.pSurgel = "Indiquez si c'est un produit surgelé";
+    }
+
+    return errors;
+  }
+
+  // ============================================================================
+  // FONCTIONS
+  // ============================================================================
+
+  /**
+   * Gestion spécial "Aucun" pour allergènes
+   * Si "Aucun" est sélectionné, désélectionne tous les autres allergènes
+   */
+  function toggleAllergen(allergen: string) {
+    if (allergen === "Aucun") {
+      // Si "Aucun" est coché, désélectionner tous les autres
+      formData.allergens = ["Aucun"];
+    } else {
+      // Si un allergène est coché, désélectionner "Aucun"
+      formData.allergens = formData.allergens.filter((a) => a !== "Aucun");
+
+      // Toggle l'allergène
+      if (formData.allergens.includes(allergen)) {
+        formData.allergens = formData.allergens.filter((a) => a !== allergen);
+      } else {
+        formData.allergens.push(allergen);
+      }
+    }
+  }
+
+  /**
+   * Création de l'ingrédient
+   */
+  async function handleSubmit() {
+    if (loading) return;
+
+    // Afficher les erreurs de validation
+    showErrors = true;
+
+    // Vérifier la validation
+    validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    loading = true;
+    serverError = null;
+
+    try {
+      // Préparer les données
+      const ingredientData = {
+        name: formData.name.trim(),
+        type: formData.type,
+        allergens: formData.allergens.includes("Aucun")
+          ? []
+          : formData.allergens,
+        pFrais: formData.pFrais === true,
+        pSurgel: formData.pSurgel === true,
+        saisons: formData.saisons.length > 0 ? formData.saisons : undefined,
+      };
+
+      // Appeler le store
+      const newIngredient = await recipeDataStore.addIngredient(ingredientData);
+
+      // Success
+      toastService.success(`Ingrédient "${newIngredient.n}" créé avec succès`);
+
+      // Callback parent
+      if (onIngredientCreated) {
+        onIngredientCreated(newIngredient);
+      }
+
+      // Reset et fermeture
+      resetForm();
+      open = false;
+    } catch (err) {
+      serverError =
+        err instanceof Error ? err.message : "Erreur lors de la création";
+      toastService.error(serverError);
+    } finally {
+      loading = false;
+    }
+  }
+
+  function resetForm() {
+    formData = {
+      name: "",
+      type: "",
+      allergens: [],
+      pFrais: null,
+      pSurgel: null,
+      saisons: [],
+    };
+    showErrors = false;
+    serverError = null;
+    validationErrors = {};
+  }
+
+  function handleClose() {
+    open = false;
+    resetForm();
+  }
+
+  // Focus automatique à l'ouverture
+  $effect(() => {
+    if (open) {
+      setTimeout(() => {
+        document.getElementById("ingredient-name-input")?.focus();
+      }, 50);
+    }
+  });
+
+  // Mettre à jour le nom quand initialName change
+  $effect(() => {
+    if (initialName && formData.name === "") {
+      formData.name = initialName;
+    }
+  });
+</script>
+
+<div class="modal" class:modal-open={open}>
+  <div class="modal-box relative w-11/12 max-w-4xl">
+    <!-- Bouton fermer -->
+    <button
+      class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
+      onclick={handleClose}
+    >
+      <X size={20} />
+    </button>
+
+    <!-- Titre -->
+    <h3 class="text-lg font-bold">Créer un nouvel ingrédient</h3>
+
+    <!-- Erreur -->
+    {#if serverError}
+      <div class="alert alert-error mt-4 text-sm">
+        <TriangleAlert size={18} />
+        <span>{serverError}</span>
+      </div>
+    {/if}
+
+    <!-- Formulaire -->
+    <form
+      onsubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}
+      class="mt-6 space-y-6"
+    >
+      <fieldset disabled={loading} class="space-y-4">
+        <!-- Nom -->
+        <div class="fieldset">
+          <legend class="fieldset-legend">Nom *</legend>
+          <label
+            class="input w-full {showErrors && validationErrors.name
+              ? 'input-error'
+              : ''}"
+          >
+            <PackagePlus class="text-base-content/50 h-5 w-5" />
+            <input
+              id="ingredient-name-input"
+              type="text"
+              placeholder="Nom de l'ingrédient"
+              bind:value={formData.name}
+              required
+            />
+          </label>
+          {#if showErrors && validationErrors.name}
+            <p class="text-error text-xs">{validationErrors.name}</p>
+          {/if}
+        </div>
+
+        <!-- Type -->
+        <div class="fieldset">
+          <legend class="fieldset-legend">Type *</legend>
+          <select
+            class="select select-bordered w-full {showErrors &&
+            validationErrors.type
+              ? 'select-error'
+              : ''}"
+            bind:value={formData.type}
+          >
+            <option value="">Sélectionner un type...</option>
+            {#each INGREDIENT_TYPES as type (type.value)}
+              <option value={type.value}>{type.label}</option>
+            {/each}
+          </select>
+          {#if showErrors && validationErrors.type}
+            <p class="text-error text-xs">{validationErrors.type}</p>
+          {/if}
+        </div>
+
+        <!-- Allergènes -->
+        <div class="fieldset">
+          <legend class="fieldset-legend">Allergènes *</legend>
+          <p class="text-base-content/60 mb-2 text-xs">
+            Précisez les allergènes présents dans l'ingrédient et/ou la nature
+            de l'ingrédients (ou cochez "Aucun"). Sert notamment à la
+            classification des recettes comme végétarienne, sans-gluten, etc.)
+          </p>
+          <div class="flex flex-wrap gap-2">
+            {#each ALLERGENS as allergen (allergen)}
+              <label
+                class="label border-base-300 cursor-pointer gap-2 rounded-lg border px-3 py-1 {formData.allergens.includes(
+                  allergen,
+                )
+                  ? 'bg-primary/20 border-primary'
+                  : 'bg-base-200'} {showErrors &&
+                validationErrors.allergens &&
+                !formData.allergens.length
+                  ? 'border-error'
+                  : ''}"
+              >
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm bg-base-100"
+                  checked={formData.allergens.includes(allergen)}
+                  onchange={() => toggleAllergen(allergen)}
+                />
+                <span class="label-text">{allergen}</span>
+              </label>
+            {/each}
+          </div>
+          {#if showErrors && validationErrors.allergens}
+            <p class="text-error text-xs">
+              {validationErrors.allergens}
+            </p>
+          {/if}
+        </div>
+
+        <!-- pFrais / pSurgel -->
+        <div class="grid gap-4 md:grid-cols-2">
+          <!-- Produit Frais -->
+          <div class="fieldset">
+            <legend class="fieldset-legend"
+              ><div class="flex items-center gap-2">
+                <Refrigerator size={16} class="opacity-50" />
+                <span>frais ? *</span>
+              </div></legend
+            >
+            <p class="text-base-content/60 mb-2 text-xs">
+              Fruits et légumes frais, ou ingrédients qui se conservent au frigo
+            </p>
+            <div
+              class="join w-full {showErrors && validationErrors.pFrais
+                ? 'join-error'
+                : ''}"
+            >
+              <button
+                type="button"
+                class="btn join-item flex-1 {formData.pFrais === true
+                  ? 'btn-success'
+                  : ''}"
+                onclick={() => (formData.pFrais = true)}
+              >
+                Oui
+              </button>
+              <button
+                type="button"
+                class="btn join-item flex-1 {formData.pFrais === false
+                  ? 'btn-error'
+                  : ''}"
+                onclick={() => (formData.pFrais = false)}
+              >
+                Non
+              </button>
+            </div>
+            {#if showErrors && validationErrors.pFrais}
+              <p class="text-error text-xs">{validationErrors.pFrais}</p>
+            {/if}
+          </div>
+
+          <!-- Produit Surgelé -->
+          <div class="fieldset">
+            <legend class="fieldset-legend">
+              <div class="flex items-center gap-2">
+                <Snowflake size={16} class="opacity-50" />
+                <span>Produit surgelé ? *</span>
+              </div></legend
+            >
+            <p class="text-base-content/60 mb-2 text-xs">
+              Ingrédients qui se conservent au congélateur
+            </p>
+            <div
+              class="join w-full {showErrors && validationErrors.pSurgel
+                ? 'join-error'
+                : ''}"
+            >
+              <button
+                type="button"
+                class="btn join-item flex-1 {formData.pSurgel === true
+                  ? 'btn-info'
+                  : ''}"
+                onclick={() => (formData.pSurgel = true)}
+              >
+                Oui
+              </button>
+              <button
+                type="button"
+                class="btn join-item flex-1 {formData.pSurgel === false
+                  ? 'btn-error'
+                  : ''}"
+                onclick={() => (formData.pSurgel = false)}
+              >
+                Non
+              </button>
+            </div>
+            {#if showErrors && validationErrors.pSurgel}
+              <p class="text-error text-xs">
+                {validationErrors.pSurgel}
+              </p>
+            {/if}
+          </div>
+        </div>
+
+        <!-- Saisons -->
+        <div class="fieldset">
+          <legend class="fieldset-legend">Saisons (optionnel)</legend>
+          <p class="text-base-content/60 mb-2 text-xs">
+            Si l'ingrédient se trouve surtout à certaines saisons
+          </p>
+          <div class="flex flex-wrap gap-2">
+            {#each SAISONS as saison (saison.value)}
+              <label
+                class="label border-base-300 cursor-pointer gap-2 rounded-lg px-3 py-1 {formData.saisons.includes(
+                  saison.value,
+                )
+                  ? 'bg-success/20 border-success'
+                  : 'bg-base-200'}"
+              >
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm bg-base-100"
+                  checked={formData.saisons.includes(saison.value)}
+                  onchange={(e) => {
+                    if (e.currentTarget.checked) {
+                      formData.saisons = [...formData.saisons, saison.value];
+                    } else {
+                      formData.saisons = formData.saisons.filter(
+                        (s) => s !== saison.value,
+                      );
+                    }
+                  }}
+                />
+                <span class="label-text">{saison.label}</span>
+              </label>
+            {/each}
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Actions -->
+      <div class="modal-action">
+        <button
+          type="button"
+          class="btn btn-ghost"
+          onclick={handleClose}
+          disabled={loading}
+        >
+          Annuler
+        </button>
+        <button type="submit" class="btn btn-primary" disabled={loading}>
+          {#if loading}
+            <span class="loading loading-spinner"></span>
+          {:else}
+            <Plus size={18} />
+          {/if}
+          Créer l'ingrédient
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <form method="dialog" class="modal-backdrop">
+    <button onclick={handleClose}>close</button>
+  </form>
+</div>

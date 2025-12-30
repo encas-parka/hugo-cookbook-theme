@@ -23,6 +23,7 @@
   import RecipeDetailPage from "./lib/routes/RecipeDetailPage.svelte";
   import RecipesListPage from "./lib/routes/RecipesListPage.svelte";
   import RecipeEditPage from "./lib/routes/RecipeEditPage.svelte";
+  import RecipeCreatePage from "./lib/routes/RecipeCreatePage.svelte";
   import ProductsPage from "./lib/routes/ProductsPage.svelte";
   import HomePage from "./lib/routes/HomePage.svelte";
 
@@ -67,9 +68,9 @@
   router.addRoute("/recipe", RecipesListPage);
   router.addRoute("/recipe/my", RecipesListPage, requireAuth);
   router.addRoute("/recipe/my/draft", RecipesListPage, requireAuth);
-  router.addRoute("/recipe/new", RecipeEditPage, requireAuth);
+  router.addRoute("/recipe/new", RecipeCreatePage, requireAuth);
   router.addRoute("/recipe/:uuid/edit", RecipeEditPage, requireAuth);
-  router.addRoute("/recipe/:uuid/duplicate", RecipeEditPage, requireAuth);
+  router.addRoute("/recipe/:uuid/duplicate", RecipeCreatePage, requireAuth);
   router.addRoute("/recipe/:uuid", RecipeDetailPage);
   router.addRoute("/accept-invite", AcceptInvite);
 

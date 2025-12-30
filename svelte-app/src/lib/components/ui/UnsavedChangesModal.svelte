@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AlertTriangle, Save, X } from "@lucide/svelte";
+  import { TriangleAlert, Save, X } from "@lucide/svelte";
 
   interface Props {
     isOpen: boolean;
@@ -37,7 +37,7 @@
 
     <!-- Contenu avec alerte -->
     <div class="alert alert-warning mb-6">
-      <AlertTriangle class="h-5 w-5" />
+      <TriangleAlert class="h-5 w-5" />
       <span>{message}</span>
     </div>
 

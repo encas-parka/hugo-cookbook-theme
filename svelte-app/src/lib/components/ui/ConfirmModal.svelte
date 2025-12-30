@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AlertTriangle, Info, AlertCircle, X } from "@lucide/svelte";
+  import { TriangleAlert, Info, AlertCircle, X } from "@lucide/svelte";
 
   interface Props {
     isOpen: boolean;
@@ -45,7 +45,7 @@
       ? AlertCircle
       : variant === "info"
         ? Info
-        : AlertTriangle,
+        : TriangleAlert,
   );
 </script>
 

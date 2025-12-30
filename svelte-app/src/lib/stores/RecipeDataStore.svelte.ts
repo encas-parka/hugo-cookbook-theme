@@ -32,6 +32,7 @@ import {
   type RecipeDataIDBCache,
 } from "../services/recipe-data-idb-cache";
 import { serializeRecipeInfo } from "$lib/utils/serialization.utils";
+import { getAppwriteInstances } from "$lib/services/appwrite";
 
 // =============================================================================
 // CONFIGURATION
@@ -280,7 +281,10 @@ class RecipeDataStore {
   async addIngredient(data: {
     name: string;
     type: string;
-    allergens?: string[];
+    allergens: string[];
+    pFrais: boolean;
+    pSurgel: boolean;
+    saisons?: string[];
   }): Promise<Ingredient> {
     if (!this.#isInitialized) {
       throw new Error("Store non initialisé");
@@ -289,31 +293,35 @@ class RecipeDataStore {
     try {
       console.log("[RecipeDataStore] Ajout ingrédient:", data.name);
 
-      // Appeler la fonction cloud Appwrite
-      const response = await fetch(
-        `${import.meta.env.VITE_APPWRITE_ENDPOINT}/functions/${import.meta.env.VITE_APPWRITE_RECIPE_FUNCTION_ID}/executions`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Appwrite-Project": import.meta.env.VITE_APPWRITE_PROJECT_ID,
-          },
-          body: JSON.stringify({
-            action: "add_ingredient",
-            data: {
-              name: data.name,
-              type: data.type,
-              allergens: data.allergens || [],
-            },
-          }),
-        },
-      );
+      // Récupérer les instances Appwrite
+      const { functions } = await getAppwriteInstances();
 
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+      // Appeler la fonction cloud Appwrite
+      const response = await functions.createExecution({
+        functionId: "68f00487000c624533a3", // manageRecipe function ID
+        body: JSON.stringify({
+          action: "add_ingredient",
+          data: {
+            name: data.name,
+            type: data.type,
+            allergens: data.allergens,
+            pFrais: data.pFrais,
+            pSurgel: data.pSurgel,
+            saisons: data.saisons,
+          },
+        }),
+        async: false,
+      });
+
+      // Parser la réponse
+      const result = JSON.parse(response.responseBody);
+
+      if (!result.success) {
+        throw new Error(
+          result.error || "Erreur lors de la création de l'ingrédient",
+        );
       }
 
-      const result = await response.json();
       const newIngredient = result.ingredient as Ingredient;
 
       // Mise à jour locale optimiste
@@ -396,23 +404,25 @@ class RecipeDataStore {
     try {
       console.log("[RecipeDataStore] Mise à jour recipe-info...");
 
-      const response = await fetch(
-        `${import.meta.env.VITE_APPWRITE_ENDPOINT}/functions/${import.meta.env.VITE_APPWRITE_RECIPE_FUNCTION_ID}/executions`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Appwrite-Project": import.meta.env.VITE_APPWRITE_PROJECT_ID,
-          },
-          body: JSON.stringify({
-            action: "update_recipe_info",
-            data: newInfo,
-          }),
-        },
-      );
+      // Récupérer les instances Appwrite
+      const { functions } = await getAppwriteInstances();
 
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+      const response = await functions.createExecution({
+        functionId: "68f00487000c624533a3", // manageRecipe function ID
+        body: JSON.stringify({
+          action: "update_recipe_info",
+          data: newInfo,
+        }),
+        async: false,
+      });
+
+      // Parser la réponse
+      const result = JSON.parse(response.responseBody);
+
+      if (!result.success) {
+        throw new Error(
+          result.error || "Erreur lors de la mise à jour du recipe-info",
+        );
       }
 
       // Mise à jour locale optimiste
