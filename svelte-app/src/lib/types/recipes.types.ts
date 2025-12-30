@@ -12,14 +12,15 @@ export { RecettesTypeR };
 
 /**
  * Ingrédient tel que chargé depuis data.json
+ * Format compressé avec clés abrégées pour optimiser la taille du fichier
  */
 export interface Ingredient {
   u: string; // UUID court (ex: "xo0ibs")
   n: string; // Nom (ex: "Abricot")
   t: string; // Type (ex: "legumes", "epices", etc.)
   a?: string[]; // Allergènes optionnels (ex: ["Sésame"])
-  pFrais?: boolean; // Produit frais
-  pSurgel?: boolean; // Produit surgelé
+  pF?: boolean; // Produit frais
+  pS?: boolean; // Produit surgelé
   saisons?: string[]; // Saisons (ex: ["printemps", "ete"])
 }
 
@@ -197,7 +198,7 @@ export interface CreateIngredientData {
   name: string;
   type: string;
   allergens: string[];
-  pFrais: boolean;
-  pSurgel: boolean;
+  pF: boolean;
+  pS: boolean;
   saisons?: string[];
 }

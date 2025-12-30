@@ -24,7 +24,7 @@
   import RecipesListPage from "./lib/routes/RecipesListPage.svelte";
   import RecipeEditPage from "./lib/routes/RecipeEditPage.svelte";
   import RecipeCreatePage from "./lib/routes/RecipeCreatePage.svelte";
-  import ProductsPage from "./lib/routes/ProductsPage.svelte";
+  import EventProductsPage from "./lib/routes/EventProductsPage.svelte";
   import HomePage from "./lib/routes/HomePage.svelte";
 
   // États de l'application
@@ -86,7 +86,7 @@
   );
   router.addRoute(
     "/dashboard/eventEdit/products/:id",
-    ProductsPage,
+    EventProductsPage,
     requireAuth,
   );
 

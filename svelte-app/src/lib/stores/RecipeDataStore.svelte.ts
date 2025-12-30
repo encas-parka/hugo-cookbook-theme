@@ -282,8 +282,8 @@ class RecipeDataStore {
     name: string;
     type: string;
     allergens: string[];
-    pFrais: boolean;
-    pSurgel: boolean;
+    pF: boolean;
+    pS: boolean;
     saisons?: string[];
   }): Promise<Ingredient> {
     if (!this.#isInitialized) {
@@ -305,8 +305,8 @@ class RecipeDataStore {
             name: data.name,
             type: data.type,
             allergens: data.allergens,
-            pFrais: data.pFrais,
-            pSurgel: data.pSurgel,
+            pF: data.pF,
+            pS: data.pS,
             saisons: data.saisons,
           },
         }),

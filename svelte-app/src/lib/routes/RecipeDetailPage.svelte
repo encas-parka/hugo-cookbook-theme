@@ -266,7 +266,7 @@
 
         <!-- Contrôle des quantités -->
         <div
-          class="my-6 flex flex-wrap items-center justify-between gap-6 print:hidden"
+          class="mb-6 flex flex-wrap items-center justify-between gap-6 print:hidden"
         >
           <div class="flex items-center gap-4">
             <label

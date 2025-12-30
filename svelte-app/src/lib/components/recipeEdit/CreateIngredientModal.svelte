@@ -305,6 +305,8 @@
               placeholder="Nom de l'ingrédient"
               bind:value={formData.name}
               required
+              minlength="2"
+              maxlength="60"
             />
           </label>
           {#if showErrors && validationErrors.name}
