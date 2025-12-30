@@ -38,9 +38,10 @@
   } from "@lucide/svelte";
   import Tooltip from "$lib/components/ui/Tooltip.svelte";
   import DateBadge from "$lib/components/ui/DateBadge.svelte";
-  import { globalState } from "$lib/stores/GlobalState.svelte";
+  import { globalState, hoverHelp } from "$lib/stores/GlobalState.svelte";
   import { formatDateWdDayMonthShort } from "$lib/utils/date-helpers";
   import { calculateDateDisplayInfo } from "$lib/utils/dateRange";
+  import { fade } from "svelte/transition";
 
   // Récupérer les icônes de statut depuis le parent pour éviter la duplication
   const statusIcons = {
@@ -157,6 +158,10 @@
                   groupProducts!.map((p) => p.data.$id),
                   groupProducts!.map((p) => p.data),
                 )}
+              onmouseenter={() =>
+                (hoverHelp.msg =
+                  "Définissez un magasin où seront acheté tous les produits de ce groupe")}
+              onmouseleave={() => hoverHelp.reset()}
               title="Attribuer un magasin à tous les produits de ce groupe"
             >
               <Store size={16} />
@@ -172,6 +177,10 @@
                   groupProducts!.map((p) => p.data.$id),
                   groupProducts!.map((p) => p.data),
                 )}
+              onmouseenter={() =>
+                (hoverHelp.msg =
+                  "Définissez qui est responsable de l'achat de tous les produits de ce groupe")}
+              onmouseleave={() => hoverHelp.reset()}
               title="Gérer les volontaires pour tous les produits de ce groupe"
             >
               <Users size={16} />
@@ -186,6 +195,10 @@
                 onclick={() =>
                   onOpenGroupPurchaseModal(groupProducts!.map((p) => p.data))}
                 title="Ouvrir le modal d'achat groupé"
+                onmouseenter={() =>
+                  (hoverHelp.msg =
+                    "Déclarez tout ou partie des produits de ce groupe comme acheté")}
+                onmouseleave={() => hoverHelp.reset()}
               >
                 <ShoppingCart size={16} />
                 <span class="hidden @md:block"> Achat groupé </span>
@@ -237,6 +250,9 @@
                 onclick={() => onOpenModal(product.$id, "recettes")}
                 onkeydown={(e) =>
                   e.key === "Enter" && onOpenModal(product.$id, "recettes")}
+                onmouseenter={() =>
+                  (hoverHelp.msg = "Afficher les informations sur ce produit")}
+                onmouseleave={() => hoverHelp.reset()}
               >
                 <!-- Nom du produit & type -->
                 <div
@@ -261,7 +277,7 @@
                 </div>
                 <!-- icone and sync spinner -->
                 <div class="flex gap-1">
-                  {#if product.pFrais}
+                  {#if product.pF}
                     <div
                       class="bg-success/20 flex h-6 w-6 items-center justify-center rounded-full"
                       title="Produit frais"
@@ -269,7 +285,7 @@
                       <ShoppingBasket class="text-success h-4 w-4" />
                     </div>
                   {/if}
-                  {#if product.pSurgel}
+                  {#if product.pS}
                     <div
                       class="bg-info/20 flex h-6 w-6 items-center justify-center rounded-full"
                       title="Produit surgelé"
@@ -317,6 +333,10 @@
                     onclick={() => onOpenModal(product.$id, "magasins")}
                     onkeydown={(e) =>
                       e.key === "Enter" && onOpenModal(product.$id, "magasins")}
+                    onmouseenter={() =>
+                      (hoverHelp.msg =
+                        "Définissez le magasin où acheter le produit")}
+                    onmouseleave={() => hoverHelp.reset()}
                   >
                     <Store size={18} />
                     {#if product.storeInfo?.storeName}
@@ -348,6 +368,10 @@
                     onkeydown={(e) =>
                       e.key === "Enter" &&
                       onOpenModal(product.$id, "volontaires")}
+                    onmouseenter={() =>
+                      (hoverHelp.msg =
+                        "Déclarez qui est responsable de l'achat de ce produit")}
+                    onmouseleave={() => hoverHelp.reset()}
                   >
                     <Users size={18} />
                     {#if product.who && product.who.length > 0}
@@ -391,19 +415,14 @@
               <!-- Besoins -->
               <div
                 id="needs-card"
-                class="bg-base-200 hover:bg-base-300 relative flex min-w-[200px] flex-1 cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg p-3 transition-colors hover:shadow-sm"
-                role="button"
-                tabindex="0"
-                onclick={() => onOpenModal(product.$id, "recettes")}
-                onkeydown={(e) =>
-                  e.key === "Enter" && onOpenModal(product.$id, "recettes")}
+                class="bg-base-200 relative flex min-w-[200px] flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg p-3"
               >
                 <div class="flex flex-wrap gap-x-4 gap-y-0">
                   <div
                     class="text-base-content/80 flex items-center gap-2 text-sm font-medium"
                   >
                     <ListTodo class="h-4 w-4" />
-                    Besoins
+                    Besoins total sur la période
                   </div>
                   <div class="ms-auto flex items-center gap-4 self-end">
                     <div
@@ -449,22 +468,20 @@
                 <!-- Bouton d'achat rapide -->
                 {#if shouldShowActionButtons && productInDateRange.hasMissing}
                   <button
-                    class="btn btn-sm btn-soft btn-ghost hover:btn-success ms-auto"
+                    class="btn btn-sm btn-outline btn-primary ms-auto"
                     onclick={(e) => {
                       e.stopPropagation();
                       onQuickValidation(product, productInDateRange);
                     }}
-                    title="Declarer la quantité manquante ({productInDateRange.formattedMissingQuantities}) achetée"
+                    onmouseenter={() =>
+                      (hoverHelp.msg = "Ajouter aux achats effectués")}
+                    onmouseleave={() => hoverHelp.reset()}
                   >
-                    <div class="cart-icon"></div>
                     <span class="text-xs"
-                      >{productInDateRange.formattedMissingQuantities}</span
+                      ><span class="font-light">manque : </span>
+                      {productInDateRange.formattedMissingQuantities}</span
                     >
-                    {#if globalState.isMobile}
-                      <CircleArrowDown size={18} />
-                    {:else}
-                      <CircleArrowRight size={18} />
-                    {/if}
+                    <div class="add-to-cart ms-1"></div>
                   </button>
                 {:else if shouldShowActionButtons}
                   <CircleCheckBig size={24} class="text-success ms-auto" />
@@ -485,12 +502,15 @@
 
               <!-- Achats -->
               <div
-                class="group bg-base-200 hover:bg-base-300 hover:ring-accent/60 relative flex min-w-[200px] flex-1 cursor-pointer items-center justify-between gap-2 rounded-lg p-3 transition-colors hover:ring-2"
+                class="group bg-base-200 hover:ring-accent/60 relative flex min-w-[200px] flex-1 cursor-pointer items-center justify-between gap-2 rounded-lg p-3 transition-colors hover:ring-2"
                 role="button"
                 tabindex="0"
                 onclick={() => onOpenModal(product.$id, "achats")}
                 onkeydown={(e) =>
                   e.key === "Enter" && onOpenModal(product.$id, "achats")}
+                onmouseenter={() =>
+                  (hoverHelp.msg = "Déclarez des achats effectués")}
+                onmouseleave={() => hoverHelp.reset()}
               >
                 <div class="flex flex-wrap items-start gap-0 self-start">
                   <div
@@ -500,9 +520,9 @@
                     Achats / Récup effectués:
                   </div>
                   <div
-                    class="text-base-content/30 ms-4 text-xs italic opacity-100 transition-opacity {!shouldShowActionButtons
-                      ? ''
-                      : 'group-hover:opacity-100'} sm:opacity-0"
+                    class="text-base-content/30 blocktransition-opacity ms-2 text-xs italic {!shouldShowActionButtons
+                      ? 'hidden'
+                      : 'group-hover:block'} sm:hidden"
                   >
                     ajouter un achat
                   </div>

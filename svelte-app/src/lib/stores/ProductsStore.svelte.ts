@@ -343,9 +343,9 @@ class ProductsStore {
    */
   stats = $derived.by(() => ({
     total: this.#enrichedProducts.size,
-    frais: Array.from(this.#enrichedProducts.values()).filter((p) => p.pFrais)
+    frais: Array.from(this.#enrichedProducts.values()).filter((p) => p.pF)
       .length,
-    surgel: Array.from(this.#enrichedProducts.values()).filter((p) => p.pSurgel)
+    surgel: Array.from(this.#enrichedProducts.values()).filter((p) => p.pS)
       .length,
     merged: Array.from(this.#enrichedProducts.values()).filter(
       (p) => p.data.isMerged,

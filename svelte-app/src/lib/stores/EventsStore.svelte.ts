@@ -298,26 +298,32 @@ export class EventsStore {
       "createdBy" in event || "contributorsIds" in event;
 
     if (!hasAccessibilityFields && this.#events.has(event.$id)) {
-      console.log(`[EventsStore] Accessibilité confirmée (mémoire) pour ${event.$id}`);
+      console.log(
+        `[EventsStore] Accessibilité confirmée (mémoire) pour ${event.$id}`,
+      );
       return true;
     }
 
     // Créateur
     if (event.createdBy === this.#userId) {
-      console.log(`[EventsStore] Accessibilité confirmée (créateur) pour ${event.$id}`);
+      console.log(
+        `[EventsStore] Accessibilité confirmée (créateur) pour ${event.$id}`,
+      );
       return true;
     }
 
     // Dans contributorsIds (logique métier)
     if (event.contributorsIds?.includes(this.#userId)) {
-      console.log(`[EventsStore] Accessibilité confirmée (contributeur) pour ${event.$id}`);
+      console.log(
+        `[EventsStore] Accessibilité confirmée (contributeur) pour ${event.$id}`,
+      );
       return true;
     }
 
-    console.warn(`[EventsStore] Accessibilité REFUSÉE pour ${event.$id}`, { 
-      userId: this.#userId, 
-      createdBy: event.createdBy, 
-      contributorsIds: event.contributorsIds 
+    console.warn(`[EventsStore] Accessibilité REFUSÉE pour ${event.$id}`, {
+      userId: this.#userId,
+      createdBy: event.createdBy,
+      contributorsIds: event.contributorsIds,
     });
     return false;
   }
@@ -341,7 +347,7 @@ export class EventsStore {
         async (event, eventType) => {
           console.log(
             `[EventsStore] ⚡️ Realtime RECEIVED: ${eventType} pour ${event.$id}`,
-            { name: event.name, updatedAt: event.$updatedAt }
+            { name: event.name, updatedAt: event.$updatedAt },
           );
 
           // ⚠️ Vérifier l'accessibilité avant de traiter l'événement
@@ -377,8 +383,7 @@ export class EventsStore {
             if (this.#cache) {
               await this.#cache.saveEvent(enrichedEvent);
             }
-          }
- else if (eventType === "delete") {
+          } else if (eventType === "delete") {
             this.#events.delete(event.$id);
 
             // Supprimer du cache
@@ -857,6 +862,49 @@ export class EventsStore {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Erreur lors du rechargement";
+      this.#error = message;
+      console.error("[EventsStore]", message, err);
+      throw err;
+    } finally {
+      this.#loading = false;
+    }
+  }
+
+  /**
+   * Hard reset : Vide TOUT (état Svelte + cache IDB) et recharge depuis Appwrite
+   * Utilisé en mode dev pour repartir de zéro
+   */
+  async hardReset(): Promise<void> {
+    console.log("[EventsStore] 🔄 HARD RESET - Vidage complet...");
+    this.#loading = true;
+    this.#error = null;
+
+    try {
+      // 1. Vider l'état Svelte
+      this.#events.clear();
+
+      // 2. Vider le cache IndexedDB
+      if (this.#cache) {
+        await this.#cache.clear();
+        console.log("[EventsStore] Cache IDB vidé");
+      }
+
+      // 3. Recharger depuis Appwrite
+      await this.#loadEvents();
+
+      // 4. Recréer le cache avec les données fraîches
+      if (this.#cache) {
+        await this.#cache.saveEvents(this.#events);
+        await this.#cache.saveMetadata({
+          lastSync: new Date().toISOString(),
+        });
+        console.log("[EventsStore] Cache IDB recréé");
+      }
+
+      console.log("[EventsStore] ✓ HARD RESET terminé");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erreur lors du hard reset";
       this.#error = message;
       console.error("[EventsStore]", message, err);
       throw err;

@@ -48,11 +48,11 @@ export class ProductModel {
   get who() {
     return this.data.who;
   }
-  get pFrais() {
-    return this.data.pFrais;
+  get pF() {
+    return this.data.pF;
   }
-  get pSurgel() {
-    return this.data.pSurgel;
+  get pS() {
+    return this.data.pS;
   }
   get status() {
     return this.data.status;

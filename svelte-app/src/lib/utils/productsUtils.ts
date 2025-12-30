@@ -319,8 +319,8 @@ export function matchesFilters(
   // Filtres température
   if (filters.selectedTemperatures.length > 0) {
     const hasValidTemp =
-      (filters.selectedTemperatures.includes("frais") && product.pFrais) ||
-      (filters.selectedTemperatures.includes("surgele") && product.pSurgel);
+      (filters.selectedTemperatures.includes("frais") && product.pF) ||
+      (filters.selectedTemperatures.includes("surgele") && product.pS);
     if (!hasValidTemp) return false;
   }
 

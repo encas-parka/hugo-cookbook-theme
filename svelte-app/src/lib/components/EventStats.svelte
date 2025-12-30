@@ -24,27 +24,25 @@
   </div>
 
   <!-- Couverts -->
-  <div
-    class="badge badge-soft badge-secondary badge-lg flex items-center gap-2"
-  >
+  <div class="badge badge-soft badge-primary badge-lg flex items-center gap-2">
     <Utensils class="h-4 w-4" />
     <span>{stats.totalGuests} Couverts</span>
   </div>
 
   <!-- Recettes -->
-  <div class="badge badge-soft badge-accent badge-lg flex items-center gap-2">
+  <div class="badge badge-soft badge-primary badge-lg flex items-center gap-2">
     <CookingPot class="h-4 w-4" />
     <span>{stats.totalRecipes} Recettes</span>
   </div>
 
   <!-- Ingrédients -->
-  <div class="badge badge-soft badge-warning badge-lg flex items-center gap-2">
+  <div class="badge badge-soft badge-primary badge-lg flex items-center gap-2">
     <ShoppingCart class="h-4 w-4" />
     <span>{stats.totalIngredients} Ingrédients</span>
   </div>
 
   <!-- Contributeurs -->
-  <div class="badge badge-soft badge-info badge-lg flex items-center gap-2">
+  <div class="badge badge-soft badge-primary badge-lg flex items-center gap-2">
     <Users class="h-4 w-4" />
     <span>{stats.contributorsStats.total} Participant·es</span>
   </div>

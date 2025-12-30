@@ -22,7 +22,6 @@
   import TeamSummaryCard from "$lib/components/dashboard/TeamSummaryCard.svelte";
   import CurrentEventsCard from "$lib/components/dashboard/CurrentEventsCard.svelte";
   import LatestRecipesCard from "$lib/components/dashboard/LatestRecipesCard.svelte";
-  import IngredientsListTest from "../components/IngredientsListTest.svelte";
 
   const now = new Date();
 

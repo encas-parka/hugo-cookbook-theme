@@ -79,9 +79,9 @@ export function createEnrichedProductFromAppwrite(
     productHugoUuid: product.productHugoUuid || "",
     productName: product.productName,
     productType: product.productType || "none",
-    // Utiliser les specs pour pFrais/pSurgel, sinon false
-    pFrais: specsParsed?.pFrais ?? false,
-    pSurgel: specsParsed?.pSurgel ?? false,
+    // Utiliser les specs pour pF/pS, sinon false
+    pF: specsParsed?.pF ?? false,
+    pS: specsParsed?.pS ?? false,
     nbRecipes: 0,
     totalAssiettes: 0,
     isSynced: product.isSynced,
@@ -207,9 +207,9 @@ export function updateExistingProduct(
     isSynced: product.isSynced ?? existing.isSynced,
     mainId: product.mainId ?? existing.mainId,
 
-    // Mettre à jour pFrais/pSurgel depuis les specs si disponibles
-    pFrais: specsParsed?.pFrais ?? existing.pFrais,
-    pSurgel: specsParsed?.pSurgel ?? existing.pSurgel,
+    // Mettre à jour pF/pS depuis les specs si disponibles
+    pF: specsParsed?.pF ?? existing.pF,
+    pS: specsParsed?.pS ?? existing.pS,
 
     // 🛡️ CHAMPS CRITIQUES : PROTECTION CONTRE L'ÉCRASEMENT
     status: product.status ?? existing.status,
@@ -519,8 +519,8 @@ function createEnrichedProductFromAggregation(
     mergedInto: null,
     specs: null,
     specsParsed: null,
-    pFrais: false,
-    pSurgel: false,
+    pF: false,
+    pS: false,
     nbRecipes,
     totalAssiettes,
     totalNeededRaw: totalNeededArray, // Initialisation cohérente

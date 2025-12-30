@@ -233,3 +233,42 @@ class GlobalState {
 }
 
 export const globalState = new GlobalState();
+
+// =============================================================================
+// HOVER HELP STATE
+// =============================================================================
+
+/**
+ * État partagé pour les messages d'aide au survol
+ * Singleton pour partager le même état entre tous les composants
+ */
+export class HoverHelp {
+  msg = $state("survolez des élément pour obtenir de l'aide");
+  isExpanded = $state(true);
+
+  get help() {
+    return this.msg;
+  }
+
+  set help(val) {
+    this.msg = val;
+  }
+
+  reset = () => {
+    this.msg = "survolez des élément pour obtenir de l'aide";
+  };
+
+  toggle = () => {
+    this.isExpanded = !this.isExpanded;
+  };
+
+  expand = () => {
+    this.isExpanded = true;
+  };
+
+  collapse = () => {
+    this.isExpanded = false;
+  };
+}
+
+export const hoverHelp = new HoverHelp();

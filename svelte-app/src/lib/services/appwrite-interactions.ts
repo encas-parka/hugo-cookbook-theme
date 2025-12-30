@@ -559,8 +559,8 @@ export async function createManualProduct(
     productType: string;
     store?: StoreInfo;
     who?: string[];
-    pFrais?: boolean;
-    pSurgel?: boolean;
+    pF?: boolean;
+    pS?: boolean;
     quantity?: { q: number; u: string };
   },
   mainId: string,
@@ -576,8 +576,8 @@ export async function createManualProduct(
     // Construire l'objet specs (métadonnées manuelles)
     const specs = {
       quantity: productData.quantity, // { q: number, u: string }
-      pFrais: productData.pFrais || false,
-      pSurgel: productData.pSurgel || false,
+      pF: productData.pF || false,
+      pS: productData.pS || false,
     };
 
     const manualProduct = {

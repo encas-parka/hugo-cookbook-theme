@@ -36,15 +36,15 @@
     name: string;
     type: string;
     allergens: string[];
-    pFrais: boolean | null;
-    pSurgel: boolean | null;
+    pF: boolean | null;
+    pS: boolean | null;
     saisons: string[];
   }>({
     name: initialName,
     type: "",
     allergens: [],
-    pFrais: null,
-    pSurgel: null,
+    pF: null,
+    pS: null,
     saisons: [],
   });
 
@@ -55,8 +55,8 @@
     name?: string;
     type?: string;
     allergens?: string;
-    pFrais?: string;
-    pSurgel?: string;
+    pF?: string;
+    pS?: string;
   }>({});
 
   // ============================================================================
@@ -114,15 +114,15 @@
     name?: string;
     type?: string;
     allergens?: string;
-    pFrais?: string;
-    pSurgel?: string;
+    pF?: string;
+    pS?: string;
   } {
     const errors: {
       name?: string;
       type?: string;
       allergens?: string;
-      pFrais?: string;
-      pSurgel?: string;
+      pF?: string;
+      pS?: string;
     } = {};
 
     if (!formData.name.trim()) {
@@ -135,11 +135,11 @@
       errors.allergens =
         "Cochez 'Aucun' si l'ingrédient ne contient aucun allergène";
     }
-    if (formData.pFrais === null) {
-      errors.pFrais = "Indiquez si c'est un produit frais";
+    if (formData.pF === null) {
+      errors.pF = "Indiquez si c'est un produit frais";
     }
-    if (formData.pSurgel === null) {
-      errors.pSurgel = "Indiquez si c'est un produit surgelé";
+    if (formData.pS === null) {
+      errors.pS = "Indiquez si c'est un produit surgelé";
     }
 
     return errors;
@@ -196,8 +196,8 @@
         allergens: formData.allergens.includes("Aucun")
           ? []
           : formData.allergens,
-        pFrais: formData.pFrais === true,
-        pSurgel: formData.pSurgel === true,
+        pF: formData.pF === true,
+        pS: formData.pS === true,
         saisons: formData.saisons.length > 0 ? formData.saisons : undefined,
       };
 
@@ -229,8 +229,8 @@
       name: "",
       type: "",
       allergens: [],
-      pFrais: null,
-      pSurgel: null,
+      pF: null,
+      pS: null,
       saisons: [],
     };
     showErrors = false;
@@ -372,7 +372,7 @@
           {/if}
         </div>
 
-        <!-- pFrais / pSurgel -->
+        <!-- pF / pS -->
         <div class="grid gap-4 md:grid-cols-2">
           <!-- Produit Frais -->
           <div class="fieldset">
@@ -386,31 +386,31 @@
               Fruits et légumes frais, ou ingrédients qui se conservent au frigo
             </p>
             <div
-              class="join w-full {showErrors && validationErrors.pFrais
+              class="join w-full {showErrors && validationErrors.pF
                 ? 'join-error'
                 : ''}"
             >
               <button
                 type="button"
-                class="btn join-item flex-1 {formData.pFrais === true
+                class="btn join-item flex-1 {formData.pF === true
                   ? 'btn-success'
                   : ''}"
-                onclick={() => (formData.pFrais = true)}
+                onclick={() => (formData.pF = true)}
               >
                 Oui
               </button>
               <button
                 type="button"
-                class="btn join-item flex-1 {formData.pFrais === false
+                class="btn join-item flex-1 {formData.pF === false
                   ? 'btn-error'
                   : ''}"
-                onclick={() => (formData.pFrais = false)}
+                onclick={() => (formData.pF = false)}
               >
                 Non
               </button>
             </div>
-            {#if showErrors && validationErrors.pFrais}
-              <p class="text-error text-xs">{validationErrors.pFrais}</p>
+            {#if showErrors && validationErrors.pF}
+              <p class="text-error text-xs">{validationErrors.pF}</p>
             {/if}
           </div>
 
@@ -426,32 +426,32 @@
               Ingrédients qui se conservent au congélateur
             </p>
             <div
-              class="join w-full {showErrors && validationErrors.pSurgel
+              class="join w-full {showErrors && validationErrors.pS
                 ? 'join-error'
                 : ''}"
             >
               <button
                 type="button"
-                class="btn join-item flex-1 {formData.pSurgel === true
+                class="btn join-item flex-1 {formData.pS === true
                   ? 'btn-info'
                   : ''}"
-                onclick={() => (formData.pSurgel = true)}
+                onclick={() => (formData.pS = true)}
               >
                 Oui
               </button>
               <button
                 type="button"
-                class="btn join-item flex-1 {formData.pSurgel === false
+                class="btn join-item flex-1 {formData.pS === false
                   ? 'btn-error'
                   : ''}"
-                onclick={() => (formData.pSurgel = false)}
+                onclick={() => (formData.pS = false)}
               >
                 Non
               </button>
             </div>
-            {#if showErrors && validationErrors.pSurgel}
+            {#if showErrors && validationErrors.pS}
               <p class="text-error text-xs">
-                {validationErrors.pSurgel}
+                {validationErrors.pS}
               </p>
             {/if}
           </div>

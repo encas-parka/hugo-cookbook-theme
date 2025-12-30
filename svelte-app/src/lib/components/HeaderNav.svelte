@@ -4,6 +4,7 @@
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { recipesStore } from "../stores/RecipesStore.svelte";
   import EventTabs from "./eventEdit/EventTabs.svelte";
+  import { refreshAllStores } from "$lib/utils/storesReload";
 
   import {
     LogInIcon,
@@ -17,12 +18,17 @@
     CircleStar,
     LockIcon,
     RefreshCwIcon,
+    DatabaseIcon,
   } from "@lucide/svelte";
   import AuthModal from "./AuthModal.svelte";
 
   let showDropdown = $state(false);
   let showAuthModal = $state(false);
   let isReloading = $state(false);
+  let isRefreshingAll = $state(false);
+
+  // Détection mode dev
+  const isDev = import.meta.env.DEV;
 
   function toggleDropdown() {
     showDropdown = !showDropdown;
@@ -58,6 +64,35 @@
       alert("Erreur lors du rechargement des recettes");
     } finally {
       isReloading = false;
+    }
+  }
+
+  async function handleRefreshAllStores() {
+    if (!globalState.userId) return;
+
+    isRefreshingAll = true;
+    try {
+      const result = await refreshAllStores();
+
+      if (result.success) {
+        console.log(
+          "[HeaderNav] Tous les stores ont été rechargés avec succès",
+        );
+        closeDropdown();
+      } else {
+        console.error(
+          "[HeaderNav] Erreur lors du rechargement des stores:",
+          result.results,
+        );
+        alert(
+          "Erreur lors du rechargement de certains stores. Vérifiez la console pour plus de détails.",
+        );
+      }
+    } catch (error) {
+      console.error("Erreur lors du rechargement des stores:", error);
+      alert("Erreur lors du rechargement des stores");
+    } finally {
+      isRefreshingAll = false;
     }
   }
 
@@ -222,6 +257,22 @@
               {isReloading ? "Chargement..." : "Recharger les recettes"}
             </button>
           </li>
+          {#if isDev}
+            <li class="border-base-100 my-1 border-t"></li>
+            <li>
+              <button
+                onclick={handleRefreshAllStores}
+                disabled={isRefreshingAll}
+                class="text-info disabled:opacity-50"
+              >
+                <DatabaseIcon
+                  size={16}
+                  class={isRefreshingAll ? "animate-pulse" : ""}
+                />
+                {isRefreshingAll ? "Refresh..." : "Force Refresh All (Dev)"}
+              </button>
+            </li>
+          {/if}
           <li class="border-base-100 my-1 border-t"></li>
           <li>
             <button class="text-error hover:bg-error/10" onclick={handleLogout}

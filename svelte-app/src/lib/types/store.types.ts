@@ -135,8 +135,8 @@ export interface EnrichedProduct {
   productHugoUuid: string | null;
   productName: string;
   productType: string;
-  pFrais: boolean;
-  pSurgel: boolean;
+  pF: boolean;
+  pS: boolean;
   nbRecipes: number;
   totalAssiettes: number;
   isSynced: boolean;
@@ -184,8 +184,8 @@ export interface EnrichedProduct {
 
 export interface ManualSpecs {
   quantity?: NumericQuantity;
-  pFrais?: boolean;
-  pSurgel?: boolean;
+  pF?: boolean;
+  pS?: boolean;
 }
 
 /**

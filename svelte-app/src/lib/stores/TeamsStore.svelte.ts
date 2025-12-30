@@ -575,6 +575,35 @@ export class TeamsStore {
   }
 
   /**
+   * Hard reset : Vide l'état Svelte et recharge depuis Appwrite
+   * Utilisé en mode dev pour repartir de zéro
+   * Note: TeamsStore n'utilise pas de cache IDB, donc c'est identique à reload()
+   */
+  async hardReset(): Promise<void> {
+    console.log("[TeamsStore] 🔄 HARD RESET - Vidage complet...");
+    this.#loading = true;
+    this.#error = null;
+
+    try {
+      // 1. Vider l'état Svelte
+      this.#teams.clear();
+
+      // 2. Recharger depuis Appwrite
+      await this.#loadTeams();
+
+      console.log("[TeamsStore] ✓ HARD RESET terminé");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erreur lors du hard reset";
+      this.#error = message;
+      console.error("[TeamsStore]", message, err);
+      throw err;
+    } finally {
+      this.#loading = false;
+    }
+  }
+
+  /**
    * Nettoie les ressources
    */
   destroy(): void {

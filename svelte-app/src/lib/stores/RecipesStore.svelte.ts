@@ -380,6 +380,72 @@ class RecipesStore {
   }
 
   /**
+   * Hard reset : Vide TOUT (état Svelte + cache IDB) et recharge depuis zéro
+   * Utilisé en mode dev pour repartir de zéro
+   */
+  async hardReset(): Promise<void> {
+    if (!globalState.userId) {
+      throw new Error("Utilisateur non connecté");
+    }
+
+    console.log("[RecipesStore] 🔄 HARD RESET - Vidage complet...");
+    this.#loading = true;
+    this.#error = null;
+
+    try {
+      // 1. Vider l'état Svelte
+      this.#recipesIndex.clear();
+
+      // 2. Vider le cache IndexedDB
+      if (this.#cache) {
+        await this.#cache.clear();
+        console.log("[RecipesStore] Cache IDB vidé");
+      }
+
+      // 3. Recharger depuis data.json (Hugo)
+      await this.#loadIndexFromDataJson(null); // null = pas de cachedMetadata
+
+      // 4. Charger TOUTES les recettes Appwrite
+      const appwriteRecipes = await forceReloadAllAppwriteRecipes();
+
+      // 5. Ajouter à l'index via la méthode de parsing existante
+      appwriteRecipes.forEach((recipe) => {
+        this.#recipesIndex.set(
+          recipe.$id,
+          parseAppwriteRecipeToIndexEntry(recipe),
+        );
+      });
+
+      console.log(
+        `[RecipesStore] ${appwriteRecipes.length} recettes Appwrite chargées`,
+      );
+
+      // 6. Recréer le cache avec les données fraîches
+      if (this.#cache) {
+        const now = new Date().toISOString();
+        await this.#cache.saveRecipesIndex(this.#recipesIndex);
+        await this.#cache.saveMetadata({
+          buildTimestamp: this.#versionTimestamp,
+          lastAppwriteSync: now,
+          recipesCount: this.#recipesIndex.size,
+          cacheVersion: 1,
+        });
+        console.log("[RecipesStore] Cache IDB recréé");
+      }
+
+      console.log("[RecipesStore] ✓ HARD RESET terminé");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erreur lors du hard reset";
+      this.#error = message;
+      console.error("[RecipesStore] Erreur hard reset:", err);
+      throw err;
+    } finally {
+      this.#loading = false;
+    }
+  }
+
+  /**
    * Sync Incrémentiel avec Appwrite
    * Récupère toutes les recettes (published ou draft) modifiées après la dernière sync réussie.
    */

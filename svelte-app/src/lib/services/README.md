@@ -37,32 +37,35 @@ Cette documentation décrit l'architecture moderne du système de gestion des pr
 
 ```typescript
 // Dans ProductsStore
-await this.initialize('mainId');
+await this.initialize("mainId");
 ```
 
 **Étape 1 : Chargement Initial**
+
 ```typescript
 // Si pas de cache disponible
 await this.#loadProductsFromService(mainId);
 // ↓ appelle
-const products = await loadProducts(mainId, { 
-  includePurchases: true 
+const products = await loadProducts(mainId, {
+  includePurchases: true,
 });
 ```
 
 **Étape 2 : Synchronisation Incrémentielle (si cache)**
+
 ```typescript
 // Si cache existant
 await this.#syncProductsFromService();
 // ↓ appelle
-const updates = await syncProducts(mainId, { 
-  lastSync: this.lastSync 
+const updates = await syncProducts(mainId, {
+  lastSync: this.lastSync,
 });
 // ↓ fusionne
 const merged = applyProductUpdates(this.products, updates);
 ```
 
 **Étape 3 : Configuration Realtime**
+
 ```typescript
 // Configuration des callbacks
 const callbacks = this.#setupRealtimeCallbacks();
@@ -77,8 +80,9 @@ Appwrite Event → subscribeToRealtime() → handleRealtimeEvent() → Callbacks
 ```
 
 **Types d'événements :**
+
 - `products.create` → `onProductCreate(product)`
-- `products.update` → `onProductUpdate(product)`  
+- `products.update` → `onProductUpdate(product)`
 - `products.delete` → `onProductDelete(productId)`
 - `purchases.create` → `onPurchaseCreate(purchase)`
 - `purchases.update` → `onPurchaseUpdate(purchase)`
@@ -87,6 +91,7 @@ Appwrite Event → subscribeToRealtime() → handleRealtimeEvent() → Callbacks
 ## 📋 Répartition des Responsabilités
 
 ### ProductsStore (Gestion d'état)
+
 - ✅ **État réactif** : `$state`, `$derived`
 - ✅ **Logique métier** : filtres, formatage, groupement
 - ✅ **UI state** : loading, error, syncing, realtimeConnected
@@ -95,6 +100,7 @@ Appwrite Event → subscribeToRealtime() → handleRealtimeEvent() → Callbacks
 - ✅ **Débouncing** : `#debouncedUpdateLastSync()`
 
 ### appwrite-interactions (Services de données)
+
 - ✅ **Accès Appwrite** : CRUD, queries, pagination
 - ✅ **Transformations pures** : sans état, réutilisables
 - ✅ **Realtime management** : abonnement, dispatch d'événements
@@ -107,15 +113,15 @@ Appwrite Event → subscribeToRealtime() → handleRealtimeEvent() → Callbacks
 
 ```typescript
 // Chargement complet avec achats
-const products = await loadProducts('mainId', {
+const products = await loadProducts("mainId", {
   includePurchases: true,
   limit: 100,
-  orderBy: 'productName'
+  orderBy: "productName",
 });
 
 // Synchronisation incrémentielle
-const updates = await syncProducts('mainId', {
-  lastSync: '2024-01-01T00:00:00Z'
+const updates = await syncProducts("mainId", {
+  lastSync: "2024-01-01T00:00:00Z",
 });
 ```
 
@@ -123,32 +129,32 @@ const updates = await syncProducts('mainId', {
 
 ```typescript
 // Mise à jour produit
-await updateProduct('productId', {
-  productName: 'Nouveau nom',
-  pFrais: true
+await updateProduct("productId", {
+  productName: "Nouveau nom",
+  pF: true,
 });
 
 // Gestion des achats
 await createPurchase({
-  products: ['productId1', 'productId2'],
-  mainId: 'mainId',
-  store: 'Carrefour'
+  products: ["productId1", "productId2"],
+  mainId: "mainId",
+  store: "Carrefour",
 });
 ```
 
 ### Service Realtime
 
 ```typescript
-const unsubscribe = subscribeToRealtime('mainId', {
+const unsubscribe = subscribeToRealtime("mainId", {
   onProductCreate: (product) => {
     // Handler appelé par ProductsStore
   },
   onProductUpdate: (product) => {
-    // Handler appelé par ProductsStore  
+    // Handler appelé par ProductsStore
   },
   onConnect: () => {
     // Gestion état connexion
-  }
+  },
 });
 
 // Pour se désabonner
@@ -158,13 +164,15 @@ unsubscribe();
 ## 🔧 Utilitaires de Fusion
 
 ### `mergeProductsWithPurchases`
+
 ```typescript
 // Enrichit les produits avec leurs achats
 const enriched = mergeProductsWithPurchases(products, purchases);
 // Retourne : ProductWithPurchases[]
 ```
 
-### `applyProductUpdates` 
+### `applyProductUpdates`
+
 ```typescript
 // Applique les mises à jour incrémentielles
 const updated = applyProductUpdates(currentProducts, newUpdates);
@@ -189,6 +197,7 @@ const updated = applyProductUpdates(currentProducts, newUpdates);
 ## 🔍 Debug
 
 Les logs sont préfixés pour identifier facilement la source :
+
 - `[ProductsStore]` : Log du store (état, UI)
 - `[Appwrite Interactions]` : Log des services (Appwrite, transformations)
 

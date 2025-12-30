@@ -33,8 +33,8 @@
     productType: string;
     store: string;
     who: string;
-    pFrais: boolean;
-    pSurgel: boolean;
+    pF: boolean;
+    pS: boolean;
     quantity: number | null;
     unit: string;
   }>({
@@ -42,8 +42,8 @@
     productType: "",
     store: "",
     who: "",
-    pFrais: false,
-    pSurgel: false,
+    pF: false,
+    pS: false,
     quantity: null,
     unit: "",
   });
@@ -95,8 +95,8 @@
           ? { storeName: formData.store.trim() }
           : undefined,
         who: formData.who.trim() ? [formData.who.trim()] : undefined,
-        pFrais: formData.pFrais,
-        pSurgel: formData.pSurgel,
+        pF: formData.pF,
+        pS: formData.pS,
         quantity: formData.quantity
           ? { q: formData.quantity, u: formData.unit.trim() || "pièces" }
           : undefined,
@@ -112,8 +112,8 @@
         formData.productName = "";
         formData.quantity = null;
         formData.unit = "";
-        formData.pFrais = false;
-        formData.pSurgel = false;
+        formData.pF = false;
+        formData.pS = false;
 
         // Focus on product name input
         setTimeout(() => {
@@ -127,8 +127,8 @@
           productType: "",
           store: "",
           who: "",
-          pFrais: false,
-          pSurgel: false,
+          pF: false,
+          pS: false,
           quantity: null,
           unit: "",
         };
@@ -148,8 +148,8 @@
       productType: "",
       store: "",
       who: "",
-      pFrais: false,
-      pSurgel: false,
+      pF: false,
+      pS: false,
       quantity: null,
       unit: "",
     };
@@ -265,7 +265,7 @@
             <input
               type="checkbox"
               class="checkbox checkbox-success"
-              bind:checked={formData.pFrais}
+              bind:checked={formData.pF}
               disabled={loading}
             />
             <span class="label-text flex items-center gap-2">
@@ -280,7 +280,7 @@
             <input
               type="checkbox"
               class="checkbox checkbox-info"
-              bind:checked={formData.pSurgel}
+              bind:checked={formData.pS}
               disabled={loading}
             />
             <span class="label-text flex items-center gap-2">

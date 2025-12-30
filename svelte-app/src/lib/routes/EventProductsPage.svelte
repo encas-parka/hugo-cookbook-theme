@@ -15,12 +15,18 @@
     SquarePen,
     Plus,
     Calendar,
+    CircleHelp,
+    HelpCircle,
+    Info,
+    X,
+    PanelRightClose,
+    EyeClosed,
   } from "@lucide/svelte";
   // Store and global state
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
 
   // Components
-  import { globalState } from "$lib/stores/GlobalState.svelte";
+  import { globalState, hoverHelp } from "$lib/stores/GlobalState.svelte";
   import GroupPurchaseModal from "$lib/components/eventProducts/GroupPurchaseModal.svelte";
   import AddProductModal from "$lib/components/eventProducts/AddProductModal.svelte";
   import ProductModal from "$lib/components/eventProducts/ProductModal.svelte";
@@ -46,6 +52,8 @@
   import { navigate } from "../services/simple-router.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { formatDateShort } from "../utils/products-display";
+  import { on } from "svelte/events";
+  import InfoCollapse from "../components/ui/InfoCollapse.svelte";
 
   // Dont work properly
   const PANEL_WIDTH = "100";
@@ -338,9 +346,11 @@
     </div>
   {:else}
     <!-- Contenu une fois chargé -->
-    <div>
+    <div
+      class="rounded-box border-base-300 bg-base-100 flex flex-wrap items-baseline justify-between gap-4 px-4"
+    >
       <h1 class="text-3xl font-bold">{eventName}</h1>
-      <div class="text-base-content/60 text-sm">
+      <div class="text-base-content/70 text-base">
         {#if startDate && endDate}
           <Calendar class="inline h-4 w-4" />
           {formatDateShort(startDate)} au {formatDateShort(endDate)}
@@ -349,13 +359,13 @@
           {formatDateShort(startDate)}
         {/if}
       </div>
+      <!-- Stats -->
+      {#if currentEvent}
+        <div class="flex justify-end py-4 print:hidden">
+          <EventStats {currentEvent} />
+        </div>
+      {/if}
     </div>
-    <!-- Stats -->
-    {#if currentEvent}
-      <div class="flex justify-end py-4 print:hidden">
-        <EventStats {currentEvent} />
-      </div>
-    {/if}
     <ProductsCards
       onOpenModal={openModal}
       onOpenGroupEditModal={openGroupEditModal}
@@ -401,4 +411,33 @@
   <AddProductModal bind:open={isAddProductModalOpen} />
 
   <GlobalPurchasesModal bind:isOpen={GlobalPurchasesModalisOpen} />
+
+  <div class="fixed right-0 bottom-0 z-50 transition-all">
+    <div
+      class="bg-blue-100 text-blue-800 {hoverHelp.isExpanded
+        ? 'rounded-t-box mx-auto w-fit px-4 py-2'
+        : 'rounded-tl-box rounded-bl-box ms-auto cursor-pointer px-3 py-2'}"
+    >
+      {#if hoverHelp.isExpanded}
+        <div class="flex items-center justify-center">
+          <Info class="me-2 size-5" />
+          {hoverHelp.msg}
+
+          <button
+            class="btn btn-xs btn-circle btn-ghost ms-3"
+            onclick={() => hoverHelp.collapse()}
+          >
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+      {:else}
+        <div
+          class="flex items-center justify-center"
+          onclick={() => hoverHelp.expand()}
+        >
+          <Info class="size-6" />
+        </div>
+      {/if}
+    </div>
+  </div>
 </div>
