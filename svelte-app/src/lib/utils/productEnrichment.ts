@@ -302,6 +302,8 @@ interface ProductAggregation {
   productHugoUuid: string;
   productName: string;
   productType: string;
+  pF?: boolean;
+  pS?: boolean;
   byDate: Record<
     string,
     {
@@ -395,6 +397,8 @@ function addIngredientToAggregation(
       productHugoUuid: uuid,
       productName: ingredient.name,
       productType: ingredient.type,
+      pF: ingredient.pF ?? false,
+      pS: ingredient.pS ?? false,
       byDate: {},
       allergens: new Set(ingredient.allergens || []),
     });
@@ -563,8 +567,8 @@ function createEnrichedProductFromAggregation(
     mergedInto: null,
     specs: null,
     specsParsed: null,
-    pF: false,
-    pS: false,
+    pF: aggregation.pF ?? false,
+    pS: aggregation.pS ?? false,
     nbRecipes,
     totalAssiettes,
     totalNeededRaw: totalNeededArray, // Initialisation cohérente

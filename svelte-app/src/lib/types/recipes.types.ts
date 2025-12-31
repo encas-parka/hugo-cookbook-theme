@@ -114,6 +114,8 @@ export interface RecipeIngredient {
   comment: string;
   allergens: string[];
   type: string;
+  pF?: boolean; // Produit frais
+  pS?: boolean; // Produit surgelé
 }
 
 /**

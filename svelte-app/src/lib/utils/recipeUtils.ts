@@ -200,6 +200,8 @@ export function parseRecipeIngredient(ingredientData: any): RecipeIngredient {
       ? ingredientData.allergens
       : [],
     type: ingredientData.type || "",
+    pF: ingredientData.pF ?? false,
+    pS: ingredientData.pS ?? false,
   };
 }
 
