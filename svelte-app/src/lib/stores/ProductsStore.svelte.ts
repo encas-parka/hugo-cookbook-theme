@@ -164,6 +164,7 @@ class ProductsStore {
     selectedWho: [],
     selectedProductTypes: [],
     selectedTemperatures: [],
+    temperatureFilter: "all",
     completionStatus: "all",
     groupBy: "productType",
     sortColumn: "",
@@ -185,6 +186,7 @@ class ProductsStore {
       this.filters.selectedWho.length > 0 ||
       this.filters.selectedProductTypes.length > 0 ||
       this.filters.selectedTemperatures.length > 0 ||
+      this.filters.temperatureFilter !== "all" ||
       this.filters.completionStatus !== "all"
     );
   }
@@ -1235,9 +1237,19 @@ class ProductsStore {
       this.#filters.selectedTemperatures.push(temperature);
     }
   }
+
+  /**
+   * Définit le mode de filtre de température (mode exclusif)
+   * @param mode - "all" | "frais" | "not-frais" | "surgele" | "not-surgele"
+   */
+  setTemperatureFilter(mode: TemperatureFilterMode) {
+    this.#filters.temperatureFilter = mode;
+  }
+
   clearTypeAndTemperatureFilters() {
     this.#filters.selectedProductTypes = [];
     this.#filters.selectedTemperatures = [];
+    this.#filters.temperatureFilter = "all";
   }
 
   setGroupBy(groupBy: "store" | "productType" | "none") {
@@ -1290,6 +1302,7 @@ class ProductsStore {
       selectedWho: [],
       selectedProductTypes: [],
       selectedTemperatures: [],
+      temperatureFilter: "all",
       completionStatus: "all",
       groupBy: "productType",
       sortColumn: "",
@@ -1454,6 +1467,7 @@ class ProductsStore {
       selectedWho: [],
       selectedProductTypes: [],
       selectedTemperatures: [],
+      temperatureFilter: "all",
       completionStatus: "all",
       groupBy: "productType",
       sortColumn: "",

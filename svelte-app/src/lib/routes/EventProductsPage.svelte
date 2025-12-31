@@ -412,32 +412,34 @@
 
   <GlobalPurchasesModal bind:isOpen={GlobalPurchasesModalisOpen} />
 
-  <div class="fixed bottom-0 left-0 z-50 transition-all">
-    <div
-      class="rounded-tr-box bg-blue-100 text-blue-800 {hoverHelp.isExpanded
-        ? ' w-fit px-4 py-2'
-        : '  cursor-pointer px-3 py-2'}"
-    >
-      {#if hoverHelp.isExpanded}
-        <div class="flex items-center justify-center">
-          <Info class="me-2 size-5" />
-          {hoverHelp.msg}
+  {#if globalState.isDesktop}
+    <div class="fixed bottom-0 left-0 z-50 transition-all">
+      <div
+        class="rounded-tr-box bg-blue-100 text-blue-800 {hoverHelp.isExpanded
+          ? ' w-fit px-4 py-2'
+          : '  cursor-pointer px-3 py-2'}"
+      >
+        {#if hoverHelp.isExpanded}
+          <div class="flex items-center justify-center">
+            <Info class="me-2 size-5" />
+            {hoverHelp.msg}
 
-          <button
-            class="btn btn-xs btn-circle btn-ghost ms-3"
-            onclick={() => hoverHelp.collapse()}
+            <button
+              class="btn btn-xs btn-circle btn-ghost ms-3"
+              onclick={() => hoverHelp.collapse()}
+            >
+              <X class="h-4 w-4" />
+            </button>
+          </div>
+        {:else}
+          <div
+            class="flex items-center justify-center"
+            onclick={() => hoverHelp.expand()}
           >
-            <X class="h-4 w-4" />
-          </button>
-        </div>
-      {:else}
-        <div
-          class="flex items-center justify-center"
-          onclick={() => hoverHelp.expand()}
-        >
-          <Info class="size-6" />
-        </div>
-      {/if}
+            <Info class="size-6" />
+          </div>
+        {/if}
+      </div>
     </div>
-  </div>
+  {/if}
 </div>

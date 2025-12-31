@@ -15,6 +15,7 @@
   import TimelineRange from "../ui/TimelineRange.svelte";
   import Fieldset from "../ui/Fieldset.svelte";
   import { slide } from "svelte/transition";
+  import { hoverHelp } from "@/lib/stores/GlobalState.svelte";
 
   const filters = $derived(productsStore.filters);
   const uniqueStores = $derived(productsStore.uniqueStores);
@@ -159,33 +160,77 @@
         {/each}
       </div>
       <!-- Filtres température -->
-      <div class="flex flex-wrap items-center gap-2" role="group">
+      <div
+        class="bg-base-100 flex flex-wrap gap-1 rounded-xl p-2 font-semibold"
+        role="group"
+      >
         <button
-          class="btn btn-sm {filters.selectedTemperatures.length === 0
-            ? 'btn-soft btn-success'
-            : filters.selectedTemperatures.includes('frais')
-              ? 'btn-success'
-              : 'btn-dash btn-success'}"
-          onclick={() => productsStore.toggleTemperature("frais")}
-          title="Filtrer les légumes ou produits à conserver au frais"
+          class="btn btn-sm flex-1 {filters.temperatureFilter === 'all'
+            ? 'btn-secondary'
+            : 'btn-soft btn-secondary'}"
+          onclick={() => productsStore.setTemperatureFilter("all")}
+          type="button"
+          aria-label="Tous"
+          onmouseenter={() =>
+            (hoverHelp.msg = "Ne pas filter en fonction des températures")}
+          onmouseleave={() => hoverHelp.reset()}>Tous</button
         >
-          <ShoppingBasket class="h-5 w-5" />
+        <button
+          class="btn btn-sm flex-1 {filters.temperatureFilter === 'frais'
+            ? 'btn-success'
+            : 'btn-soft btn-success'}"
+          onclick={() => productsStore.setTemperatureFilter("frais")}
+          type="button"
+          aria-label="Frais uniquement"
+          onmouseenter={() =>
+            (hoverHelp.msg = "Afficher les produits frais uniquement")}
+          onmouseleave={() => hoverHelp.reset()}
+        >
+          <ShoppingBasket class="h-4 w-4" />
           Frais
         </button>
         <button
-          class="btn btn-sm {filters.selectedTemperatures.length === 0
-            ? 'btn-soft btn-info'
-            : filters.selectedTemperatures.includes('surgele')
-              ? 'btn-info'
-              : 'btn-dash btn-info'}"
-          onclick={() => productsStore.toggleTemperature("surgele")}
-          title="Filtrer les roduits à concerver au congélateur"
+          class="btn btn-sm flex-1 {filters.temperatureFilter === 'not-frais'
+            ? 'btn-error'
+            : 'btn-soft btn-error'}"
+          onclick={() => productsStore.setTemperatureFilter("not-frais")}
+          type="button"
+          aria-label="Sans frais"
+          onmouseenter={() => (hoverHelp.msg = "Exclure les produits frais")}
+          onmouseleave={() => hoverHelp.reset()}
         >
-          <Snowflake class="h-5 w-5" />
+          <ShoppingBasket class="h-4 w-4" />
+          <span class="line-through">Frais</span>
+        </button>
+        <button
+          class="btn btn-sm flex-1 {filters.temperatureFilter === 'surgele'
+            ? 'btn-info'
+            : 'btn-soft btn-info'}"
+          onclick={() => productsStore.setTemperatureFilter("surgele")}
+          type="button"
+          aria-label="Surgelés uniquement"
+          onmouseenter={() =>
+            (hoverHelp.msg = "Afficher les produits surgelés uniquement")}
+          onmouseleave={() => hoverHelp.reset()}
+        >
+          <Snowflake class="h-4 w-4" />
           Surgelés
         </button>
+        <button
+          class="btn btn-sm flex-1 {filters.temperatureFilter === 'not-surgele'
+            ? 'btn-error'
+            : 'btn-soft btn-error'}"
+          onclick={() => productsStore.setTemperatureFilter("not-surgele")}
+          type="button"
+          aria-label="Sans surgelés"
+          onmouseenter={() => (hoverHelp.msg = "Exclure les produits surgelé")}
+          onmouseleave={() => hoverHelp.reset()}
+        >
+          <Snowflake class="h-4 w-4" />
+          <span class="line-through">surgelés</span>
+        </button>
       </div>
-      {#if filters.selectedProductTypes.length > 0 || filters.selectedTemperatures.length > 0}
+      {#if filters.selectedProductTypes.length > 0 || filters.selectedTemperatures.length > 0 || filters.temperatureFilter !== "all"}
         <button
           class="btn btn-xs btn-circle btn-outline text-error ms-auto"
           onclick={() => productsStore.clearTypeAndTemperatureFilters()}

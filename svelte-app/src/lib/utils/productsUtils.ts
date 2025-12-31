@@ -13,12 +13,20 @@ import { aggregateByUnit, formatSingleQuantity } from "./QuantityFormatter";
  */
 export type CompletionStatus = "all" | "completed" | "incomplete";
 
+export type TemperatureFilterMode =
+  | "all"
+  | "frais"
+  | "not-frais"
+  | "surgele"
+  | "not-surgele";
+
 export interface FiltersState {
   searchQuery: string;
   selectedStores: string[];
   selectedWho: string[];
   selectedProductTypes: string[];
   selectedTemperatures: string[];
+  temperatureFilter: TemperatureFilterMode;
   completionStatus: CompletionStatus;
   groupBy: "store" | "productType" | "none";
   sortColumn: string;
@@ -319,12 +327,23 @@ export function matchesFilters(
     }
   }
 
-  // Filtres température
-  if (filters.selectedTemperatures.length > 0) {
-    const hasValidTemp =
-      (filters.selectedTemperatures.includes("frais") && product.pF) ||
-      (filters.selectedTemperatures.includes("surgele") && product.pS);
-    if (!hasValidTemp) return false;
+  // Filtres température - mode exclusif
+  const tempFilter = filters.temperatureFilter;
+  if (tempFilter && tempFilter !== "all") {
+    switch (tempFilter) {
+      case "frais":
+        if (!product.pF) return false;
+        break;
+      case "not-frais":
+        if (product.pF) return false;
+        break;
+      case "surgele":
+        if (!product.pS) return false;
+        break;
+      case "not-surgele":
+        if (product.pS) return false;
+        break;
+    }
   }
 
   return true;
