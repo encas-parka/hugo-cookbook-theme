@@ -10,7 +10,10 @@
   } from "@lucide/svelte";
   import OverrideManager from "./OverrideManager.svelte";
   import type { ProductModalStateType } from "$lib/types/store.types.js";
-  import { formatDateWdDayMonthShort } from "$lib/utils/date-helpers.js";
+  import {
+    extractTime,
+    formatDateWdDayMonthShort,
+  } from "$lib/utils/date-helpers.js";
   import { getTimeIcon } from "$lib/utils/dateRange.js";
   import { formatSingleQuantity } from "$lib/utils/QuantityFormatter.js";
 
@@ -67,13 +70,16 @@
                 <div
                   class="flex min-w-fit items-center gap-1 text-base font-medium"
                 >
+                  {formatDateWdDayMonthShort(recipe.date)} - {extractTime(
+                    recipe.date,
+                  )}
                   {#if getTimeIcon(recipe.dateTimeService) === "sun"}
                     <Sun class="h-4 w-4 text-amber-500" />
                   {:else if getTimeIcon(recipe.dateTimeService) === "moon"}
                     <Moon class="h-4 w-4 text-indigo-500" />
                   {:else if getTimeIcon(recipe.dateTimeService) === "cloud"}
                     <Cloud class="h-4 w-4 text-sky-500" />
-                  {/if}{formatDateWdDayMonthShort(recipe.date)}
+                  {/if}
                 </div>
               </div>
 

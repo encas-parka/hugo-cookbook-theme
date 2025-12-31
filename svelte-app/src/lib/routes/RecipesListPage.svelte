@@ -6,6 +6,7 @@
   import RecipeFilters from "$lib/components/recipes/RecipeFilters.svelte";
   import ActiveFiltersDisplay from "$lib/components/recipes/ActiveFiltersDisplay.svelte";
   import RecipeCard from "$lib/components/recipes/RecipeCard.svelte";
+  import RecipeSortControls from "$lib/components/recipes/RecipeSortControls.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
   import { recipeDataStore } from "$lib/stores/RecipeDataStore.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
@@ -47,8 +48,7 @@
   let sentinel = $state<HTMLElement | undefined>();
 
   // Tri
-  type SortBy = "title" | "$createdAt" | "$updatedAt";
-  let sortBy = $state<SortBy>("title");
+  let sortBy = $state<"title" | "$createdAt" | "$updatedAt">("title");
   let sortOrder = $state<"asc" | "desc">("asc");
 
   // Récupérer toutes les recettes depuis le store
@@ -324,97 +324,59 @@
 <!-- Contenu principal -->
 <div class="p-4 lg:ml-100">
   <div class="mx-auto max-w-4xl">
-    <!-- Tabs de filtrage par type -->
-    <div class="tabs tabs-border tabs-lg mb-6 font-bold">
-      <button
-        class="tab {filters.typeR === '' ? 'tab-active' : ''}"
-        onclick={() => (filters.typeR = "")}
-      >
-        Toutes
-      </button>
-      <button
-        class="tab {filters.typeR === 'entree' ? 'tab-active' : ''}"
-        onclick={() => (filters.typeR = "entree")}
-      >
-        Entrées
-      </button>
-      <button
-        class="tab {filters.typeR === 'plat' ? 'tab-active' : ''}"
-        onclick={() => (filters.typeR = "plat")}
-      >
-        Plats
-      </button>
-      <button
-        class="tab {filters.typeR === 'dessert' ? 'tab-active' : ''}"
-        onclick={() => (filters.typeR = "dessert")}
-      >
-        Desserts
-      </button>
-    </div>
-
-    <!-- Barre de recherche -->
-    <div class="mb-4">
-      <RecipeSearchBar bind:searchQuery onReset={resetSearch} />
-    </div>
-    <!-- Résumé des filtres actifs -->
-    <div class="mb-6">
-      <ActiveFiltersDisplay
-        {searchQuery}
-        {filters}
-        resultCount={filteredRecipes.length}
-        onResetFilters={resetFilters}
-      />
-    </div>
-
-    <!-- Boutons de tri -->
-    <div class="mb-6 flex items-center gap-2">
-      <span class="text-sm font-semibold">Trier par :</span>
-      <div class="btn-group">
+    <div class="mb-10 space-y-6">
+      <!-- Tabs de filtrage par type -->
+      <div class="tabs tabs-border tabs-lg mb-6 font-bold">
         <button
-          class="btn btn-sm {sortBy === 'title' ? 'btn-active' : ''}"
-          onclick={() => {
-            sortBy = "title";
-            sortOrder = "asc";
-          }}
+          class="tab {filters.typeR === '' ? 'tab-active' : ''}"
+          onclick={() => (filters.typeR = "")}
         >
-          Titre
+          Toutes
         </button>
         <button
-          class="btn btn-sm {sortBy === '$createdAt' ? 'btn-active' : ''}"
-          onclick={() => {
-            sortBy = "$createdAt";
-            sortOrder = "desc";
-          }}
+          class="tab {filters.typeR === 'entree' ? 'tab-active' : ''}"
+          onclick={() => (filters.typeR = "entree")}
         >
-          Date de création
+          Entrées
         </button>
         <button
-          class="btn btn-sm {sortBy === '$updatedAt' ? 'btn-active' : ''}"
-          onclick={() => {
-            sortBy = "$updatedAt";
-            sortOrder = "desc";
-          }}
+          class="tab {filters.typeR === 'plat' ? 'tab-active' : ''}"
+          onclick={() => (filters.typeR = "plat")}
         >
-          Date de modification
+          Plats
+        </button>
+        <button
+          class="tab {filters.typeR === 'dessert' ? 'tab-active' : ''}"
+          onclick={() => (filters.typeR = "dessert")}
+        >
+          Desserts
         </button>
       </div>
 
-      {#if sortBy !== "title"}
-        <div class="btn-group ml-2">
-          <button
-            class="btn btn-sm {sortOrder === 'asc' ? 'btn-active' : ''}"
-            onclick={() => (sortOrder = "asc")}
-          >
-            ↑
-          </button>
-          <button
-            class="btn btn-sm {sortOrder === 'desc' ? 'btn-active' : ''}"
-            onclick={() => (sortOrder = "desc")}
-          >
-            ↓
-          </button>
-        </div>
-      {/if}
+      <!-- Barre de recherche -->
+      <div class="mb-4">
+        <RecipeSearchBar bind:searchQuery onReset={resetSearch} />
+      </div>
+      <!-- Résumé des filtres actifs -->
+      <div class="mb-6">
+        <ActiveFiltersDisplay
+          {searchQuery}
+          {filters}
+          resultCount={filteredRecipes.length}
+          onResetFilters={resetFilters}
+        />
+      </div>
+
+      <!-- Boutons de tri -->
+      <RecipeSortControls
+        bind:sortBy
+        bind:sortOrder
+        onSortChange={(s, o) => {
+          sortBy = s;
+          sortOrder = o;
+        }}
+        scope={filters.scope}
+      />
     </div>
 
     <!-- Liste des recettes -->
@@ -427,7 +389,7 @@
         <span>Erreur : {recipesStore.error}</span>
       </div>
     {:else}
-      <div class="space-y-8">
+      <div class="my-8 space-y-8">
         {#each paginatedRecipes as recipe (recipe.$id)}
           <RecipeCard {recipe} highlightedIngredients={filters.ingredients} />
         {/each}

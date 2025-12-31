@@ -50,38 +50,6 @@
 </script>
 
 <fieldset class="fieldset border-base-300 relative rounded-lg border-2">
-  <!-- Boutons de filtre de scope en haut à droite -->
-  {#if globalState.isAuthenticated}
-    <div class="absolute top-2 right-2 z-10">
-      <div class="bg-base-100 rounded-2xl p-2">
-        <input
-          class=" btn btn-sm"
-          type="radio"
-          name="recipe-scope-display"
-          aria-label="Tout"
-          checked={filters.scope === "all"}
-          onclick={() => navigate("/recipe")}
-        />
-        <input
-          class=" btn btn-sm"
-          type="radio"
-          name="recipe-scope-display"
-          aria-label="Mes recettes"
-          checked={filters.scope === "mine"}
-          onclick={() => navigate("/recipe/my")}
-        />
-        <input
-          class=" btn btn-sm"
-          type="radio"
-          name="recipe-scope-display"
-          aria-label="Mes Brouillons"
-          checked={filters.scope === "drafts"}
-          onclick={() => navigate("/recipe/my/draft")}
-        />
-      </div>
-    </div>
-  {/if}
-
   <!-- Compteur de résultats -->
   {#if hasActiveFilters}
     <legend class="legend text-base-content/70 ms-4">
