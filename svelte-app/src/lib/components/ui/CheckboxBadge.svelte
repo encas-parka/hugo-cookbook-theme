@@ -30,70 +30,73 @@
     onchange,
   }: Props = $props();
 
-  // Classes CSS basées sur la couleur
-  const bgClass = $derived(
-    checked
-      ? color === "primary"
-        ? "bg-primary/30 hover:bg-primary/20"
-        : color === "secondary"
-          ? "bg-secondary/30 hover:bg-secondary/20"
-          : color === "accent"
-            ? "bg-accent/30 hover:bg-accent/20"
-            : color === "success"
-              ? "bg-success/30 hover:bg-success/20"
-              : color === "warning"
-                ? "bg-warning/30 hover:bg-warning/20"
-                : color === "error"
-                  ? "bg-error/30 hover:bg-error/20"
-                  : color === "info"
-                    ? "bg-info/30 hover:bg-info/20"
-                    : "bg-secondary/30 hover:bg-secondary/20"
-      : color === "primary"
-        ? "bg-primary/10 hover:bg-primary/5"
-        : color === "secondary"
-          ? "bg-secondary/10 hover:bg-secondary/5"
-          : color === "accent"
-            ? "bg-accent/10 hover:bg-accent/5"
-            : color === "success"
-              ? "bg-success/10 hover:bg-success/5"
-              : color === "warning"
-                ? "bg-warning/10 hover:bg-warning/5"
-                : color === "error"
-                  ? "bg-error/10 hover:bg-error/5"
-                  : color === "info"
-                    ? "bg-info/10 hover:bg-info/5"
-                    : "bg-secondary/10 hover:bg-secondary/5",
-  );
+  // Fonction utilitaire pour générer les classes de couleur
+  // → Nous devons mentionner toutes les classes explicitement pour éviter qu'elles soient tree-checké par tailwinds.
+  function getColorClasses(color: string, checked: boolean): string {
+    const colorMap: Record<string, { unchecked: string; checked: string }> = {
+      primary: {
+        unchecked: "bg-primary/10 hover:bg-primary/5",
+        checked: "bg-primary/30 hover:bg-primary/20",
+      },
+      secondary: {
+        unchecked: "bg-secondary/10 hover:bg-secondary/5",
+        checked: "bg-secondary/30 hover:bg-secondary/20",
+      },
+      accent: {
+        unchecked: "bg-accent/10 hover:bg-accent/5",
+        checked: "bg-accent/30 hover:bg-accent/20",
+      },
+      success: {
+        unchecked: "bg-success/10 hover:bg-success/5",
+        checked: "bg-success/30 hover:bg-success/20",
+      },
+      warning: {
+        unchecked: "bg-warning/10 hover:bg-warning/5",
+        checked: "bg-warning/30 hover:bg-warning/20",
+      },
+      error: {
+        unchecked: "bg-error/10 hover:bg-error/5",
+        checked: "bg-error/30 hover:bg-error/20",
+      },
+      info: {
+        unchecked: "bg-info/10 hover:bg-info/5",
+        checked: "bg-info/30 hover:bg-info/20",
+      },
+    };
 
-  const badgeColorClass = $derived(
-    color === "primary"
-      ? "badge-primary"
-      : color === "secondary"
-        ? "badge-secondary"
-        : color === "accent"
-          ? "badge-accent"
-          : color === "success"
-            ? "badge-success"
-            : color === "warning"
-              ? "badge-warning"
-              : color === "error"
-                ? "badge-error"
-                : color === "info"
-                  ? "badge-info"
-                  : "badge-secondary",
-  );
+    const colorClasses = colorMap[color] || colorMap.secondary;
+    return checked ? colorClasses.checked : colorClasses.unchecked;
+  }
 
-  const sizeClass = $derived(
-    size === "xs"
-      ? "checkbox-xs"
-      : size === "sm"
-        ? "checkbox-sm"
-        : size === "lg"
-          ? "checkbox-lg"
-          : size === "md"
-            ? "checkbox-md"
-            : "checkbox-sm",
-  );
+  // Fonction utilitaire pour générer les classes du badge
+  function getBadgeColorClass(color: string): string {
+    const badgeColorMap: Record<string, string> = {
+      primary: "badge-primary",
+      secondary: "badge-secondary",
+      accent: "badge-accent",
+      success: "badge-success",
+      warning: "badge-warning",
+      error: "badge-error",
+      info: "badge-info",
+    };
+    return badgeColorMap[color] || "badge-secondary";
+  }
+
+  // Fonction utilitaire pour générer les classes de taille
+  function getSizeClass(size: string): string {
+    const sizeMap: Record<string, string> = {
+      xs: "checkbox-xs",
+      sm: "checkbox-sm",
+      md: "checkbox-md",
+      lg: "checkbox-lg",
+    };
+    return sizeMap[size] || "checkbox-sm";
+  }
+
+  // Classes calculées
+  const bgClass = $derived(getColorClasses(color, checked));
+  const badgeColorClass = $derived(getBadgeColorClass(color));
+  const sizeClass = $derived(getSizeClass(size));
 </script>
 
 <label
