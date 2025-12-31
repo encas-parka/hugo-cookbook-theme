@@ -29,7 +29,7 @@ export function formatQuantityNumber(qty: number, unit: string): number {
 /**
  * Applique les règles d'arrondi standardisées
  */
-function applyStandardRounding(qty: number, unit: string): number {
+export function applyStandardRounding(qty: number, unit: string): number {
   switch (unit) {
     case "kg":
     case "l.": {

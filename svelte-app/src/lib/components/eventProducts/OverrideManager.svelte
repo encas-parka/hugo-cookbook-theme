@@ -13,6 +13,10 @@
   import QuantityInput from "../ui/QuantityInput.svelte";
   import CommentText from "../ui/CommentText.svelte";
   import { fade, slide } from "svelte/transition";
+  import {
+    autoConvertUnit,
+    applyStandardRounding,
+  } from "$lib/utils/QuantityFormatter";
 
   interface Props {
     modalState: ProductModalStateType;
@@ -32,27 +36,63 @@
   // État du formulaire - utilisation de l'état centralisé pour editMode
   let editMode = $derived(modalState.uiStates.overrideManagerEditMode);
 
-  let quantity = $state(
+  // Valeurs brutes depuis le stockage (toujours en gr./ml pour les poids/volumes)
+  let rawSourceQuantity = $derived(
     modalState.product?.totalNeededOverrideParsed?.totalOverride.q ||
       modalState.product?.totalNeededArray[0]?.q ||
       0,
   );
-  let unit = $state(
+  let rawSourceUnit = $derived(
     modalState.product?.totalNeededOverrideParsed?.totalOverride.u ||
       modalState.product?.totalNeededArray[0]?.u ||
       "",
   );
+
+  // Conversion pour l'affichage utilisateur-friendly (kg/l si >= 1000)
+  // Utiliser $state pour permettre la modification par l'utilisateur
+  function getInitialValues() {
+    if (!rawSourceQuantity || !rawSourceUnit) {
+      return { quantity: 0, unit: "" };
+    }
+    const { q: convertedQty, u: convertedUnit } = autoConvertUnit(
+      rawSourceQuantity,
+      rawSourceUnit,
+    );
+    return {
+      quantity: applyStandardRounding(convertedQty, convertedUnit),
+      unit: convertedUnit,
+    };
+  }
+
+  let quantity = $state(getInitialValues().quantity);
+  let unit = $state(getInitialValues().unit);
   let comment = $state(
     modalState.product?.totalNeededOverrideParsed?.comment || "",
   );
+
+  // Réinitialiser les valeurs quand on entre en mode édition
+  $effect(() => {
+    if (editMode) {
+      const initialValues = getInitialValues();
+      quantity = initialValues.quantity;
+      unit = initialValues.unit;
+      comment = modalState.product?.totalNeededOverrideParsed?.comment || "";
+    }
+  });
 
   let isFormValid = $derived(quantity > 0 && unit.trim() !== "");
 
   async function handleSetOverride() {
     if (!modalState) return;
 
+    // Conversion pour le stockage (kg→gr, l→ml) afin de normaliser
+    const { q: storedQuantity, u: storedUnit } = autoConvertUnit(
+      quantity,
+      unit,
+    );
+
     const overrideData: TotalNeededOverrideData = {
-      totalOverride: { q: quantity, u: unit },
+      totalOverride: { q: storedQuantity, u: storedUnit },
       comment,
     };
 
