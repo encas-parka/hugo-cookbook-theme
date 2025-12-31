@@ -56,8 +56,17 @@ export function createEnrichedProductFromAppwrite(
     totalNeededArray = [specsParsed.quantity];
   }
 
+  // 🎯 Priorité : Override manuel > Calcul auto
+  // Parser l'override s'il existe pour le calcul du missing
+  const totalNeededOverrideParsed = safeJsonParse<TotalNeededOverrideData>(
+    product.totalNeededOverride,
+  );
+  const effectiveNeededArray = totalNeededOverrideParsed
+    ? [totalNeededOverrideParsed.totalOverride]
+    : totalNeededArray;
+
   const { numeric: missingQuantityArray, display: displayMissingQuantity } =
-    calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
+    calculateAndFormatMissing(effectiveNeededArray, totalPurchasesArray);
 
   const stockParsed = safeJsonParse<any>(product.stockReel) ?? null;
   const displayTotalPurchases = formatTotalQuantity(totalPurchasesArray);
@@ -117,15 +126,11 @@ export function createEnrichedProductFromAppwrite(
     displayTotalNeeded: formatTotalQuantity(totalNeededArray), // Afficher le besoin manuel
     displayTotalPurchases,
     displayMissingQuantity,
-    totalNeededOverrideParsed: safeJsonParse<TotalNeededOverrideData>(
-      product.totalNeededOverride,
-    ),
-    displayTotalOverride: (() => {
-      const override = safeJsonParse<TotalNeededOverrideData>(
-        product.totalNeededOverride,
-      );
-      return override ? formatTotalQuantity([override.totalOverride]) : "";
-    })(),
+    // Déjà parsé plus haut pour le calcul du missing
+    totalNeededOverrideParsed,
+    displayTotalOverride: totalNeededOverrideParsed
+      ? formatTotalQuantity([totalNeededOverrideParsed.totalOverride])
+      : "",
     dateDisplayInfo: {},
   };
 }
@@ -167,9 +172,18 @@ export function updateExistingProduct(
     totalNeededArray = [specsParsed.quantity];
   }
 
+  // 🎯 Priorité : Override manuel > Calcul auto
+  // Parser l'override s'il existe pour le calcul du missing
+  const totalNeededOverrideParsed = safeJsonParse<TotalNeededOverrideData>(
+    product.totalNeededOverride ?? existing.totalNeededOverride,
+  );
+  const effectiveNeededArray = totalNeededOverrideParsed
+    ? [totalNeededOverrideParsed.totalOverride]
+    : totalNeededArray;
+
   // Recalculer missing
   const { numeric: missingQuantityArray, display: displayMissingQuantity } =
-    calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
+    calculateAndFormatMissing(effectiveNeededArray, totalPurchasesArray);
 
   // Fusion intelligente du stock
   const mergedStockReel = product.stockReel ?? existing.stockReel;
@@ -244,15 +258,11 @@ export function updateExistingProduct(
     displayTotalPurchases,
     displayMissingQuantity,
     displayTotalNeeded: formatTotalQuantity(totalNeededArray),
-    totalNeededOverrideParsed: safeJsonParse<TotalNeededOverrideData>(
-      product.totalNeededOverride ?? existing.totalNeededOverride,
-    ),
-    displayTotalOverride: (() => {
-      const override = safeJsonParse<TotalNeededOverrideData>(
-        product.totalNeededOverride ?? existing.totalNeededOverride,
-      );
-      return override ? formatTotalQuantity([override.totalOverride]) : "";
-    })(),
+    // Déjà parsé plus haut pour le calcul du missing
+    totalNeededOverrideParsed,
+    displayTotalOverride: totalNeededOverrideParsed
+      ? formatTotalQuantity([totalNeededOverrideParsed.totalOverride])
+      : "",
   };
 }
 
@@ -265,10 +275,15 @@ export function recalculatePurchaseDependents(product: EnrichedProduct): void {
     transformPurchasesToNumericQuantity(product.purchases ?? []),
   );
 
+  // 🎯 Priorité : Override manuel > Calcul auto
+  const effectiveNeededArray = product.totalNeededOverrideParsed
+    ? [product.totalNeededOverrideParsed.totalOverride]
+    : product.totalNeededArray;
+
   // Recalculer missingQuantity et display
   const { numeric: missingQuantityArray, display: displayMissingQuantity } =
     calculateAndFormatMissing(
-      product.totalNeededArray,
+      effectiveNeededArray,
       product.totalPurchasesArray,
     );
 
@@ -484,9 +499,14 @@ function createEnrichedProductFromAggregation(
   const totalPurchasesArray: NumericQuantity[] = [];
   const purchases: Purchases[] = [];
 
+  // 🎯 Priorité : Override manuel > Calcul auto
+  // Note: dans cette fonction, il n'y a pas encore d'override (nouveau produit)
+  // Mais on garde la logique cohérente pour éviter des bugs futurs
+  const effectiveNeededArray = totalNeededArray;
+
   // Calcul missing (Need - Purchase)
   const { numeric: missingQuantityArray, display: displayMissingQuantity } =
-    calculateAndFormatMissing(totalNeededArray, totalPurchasesArray);
+    calculateAndFormatMissing(effectiveNeededArray, totalPurchasesArray);
 
   // Petit fix pour nbRecipes et totalAssiettes global
   const nbRecipes = Object.values(byDate).reduce(

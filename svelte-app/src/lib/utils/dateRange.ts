@@ -178,12 +178,18 @@ export function calculateProductStatsForDateRange(
       ? formatTotalQuantityFromFormatter(requiredQuantities)
       : "-";
 
+  // 🎯 Priorité : Override manuel > Calcul auto (byDate)
+  // Si un override existe, l'utiliser pour calculer le stock manquant
+  const quantitiesForStockCalc = product.totalNeededOverrideParsed
+    ? [product.totalNeededOverrideParsed.totalOverride]
+    : requiredQuantities;
+
   // Calcul du stock pour CETTE plage
   const stockBalance = calculateStockBalanceForDateRange(
     product,
     startDate,
     endDate,
-    requiredQuantities,
+    quantitiesForStockCalc,
   );
   const availableStockQuantities = stockBalance.filter((item) => item.q > 0);
 
