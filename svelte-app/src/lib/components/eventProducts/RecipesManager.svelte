@@ -6,6 +6,7 @@
     Moon,
     Cloud,
     UtensilsCrossed,
+    Utensils,
   } from "@lucide/svelte";
   import OverrideManager from "./OverrideManager.svelte";
   import type { ProductModalStateType } from "$lib/types/store.types.js";
@@ -54,30 +55,34 @@
       {#each recipes as recipe, index (index)}
         {@const q_u = getRecipeQty(recipe.q, recipe.u)}
         {@const q_uEq = getRecipeQty(recipe.qEq, recipe.uEq)}
-        <div class="card card-bordered bg-base-100 shadow-sm">
+        <div class="card bg-base-100 shadow-sm">
           <div class="card-body p-3">
             <div
               class="flex flex-wrap items-center justify-between gap-2 gap-y-3"
             >
               <!-- Nom de la recette + icône date -->
-              <div class="flex gap-4">
+              <div class="flex items-start gap-4">
                 <span class="text-base text-wrap">{recipe.r}</span>
 
-                <div class="flex min-w-fit items-center gap-1">
-                  <span class="badge badge-soft font-medium">
-                    {#if getTimeIcon(recipe.dateTimeService) === "sun"}
-                      <Sun class="h-4 w-4 text-amber-500" />
-                    {:else if getTimeIcon(recipe.dateTimeService) === "moon"}
-                      <Moon class="h-4 w-4 text-indigo-500" />
-                    {:else if getTimeIcon(recipe.dateTimeService) === "cloud"}
-                      <Cloud class="h-4 w-4 text-sky-500" />
-                    {/if}{formatDateWdDayMonthShort(recipe.date)}</span
-                  >
+                <div
+                  class="flex min-w-fit items-center gap-1 text-base font-medium"
+                >
+                  {#if getTimeIcon(recipe.dateTimeService) === "sun"}
+                    <Sun class="h-4 w-4 text-amber-500" />
+                  {:else if getTimeIcon(recipe.dateTimeService) === "moon"}
+                    <Moon class="h-4 w-4 text-indigo-500" />
+                  {:else if getTimeIcon(recipe.dateTimeService) === "cloud"}
+                    <Cloud class="h-4 w-4 text-sky-500" />
+                  {/if}{formatDateWdDayMonthShort(recipe.date)}
                 </div>
               </div>
 
               <!-- Couverts + quantités -->
-              <div class="ms-auto flex flex-wrap items-center gap-2">
+              <div class="ms-auto flex flex-wrap items-center gap-4">
+                <span class="badge badge-soft gap-1">
+                  <Utensils class="h-3 w-3" />
+                  {recipe.a || 0} c.
+                </span>
                 <span class="text-base font-medium"
                   >{getRecipeQty(recipe.qEq, recipe.uEq)}</span
                 >
@@ -85,10 +90,6 @@
                 {#if q_u !== q_uEq}
                   <span class="text-base-content/70">
                     ({getRecipeQty(recipe.q, recipe.u)})
-                  </span>
-                  <span class="badge badge-soft gap-1">
-                    <UtensilsCrossed class="h-3 w-3" />
-                    {recipe.a || 0} c.
                   </span>
                 {/if}
               </div>

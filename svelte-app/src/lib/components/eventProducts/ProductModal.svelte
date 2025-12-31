@@ -19,6 +19,8 @@
   import StoreManager from "./StoreManager.svelte";
   import RecipesManager from "./RecipesManager.svelte";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
+  import { getProductTypeInfo } from "@/lib/utils/products-display";
+  import { getTypeDisplay } from "@/lib/utils/recipeUtils";
 
   let {
     productId,
@@ -80,10 +82,13 @@
             <span class="">Événement terminé</span>
           </div>
         {/if}
+        {@const typeInfo = getProductTypeInfo(modalState.product?.productType)}
+
         <div class="me-2 mt-2 flex items-center gap-3">
-          <span class="badge badge-secondary"
-            >{modalState.product?.productType}</span
-          >
+          <span class="badge badge-secondary badge-soft">
+            <typeInfo.icon class="size-4 md:size-5" />
+            {typeInfo.displayName}
+          </span>
 
           <div class="text-sm opacity-75">
             <span class="font-medium">Besoin:</span>

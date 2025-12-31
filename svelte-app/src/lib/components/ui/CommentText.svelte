@@ -15,6 +15,6 @@
     type="text"
     bind:value
     placeholder="Commentaire (optionnel)"
-    maxlength="250"
+    maxlength="100"
   />
 </label>
