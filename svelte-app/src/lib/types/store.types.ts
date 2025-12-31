@@ -113,11 +113,15 @@ export interface NumericQuantity {
  * Type pour le total nécessaire Manuellement redéfini par l'utilisateur (stocké dans Appwrite)
  */
 export interface TotalNeededOverrideData {
+  // L'override manuel
   totalOverride: NumericQuantity;
   comment: string;
-  hasUnresolvedChangedSinceOverride?: boolean;
-  oldTotalDisplay?: string;
-  newTotalDisplay?: string;
+
+  // Snapshot du contexte AU MOMENT de l'override
+  // Permet de détecter si les recettes/couverts ont changé depuis
+  totalComputedWhenOverride: NumericQuantity[]; // Calcul automatique à ce moment-là
+  platesNbWhenOverride: number; // Nombre total de couverts (totalAssiettes)
+  recipesNbWhenOverride: number; // Nombre de recettes utilisées (nbRecipes)
 }
 
 // ✅ EnrichedProduct = Données BRUTES Appwrite + Hugo statiques + Calculées

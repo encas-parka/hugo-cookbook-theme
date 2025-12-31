@@ -6,6 +6,8 @@
     CookingPot,
     Utensils,
     MessageSquare,
+    AlertCircle,
+    Info,
   } from "@lucide/svelte";
   import type {
     ProductModalStateType,
@@ -17,7 +19,9 @@
   import {
     autoConvertUnit,
     applyStandardRounding,
+    formatTotalQuantity,
   } from "$lib/utils/QuantityFormatter";
+  import { detectOverrideMismatch } from "$lib/utils/productsUtils";
 
   interface Props {
     modalState: ProductModalStateType;
@@ -30,8 +34,10 @@
   const overrideData = $derived(modalState.product?.totalNeededOverrideParsed);
   const overrideDisplay = $derived(modalState.product?.displayTotalOverride);
   const totalNeededArray = $derived(modalState.product?.totalNeededArray);
-  let hasUnresolvedChangedSinceOverride = $derived(
-    overrideData?.hasUnresolvedChangedSinceOverride,
+
+  // Détecter si l'override a un mismatch avec le calcul actuel
+  const overrideMismatch = $derived(
+    modalState.product ? detectOverrideMismatch(modalState.product) : null,
   );
 
   // État du formulaire - utilisation de l'état centralisé pour editMode
@@ -105,9 +111,13 @@
       comment !== currentComment;
 
     if (hasChanged) {
+      // 📸 SNAPSHOT : Capturer le contexte actuel au moment de l'override
       const overrideData: TotalNeededOverrideData = {
         totalOverride: { q: storedQuantity, u: storedUnit },
         comment,
+        totalComputedWhenOverride: modalState.product!.totalNeededArray,
+        platesNbWhenOverride: modalState.product!.totalAssiettes,
+        recipesNbWhenOverride: modalState.product!.nbRecipes,
       };
 
       await modalState.setOverride(overrideData);
@@ -127,13 +137,53 @@
 
 {#if modalState.product}
   <div class="space-y-3">
-    <!-- Ancienne quantité calculée -->
-    {#if overrideData?.oldTotalDisplay && hasUnresolvedChangedSinceOverride}
-      <div
-        class="rounded-box bg-base-200 flex items-center justify-between px-4 py-3"
-      >
-        <span class="text-base-content/70">Ancien calcul</span>
-        <span class="font-bold">{overrideData?.oldTotalDisplay}</span>
+    <!-- ⚠️ Alerte si le contexte a changé depuis l'override -->
+    {#if overrideMismatch?.hasMismatch && overrideMismatch?.details}
+      <div class="alert alert-warning alert-soft">
+        <AlertCircle size={18} />
+        <div class="text-sm">
+          <div class="font-bold">
+            Les menus ont été modifié depuis la définition manuelle des besoins
+            !
+          </div>
+          <div class="mt-1 space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="text-base-content/70">
+                Au moment de laa modification manuelle :
+                <strong class="text-base-content">
+                  {overrideMismatch.details.oldPlates} couverts,
+                  {overrideMismatch.details.oldRecipes} recettes
+                </strong>
+                →
+                <strong
+                  >{formatTotalQuantity(
+                    overrideMismatch.details.oldComputed,
+                  )}</strong
+                >
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-base-content/70">
+                Calcul actuel :
+                <strong class="text-base-content">
+                  {overrideMismatch.details.newPlates} couverts,
+                  {overrideMismatch.details.newRecipes} recettes
+                </strong>
+                →
+                <strong
+                  >{formatTotalQuantity(
+                    overrideMismatch.details.newComputed,
+                  )}</strong
+                >
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-base-content/60 text-xs">
+                Votre override : {overrideDisplay}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     {/if}
 

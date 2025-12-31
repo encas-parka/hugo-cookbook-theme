@@ -339,3 +339,163 @@ export function slugify(text: string): string {
     .replace(/^-+/, "") // Supprime les tirets au début
     .replace(/-+$/, ""); // Supprime les tirets à la fin
 }
+
+// =============================================================================
+// OVERRIDE DETECTION
+// =============================================================================
+
+/**
+ * Compare deux tableaux de NumericQuantity avec tolérance pour les arrondis
+ * @param q1 - Premier tableau de quantités
+ * @param q2 - Second tableau de quantités
+ * @param tolerance - Tolérance relative (0.01 = 1%)
+ * @returns true si les quantités sont considérées égales
+ */
+export function quantitiesMatch(
+  q1: NumericQuantity[],
+  q2: NumericQuantity[],
+  tolerance: number = 0.01,
+): boolean {
+  // Cas vides
+  if (!q1?.length && !q2?.length) return true;
+  if (!q1?.length || !q2?.length) return false;
+
+  // Créer des maps pour comparaison
+  const map1 = new Map(q1.map((item) => [item.u, item.q]));
+  const map2 = new Map(q2.map((item) => [item.u, item.q]));
+
+  // Vérifier les mêmes unités
+  const units1 = Array.from(map1.keys()).sort();
+  const units2 = Array.from(map2.keys()).sort();
+  if (units1.length !== units2.length) return false;
+  if (!units1.every((u, i) => u === units2[i])) return false;
+
+  // Comparer chaque quantité avec tolérance
+  for (const [unit, qty1] of map1) {
+    const qty2 = map2.get(unit);
+    if (qty2 === undefined) return false;
+
+    // Tolérance relative ou 1g minimum
+    const diff = Math.abs(qty1 - qty2);
+    const maxQty = Math.max(qty1, qty2);
+    const allowedDiff = Math.max(maxQty * tolerance, 1);
+
+    if (diff > allowedDiff) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Résultat de l'analyse de mismatch d'override
+ */
+export interface OverrideMismatch {
+  hasMismatch: boolean;
+  computedChanged: boolean;
+  platesChanged: boolean;
+  recipesChanged: boolean;
+  details?: {
+    oldComputed: NumericQuantity[];
+    newComputed: NumericQuantity[];
+    oldPlates: number;
+    newPlates: number;
+    oldRecipes: number;
+    newRecipes: number;
+  };
+}
+
+/**
+ * Détecte si le contexte d'un override a changé
+ * @param product - Produit enrichi actuel
+ * @returns OverrideMismatch avec détails du changement
+ */
+export function detectOverrideMismatch(
+  product: EnrichedProduct,
+): OverrideMismatch {
+  const override = product.totalNeededOverrideParsed;
+
+  // Pas d'override = pas de mismatch
+  if (!override) {
+    return {
+      hasMismatch: false,
+      computedChanged: false,
+      platesChanged: false,
+      recipesChanged: false,
+    };
+  }
+
+  // Compatibilité avec les anciens overrides sans snapshot
+  const hasSnapshot =
+    override.totalComputedWhenOverride !== undefined &&
+    override.platesNbWhenOverride !== undefined &&
+    override.recipesNbWhenOverride !== undefined;
+
+  if (!hasSnapshot) {
+    // Ancien override sans données de snapshot
+    // On ne peut pas détecter de mismatch, donc on retourne false
+    return {
+      hasMismatch: false,
+      computedChanged: false,
+      platesChanged: false,
+      recipesChanged: false,
+    };
+  }
+
+  const oldComputed = override.totalComputedWhenOverride;
+  const newComputed = product.totalNeededArray;
+  const oldPlates = override.platesNbWhenOverride;
+  const newPlates = product.totalAssiettes;
+  const oldRecipes = override.recipesNbWhenOverride;
+  const newRecipes = product.nbRecipes;
+
+  const computedChanged = !quantitiesMatch(oldComputed, newComputed);
+  const platesChanged = oldPlates !== newPlates;
+  const recipesChanged = oldRecipes !== newRecipes;
+
+  const hasMismatch = computedChanged || platesChanged || recipesChanged;
+
+  return {
+    hasMismatch,
+    computedChanged,
+    platesChanged,
+    recipesChanged,
+    details: hasMismatch
+      ? {
+          oldComputed,
+          newComputed,
+          oldPlates,
+          newPlates,
+          oldRecipes,
+          newRecipes,
+        }
+      : undefined,
+  };
+}
+
+/**
+ * Formate un message d'avertissement pour un override avec mismatch
+ * @param mismatch - Résultat de detectOverrideMismatch
+ * @returns Message formaté pour l'utilisateur
+ */
+export function formatOverrideWarning(mismatch: OverrideMismatch): string {
+  if (!mismatch.hasMismatch || !mismatch.details) return "";
+
+  const parts: string[] = [];
+
+  if (mismatch.details.oldPlates !== mismatch.details.newPlates) {
+    parts.push(
+      `${mismatch.details.oldPlates} → ${mismatch.details.newPlates} couverts`,
+    );
+  }
+
+  if (mismatch.details.oldRecipes !== mismatch.details.newRecipes) {
+    parts.push(
+      `${mismatch.details.oldRecipes} → ${mismatch.details.newRecipes} recettes`,
+    );
+  }
+
+  // Note: formatTotalQuantity import n'est pas utilisé dans cette version
+  // L'affichage des quantités est géré directement dans les composants UI
+
+  return parts.length > 0 ? parts.join(", ") : "";
+}

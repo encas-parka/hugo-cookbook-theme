@@ -5,6 +5,7 @@
     getProductTypeInfo,
     formatPurchasesWithBadges,
   } from "$lib/utils/products-display";
+  import { detectOverrideMismatch } from "$lib/utils/productsUtils";
 
   // Types
   import type { ProductRangeStats } from "$lib/types/store.types";
@@ -232,6 +233,7 @@
           product.purchases || [],
         )}
         {@const totalNeededOverride = product.totalNeededOverrideParsed}
+        {@const overrideMismatch = detectOverrideMismatch(product)}
         <!-- Card du produit -->
         <div
           class="card bg-base-100 border-base-300 {product.status ===
@@ -498,16 +500,25 @@
                   {:else if shouldShowActionButtons}
                     <CircleCheckBig size={24} class="text-success ms-auto" />
                   {/if}
-                  {#if shouldShowActionButtons && totalNeededOverride?.hasUnresolvedChangedSinceOverride}
+                  {#if shouldShowActionButtons && overrideMismatch?.hasMismatch}
                     <div
                       id="override_alert"
                       class="alert alert-warning alert-soft mt-1 px-1 py-0.5"
                     >
                       <CircleAlert size={18} />
-                      <span
-                        >Les quantités des menus ont été modifiées depuis
-                        l'attribution manuelle des "besoins"</span
-                      >
+                      <span>
+                        Les menus ont été modifié depuis la définition manuelle
+                        des besoins:
+                        {#if overrideMismatch.platesChanged}
+                          {overrideMismatch.details
+                            ?.oldPlates}→{overrideMismatch.details?.newPlates} couverts
+                        {/if}
+                        {#if overrideMismatch.recipesChanged}
+                          {overrideMismatch.details
+                            ?.oldRecipes}→{overrideMismatch.details?.newRecipes}
+                          recettes
+                        {/if}
+                      </span>
                     </div>
                   {/if}
                 </div>
