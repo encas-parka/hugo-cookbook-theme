@@ -61,6 +61,41 @@
       </button>
     </div>
   </div>
+
+  <!-- Filtre de statut de complétion -->
+  <div class="flex flex-col">
+    <label class="label flex" for="completion-status">
+      <span class="label-text">Statut :</span>
+    </label>
+    <div
+      class="bg-base-100 flex gap-1 rounded-xl p-2 font-semibold"
+      id="completion-status"
+    >
+      <button
+        class="btn flex-1 {filters.completionStatus === 'all' && 'btn-primary'}"
+        type="button"
+        aria-label="Tous"
+        onclick={() => productsStore.setCompletionStatus("all")}>Tous</button
+      >
+      <button
+        class="btn flex-1 {filters.completionStatus === 'incomplete' &&
+          'btn-warning'}"
+        type="button"
+        aria-label="Incomplets"
+        onclick={() => productsStore.setCompletionStatus("incomplete")}
+        ><span class="add-to-cart"></span> Manque</button
+      >
+      <button
+        class="btn flex-1 {filters.completionStatus === 'completed' &&
+          'btn-success'}"
+        type="button"
+        aria-label="Complétés"
+        onclick={() => productsStore.setCompletionStatus("completed")}
+        ><span class="cart-icon"></span> Complet</button
+      >
+    </div>
+  </div>
+
   <!-- Groupement -->
   <div class="mb-4 flex flex-col">
     <label class="label flex" for="grouping-select">

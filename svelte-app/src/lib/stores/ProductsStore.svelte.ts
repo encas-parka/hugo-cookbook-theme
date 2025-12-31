@@ -164,6 +164,7 @@ class ProductsStore {
     selectedWho: [],
     selectedProductTypes: [],
     selectedTemperatures: [],
+    completionStatus: "all",
     groupBy: "productType",
     sortColumn: "",
     sortDirection: "asc",
@@ -183,7 +184,8 @@ class ProductsStore {
       this.filters.selectedStores.length > 0 ||
       this.filters.selectedWho.length > 0 ||
       this.filters.selectedProductTypes.length > 0 ||
-      this.filters.selectedTemperatures.length > 0
+      this.filters.selectedTemperatures.length > 0 ||
+      this.filters.completionStatus !== "all"
     );
   }
 
@@ -311,6 +313,15 @@ class ProductsStore {
       // Application des filtres utilisateur
       const matchesFiltersResult = matchesFilters(product, this.#filters);
       if (!matchesFiltersResult) continue;
+
+      // Filtre de statut de complétion (basé sur hasMissing du model)
+      if (this.#filters.completionStatus !== "all") {
+        const hasMissing = model.stats.hasMissing;
+        if (this.#filters.completionStatus === "completed" && hasMissing)
+          continue;
+        if (this.#filters.completionStatus === "incomplete" && !hasMissing)
+          continue;
+      }
 
       // Vérifier si le produit a des données dans la plage de dates
       let hasDataInRange = false;
@@ -1258,6 +1269,10 @@ class ProductsStore {
     this.#filters.selectedWho = [];
   }
 
+  setCompletionStatus(status: "all" | "completed" | "incomplete") {
+    this.#filters.completionStatus = status;
+  }
+
   handleSort(column: string) {
     if (this.#filters.sortColumn === column) {
       this.#filters.sortDirection =
@@ -1275,6 +1290,7 @@ class ProductsStore {
       selectedWho: [],
       selectedProductTypes: [],
       selectedTemperatures: [],
+      completionStatus: "all",
       groupBy: "productType",
       sortColumn: "",
       sortDirection: "asc",
@@ -1438,6 +1454,7 @@ class ProductsStore {
       selectedWho: [],
       selectedProductTypes: [],
       selectedTemperatures: [],
+      completionStatus: "all",
       groupBy: "productType",
       sortColumn: "",
       sortDirection: "asc",

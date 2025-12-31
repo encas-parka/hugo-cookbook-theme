@@ -11,12 +11,15 @@ import { aggregateByUnit, formatSingleQuantity } from "./QuantityFormatter";
 /**
  * Interface pour l'état des filtres
  */
+export type CompletionStatus = "all" | "completed" | "incomplete";
+
 export interface FiltersState {
   searchQuery: string;
   selectedStores: string[];
   selectedWho: string[];
   selectedProductTypes: string[];
   selectedTemperatures: string[];
+  completionStatus: CompletionStatus;
   groupBy: "store" | "productType" | "none";
   sortColumn: string;
   sortDirection: "asc" | "desc";
