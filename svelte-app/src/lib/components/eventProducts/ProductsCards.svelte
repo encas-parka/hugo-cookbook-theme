@@ -413,18 +413,33 @@
             <!-- Deuxième ligne: Groupe Besoins + Achats + Manquants (flex wrap) -->
             <div class="flex min-h-14 flex-wrap gap-3" id="card-needs-missing">
               <!-- Besoins -->
-              <div
-                id="needs-card"
-                class="bg-base-200 relative flex min-w-[200px] flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg p-3"
-              >
-                <div class="flex flex-wrap gap-x-4 gap-y-0">
-                  <div
-                    class="text-base-content/80 flex items-center gap-2 text-sm font-medium"
+              <div class="flex min-w-[200px] flex-1 flex-col">
+                <div class="text-base-content/60 ms-1 text-sm">
+                  <!-- <ListTodo class="bg-base-200 m-1 inline h-4 w-4" /> -->
+                  Besoins total sur la période
+                </div>
+                <div
+                  id="needs-card"
+                  role="button"
+                  tabindex="0"
+                  class="bg-base-200 relative flex min-w-[200px] flex-1 cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg p-3"
+                  onclick={() => onOpenModal(product.$id, "recettes")}
+                  onkeydown={(e) =>
+                    e.key === "Enter" && onOpenModal(product.$id, "recettes")}
+                  onmouseenter={() =>
+                    (hoverHelp.msg =
+                      "Afficher les informations sur ce produit")}
+                  onmouseleave={() => hoverHelp.reset()}
+                >
+                  <!-- absolute label -->
+                  <!-- <div
+                    class="text-base-content/60 bg-base-200 rounded-t-box absolute -top-2 left-0 px-4 pt-1 text-sm font-medium"
                   >
-                    <ListTodo class="h-4 w-4" />
+                    <ListTodo class="bg-base-200 m-1 inline h-4 w-4" />
                     Besoins total sur la période
-                  </div>
-                  <div class="ms-auto flex items-center gap-4 self-end">
+                  </div> -->
+
+                  <div class="ms-2 flex items-end justify-center gap-4">
                     <div
                       class="text-base font-bold {productInDateRange.hasMissing &&
                       shouldShowActionButtons
@@ -449,9 +464,7 @@
                       {/if}
                     </div>
                     {#if productInDateRange.nbRecipes || productInDateRange.totalAssiettes}
-                      <div
-                        class="text-base-content/70 flex items-center gap-2 text-sm"
-                      >
+                      <div class="text-base-content/90 flex items-center gap-2">
                         <span class="flex items-center gap-1">
                           {productInDateRange.nbRecipes}
                           <CookingPot class="h-3 w-3" />
@@ -463,62 +476,68 @@
                       </div>
                     {/if}
                   </div>
+
+                  <!-- Bouton d'achat rapide -->
+                  {#if shouldShowActionButtons && productInDateRange.hasMissing}
+                    <button
+                      class="btn btn-sm btn-outline btn-primary ms-auto"
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        onQuickValidation(product, productInDateRange);
+                      }}
+                      onmouseenter={() =>
+                        (hoverHelp.msg = "Ajouter aux achats effectués")}
+                      onmouseleave={() => hoverHelp.reset()}
+                    >
+                      <span class="text-xs"
+                        ><span class="font-light">manque : </span>
+                        {productInDateRange.formattedMissingQuantities}</span
+                      >
+                      <div class="add-to-cart ms-1"></div>
+                    </button>
+                  {:else if shouldShowActionButtons}
+                    <CircleCheckBig size={24} class="text-success ms-auto" />
+                  {/if}
+                  {#if shouldShowActionButtons && totalNeededOverride?.hasUnresolvedChangedSinceOverride}
+                    <div
+                      id="override_alert"
+                      class="alert alert-warning alert-soft mt-1 px-1 py-0.5"
+                    >
+                      <CircleAlert size={18} />
+                      <span
+                        >Les quantités des menus ont été modifiées depuis
+                        l'attribution manuelle des "besoins"</span
+                      >
+                    </div>
+                  {/if}
                 </div>
-
-                <!-- Bouton d'achat rapide -->
-                {#if shouldShowActionButtons && productInDateRange.hasMissing}
-                  <button
-                    class="btn btn-sm btn-outline btn-primary ms-auto"
-                    onclick={(e) => {
-                      e.stopPropagation();
-                      onQuickValidation(product, productInDateRange);
-                    }}
-                    onmouseenter={() =>
-                      (hoverHelp.msg = "Ajouter aux achats effectués")}
-                    onmouseleave={() => hoverHelp.reset()}
-                  >
-                    <span class="text-xs"
-                      ><span class="font-light">manque : </span>
-                      {productInDateRange.formattedMissingQuantities}</span
-                    >
-                    <div class="add-to-cart ms-1"></div>
-                  </button>
-                {:else if shouldShowActionButtons}
-                  <CircleCheckBig size={24} class="text-success ms-auto" />
-                {/if}
-                {#if shouldShowActionButtons && totalNeededOverride?.hasUnresolvedChangedSinceOverride}
-                  <div
-                    id="override_alert"
-                    class="alert alert-warning alert-soft mt-1 px-1 py-0.5"
-                  >
-                    <CircleAlert size={18} />
-                    <span
-                      >Les quantités des menus ont été modifiées depuis
-                      l'attribution manuelle des "besoins"</span
-                    >
-                  </div>
-                {/if}
               </div>
-
               <!-- Achats -->
-              <div
-                class="group bg-base-200 hover:ring-accent/60 relative flex min-w-[200px] flex-1 cursor-pointer items-center justify-between gap-2 rounded-lg p-3 transition-colors hover:ring-2"
-                role="button"
-                tabindex="0"
-                onclick={() => onOpenModal(product.$id, "achats")}
-                onkeydown={(e) =>
-                  e.key === "Enter" && onOpenModal(product.$id, "achats")}
-                onmouseenter={() =>
-                  (hoverHelp.msg = "Déclarez des achats effectués")}
-                onmouseleave={() => hoverHelp.reset()}
-              >
-                <div class="flex flex-wrap items-start gap-0 self-start">
+              <div class="flex min-w-[200px] flex-1 flex-col">
+                <div class="text-base-content/60 ms-1 text-sm">
+                  <!-- <ListTodo class="bg-base-200 m-1 inline h-4 w-4" /> -->
+                  Achat / reccup effectué
+                </div>
+                <div
+                  class="group bg-base-200 hover:ring-accent/60 relative flex min-w-[200px] flex-1 cursor-pointer items-center justify-between gap-2 rounded-lg p-3 transition-colors hover:ring-2"
+                  role="button"
+                  tabindex="0"
+                  onclick={() => onOpenModal(product.$id, "achats")}
+                  onkeydown={(e) =>
+                    e.key === "Enter" && onOpenModal(product.$id, "achats")}
+                  onmouseenter={() =>
+                    (hoverHelp.msg = "Déclarez des achats effectués")}
+                  onmouseleave={() => hoverHelp.reset()}
+                >
+                  <!-- <div class="flex flex-wrap items-start gap-0 self-start">
                   <div
-                    class="text-base-content/80 flex items-center gap-2 text-sm font-medium"
+                    class="text-base-content/80 bg-base-200 rounded-t-box border-t-base-200 group-hover:border-accent/60 absolute -top-2 left-0 border-t-2 px-4 py-1 text-sm font-medium"
                   >
-                    <ShoppingCart class="h-4 w-4" />
-                    Achats / Récup effectués:
+                    <ShoppingCart class="inline h-4 w-4" />
+                    Achats / Récup effectués
                   </div>
+                </div> -->
+                  <!-- Liste des achats -->
                   <div
                     class="text-base-content/30 blocktransition-opacity ms-2 text-xs italic {!shouldShowActionButtons
                       ? 'hidden'
@@ -526,33 +545,32 @@
                   >
                     ajouter un achat
                   </div>
-                </div>
-                <!-- Liste des achats -->
-                <div class="flex flex-wrap justify-end gap-1.5">
-                  {#each purchasesBadges as purchase, index (index)}
-                    {@const IconComponent = statusIcons[purchase.icon]}
-                    <div
-                      class="badge badge-outline flex h-fit flex-col items-center gap-1 py-1 {purchase.badgeClass}"
-                    >
-                      <div class="flex items-center gap-1">
-                        <IconComponent class="h-4 w-4" />
-                        <span class="text-sm font-medium text-nowrap">
-                          {purchase.quantity}
-                          {purchase.unit}
-                        </span>
+                  <div class="ms-auto flex flex-wrap gap-1.5">
+                    {#each purchasesBadges as purchase, index (index)}
+                      {@const IconComponent = statusIcons[purchase.icon]}
+                      <div
+                        class="badge badge-outline flex h-fit flex-col items-center gap-1 py-1 {purchase.badgeClass}"
+                      >
+                        <div class="flex items-center gap-1">
+                          <IconComponent class="h-4 w-4" />
+                          <span class="text-sm font-medium text-nowrap">
+                            {purchase.quantity}
+                            {purchase.unit}
+                          </span>
+                        </div>
+                        {#if purchase.deliveryDate}
+                          <span class="text-xs opacity-75">
+                            livré le: {purchase.deliveryDate}
+                          </span>
+                        {/if}
                       </div>
-                      {#if purchase.deliveryDate}
-                        <span class="text-xs opacity-75">
-                          livré le: {purchase.deliveryDate}
-                        </span>
-                      {/if}
-                    </div>
-                  {/each}
-                  {#if purchasesBadges.length === 0}
-                    <span class="text-base-content/50 text-xs italic"
-                      >aucun</span
-                    >
-                  {/if}
+                    {/each}
+                    {#if purchasesBadges.length === 0}
+                      <div class="text-base-content/50 text-xs italic">
+                        aucun
+                      </div>
+                    {/if}
+                  </div>
                 </div>
               </div>
             </div>

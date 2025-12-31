@@ -412,11 +412,11 @@
 
   <GlobalPurchasesModal bind:isOpen={GlobalPurchasesModalisOpen} />
 
-  <div class="fixed right-0 bottom-0 z-50 transition-all">
+  <div class="fixed bottom-0 left-0 z-50 transition-all">
     <div
-      class="bg-blue-100 text-blue-800 {hoverHelp.isExpanded
-        ? 'rounded-t-box mx-auto w-fit px-4 py-2'
-        : 'rounded-tl-box rounded-bl-box ms-auto cursor-pointer px-3 py-2'}"
+      class="rounded-tr-box bg-blue-100 text-blue-800 {hoverHelp.isExpanded
+        ? ' w-fit px-4 py-2'
+        : '  cursor-pointer px-3 py-2'}"
     >
       {#if hoverHelp.isExpanded}
         <div class="flex items-center justify-center">

@@ -63,7 +63,7 @@
 
 <div id="product_modal" class="modal {productId && 'modal-open'}">
   <div
-    class="modal-box fixed top-0 flex h-lvh w-lvw flex-col overflow-auto md:top-10 md:h-full md:max-h-11/12 md:w-full md:max-w-6xl"
+    class="modal-box fixed top-0 flex h-lvh w-lvw flex-col overflow-auto md:top-18 md:h-full md:max-h-11/12 md:w-full md:max-w-6xl"
   >
     <!-- Header -->
     <div class="flex items-center justify-between border-b p-4 pt-0">
