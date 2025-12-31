@@ -228,6 +228,8 @@ export function updateExistingProduct(
     mergeDate: product.mergeDate ?? existing.mergeDate,
     mergeReason: product.mergeReason ?? existing.mergeReason,
     mergedInto: product.mergedInto ?? existing.mergedInto,
+    // 🛡️ NOTE: totalNeededOverride utilise "" pour la suppression (pas null)
+    // L'opérateur ?? fonctionne car "" est falsy mais différent de null/undefined
     totalNeededOverride:
       product.totalNeededOverride ?? existing.totalNeededOverride,
 

@@ -5,6 +5,7 @@
     SquarePen,
     CookingPot,
     Utensils,
+    MessageSquare,
   } from "@lucide/svelte";
   import type {
     ProductModalStateType,
@@ -91,138 +92,148 @@
       unit,
     );
 
-    const overrideData: TotalNeededOverrideData = {
-      totalOverride: { q: storedQuantity, u: storedUnit },
-      comment,
-    };
+    // Récupérer les valeurs actuelles stockées
+    const currentOverride =
+      modalState.product?.totalNeededOverrideParsed?.totalOverride;
+    const currentComment =
+      modalState.product?.totalNeededOverrideParsed?.comment || "";
 
-    await modalState.setOverride(overrideData);
+    // Vérifier si les valeurs ont changé
+    const hasChanged =
+      storedQuantity !== currentOverride?.q ||
+      storedUnit !== currentOverride?.u ||
+      comment !== currentComment;
+
+    if (hasChanged) {
+      const overrideData: TotalNeededOverrideData = {
+        totalOverride: { q: storedQuantity, u: storedUnit },
+        comment,
+      };
+
+      await modalState.setOverride(overrideData);
+    }
+
+    // Fermer le mode édition dans tous les cas
     modalState.uiStates.overrideManagerEditMode = false;
   }
 
   async function handleRemoveOverride() {
     if (!modalState) return;
     await modalState.removeOverride();
+
     modalState.uiStates.overrideManagerEditMode = false;
   }
 </script>
 
 {#if modalState.product}
-  <div class="mb-2 space-y-4">
-    <!-- Quantité calculée affichée en référence -->
+  <div class="space-y-3">
+    <!-- Ancienne quantité calculée -->
+    {#if overrideData?.oldTotalDisplay && hasUnresolvedChangedSinceOverride}
+      <div
+        class="rounded-box bg-base-200 flex items-center justify-between px-4 py-3"
+      >
+        <span class="text-base-content/70">Ancien calcul</span>
+        <span class="font-bold">{overrideData?.oldTotalDisplay}</span>
+      </div>
+    {/if}
 
-    <div class="bg-base-200 relative mb-4 flex rounded-xl p-4">
-      <div class="grid">
-        <div class="flex gap-4">
-          {#if overrideData?.oldTotalDisplay && hasUnresolvedChangedSinceOverride}
-            <div class="card bg-base-100 flex justify-between px-4 py-2">
-              <div class="stat-title">Ancienne quantité calculée</div>
-              <div class="stat-value text-content-base/90 text-end text-lg">
-                {overrideData?.oldTotalDisplay}
-              </div>
-              <div class="stat-desc italic">
-                avant la mise a jour des recettes ou menus
-              </div>
-            </div>
-          {/if}
-
-          <div class="card bg-base-100 flex justify-between px-4 py-2">
-            <div class="stat-title">Besoins calculées</div>
-            <div class="stat-value text-content-base/90 text-end text-lg">
-              {modalState.product.displayTotalNeeded}
-            </div>
-            <div class="ms-auto flex flex-wrap gap-4">
-              <span class="flex items-center gap-1">
-                {modalState.product.nbRecipes}
-                <CookingPot class="h-3 w-3" />
-              </span>
-              <span class="flex items-center gap-1">
-                {modalState.product.totalAssiettes}
-                <Utensils class="h-3 w-3" />
-              </span>
-            </div>
-            {#if overrideData?.oldTotalDisplay && hasUnresolvedChangedSinceOverride}
-              <div class="stat-desc italic">Recettes actuelles</div>
-            {/if}
-          </div>
-
-          <!-- Besoin redéfini par l'utilisateur -->
-          {#if overrideDisplay && overrideData}
-            <div class="card bg-base-100 flex justify-between px-4 py-2">
-              <div class="stat-title">Besoins redéfinie manuellement</div>
-              <div class="stat-value text-content-base/70 text-end text-lg">
-                {overrideDisplay}
-              </div>
-              {#if overrideData.comment}
-                <div class="chat-bubble relative ms-auto mt-2 text-sm">
-                  {overrideData.comment}
-                  <MessageCircle
-                    size={16}
-                    class="text-base-content/60 absolute right-1 bottom-1 "
-                  />
-                </div>
-              {/if}
-            </div>
-          {/if}
-          {#if !isArchiveMode && !editMode}
-            <div class="ms-auto mt-auto">
-              <button
-                class="btn btn-primary btn-sm btn-soft"
-                onclick={() =>
-                  (modalState.uiStates.overrideManagerEditMode = true)}
-              >
-                {#if overrideData}
-                  Redéfinir les besoins
-                {:else}
-                  Définir manuellement les besoins
-                {/if}
-                <SquarePen size={16} />
-              </button>
-            </div>
-          {/if}
-        </div>
-
-        {#if editMode}
-          <div class="mt-4 flex flex-wrap items-center gap-4" in:slide>
-            <QuantityInput bind:quantity bind:unit />
-            <CommentText bind:value={comment} />
-            <div class="ms-auto">
-              <button
-                class="btn btn-ghost btn-sm"
-                onclick={() =>
-                  (modalState.uiStates.overrideManagerEditMode = false)}
-              >
-                Annuler
-              </button>
-              <button
-                class="btn btn-soft btn-primary btn-sm"
-                onclick={handleRemoveOverride}
-                disabled={modalState.loading}
-              >
-                {#if modalState.loading}
-                  <span class="loading loading-spinner loading-sm"></span>
-                {:else}
-                  Réinitialiser le total calculé ({modalState.product
-                    .displayTotalNeeded}).
-                {/if}
-              </button>
-
-              <button
-                class="btn btn-primary btn-sm"
-                onclick={handleSetOverride}
-                disabled={modalState.loading || !isFormValid}
-              >
-                {#if modalState.loading}
-                  <span class="loading loading-spinner loading-sm"></span>
-                {:else}
-                  Appliquer
-                {/if}
-              </button>
-            </div>
-          </div>
-        {/if}
+    <!-- Besoins calculés -->
+    <div
+      class="rounded-box bg-base-200 flex items-center justify-between px-4 py-3"
+    >
+      <span class="text-base-content/70 font-medium">Besoin total calculés</span
+      >
+      <div class="flex items-center gap-3">
+        <span class="text-base-content/60 flex items-center gap-1 text-xs">
+          {modalState.product.nbRecipes}
+          <CookingPot class="h-3 w-3" />
+        </span>
+        <span class="text-base-content/60 flex items-center gap-1 text-xs">
+          {modalState.product.totalAssiettes}
+          <Utensils class="h-3 w-3" />
+        </span>
+        <span class="ms-3 font-bold"
+          >{modalState.product.displayTotalNeeded}</span
+        >
       </div>
     </div>
+
+    <!-- Mode édition des besoins redéfinis -->
+    {#if editMode}
+      <div
+        class="rounded-box bg-primary/10 flex flex-wrap items-center gap-3 px-4 py-3"
+        in:slide
+      >
+        <span class="text-base-content/70 font-medium"
+          >Besoin redéfinis manuellement</span
+        >
+        <QuantityInput bind:quantity bind:unit />
+        <CommentText bind:value={comment} />
+        <div class="ms-auto flex items-center gap-4">
+          <button class="btn-link" onclick={handleRemoveOverride}>
+            supprimer</button
+          >
+
+          <button
+            class="btn btn-primary btn-sm"
+            onclick={handleSetOverride}
+            disabled={modalState.loading || !isFormValid}
+          >
+            {#if modalState.loading}
+              <span class="loading loading-spinner loading-sm"></span>
+            {:else}
+              ✓
+            {/if}
+          </button>
+        </div>
+      </div>
+    {:else}
+      <!-- Affichage des besoins redéfinis ou bouton d'action -->
+      {#if overrideDisplay && overrideData}
+        <div
+          class="rounded-box bg-primary/10 flex items-center justify-between px-4 py-3"
+        >
+          <div class="flex items-center gap-3">
+            <span class="text-base-content/70 font-medium"
+              >Besoins redéfinis manuellement</span
+            >
+            {#if !isArchiveMode}
+              <button
+                class="btn btn-ghost btn-sm btn-circle"
+                onclick={() =>
+                  (modalState.uiStates.overrideManagerEditMode = true)}
+                title="Modifier"
+              >
+                <PencilLine size={16} />
+              </button>
+            {/if}
+            {#if overrideData.comment}
+              <div class="chat-bubble relative text-sm">
+                {overrideData.comment}
+                <MessageSquare
+                  size={12}
+                  class="text-base-content/60 absolute top-0 right-0"
+                />
+              </div>
+            {/if}
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold">{overrideDisplay}</span>
+          </div>
+        </div>
+      {:else if !isArchiveMode}
+        <!-- Bouton Redéfinir les besoins -->
+        <div class="flex justify-end">
+          <button
+            class="btn btn-primary btn-sm btn-soft"
+            onclick={() => (modalState.uiStates.overrideManagerEditMode = true)}
+          >
+            Redéfinir manuellement les besoins
+            <SquarePen size={16} />
+          </button>
+        </div>
+      {/if}
+    {/if}
   </div>
 {/if}
 

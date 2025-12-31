@@ -714,7 +714,7 @@ export async function updateTotalOverride(
 }
 
 /**
- * Supprime le totalNeededOverride d'un produit (remet à null)
+ * Supprime le totalNeededOverride d'un produit (remet à chaîne vide)
  * @param productId - ID du produit à mettre à jour
  * @param putUpdatedBy - Si true, ajoute le champ updatedBy (défaut: false)
  * @returns Promise<Products>
@@ -729,7 +729,7 @@ export async function removeTotalOverride(
 
   const result = await updateProduct(
     productId,
-    { totalNeededOverride: null },
+    { totalNeededOverride: "" },
     putUpdatedBy,
   );
 
