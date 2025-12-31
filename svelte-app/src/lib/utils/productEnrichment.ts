@@ -438,12 +438,28 @@ function addIngredientToAggregation(
 
 /**
  * Crée un EnrichedProduct final conforme à l'interface
+ *
+ * 🎯 Génération de l'$id unique par événement :
+ * - Utilise une partie du productName slugifié
+ * - Ajoute une portion de l'eventId (mainId) pour garantir l'unicité
+ * - Limite à 36 caractères max (contrainte Appwrite)
+ *
+ * Format : {productNameSlug}_{eventIdShort}
+ * Exemple : "beurre_confiture_x9k2m4n8" (25 caractères)
  */
 function createEnrichedProductFromAggregation(
   aggregation: ProductAggregation,
   mainId: string,
 ): EnrichedProduct {
-  const semanticId = `${slugify(aggregation.productName)}_${aggregation.productHugoUuid}`;
+  // Slugifier le nom du produit et limiter à 20 caractères
+  const nameSlug = slugify(aggregation.productName).substring(0, 20);
+
+  // Extraire une portion unique de l'eventId (mainId)
+  // Utiliser les 10 derniers caractères en base36, ou moins si l'ID est court
+  const eventIdShort = mainId.slice(-10);
+
+  // Construire l'$id unique (max 36 caractères pour Appwrite)
+  const semanticId = `${nameSlug}_${eventIdShort}`;
 
   // Construction de la structure byDate finale (ByDateEntry)
   const byDate: Record<string, ByDateEntry> = {};

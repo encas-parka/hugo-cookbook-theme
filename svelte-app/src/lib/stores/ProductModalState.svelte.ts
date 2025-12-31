@@ -9,7 +9,7 @@ import {
   updateProductBatch,
   updateTotalOverride,
   removeTotalOverride,
-} from "../services/appwrite-interactions";
+} from "../services/appwrite-products";
 import { generateRecipesWithDates } from "../utils/productsUtils";
 import type { Purchases } from "../types/appwrite";
 import type {

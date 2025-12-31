@@ -6,7 +6,7 @@ Modal de récapitulatif des dépenses
   import {
     createExpensePurchase,
     updatePurchase,
-  } from "$lib/services/appwrite-interactions";
+  } from "$lib/services/appwrite-products";
   import type { Purchases } from "$lib/types/appwrite";
   import {
     BadgeEuro,

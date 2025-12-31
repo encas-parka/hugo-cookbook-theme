@@ -41,7 +41,7 @@
   import {
     createQuickValidationPurchases,
     upsertProduct,
-  } from "$lib/services/appwrite-interactions";
+  } from "$lib/services/appwrite-products";
   import { autoConvertUnit } from "$lib/utils/QuantityFormatter";
 
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";

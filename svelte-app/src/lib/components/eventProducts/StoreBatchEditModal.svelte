@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Store, X, Check, TriangleAlert } from "@lucide/svelte";
-  import { batchUpdateStore } from "$lib/services/appwrite-interactions";
+  import { batchUpdateStore } from "$lib/services/appwrite-products";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";

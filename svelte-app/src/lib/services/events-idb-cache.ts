@@ -62,34 +62,66 @@ class EventsIndexedDBCache implements EventsIDBCache {
   async open(): Promise<void> {
     if (this.db) return;
 
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.version);
+    // Fonction pour tenter d'ouvrir la base
+    const tryOpen = (): Promise<IDBDatabase> => {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(this.dbName, this.version);
 
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        this.db = request.result;
-        console.log(`[EventsIDBCache] Base ouverte: ${this.dbName}`);
-        resolve();
-      };
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
 
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
+        request.onupgradeneeded = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result;
 
-        // Store des événements (key = $id)
-        if (!db.objectStoreNames.contains(this.EVENTS_STORE)) {
-          db.createObjectStore(this.EVENTS_STORE, {
-            keyPath: "$id",
-          });
-          console.log("[EventsIDBCache] Object store 'events' créé");
-        }
+          // Store des événements (key = $id)
+          if (!db.objectStoreNames.contains(this.EVENTS_STORE)) {
+            db.createObjectStore(this.EVENTS_STORE, {
+              keyPath: "$id",
+            });
+            console.log("[EventsIDBCache] Object store 'events' créé");
+          }
 
-        // Store des métadonnées
-        if (!db.objectStoreNames.contains(this.METADATA_STORE)) {
-          db.createObjectStore(this.METADATA_STORE, { keyPath: "key" });
-          console.log("[EventsIDBCache] Object store 'metadata' créé");
-        }
-      };
-    });
+          // Store des métadonnées
+          if (!db.objectStoreNames.contains(this.METADATA_STORE)) {
+            db.createObjectStore(this.METADATA_STORE, { keyPath: "key" });
+            console.log("[EventsIDBCache] Object store 'metadata' créé");
+          }
+        };
+      });
+    };
+
+    // Tenter d'ouvrir la base
+    let db = await tryOpen();
+
+    // Vérifier que les object stores nécessaires existent
+    const hasEventsStore = db.objectStoreNames.contains(this.EVENTS_STORE);
+    const hasMetadataStore = db.objectStoreNames.contains(this.METADATA_STORE);
+
+    if (!hasEventsStore || !hasMetadataStore) {
+      // La base est corrompue (existe mais sans les stores nécessaires)
+      console.warn(
+        `[EventsIDBCache] Base corrompue détectée (events=${hasEventsStore}, metadata=${hasMetadataStore}), suppression et recréation...`,
+      );
+
+      // Fermer la connexion actuelle
+      db.close();
+
+      // Supprimer la base corrompue
+      await new Promise<void>((resolve, reject) => {
+        const request = indexedDB.deleteDatabase(this.dbName);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+        request.onblocked = () => {
+          console.warn("[EventsIDBCache] Suppression bloquée, réessai...");
+        };
+      });
+
+      // Recréer la base
+      db = await tryOpen();
+    }
+
+    this.db = db;
+    console.log(`[EventsIDBCache] Base ouverte: ${this.dbName}`);
   }
 
   // =============================================================================

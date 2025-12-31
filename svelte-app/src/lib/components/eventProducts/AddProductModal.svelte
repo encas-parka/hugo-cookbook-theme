@@ -12,7 +12,7 @@
     Snowflake,
   } from "@lucide/svelte";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
-  import { createManualProduct } from "$lib/services/appwrite-interactions";
+  import { createManualProduct } from "$lib/services/appwrite-products";
   import Suggestions from "../ui/Suggestions.svelte";
   import QuantityInput from "../ui/QuantityInput.svelte";
   import StoreInput from "../ui/StoreInput.svelte";

@@ -70,42 +70,81 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
   async open(): Promise<void> {
     if (this.db) return;
 
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.version);
+    // Fonction pour tenter d'ouvrir la base
+    const tryOpen = (): Promise<IDBDatabase> => {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(this.dbName, this.version);
 
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        this.db = request.result;
-        console.log(`[RecipesIDBCache] Base ouverte: ${this.dbName}`);
-        resolve();
-      };
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
 
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
+        request.onupgradeneeded = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result;
 
-        // Store de l'index (key = $id)
-        if (!db.objectStoreNames.contains(this.RECIPES_INDEX_STORE)) {
-          db.createObjectStore(this.RECIPES_INDEX_STORE, {
-            keyPath: "$id",
-          });
-          console.log("[RecipesIDBCache] Object store 'recipes-index' créé");
-        }
+          // Store de l'index (key = $id)
+          if (!db.objectStoreNames.contains(this.RECIPES_INDEX_STORE)) {
+            db.createObjectStore(this.RECIPES_INDEX_STORE, {
+              keyPath: "$id",
+            });
+            console.log("[RecipesIDBCache] Object store 'recipes-index' créé");
+          }
 
-        // Store des détails (key = $id)
-        if (!db.objectStoreNames.contains(this.RECIPES_DETAILS_STORE)) {
-          db.createObjectStore(this.RECIPES_DETAILS_STORE, {
-            keyPath: "$id",
-          });
-          console.log("[RecipesIDBCache] Object store 'recipes-details' créé");
-        }
+          // Store des détails (key = $id)
+          if (!db.objectStoreNames.contains(this.RECIPES_DETAILS_STORE)) {
+            db.createObjectStore(this.RECIPES_DETAILS_STORE, {
+              keyPath: "$id",
+            });
+            console.log(
+              "[RecipesIDBCache] Object store 'recipes-details' créé",
+            );
+          }
 
-        // Store des métadonnées
-        if (!db.objectStoreNames.contains(this.METADATA_STORE)) {
-          db.createObjectStore(this.METADATA_STORE, { keyPath: "key" });
-          console.log("[RecipesIDBCache] Object store 'metadata' créé");
-        }
-      };
-    });
+          // Store des métadonnées
+          if (!db.objectStoreNames.contains(this.METADATA_STORE)) {
+            db.createObjectStore(this.METADATA_STORE, { keyPath: "key" });
+            console.log("[RecipesIDBCache] Object store 'metadata' créé");
+          }
+        };
+      });
+    };
+
+    // Tenter d'ouvrir la base
+    let db = await tryOpen();
+
+    // Vérifier que les object stores nécessaires existent
+    const hasIndexStore = db.objectStoreNames.contains(
+      this.RECIPES_INDEX_STORE,
+    );
+    const hasDetailsStore = db.objectStoreNames.contains(
+      this.RECIPES_DETAILS_STORE,
+    );
+    const hasMetadataStore = db.objectStoreNames.contains(this.METADATA_STORE);
+
+    if (!hasIndexStore || !hasDetailsStore || !hasMetadataStore) {
+      // La base est corrompue (existe mais sans les stores nécessaires)
+      console.warn(
+        `[RecipesIDBCache] Base corrompue détectée (index=${hasIndexStore}, details=${hasDetailsStore}, metadata=${hasMetadataStore}), suppression et recréation...`,
+      );
+
+      // Fermer la connexion actuelle
+      db.close();
+
+      // Supprimer la base corrompue
+      await new Promise<void>((resolve, reject) => {
+        const request = indexedDB.deleteDatabase(this.dbName);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+        request.onblocked = () => {
+          console.warn("[RecipesIDBCache] Suppression bloquée, réessai...");
+        };
+      });
+
+      // Recréer la base
+      db = await tryOpen();
+    }
+
+    this.db = db;
+    console.log(`[RecipesIDBCache] Base ouverte: ${this.dbName}`);
   }
 
   // =============================================================================

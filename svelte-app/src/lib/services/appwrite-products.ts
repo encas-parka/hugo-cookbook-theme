@@ -3,7 +3,7 @@
  *
  * Architecture du système :
  * ┌─────────────────────────────────────────────────────────────┐
- * │              appwrite-interactions                         │
+ * │              appwrite-products                         │
  * │  • CRUD Appwrite pur                                        │
  * │  • Transformations sans état                               │
  * │  • Gestion realtime                                        │
@@ -59,7 +59,7 @@ import {
   getAppwriteConfig,
   subscribe as appwriteSubscribe,
 } from "./appwrite";
-import type { Products, Purchases } from "../types/appwrite.d";
+import type { Products, Purchases } from "../types/appwrite";
 import type {
   EnrichedProduct,
   MainEventData,

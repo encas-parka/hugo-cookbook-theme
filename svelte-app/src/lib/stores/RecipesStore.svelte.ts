@@ -447,25 +447,61 @@ class RecipesStore {
 
   /**
    * Sync Incrémentiel avec Appwrite
-   * Récupère toutes les recettes (published ou draft) modifiées après la dernière sync réussie.
+   * Récupère :
+   * - TOUS les drafts modifiés depuis lastAppwriteSync (ou tous les drafts si pas de lastAppwriteSync)
+   * - Les recettes publiées modifiées depuis buildTimestamp (déjà dans le JSON)
    */
   async #incrementalSync(cachedMetadata: any): Promise<void> {
     console.log("[RecipesStore] Sync incrémentiel Appwrite...");
 
-    // Déterminer le point de départ
-    let since = cachedMetadata?.lastAppwriteSync;
+    // 1. Récupérer TOUS les drafts modifiés depuis lastAppwriteSync
+    // Si pas de lastAppwriteSync (cache vide), on récupère TOUS les drafts
+    const draftSince =
+      cachedMetadata?.lastAppwriteSync || "1970-01-01T00:00:00.000Z";
 
-    // Si pas de lastAppwriteSync, on utilise le timestamp du build Hugo comme approximation safe
-    if (!since && this.#versionTimestamp) {
-      since = new Date(this.#versionTimestamp * 1000).toISOString();
-    }
+    // 2. Récupérer les recettes publiées modifiées depuis buildTimestamp
+    // Si pas de buildTimestamp, on utilise 1970 pour tout récupérer
+    const publishedSince = cachedMetadata?.buildTimestamp
+      ? new Date(cachedMetadata.buildTimestamp * 1000).toISOString()
+      : "1970-01-01T00:00:00.000Z";
 
-    // Si toujours rien (cache vide, pas de build?), on prend une date arbitraire très ancienne
-    if (!since) {
-      since = "1970-01-01T00:00:00.000Z";
-    }
+    console.log(
+      `[RecipesStore] Sync Appwrite: drafts depuis ${draftSince}, publiées depuis ${publishedSince}`,
+    );
 
-    const updatedRecipes = await listUpdatedRecipes(since);
+    // Fetch depuis Appwrite avec deux requêtes séparées
+    const { tables, config } = await import("../services/appwrite");
+    const { Query } = await import("appwrite");
+
+    // Requête 1: Tous les drafts modifiés depuis draftSince
+    const draftsQuery = [
+      Query.equal("draft", true),
+      Query.greaterThan("$updatedAt", draftSince),
+    ];
+
+    // Requête 2: Recettes publiées modifiées depuis publishedSince
+    const publishedQuery = [
+      Query.equal("draft", false),
+      Query.greaterThan("$updatedAt", publishedSince),
+    ];
+
+    const [draftsResponse, publishedResponse] = await Promise.all([
+      tables.listRows({
+        databaseId: config.databaseId,
+        tableId: "recettes",
+        queries: draftsQuery,
+      }),
+      tables.listRows({
+        databaseId: config.databaseId,
+        tableId: "recettes",
+        queries: publishedQuery,
+      }),
+    ]);
+
+    const updatedRecipes = [
+      ...(draftsResponse.rows as any[]),
+      ...(publishedResponse.rows as any[]),
+    ];
 
     if (updatedRecipes.length === 0) {
       console.log("[RecipesStore] Aucune mise à jour Appwrite détectée.");

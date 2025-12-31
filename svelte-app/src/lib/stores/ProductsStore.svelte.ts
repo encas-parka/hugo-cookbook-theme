@@ -22,7 +22,7 @@ import {
   subscribeToRealtime,
   loadPurchasesListByIds,
   syncProductsWithPurchases,
-} from "../services/appwrite-interactions";
+} from "../services/appwrite-products";
 
 import { createIDBCache, type IDBCache } from "../services/indexeddb-cache";
 import { globalState } from "./GlobalState.svelte";
@@ -748,7 +748,7 @@ class ProductsStore {
           `[ProductsStore] Récupération des purchases modifiés depuis lastSync: ${this.#lastSync}`,
         );
         const { loadUpdatedPurchases } = await import(
-          "../services/appwrite-interactions"
+          "../services/appwrite-products"
         );
         const updatedPurchases = await loadUpdatedPurchases(
           this.#currentMainId,
@@ -1465,7 +1465,7 @@ class ProductsStore {
 
     try {
       const { loadOrphanPurchases } = await import(
-        "../services/appwrite-interactions"
+        "../services/appwrite-products"
       );
       const orphans = await loadOrphanPurchases(this.#currentMainId);
 

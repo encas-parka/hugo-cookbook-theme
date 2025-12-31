@@ -549,6 +549,7 @@
                   </div>
                 </div> -->
                   <!-- Liste des achats -->
+                  <ShoppingCart class=" h-4 w-4" />
                   <div
                     class="text-base-content/30 blocktransition-opacity ms-2 text-xs italic {!shouldShowActionButtons
                       ? 'hidden'

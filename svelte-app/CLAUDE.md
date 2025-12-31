@@ -5,12 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ### Core Development
+
 - `npm run dev` - Start development server with Vite HMR
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build locally
 - `npm run check` - Run type checking (svelte-check + TypeScript)
 
 ### Type Safety
+
 - Uses Svelte 5 with TypeScript
 - Type checking includes both app code (tsconfig.app.json) and Node/tooling (tsconfig.node.json)
 - Appwrite types are auto-generated in `src/lib/types/appwrite.d.ts`
@@ -18,6 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture Overview
 
 ### Tech Stack
+
 - **Frontend**: Svelte 5 (modern Svelte with $state, $props, $derived)
 - **Build**: Vite with @sveltejs/vite-plugin-svelte
 - **Styling**: Tailwind CSS v4 with DaisyUI components
@@ -38,7 +41,7 @@ The application follows a **3-layer reactive architecture**:
 └─────────────────▲───────────────────────────────────────────┘
                    │ Raw data access
 ┌─────────────────▼───────────────────────────────────────────┐
-│              appwrite-interactions                         │
+│              appwrite-products                         │
 │  • Pure CRUD functions                                      │
 │  • Stateless data transformations                           │
 │  • Realtime subscription management                         │
@@ -80,6 +83,7 @@ The application follows a **3-layer reactive architecture**:
 ### Key Architectural Concepts
 
 **1. ProductsStore (Singleton)**
+
 - Central state management with SvelteMap for O(1) access
 - **Stores `ProductModel` instances** instead of raw objects
 - **Initialization flow**: Hugo → Cache → Appwrite → Realtime
@@ -89,6 +93,7 @@ The application follows a **3-layer reactive architecture**:
 - **Cache strategy**: Incremental sync with `lastSync` timestamps
 
 **2. ProductModel (Reactive Wrapper)**
+
 - **Class-based model**: `src/lib/models/ProductModel.svelte.ts`
 - **Reactive Data**: Encapsulates `EnrichedProduct` in a `$state`
 - **Dynamic Stats**: Calculates stats (quantities, stock, missing) on-the-fly via `$derived.by()`
@@ -96,6 +101,7 @@ The application follows a **3-layer reactive architecture**:
 - **Optimized**: Only recalculates when its specific data or the date range changes
 
 **3. ProductModalState (Factory)**
+
 - **Factory function**: `createProductModalState(productId)`
 - **Data flow**: Always reads from ProductsStore via `$derived()`
 - **Local state**: Forms for purchase, stock, store, volunteer management
@@ -103,12 +109,14 @@ The application follows a **3-layer reactive architecture**:
 - **Error handling**: Centralized loading/error states with toast notifications
 
 **4. Cloud Transactions (Batch Operations)**
+
 - **Service**: `src/lib/services/appwrite-transaction.ts`
 - **Usage**: Complex operations requiring atomicity or exceeding client limits
 - **Pattern**: Prepares batch data -> Calls Appwrite Cloud Function -> Handles result
 - **Example**: `createGroupPurchaseWithSync` splits large batches and syncs products before creating purchases
 
 **3. Data Synchronization Strategy**
+
 ```typescript
 // Initialization sequence
 1. Load from localStorage cache (if exists)
@@ -122,7 +130,7 @@ The application follows a **3-layer reactive architecture**:
 - `src/lib/stores/ProductsStore.svelte.ts` - Main reactive state store
 - `src/lib/models/ProductModel.svelte.ts` - Reactive product model
 - `src/lib/stores/ProductModalState.svelte.ts` - Per-product modal factory
-- `src/lib/services/appwrite-interactions.ts` - Pure Appwrite CRUD layer
+- `src/lib/services/appwrite-products.ts` - Pure Appwrite CRUD layer
 - `src/lib/services/appwrite-transaction.ts` - Cloud function transactions
 - `src/lib/services/hugo-loader.ts` - Hugo data import service
 - `src/lib/utils/productsUtils.ts` - Business logic calculations
@@ -132,6 +140,7 @@ The application follows a **3-layer reactive architecture**:
 ### Data Models
 
 **Core Types:**
+
 - `Products` - Raw Appwrite product documents
 - `Purchases` - Purchase records linked to products
 - `EnrichedProduct` - Product + calculated fields + purchases
@@ -140,6 +149,7 @@ The application follows a **3-layer reactive architecture**:
 - `RecipeOccurrence` - Recipe usage data with dates
 
 **Key Data Structures:**
+
 - `byDate` - Date-based recipe calculations (performance optimized)
 - `totalNeededConsolidated` - Manual override support
 - `purchases` - Array of purchase records per product
@@ -147,6 +157,7 @@ The application follows a **3-layer reactive architecture**:
 ### Common Patterns
 
 **1. Reactive Store Usage**
+
 ```typescript
 // In components
 const productsStore = get(productsStore);
@@ -159,16 +170,18 @@ const stats = $derived(model.stats); // Access calculated stats
 ```
 
 **2. Modal State Management**
+
 ```typescript
 // Create modal state for specific product
 const modalState = createProductModalState(productId);
 
 // Access data (reactive)
-modalState.product // Always fresh from store
-modalState.forms.purchase // Local form state
+modalState.product; // Always fresh from store
+modalState.forms.purchase; // Local form state
 ```
 
 **3. Sync Logic Pattern**
+
 ```typescript
 // Check if product needs Appwrite creation
 if (!product.isSynced) {
@@ -189,13 +202,15 @@ if (!product.isSynced) {
 ### Development Workflow
 
 **When adding new product features:**
+
 1. Add types in `src/lib/types/`
 2. Update ProductsStore with new reactive calculations
-3. Add Appwrite functions in `appwrite-interactions.ts`
+3. Add Appwrite functions in `appwrite-products.ts`
 4. Update ProductModalState with new forms/actions
 5. Create/update UI components consuming the store
 
 **When debugging state issues:**
+
 1. Check ProductsStore initialization sequence
 2. Verify ProductModalState factory usage
 3. Confirm realtime subscription status

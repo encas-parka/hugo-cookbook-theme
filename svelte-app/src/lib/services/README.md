@@ -2,7 +2,7 @@
 
 ## Vue d'ensemble
 
-Cette documentation décrit l'architecture moderne du système de gestion des produits avec une séparation claire des responsabilités entre `ProductsStore` (gestion d'état) et `appwrite-interactions` (services de données).
+Cette documentation décrit l'architecture moderne du système de gestion des produits avec une séparation claire des responsabilités entre `ProductsStore` (gestion d'état) et `appwrite-products` (services de données).
 
 ## 🏗️ Architecture Globale
 
@@ -16,7 +16,7 @@ Cette documentation décrit l'architecture moderne du système de gestion des pr
                    │ Appelle les services
                    │
 ┌─────────────────▼───────────────────────────────────────────┐
-│              appwrite-interactions                         │
+│              appwrite-products                         │
 │  • Accès aux données Appwrite pur                          │
 │  • Transformations de données sans état                   │
 │  • Logique de chargement, synchro, realtime               │
@@ -99,7 +99,7 @@ Appwrite Event → subscribeToRealtime() → handleRealtimeEvent() → Callbacks
 - ✅ **Handlers d'événements** : méthodes spécifiques pour chaque type
 - ✅ **Débouncing** : `#debouncedUpdateLastSync()`
 
-### appwrite-interactions (Services de données)
+### appwrite-products (Services de données)
 
 - ✅ **Accès Appwrite** : CRUD, queries, pagination
 - ✅ **Transformations pures** : sans état, réutilisables

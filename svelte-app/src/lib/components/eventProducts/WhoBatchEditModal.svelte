@@ -3,7 +3,7 @@
   import {
     batchUpdateWho,
     type BatchUpdateResult,
-  } from "$lib/services/appwrite-interactions";
+  } from "$lib/services/appwrite-products";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
