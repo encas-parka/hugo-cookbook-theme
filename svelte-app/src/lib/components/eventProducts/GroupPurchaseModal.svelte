@@ -234,7 +234,7 @@
 </script>
 
 <div class="modal modal-open">
-  <div class="modal-box max-h-[90vh] max-w-4xl overflow-y-auto">
+  <div class="modal-box mt-18 max-h-[90vh] max-w-4xl overflow-y-auto">
     <!-- Header -->
     <div class="mb-4 flex items-center justify-between border-b pb-4">
       <h3 class="flex items-center gap-2 text-lg font-semibold">
@@ -346,8 +346,7 @@
         <BtnGroupCheck
           items={badgeItems}
           onToggleItem={handleToggleProduct}
-          badgeSize="btn-sm"
-          badgeStyle="btn-soft"
+          size="sm"
           color="success"
         />
       </div>

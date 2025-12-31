@@ -272,7 +272,10 @@
     <!-- Header avec Actions -->
     <div class="mb-2 flex items-start justify-between">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-lg font-medium {isDuplicateDate && 'text-error'}">
+        <span
+          class="text-primary text-lg font-medium {isDuplicateDate &&
+            'text-error'}"
+        >
           {meal.date ? formatDateShort(meal.date) : "Date non définie"}
         </span>
         <div

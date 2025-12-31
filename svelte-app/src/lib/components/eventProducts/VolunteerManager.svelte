@@ -115,8 +115,8 @@
             <BtnGroupCheck
               items={volunteerItems}
               onToggleItem={handleToggleVolunteer}
-              showIcon={true}
-              badgeSize="btn-sm"
+              size="sm"
+              color="success"
             />
           </div>
         </div>

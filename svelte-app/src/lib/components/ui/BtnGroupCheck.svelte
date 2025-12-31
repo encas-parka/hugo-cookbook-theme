@@ -1,11 +1,11 @@
 <script lang="ts">
   import { X, RotateCcw, Check, PlusIcon } from "@lucide/svelte";
+  import CheckboxBadge from "$lib/components/ui/CheckboxBadge.svelte";
 
   // Interface générique pour les items
   interface BadgeItem {
     id: string;
     label: string;
-    icon?: any; // Composant d'icône optionnel
     title?: string; // Tooltip optionnel
     selected?: boolean; // État initial de sélection (true/undefined = actif, false = inactif)
     badge?: string; // Badge optionnel pour afficher une information supplémentaire
@@ -13,22 +13,26 @@
 
   interface Props {
     items: BadgeItem[];
-    badgeSize?: string;
-    color?: string;
+    size?: "xs" | "sm" | "lg" | "md";
+    color?:
+      | "primary"
+      | "secondary"
+      | "accent"
+      | "success"
+      | "warning"
+      | "error"
+      | "info";
     badgeStyle?: string;
     onToggleItem?: (itemId: string) => void;
     showStats?: boolean;
-    showIcon?: boolean;
   }
 
   let {
     items,
-    badgeSize = "btn-lg",
+    size = "lg",
     color = "primary",
-    badgeStyle = "",
     onToggleItem = () => {},
     showStats = false,
-    showIcon = true,
   }: Props = $props();
 
   // État local pour gérer les items actifs/inactifs
@@ -63,36 +67,14 @@
 <div class="flex flex-wrap gap-2">
   {#each items as item (item.id)}
     {@const isActive = itemStates[item.id]}
-    <button
-      class="btn {badgeSize} btn-{color} flex cursor-pointer items-center gap-2 transition-all duration-200
-        {isActive
-        ? `${badgeStyle} hover:line-through `
-        : 'btn-dash hover:border-solid '}"
-      onclick={() => handleToggleItem(item.id)}
-      title={isActive ? "Retirer de la liste" : "Réajouter à la liste"}
-    >
-      <!-- Icône optionnelle -->
-      {#if item.icon}
-        <item.icon class="h-3 w-3" title={item.title} />
-      {/if}
-
-      <!-- Label principal -->
-      <span class="max-w-32 truncate">{item.label}</span>
-
-      <!-- Badge optionnel -->
-      {#if item.badge}
-        <span class="badge badge-sm badge-{color}">{item.badge}</span>
-      {/if}
-
-      <!-- Bouton d'action -->
-      {#if showIcon}
-        {#if isActive}
-          <Check size={16} />
-        {:else}
-          <PlusIcon size={16} />
-        {/if}
-      {/if}
-    </button>
+    <CheckboxBadge
+      checked={isActive}
+      label={item.label}
+      {color}
+      badge={item.badge}
+      {size}
+      onchange={() => handleToggleItem(item.id)}
+    />
   {/each}
 </div>
 

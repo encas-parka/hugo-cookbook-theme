@@ -612,7 +612,7 @@
 {#snippet navActions()}
   <div class="flex items-center gap-2">
     <button
-      class="btn btn-primary btn-sm"
+      class="btn btn-accent btn-sm"
       onclick={handleSave}
       disabled={isBusy || (eventId && !isDirty) || (eventId && !canEdit)}
     >

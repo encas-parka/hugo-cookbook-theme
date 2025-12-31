@@ -12,6 +12,7 @@
   import AutocompleteInput from "$lib/components/ui/AutocompleteInput.svelte";
   import BadgeList from "$lib/components/ui/BadgeList.svelte";
   import { globalState } from "../../stores/GlobalState.svelte";
+  import CheckboxBadge from "../ui/CheckboxBadge.svelte";
 
   interface Filters {
     categories: string[];
@@ -92,18 +93,12 @@
   <Fieldset legend="Catégories" iconComponent={UtensilsCrossed}>
     <div class="flex flex-wrap gap-3">
       {#each availableCategories as category}
-        <label
-          class="label bg-secondary/10 hover:bg-secondary/5 cursor-pointer justify-start gap-2 rounded-full px-2 py-0.5"
-        >
-          <input
-            type="checkbox"
-            class="checkbox checkbox-sm bg-base-100"
-            checked={filters.categories.includes(category)}
-            onchange={() => toggleArrayItem(filters.categories, category)}
-            {disabled}
-          />
-          <span class="">{category}</span>
-        </label>
+        <CheckboxBadge
+          checked={filters.categories.includes(category)}
+          label={category}
+          onchange={() => toggleArrayItem(filters.categories, category)}
+          {disabled}
+        />
       {/each}
     </div>
   </Fieldset>
@@ -112,18 +107,12 @@
   <Fieldset legend="Régimes" iconComponent={Salad}>
     <div class="flex flex-wrap gap-3">
       {#each availableRegimes as regime}
-        <label
-          class="label bg-secondary/10 hover:bg-secondary/5 cursor-pointer justify-start gap-2 rounded-full px-2 py-0.5"
-        >
-          <input
-            type="checkbox"
-            class="checkbox checkbox-sm bg-base-100"
-            checked={filters.regimes.includes(regime)}
-            onchange={() => toggleArrayItem(filters.regimes, regime)}
-            {disabled}
-          />
-          <span class="label-text">{regime}</span>
-        </label>
+        <CheckboxBadge
+          checked={filters.regimes.includes(regime)}
+          label={regime}
+          onchange={() => toggleArrayItem(filters.regimes, regime)}
+          {disabled}
+        />
       {/each}
     </div>
   </Fieldset>

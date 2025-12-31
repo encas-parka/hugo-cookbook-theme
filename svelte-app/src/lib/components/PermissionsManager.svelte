@@ -487,9 +487,7 @@
         <BtnGroupCheck
           items={allInvitableMembers}
           onToggleItem={toggleKTeamMember}
-          badgeSize="btn-sm"
-          badgeStyle="btn-soft"
-          showIcon={true}
+          size="sm"
         />
       {:else}
         <p class="text-sm italic opacity-60">

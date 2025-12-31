@@ -49,7 +49,7 @@
           legendSize="text-sm"
         >
           <div class="flex items-start gap-2">
-            <div class="text-sm">{astuce}</div>
+            <div class="text-sm">{astuce.astuce}</div>
           </div>
         </Fieldset>
       {/each}

@@ -250,8 +250,7 @@
           <BtnGroupCheck
             items={invitableMembers}
             onToggleItem={toggleMember}
-            badgeStyle="btn-soft"
-            badgeSize="btn-sm"
+            size="sm"
           />
         </div>
       {:else if teamsStore.teams.length === 0}
