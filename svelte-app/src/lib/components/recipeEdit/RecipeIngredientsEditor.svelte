@@ -459,8 +459,8 @@
                                 step="0.1"
                                 placeholder="0"
                                 class=""
-                                {disabled}
                                 onblur={() => handleQuantityBlur(ingredient)}
+                                disabled={ingredient.originalUnit === "au goût"}
                               />
                             </div>
                           </label>
@@ -471,6 +471,10 @@
                               bind:value={ingredient.originalUnit}
                               {disabled}
                               onblur={() => handleQuantityBlur(ingredient)}
+                              onchange={() => {
+                                if (ingredient.originalUnit === "au goût")
+                                  ingredient.originalQuantity = 1;
+                              }}
                             >
                               <option value="kg">Kg</option>
                               <option value="gr.">gr.</option>
@@ -483,6 +487,7 @@
                               <option value="tête·s">tête·s</option>
                               <option value="gousse·s">gousse·s</option>
                               <option value="bottes">bottes</option>
+                              <option value="au goût">au goût</option>
                             </select>
                           </label>
                         </div>
