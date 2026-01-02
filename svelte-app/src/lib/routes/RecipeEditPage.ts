@@ -306,7 +306,7 @@ export function determineAllergensAndRegimes(ingredients: RecipeIngredient[]): {
   ) {
     regimes.push("vegan");
   } else if (!hasAnimalProducts) {
-    regimes.push("végétarien");
+    regimes.push("vegetarien");
   }
 
   if (!allergenList.includes("Gluten")) {

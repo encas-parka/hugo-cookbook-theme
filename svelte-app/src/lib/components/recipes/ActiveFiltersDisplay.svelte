@@ -9,7 +9,7 @@
     temperature: string;
     cuisson: string;
     saison: string;
-    onlyTested: boolean;
+    testedStatus: "all" | "tested" | "untested";
     ingredients: string[];
     typeR: string;
     scope: "all" | "mine" | "drafts";
@@ -31,7 +31,7 @@
       filters.temperature !== "" ||
       filters.cuisson !== "" ||
       filters.saison !== "" ||
-      filters.onlyTested,
+      filters.testedStatus !== "all",
   );
 
   // Obtenir le nom du type de recette pour l'affichage
@@ -129,9 +129,11 @@
           <span class="badge badge-success">{ing}</span>
         {/each}
 
-        <!-- Testé -->
-        {#if filters.onlyTested}
-          <span class="badge badge-primary">Recettes testées uniquement</span>
+        <!-- Statut de test -->
+        {#if filters.testedStatus === "tested"}
+          <span class="badge badge-success">Testées</span>
+        {:else if filters.testedStatus === "untested"}
+          <span class="badge badge-error">À tester</span>
         {/if}
 
         <!-- Type de recette -->

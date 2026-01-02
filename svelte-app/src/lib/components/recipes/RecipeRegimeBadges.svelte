@@ -27,16 +27,14 @@
   );
 </script>
 
-<div class="flex items-baseline gap-2 text-sm">
+<div class="flex items-center gap-2 text-sm">
   <!-- Badges Régimes -->
   {#each filteredRegimes as regime, index (index)}
     <span
       title={regime}
       class=" {iconOnly
         ? `text-${colorClass}`
-        : `badge-lg print:badge-md badge badge-soft badge-${colorClass}`}  flex items-center {iconOnly
-        ? ''
-        : 'gap-1'} print:text-base-content"
+        : `badge-lg print:badge-md badge badge-soft badge-${colorClass} gap-1`}  print:text-base-content flex items-center"
     >
       {#if regimeIcons[regime]}
         <svg

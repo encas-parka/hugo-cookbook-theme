@@ -237,6 +237,7 @@
           toastService.info("Verrou précédent expiré, vous prenez le contrôle");
         } else {
           toastService.warning("Cette recette est déjà en cours d'édition");
+          isLockedByOther = true;
           return false;
         }
       }
@@ -364,19 +365,6 @@
 <!-- ============================================================================ -->
 {#snippet navActions()}
   <div class="flex items-center gap-2">
-    <!-- Lock indicator -->
-    {#if isLockedByOthers}
-      <div class="badge badge-warning gap-2">
-        <Lock class="h-3 w-3" />
-        Vérouillé : document en cours d'édition par un·e autre utilisateur·ice.
-      </div>
-    {:else if isLockedByMe}
-      <div class="badge badge-success gap-2">
-        <Lock class="h-3 w-3" />
-        Vous éditez
-      </div>
-    {/if}
-
     <!-- Duplicate button -->
     <button
       onclick={duplicate}
@@ -391,7 +379,7 @@
     <button
       onclick={save}
       disabled={!canEdit || isSaving || !isDirty}
-      class="btn btn-primary btn-sm"
+      class="btn btn-accent btn-sm"
     >
       <Save class="h-4 w-4" />
       {isSaving ? "Sauvegarde..." : "Sauvegarder"}
@@ -446,10 +434,22 @@
   {/if}
 </div>
 
+<!-- Lock indicator -->
+{#if isLockedByOthers}
+  <div class="bg-base-100 rounded-t-box fixed bottom-0 left-0">
+    <div
+      class=" bg-warning/40 rounded-t-box flex size-full items-center px-4 py-1"
+    >
+      <Lock class="me-2 h-4 w-4" />
+      Vérouillé : document en cours d'édition par un·e autre utilisateur·ice.
+    </div>
+  </div>
+{/if}
+
 <!-- Guard de navigation pour modifications non sauvegardées -->
 <UnsavedChangesGuard
   routeKey={`/recipe/${recipeId}/edit`}
-  shouldProtect={() => isDirty}
+  shouldProtect={() => isDirty && !isLockedByOthers}
   onLeaveWithoutSave={async () => {
     // Libérer le lock si on le détient
     if (isLockedByMe) {

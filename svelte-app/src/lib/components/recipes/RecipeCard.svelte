@@ -40,7 +40,7 @@
       class="text-primary bg-base-100 rounded-t-box border-t-base-300 absolute -top-4 left-0 flex max-w-4/5 items-center-safe gap-2 border-t-1 py-0.5 ps-4 pe-6 text-lg font-semibold"
     >
       <svg class="size-6">
-        <use href={`/icons/type/types-sprite.svg#${typeDisplay.iconId}`} />
+        <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />
       </svg>
       {recipe.title}
       {#if recipe.draft}
@@ -66,9 +66,7 @@
             class="text-primary mb-2 inline-flex items-center-safe gap-2 text-lg font-semibold"
           >
             <svg class="size-6">
-              <use
-                href={`/icons/type/types-sprite.svg#${typeDisplay.iconId}`}
-              />
+              <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />
             </svg>
             {recipe.title}
             {#if recipe.draft}

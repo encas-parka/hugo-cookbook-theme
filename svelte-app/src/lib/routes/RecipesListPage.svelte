@@ -23,7 +23,7 @@
     temperature: string;
     cuisson: string;
     saison: string;
-    onlyTested: boolean;
+    testedStatus: "all" | "tested" | "untested";
     ingredients: string[];
     typeR: string;
     scope: "all" | "mine" | "drafts";
@@ -36,7 +36,7 @@
     temperature: "",
     cuisson: "",
     saison: "",
-    onlyTested: false,
+    testedStatus: "all",
     ingredients: [],
     typeR: "",
     scope: "all",
@@ -144,7 +144,10 @@
         !filters.saison || recipe.saison?.includes(filters.saison);
 
       // Testé
-      const testedMatch = !filters.onlyTested || recipe.check;
+      const testedMatch =
+        filters.testedStatus === "all" ||
+        (filters.testedStatus === "tested" && recipe.check) ||
+        (filters.testedStatus === "untested" && !recipe.check);
 
       // Ingrédients (ET logique - tous les ingrédients sélectionnés doivent être présents)
       const ingredientMatch =
@@ -219,7 +222,7 @@
       temperature: "",
       cuisson: "",
       saison: "",
-      onlyTested: false,
+      testedStatus: "all",
       ingredients: [],
       typeR: "",
       scope: filters.scope, // Garder le scope actuel lors du reset des filtres techniques
@@ -304,7 +307,7 @@
       onclick={() => navigate("/recipe/new")}
     >
       <PlusIcon size={18} />
-      Nouvelle recette
+      Créer une recette
     </button>
   {/if}
 {/snippet}
@@ -389,7 +392,7 @@
         <span>Erreur : {recipesStore.error}</span>
       </div>
     {:else}
-      <div class="my-8 space-y-8">
+      <div class="my-8 space-y-10">
         {#each paginatedRecipes as recipe (recipe.$id)}
           <RecipeCard {recipe} highlightedIngredients={filters.ingredients} />
         {/each}

@@ -27,6 +27,8 @@
   import EventProductsPage from "./lib/routes/EventProductsPage.svelte";
   import HomePage from "./lib/routes/HomePage.svelte";
 
+  import IconExample from "./lib/components/ui/IconExample.svelte";
+
   // États de l'application
   type AppState =
     | "BOOTING"

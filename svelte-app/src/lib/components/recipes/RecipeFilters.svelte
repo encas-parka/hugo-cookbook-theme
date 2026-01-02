@@ -7,6 +7,7 @@
     Flame,
     Cloud,
     Calendar,
+    FunnelX,
   } from "@lucide/svelte";
   import Fieldset from "$lib/components/ui/Fieldset.svelte";
   import AutocompleteInput from "$lib/components/ui/AutocompleteInput.svelte";
@@ -20,7 +21,7 @@
     temperature: string;
     cuisson: string;
     saison: string;
-    onlyTested: boolean;
+    testedStatus: "all" | "tested" | "untested";
     ingredients: string[];
   }
 
@@ -84,7 +85,7 @@
   <div class="mb-4 flex items-center justify-between">
     <h4 class="text-lg font-bold">Filtres</h4>
     <button class="btn btn-warning btn-sm" onclick={onReset} {disabled}>
-      <Eraser class="h-4 w-4" />
+      <FunnelX class="h-4 w-4" />
       Effacer
     </button>
   </div>
@@ -147,55 +148,117 @@
   </Fieldset>
 
   <!-- Recettes testées -->
-  <Fieldset legend="Recettes testées uniquement">
-    <label class="label cursor-pointer justify-start gap-2">
-      <input
-        type="checkbox"
-        class="toggle toggle-primary"
-        bind:checked={filters.onlyTested}
-        {disabled}
-      />
-    </label>
+  <Fieldset legend="Testé">
+    <div class="bg-base-100 flex gap-1 rounded-xl p-2 font-semibold">
+      <button
+        class="btn btn-sm flex-1 {filters.testedStatus === 'all' &&
+          'btn-secondary'}"
+        type="button"
+        aria-label="Toutes"
+        onclick={() => (filters.testedStatus = "all")}>Toutes</button
+      >
+      <button
+        class="btn btn-sm flex-1 {filters.testedStatus === 'tested' &&
+          'btn-success'}"
+        type="button"
+        aria-label="Testées"
+        onclick={() => (filters.testedStatus = "tested")}>Testées</button
+      >
+      <button
+        class="btn btn-sm flex-1 {filters.testedStatus === 'untested' &&
+          'btn-error'}"
+        type="button"
+        aria-label="Non testées"
+        onclick={() => (filters.testedStatus = "untested")}>À tester</button
+      >
+    </div>
   </Fieldset>
 
   <!-- Service (Température) -->
   <Fieldset legend="Service" iconComponent={Flame}>
-    <select
-      class="select select-bordered select-sm w-full"
-      bind:value={filters.temperature}
-      {disabled}
-    >
-      <option value="">Indifférent</option>
-      <option value="Chaud">Servir chaud</option>
-      <option value="Froid">Servir froid</option>
-    </select>
+    <div class="bg-base-100 flex gap-1 rounded-xl p-2 font-semibold">
+      <button
+        class="btn btn-sm flex-1 {filters.temperature === '' &&
+          'btn-secondary'}"
+        type="button"
+        aria-label="Indifférent"
+        onclick={() => (filters.temperature = "")}>Indifférent</button
+      >
+      <button
+        class="btn btn-sm flex-1 {filters.temperature === 'Chaud' &&
+          'btn-error'}"
+        type="button"
+        aria-label="Servir chaud"
+        onclick={() => (filters.temperature = "Chaud")}>Chaud</button
+      >
+      <button
+        class="btn btn-sm flex-1 {filters.temperature === 'Froid' &&
+          'btn-info'}"
+        type="button"
+        aria-label="Servir froid"
+        onclick={() => (filters.temperature = "Froid")}>Froid</button
+      >
+    </div>
   </Fieldset>
 
   <!-- Cuisson -->
   <Fieldset legend="Cuisson" iconComponent={Cloud}>
-    <select
-      class="select select-bordered select-sm w-full"
-      bind:value={filters.cuisson}
-      {disabled}
-    >
-      <option value="">Indifférent</option>
-      <option value="Oui">Avec cuisson</option>
-      <option value="Non">Sans cuisson</option>
-    </select>
+    <div class="bg-base-100 flex gap-1 rounded-xl p-2 font-semibold">
+      <button
+        class="btn btn-sm flex-1 {filters.cuisson === '' && 'btn-secondary'}"
+        type="button"
+        aria-label="Indifférent"
+        onclick={() => (filters.cuisson = "")}>Indifférent</button
+      >
+      <button
+        class="btn btn-sm flex-1 {filters.cuisson === 'Oui' && 'btn-warning'}"
+        type="button"
+        aria-label="Avec cuisson"
+        onclick={() => (filters.cuisson = "Oui")}>Avec</button
+      >
+      <button
+        class="btn btn-sm flex-1 {filters.cuisson === 'Non' && 'btn-success'}"
+        type="button"
+        aria-label="Sans cuisson"
+        onclick={() => (filters.cuisson = "Non")}>Sans</button
+      >
+    </div>
   </Fieldset>
 
   <!-- Saison -->
   <Fieldset legend="Saison" iconComponent={Calendar}>
-    <select
-      class="select select-bordered select-sm w-full"
-      bind:value={filters.saison}
-      {disabled}
-    >
-      <option value="">Indifférent</option>
-      <option value="printemps">Printemps</option>
-      <option value="ete">Été</option>
-      <option value="automne">Automne</option>
-      <option value="hiver">Hiver</option>
-    </select>
+    <div class="bg-base-100 flex flex-wrap gap-1 rounded-xl p-2 font-semibold">
+      <button
+        class="btn btn-sm flex-1 {filters.saison === '' && 'btn-secondary'}"
+        type="button"
+        aria-label="Indifférent"
+        onclick={() => (filters.saison = "")}>Toutes</button
+      >
+      <button
+        class="btn btn-sm flex-1 {filters.saison === 'printemps' &&
+          'btn-success'}"
+        type="button"
+        aria-label="Printemps"
+        onclick={() => (filters.saison = "printemps")}>Printemps</button
+      >
+      <button
+        class="btn btn-sm flex-1 {filters.saison === 'ete' && 'btn-warning'}"
+        type="button"
+        aria-label="Été"
+        onclick={() => (filters.saison = "ete")}>Été</button
+      >
+      <button
+        class="btn btn-sm flex-1 {filters.saison === 'automne' && 'btn-accent'}"
+        type="button"
+        aria-label="Automne"
+        onclick={() => (filters.saison = "automne")}>Automne</button
+      >
+      <button
+        class="btn btn-sm flex-1 {filters.saison === 'hiver' && 'btn-info'}"
+        type="button"
+        aria-label="Hiver"
+        onclick={() => (filters.saison = "hiver")}>Hiver</button
+      >
+    </div>
   </Fieldset>
 </div>

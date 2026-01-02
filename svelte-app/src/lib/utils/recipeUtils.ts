@@ -17,17 +17,20 @@ import { ingredientsFromAppwrite } from "./ingredientUtils";
  * Mapping des catégories vers les IDs d'icônes dans le sprite SVG
  */
 const CATEGORY_ICON_MAP: Record<string, string> = {
-  "Bouchées salées": "bouchees_salees",
-  Boisson: "soda",
-  Cake: "cake",
-  Friture: "deep-fryer",
-  Gateau: "cake-sugar",
-  Pain: "pain",
+  "Bouchées salées": "sandwich",
+  Boisson: "cup-soda",
+  Cake: "cake-slice",
+  "Crèmes dessert": "fast-food-pudding",
+  Friture: "fryer",
+  Gateau: "cake-slice",
+  Pain: "bread",
+  "Plat au Four": "oven",
+  "Plat en Sauce": "pot",
   Salade: "lettuce",
   Sauce: "sauce",
   Snacking: "hamburger",
   Soupe: "soup",
-  "Tarte (salée)": "tarte_salee",
+  "Tarte (salée)": "pizza",
   "Tarte (sucrée)": "pie",
   Tartinade: "tartinade",
 };
@@ -36,9 +39,9 @@ const CATEGORY_ICON_MAP: Record<string, string> = {
  * Mapping des types vers les IDs d'icônes (fallback)
  */
 const TYPE_ICON_MAP: Record<string, string> = {
-  entree: "salads",
-  plat: "no-cat",
-  dessert: "cake-sugar",
+  entree: "salad",
+  plat: "dish",
+  dessert: "fast-food-pudding",
 };
 
 /**

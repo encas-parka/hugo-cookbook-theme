@@ -176,9 +176,7 @@
               class="flex items-center gap-3 text-2xl font-bold print:text-xl"
             >
               <svg class="me-2 size-9">
-                <use
-                  href={`/icons/type/types-sprite.svg#${typeDisplay.iconId}`}
-                />
+                <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />
               </svg>
               {recipeDetails.title}
             </h1>
@@ -188,7 +186,7 @@
               <div class="">
                 <RecipeRegimeBadges
                   regimes={recipeDetails.regime}
-                  iconOnly={true}
+                  iconOnly={false}
                 />
               </div>
             {/if}

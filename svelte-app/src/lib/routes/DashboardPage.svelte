@@ -54,14 +54,14 @@
       class="btn btn-primary btn-sm"
       onclick={() => navigate("/dashboard/eventEdit")}
     >
-      <Calendar class="h-4 w-4" />
-      Nouvel Événement
+      <Plus class="h-4 w-4" />
+      Créer un Événement
     </button>
     <button
       class="btn btn-primary btn-sm"
       onclick={() => navigate("/recipe/new")}
     >
-      <BookOpen class="h-4 w-4" />
+      <Plus class="h-4 w-4" />
       Créer une Recette
     </button>
   </div>
