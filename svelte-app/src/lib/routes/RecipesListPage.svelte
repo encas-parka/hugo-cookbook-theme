@@ -372,8 +372,8 @@
 
       <!-- Boutons de tri -->
       <RecipeSortControls
-        bind:sortBy
-        bind:sortOrder
+        {sortBy}
+        {sortOrder}
         onSortChange={(s, o) => {
           sortBy = s;
           sortOrder = o;

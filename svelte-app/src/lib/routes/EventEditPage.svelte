@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { tick } from "svelte";
   import EventMealCard from "$lib/components/eventEdit/EventMealCard.svelte";
   import PermissionsManager from "$lib/components/PermissionsManager.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
@@ -10,15 +9,10 @@
   } from "$lib/utils/event-stats-helpers";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { teamsStore } from "$lib/stores/TeamsStore.svelte";
-  import type {
-    EnrichedEvent,
-    EventContributor,
-    EventMeal,
-  } from "$lib/types/events";
+  import type { EventMeal } from "$lib/types/events";
   import {
     CircleAlert,
     Calendar,
-    ChartBar,
     Plus,
     Save,
     Lock,
@@ -26,8 +20,8 @@
   } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
-  import { navigate, router } from "../services/simple-router.svelte";
-  import { untrack, onDestroy, onMount } from "svelte";
+  import { navigate } from "../services/simple-router.svelte";
+  import { untrack, onDestroy } from "svelte";
   import EventStats from "../components/EventStats.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { locksService, type AppwriteLock } from "../services/appwrite-locks";
@@ -53,8 +47,6 @@
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     ),
   );
-
-  const allDates = $derived(sortedMeals.map((m) => m.date));
 
   // État UI
   let isInitialised = $state(false);

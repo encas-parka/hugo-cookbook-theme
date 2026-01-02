@@ -224,6 +224,14 @@
     return result;
   }
 
+  function getRecipeShortUuid(uuid: string): string {
+    return uuid.split("_")[0];
+  }
+
+  function isRecipeMissing(uuid: string): boolean {
+    return !getRecipeIndex(uuid);
+  }
+
   function handleCardClick() {
     if (disabled || (isEditing && onEditToggle)) {
       return;
@@ -244,8 +252,9 @@
   //   }
   // });
 
-  function getRecipeColor(typeR: RecettesTypeR) {
-    if (typeR === "entree") return "bg-lime-100 border-lime-200";
+  function getRecipeColor(typeR: RecettesTypeR, isMissing: boolean = false) {
+    if (isMissing) return "badge-error";
+    else if (typeR === "entree") return "bg-lime-100 border-lime-200";
     else if (typeR === "plat") return "bg-orange-100 border-orange-200";
     else if (typeR === "dessert") return "bg-pink-100 border-pink-200";
     else if (typeR === "autre") return "bg-purple-100 border-purple-200";
@@ -406,6 +415,7 @@
             <div class="mb-4 space-y-2">
               {#each meal.recipes as recipe, i (recipe.recipeUuid)}
                 {@const recipeIndex = getRecipeIndex(recipe.recipeUuid)}
+                {@const isMissing = isRecipeMissing(recipe.recipeUuid)}
                 <div
                   animate:flip={{ duration: 200 }}
                   class="bg-base-200 flex flex-wrap items-center gap-3 rounded-lg p-3"
@@ -415,6 +425,7 @@
                     <div
                       class="{getRecipeColor(
                         recipe.typeR,
+                        isMissing,
                       )} rounded-md border-2 p-2"
                     >
                       <ChefHat class="h-5 w-5" />
@@ -423,7 +434,13 @@
                     <!-- Infos Recette -->
                     <div class="min-w-56 flex-1">
                       <div class="font-medium">
-                        {recipeIndex?.title || "Recette inconnue"}
+                        {recipeIndex?.title ||
+                          getRecipeShortUuid(recipe.recipeUuid)}
+                        {#if isMissing}
+                          <span class="text-error ms-2 text-sm font-normal">
+                            (Recette introuvable)
+                          </span>
+                        {/if}
                       </div>
                     </div>
                   </div>
@@ -530,13 +547,20 @@
           <div class="flex flex-wrap gap-2">
             {#each meal.recipes as recipe (recipe.recipeUuid)}
               {@const recipeIndex = getRecipeIndex(recipe.recipeUuid)}
+              {@const isMissing = isRecipeMissing(recipe.recipeUuid)}
               <div
                 class="badge badge-lg {getRecipeColor(
                   recipe.typeR,
-                )} h-auto gap-2 py-1 font-medium"
+                  isMissing,
+                )} h-auto gap-2 py-1 font-medium {isMissing
+                  ? 'ring-error ring-1'
+                  : ''}"
               >
                 <ChefHat class="h-4 w-4" />
-                <span>{recipeIndex?.title || "..."}</span>
+                <span
+                  >{recipeIndex?.title ||
+                    getRecipeShortUuid(recipe.recipeUuid)}</span
+                >
                 <span class="badge badge-sm badge-outline font-normal">
                   {recipe.plates}
                   <Utensils size={12} />

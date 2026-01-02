@@ -13,6 +13,7 @@
   import RecipePreparation from "$lib/components/recipes/RecipePreparation.svelte";
   import RecipeRegimeBadges from "$lib/components/recipes/RecipeRegimeBadges.svelte";
   import { Utensils, Calendar, ChefHat, Users } from "@lucide/svelte";
+  import { getTypeDisplay } from "$lib/utils/recipeUtils";
 
   interface Props {
     recipe: RecipeForDisplay;
@@ -100,6 +101,12 @@
     if (!mealDate) return "";
     return formatDateWdDayMonthShort(mealDate);
   });
+
+  // Récupérer l'affichage avec la priorité : catégorie > type
+  const typeDisplay = getTypeDisplay(
+    recipe.typeR,
+    recipe.categories || undefined,
+  );
 </script>
 
 <div
@@ -110,7 +117,10 @@
     <!-- En-tête de la carte -->
     <div class="border-base-300 mb-4 border-b pb-4">
       <div class="flex flex-wrap items-baseline justify-between gap-4">
-        <div class="min-w-2/3 flex-1">
+        <div class="flex min-w-2/3 flex-1 gap-2">
+          <svg class="size-6">
+            <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />
+          </svg>
           <div class="text-xl font-bold">{recipe.title}</div>
         </div>
 

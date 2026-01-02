@@ -39,8 +39,8 @@ export function getTotalGuests(event: EnrichedEvent | null): number {
 export function getTotalRecipes(event: EnrichedEvent | null): number {
   if (!event?.meals) return 0;
   const recipeIds = new Set<string>();
-  event.meals.forEach(meal => {
-    meal.recipes?.forEach(r => {
+  event.meals.forEach((meal) => {
+    meal.recipes?.forEach((r) => {
       if (r.recipeUuid) recipeIds.add(r.recipeUuid);
     });
   });
@@ -96,9 +96,9 @@ export function getContributors(event: EnrichedEvent | null) {
  */
 export function getContributorStatus(
   event: EnrichedEvent | null,
-  userId: string
+  userId: string,
 ): "accepted" | "declined" | "invited" | null {
-  const contributor = getContributors(event).find(c => c.id === userId);
+  const contributor = getContributors(event).find((c) => c.id === userId);
   return contributor?.status || null;
 }
 
@@ -107,9 +107,9 @@ export function getContributorStatus(
  */
 export function isContributor(
   event: EnrichedEvent | null,
-  userId: string
+  userId: string,
 ): boolean {
-  return getContributors(event).some(c => c.id === userId);
+  return getContributors(event).some((c) => c.id === userId);
 }
 
 /**
@@ -131,11 +131,36 @@ export function getContributorsStats(event: EnrichedEvent | null) {
 // =============================================================================
 
 /**
+ * Liste des recettes manquantes (réclamées par l'event mais absentes du cache)
+ */
+export function getMissingRecipes(event: EnrichedEvent | null): Set<string> {
+  if (!event?.meals) return new Set();
+
+  const missingRecipes = new Set<string>();
+
+  event.meals.forEach((meal) => {
+    if (meal.recipes) {
+      meal.recipes.forEach((mealRecipe) => {
+        const recipeIndex = recipesStore.getRecipeIndexByUuid(
+          mealRecipe.recipeUuid,
+        );
+        if (!recipeIndex) {
+          missingRecipes.add(mealRecipe.recipeUuid);
+        }
+      });
+    }
+  });
+
+  return missingRecipes;
+}
+
+/**
  * Helper pour les composants qui ont besoin de toutes les stats
  * Retourne un objet avec toutes les statistiques calculées
  */
 export function useEventStats(event: EnrichedEvent | null) {
   const contributors = getContributors(event);
+  const missingRecipes = getMissingRecipes(event);
 
   return {
     mealsCount: getMealsCount(event),
@@ -148,5 +173,6 @@ export function useEventStats(event: EnrichedEvent | null) {
     // NOTE: dateStart, dateEnd et allDates sont déjà dans EnrichedEvent (hérités de Main)
     startDate: event?.dateStart || null,
     endDate: event?.dateEnd || null,
+    missingRecipes,
   };
 }

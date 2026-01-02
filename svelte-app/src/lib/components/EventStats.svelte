@@ -7,6 +7,7 @@
     CalendarDays,
     Calendar,
     ShoppingCart,
+    AlertTriangle,
   } from "@lucide/svelte";
   import { useEventStats } from "$lib/utils/event-stats-helpers";
   import type { EnrichedEvent } from "$lib/types/events";
@@ -46,4 +47,21 @@
     <Users class="h-4 w-4" />
     <span>{stats.contributorsStats.total} Participant·es</span>
   </div>
+
+  <!-- Recettes manquantes -->
+  {#if stats.missingRecipes.size > 0}
+    <div
+      class="badge badge-error badge-lg flex cursor-help items-center gap-2"
+      title="Recettes non disponibles : {Array.from(stats.missingRecipes)
+        .map((uuid) => uuid.split('_')[0])
+        .join(', ')}"
+    >
+      <AlertTriangle class="h-4 w-4" />
+      <span
+        >{stats.missingRecipes.size} Recette{stats.missingRecipes.size > 1
+          ? "s"
+          : ""} manquante{stats.missingRecipes.size > 1 ? "s" : ""}</span
+      >
+    </div>
+  {/if}
 </div>
