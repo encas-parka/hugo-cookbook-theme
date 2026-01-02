@@ -64,7 +64,7 @@
     </div>
 
     <!-- Contenu avec alerte -->
-    <div class="alert {alertClass} mb-6">
+    <div class="alert alert-soft {alertClass} mb-6">
       <IconComponent class="h-5 w-5" />
       <span>{message}</span>
     </div>

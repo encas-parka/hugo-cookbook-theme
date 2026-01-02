@@ -277,17 +277,22 @@ export async function updateRecipeAppwrite(
 }
 
 /**
- * Supprime une recette
+ * Supprime une recette (soft delete avec status = "deleted")
+ * Le realtime se chargera de propager la suppression aux clients
  */
 export async function deleteRecipeAppwrite(uuid: string): Promise<void> {
   try {
     const { tables, config } = await getAppwriteInstances();
-    await tables.deleteRow({
+
+    // Soft delete : on passe le status à "deleted"
+    await tables.updateRow({
       databaseId: config.databaseId,
       tableId: RECIPES_COLLECTION_ID,
       rowId: uuid,
+      data: { status: "deleted" },
     });
-    console.log(`[appwrite-recipes] Recipe deleted: ${uuid}`);
+
+    console.log(`[appwrite-recipes] Recipe soft deleted: ${uuid}`);
   } catch (error) {
     console.error(`[appwrite-recipes] Error deleting recipe ${uuid}:`, error);
     throw error;

@@ -9,6 +9,7 @@ import {
 import { SvelteSet } from "svelte/reactivity";
 import { UnitConverter } from "$lib/utils/UnitConverter";
 import { generateSlugUuid35 } from "$lib/utils/slugUtils";
+import { deleteRecipeAppwrite } from "$lib/services/appwrite-recipes";
 
 // ============================================================================
 // TYPES
@@ -510,4 +511,44 @@ export function validateRecipe(
   recipe.regime = regimes;
 
   return !hasError;
+}
+
+// ============================================================================
+// SUPPRESSION
+// ============================================================================
+
+/**
+ * Supprime une recette (soft delete avec status = "deleted")
+ * @param recipeId - L'ID de la recette à supprimer
+ * @param releaseLockFn - Fonction optionnelle pour libérer le verrou si détenu
+ * @returns Promise<void>
+ */
+export async function deleteRecipe(
+  recipeId: string,
+  releaseLockFn?: () => Promise<void>,
+): Promise<void> {
+  const toastId = toastService.loading("Suppression de la recette...");
+
+  try {
+    await deleteRecipeAppwrite(recipeId);
+
+    // Libérer le verrou si fourni
+    if (releaseLockFn) {
+      await releaseLockFn();
+    }
+
+    toastService.update(toastId, {
+      state: "success",
+      message: "Recette supprimée avec succès",
+    });
+  } catch (error) {
+    console.error("Erreur suppression:", error);
+    toastService.update(toastId, {
+      state: "error",
+      message: "Erreur lors de la suppression",
+    });
+    throw error;
+  } finally {
+    setTimeout(() => toastService.dismiss(toastId), 3000);
+  }
 }

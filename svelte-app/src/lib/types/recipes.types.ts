@@ -184,7 +184,7 @@ export type CreateRecipeData = Omit<
   | "$tableId"
   | "createdBy"
   | "teams"
-  | "isPublished"
+  | "status"
 >;
 
 /**

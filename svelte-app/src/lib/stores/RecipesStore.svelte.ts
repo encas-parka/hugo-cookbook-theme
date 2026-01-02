@@ -476,12 +476,14 @@ class RecipesStore {
     // Requête 1: Tous les drafts modifiés depuis draftSince
     const draftsQuery = [
       Query.equal("draft", true),
+      Query.notEqual("status", "deleted"),
       Query.greaterThan("$updatedAt", draftSince),
     ];
 
     // Requête 2: Recettes publiées modifiées depuis publishedSince
     const publishedQuery = [
       Query.equal("draft", false),
+      Query.notEqual("status", "deleted"),
       Query.greaterThan("$updatedAt", publishedSince),
     ];
 
@@ -553,6 +555,27 @@ class RecipesStore {
           );
 
           if (eventType === "create" || eventType === "update") {
+            // Gérer les recettes supprimées (status = "deleted")
+            if (recipe.status === "deleted") {
+              // Suppression logique détectée via status
+              this.#recipesIndex.delete(recipe.$id);
+
+              if (this.#cache) {
+                try {
+                  await this.#cache.deleteRecipeFromIndex(recipe.$id);
+                  console.log(
+                    `[RecipesStore] Recette ${recipe.$id} supprimée de l'index (status=deleted)`,
+                  );
+                } catch (error) {
+                  console.warn(
+                    `[RecipesStore] Erreur suppression index ${recipe.$id}:`,
+                    error,
+                  );
+                }
+              }
+              return;
+            }
+
             // 1. Mettre à jour l'index dans la SvelteMap (réactif)
             const indexEntry = parseAppwriteRecipeToIndexEntry(recipe);
             this.#recipesIndex.set(recipe.$id, indexEntry);
@@ -586,7 +609,7 @@ class RecipesStore {
             // Supprimer du cache IndexedDB (persistance)
             if (this.#cache) {
               try {
-                await this.#cache.deleteRecipeDetail(recipe.$id);
+                await this.#cache.deleteRecipeFromIndex(recipe.$id);
                 console.log(
                   `[RecipesStore] Recette ${recipe.$id} supprimée du cache`,
                 );

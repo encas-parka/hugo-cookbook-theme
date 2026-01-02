@@ -10,7 +10,7 @@
   import { astucesToAppwrite } from "$lib/utils/recipeUtils";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
-  import { Save, Lock, Copy } from "@lucide/svelte";
+  import { Save, Lock, Copy, Trash2 } from "@lucide/svelte";
   import { onDestroy } from "svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import RecipeHeaderForm from "$lib/components/recipeEdit/RecipeHeaderForm.svelte";
@@ -18,6 +18,7 @@
   import RecipePermissionsManager from "$lib/components/recipeEdit/RecipePermissionsManager.svelte";
   import UnsavedChangesGuard from "$lib/components/ui/UnsavedChangesGuard.svelte";
   import RecipeMetadata from "$lib/components/recipes/RecipeMetadata.svelte";
+  import ConfirmModal from "$lib/components/ui/ConfirmModal.svelte";
   import {
     type RecipeFormState,
     type ValidationError,
@@ -28,6 +29,7 @@
     normalizeAllIngredients,
     determineAllergensAndRegimes,
     validateRecipe,
+    deleteRecipe,
   } from "./RecipeEditPage";
 
   // ============================================================================
@@ -54,6 +56,10 @@
   let lockedBy = $state<string | null>(null);
   let heartbeatInterval: any = null;
   let initialRecipeSnapshot = $state<string | null>(null);
+
+  // Modal de suppression
+  let showDeleteModal = $state(false);
+  let isDeleting = $state(false);
 
   // État de validation
   let validationErrors = $state<{ value: ValidationError }>({
@@ -358,6 +364,40 @@
     // Rediriger vers le mode duplication
     navigate(`/recipe/${recipeId}/duplicate`);
   }
+
+  // ============================================================================
+  // DELETE
+  // ============================================================================
+
+  function confirmDelete(): void {
+    showDeleteModal = true;
+  }
+
+  async function handleDelete(): Promise<void> {
+    if (!recipeId) return;
+
+    isDeleting = true;
+
+    try {
+      await deleteRecipe(recipeId, async () => {
+        // Libérer le verrou si on le détient
+        if (isLockedByMe) {
+          await releaseLock();
+        }
+      });
+
+      // Rediriger vers la liste des recettes après un court délai
+      setTimeout(() => {
+        navigate("/recipe");
+      }, 1500);
+    } catch (error) {
+      // L'erreur est déjà gérée par deleteRecipe()
+      console.error("Erreur lors de la suppression:", error);
+    } finally {
+      isDeleting = false;
+      showDeleteModal = false;
+    }
+  }
 </script>
 
 {$inspect("isDirty", isDirty)}
@@ -430,6 +470,27 @@
           updatedAt={recipe.$updatedAt}
         />
       {/if}
+
+      <!-- Zone de danger - Suppression -->
+      {#if canEdit}
+        <div class="alert alert-error alert-soft border-error mt-8 border-1">
+          <Trash2 class="h-5 w-5 shrink-0" />
+          <div class="flex-1">
+            <h4 class="font-bold">Zone de danger</h4>
+            <p class="text-sm">
+              La suppression d'une recette est irréversible. Si elle était
+              utilisé dans des événements, ceux-ci n'y auront plus accès.
+            </p>
+          </div>
+          <button
+            onclick={confirmDelete}
+            disabled={isDeleting}
+            class="btn btn-error btn-sm"
+          >
+            {isDeleting ? "Suppression..." : "Supprimer la recette"}
+          </button>
+        </div>
+      {/if}
     </div>
   {/if}
 </div>
@@ -462,4 +523,16 @@
     // Le guard sera notifié du succès via le return implicite
   }}
   message="Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter ?"
+/>
+
+<!-- Modal de confirmation de suppression -->
+<ConfirmModal
+  isOpen={showDeleteModal}
+  title="Supprimer cette recette ?"
+  message="Cette action est irréversible, êtes vous sur de vouloir supprimer cette recette ?"
+  variant="danger"
+  confirmLabel="Supprimer"
+  cancelLabel="Annuler"
+  onConfirm={handleDelete}
+  onCancel={() => (showDeleteModal = false)}
 />

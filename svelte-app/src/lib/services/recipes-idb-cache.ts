@@ -41,6 +41,7 @@ export interface RecipesIDBCache {
 
   // Utilitaires
   deleteRecipeDetail(uuid: string): Promise<void>;
+  deleteRecipeFromIndex(uuid: string): Promise<void>;
   clear(): Promise<void>;
   close(): void;
 }
@@ -294,6 +295,36 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
 
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Supprime complètement une recette (index + détails)
+   * Utilisé lors de la suppression (soft delete) d'une recette
+   */
+  async deleteRecipeFromIndex(uuid: string): Promise<void> {
+    if (!this.db) throw new Error("DB non ouverte");
+
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(
+        [this.RECIPES_INDEX_STORE, this.RECIPES_DETAILS_STORE],
+        "readwrite",
+      );
+
+      const indexStore = tx.objectStore(this.RECIPES_INDEX_STORE);
+      const detailsStore = tx.objectStore(this.RECIPES_DETAILS_STORE);
+
+      indexStore.delete(uuid);
+      detailsStore.delete(uuid);
+
+      tx.oncomplete = () => {
+        console.log(
+          `[RecipesIDBCache] Recette ${uuid} supprimée de l'index et des détails`,
+        );
+        resolve();
+      };
+
+      tx.onerror = () => reject(tx.error);
     });
   }
 

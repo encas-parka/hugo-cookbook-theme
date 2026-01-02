@@ -18,6 +18,12 @@ export enum RecettesTypeR {
     AUTRE = "autre"
 }
 
+export enum RecettesStatus {
+    PUBLIC = "public",
+    PRIVATE = "private",
+    DELETED = "deleted"
+}
+
 export enum MaterielType {
     ELECTRONIC = "electronic",
     MANUAL = "manual",
@@ -107,7 +113,6 @@ export type Recettes = Models.Row & {
     typeR: RecettesTypeR;
     categories: string[] | null;
     regime: string[] | null;
-    isPublished: boolean;
     publishedAt: string | null;
     createdBy: string;
     teams: string[] | null;
@@ -126,6 +131,7 @@ export type Recettes = Models.Row & {
     saison: string[] | null;
     auteur: string | null;
     astuces: string[] | null;
+    status: RecettesStatus;
 }
 
 export type Kteams = Models.Row & {
