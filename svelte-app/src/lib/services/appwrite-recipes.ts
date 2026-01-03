@@ -18,7 +18,7 @@ import { globalState } from "../stores/GlobalState.svelte";
  * Exécute la Cloud Function manage_recipe
  */
 export async function executeManageDataRecipe(
-  action: "save_recipe",
+  action: "save_recipe" | "delete_recipe",
   recipeId: string,
   userId: string,
   data?: any,
@@ -26,7 +26,7 @@ export async function executeManageDataRecipe(
 ): Promise<any> {
   try {
     const { functions, config } = await getAppwriteInstances();
-    const functionId = config.functions.manageRecipe;
+    const functionId = config.functions.enkaData;
 
     const payload = JSON.stringify({
       action,
@@ -76,7 +76,7 @@ export async function executeManageDataRecipe(
 // CONFIGURATION
 // =============================================================================
 
-const RECIPES_COLLECTION_ID = "recettes";
+export const RECIPES_COLLECTION_ID = "recettes";
 
 // =============================================================================
 // CRUD OPERATIONS
@@ -333,86 +333,3 @@ export async function duplicateRecipe(
   }
 }
 
-/**
- * Subscribe aux changements d'une recette spécifique
- */
-export function subscribeToRecipe(
-  uuid: string,
-  callback: (recipe: Recettes) => void,
-): () => void {
-  const config = getAppwriteConfig();
-  const channel = `databases.${config.APPWRITE_CONFIG.databaseId}.collections.${RECIPES_COLLECTION_ID}.documents.${uuid}`;
-
-  return subscribe([channel], (response: any) => {
-    if (
-      response.events.includes(
-        `databases.*.collections.*.documents.${uuid}.update`,
-      )
-    ) {
-      callback(response.payload as Recettes);
-    }
-  });
-}
-
-/**
- * Subscribe à toutes les recettes (filtrage côté client)
- */
-export function subscribeToRecipes(
-  userId: string,
-  userTeams: string[],
-  callback: (recipe: Recettes, event: string) => void,
-): () => void {
-  const config = getAppwriteConfig();
-  const channel = `databases.${config.APPWRITE_CONFIG.databaseId}.collections.${RECIPES_COLLECTION_ID}.documents`;
-
-  console.log(`[appwrite-recipes] Subscribe au channel: ${channel}`);
-  console.log(
-    `[appwrite-recipes] userId: ${userId}, userTeams: ${userTeams.join(", ")}`,
-  );
-
-  return subscribe([channel], (response: any) => {
-    const recipe = response.payload as Recettes;
-
-    // Logique de réception des events :
-    // 1. Les recettes publiées (draft = false) sont reçues par tout le monde
-    // 2. Les recettes brouillons (draft = true) sont reçues uniquement par :
-    //    - Le créateur
-    //    - Les utilisateurs avec permissionWrite explicite
-    //    - Les membres des équipes listées
-
-    // const isPublished = !recipe.draft; // draft = false → publié
-
-    // const hasEditAccess =
-    //   recipe.createdBy === userId ||
-    //   recipe.permissionWrite?.includes(userId) ||
-    //   recipe.teams?.some((teamId) => userTeams.includes(teamId));
-
-    // // Filtrer : on garde si publié OU si on a les droits d'édition
-    // const shouldReceive = isPublished || hasEditAccess;
-
-    // console.log(`[appwrite-recipes] Event reçu pour ${recipe.$id}:`, {
-    //   draft: recipe.draft,
-    //   isPublished,
-    //   hasEditAccess,
-    //   shouldReceive,
-    //   createdBy: recipe.createdBy,
-    //   permissionWrite: recipe.permissionWrite,
-    //   teams: recipe.teams,
-    // });
-
-    // if (!shouldReceive) {
-    //   console.log(`[appwrite-recipes] Event ignoré (draft sans permissions)`);
-    //   return;
-    // }
-
-    let eventType = "update";
-    if (response.events.some((e: string) => e.includes(".create"))) {
-      eventType = "create";
-    } else if (response.events.some((e: string) => e.includes(".delete"))) {
-      eventType = "delete";
-    }
-
-    console.log(`[appwrite-recipes] Callback déclenché: ${eventType}`);
-    callback(recipe, eventType);
-  });
-}

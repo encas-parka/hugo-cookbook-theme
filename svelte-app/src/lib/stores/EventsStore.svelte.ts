@@ -16,6 +16,7 @@
 
 import { SvelteMap } from "svelte/reactivity";
 import type { Main, MainStatus } from "../types/appwrite.d";
+import type { UserNotifications } from "$lib/types/appwrite.d";
 import type {
   CreateEventData,
   UpdateEventData,
@@ -29,7 +30,7 @@ import {
   createEvent as createAppwriteEvent,
   updateEvent as updateAppwriteEvent,
   deleteEvent as deleteAppwriteEvent,
-  subscribeToEvents,
+  EVENTS_COLLECTION_ID,
 } from "../services/appwrite-events";
 import { globalState } from "./GlobalState.svelte";
 import { parseEventMeals, parseEventContributors } from "../utils/events.utils";
@@ -37,6 +38,8 @@ import {
   createEventsIDBCache,
   type EventsIDBCache,
 } from "../services/events-idb-cache";
+import { getAppwriteInstances, getDatabaseId } from "$lib/services/appwrite";
+import { realtimeManager } from "./RealtimeManager.svelte";
 
 // =============================================================================
 // STORE SINGLETON
@@ -57,7 +60,6 @@ export class EventsStore {
   // Appwrite
   #userId: string | null = null;
   #userTeams: string[] = [];
-  #realtimeUnsubscribe: (() => void) | null = null;
 
   // Getters publics
   get loading() {
@@ -215,7 +217,7 @@ export class EventsStore {
         }
 
         // 5. Activer le realtime
-        this.#setupRealtime();
+        await this.#setupRealtime();
 
         this.#isInitialized = true;
         console.log(
@@ -331,34 +333,34 @@ export class EventsStore {
   /**
    * Configure le realtime pour les événements
    */
-  #setupRealtime(): void {
+  async #setupRealtime(): Promise<void> {
     try {
-      // Nettoyer l'ancienne souscription si elle existe
-      if (this.#realtimeUnsubscribe) {
-        this.#realtimeUnsubscribe();
-        this.#realtimeUnsubscribe = null;
-      }
-
       console.log("[EventsStore] Activation du Realtime...");
+      const DB_ID = getDatabaseId();
 
-      subscribeToEvents(
-        this.#userId!,
-        this.#userTeams,
-        async (event, eventType) => {
+      realtimeManager.register(
+        [`databases.${DB_ID}.collections.${EVENTS_COLLECTION_ID}.documents`],
+        async (response: any) => {
+          const eventType = response.events.some((e: string) =>
+            e.includes(".create"),
+          )
+            ? "create"
+            : response.events.some((e: string) => e.includes(".delete"))
+              ? "delete"
+              : "update";
+
+          const event = response.payload as Main;
+
           console.log(
             `[EventsStore] ⚡️ Realtime RECEIVED: ${eventType} pour ${event.$id}`,
             { name: event.name, updatedAt: event.$updatedAt },
           );
 
           // ⚠️ Vérifier l'accessibilité avant de traiter l'événement
-          // Le realtime Appwrite envoie tous les events avec permissions de lecture DB,
-          // mais on doit filtrer par la logique métier contributorsIds
           if (!this.#isEventAccessible(event)) {
             console.log(
               `[EventsStore] Event ${event.$id} ignoré (utilisateur non autorisé - pas dans contributorsIds)`,
             );
-            // Si l'event est déjà présent et qu'on reçoit un update/delete,
-            // on le retire car l'utilisateur n'a plus accès
             if (eventType === "update" || eventType === "delete") {
               this.#events.delete(event.$id);
               if (this.#cache) {
@@ -368,15 +370,7 @@ export class EventsStore {
             return;
           }
 
-          if (eventType === "create") {
-            // CREATE : toujours mettre à jour
-            const enrichedEvent = this.#enrichEvent(event);
-            this.#events.set(event.$id, enrichedEvent);
-
-            if (this.#cache) {
-              await this.#cache.saveEvent(enrichedEvent);
-            }
-          } else if (eventType === "update") {
+          if (eventType === "create" || eventType === "update") {
             const enrichedEvent = this.#enrichEvent(event);
             this.#events.set(event.$id, enrichedEvent);
 
@@ -386,20 +380,14 @@ export class EventsStore {
           } else if (eventType === "delete") {
             this.#events.delete(event.$id);
 
-            // Supprimer du cache
             if (this.#cache) {
               await this.#cache.deleteEvent(event.$id);
             }
           }
         },
-      )
-        .then((unsub) => {
-          this.#realtimeUnsubscribe = unsub;
-          console.log("[EventsStore] Realtime activé avec succès");
-        })
-        .catch((err) => {
-          console.error("[EventsStore] Erreur abonnement Realtime:", err);
-        });
+      );
+
+      console.log("[EventsStore] Realtime enregistré auprès du manager");
     } catch (err) {
       console.error(
         "[EventsStore] Erreur lors de la configuration du realtime:",
@@ -917,12 +905,6 @@ export class EventsStore {
    * Nettoie les ressources
    */
   destroy(): void {
-    // Désactiver le realtime
-    if (this.#realtimeUnsubscribe) {
-      this.#realtimeUnsubscribe();
-      this.#realtimeUnsubscribe = null;
-    }
-
     // Fermer le cache
     if (this.#cache) {
       this.#cache.close();

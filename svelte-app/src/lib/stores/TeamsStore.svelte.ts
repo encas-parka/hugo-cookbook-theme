@@ -23,6 +23,7 @@ import type {
   KTeamMember,
   KTeamInvitation,
 } from "$lib/types/aw_kteam.d";
+import type { UserNotifications } from "$lib/types/appwrite.d";
 import {
   listUserTeams,
   getTeam,
@@ -34,9 +35,11 @@ import {
   inviteMembers,
   acceptInvitation,
   isTeamMember,
-} from "$lib/services/appwrite-teams";
+} from "@/lib/services/appwrite-kteams";
 import { globalState } from "./GlobalState.svelte";
+import { getAppwriteInstances, getDatabaseId } from "$lib/services/appwrite";
 import { ID } from "appwrite";
+import { realtimeManager } from "./RealtimeManager.svelte";
 
 // =============================================================================
 // STORE SINGLETON
@@ -51,7 +54,7 @@ export class TeamsStore {
   #error = $state<string | null>(null);
   #isInitialized = $state(false);
 
-  // Getters publics
+  // Getters simples (pas de réactivité complexe)
   get loading() {
     return this.#loading;
   }
@@ -64,31 +67,55 @@ export class TeamsStore {
     return this.#isInitialized;
   }
 
+  // ==============================================================================
+  // PROPRIÉTÉS RÉACTIVES ($derived)
+  // Ces propriétés sont automatiquement mises à jour quand #teams change
+  // ==============================================================================
+
   /**
    * Liste réactive des équipes
    */
+  #teamsList = $derived(Array.from(this.#teams.values()));
   get teams() {
-    return Array.from(this.#teams.values());
+    return this.#teamsList;
+  }
+
+  /**
+   * Liste réactive des équipes où l'utilisateur est MEMBRE ACTIF
+   * (exclut les équipes où il est seulement invité)
+   */
+  #myTeamsList = $derived(() => {
+    if (!globalState.userId) return [];
+
+    return this.#teamsList.filter((team) => {
+      // Vérifier si l'utilisateur est dans members (pas juste dans invited)
+      return team.members?.some((m) => m.id === globalState.userId);
+    });
+  });
+  get myTeams() {
+    return this.#myTeamsList();
   }
 
   /**
    * IDs des équipes de l'utilisateur
    */
+  #teamIdsList = $derived(Array.from(this.#teams.keys()));
   get teamIds() {
-    return Array.from(this.#teams.keys());
+    return this.#teamIdsList;
   }
 
   /**
    * Nombre d'équipes
    */
+  #teamsCount = $derived(this.#teams.size);
   get count() {
-    return this.#teams.size;
+    return this.#teamsCount;
   }
 
   /**
    * Invitations en attente pour l'utilisateur connecté
    */
-  get myPendingInvitations() {
+  #pendingInvitesList = $derived(() => {
     if (!globalState.userEmail) return [];
 
     // Rechercher dans toutes les équipes les invitations correspondant à l'email de l'utilisateur
@@ -98,8 +125,7 @@ export class TeamsStore {
       invitation: KTeamInvitation;
     }> = [];
 
-    this.#teams.forEach((team) => {
-      // Use fallback empty string to avoid undefined checks if email isn't critical here
+    this.#teamsList.forEach((team) => {
       const userEmail = globalState.userEmail || "";
       if (!userEmail) return;
 
@@ -119,6 +145,9 @@ export class TeamsStore {
     });
 
     return pendingInvites;
+  });
+  get myPendingInvitations() {
+    return this.#pendingInvitesList();
   }
 
   // =============================================================================
@@ -151,6 +180,9 @@ export class TeamsStore {
       // 2. Charger les équipes
       await this.#loadTeams();
 
+      // 3. Activer le realtime
+      await this.#setupRealtime();
+
       this.#isInitialized = true;
       console.log(
         `[TeamsStore] Initialisation complétée: ${this.#teams.size} équipes`,
@@ -166,9 +198,6 @@ export class TeamsStore {
     }
   }
 
-  /**
-   * Charge les équipes de l'utilisateur
-   */
   async #loadTeams(): Promise<void> {
     try {
       console.log("[TeamsStore] Chargement des équipes...");
@@ -177,32 +206,7 @@ export class TeamsStore {
 
       // Charger les détails et parser les membres de chaque équipe
       for (const team of response.teams) {
-        try {
-          // Parser les membres
-          const parsedMembers: KTeamMember[] = team.members.map((memberStr) =>
-            this.#safeParseMember(memberStr),
-          );
-
-          // Parser les invitations
-          const parsedInvited: KTeamInvitation[] = team.invited
-            ? team.invited.map((inviteStr) =>
-                this.#safeParseInvitation(inviteStr),
-              )
-            : [];
-
-          const enrichedTeam: EnrichedTeam = {
-            ...team,
-            members: parsedMembers,
-            invited: parsedInvited,
-          };
-
-          this.#teams.set(team.$id, enrichedTeam);
-        } catch (err) {
-          console.error(
-            `[TeamsStore] Erreur lors du parsing de l'équipe ${team.$id}:`,
-            err,
-          );
-        }
+        this.#updateTeamInMemory(team as unknown as Kteams);
       }
 
       console.log(`[TeamsStore] ${this.#teams.size} équipes chargées`);
@@ -213,15 +217,84 @@ export class TeamsStore {
   }
 
   /**
+   * Met à jour une équipe dans la map réactive
+   */
+  #updateTeamInMemory(team: Kteams): void {
+    try {
+      // Parser les membres
+      const parsedMembers: KTeamMember[] = team.members.map(
+        (memberStr, index) => this.#safeParseMember(memberStr, index),
+      );
+
+      // Parser les invitations
+      const parsedInvited: KTeamInvitation[] = team.invited
+        ? team.invited.map((inviteStr) => this.#safeParseInvitation(inviteStr))
+        : [];
+
+      const enrichedTeam: EnrichedTeam = {
+        ...team,
+        members: parsedMembers,
+        invited: parsedInvited,
+      };
+
+      this.#teams.set(team.$id, enrichedTeam);
+    } catch (err) {
+      console.error(
+        `[TeamsStore] Erreur lors du parsing de l'équipe ${team.$id}:`,
+        err,
+      );
+    }
+  }
+
+  /**
+   * Configure le realtime pour les équipes
+   */
+  async #setupRealtime(): Promise<void> {
+    try {
+      console.log("[TeamsStore] Configuration du Realtime...");
+      const DB_ID = getDatabaseId();
+
+      realtimeManager.register(
+        [`databases.${DB_ID}.collections.kteams.documents`],
+        async (response: any) => {
+          const team = response.payload as Kteams;
+          const eventType = response.events.some((e: string) =>
+            e.includes(".create"),
+          )
+            ? "create"
+            : response.events.some((e: string) => e.includes(".delete"))
+              ? "delete"
+              : "update";
+
+          console.log(
+            `[TeamsStore] ⚡️ Realtime RECEIVED: ${eventType} pour ${team.$id}`,
+          );
+
+          if (eventType === "delete") {
+            this.#teams.delete(team.$id);
+          } else {
+            this.#updateTeamInMemory(team);
+          }
+        },
+      );
+    } catch (err) {
+      console.error(
+        "[TeamsStore] Erreur lors de la configuration du realtime:",
+        err,
+      );
+    }
+  }
+
+  /**
    * Parse un membre de manière sécurisée
    */
-  #safeParseMember(memberStr: string): KTeamMember {
+  #safeParseMember(memberStr: string, index: number): KTeamMember {
     try {
       if (!memberStr) throw new Error("Empty member string");
       const parsed = JSON.parse(memberStr);
       // Validation basique
       return {
-        id: parsed.id || "unknown",
+        id: parsed.id || `unknown_${index}`,
         name: parsed.name || "Inconnu",
         role: parsed.role || "member",
         joinedAt: parsed.joinedAt || new Date().toISOString(),
@@ -229,7 +302,7 @@ export class TeamsStore {
     } catch (e) {
       // Fallback pour les anciens formats ou données corrompues
       return {
-        id: "unknown",
+        id: `unknown_${index}`,
         name: memberStr.includes("@")
           ? memberStr.split("@")[0]
           : memberStr || "Inconnu",
@@ -250,7 +323,7 @@ export class TeamsStore {
         email: parsed.email || "unknown@example.com",
         status: parsed.status || "invited",
         invitedAt: parsed.invitedAt || new Date().toISOString(),
-        invitedBy: parsed.invitedBy || "unknown",
+        invitedByName: parsed.invitedByName || "Quelqu'un",
         name: parsed.name,
       };
     } catch (e) {
@@ -258,7 +331,7 @@ export class TeamsStore {
         email: inviteStr.includes("@") ? inviteStr : "unknown@example.com",
         status: "invited",
         invitedAt: new Date().toISOString(),
-        invitedBy: "unknown",
+        invitedByName: "Quelqu'un",
       };
     }
   }
@@ -286,8 +359,8 @@ export class TeamsStore {
 
       if (team) {
         // Parser les membres
-        const parsedMembers: KTeamMember[] = team.members.map((memberStr) =>
-          this.#safeParseMember(memberStr),
+        const parsedMembers: KTeamMember[] = team.members.map(
+          (memberStr, index) => this.#safeParseMember(memberStr, index),
         );
 
         // Parser les invitations
@@ -352,7 +425,7 @@ export class TeamsStore {
       const team = await createKteam(name, description);
 
       // Parser le membre créateur (qui est déjà un JSON string dans team.members[0])
-      const creatorMember = this.#safeParseMember(team.members[0]);
+      const creatorMember = this.#safeParseMember(team.members[0], 0);
 
       const enrichedTeam: EnrichedTeam = {
         ...team,
@@ -393,7 +466,9 @@ export class TeamsStore {
         invited = existingTeam.invited;
       } else {
         // Fallback parsing si pas en cache (rare)
-        members = team.members.map((m) => this.#safeParseMember(m));
+        members = team.members.map((m, index) =>
+          this.#safeParseMember(m, index),
+        );
         invited = team.invited
           ? team.invited.map((i) => this.#safeParseInvitation(i))
           : [];
@@ -474,6 +549,8 @@ export class TeamsStore {
 
   /**
    * Ajoute un membre à une équipe
+   * @deprecated
+   * @legacy ? Aucun usage ??? remplacé par inviteTeamMember ?
    */
   async addMember(
     teamId: string,
@@ -541,10 +618,6 @@ export class TeamsStore {
     // Mais cela nécessite une fonction cloud ou une logique spécifique
     console.warn("[TeamsStore] declineTeamInvitation non implémenté");
   }
-
-  // =============================================================================
-  // MÉTHODES PRIVÉES
-  // =============================================================================
 
   // =============================================================================
   // UTILITAIRES

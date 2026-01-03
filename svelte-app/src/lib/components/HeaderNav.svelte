@@ -235,7 +235,7 @@
             >
           </li>
           <li>
-            <button onclick={() => navigate("/dashboard/eventEdit")}
+            <button onclick={() => navigate("/dashboard/eventCreate")}
               ><PlusIcon size={16} /> Nouvel événement</button
             >
           </li>

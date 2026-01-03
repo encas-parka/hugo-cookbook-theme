@@ -418,7 +418,8 @@
                 {@const isMissing = isRecipeMissing(recipe.recipeUuid)}
                 <div
                   animate:flip={{ duration: 200 }}
-                  class="bg-base-200 flex flex-wrap items-center gap-3 rounded-lg p-3"
+                  class="bg-base-200 flex flex-wrap items-center gap-3 rounded-lg p-3 {isMissing &&
+                    'border-error border-2'}"
                 >
                   <!-- Icône -->
                   <div class="flex flex-1 items-center gap-2">

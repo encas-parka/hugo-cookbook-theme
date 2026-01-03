@@ -4,6 +4,9 @@
   import { eventsStore } from "./lib/stores/EventsStore.svelte";
   import { teamsStore } from "./lib/stores/TeamsStore.svelte";
   import { recipesStore } from "./lib/stores/RecipesStore.svelte";
+  import { notificationStore } from "./lib/stores/NotificationStore.svelte";
+  import { realtimeManager } from "./lib/stores/RealtimeManager.svelte";
+  import { onDestroy } from "svelte";
   import ErrorAlert from "./lib/components/ui/ErrorAlert.svelte";
   import HeaderNav from "./lib/components/HeaderNav.svelte";
   import Toast from "./lib/components/ui/Toast.svelte";
@@ -17,6 +20,7 @@
   } from "./lib/services/simple-router.svelte";
   import DashboardPage from "./lib/routes/DashboardPage.svelte";
   import EventEditPage from "./lib/routes/EventEditPage.svelte";
+  import EventCreatePage from "./lib/routes/EventCreatePage.svelte";
   import EventRecipesPage from "./lib/routes/EventRecipesPage.svelte";
   import AcceptInvite from "./lib/routes/AcceptInvite.svelte";
   import TeamsManagement from "./lib/routes/TeamsManagement.svelte";
@@ -26,8 +30,7 @@
   import RecipeCreatePage from "./lib/routes/RecipeCreatePage.svelte";
   import EventProductsPage from "./lib/routes/EventProductsPage.svelte";
   import HomePage from "./lib/routes/HomePage.svelte";
-
-  import IconExample from "./lib/components/ui/IconExample.svelte";
+  import ResetPassword from "./lib/routes/ResetPassword.svelte";
 
   // États de l'application
   type AppState =
@@ -75,11 +78,12 @@
   router.addRoute("/recipe/:uuid/duplicate", RecipeCreatePage, requireAuth);
   router.addRoute("/recipe/:uuid", RecipeDetailPage);
   router.addRoute("/accept-invite", AcceptInvite);
+  router.addRoute("/reset-password", ResetPassword);
 
   // Privées (Dashboard & Gestion)
   router.addRoute("/dashboard", DashboardPage, requireAuth);
   router.addRoute("/dashboard/teams", TeamsManagement, requireAuth);
-  router.addRoute("/dashboard/eventEdit", EventEditPage, requireAuth);
+  router.addRoute("/dashboard/eventCreate", EventCreatePage, requireAuth);
   router.addRoute("/dashboard/eventEdit/:id", EventEditPage, requireAuth);
   router.addRoute(
     "/dashboard/eventEdit/recipes/:id",
@@ -108,14 +112,19 @@
         appState = "LOADING_PRIVATE";
         // Charger TOUT (Bloquant pour le dashboard)
         await Promise.all([
+          notificationStore.initialize(),
           teamsStore.initialize(),
           eventsStore.initialize(),
           recipesStore.initialize(),
         ]);
+        // 3. Activer la connexion WebSocket centralisée
+        await realtimeManager.initialize();
       } else {
         appState = "LOADING_PUBLIC";
         // Charger UNIQUEMENT les recettes (Bloquant pour /recipes)
         await recipesStore.initialize();
+        // Activer le realtime même en mode public pour les recettes
+        await realtimeManager.initialize();
       }
 
       // 3. Prêt
@@ -165,6 +174,15 @@
 
   onMount(() => {
     initializeApp();
+  });
+
+  onDestroy(() => {
+    console.log("[App] Destruction de l'application - Nettoyage des stores...");
+    notificationStore.destroy();
+    teamsStore.destroy();
+    eventsStore.destroy();
+    recipesStore.destroy();
+    realtimeManager.destroy();
   });
 
   let displayError = $derived(initError || productsStore.error);

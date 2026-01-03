@@ -31,6 +31,11 @@ export enum MaterielType {
     COOKING = "cooking"
 }
 
+export enum UserNotificationsNotificationType {
+    TEAM_ACCESS_GRANTED = "team_access_granted",
+    EVENT_ACCESS_GRANTED = "event_access_granted"
+}
+
 export type InscriptionCampaigns = Models.Row & {
     campaign_id: string;
     team_id: string;
@@ -137,7 +142,6 @@ export type Recettes = Models.Row & {
 export type Kteams = Models.Row & {
     name: string;
     description: string | null;
-    membersId: string[];
     members: string[];
     invited: string[] | null;
     main: Main[];
@@ -156,4 +160,11 @@ export type Locks = Models.Row & {
     userId: string;
     userName: string;
     expiresAt: string;
+}
+
+export type UserNotifications = Models.Row & {
+    notificationType: UserNotificationsNotificationType;
+    targetCollection: string | null;
+    targetDocumentId: string | null;
+    userId: string;
 }

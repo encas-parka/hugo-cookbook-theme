@@ -52,7 +52,7 @@
   <div class="flex gap-2">
     <button
       class="btn btn-primary btn-sm"
-      onclick={() => navigate("/dashboard/eventEdit")}
+      onclick={() => navigate("/dashboard/eventCreate")}
     >
       <Plus class="h-4 w-4" />
       Créer un Événement
@@ -140,7 +140,7 @@
         <div class="space-y-6">
           <!-- Résumé des équipes -->
           <TeamSummaryCard
-            teams={teamsStore.teams}
+            teams={teamsStore.myTeams}
             invitations={myInvitations}
             loading={teamsStore.loading}
           />

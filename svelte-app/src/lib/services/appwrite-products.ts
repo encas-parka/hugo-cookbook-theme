@@ -1169,7 +1169,7 @@ export function subscribeToRealtime(
         `databases.${config.databaseId}.collections.${config.collections.purchases}.documents`,
       ];
 
-      unsubscribe = appwriteSubscribe(channels, (response) => {
+      unsubscribe = await appwriteSubscribe(channels, (response) => {
         // Gérer les callbacks de connexion
         if (response.event === "client.connected") {
           console.log("[Appwrite Interactions] Realtime connecté");

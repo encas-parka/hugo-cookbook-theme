@@ -45,11 +45,13 @@ import { ingredientsFromAppwrite } from "../utils/ingredientUtils";
 import {
   forceReloadAllAppwriteRecipes,
   getRecipeAppwrite as getAppwriteRecipe,
-  subscribeToRecipes,
   updateRecipeAppwrite,
   listUpdatedRecipes,
+  RECIPES_COLLECTION_ID,
 } from "../services/appwrite-recipes";
 import { globalState } from "./GlobalState.svelte";
+import { getDatabaseId } from "../services/appwrite";
+import { realtimeManager } from "./RealtimeManager.svelte";
 
 // =============================================================================
 // CONFIGURATION
@@ -80,9 +82,6 @@ class RecipesStore {
 
   // Promise d'initialisation en cours pour déduplication
   #initPromise: Promise<void> | null = null;
-
-  // Appwrite
-  #realtimeUnsubscribe: (() => void) | null = null;
 
   // Getters publics
   get loading() {
@@ -342,16 +341,31 @@ class RecipesStore {
       // Charger TOUTES les recettes Appwrite
       const appwriteRecipes = await forceReloadAllAppwriteRecipes();
 
-      // Ajouter à l'index via la méthode de parsing existante
+      // Filtrer et ajouter à l'index via la méthode de parsing existante
+      let addedCount = 0;
+      let deletedCount = 0;
+
       appwriteRecipes.forEach((recipe) => {
-        this.#recipesIndex.set(
-          recipe.$id,
-          parseAppwriteRecipeToIndexEntry(recipe),
-        );
+        // Si la recette est supprimée, on la retire de l'index
+        if (recipe.status === "deleted") {
+          if (this.#recipesIndex.has(recipe.$id)) {
+            this.#recipesIndex.delete(recipe.$id);
+            deletedCount++;
+            console.log(
+              `[RecipesStore] Recette ${recipe.$id} supprimée (status=deleted)`,
+            );
+          }
+        } else {
+          this.#recipesIndex.set(
+            recipe.$id,
+            parseAppwriteRecipeToIndexEntry(recipe),
+          );
+          addedCount++;
+        }
       });
 
       console.log(
-        `[RecipesStore] ${appwriteRecipes.length} recettes Appwrite chargées`,
+        `[RecipesStore] ${addedCount} recettes Appwrite chargées, ${deletedCount} supprimées`,
       );
 
       // Mettre à jour le cache
@@ -408,16 +422,25 @@ class RecipesStore {
       // 4. Charger TOUTES les recettes Appwrite
       const appwriteRecipes = await forceReloadAllAppwriteRecipes();
 
-      // 5. Ajouter à l'index via la méthode de parsing existante
+      // 5. Filtrer et ajouter à l'index via la méthode de parsing existante
+      let addedCount = 0;
+      let deletedCount = 0;
+
       appwriteRecipes.forEach((recipe) => {
-        this.#recipesIndex.set(
-          recipe.$id,
-          parseAppwriteRecipeToIndexEntry(recipe),
-        );
+        // Si la recette est supprimée, on l'ignore (hard reset = état propre)
+        if (recipe.status !== "deleted") {
+          this.#recipesIndex.set(
+            recipe.$id,
+            parseAppwriteRecipeToIndexEntry(recipe),
+          );
+          addedCount++;
+        } else {
+          deletedCount++;
+        }
       });
 
       console.log(
-        `[RecipesStore] ${appwriteRecipes.length} recettes Appwrite chargées`,
+        `[RecipesStore] ${addedCount} recettes Appwrite chargées, ${deletedCount} supprimées ignorées`,
       );
 
       // 6. Recréer le cache avec les données fraîches
@@ -465,45 +488,11 @@ class RecipesStore {
       ? new Date(cachedMetadata.buildTimestamp * 1000).toISOString()
       : "1970-01-01T00:00:00.000Z";
 
-    console.log(
-      `[RecipesStore] Sync Appwrite: drafts depuis ${draftSince}, publiées depuis ${publishedSince}`,
-    );
+    console.log(`[RecipesStore] Sync Appwrite: depuis ${draftSince}`);
 
-    // Fetch depuis Appwrite avec deux requêtes séparées
-    const { tables, config } = await import("../services/appwrite");
-    const { Query } = await import("appwrite");
-
-    // Requête 1: Tous les drafts modifiés depuis draftSince
-    const draftsQuery = [
-      Query.equal("draft", true),
-      Query.notEqual("status", "deleted"),
-      Query.greaterThan("$updatedAt", draftSince),
-    ];
-
-    // Requête 2: Recettes publiées modifiées depuis publishedSince
-    const publishedQuery = [
-      Query.equal("draft", false),
-      Query.notEqual("status", "deleted"),
-      Query.greaterThan("$updatedAt", publishedSince),
-    ];
-
-    const [draftsResponse, publishedResponse] = await Promise.all([
-      tables.listRows({
-        databaseId: config.databaseId,
-        tableId: "recettes",
-        queries: draftsQuery,
-      }),
-      tables.listRows({
-        databaseId: config.databaseId,
-        tableId: "recettes",
-        queries: publishedQuery,
-      }),
-    ]);
-
-    const updatedRecipes = [
-      ...(draftsResponse.rows as any[]),
-      ...(publishedResponse.rows as any[]),
-    ];
+    // Récupérer les recettes modifiées via le service existant
+    // Note: listUpdatedRecipes utilise $updatedAt donc récupère aussi les deleted
+    const updatedRecipes = await listUpdatedRecipes(draftSince);
 
     if (updatedRecipes.length === 0) {
       console.log("[RecipesStore] Aucune mise à jour Appwrite détectée.");
@@ -515,14 +504,27 @@ class RecipesStore {
     );
 
     let updatedCount = 0;
+    let deletedCount = 0;
+
     updatedRecipes.forEach((recipe) => {
-      // Parsing unifié
-      const indexEntry = parseAppwriteRecipeToIndexEntry(recipe);
+      // Si la recette est supprimée, on la retire de l'index
+      if (recipe.status === "deleted") {
+        if (this.#recipesIndex.has(recipe.$id)) {
+          this.#recipesIndex.delete(recipe.$id);
+          deletedCount++;
+          console.log(
+            `[RecipesStore] Recette ${recipe.$id} supprimée (status=deleted)`,
+          );
+        }
+      } else {
+        // Parsing unifié
+        const indexEntry = parseAppwriteRecipeToIndexEntry(recipe);
 
-      // Upsert inconstestable (Appwrite est la source de vérité pour les modifs récentes)
-      this.#recipesIndex.set(indexEntry.$id, indexEntry);
+        // Upsert incontestable (Appwrite est la source de vérité pour les modifs récentes)
+        this.#recipesIndex.set(indexEntry.$id, indexEntry);
 
-      updatedCount++;
+        updatedCount++;
+      }
     });
 
     // Mettre à jour lastAppwriteSync
@@ -537,29 +539,40 @@ class RecipesStore {
     }
 
     console.log(
-      `[RecipesStore] Sync incrémentiel terminé (${updatedCount} mises à jour).`,
+      `[RecipesStore] Sync incrémentiel terminé (${updatedCount} mises à jour, ${deletedCount} supprimées).`,
     );
   }
 
   /**
    * Configure le realtime pour les recettes Appwrite
    */
-  #setupRealtime(): void {
+  async #setupRealtime(): Promise<void> {
     try {
-      this.#realtimeUnsubscribe = subscribeToRecipes(
-        globalState.userId!,
-        globalState.userTeams,
-        async (recipe, eventType) => {
+      console.log("[RecipesStore] Configuration du Realtime...");
+      const DB_ID = getDatabaseId();
+
+      realtimeManager.register(
+        [`databases.${DB_ID}.collections.${RECIPES_COLLECTION_ID}.documents`],
+        async (response: any) => {
+          const recipe = response.payload as any; // Recettes type defined via JSDoc or import
+
+          let eventType = "update";
+          if (response.events.some((e: string) => e.includes(".create"))) {
+            eventType = "create";
+          } else if (
+            response.events.some((e: string) => e.includes(".delete"))
+          ) {
+            eventType = "delete";
+          }
+
           console.log(
-            `[RecipesStore] Realtime: ${eventType} pour ${recipe.$id}`,
+            `[RecipesStore] ⚡️ Realtime RECEIVED: ${eventType} pour ${recipe.$id}`,
           );
 
           if (eventType === "create" || eventType === "update") {
             // Gérer les recettes supprimées (status = "deleted")
             if (recipe.status === "deleted") {
-              // Suppression logique détectée via status
               this.#recipesIndex.delete(recipe.$id);
-
               if (this.#cache) {
                 try {
                   await this.#cache.deleteRecipeFromIndex(recipe.$id);
@@ -576,19 +589,19 @@ class RecipesStore {
               return;
             }
 
-            // 1. Mettre à jour l'index dans la SvelteMap (réactif)
+            // 1. Mettre à jour l'index
             const indexEntry = parseAppwriteRecipeToIndexEntry(recipe);
             this.#recipesIndex.set(recipe.$id, indexEntry);
 
-            // 2. Préparer les détails complets de la recette
+            // 2. Préparer les détails complets
             const ingredients = ingredientsFromAppwrite(recipe.ingredients);
             const recipeData: RecipeForDisplay = {
               ...recipe,
-              ingredients: ingredients, // Ingrédients complets avec conversion
+              ingredients: ingredients,
               astuces: astucesFromAppwrite(recipe.astuces),
             };
 
-            // 3. Mettre à jour les détails dans le cache IndexedDB uniquement
+            // 3. Mettre à jour les détails dans le cache
             if (this.#cache) {
               try {
                 await this.#cache.saveRecipeDetail(recipeData);
@@ -603,10 +616,7 @@ class RecipesStore {
               }
             }
           } else if (eventType === "delete") {
-            // Supprimer de la SvelteMap (réactif)
             this.#recipesIndex.delete(recipe.$id);
-
-            // Supprimer du cache IndexedDB (persistance)
             if (this.#cache) {
               try {
                 await this.#cache.deleteRecipeFromIndex(recipe.$id);
@@ -624,7 +634,7 @@ class RecipesStore {
         },
       );
 
-      console.log("[RecipesStore] Realtime activé");
+      console.log("[RecipesStore] Realtime enregistré auprès du manager");
     } catch (err) {
       console.error(
         "[RecipesStore] Erreur lors de la configuration du realtime:",
@@ -882,6 +892,19 @@ class RecipesStore {
     const promises = uuids.map((uuid) => this.getRecipeByUuid(uuid));
     await Promise.all(promises);
     console.log(`[RecipesStore] Préchargement terminé`);
+  }
+
+  /**
+   * Nettoie les ressources
+   */
+  destroy(): void {
+    if (this.#cache) {
+      this.#cache.close();
+      this.#cache = null;
+    }
+    this.#recipesIndex.clear();
+    this.#isInitialized = false;
+    console.log("[RecipesStore] Ressources nettoyées");
   }
 }
 

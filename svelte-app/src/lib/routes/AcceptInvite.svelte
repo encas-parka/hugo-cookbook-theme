@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getAppwriteInstances } from "$lib/services/appwrite";
-  import { validateInvitation } from "$lib/services/appwrite-teams";
+  import { validateInvitation } from "$lib/services/appwrite-kteams";
   import { navigate, getQuery } from "$lib/services/simple-router.svelte"; // Adaptez le chemin vers votre fichier router
   import { TriangleAlert } from "@lucide/svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";

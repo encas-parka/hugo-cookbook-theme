@@ -1,0 +1,136 @@
+/**
+ * NotificationStore - Gestion centralisée des notifications de découverte
+ *
+ * Ce store centralise TOUTES les souscriptions aux notifications user_notifications,
+ * évitant ainsi les doublons entre EventsStore et TeamsStore.
+ *
+ * Fonctionnement :
+ * - S'abonne une seule fois à la collection user_notifications
+ * - Dispatche les notifications aux stores appropriés (EventsStore, TeamsStore)
+ * - Supprime automatiquement les notifications traitées
+ *
+ * Les notifications de découverte permettent aux utilisateurs d'être notifiés
+ * lorsqu'ils reçoivent un accès à une nouvelle ressource (event, team, etc.).
+ */
+
+import { getDatabaseId, getAppwriteInstances } from "../services/appwrite";
+import { realtimeManager } from "./RealtimeManager.svelte";
+import { globalState } from "./GlobalState.svelte";
+
+interface UserNotifications {
+  $id: string;
+  userId: string;
+  notificationType: "event_access_granted" | "team_access_granted";
+  targetCollection: string;
+  targetDocumentId: string;
+  createdAt: string;
+}
+
+class NotificationStore {
+  #isInitialized = $state(false);
+
+  /**
+   * Initialise le NotificationStore et s'abonne aux notifications
+   */
+  async initialize(): Promise<void> {
+    if (this.#isInitialized) {
+      console.log("[NotificationStore] Déjà initialisé, skip.");
+      return;
+    }
+
+    try {
+      console.log("[NotificationStore] Initialisation...");
+      const DB_ID = getDatabaseId();
+
+      // S'enregistrer auprès du RealtimeManager
+      realtimeManager.register(
+        [`databases.${DB_ID}.collections.user_notifications.documents`],
+        async (response: any) => {
+          const payload = response.payload as UserNotifications;
+          const currentUserId = globalState.userId;
+
+          // Filtrer : uniquement pour moi
+          if (!currentUserId || payload.userId !== currentUserId) return;
+
+          // Uniquement les nouvelles notifications (create)
+          if (
+            response.events.some((e: string) => e.includes(".create"))
+          ) {
+            // Dispatcher selon le type de notification
+            if (
+              payload.notificationType === "event_access_granted" &&
+              payload.targetCollection === "main"
+            ) {
+              console.log(
+                "[NotificationStore] 🔔 Event access granted:",
+                payload.targetDocumentId,
+              );
+
+              const { eventsStore } = await import("./EventsStore.svelte");
+              await eventsStore.reload();
+              await this.#deleteNotification(payload.$id);
+            } else if (
+              payload.notificationType === "team_access_granted" &&
+              payload.targetCollection === "kteams"
+            ) {
+              console.log(
+                "[NotificationStore] 🔔 Team access granted:",
+                payload.targetDocumentId,
+              );
+
+              const { teamsStore } = await import("./TeamsStore.svelte");
+              await teamsStore.reload();
+              await this.#deleteNotification(payload.$id);
+            }
+          }
+        },
+      );
+
+      this.#isInitialized = true;
+      console.log(
+        "[NotificationStore] ✅ Notifications de découverte configurées (RealtimeManager)",
+      );
+    } catch (err) {
+      console.error(
+        "[NotificationStore] Erreur lors de l'initialisation:",
+        err,
+      );
+      throw err;
+    }
+  }
+
+  /**
+   * Supprime une notification après l'avoir traitée
+   */
+  async #deleteNotification(notificationId: string): Promise<void> {
+    try {
+      const instances = await getAppwriteInstances();
+      const DB_ID = getDatabaseId();
+
+      await instances.tables.deleteRow({
+        databaseId: DB_ID,
+        tableId: "user_notifications",
+        rowId: notificationId,
+      });
+
+      console.log(
+        `[NotificationStore] Notification supprimée: ${notificationId}`,
+      );
+    } catch (err) {
+      console.error(
+        "[NotificationStore] Erreur lors de la suppression de la notification:",
+        err,
+      );
+    }
+  }
+
+  /**
+   * Détruit le store et se désabonne
+   */
+  destroy(): void {
+    console.log("[NotificationStore] Store détruit");
+  }
+}
+
+// Singleton exporté
+export const notificationStore = new NotificationStore();

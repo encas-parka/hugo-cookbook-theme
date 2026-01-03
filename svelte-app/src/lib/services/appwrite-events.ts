@@ -15,7 +15,7 @@ const { APPWRITE_CONFIG } = getAppwriteConfig();
 // CONFIGURATION
 // =============================================================================
 
-const EVENTS_COLLECTION_ID = "main";
+export const EVENTS_COLLECTION_ID = "main";
 
 // =============================================================================
 // CRUD OPERATIONS
@@ -176,62 +176,3 @@ export async function deleteEvent(eventId: string): Promise<void> {
   }
 }
 
-// =============================================================================
-// REALTIME
-// =============================================================================
-
-/**
- * Subscribe aux changements d'un événement spécifique
- */
-export async function subscribeToEvent(
-  eventId: string,
-  callback: (event: Main) => void,
-): Promise<() => void> {
-  const { tables, config } = await getAppwriteInstances();
-  const channel = `databases.${config.databaseId}.collections.${EVENTS_COLLECTION_ID}.documents.${eventId}`;
-
-  return subscribe([channel], (response: any) => {
-    if (
-      response.events.includes(
-        `databases.*.collections.*.documents.${eventId}.update`,
-      )
-    ) {
-      callback(response.payload as unknown as Main);
-    }
-  });
-}
-
-/**
- * Subscribe à tous les événements (filtrage côté client)
- *
- * IMPORTANT: Appwrite Realtime envoie tous les documents pour lesquels l'utilisateur
- * a des permissions de lecture au niveau de la base de données. Le filtrage métier
- * (contributorsIds) doit donc être fait côté client dans le callback.
- */
-export async function subscribeToEvents(
-  userId: string,
-  userTeams: string[],
-  callback: (event: Main, eventType: string) => void,
-): Promise<() => void> {
-  const { config } = await getAppwriteInstances();
-  const channel = `databases.${config.databaseId}.collections.${EVENTS_COLLECTION_ID}.documents`;
-
-  return subscribe([channel], async (response: any) => {
-    const event = response.payload as unknown as Main;
-
-    console.log("[appwrite-events] Realtime RAW Payload:", {
-      events: response.events,
-      eventId: event.$id,
-      updatedAt: event?.$updatedAt
-    });
-
-    let type = "update";
-    if (response.events.some((e: string) => e.includes(".create"))) {
-      type = "create";
-    } else if (response.events.some((e: string) => e.includes(".delete"))) {
-      type = "delete";
-    }
-
-    callback(event, type);
-  });
-}

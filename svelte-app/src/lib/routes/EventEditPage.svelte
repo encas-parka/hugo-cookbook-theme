@@ -31,10 +31,10 @@
   // PROPS & INITIALISATION
   // ============================================================================
 
-  let { params } = $props<{ params?: Record<string, string> }>();
+  let { params } = $props<{ params: Record<string, string> }>();
 
   // Rendre eventId entièrement réactif aux changements de params
-  let eventId = $derived(params?.id);
+  let eventId = $derived(params.id);
 
   // Shadow Draft permanent (jamais null)
   // NOTE: meals est un $state brut (non trié) pour permettre les mutations
@@ -59,7 +59,7 @@
   let activeLock = $state<AppwriteLock | null>(null);
   let lockUnsub: (() => void) | null = null;
 
-  // isDirty est maintenant calculé par comparaison avec currentEvent (la référence)
+  // isDirty est calculé par comparaison avec currentEvent (la référence)
   const isDirty = $derived.by(() => {
     if (!isLockedByMe || !currentEvent) return false;
 
@@ -108,10 +108,8 @@
   // DERIVED STATES
   // ============================================================================
 
-  // currentEvent directement depuis eventsStore (pas de cache pour éviter les problèmes de sync)
-  const currentEvent = $derived(
-    eventId ? eventsStore.getEventById(eventId) : null,
-  );
+  // currentEvent directement depuis eventsStore
+  const currentEvent = $derived(eventsStore.getEventById(eventId));
 
   // DONNÉES RÉACTIVES DÉRIVÉES EN LECTURE SEULE (Single Source of Truth depuis currentEvent)
   // Note: eventName est maintenant un $state local (shadow draft), pas un $derived
@@ -162,7 +160,7 @@
 
   $effect(() => {
     navBarStore.setConfig({
-      eventId: eventId || undefined,
+      eventId: eventId,
       actions: navActions,
       isLockedByOthers,
       lockedByUserName,
@@ -174,18 +172,11 @@
   // ============================================================================
 
   $effect(() => {
-    if (eventId && !isInitialised && !isBusy) {
+    if (!isInitialised && !isBusy) {
       untrack(async () => {
         isBusy = true;
         try {
           await eventsStore.initialize();
-
-          // CRITICAL: Force refresh from server to ensure data is fresh
-          // (Realtime might have missed events while on another page)
-          // await eventsStore.fetchEvent(eventId);
-
-          // meals = $state.snapshot(eventStats?.sortedMeals || []);
-          // eventName = eventStats?.eventName || "";
 
           // Initialiser l'état du verrou
           activeLock = await locksService.getLock(eventId);
@@ -367,18 +358,8 @@
       return false;
     }
 
-    // En mode création, initialiser contributors
-    const contributorsToSave = eventId
-      ? contributors
-      : [
-          {
-            id: globalState.userId || "",
-            name: globalState.userName(),
-            status: "accepted" as const,
-            invitedAt: new Date().toISOString(),
-            respondedAt: new Date().toISOString(),
-          },
-        ];
+    // Contributors existants
+    const contributorsToSave = contributors;
 
     const allDatesSorted = Array.from(
       new Set(sortedMeals.map((m) => m.date)),
@@ -397,17 +378,11 @@
       meals: sortedMeals,
     };
     try {
-      if (eventId) {
-        await eventsStore.updateEvent(eventId, eventData);
-        // Le realtime mettra à jour currentEvent
-        // Le $effect resynchronisera le shadow draft automatiquement
-        // quand on libérera le verrou
-      } else {
-        const savedEvent = await eventsStore.createEvent(eventData);
-        navigate(`/dashboard/eventEdit/${savedEvent.$id}`);
-      }
+      await eventsStore.updateEvent(eventId, eventData);
+      // Le realtime mettra à jour currentEvent
+      // Le $effect resynchronisera le shadow draft automatiquement
+      // quand on libérera le verrou
 
-      // Plus de draft = null !
       return true;
     } catch (error) {
       console.error("Erreur sauvegarde:", error);
@@ -467,7 +442,7 @@
 
     if (success) {
       await releaseLock();
-      toastService.success(eventId ? "Événement mis à jour" : "Événement créé");
+      toastService.success("Événement mis à jour");
     }
 
     isBusy = false;
@@ -606,14 +581,14 @@
     <button
       class="btn btn-accent btn-sm"
       onclick={handleSave}
-      disabled={isBusy || (eventId && !isDirty) || (eventId && !canEdit)}
+      disabled={isBusy || !isDirty || !canEdit}
     >
       {#if isBusy}
         <span class="loading loading-spinner loading-xs text-primary"></span>
       {:else}
         <Save size={18} class="mr-1" />
       {/if}
-      <span class="font-bold">{eventId ? "Enregistrer" : "Créer"}</span>
+      <span class="font-bold">Enregistrer</span>
     </button>
   </div>
 {/snippet}
@@ -621,7 +596,7 @@
 <div class="bg-base-200 min-h-lvh space-y-6 px-2 pt-4 pb-20 md:px-20">
   <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
     <div class="min-w-80 flex-1 gap-2">
-      {#if editingTitle || !eventId}
+      {#if editingTitle}
         <input
           type="text"
           class="input input-lg min-w-full shadow-md"
@@ -775,9 +750,7 @@
 
 <!-- Guard de navigation pour modifications non sauvegardées -->
 <UnsavedChangesGuard
-  routeKey={eventId
-    ? `/dashboard/eventEdit/${eventId}`
-    : "/dashboard/eventEdit"}
+  routeKey={`/dashboard/eventEdit/${eventId}`}
   shouldProtect={() => isDirty}
   onLeaveWithoutSave={handleLeaveWithoutSave}
   onSaveAndLeave={handleSaveAndLeave}

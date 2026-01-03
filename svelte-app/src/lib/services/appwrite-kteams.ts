@@ -8,7 +8,7 @@
 
 import { ID, Query, Permission, Role } from "appwrite";
 import { getAppwriteInstances, getAppwriteConfig } from "./appwrite";
-import type { Kteams } from "../types/appwrite.d";
+import type { Kteams } from "../types/appwrite";
 import type { KTeamMember, KTeamInvitation } from "$lib/types/aw_kteam.d";
 
 const { APPWRITE_CONFIG } = getAppwriteConfig();
@@ -87,7 +87,6 @@ export async function createTeam(
       data: {
         name,
         description: description || null,
-        membersId: [user.$id],
         members: [JSON.stringify(creatorMember)], // Stocker l'objet stringifié
         invited: null,
         main: [], // Pas d'événements associés initialement
@@ -175,8 +174,18 @@ export async function addMember(
     // Récupérer l'équipe actuelle
     const team = await getTeam(teamId);
 
+    // Vérifier si le membre est déjà présent
+    const isAlreadyMember = team.members.some((memberStr) => {
+      try {
+        const member = JSON.parse(memberStr);
+        return member.id === userId;
+      } catch {
+        return false;
+      }
+    });
+
     // Ajouter le membre s'il n'est pas déjà présent
-    if (!team.membersId.includes(userId)) {
+    if (!isAlreadyMember) {
       // Créer le nouveau membre
       const newMember: KTeamMember = {
         id: userId,
@@ -185,7 +194,6 @@ export async function addMember(
         joinedAt: new Date().toISOString(),
       };
 
-      const updatedMembersId = [...team.membersId, userId];
       const updatedMembers = [
         ...team.members,
         JSON.stringify(newMember), // Stocker l'objet stringifié
@@ -197,7 +205,6 @@ export async function addMember(
         tableId: "kteams",
         rowId: teamId,
         data: {
-          membersId: updatedMembersId,
           members: updatedMembers,
         },
         // Ajouter les permissions pour le nouveau membre
@@ -231,11 +238,20 @@ export async function removeMember(
     // Récupérer l'équipe actuelle
     const team = await getTeam(teamId);
 
+    // Trouver l'index du membre
+    const memberIndex = team.members.findIndex((memberStr) => {
+      try {
+        const member = JSON.parse(memberStr);
+        return member.id === userId;
+      } catch {
+        return false;
+      }
+    });
+
     // Vérifier si le membre est présent
-    if (team.membersId.includes(userId)) {
-      const updatedMembersId = team.membersId.filter((id) => id !== userId);
+    if (memberIndex !== -1) {
       const updatedMembers = team.members.filter(
-        (_, index) => team.membersId[index] !== userId,
+        (_, index) => index !== memberIndex,
       );
 
       // Mettre à jour l'équipe
@@ -244,7 +260,6 @@ export async function removeMember(
         tableId: "kteams",
         rowId: teamId,
         data: {
-          membersId: updatedMembersId,
           members: updatedMembers,
         },
       });
@@ -283,7 +298,8 @@ export async function inviteMembers(
   };
 }> {
   try {
-    const { functions } = await getAppwriteInstances();
+    const { functions, account } = await getAppwriteInstances();
+    const user = await account.get();
     const team = await getTeam(teamId);
 
     const response = await functions.createExecution({
@@ -291,6 +307,7 @@ export async function inviteMembers(
       body: JSON.stringify({
         action: "invite",
         emails,
+        invitedByName: user.name, // ← Envoyer le nom de l'inviteur
         context: {
           type: "team",
           id: teamId,
@@ -497,16 +514,21 @@ export async function getTeamWithMembers(
   teamId: string,
 ): Promise<{ team: Kteams; members: any[] }> {
   try {
-    const { account } = await getAppwriteInstances();
     const team = await getTeam(teamId);
 
-    // Récupérer les détails des membres si nécessaire
-    // Pour l'instant, on utilise simplement les informations stockées dans l'équipe
-    const members = team.membersId.map((memberId, index) => ({
-      $id: memberId,
-      email: team.members[index] || "",
-      name: team.members[index] || "",
-    }));
+    // Parser les membres depuis le tableau members
+    const members = team.members.map((memberStr) => {
+      try {
+        return JSON.parse(memberStr);
+      } catch (e) {
+        // En cas d'erreur de parsing, retourner un objet minimal
+        return {
+          $id: "unknown",
+          email: memberStr.includes("@") ? memberStr : "",
+          name: memberStr.includes("@") ? memberStr.split("@")[0] : memberStr,
+        };
+      }
+    });
 
     return { team, members };
   } catch (error) {

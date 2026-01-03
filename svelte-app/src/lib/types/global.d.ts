@@ -7,7 +7,7 @@ export interface AppwriteConfig {
     accessRequest: string;
     batchUpdate: string;
     usersTeamsManager: string;
-    manageRecipe: string;
+    enkaData: string;
   };
   collections: {
     events: string;
@@ -17,6 +17,7 @@ export interface AppwriteConfig {
     products: string;
     kteams: string;
     locks: string;
+    user_notifications: string;
   };
 }
 

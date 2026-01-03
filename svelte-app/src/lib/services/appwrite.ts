@@ -27,8 +27,8 @@ const APPWRITE_CONFIG: AppwriteConfig = {
     cmsAuth: "68976500002eb5c6ee4f",
     accessRequest: "689cdea5001a4d74549d",
     batchUpdate: "68f00487000c624533a3",
-    usersTeamsManager: "692cb2cd000cbb24549c", 
-    manageRecipe: "68f00487000c624533a3", // ID fusionné (enka-products)
+    usersTeamsManager: "692cb2cd000cbb24549c",
+    enkaData: "68f00487000c624533a3", // ID fusionné (enka-products)
   },
   collections: {
     events: "events", // Ajouté par déduction, à vérifier si nécessaire
@@ -38,6 +38,7 @@ const APPWRITE_CONFIG: AppwriteConfig = {
     products: "products",
     kteams: "kteams", // Collection custom pour gérer les équipes
     locks: "locks",
+    user_notifications: "user_notifications",
   },
 };
 
@@ -120,33 +121,45 @@ export function getAppwriteConfig() {
     APPWRITE_PROJECT_ID: APPWRITE_CONFIG.projectId,
     APPWRITE_FUNCTION_ID: APPWRITE_CONFIG.functions.batchUpdate, // Fallback
     ACCESS_REQUEST_FUNCTION_ID: APPWRITE_CONFIG.functions.accessRequest,
-    MANAGE_RECIPE_FUNCTION_ID: APPWRITE_CONFIG.functions.manageRecipe,
+    MANAGE_RECIPE_FUNCTION_ID: APPWRITE_CONFIG.functions.enkaData,
     APPWRITE_CONFIG: APPWRITE_CONFIG,
   };
 }
 
 /**
  * Subscribe aux événements realtime
+ *
+ * IMPORTANT: Cette fonction est async pour garantir l'initialisation du Client Appwrite
+ * avant toute souscription. Cela assure que toutes les subscriptions partagent la même
+ * connexion WebSocket (multiplexage), évitant ainsi la création de connexions multiples.
  */
-export function subscribe(
-  channels: string[],
+export async function subscribe(
+  channels: string | string[],
   callback: (response: any) => void,
-): () => void {
-  // Initialisation lazy si nécessaire
+): Promise<() => void> {
+  // Force l'initialisation pour garantir le multiplexage
   if (!cachedInstances) {
-    console.warn(
-      "[appwrite] Subscribe appelé avant initialisation, tentative d'init...",
+    console.log(
+      "[appwrite] Subscribe appelé avant initialisation, initialisation forcée...",
     );
-    // On ne peut pas await ici, donc on suppose que ça a été fait ou on le fait en "fire and forget"
-    // Idéalement, subscribe ne devrait être appelé qu'après init.
-    // Pour l'instant, on instancie un client temporaire si besoin, mais c'est pas idéal.
-    const client = new Client()
-      .setEndpoint(APPWRITE_CONFIG.endpoint)
-      .setProject(APPWRITE_CONFIG.projectId);
-    return client.subscribe(channels, callback);
+    await getAppwriteInstances();
   }
 
-  return cachedInstances.client.subscribe(channels, callback);
+  const channelsArray = Array.isArray(channels) ? channels : [channels];
+  console.log("[appwrite] Subscribe aux channels:", channelsArray);
+
+  const unsubscribe = cachedInstances!.client.subscribe(
+    channels,
+    (response: any) => {
+      // Log de connexion réussie
+      if (response.event === "client.connected") {
+        console.log("[appwrite] ✅ WebSocket connecté avec succès");
+      }
+      callback(response);
+    },
+  );
+
+  return unsubscribe;
 }
 
 export function isInitialized(): boolean {

@@ -99,7 +99,7 @@
               Vos équipes ({teams.length})
             </h3>
             <div class="space-y-2">
-              {#each teams as team}
+              {#each teams as team (team.$id)}
                 <div
                   class="bg-base-200 hover:bg-base-300 flex cursor-pointer items-center justify-between rounded-lg p-2 transition-colors"
                   onclick={() => openTeamDetailModal(team.$id)}
@@ -122,7 +122,6 @@
                       </div>
                     {/if}
                   </div>
-                  <div class="badge badge-secondary badge-sm">Membre</div>
                 </div>
               {/each}
             </div>
@@ -136,15 +135,17 @@
               Invitations en attente ({invitations.length})
             </h3>
             <div class="space-y-2">
-              {#each invitations as invite}
+              {#each invitations as invite, index (index)}
                 <div
-                  class="bg-warning/10 border-warning/20 flex items-center justify-between rounded-lg border p-2"
+                  class="bg-accent/10 border-accent/60 flex items-center justify-between rounded-lg border p-2"
                 >
                   <div class="flex-1">
                     <div class="text-sm font-medium">{invite.teamName}</div>
-                    <div class="text-base-content/60 text-xs">
-                      Invité par {invite.invitation.invitedBy}
-                    </div>
+                    {#if invite.invitation.invitedByName}
+                      <div class="text-base-content/60 text-xs">
+                        Invité par {invite.invitation.invitedByName}
+                      </div>
+                    {/if}
                   </div>
                   <div class="flex gap-1">
                     <button
@@ -152,15 +153,16 @@
                       onclick={() => acceptInvitation(invite.teamId)}
                       title="Accepter l'invitation"
                     >
+                      Rejoindre l'équipe
                       <CheckCircle class="h-3 w-3" />
                     </button>
-                    <button
+                    <!-- <button
                       class="btn btn-error btn-xs"
                       onclick={() => rejectInvitation(invite.teamId)}
                       title="Refuser l'invitation"
                     >
                       <XCircle class="h-3 w-3" />
-                    </button>
+                    </button> -->
                   </div>
                 </div>
               {/each}

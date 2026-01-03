@@ -514,7 +514,7 @@ class ProductsStore {
 
       // 6. Setup realtime (Appwrite)
       const callbacks = this.#setupRealtimeCallbacks();
-      this.#unsubscribe = subscribeToRealtime(event.$id, callbacks);
+      this.#unsubscribe = await subscribeToRealtime(event.$id, callbacks);
 
       // 7. Setup Reactive Sync avec EventsStore (Meals updates)
       if (this.#cleanupSyncEffect) this.#cleanupSyncEffect();

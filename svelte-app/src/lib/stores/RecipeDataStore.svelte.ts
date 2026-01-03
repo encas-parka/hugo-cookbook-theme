@@ -408,7 +408,7 @@ class RecipeDataStore {
       const { functions } = await getAppwriteInstances();
 
       const response = await functions.createExecution({
-        functionId: "68f00487000c624533a3", // manageRecipe function ID
+        functionId: "68f00487000c624533a3", // enkaData function ID
         body: JSON.stringify({
           action: "update_recipe_info",
           data: newInfo,

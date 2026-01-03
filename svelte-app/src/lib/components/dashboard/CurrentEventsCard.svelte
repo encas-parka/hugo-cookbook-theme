@@ -154,7 +154,7 @@
       <div class="card-actions border-base-200 mt-4 justify-end border-t pt-4">
         <button
           class="btn btn-primary btn-sm"
-          onclick={() => navigate("/dashboard/eventEdit")}
+          onclick={() => navigate("/dashboard/eventCreate")}
         >
           <Calendar class="mr-2 h-4 w-4" />
           Créer un événement
