@@ -298,7 +298,7 @@ class RecipeDataStore {
 
       // Appeler la fonction cloud Appwrite
       const response = await functions.createExecution({
-        functionId: "68f00487000c624533a3", // manageRecipe function ID
+        functionId: "68f00487000c624533a3", // enkaData function ID
         body: JSON.stringify({
           action: "add_ingredient",
           data: {

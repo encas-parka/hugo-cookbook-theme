@@ -9,7 +9,10 @@ import {
 import { SvelteSet } from "svelte/reactivity";
 import { UnitConverter } from "$lib/utils/UnitConverter";
 import { generateSlugUuid35 } from "$lib/utils/slugUtils";
-import { deleteRecipeAppwrite } from "$lib/services/appwrite-recipes";
+import {
+  deleteRecipeAppwrite,
+  executeManageDataRecipe,
+} from "$lib/services/appwrite-recipes";
 
 // ============================================================================
 // TYPES
@@ -530,9 +533,24 @@ export async function deleteRecipe(
   const toastId = toastService.loading("Suppression de la recette...");
 
   try {
+    // 1. Soft delete sur Appwrite (status = "deleted")
     await deleteRecipeAppwrite(recipeId);
 
-    // Libérer le verrou si fourni
+    // 2. Supprimer le fichier markdown sur GitHub via Cloud Function
+    try {
+      await executeManageDataRecipe(
+        "delete_recipe",
+        recipeId,
+        globalState.userId || "",
+        {}, // Pas de données supplémentaires nécessaires
+        true, // Async pour ne pas bloquer
+      );
+    } catch (githubError) {
+      console.warn("Sync GitHub échouée lors de la suppression:", githubError);
+      // On continue même si la sync GitHub échoue
+    }
+
+    // 3. Libérer le verrou si fourni
     if (releaseLockFn) {
       await releaseLockFn();
     }
