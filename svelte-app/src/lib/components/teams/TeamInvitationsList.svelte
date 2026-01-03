@@ -52,8 +52,8 @@
                   <div class="flex items-center gap-1 text-sm opacity-70">
                     <Clock class="h-3 w-3" />
                     Invité le {formatDate(invitation.invitedAt)}
-                    {#if invitation.invitedBy}
-                      <span class="ml-1">par {invitation.invitedBy}</span>
+                    {#if invitation.invitedByName}
+                      <span class="ml-1">par {invitation.invitedByName}</span>
                     {/if}
                   </div>
                 </div>

@@ -13,7 +13,7 @@ export interface KTeamInvitation {
   name?: string; // Nom estimé ou fourni par l'inviteur
   status: "invited"; // Statut (passera dans 'members' une fois accepté)
   invitedAt: string; // Date ISO
-  invitedBy: string; // ID de l'inviteur
+  invitedByName: string; // Nom de l'inviteur (affichable tel quel)
 }
 
 export interface EnrichedTeam extends Omit<Kteams, "members" | "invited"> {

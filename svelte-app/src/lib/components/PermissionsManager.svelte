@@ -1,24 +1,11 @@
 <script lang="ts">
-  import {
-    Users,
-    UserPlus,
-    X,
-    CircleAlert,
-    Plus,
-    Mail,
-    Check,
-    XCircle,
-    Trash2,
-    Search,
-  } from "@lucide/svelte";
+  import { Users, UserPlus, Mail, Check } from "@lucide/svelte";
   import type { EventContributor } from "$lib/types/events";
   import type { TeamsStore } from "$lib/stores/TeamsStore.svelte";
   import type { EventsStore } from "$lib/stores/EventsStore.svelte";
-  import { fade } from "svelte/transition";
   import { nanoid } from "nanoid";
   import BtnGroupCheck from "$lib/components/ui/BtnGroupCheck.svelte";
   import { checkUserEmails } from "$lib/services/appwrite-functions";
-  import Fieldset from "./ui/Fieldset.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
 
   // Interface des props
@@ -268,26 +255,6 @@
     }
   }
 
-  function removeNewContributor(contributorId: string) {
-    newContributors = newContributors.filter((c) => c.id !== contributorId);
-
-    // Si le membre retiré appartient à une équipe sélectionnée, on décoche l'équipe
-    // (car la sélection n'est plus "complète")
-    const teamsToUncheck = teamsStore.teams
-      .filter(
-        (t) =>
-          selectedTeams.includes(t.$id) &&
-          t.members?.some((m) => m.id === contributorId),
-      )
-      .map((t) => t.$id);
-
-    if (teamsToUncheck.length > 0) {
-      selectedTeams = selectedTeams.filter(
-        (id) => !teamsToUncheck.includes(id),
-      );
-    }
-  }
-
   // Fonction pour valider et envoyer les invitations
   async function validateInvitations() {
     if (newContributors.length === 0) {
@@ -471,6 +438,9 @@
             </label>
           {/each}
         </div>
+        <p class="text-base-content/60 mt-1 text-xs">
+          Tous les membres de l'équipe seront invités a participer.
+        </p>
       {:else}
         <p class="text-sm italic opacity-60">Aucune équipe disponible</p>
       {/if}

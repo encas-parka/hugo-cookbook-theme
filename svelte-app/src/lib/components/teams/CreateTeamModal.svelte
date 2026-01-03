@@ -170,8 +170,9 @@
       {@const team = teamsStore.getTeamById(createdTeamId)}
       {#if team}
         <div class="mb-4">
-          <div class="alert alert-success">
-            <span>Équipe "{team.name}" créée avec succès !</span>
+          <div class="alert alert-success alert-soft flex flex-col">
+            <p>Équipe "{team.name}" créée avec succès !</p>
+            <p>Ajoutez les email des personnes que vous souhaitez inviter</p>
           </div>
         </div>
 

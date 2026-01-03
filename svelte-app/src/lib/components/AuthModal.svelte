@@ -110,7 +110,7 @@
 
       await account.createRecovery({
         email: forgotEmail,
-        url: `${window.location.origin}/reset-password`,
+        url: `${window.location.origin}/#/reset-password`,
       });
 
       successMessage = "Email de réinitialisation envoyé !";
@@ -141,69 +141,110 @@
   });
 </script>
 
-<div class="auth-modal {isOpen && 'auth-modal-open'}" role="dialog">
-  <div class="auth-modal-content">
+<div class="modal {isOpen && 'modal-open'}" role="dialog">
+  <div class="modal-box">
     <!-- Header -->
-    <div class="auth-header">
-      <div class="auth-title">
-        {showForgotPassword
-          ? "Mot de passe oublié"
-          : showLogin
-            ? "Connexion"
-            : "Inscription"}
-      </div>
-      <button class="auth-close-btn" onclick={closeModal}>✕</button>
+    <div
+      class="border-base-300 flex items-center justify-between border-b pb-4"
+    >
+      <h3 class="text-lg font-bold">
+        {#if showForgotPassword}
+          Mot de passe oublié
+        {:else if showLogin}
+          Connexion
+        {:else}
+          Inscription
+        {/if}
+      </h3>
+      <button
+        onclick={closeModal}
+        class="btn btn-circle btn-ghost btn-sm"
+        disabled={isLoading}
+      >
+        ✕
+      </button>
     </div>
 
     <!-- Content -->
-    <div class="auth-body">
+    <div class="py-4">
       <!-- Messages -->
       {#if errorMessage}
-        <div class="auth-message auth-message-error">
+        <div role="alert" class="alert alert-error mb-4">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6 shrink-0 stroke-current"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
           <span>{errorMessage}</span>
         </div>
       {/if}
 
       {#if successMessage}
-        <div class="auth-message auth-message-success">
+        <div role="alert" class="alert alert-success mb-4">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6 shrink-0 stroke-current"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
           <span>{successMessage}</span>
         </div>
       {/if}
 
       <!-- Mot de passe oublié -->
       {#if showForgotPassword}
-        <form onsubmit={handleForgotPassword} class="auth-form">
-          <div class="auth-field">
-            <label class="auth-label" for="forgot-email">
-              <span class="auth-label-text">Email</span>
+        <form onsubmit={handleForgotPassword} class="space-y-4">
+          <div class="form-control">
+            <label for="forgot-email" class="label">
+              <span class="label-text">Email</span>
             </label>
             <input
               id="forgot-email"
               type="email"
               bind:value={forgotEmail}
-              class="auth-input"
+              class="input input-bordered w-full"
               placeholder="votre@email.com"
               disabled={isLoading}
             />
           </div>
 
+          <div class="alert alert-info alert-soft">
+            Un email avec un lien vous sera envoyé par "noreply@appwrite.io".
+            Pensez à vérifier s'il n'a pas attéri dans votre dossier spam.
+          </div>
+
           <button
             type="submit"
-            class="auth-btn auth-btn-primary auth-btn-full"
+            class="btn btn-primary btn-block"
             disabled={isLoading}
           >
             {#if isLoading}
-              <span class="auth-spinner"></span>
+              <span class="loading loading-spinner"></span>
             {:else}
               Envoyer l'email de réinitialisation
             {/if}
           </button>
         </form>
 
-        <div class="auth-back-link">
+        <div class="mt-4 text-center">
           <button
             onclick={() => (showForgotPassword = false)}
-            class="auth-link-btn"
+            class="btn btn-ghost btn-sm"
             disabled={isLoading}
           >
             ← Retour à la connexion
@@ -212,31 +253,31 @@
 
         <!-- Connexion -->
       {:else if showLogin}
-        <form onsubmit={handleLogin} class="auth-form">
-          <div class="auth-field">
-            <label class="auth-label" for="login-email">
-              <span class="auth-label-text">Email</span>
+        <form onsubmit={handleLogin} class="space-y-4">
+          <div class="form-control">
+            <label for="login-email" class="label">
+              <span class="label-text">Email</span>
             </label>
             <input
               id="login-email"
               type="email"
               bind:value={loginEmail}
-              class="auth-input"
+              class="input input-bordered w-full"
               placeholder="votre@email.com"
               disabled={isLoading}
               required
             />
           </div>
 
-          <div class="auth-field">
-            <label class="auth-label" for="login-password">
-              <span class="auth-label-text">Mot de passe</span>
+          <div class="form-control">
+            <label for="login-password" class="label">
+              <span class="label-text">Mot de passe</span>
             </label>
             <input
               id="login-password"
               type="password"
               bind:value={loginPassword}
-              class="auth-input"
+              class="input input-bordered w-full"
               placeholder="•••••••"
               disabled={isLoading}
               required
@@ -245,31 +286,31 @@
 
           <button
             type="submit"
-            class="auth-btn auth-btn-primary auth-btn-full"
+            class="btn btn-primary btn-block"
             disabled={isLoading}
           >
             {#if isLoading}
-              <span class="auth-spinner"></span>
+              <span class="loading loading-spinner"></span>
             {:else}
               Se connecter
             {/if}
           </button>
         </form>
 
-        <div class="auth-actions">
+        <div class="mt-4 space-y-2 text-center">
           <button
             onclick={() => (showForgotPassword = true)}
-            class="auth-link-btn"
+            class="btn btn-link btn-sm btn-primary"
             disabled={isLoading}
           >
             Mot de passe oublié ?
           </button>
 
-          <div class="auth-switch">
+          <div class="text-base-content/70 text-sm">
             Pas encore de compte ?
             <button
               onclick={() => (showLogin = false)}
-              class="auth-link-btn auth-link-inline"
+              class="btn btn-primary btn-sm btn-soft ms-1"
               disabled={isLoading}
             >
               S'inscrire
@@ -279,70 +320,73 @@
 
         <!-- Inscription -->
       {:else}
-        <form onsubmit={handleRegister} class="auth-form">
-          <div class="auth-field">
-            <label class="auth-label" for="register-name">
-              <span class="auth-label-text">Nom</span>
+        <form onsubmit={handleRegister} class="space-y-4">
+          <div class="form-control">
+            <label for="register-name" class="label">
+              <span class="label-text">Nom</span>
             </label>
             <input
               id="register-name"
               type="text"
               bind:value={registerName}
-              class="auth-input"
+              class="input input-bordered w-full"
               placeholder="Votre nom"
               disabled={isLoading}
               required
             />
           </div>
 
-          <div class="auth-field">
-            <label class="auth-label" for="register-email">
-              <span class="auth-label-text">Email</span>
+          <div class="form-control">
+            <label for="register-email" class="label">
+              <span class="label-text">Email</span>
             </label>
             <input
               id="register-email"
               type="email"
               bind:value={registerEmail}
-              class="auth-input"
+              class="input input-bordered w-full"
               placeholder="votre@email.com"
               disabled={isLoading}
               required
             />
           </div>
 
-          <div class="auth-field">
-            <label class="auth-label" for="register-password">
-              <span class="auth-label-text">Mot de passe</span>
+          <div class="form-control">
+            <label for="register-password" class="label">
+              <span class="label-text">Mot de passe</span>
             </label>
             <input
               id="register-password"
               type="password"
               bind:value={registerPassword}
-              class="auth-input"
+              class="input input-bordered w-full"
               placeholder="•••••••"
               disabled={isLoading}
               required
             />
           </div>
-
+          <div class="alert alert-info alert-soft">
+            Un email avec un lien vous sera envoyé par "noreply@appwrite.io".
+            Pensez à vérifier s'il n'a pas attéri dans votre dossier spam.
+          </div>
           <button
             type="submit"
-            class="auth-btn auth-btn-success auth-btn-full"
+            class="btn btn-success btn-block"
             disabled={isLoading}
           >
             {#if isLoading}
-              <span class="auth-spinner"></span>
+              <span class="loading loading-spinner"></span>
             {:else}
               Créer un compte
             {/if}
           </button>
         </form>
 
-        <div class="auth-switch">
+        <div class="text-base-content/70 mt-4 text-center text-sm">
           Déjà un compte ?
           <button
             onclick={() => (showLogin = true)}
-            class="auth-link-btn auth-link-inline"
+            class="btn btn-ghost btn-sm text-primary ms-1"
             disabled={isLoading}
           >
             Se connecter
@@ -354,252 +398,11 @@
 </div>
 
 <style>
-  /* Modal styles */
-  .auth-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    opacity: 0;
-    visibility: hidden;
-    transition:
-      opacity 0.3s ease,
-      visibility 0.3s ease;
-  }
-
-  .auth-modal.auth-modal-open {
-    opacity: 1;
-    visibility: visible;
-  }
-
-  .auth-modal-content {
-    background: white;
-    border-radius: 8px;
-    box-shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.1),
-      0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    max-width: 28rem;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-  }
-
-  /* Header styles */
-  .auth-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem;
-    border-bottom: 1px solid #e5e7eb;
-  }
-
-  .auth-title {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: #111827;
-  }
-
-  .auth-close-btn {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    color: #6b7280;
-    transition: background-color 0.2s ease;
-  }
-
-  .auth-close-btn:hover {
-    background-color: #f3f4f6;
-  }
-
-  .auth-close-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  /* Body styles */
-  .auth-body {
-    padding: 1.5rem;
-  }
-
-  /* Message styles */
-  .auth-message {
-    padding: 0.75rem 1rem;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-    font-size: 0.875rem;
-  }
-
-  .auth-message-error {
-    background-color: #fef2f2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
-  }
-
-  .auth-message-success {
-    background-color: #f0fdf4;
-    color: #166534;
-    border: 1px solid #bbf7d0;
-  }
-
-  /* Form styles */
-  .auth-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .auth-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .auth-label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #374151;
-  }
-
-  .auth-label-text {
-    display: block;
-  }
-
-  .auth-input {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    background-color: white;
-    transition:
-      border-color 0.2s ease,
-      box-shadow 0.2s ease;
-  }
-
-  .auth-input:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-
-  .auth-input:disabled {
-    background-color: #f9fafb;
-    color: #6b7280;
-    cursor: not-allowed;
-  }
-
-  /* Button styles */
-  .auth-btn {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  .auth-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .auth-btn-primary {
-    background-color: #3b82f6;
-    color: white;
-  }
-
-  .auth-btn-primary:hover:not(:disabled) {
-    background-color: #2563eb;
-  }
-
-  .auth-btn-success {
-    background-color: #10b981;
-    color: white;
-  }
-
-  .auth-btn-success:hover:not(:disabled) {
-    background-color: #059669;
-  }
-
-  .auth-btn-full {
-    width: 100%;
-  }
-
-  /* Link button styles */
-  .auth-link-btn {
-    background: none;
-    border: none;
-    color: #3b82f6;
-    cursor: pointer;
-    font-size: 0.875rem;
-    text-decoration: underline;
-    transition: color 0.2s ease;
-  }
-
-  .auth-link-btn:hover:not(:disabled) {
-    color: #2563eb;
-  }
-
-  .auth-link-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .auth-link-inline {
-    display: inline;
-  }
-
-  /* Layout styles */
-  .auth-back-link {
+  .space-y-4 > :not([hidden]) ~ :not([hidden]) {
     margin-top: 1rem;
-    text-align: center;
   }
 
-  .auth-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    text-align: center;
-  }
-
-  .auth-switch {
-    font-size: 0.875rem;
-    color: #6b7280;
-  }
-
-  /* Spinner styles */
-  .auth-spinner {
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid #e5e7eb;
-    border-top: 2px solid currentColor;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
+  .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.5rem;
   }
 </style>

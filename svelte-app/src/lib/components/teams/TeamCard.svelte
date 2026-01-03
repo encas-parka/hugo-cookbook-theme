@@ -73,14 +73,14 @@
       <h3 class="card-title group-hover:text-primary text-lg transition-colors">
         {team.name}
       </h3>
-      {#if userRole}
+      <!-- {#if userRole}
         <div class="badge {roleBadgeClass} gap-1">
           {#if RoleIcon}
             <RoleIcon class="h-3 w-3" />
           {/if}
           {userRole}
         </div>
-      {/if}
+      {/if} -->
     </div>
 
     <!-- Description -->
