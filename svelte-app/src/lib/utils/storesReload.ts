@@ -9,7 +9,7 @@
 
 import { productsStore } from "../stores/ProductsStore.svelte";
 import { recipesStore } from "../stores/RecipesStore.svelte";
-import { teamsStore } from "../stores/TeamsStore.svelte";
+import { nativeTeamsStore as teamsStore } from "../stores/NativeTeamsStore.svelte";
 import { eventsStore } from "../stores/EventsStore.svelte";
 import { globalState } from "../stores/GlobalState.svelte";
 
