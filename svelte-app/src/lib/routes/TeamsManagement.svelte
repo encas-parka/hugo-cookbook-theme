@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Plus, Users, LoaderCircle } from "@lucide/svelte";
-  import { teamsStore } from "$lib/stores/TeamsStore.svelte";
+  import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import TeamCard from "$lib/components/teams/TeamCard.svelte";
   import CreateTeamModal from "$lib/components/teams/CreateTeamModal.svelte";

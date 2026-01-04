@@ -4,7 +4,7 @@
   import { toastService } from "$lib/services/toast.service.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
-  import { teamsStore } from "$lib/stores/TeamsStore.svelte";
+  import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import type { EventMeal } from "$lib/types/events";
   import { Calendar, Plus, Save } from "@lucide/svelte";
   import { nanoid } from "nanoid";
@@ -29,9 +29,7 @@
   );
 
   // Il y a des modifications si on a des données
-  const hasData = $derived(
-    eventName.trim().length > 0 || meals.length > 0,
-  );
+  const hasData = $derived(eventName.trim().length > 0 || meals.length > 0);
 
   // Teams sélectionnées pour les permissions
   let selectedTeams = $state<string[]>([]);

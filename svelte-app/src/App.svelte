@@ -2,7 +2,7 @@
   import { onMount, tick } from "svelte";
   import { productsStore } from "./lib/stores/ProductsStore.svelte";
   import { eventsStore } from "./lib/stores/EventsStore.svelte";
-  import { teamsStore } from "./lib/stores/TeamsStore.svelte";
+  import { nativeTeamsStore as teamsStore } from "./lib/stores/NativeTeamsStore.svelte";
   import { recipesStore } from "./lib/stores/RecipesStore.svelte";
   import { notificationStore } from "./lib/stores/NotificationStore.svelte";
   import { realtimeManager } from "./lib/stores/RealtimeManager.svelte";

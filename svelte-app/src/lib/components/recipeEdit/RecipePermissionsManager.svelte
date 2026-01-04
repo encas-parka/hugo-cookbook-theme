@@ -10,7 +10,7 @@
     ShieldAlert,
     Info,
   } from "@lucide/svelte";
-  import { teamsStore } from "$lib/stores/TeamsStore.svelte";
+  import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { checkUserEmails } from "$lib/services/appwrite-functions";
   import Fieldset from "../ui/Fieldset.svelte";

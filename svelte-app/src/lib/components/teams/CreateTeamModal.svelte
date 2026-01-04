@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { X, Plus } from "@lucide/svelte";
-  import { teamsStore } from "$lib/stores/TeamsStore.svelte";
+  import { X, Plus, MapPin, Building2, Globe } from "@lucide/svelte";
+  import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import InviteMembersForm from "./InviteMembersForm.svelte";
 
   interface Props {
@@ -14,6 +14,9 @@
   // État du formulaire
   let teamName = $state("");
   let teamDescription = $state("");
+  let teamLocation = $state("");
+  let teamCity = $state("");
+  let teamIsPublic = $state(false);
   let loading = $state(false);
   let error = $state<string | null>(null);
   let step = $state<"create" | "invite">("create");
@@ -23,6 +26,9 @@
   function resetForm() {
     teamName = "";
     teamDescription = "";
+    teamLocation = "";
+    teamCity = "";
+    teamIsPublic = false;
     error = null;
     step = "create";
     createdTeamId = null;
@@ -39,10 +45,14 @@
     error = null;
 
     try {
-      const team = await teamsStore.createTeam(
-        teamName.trim(),
-        teamDescription.trim() || undefined,
-      );
+      const prefs = {
+        description: teamDescription.trim() || undefined,
+        location: teamLocation.trim() || undefined,
+        city: teamCity.trim() || undefined,
+        isPublic: teamIsPublic,
+      };
+
+      const team = await teamsStore.createTeam(teamName.trim(), prefs);
 
       createdTeamId = team.$id;
 
@@ -131,12 +141,71 @@
             bind:value={teamDescription}
             placeholder="Décrivez l'objectif de cette équipe..."
             rows="3"
-            maxlength="200"
+            maxlength="350"
             disabled={loading}
           ></textarea>
           <span class="label label-text-alt opacity-50"
-            >{teamDescription.length}/200 caractères</span
+            >{teamDescription.length}/350 caractères</span
           >
+        </div>
+
+        <!-- Localisation -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="label" for="create-team-location">
+              <span class="label-text flex items-center gap-1">
+                <MapPin class="h-4 w-4" />
+                Département (optionnel)
+              </span>
+            </label>
+            <input
+              id="create-team-location"
+              type="text"
+              class="input input-bordered w-full"
+              bind:value={teamLocation}
+              placeholder="Ex: Île-de-France"
+              maxlength="50"
+              disabled={loading}
+            />
+          </div>
+
+          <div>
+            <label class="label" for="create-team-city">
+              <span class="label-text flex items-center gap-1">
+                <Building2 class="h-4 w-4" />
+                Ville (optionnel)
+              </span>
+            </label>
+            <input
+              id="create-team-city"
+              type="text"
+              class="input input-bordered w-full"
+              bind:value={teamCity}
+              placeholder="Ex: Paris"
+              maxlength="50"
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <!-- Équipe publique -->
+        <div class="form-control">
+          <label class="label cursor-pointer justify-start gap-3">
+            <input
+              type="checkbox"
+              class="toggle toggle-primary"
+              bind:checked={teamIsPublic}
+              disabled={loading}
+            />
+            <span class="label-text flex items-center gap-2">
+              <Globe class="h-4 w-4" />
+              Équipe publique
+            </span>
+          </label>
+          <p class="ml-12 text-xs opacity-60">
+            Les équipes publiques sont visibles par tous les utilisateurs de la
+            plateforme.
+          </p>
         </div>
 
         <!-- Message d'erreur -->

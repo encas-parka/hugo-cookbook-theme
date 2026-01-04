@@ -1,9 +1,9 @@
 <script lang="ts">
   import { Plus, Mail, UserPlus, X } from "@lucide/svelte";
   import Suggestions from "$lib/components/ui/Suggestions.svelte";
-  import { teamsStore } from "$lib/stores/TeamsStore.svelte";
-  import type { EnrichedTeam } from "$lib/types/aw_kteam.d";
-
+  import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
+  import type { EnrichedNativeTeam as EnrichedTeam } from "$lib/types/aw_native_team.d";
+  import { isValidEmail } from "@/lib/utils/utils";
   interface Props {
     team: EnrichedTeam;
     onSuccess?: () => void;
@@ -17,11 +17,6 @@
   let customMessage = $state("");
   let loading = $state(false);
   let error = $state<string | null>(null);
-
-  // Validation d'email
-  function isValidEmail(email: string): boolean {
-    return teamsStore.isValidEmail(email);
-  }
 
   // Suggestions d'utilisateurs (TODO: implémenter la logique de récupération)
   // Pour l'instant, liste vide - à connecter avec une API pour récupérer
@@ -48,21 +43,14 @@
       return;
     }
 
-    // Vérifier si déjà membre
-    const isMember = team.members.some(
-      (m) => m.name.toLowerCase() === trimmedEmail,
+    // Vérifier si déjà membre ou déjà invité
+    const alreadyStatus = team.members.some(
+      (m) =>
+        m.name.toLowerCase() === trimmedEmail ||
+        m.userEmail.toLowerCase() === trimmedEmail,
     );
-    if (isMember) {
-      error = "Cette personne est déjà membre de l'équipe";
-      return;
-    }
-
-    // Vérifier si déjà invité
-    const isInvited = team.invited?.some(
-      (i) => i.email.toLowerCase() === trimmedEmail,
-    );
-    if (isInvited) {
-      error = "Cette personne a déjà été invitée";
+    if (alreadyStatus) {
+      error = "Cette personne est déjà membre ou invitée dans l'équipe";
       return;
     }
 
