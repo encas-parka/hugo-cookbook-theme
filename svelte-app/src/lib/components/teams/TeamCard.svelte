@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { Users, Crown, Shield, ChevronRight } from "@lucide/svelte";
-  import type { EnrichedTeam } from "$lib/types/aw_kteam.d";
+  import { Users, Crown, ChevronRight, LogOut } from "@lucide/svelte";
+  import type { EnrichedNativeTeam as EnrichedTeam } from "$lib/types/aw_native_team.d";
   import { globalState } from "$lib/stores/GlobalState.svelte";
-  import { teamsStore } from "$lib/stores/TeamsStore.svelte";
+  import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
 
   interface Props {
     team: EnrichedTeam;
@@ -18,40 +18,40 @@
     if (!currentUserId) return null;
 
     const member = team.members.find((m) => m.id === currentUserId);
-    return member?.role || null;
+    return member?.roles?.[0] || null;
   });
 
   // Icône du rôle
-  const RoleIcon = $derived(
-    userRole === "owner" ? Crown : userRole === "admin" ? Shield : null,
-  );
+  const RoleIcon = $derived(userRole === "owner" ? Crown : null);
 
   // Couleur du badge selon le rôle
   const roleBadgeClass = $derived(
-    userRole === "owner"
-      ? "badge-primary"
-      : userRole === "admin"
-        ? "badge-secondary"
-        : "badge-ghost",
+    userRole === "owner" ? "badge-primary" : "badge-ghost",
   );
 
-  // Nombre d'invitations en attente
-  const pendingInvitationsCount = $derived(team.invited?.length || 0);
+  // Membres confirmés uniquement
+  const confirmedMembers = $derived(team.members.filter((m) => m.confirmed));
 
-  // ================================
-  // Invitation
-  // ================================
-
-  const isUserInvited = $derived(
-    team.invited.find((i) => i.id === globalState.userId) !== undefined,
+  // Nombre d'invitations en attente (membres non confirmés)
+  const pendingInvitationsCount = $derived(
+    team.members.filter((m) => !m.confirmed).length,
   );
 
-  async function declineInvitation() {
-    await teamsStore.declineTeamInvitation(teamId);
-  }
+  // Description depuis les prefs
+  const description = $derived(team.prefs?.description as string | undefined);
 
-  async function acceptInvitation() {
-    await teamsStore.acceptTeamInvitation(teamId);
+  // L'utilisateur est-il membre confirmé ?
+  const isUserMember = $derived.by(() => {
+    const me = team.members.find((m) => m.id === globalState.userId);
+    return me && me.confirmed;
+  });
+
+  // Quitter l'équipe (pour les membres non-owner)
+  async function leaveTeam() {
+    const me = team.members.find((m) => m.id === globalState.userId);
+    if (me && me.roles?.[0] !== "owner") {
+      await teamsStore.removeMember(teamId, me.$id);
+    }
   }
 </script>
 
@@ -73,59 +73,34 @@
       <h3 class="card-title group-hover:text-primary text-lg transition-colors">
         {team.name}
       </h3>
-      <!-- {#if userRole}
+      {#if userRole}
         <div class="badge {roleBadgeClass} gap-1">
           {#if RoleIcon}
             <RoleIcon class="h-3 w-3" />
           {/if}
-          {userRole}
+          {userRole === "owner" ? "Propriétaire" : "Membre"}
         </div>
-      {/if} -->
+      {/if}
     </div>
 
     <!-- Description -->
-    {#if team.description}
+    {#if description}
       <p class="text-base-content/70 mb-2 line-clamp-2 text-sm">
-        {team.description}
+        {description}
       </p>
     {/if}
 
-    {#if isUserInvited}
-      <div class="card border-info bg-info/10 flex flex-col gap-2 border-2 p-2">
-        <p class="text-center">Vous avez été invité à rejoindre l'équipe !</p>
-        <div class="flex justify-center gap-4">
-          <button
-            class="btn btn-ghost btn-sm"
-            onclick={(e) => {
-              e.stopPropagation();
-              declineInvitation();
-            }}
-          >
-            Décliner
-          </button>
-          <button
-            class="btn btn-primary btn-sm"
-            onclick={(e) => {
-              e.stopPropagation();
-              acceptInvitation();
-            }}
-          >
-            Accepter l'invitation
-          </button>
-        </div>
-      </div>
-    {/if}
     <!-- Stats -->
     <div class="text-base-content/70 mt-2 flex items-center gap-4 text-sm">
       <div class="flex items-center gap-1">
         <Users class="h-4 w-4" />
         <span
-          >{team.members.length} membre{team.members.length > 1
+          >{confirmedMembers.length} membre{confirmedMembers.length > 1
             ? "s"
             : ""}</span
         >
       </div>
-      {#if userRole && pendingInvitationsCount > 0}
+      {#if userRole === "owner" && pendingInvitationsCount > 0}
         <div class="badge badge-warning badge-sm gap-1">
           {pendingInvitationsCount} invitation{pendingInvitationsCount > 1
             ? "s"
@@ -134,8 +109,23 @@
       {/if}
     </div>
 
-    <!-- Action -->
-    <div class="card-actions mt-4 justify-end">
+    <!-- Actions -->
+    <div class="card-actions mt-4 justify-between">
+      {#if isUserMember && userRole !== "owner"}
+        <button
+          class="btn btn-ghost btn-xs text-error"
+          onclick={(e) => {
+            e.stopPropagation();
+            leaveTeam();
+          }}
+          title="Quitter l'équipe"
+        >
+          <LogOut class="h-4 w-4" />
+          Quitter
+        </button>
+      {:else}
+        <span></span>
+      {/if}
       <span
         class="text-primary flex items-center gap-1 text-xs font-semibold opacity-0 transition-opacity group-hover:opacity-100"
       >

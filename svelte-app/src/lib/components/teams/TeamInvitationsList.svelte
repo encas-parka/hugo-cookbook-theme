@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Mail, Clock, UserX } from "@lucide/svelte";
-  import type { EnrichedTeam } from "$lib/types/aw_kteam.d";
+  import type { EnrichedNativeTeam as EnrichedTeam } from "$lib/types/aw_native_team.d";
   import InviteMembersForm from "./InviteMembersForm.svelte";
 
   interface Props {
@@ -28,13 +28,14 @@
 
 <div class="space-y-6">
   <!-- Liste des invitations en attente -->
-  {#if team.invited && team.invited.length > 0}
+  {#if team.members.filter((m) => !m.confirmed).length > 0}
     <div>
       <h4 class="mb-3 text-sm font-medium opacity-70">
-        Invitations en attente ({team.invited.length})
+        Invitations en attente ({team.members.filter((m) => !m.confirmed)
+          .length})
       </h4>
       <div class="space-y-2">
-        {#each team.invited as invitation (invitation.email)}
+        {#each team.members.filter((m) => !m.confirmed) as invitation (invitation.id)}
           <div
             class="card bg-base-100 border-base-200 border p-4 transition-shadow hover:shadow-md"
           >
@@ -48,13 +49,12 @@
                 </div>
 
                 <div class="flex-1">
-                  <div class="font-medium">{invitation.email}</div>
+                  <div class="font-medium">
+                    {invitation.userEmail || invitation.name}
+                  </div>
                   <div class="flex items-center gap-1 text-sm opacity-70">
                     <Clock class="h-3 w-3" />
-                    Invité le {formatDate(invitation.invitedAt)}
-                    {#if invitation.invitedByName}
-                      <span class="ml-1">par {invitation.invitedByName}</span>
-                    {/if}
+                    Invité le {formatDate(invitation.joinedAt)}
                   </div>
                 </div>
               </div>
@@ -62,14 +62,14 @@
               <!-- Badge statut -->
               <div class="badge badge-warning">En attente</div>
 
-              <!-- Action d'annulation (TODO) -->
-              <!-- <button
+              <!-- Action d'annulation -->
+              <button
                 class="btn btn-ghost btn-sm"
-                onclick={() => cancelInvitation(invitation.email)}
+                onclick={() => cancelInvitation(invitation.$id)}
                 title="Annuler l'invitation"
               >
                 <UserX class="h-4 w-4" />
-              </button> -->
+              </button>
             </div>
           </div>
         {/each}

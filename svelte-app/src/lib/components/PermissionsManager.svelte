@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Users, UserPlus, Mail, Check } from "@lucide/svelte";
   import type { EventContributor } from "$lib/types/events";
-  import type { TeamsStore } from "$lib/stores/TeamsStore.svelte";
+  // import type { TeamsStore } from "$lib/stores/TeamsStore.svelte";
   import type { EventsStore } from "$lib/stores/EventsStore.svelte";
   import { nanoid } from "nanoid";
   import BtnGroupCheck from "$lib/components/ui/BtnGroupCheck.svelte";
@@ -11,7 +11,7 @@
   // Interface des props
   interface Props {
     contributors: EventContributor[]; // Contributeurs DÉJÀ enregistrés (lecture seule)
-    teamsStore: TeamsStore;
+    teamsStore: any; // Accepte TeamsStore ou NativeTeamsStore
     eventsStore: EventsStore;
     userId: string;
     userTeams: string[];

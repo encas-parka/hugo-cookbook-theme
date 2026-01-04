@@ -1,7 +1,7 @@
 <script lang="ts">
   import { X, Users, Mail, Settings, Trash2 } from "@lucide/svelte";
-  import type { EnrichedTeam } from "$lib/types/aw_kteam.d";
-  import { teamsStore } from "$lib/stores/TeamsStore.svelte";
+  import type { EnrichedNativeTeam as EnrichedTeam } from "$lib/types/aw_native_team.d";
+  import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import TeamMembersList from "./TeamMembersList.svelte";
   import TeamInvitationsList from "./TeamInvitationsList.svelte";
@@ -26,11 +26,11 @@
   const userRole = $derived.by(() => {
     if (!team || !globalState.userId) return null;
     const member = team.members.find((m) => m.id === globalState.userId);
-    return member?.role || null;
+    return member?.roles?.[0] || null;
   });
 
   const isOwner = $derived(userRole === "owner");
-  const canEdit = $derived(isOwner || userRole === "admin");
+  const canEdit = $derived(isOwner); // Dans les Teams natives, seul l'owner édite pour l'instant
 
   // État du formulaire de paramètres
   let editName = $state("");
@@ -41,7 +41,7 @@
   $effect(() => {
     if (team) {
       editName = team.name;
-      editDescription = team.description || "";
+      editDescription = (team.prefs?.description as string) || "";
       hasChanges = false;
     }
   });
@@ -50,7 +50,8 @@
   $effect(() => {
     if (team) {
       hasChanges =
-        editName !== team.name || editDescription !== (team.description || "");
+        editName !== team.name ||
+        editDescription !== ((team.prefs?.description as string) || "");
     }
   });
 
@@ -60,11 +61,9 @@
 
     loading = true;
     try {
-      await teamsStore.updateTeam(
-        team.$id,
-        editName.trim() || undefined,
-        editDescription.trim() || undefined,
-      );
+      await teamsStore.updateTeam(team.$id, editName.trim() || undefined, {
+        description: editDescription.trim() || undefined,
+      });
       hasChanges = false;
     } catch (err: any) {
       console.error("[TeamDetailModal] Erreur sauvegarde:", err);
@@ -164,9 +163,9 @@
         >
           <Mail class="mr-1 h-5 w-5" />
           Invitations
-          {#if team.invited && team.invited.length > 0}
+          {#if team.members.filter((m) => !m.confirmed).length > 0}
             <span class="badge badge-sm badge-warning ml-1">
-              {team.invited.length}
+              {team.members.filter((m) => !m.confirmed).length}
             </span>
           {:else}
             <span class="badge badge-sm badge-ghost ml-1">0</span>

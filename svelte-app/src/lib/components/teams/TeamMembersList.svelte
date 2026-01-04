@@ -1,8 +1,8 @@
 <script lang="ts">
   import { Users, Crown, Shield, UserMinus, LogOut } from "@lucide/svelte";
-  import type { EnrichedTeam } from "$lib/types/aw_kteam.d";
+  import type { EnrichedNativeTeam as EnrichedTeam } from "$lib/types/aw_native_team.d";
   import { globalState } from "$lib/stores/GlobalState.svelte";
-  import { teamsStore } from "$lib/stores/TeamsStore.svelte";
+  import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import ConfirmModal from "$lib/components/ui/ConfirmModal.svelte";
 
   interface Props {
@@ -29,13 +29,11 @@
   const currentUserRole = $derived(() => {
     if (!currentUserId) return null;
     const member = team.members.find((m) => m.id === currentUserId);
-    return member?.role || null;
+    return (member?.roles?.[0] as "owner" | "member") || null;
   });
 
   // Peut gérer les membres (owner ou admin)
-  const canManageMembers = $derived(
-    currentUserRole() === "owner" || currentUserRole() === "admin",
-  );
+  const canManageMembers = $derived(currentUserRole() === "owner");
 
   // Formater la date
   function formatDate(dateStr: string): string {
@@ -72,9 +70,12 @@
   async function leaveTeam() {
     if (!currentUserId) return;
 
+    const myMembership = team.members.find((m) => m.id === currentUserId);
+    if (!myMembership) return;
+
     loading = true;
     try {
-      await teamsStore.removeMember(team.$id, currentUserId);
+      await teamsStore.removeMember(team.$id, myMembership.$id);
       confirmLeaveTeam = false;
       onMemberRemoved?.();
     } catch (err: any) {
@@ -87,23 +88,15 @@
 
   // Icône et couleur selon le rôle
   function getRoleIcon(role: string) {
-    return role === "owner" ? Crown : role === "admin" ? Shield : Users;
+    return role === "owner" ? Crown : Users;
   }
 
   function getRoleBadgeClass(role: string) {
-    return role === "owner"
-      ? "badge-primary"
-      : role === "admin"
-        ? "badge-secondary"
-        : "badge-ghost";
+    return role === "owner" ? "badge-primary" : "badge-ghost";
   }
 
   function getRoleLabel(role: string) {
-    return role === "owner"
-      ? "Propriétaire"
-      : role === "admin"
-        ? "Administrateur"
-        : "Membre";
+    return role === "owner" ? "Propriétaire" : "Membre";
   }
 </script>
 
@@ -116,8 +109,9 @@
     </div>
   {:else}
     <div class="space-y-2">
-      {#each team.members as member (member.id)}
-        {@const RoleIcon = getRoleIcon(member.role)}
+      {#each team.members.filter((m) => m.confirmed) as member (member.id)}
+        {@const role = member.roles[0]}
+        {@const RoleIcon = getRoleIcon(role)}
         {@const isCurrentUser = member.id === currentUserId}
         {@const canRemove = canManageMembers && !isCurrentUser}
 
@@ -156,14 +150,14 @@
             </div>
 
             <!-- Badge de rôle -->
-            <div class="badge {getRoleBadgeClass(member.role)} gap-1">
+            <div class="badge {getRoleBadgeClass(role)} gap-1">
               <RoleIcon class="h-3 w-3" />
-              {getRoleLabel(member.role)}
+              {getRoleLabel(role)}
             </div>
 
             <!-- Actions -->
             <div class="flex gap-2">
-              {#if isCurrentUser && member.role !== "owner"}
+              {#if isCurrentUser && member.roles?.[0] !== "owner"}
                 <!-- Bouton de désinscription -->
                 <button
                   class="btn btn-error btn-sm"
@@ -177,7 +171,7 @@
                 <!-- Bouton de suppression -->
                 <button
                   class="btn btn-error btn-sm"
-                  onclick={() => openRemoveConfirm(member.id, member.name)}
+                  onclick={() => openRemoveConfirm(member.$id, member.name)}
                   disabled={loading}
                   title="Retirer ce membre"
                 >

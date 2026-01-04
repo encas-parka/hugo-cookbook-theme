@@ -78,7 +78,7 @@ class NotificationStore {
                 payload.targetDocumentId,
               );
 
-              const { teamsStore } = await import("./TeamsStore.svelte");
+              const { nativeTeamsStore: teamsStore } = await import("./NativeTeamsStore.svelte");
               await teamsStore.reload();
               await this.#deleteNotification(payload.$id);
             }

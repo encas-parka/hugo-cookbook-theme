@@ -9,14 +9,15 @@
   interface Team {
     $id: string;
     name: string;
-    description: string | null;
+    description?: string | null;
     members?: any[];
   }
 
   interface PendingInvite {
     teamId: string;
     teamName: string;
-    invitation: KTeamInvitation;
+    invitation?: KTeamInvitation;
+    membershipId?: string;
   }
 
   interface Props {
@@ -141,7 +142,7 @@
                 >
                   <div class="flex-1">
                     <div class="text-sm font-medium">{invite.teamName}</div>
-                    {#if invite.invitation.invitedByName}
+                    {#if invite.invitation?.invitedByName}
                       <div class="text-base-content/60 text-xs">
                         Invité par {invite.invitation.invitedByName}
                       </div>
