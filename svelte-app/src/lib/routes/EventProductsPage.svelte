@@ -332,9 +332,8 @@
 </LeftPanel>
 
 <div
-  class="space-y-6 {globalState.isMobile
-    ? ''
-    : 'ml-110 print:ml-0'} pt-16 md:px-16"
+  class="space-y-6 pt-16 md:px-16 {globalState.isDesktop &&
+    'ml-110 print:ml-0'} "
 >
   {#if isLoading}
     <!-- Loader pendant le chargement -->

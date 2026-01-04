@@ -40,7 +40,10 @@
   import Tooltip from "$lib/components/ui/Tooltip.svelte";
   import DateBadge from "$lib/components/ui/DateBadge.svelte";
   import { globalState, hoverHelp } from "$lib/stores/GlobalState.svelte";
-  import { formatDateWdDayMonthShort } from "$lib/utils/date-helpers";
+  import {
+    formatDateMinimal,
+    formatDateWdDayMonthShort,
+  } from "$lib/utils/date-helpers";
   import { calculateDateDisplayInfo } from "$lib/utils/dateRange";
   import { fade } from "svelte/transition";
 
@@ -117,7 +120,9 @@
       <!-- Header de groupe sticky -->
       {@const groupTypeInfo = getProductTypeInfo(groupKey)}
       <div
-        class="bg-primary @container sticky top-16 z-2 flex flex-wrap items-center justify-between rounded-lg px-4 py-2 shadow-md @md:flex-nowrap print:shadow-none"
+        class="bg-primary @container sticky {globalState.isMobile
+          ? 'top-11'
+          : 'top-16 rounded-lg'} z-2 flex flex-wrap items-center justify-between px-4 py-2 shadow-md @md:flex-nowrap print:shadow-none"
       >
         <!-- Nom du groupe -->
         <div class="flex items-center gap-2 font-bold md:text-lg @md:min-w-48">
@@ -137,22 +142,38 @@
           {/if}
         </div>
 
-        <div class="text-primary-content">
-          {#if productsStore.dateStore.isFullRange}
-            <div class="font-semibold">Sur toute la période</div>
-          {:else if productsStore.dateStore.start !== productsStore.dateStore.end}
-            du <span class="font-semibold">{formatedStartDateRange}</span> au
-            <span class="font-semibold">{formatedEndDateRange}</span>
-          {:else}
-            le <span class="font-semibold">{formatedStartDateRange}</span>
-          {/if}
-        </div>
+        {#if !globalState.isMobile}
+          <div class="text-primary-content">
+            {#if productsStore.dateStore.isFullRange}
+              <div class="font-semibold">Sur toute la période</div>
+            {:else if productsStore.dateStore.start !== productsStore.dateStore.end}
+              du <span class="font-semibold">{formatedStartDateRange}</span> au
+              <span class="font-semibold">{formatedEndDateRange}</span>
+            {:else}
+              le <span class="font-semibold">{formatedStartDateRange}</span>
+            {/if}
+          </div>
+        {:else}
+          <div class="text-primary-content">
+            {#if !productsStore.dateStore.isFullRange && productsStore.dateStore.start !== productsStore.dateStore.end}
+              <span class="font-semibold"
+                >{formatDateMinimal(productsStore.dateStore.start)} → {formatDateMinimal(
+                  productsStore.dateStore.end,
+                )}</span
+              >
+            {:else}
+              le <span class="font-semibold"
+                >{formatDateMinimal(productsStore.dateStore.start)}</span
+              >
+            {/if}
+          </div>
+        {/if}
 
         <!-- Actions groupées -->
         {#if shouldShowActionButtons}
           <div class="ms-auto flex flex-wrap items-center justify-end gap-2">
             <button
-              class="btn btn-sm btn-primary btn-soft"
+              class="btn btn-xs md:btn-sm btn-primary btn-soft"
               onclick={() =>
                 onOpenGroupEditModal(
                   "store",
@@ -171,7 +192,7 @@
             </button>
 
             <button
-              class="btn btn-sm btn-primary btn-soft"
+              class="btn btn-xs md:btn-sm btn-primary btn-soft"
               onclick={() =>
                 onOpenGroupEditModal(
                   "who",
@@ -192,7 +213,7 @@
             <!-- Bouton validation groupée -->
             {#if groupProducts!.some((p) => p.data.displayMissingQuantity !== "✅ Complet")}
               <button
-                class="btn btn-sm btn-primary btn-soft"
+                class="btn btn-xs md:btn-sm btn-primary btn-soft"
                 onclick={() =>
                   onOpenGroupPurchaseModal(groupProducts!.map((p) => p.data))}
                 title="Ouvrir le modal d'achat groupé"
@@ -224,7 +245,7 @@
     {/if}
 
     <!-- Cards des produits du groupe -->
-    <div class="space-y-1">
+    <div class="space-y-4 sm:space-y-1">
       {#each groupProducts as productModel (productModel.data.$id)}
         {@const product = productModel.data}
         {@const productInDateRange = productModel.stats}
@@ -236,8 +257,8 @@
         {@const overrideMismatch = detectOverrideMismatch(product)}
         <!-- Card du produit -->
         <div
-          class="card bg-base-100 border-base-300 {product.status ===
-          'isSyncing'
+          class="card bg-base-100 {globalState.isMobile &&
+            'border-base-300 border shadow'} {product.status === 'isSyncing'
             ? 'border-accent bg-accent/30 animate-pulse border-2'
             : ''}"
         >
@@ -246,7 +267,7 @@
             <div class="flex items-center justify-between">
               <!-- Section gauche: Titre & Type (prend la place disponible) -->
               <div
-                class="flex flex-1 cursor-pointer gap-4"
+                class="flex flex-1 cursor-pointer flex-wrap items-center gap-4"
                 role="button"
                 tabindex="0"
                 onclick={() => onOpenModal(product.$id, "recettes")}
@@ -256,13 +277,11 @@
                   (hoverHelp.msg = "Afficher les informations sur ce produit")}
                 onmouseleave={() => hoverHelp.reset()}
               >
-                <!-- Nom du produit & type -->
+                <!-- Nom du produit & type icon -->
                 <div
-                  class="ms-4 flex items-center gap-2 text-base font-semibold"
+                  class="text-primary flex items-center gap-2 text-base font-semibold"
                 >
-                  <typeInfo.icon
-                    class="text-base-content/80 h-4 w-4"
-                  />{product.productName}
+                  <typeInfo.icon class="h-4 w-4" />{product.productName}
                   {#if product.previousNames && product.previousNames.length > 0}
                     <div class="text-base-content/60 text-sm font-normal">
                       Ancien: {product.previousNames[0]}
@@ -305,8 +324,8 @@
                   </div>
                 {/if}
 
-                <!-- 📅 Dates concernées -->
-                {#if productInDateRange.concernedDates.length > 0}
+                <!-- 📅 Dates concernées (desktop only: sinon wrap degeu) -->
+                {#if !globalState.isMobile && productInDateRange.concernedDates.length > 0}
                   <div class="text-base-content/60">
                     <div class="flex flex-wrap gap-1">
                       {#each productInDateRange.concernedDates as date (date)}
@@ -324,12 +343,12 @@
 
               <!-- Section droite: Store & Who (horizontal, wrap) -->
               {#if shouldShowActionButtons}
-                <div class="ml-4 flex gap-2">
+                <div class="ml-4 flex gap-2 self-start">
                   <!-- Store -->
                   <button
                     title="Modifier le magasin"
-                    class="btn btn-soft btn-sm group relative {product.storeInfo
-                      ?.storeName
+                    class="btn btn-soft btn-xs sm:btn-sm group relative {product
+                      .storeInfo?.storeName
                       ? 'btn-success'
                       : ''}"
                     onclick={() => onOpenModal(product.$id, "magasins")}
@@ -362,7 +381,7 @@
                   <!-- Who -->
                   <button
                     title="Modifier les volontaires"
-                    class="btn btn-sm btn-soft group relative {product.who &&
+                    class="btn btn-xs sm:btn-sm btn-soft group relative {product.who &&
                     product.who?.length > 0
                       ? 'btn-success'
                       : ''}"
@@ -412,10 +431,25 @@
               {/if}
             </div>
 
+            <!-- 📅 Dates concernées (mobile only) -->
+            {#if globalState.isMobile && productInDateRange.concernedDates.length > 0}
+              <div class="text-base-content/60">
+                <div class="flex flex-wrap gap-1">
+                  {#each productInDateRange.concernedDates as date (date)}
+                    {@const recipes =
+                      productInDateRange.recipesByDate.get(date) || []}
+                    {@const dateDisplayInfo =
+                      productModel.data.dateDisplayInfo[date] ||
+                      calculateDateDisplayInfo(date)}
+                    <DateBadge {dateDisplayInfo} {recipes} />
+                  {/each}
+                </div>
+              </div>
+            {/if}
             <!-- Deuxième ligne: Groupe Besoins + Achats + Manquants (flex wrap) -->
             <div class="flex min-h-14 flex-wrap gap-3" id="card-needs-missing">
               <!-- Besoins -->
-              <div class="flex min-w-[200px] flex-1 flex-col">
+              <div class="flex min-w-[300px] flex-1 flex-col">
                 <div class="text-base-content/60 ms-1 text-sm">
                   <!-- <ListTodo class="bg-base-200 m-1 inline h-4 w-4" /> -->
                   Besoins total sur la période
@@ -424,7 +458,7 @@
                   id="needs-card"
                   role="button"
                   tabindex="0"
-                  class="bg-base-200 relative flex min-w-[200px] flex-1 cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg p-3"
+                  class=" bg-base-300/80 relative flex flex-1 cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg p-3 shadow-sm"
                   onclick={() => onOpenModal(product.$id, "recettes")}
                   onkeydown={(e) =>
                     e.key === "Enter" && onOpenModal(product.$id, "recettes")}
@@ -503,7 +537,7 @@
                   {#if shouldShowActionButtons && overrideMismatch?.hasMismatch}
                     <div
                       id="override_alert"
-                      class="alert alert-warning alert-soft mt-1 px-1 py-0.5"
+                      class="alert alert-warning alert-outline mt-1"
                     >
                       <CircleAlert size={18} />
                       <span>
@@ -524,13 +558,16 @@
                 </div>
               </div>
               <!-- Achats -->
-              <div class="flex min-w-[200px] flex-1 flex-col">
+              <div class="flex min-w-[300px] flex-1 flex-col">
                 <div class="text-base-content/60 ms-1 text-sm">
                   <!-- <ListTodo class="bg-base-200 m-1 inline h-4 w-4" /> -->
                   Achat / reccup effectué
                 </div>
+                <!-- {globalState.isMobile
+                  ? 'border-neutral/50 hover:border-accent/60 border shadow-sm'
+                  : 'bg-base-300'}" -->
                 <div
-                  class="group bg-base-200 hover:ring-accent/60 relative flex min-w-[200px] flex-1 cursor-pointer items-center justify-between gap-2 rounded-lg p-3 transition-colors hover:ring-2"
+                  class="group hover:ring-accent/60 bg-base-300/80 relative flex flex-1 cursor-pointer items-center justify-between gap-2 rounded-lg p-3 shadow-sm transition-colors hover:ring-2"
                   role="button"
                   tabindex="0"
                   onclick={() => onOpenModal(product.$id, "achats")}
@@ -561,7 +598,7 @@
                     {#each purchasesBadges as purchase, index (index)}
                       {@const IconComponent = statusIcons[purchase.icon]}
                       <div
-                        class="badge badge-outline flex h-fit flex-col items-center gap-1 py-1 {purchase.badgeClass}"
+                        class="badge badge-outline badge-lg flex flex-col items-center gap-1 {purchase.badgeClass}"
                       >
                         <div class="flex items-center gap-1">
                           <IconComponent class="h-4 w-4" />

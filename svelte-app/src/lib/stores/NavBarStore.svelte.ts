@@ -1,17 +1,9 @@
 import type { Snippet } from "svelte";
 
-export interface BreadcrumbItem {
-  label: string;
-  path?: string;
-  action?: () => void;
-  active?: boolean;
-}
-
 export interface NavBarConfig {
   title?: string;
   backAction?: () => void;
   actions?: Snippet;
-  tabs?: BreadcrumbItem[];
   eventId?: string;
   activeTab?: number;
   isLockedByOthers?: boolean;
@@ -34,10 +26,6 @@ class NavBarStore {
 
   get actions() {
     return this.#config.actions;
-  }
-
-  get tabs() {
-    return this.#config.tabs || [];
   }
 
   get eventId() {

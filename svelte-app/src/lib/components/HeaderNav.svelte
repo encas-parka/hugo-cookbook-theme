@@ -19,6 +19,8 @@
     LockIcon,
     RefreshCwIcon,
     DatabaseIcon,
+    ChefHat,
+    CookingPot,
   } from "@lucide/svelte";
   import AuthModal from "./AuthModal.svelte";
 
@@ -121,7 +123,8 @@
 <AuthModal bind:isOpen={showAuthModal} onAuthSuccess={handleLoginSuccess} />
 
 <div
-  class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] border-b px-4 py-0 shadow-sm print:hidden"
+  class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] border-b px-4 py-0 shadow-sm print:hidden {globalState.isMobile &&
+    'min-h-11'}"
 >
   <div class="navbar-start gap-1">
     <!-- Brand -->
@@ -133,7 +136,7 @@
     <div class="flex items-center gap-1">
       {#if globalState.isAuthenticated}
         <button
-          class="btn btn-ghost btn-sm gap-2"
+          class="btn btn-ghost btn-sm not-md:btn-square md:gap-2"
           onclick={() => navigate("/dashboard")}
         >
           <LayoutDashboardIcon size={18} />
@@ -142,10 +145,10 @@
       {/if}
 
       <button
-        class="btn btn-ghost btn-sm gap-2"
+        class="btn btn-ghost btn-sm not-md:btn-square md:gap-2"
         onclick={() => navigate("/recipe")}
       >
-        <SearchIcon size={18} />
+        <CookingPot size={18} />
         <span class="hidden md:inline">Recettes</span>
       </button>
     </div>
@@ -161,28 +164,20 @@
     {/if}
   </div>
 
-  <div class="navbar-center">
-    {#if navBarStore.eventId !== undefined}
-      <EventTabs eventId={navBarStore.eventId} />
-    {:else if navBarStore.tabs.length > 0}
-      <div class="tabs tabs-box">
-        {#each navBarStore.tabs as tab, index (index)}
-          <button
-            class="tab {tab.active ? 'tab-active' : ''}"
-            onclick={() => navigate(tab.path || "/")}
-          >
-            {tab.label}
-          </button>
-        {/each}
-      </div>
-    {:else}
-      <h1
-        class="truncate text-sm font-bold tracking-wider uppercase opacity-70"
-      >
-        {navBarStore.title}
-      </h1>
-    {/if}
-  </div>
+  <!-- navbar-center : SEULEMENT SUR DESKTOP -->
+  {#if globalState.isDesktop}
+    <div class="navbar-center">
+      {#if navBarStore.eventId !== undefined}
+        <EventTabs eventId={navBarStore.eventId} />
+      {:else}
+        <h1
+          class="truncate text-sm font-bold tracking-wider uppercase opacity-70"
+        >
+          {navBarStore.title}
+        </h1>
+      {/if}
+    </div>
+  {/if}
 
   <div class="navbar-end gap-4">
     {#if navBarStore.isLockedByOthers}
@@ -289,6 +284,21 @@
     {/if}
   </div>
 </div>
+
+<!-- SECTION SÉPARÉE : SEULEMENT SUR MOBILE (NON-STICKY) -->
+{#if globalState.isMobile}
+  <div class="border-base-300 bg-base-100 border-b px-4 py-3">
+    {#if navBarStore.eventId !== undefined}
+      <EventTabs eventId={navBarStore.eventId} />
+    {:else if navBarStore.title}
+      <h1
+        class="text-center text-sm font-bold tracking-wider uppercase opacity-70"
+      >
+        {navBarStore.title}
+      </h1>
+    {/if}
+  </div>
+{/if}
 
 <style>
   /* On garde juste ce qui est nécessaire pour sticky ou transitions spécifiques si non géré par DaisyUI */

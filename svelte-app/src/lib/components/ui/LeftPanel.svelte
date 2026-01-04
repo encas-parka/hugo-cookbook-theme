@@ -15,7 +15,7 @@
   const panelWidth = $derived("w-" + width);
 </script>
 
-{#if !globalState.isMobile}
+{#if globalState.isDesktop}
   <!-- Conteneur fixe à gauche avec overflow -->
   <div
     class="{bgClass} {panelWidth

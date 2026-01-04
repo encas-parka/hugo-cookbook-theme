@@ -43,7 +43,7 @@
   }
 </script>
 
-<div class="tabs tabs-border">
+<div class="tabs tabs-border justify-center">
   {#each eventTabs as tab, index (index)}
     <button
       class="tab font-medium {index === activeTab ? 'tab-active' : ''}"

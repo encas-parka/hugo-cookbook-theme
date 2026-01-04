@@ -1,11 +1,12 @@
 import { MediaQuery } from "svelte/reactivity";
 import { toastService } from "../services/toast.service.svelte";
 import { getAppwriteInstances, clearAppwriteCache } from "../services/appwrite";
-import { getUserTeamIds } from "../services/appwrite-teams";
+import { getUserTeamIds } from "../services/appwrite-kteams";
 import type { Models } from "appwrite";
 
 class GlobalState {
-  private isMobileQuery = new MediaQuery("max-width: 1024px");
+  private isMobileQuery = new MediaQuery("max-width: 768px");
+  private isDesktopQuery = new MediaQuery("min-width: 1024px");
 
   // =============================================================================
   // AUTHENTIFICATION
@@ -196,7 +197,7 @@ class GlobalState {
   }
 
   get isDesktop() {
-    return !this.isMobile;
+    return this.isDesktopQuery.current;
   }
 
   userName() {

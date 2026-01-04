@@ -72,7 +72,7 @@
           <li class="grid grid-cols-[auto_1fr] items-baseline gap-x-2 gap-y-0">
             <!-- Nom de l'ingrédient avec allergène -->
             <span class="truncate font-medium" title={ingredient.name}>
-              {ingredient.name}
+              {ingredient.name} :
               {#if ingredient.allergens && ingredient.allergens.length > 0}
                 <span class="ml-1 inline-flex align-middle print:hidden">
                   <TriangleAlert class="h-4 w-4 opacity-70" />

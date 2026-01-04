@@ -8,7 +8,7 @@
     getContributorStatus,
   } from "$lib/utils/event-stats-helpers";
   import { globalState } from "$lib/stores/GlobalState.svelte";
-  import { teamsStore } from "$lib/stores/TeamsStore.svelte";
+  import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import type { EventMeal } from "$lib/types/events";
   import {
     CircleAlert,
@@ -40,6 +40,9 @@
   // NOTE: meals est un $state brut (non trié) pour permettre les mutations
   let meals = $state<EventMeal[]>([]);
   let eventName = $state("");
+  let description = $state("");
+  let isConfirmed = $state(false);
+  let minContrib = $state<number>(0);
 
   // Meals triés par date pour l'affichage et la sauvegarde (computed réactif)
   const sortedMeals = $derived(
@@ -54,6 +57,8 @@
   let isAcquiringLock = $state(false); // Quand on acquiert le lock
   let editingMealIndex = $state<string | null>(null);
   let editingTitle = $state(false);
+  let editingDescription = $state(false);
+  let editingMinContrib = $state(false);
 
   // État du verrou externe (via locksService)
   let activeLock = $state<AppwriteLock | null>(null);
@@ -67,11 +72,17 @@
     const current = JSON.stringify({
       name: currentEvent.name,
       meals: currentEvent.meals || [],
+      description: (currentEvent as any).description || "",
+      isConfirmed: (currentEvent as any).isConfirmed || false,
+      minContrib: (currentEvent as any).minContrib || 0,
     });
 
     const local = JSON.stringify({
       name: eventName,
       meals: meals,
+      description,
+      isConfirmed,
+      minContrib,
     });
 
     return current !== local;
@@ -149,6 +160,9 @@
       // Mode Preview : Shadow draft suit currentEvent
       meals = $state.snapshot(currentEvent.meals || []);
       eventName = currentEvent.name || "";
+      description = (currentEvent as any).description || "";
+      isConfirmed = (currentEvent as any).isConfirmed || false;
+      minContrib = (currentEvent as any).minContrib || 0;
 
       console.log("🔄 Shadow draft synchronisé depuis currentEvent (Preview)");
     }
@@ -367,6 +381,9 @@
 
     const eventData = {
       name: eventName,
+      description,
+      isConfirmed,
+      minContrib,
       allDates: allDatesSorted as string[],
       dateStart: allDatesSorted.length > 0 ? allDatesSorted[0] : "",
       dateEnd:
@@ -626,6 +643,118 @@
       <EventStats {currentEvent} />
     {/if}
   </div>
+
+  <!-- Nouveaux champs : description, isConfirmed, minContrib -->
+  {#if isInitialised}
+    <div
+      class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:col-span-2 lg:grid-cols-3"
+    >
+      <!-- Description -->
+      <fieldset class="fieldset lg:col-span-2">
+        <legend class="fieldset-legend flex items-center justify-between">
+          Description
+        </legend>
+        {#if editingDescription}
+          <textarea
+            class="textarea w-full"
+            placeholder="Décrivez l'événement..."
+            bind:value={description}
+            onfocus={startEditing}
+            onblur={() => (editingDescription = false)}
+            disabled={!canEdit}
+            maxlength="3000"
+            rows="4"
+          ></textarea>
+          <p class="label">{description.length}/3000 caractères</p>
+        {:else}
+          <button
+            class="btn btn-ghost h-auto justify-start py-4 text-left"
+            onclick={() => (editingDescription = true)}
+            disabled={!canEdit}
+          >
+            <div class="flex w-full items-start justify-between gap-4">
+              <div class="flex-1">
+                {#if description}
+                  <p class="whitespace-pre-wrap">{description}</p>
+                {:else}
+                  <p class="text-base-content/40 italic">
+                    Ajoutez une description...
+                  </p>
+                {/if}
+              </div>
+              <PencilLine class="h-4 w-4 shrink-0" />
+            </div>
+          </button>
+        {/if}
+      </fieldset>
+
+      <!-- isConfirmed & minContrib -->
+      <div class="flex flex-col gap-4">
+        <!-- Événement confirmé -->
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend">Événement confirmé</legend>
+          {#if isConfirmed || editingDescription}
+            <label class="label cursor-pointer justify-start gap-4">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-primary"
+                bind:checked={isConfirmed}
+                onclick={startEditing}
+                disabled={!canEdit}
+              />
+              <span class="label-text">Événement confirmé</span>
+            </label>
+          {:else}
+            <p class="text-base-content/40 text-sm italic">Non confirmé</p>
+            <button
+              class="btn btn-ghost btn-sm justify-start px-0"
+              onclick={startEditing}
+              disabled={!canEdit}
+            >
+              <PencilLine class="mr-1 h-3 w-3" />
+              Modifier
+            </button>
+          {/if}
+        </fieldset>
+
+        <!-- Équipe minimale -->
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend">Équipe minimale</legend>
+          {#if editingMinContrib}
+            <label class="input w-full">
+              <input
+                type="number"
+                placeholder="0"
+                bind:value={minContrib}
+                onfocus={startEditing}
+                onblur={() => (editingMinContrib = false)}
+                disabled={!canEdit}
+                min="0"
+                class="grow"
+              />
+            </label>
+          {:else}
+            <button
+              class="btn btn-ghost justify-start"
+              onclick={() => {
+                editingMinContrib = true;
+                startEditing();
+              }}
+              disabled={!canEdit}
+            >
+              <div class="flex items-center gap-4">
+                <span class="text-lg">
+                  {minContrib || 0}
+                </span>
+                <PencilLine class="h-4 w-4" />
+              </div>
+            </button>
+          {/if}
+          <p class="label">Nombre minimum de participants requis</p>
+        </fieldset>
+      </div>
+    </div>
+  {/if}
 
   <!-- Alerte de verrouillage par un autre utilisateur -->
   {#if isLockedByOthers}
