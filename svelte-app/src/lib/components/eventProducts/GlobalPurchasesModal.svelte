@@ -202,7 +202,9 @@ Modal de récapitulatif des dépenses
         <div class="stats bg-primary text-primary-content shadow">
           <div class="stat">
             <div class="stat-title text-primary-content/80">Total Global</div>
-            <div class="stat-value">{formatPrice(stats.totalGlobal)}</div>
+            <div class="stat-value text-xl">
+              {formatPrice(stats.totalGlobal)}
+            </div>
             <div class="stat-desc text-primary-content/80">
               {purchases.length} transactions
             </div>
@@ -210,13 +212,13 @@ Modal de récapitulatif des dépenses
         </div>
 
         <!-- Breakdown Lists -->
-        <div class="card bg-base-200 p-4 shadow-sm">
+        <div class="card bg-base-200 w-max-3xl h-full p-4 shadow-sm">
           <h4
             class="mb-2 text-sm font-semibold tracking-wider uppercase opacity-70"
           >
             Par Magasin
           </h4>
-          <div class="max-h-24 space-y-1 overflow-y-auto text-sm">
+          <div class="w-max-3xl h-full space-y-1 text-sm">
             {#each Object.entries(stats.byStore).sort((a, b) => b[1] - a[1]) as [store, amount]}
               <div class="flex justify-between">
                 <span>{store}</span>
@@ -226,13 +228,13 @@ Modal de récapitulatif des dépenses
           </div>
         </div>
 
-        <div class="card bg-base-200 p-4 shadow-sm">
+        <div class="card bg-base-200 w-max-3xl h-full p-4 shadow-sm">
           <h4
             class="mb-2 text-sm font-semibold tracking-wider uppercase opacity-70"
           >
             Par Acheteur
           </h4>
-          <div class="max-h-24 space-y-1 overflow-y-auto text-sm">
+          <div class="w-max-3xl h-full space-y-1 text-sm">
             {#each Object.entries(stats.byWho).sort((a, b) => b[1] - a[1]) as [who, amount]}
               <div class="flex justify-between">
                 <span>{who}</span>
@@ -324,9 +326,7 @@ Modal de récapitulatif des dépenses
 
       <!-- Purchases Table (Desktop) -->
       {#if !globalState.isMobile}
-        <div
-          class="bg-base-100 border-base-200 overflow-x-auto rounded-lg border"
-        >
+        <div class="bg-base-100 border-base-200 rounded-lg border">
           <table class="table-zebra table-xs table w-full">
             <thead class="bg-base-200 sticky top-0">
               <tr>

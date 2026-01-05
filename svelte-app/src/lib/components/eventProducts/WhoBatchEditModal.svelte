@@ -177,7 +177,7 @@
   {onClose}
   hasUnsavedChanges={false}
   fullscreenOnMobile={true}
-  minWidth={"lg"}
+  maxWidth={"lg"}
 >
   <ModalHeader {title} showBackButton={true} {onClose} />
 

@@ -79,8 +79,8 @@
   onClose={handleModalClose}
   {hasUnsavedChanges}
   fullscreenOnMobile={true}
-  minWidth="xl"
-  minHeight="xl"
+  maxWidth="xl"
+  modalClass="h-10/12"
 >
   {#if isLoading}
     <!-- Header de chargement -->

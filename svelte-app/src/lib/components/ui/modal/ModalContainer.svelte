@@ -11,10 +11,9 @@
     closeOnBackdropClick?: boolean;
     hasUnsavedChanges?: boolean;
     confirmCloseMessage?: string;
-    minWidth?: ModalSize;
-    minHeight?: ModalSize;
     maxWidth?: ModalSize;
     maxHeight?: ModalSize;
+    modalClass?: string;
     children: Snippet;
   }
 
@@ -25,36 +24,28 @@
     closeOnBackdropClick = false,
     hasUnsavedChanges = false,
     confirmCloseMessage = "Vous avez des modifications non sauvegardées. Voulez-vous vraiment fermer ?",
-    minWidth,
-    minHeight,
-    maxWidth,
+    maxWidth = "lg",
     maxHeight = "xl",
+    modalClass = "",
     children,
   }: Props = $props();
 
   // Fonctions utilitaires pour contourner le tree-shaking de Tailwind
   // Toutes les classes doivent être mentionnées explicitement
-  function getSizeClass(
-    size: ModalSize,
-    dimension: "min-w" | "min-h" | "max-w" | "max-h",
-  ): string {
+  // max-w : taille maximale (le modal ne peut pas dépasser cette taille)
+  // max-h : hauteur maximale (le modal ne peut pas dépasser cette hauteur)
+  function getSizeClass(size: ModalSize, dimension: "max-w" | "max-h"): string {
     const sizeMap: Record<ModalSize, Record<typeof dimension, string>> = {
       sm: {
-        "min-w": "min-w-[30vw]",
-        "min-h": "min-h-[30vh]",
-        "max-w": "max-w-[30vw]",
-        "max-h": "max-h-[30vh]",
+        "max-w": "max-w-[28rem]", // ~448px maximum
+        "max-h": "max-h-[85vh]",
       },
       lg: {
-        "min-w": "min-w-[50vw]",
-        "min-h": "min-h-[50vh]",
-        "max-w": "max-w-[50vw]",
-        "max-h": "max-h-[50vh]",
+        "max-w": "max-w-[64rem]", // ~1024px maximum
+        "max-h": "max-h-[85vh]",
       },
       xl: {
-        "min-w": "min-w-[90vw]",
-        "min-h": "min-h-[90vh]",
-        "max-w": "max-w-[90vw]",
+        "max-w": "max-w-[90vw]", // 90% de l'écran maximum
         "max-h": "max-h-[90vh]",
       },
     };
@@ -106,24 +97,16 @@
   });
 </script>
 
-<div class="modal {isOpen && 'modal-open'}">
+<div class="modal {isOpen && 'modal-open'} ">
   <!-- Modal box -->
   {#if isOpen}
     <div
-      class="modal-box flex flex-col p-0 {fullscreenOnMobile &&
+      class="modal-box flex flex-col p-0 {modalClass} {fullscreenOnMobile &&
       globalState.isMobile
         ? 'fixed inset-0 m-0 h-lvh w-lvw rounded-none'
         : 'fixed m-auto'} {globalState.isDesktop &&
-        !minWidth &&
-        !maxWidth &&
-        'w-auto'} {globalState.isDesktop &&
-        minWidth &&
-        getSizeClass(minWidth, 'min-w')} {globalState.isDesktop &&
-        minHeight &&
-        getSizeClass(minHeight, 'min-h')} {globalState.isDesktop &&
-        maxWidth &&
         getSizeClass(maxWidth, 'max-w')} {globalState.isDesktop &&
-        maxHeight &&
+        !modalClass &&
         getSizeClass(maxHeight, 'max-h')}"
       role="dialog"
       aria-modal="true"
