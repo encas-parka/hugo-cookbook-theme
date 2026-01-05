@@ -1,5 +1,9 @@
 <script lang="ts">
   import { TriangleAlert, Info, AlertCircle, X } from "@lucide/svelte";
+  import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
+  import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
+  import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
+  import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
 
   interface Props {
     isOpen: boolean;
@@ -49,34 +53,23 @@
   );
 </script>
 
-<div class="modal {isOpen && 'modal-open'}">
-  <div class="modal-box">
-    <!-- Header -->
-    <div class="mb-4 flex items-center justify-between">
-      <h3 class="text-lg font-bold">{title}</h3>
-      <button
-        class="btn btn-circle btn-ghost btn-sm"
-        onclick={onCancel}
-        aria-label="Fermer"
-      >
-        <X class="h-4 w-4" />
-      </button>
-    </div>
+<ModalContainer {isOpen} onClose={onCancel}>
+  <ModalHeader {title} onClose={onCancel} />
 
+  <ModalContent>
     <!-- Contenu avec alerte -->
-    <div class="alert alert-soft {alertClass} mb-6">
+    <div class="alert alert-soft {alertClass}">
       <IconComponent class="h-5 w-5" />
       <span>{message}</span>
     </div>
+  </ModalContent>
 
-    <!-- Actions -->
-    <div class="modal-action">
-      <button class="btn btn-ghost" onclick={onCancel}>
-        {cancelLabel}
-      </button>
-      <button class="btn {btnClass}" onclick={onConfirm}>
-        {confirmLabel}
-      </button>
-    </div>
-  </div>
-</div>
+  <ModalFooter>
+    <button class="btn btn-ghost" onclick={onCancel}>
+      {cancelLabel}
+    </button>
+    <button class="btn {btnClass}" onclick={onConfirm}>
+      {confirmLabel}
+    </button>
+  </ModalFooter>
+</ModalContainer>

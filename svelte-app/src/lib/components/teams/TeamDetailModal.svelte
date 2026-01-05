@@ -6,6 +6,10 @@
   import TeamMembersList from "./TeamMembersList.svelte";
   import TeamInvitationsList from "./TeamInvitationsList.svelte";
   import ConfirmModal from "$lib/components/ui/ConfirmModal.svelte";
+  import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
+  import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
+  import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
+  import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
 
   interface Props {
     teamId: string | null;
@@ -104,44 +108,22 @@
   }
 </script>
 
-<div class="modal {teamId && 'modal-open'}">
-  <div
-    class="modal-box fixed top-0 flex h-lvh w-lvw flex-col overflow-auto md:top-10 md:h-full md:max-h-11/12 md:w-full md:max-w-4xl"
-  >
-    <button
-      class="btn btn-circle btn-ghost btn-sm absolute top-4 right-4"
-      onclick={onClose}
-      aria-label="Fermer"
-    >
-      <X class="h-4 w-4" />
-    </button>
+<ModalContainer isOpen={teamId !== null} {onClose}>
+  {#if team}
+    <ModalHeader title={team.name} subtitle={team.description} {onClose}>
+      {#if isOwner}
+        <button
+          class="btn btn-error btn-sm"
+          onclick={() => (confirmDeleteTeam = true)}
+          disabled={loading}
+          title="Supprimer l'équipe"
+        >
+          <Trash2 class="h-4 w-4" />
+        </button>
+      {/if}
+    </ModalHeader>
 
-    {#if team}
-      <!-- Header -->
-      <div class="flex items-center justify-between border-b p-4 pt-0">
-        <div>
-          <h3 class="text-xl font-bold">{team.name}</h3>
-          {#if team.description}
-            <p class="text-sm opacity-70">{team.description}</p>
-          {/if}
-        </div>
-
-        <div class="flex items-center gap-2">
-          <!-- Bouton de suppression (owner uniquement) -->
-          <!-- TODO what to do -->
-          <!-- {#if isOwner}
-            <button
-              class="btn btn-error btn-sm"
-              onclick={() => (confirmDeleteTeam = true)}
-              disabled={loading}
-              title="Supprimer l'équipe"
-            >
-              <Trash2 class="h-4 w-4" />
-            </button>
-          {/if} -->
-        </div>
-      </div>
-
+    <ModalContent>
       <!-- Onglets -->
       <div class="tabs tabs-border flex-none" role="tablist">
         <button
@@ -188,73 +170,67 @@
       </div>
 
       <!-- Contenu -->
-      <div class="flex-1 overflow-y-auto p-4">
-        {#key currentTab}
-          {#if currentTab === "members"}
-            <TeamMembersList {team} onMemberRemoved={handleMemberChange} />
-          {:else if currentTab === "invitations"}
-            <TeamInvitationsList
-              {team}
-              onInvitationSent={handleInvitationSent}
-            />
-          {:else if currentTab === "settings" && canEdit}
-            <!-- Paramètres -->
-            <div class="space-y-4">
-              <div>
-                <label class="label" for="team-name-input">
-                  <span class="label-text">Nom de l'équipe</span>
-                </label>
-                <input
-                  id="team-name-input"
-                  type="text"
-                  class="input input-bordered w-full"
-                  bind:value={editName}
-                  placeholder="Nom de l'équipe"
-                  maxlength="50"
-                  disabled={loading}
-                />
-              </div>
-
-              <div>
-                <label class="label" for="team-description-input">
-                  <span class="label-text">Description</span>
-                </label>
-                <textarea
-                  id="team-description-input"
-                  class="textarea textarea-bordered w-full"
-                  bind:value={editDescription}
-                  placeholder="Description de l'équipe"
-                  rows="3"
-                  maxlength="200"
-                  disabled={loading}
-                ></textarea>
-              </div>
-
-              <div class="flex justify-end">
-                <button
-                  class="btn btn-primary"
-                  onclick={saveSettings}
-                  disabled={loading || !hasChanges}
-                >
-                  {#if loading}
-                    <span class="loading loading-spinner loading-sm"></span>
-                  {:else}
-                    Enregistrer
-                  {/if}
-                </button>
-              </div>
+      {#key currentTab}
+        {#if currentTab === "members"}
+          <TeamMembersList {team} onMemberRemoved={handleMemberChange} />
+        {:else if currentTab === "invitations"}
+          <TeamInvitationsList {team} onInvitationSent={handleInvitationSent} />
+        {:else if currentTab === "settings" && canEdit}
+          <!-- Paramètres -->
+          <div class="space-y-4">
+            <div>
+              <label class="label" for="team-name-input">
+                <span class="label-text">Nom de l'équipe</span>
+              </label>
+              <input
+                id="team-name-input"
+                type="text"
+                class="input input-bordered w-full"
+                bind:value={editName}
+                placeholder="Nom de l'équipe"
+                maxlength="50"
+                disabled={loading}
+              />
             </div>
-          {/if}
-        {/key}
-      </div>
 
-      <!-- Footer -->
-      <div class="modal-action">
-        <button class="btn btn-ghost" onclick={onClose}>Fermer</button>
-      </div>
-    {/if}
-  </div>
-</div>
+            <div>
+              <label class="label" for="team-description-input">
+                <span class="label-text">Description</span>
+              </label>
+              <textarea
+                id="team-description-input"
+                class="textarea textarea-bordered w-full"
+                bind:value={editDescription}
+                placeholder="Description de l'équipe"
+                rows="3"
+                maxlength="200"
+                disabled={loading}
+              ></textarea>
+            </div>
+
+            <div class="flex justify-end">
+              <button
+                class="btn btn-primary"
+                onclick={saveSettings}
+                disabled={loading || !hasChanges}
+              >
+                {#if loading}
+                  <span class="loading loading-spinner loading-sm"></span>
+                {:else}
+                  Enregistrer
+                {/if}
+              </button>
+            </div>
+          </div>
+        {/if}
+      {/key}
+    </ModalContent>
+
+    <ModalFooter>
+      <button class="btn btn-ghost" onclick={onClose}>Fermer</button>
+    </ModalFooter>
+  {/if}
+</ModalContainer>
 
 <!-- Modal de confirmation - Suppression équipe -->
 <ConfirmModal

@@ -14,7 +14,7 @@
   let {
     title,
     subtitle,
-    showBackButton = false,
+    showBackButton = true,
     onClose,
     children,
   }: Props = $props();
@@ -45,7 +45,7 @@
         </button>
       {/if}
 
-      <div class="min-w-0 flex-1 items-baseline">
+      <div class="max-w-11/12 min-w-0 flex-1 items-baseline">
         <h3 class="truncate text-lg font-bold">{title}</h3>
         {#if subtitle}
           <p class="text-base-content/70 truncate text-sm">{subtitle}</p>
@@ -55,20 +55,9 @@
 
     <!-- Right side: custom content -->
     {#if children}
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 sm:me-10">
         {@render children()}
       </div>
-    {/if}
-
-    <!-- Close button X (desktop only, absolute when no back button) -->
-    {#if !showBackButton}
-      <button
-        class="btn btn-circle btn-ghost btn-sm flex-none"
-        onclick={onClose}
-        aria-label="Fermer"
-      >
-        <X class="h-4 w-4" />
-      </button>
     {/if}
   </div>
 </div>

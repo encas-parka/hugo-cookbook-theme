@@ -49,7 +49,7 @@
     </div>
 
     <div
-      class="bg-base-100 rounded-t-box border-base-300 absolute -top-4 right-0 border-t-1 p-0.5"
+      class="bg-base-100 rounded-t-box border-base-300 absolute -top-4 right-0 border-t-1 px-1"
     >
       {#if recipe.regime}
         <RecipeRegimeBadges regimes={recipe.regime} iconOnly />

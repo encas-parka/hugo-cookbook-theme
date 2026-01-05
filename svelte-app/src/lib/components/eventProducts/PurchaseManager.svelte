@@ -11,6 +11,9 @@
     WeightIcon,
     Calendar,
     PackageCheck,
+    Weight,
+    Trash,
+    Trash2,
   } from "@lucide/svelte";
   import type { Purchases } from "$lib/types/appwrite.d.ts";
   import type { ProductModalStateType } from "$lib/types/store.types.js";
@@ -21,6 +24,7 @@
   } from "$lib/utils/products-display.js";
   import { formatSingleQuantity } from "$lib/utils/QuantityFormatter.js";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
   import ArchiveMessage from "./ArchiveMessage.svelte";
   import QuantityInput from "../ui/QuantityInput.svelte";
   import StoreInput from "../ui/StoreInput.svelte";
@@ -47,24 +51,95 @@
   // État local pour la checkbox de commande
   let isOrder = $state(false);
 
+  // ✅ Fonction pour démarrer l'édition en utilisant le formulaire d'ajout
+  function startEdit(purchase: Purchases) {
+    // Ne rien faire en mode archive
+    if (isArchiveMode) return;
+
+    // Copier les données du purchase dans le formulaire
+    modalState.forms.purchase.quantity = purchase.quantity;
+    modalState.forms.purchase.unit = purchase.unit;
+    modalState.forms.purchase.price = purchase.price;
+    modalState.forms.purchase.store = purchase.store || "";
+    modalState.forms.purchase.who = purchase.who || "";
+    modalState.forms.purchase.notes = purchase.notes || "";
+    modalState.forms.purchase.status = purchase.status;
+    modalState.forms.purchase.orderDate = purchase.orderDate || null;
+    modalState.forms.purchase.deliveryDate = purchase.deliveryDate || null;
+
+    // Définir l'ID du purchase en cours d'édition
+    modalState.editingPurchaseId = purchase.$id;
+
+    // Scroll vers le formulaire et focus sur l'input du prix
+    setTimeout(() => {
+      const formElement = document.querySelector("#purchase-form-card");
+      formElement?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      // Focus sur l'input du prix (premier input de type number dans PriceInput)
+      const priceInput = formElement?.querySelector('input[type="number"]');
+      priceInput?.focus();
+    }, 100);
+  }
+
+  // ✅ Fonction pour réinitialiser le formulaire
+  function resetForm() {
+    modalState.forms.purchase.quantity = null;
+    modalState.forms.purchase.unit = "kg";
+    modalState.forms.purchase.price = null;
+    modalState.forms.purchase.store = "";
+    modalState.forms.purchase.who = "";
+    modalState.forms.purchase.notes = "";
+    modalState.forms.purchase.status = "delivered";
+    modalState.forms.purchase.orderDate = null;
+    modalState.forms.purchase.deliveryDate = null;
+
+    // Annuler l'édition en cours si nécessaire
+    if (modalState.editingPurchaseId) {
+      modalState.cancelEditPurchase();
+    }
+  }
+
   // ✅ Pas besoin d'intermédiaires - accès direct au state du modalState
-  function handleAddPurchase() {
+  function handleAddOrUpdatePurchase() {
     if (!modalState.isPurchaseFormValid) return;
 
-    // Définir la date de commande par défaut si c'est une commande
-    if (
-      modalState.forms.purchase.status === "ordered" &&
-      !modalState.forms.purchase.orderDate
-    ) {
-      modalState.forms.purchase.orderDate = new Date()
-        .toISOString()
-        .split("T")[0];
-    }
+    if (modalState.editingPurchaseId) {
+      // Mode Édition : mettre à jour le purchase existant
+      const edited = modalState.editingPurchaseData;
+      if (!edited || !isEditFormValid(edited)) return;
 
-    modalState.addPurchase();
+      // Mettre à jour avec les données du formulaire
+      edited.quantity = modalState.forms.purchase.quantity;
+      edited.unit = modalState.forms.purchase.unit;
+      edited.price = modalState.forms.purchase.price;
+      edited.store = modalState.forms.purchase.store;
+      edited.who = modalState.forms.purchase.who;
+      edited.notes = modalState.forms.purchase.notes;
+      edited.status = modalState.forms.purchase.status;
+      edited.orderDate = modalState.forms.purchase.orderDate;
+      edited.deliveryDate = modalState.forms.purchase.deliveryDate;
+
+      modalState.updateEditedPurchase(edited);
+      modalState.cancelEditPurchase(); // Reset après mise à jour
+    } else {
+      // Mode Création : ajouter un nouveau purchase
+      // Définir la date de commande par défaut si c'est une commande
+      if (
+        modalState.forms.purchase.status === "ordered" &&
+        !modalState.forms.purchase.orderDate
+      ) {
+        modalState.forms.purchase.orderDate = new Date()
+          .toISOString()
+          .split("T")[0];
+      }
+
+      modalState.addPurchase();
+    }
   }
 
   function handleUpdateEditedPurchase() {
+    // Cette fonction n'est plus utilisée car on utilise le formulaire d'ajout pour l'édition
+    // Gardée pour compatibilité si elle est appelée ailleurs
     const edited = modalState.editingPurchaseData;
     if (!edited || !isEditFormValid(edited)) return;
     modalState.updateEditedPurchase(edited);
@@ -75,12 +150,29 @@
   }
 
   function handleStartEdit(purchase: Purchases) {
-    modalState.startEditPurchase(purchase);
+    // Rediriger vers la nouvelle fonction startEdit qui utilise le formulaire
+    startEdit(purchase);
   }
 
   function handleCancelEdit() {
-    modalState.cancelEditPurchase();
+    // Utiliser resetForm pour annuler l'édition
+    resetForm();
   }
+
+  // ✅ Dérivée pour savoir si on est en mode édition
+  let isEditMode = $derived(modalState.editingPurchaseId !== null);
+
+  // ✅ Titre du formulaire selon le mode
+  let formTitle = $derived(
+    isEditMode
+      ? "Modifier l'achat"
+      : "Ajouter un achat / une récup / une commande",
+  );
+
+  // ✅ Texte du bouton selon le mode
+  let buttonText = $derived(
+    isEditMode ? "Enregistrer les modifications" : "Ajouter l'achat",
+  );
 </script>
 
 <div class="space-y-4">
@@ -95,10 +187,15 @@
     Gestion des achats
   </h3> -->
 
-    <div class="card bg-base-200">
+    <div
+      class="card bg-base-200 {isEditMode
+        ? 'ring-accent ring-2 ring-offset-2'
+        : ''}"
+      id="purchase-form-card"
+    >
       <div class="card-body">
         <h4 class="card-title text-base">
-          Ajouter un achat / une reccup / une commande
+          {formTitle}
         </h4>
         <div class="space-y-6">
           <div class="flex flex-wrap items-baseline gap-4">
@@ -140,15 +237,20 @@
           />
         </div>
         <div class="card-actions mt-4 justify-end">
+          {#if isEditMode}
+            <button class="btn btn-ghost btn-sm" onclick={resetForm}>
+              Annuler
+            </button>
+          {/if}
           <button
             class="btn btn-primary btn-sm"
-            onclick={handleAddPurchase}
+            onclick={handleAddOrUpdatePurchase}
             disabled={modalState.loading || !modalState.isPurchaseFormValid}
           >
             {#if modalState.loading}
               <span class="loading loading-spinner loading-sm"></span>
             {:else}
-              Ajouter l'achat
+              {buttonText}
             {/if}
           </button>
         </div>
@@ -157,13 +259,14 @@
   {/if}
 </div>
 
-<!-- Table des achats -->
+<!-- Table des achats (Desktop) ou Cartes (Mobile) -->
 {#if modalState.purchasesList.length === 0}
   <div class="mt-4 py-8 text-center opacity-50">
     <ShoppingCart class="mx-auto mb-2 h-12 w-12" />
     <p>Aucun achat enregistré pour ce produit</p>
   </div>
-{:else}
+{:else if !globalState.isMobile}
+  <!-- Desktop Table View -->
   <div class="mt-4 overflow-x-auto">
     <table class="table-zebra table-sm table">
       <thead>
@@ -181,172 +284,151 @@
       </thead>
       <tbody>
         {#each modalState.purchasesList as purchase (purchase.$id)}
-          {#if modalState.editingPurchaseId === purchase.$id}
-            <!-- Mode édition -->
-            <tr class="bg-warning/10">
-              <td>
-                <div class="flex gap-2">
-                  <input
-                    type="number"
-                    step="1"
-                    min="0.01"
-                    class="input w-20"
-                    bind:value={purchase.quantity}
-                  />
-                  <select
-                    class="custom-select input w-16"
-                    bind:value={purchase.unit}
-                  >
-                    <option value="kg">kg</option>
-                    <option value="gr.">gr.</option>
-                    <option value="l.">l.</option>
-                    <option value="ml">ml</option>
-                    <option value="unité">unité·s</option>
-                    <option value="bottes">botte·s</option>
-                  </select>
-                </div>
-              </td>
-              <td>
-                <input
-                  type="text"
-                  class="input w-24"
-                  bind:value={purchase.store}
-                  list="stores"
-                  placeholder="Magasin"
-                  maxlength="50"
-                />
-                <!-- <datalist id="browsers">
-                      {#each productsStore.uniqueStores as store}
-                        <option value={store}>{store}</option>
-                      {/each}
-                    </datalist> -->
-              </td>
-              <td>
-                <input
-                  type="text"
-                  class="input w-20"
-                  bind:value={purchase.who}
-                  placeholder="Nom"
-                  maxlength="25"
-                  list="users"
-                />
-              </td>
-              <td>
-                <select
-                  class="custom-select input w-24"
-                  bind:value={purchase.status}
-                >
-                  <!-- <option value="requested">Demandé</option> -->
-                  <option value="ordered">Commandé</option>
-                  <option value="delivered">Acheté</option>
-                  <!-- <option value="cancelled">Annulé</option> -->
-                </select>
-              </td>
-              <td>
-                <input
-                  type="date"
-                  class="input w-28"
-                  bind:value={purchase.orderDate}
-                />
-              </td>
-              <td>
-                <input
-                  type="date"
-                  class="input w-28"
-                  bind:value={purchase.deliveryDate}
-                />
-              </td>
-              <td>
-                <input
-                  type="number"
-                  step="1"
-                  class="input w-16"
-                  bind:value={purchase.price}
-                  placeholder="Prix"
-                  min="0"
-                />
-              </td>
-              <td>
-                <input
-                  type="text"
-                  class="input w-24"
-                  bind:value={purchase.notes}
-                  placeholder="Notes"
-                  maxlength="250"
-                />
-              </td>
+          <!-- Mode affichage uniquement - plus d'édition inline -->
+          <tr>
+            <td class="font-medium">
+              {formatSingleQuantity(purchase.quantity, purchase.unit)}
+            </td>
+            <td>{purchase.store || "-"}</td>
+            <td>{purchase.who || "-"}</td>
+            <td>
+              <div
+                class="badge badge-sm {getStatusBadge(purchase.status).class}"
+              >
+                {getStatusBadge(purchase.status).text}
+              </div>
+            </td>
+            <td class="text-xs">
+              {formatDateOrNull(purchase.orderDate)}
+            </td>
+            <td class="text-xs">
+              {formatDateOrNull(purchase.deliveryDate)}
+            </td>
+            <td>{purchase.price ? `${purchase.price}€` : "-"}</td>
+            <td>{purchase.notes || "-"}</td>
+            {#if !isArchiveMode}
               <td>
                 <div class="btn-group btn-group-sm">
                   <button
-                    class="btn btn-success btn-sm"
-                    onclick={handleUpdateEditedPurchase}
-                    disabled={modalState.loading || !isEditFormValid(purchase)}
+                    class="btn btn-ghost btn-sm"
+                    onclick={() => handleStartEdit(purchase)}
+                  >
+                    <SquarePen class="h-4 w-4" />
+                  </button>
+                  <button
+                    class="btn btn-ghost btn-sm text-error"
+                    onclick={() => handleDeletePurchase(purchase.$id)}
+                    disabled={modalState.loading}
                   >
                     {#if modalState.loading}
                       <span class="loading loading-spinner loading-sm"></span>
                     {:else}
-                      <Save class="h-3 w-3" />
+                      <X class="h-4 w-4" />
                     {/if}
                   </button>
-                  <button
-                    class="btn btn-ghost btn-sm"
-                    onclick={handleCancelEdit}
-                  >
-                    <X class="h-3 w-3" />
-                  </button>
                 </div>
               </td>
-            </tr>
-          {:else}
-            <!-- Mode affichage -->
-            <tr>
-              <td class="font-medium">
-                {formatSingleQuantity(purchase.quantity, purchase.unit)}
-              </td>
-              <td>{purchase.store || "-"}</td>
-              <td>{purchase.who || "-"}</td>
-              <td>
-                <div
-                  class="badge badge-sm {getStatusBadge(purchase.status).class}"
-                >
-                  {getStatusBadge(purchase.status).text}
-                </div>
-              </td>
-              <td class="text-xs">
-                {formatDateOrNull(purchase.orderDate)}
-              </td>
-              <td class="text-xs">
-                {formatDateOrNull(purchase.deliveryDate)}
-              </td>
-              <td>{purchase.price ? `${purchase.price}€` : "-"}</td>
-              <td>{purchase.notes || "-"}</td>
-              {#if !isArchiveMode}
-                <td>
-                  <div class="btn-group btn-group-sm">
-                    <button
-                      class="btn btn-ghost btn-sm"
-                      onclick={() => handleStartEdit(purchase)}
-                    >
-                      <SquarePen class="h-4 w-4" />
-                    </button>
-                    <button
-                      class="btn btn-ghost btn-sm text-error"
-                      onclick={() => handleDeletePurchase(purchase.$id)}
-                      disabled={modalState.loading}
-                    >
-                      {#if modalState.loading}
-                        <span class="loading loading-spinner loading-sm"></span>
-                      {:else}
-                        <X class="h-4 w-4" />
-                      {/if}
-                    </button>
-                  </div>
-                </td>
-              {/if}
-            </tr>
-          {/if}
+            {/if}
+          </tr>
         {/each}
       </tbody>
     </table>
+  </div>
+{:else}
+  <!-- Mobile Card View -->
+  <div class="mt-4 space-y-3">
+    {#each modalState.purchasesList as purchase (purchase.$id)}
+      <div class="card bg-base-100 border-neutral/40 border shadow-sm">
+        <div class="card-body p-4">
+          <div class="flex items-start justify-between gap-3">
+            <!-- Quantité + Prix + Statut -->
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center gap-2 text-sm opacity-70">
+                <Weight class="h-3.5 w-3.5" />
+                <span class="text-xs font-medium">
+                  {formatSingleQuantity(purchase.quantity, purchase.unit)}
+                </span>
+              </div>
+              <div class="font-mono text-xl font-bold">
+                {purchase.price ? `${purchase.price} €` : "-"}
+              </div>
+            </div>
+
+            <!-- Statut badge -->
+            <div class="badge badge-sm {getStatusBadge(purchase.status).class}">
+              {getStatusBadge(purchase.status).text}
+            </div>
+
+            <!-- Bouton suppression en haut à droite -->
+            {#if !isArchiveMode}
+              <button
+                class="btn btn-ghost btn-square btn-sm text-error"
+                onclick={() => handleDeletePurchase(purchase.$id)}
+                disabled={modalState.loading}
+              >
+                {#if modalState.loading}
+                  <span class="loading loading-spinner loading-xs"></span>
+                {:else}
+                  <Trash2 size={16} />
+                {/if}
+              </button>
+            {/if}
+          </div>
+
+          <!-- Dates -->
+          <div class="mt-2 flex flex-wrap gap-3 text-xs">
+            {#if purchase.orderDate}
+              <div class="flex items-center gap-1 opacity-70">
+                <Calendar class="h-3 w-3" />
+                <span>Commande: {formatDateOrNull(purchase.orderDate)}</span>
+              </div>
+            {/if}
+            {#if purchase.deliveryDate}
+              <div class="flex items-center gap-1 opacity-70">
+                <Calendar class="h-3 w-3" />
+                <span>Livraison: {formatDateOrNull(purchase.deliveryDate)}</span
+                >
+              </div>
+            {/if}
+          </div>
+
+          <!-- Notes -->
+          {#if purchase.notes}
+            <div class="mt-2 text-sm opacity-70">
+              {purchase.notes}
+            </div>
+          {/if}
+
+          <!-- Magasin et Qui -->
+          <div class="mt-3 flex flex-wrap gap-3">
+            {#if purchase.store}
+              <div class="badge badge-soft gap-1">
+                <Store class="h-3 w-3" />
+                <span class="max-w-[150px] truncate">{purchase.store}</span>
+              </div>
+            {/if}
+            {#if purchase.who}
+              <div class="badge badge-soft gap-1">
+                <User class="h-3 w-3" />
+                <span class="max-w-[100px] truncate">{purchase.who}</span>
+              </div>
+            {/if}
+          </div>
+
+          <!-- Bouton édition en bas à droite -->
+          {#if !isArchiveMode}
+            <div class="card-actions mt-2 justify-end">
+              <button
+                class="btn btn-ghost btn-sm"
+                onclick={() => handleStartEdit(purchase)}
+              >
+                <SquarePen size={16} class="mr-1" />
+                Modifier
+              </button>
+            </div>
+          {/if}
+        </div>
+      </div>
+    {/each}
   </div>
 {/if}

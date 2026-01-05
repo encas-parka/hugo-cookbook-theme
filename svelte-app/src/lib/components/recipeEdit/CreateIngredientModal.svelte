@@ -11,6 +11,10 @@
   import { recipeDataStore } from "$lib/stores/RecipeDataStore.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import type { Ingredient } from "$lib/types/recipes.types";
+  import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
+  import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
+  import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
+  import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
 
   // ============================================================================
   // PROPS
@@ -260,35 +264,25 @@
   });
 </script>
 
-<div class="modal" class:modal-open={open}>
-  <div class="modal-box relative w-11/12 max-w-4xl">
-    <!-- Bouton fermer -->
-    <button
-      class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
-      onclick={handleClose}
-    >
-      <X size={20} />
-    </button>
+<ModalContainer isOpen={open} onClose={handleClose}>
+  <ModalHeader title="Créer un nouvel ingrédient" onClose={handleClose} />
 
-    <!-- Titre -->
-    <h3 class="text-lg font-bold">Créer un nouvel ingrédient</h3>
-
-    <!-- Erreur -->
-    {#if serverError}
-      <div class="alert alert-error mt-4 text-sm">
-        <TriangleAlert size={18} />
-        <span>{serverError}</span>
-      </div>
-    {/if}
-
-    <!-- Formulaire -->
+  <ModalContent>
     <form
       onsubmit={(e) => {
         e.preventDefault();
         handleSubmit();
       }}
-      class="mt-6 space-y-6"
+      class="flex flex-col space-y-6"
     >
+      <!-- Erreur -->
+      {#if serverError}
+        <div class="alert alert-error text-sm">
+          <TriangleAlert size={18} />
+          <span>{serverError}</span>
+        </div>
+      {/if}
+
       <fieldset disabled={loading} class="space-y-4">
         <!-- Nom -->
         <div class="fieldset">
@@ -492,30 +486,30 @@
           </div>
         </div>
       </fieldset>
-
-      <!-- Actions -->
-      <div class="modal-action">
-        <button
-          type="button"
-          class="btn btn-ghost"
-          onclick={handleClose}
-          disabled={loading}
-        >
-          Annuler
-        </button>
-        <button type="submit" class="btn btn-primary" disabled={loading}>
-          {#if loading}
-            <span class="loading loading-spinner"></span>
-          {:else}
-            <Plus size={18} />
-          {/if}
-          Créer l'ingrédient
-        </button>
-      </div>
     </form>
-  </div>
+  </ModalContent>
 
-  <form method="dialog" class="modal-backdrop">
-    <button onclick={handleClose}>close</button>
-  </form>
-</div>
+  <ModalFooter>
+    <button
+      type="button"
+      class="btn btn-ghost"
+      onclick={handleClose}
+      disabled={loading}
+    >
+      Annuler
+    </button>
+    <button
+      type="submit"
+      class="btn btn-primary"
+      onclick={handleSubmit}
+      disabled={loading}
+    >
+      {#if loading}
+        <span class="loading loading-spinner"></span>
+      {:else}
+        <Plus size={18} />
+      {/if}
+      Créer l'ingrédient
+    </button>
+  </ModalFooter>
+</ModalContainer>

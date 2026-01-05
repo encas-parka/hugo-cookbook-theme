@@ -7,6 +7,10 @@
   import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
   import StoreInput from "../ui/StoreInput.svelte";
   import CommentTextarea from "../ui/CommentTextarea.svelte";
+  import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
+  import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
+  import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
+  import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
   import type { BatchUpdateResult, StoreInfo } from "$lib/types/store.types";
 
   interface Props {
@@ -84,7 +88,6 @@
     return storeName.trim().length > 0;
   });
 
-  // Actions
   // Actions
   async function handleSubmit() {
     if (!isFormValid || loading) return;
@@ -170,25 +173,16 @@
   }
 </script>
 
-<div class="modal modal-open">
-  <div class="modal-box max-w-2xl">
-    <!-- Header -->
-    <div class="flex items-center justify-between border-b pb-4">
-      <h3 class="text-lg font-semibold">{title}</h3>
-      <button
-        class="btn btn-sm btn-circle btn-ghost"
-        onclick={handleClose}
-        disabled={loading}
-      >
-        <X class="h-4 w-4" />
-      </button>
-    </div>
+<ModalContainer isOpen={true} onClose={handleClose}>
+  <ModalHeader {title} onClose={handleClose}>
+    <Store class="text-secondary" />
+  </ModalHeader>
 
-    <!-- Contenu -->
-    <div class="py-6">
+  <ModalContent>
+    <div class="space-y-6">
       <!-- Erreur -->
       {#if error}
-        <div class="alert alert-error mb-4">
+        <div class="alert alert-error">
           <TriangleAlert class="h-4 w-4" />
           <span>{error}</span>
         </div>
@@ -215,11 +209,10 @@
       </div>
 
       <!-- Liste des produits -->
-      <div class="my-4">
+      <div>
         <h4 class="mb-1 font-medium">Produits concernés</h4>
 
         <!-- Mode de sélection -->
-
         <div role="tablist" class="tabs mb-1 flex justify-end">
           <button
             onclick={() => (selectionMode = "empty")}
@@ -241,26 +234,25 @@
         />
       </div>
     </div>
+  </ModalContent>
 
-    <!-- Actions -->
-    <div class="modal-action">
-      <button class="btn btn-ghost" onclick={handleClose} disabled={loading}>
-        Annuler
-      </button>
+  <ModalFooter>
+    <button class="btn btn-ghost" onclick={handleClose} disabled={loading}>
+      Annuler
+    </button>
 
-      <button
-        class="btn btn-primary"
-        onclick={handleSubmit}
-        disabled={loading || !isFormValid}
-      >
-        {#if loading}
-          <span class="loading loading-spinner loading-sm"></span>
-          En cours...
-        {:else}
-          <Check class="h-4 w-4" />
-          Appliquer à {selectedBadgeItems.length} produit(s)
-        {/if}
-      </button>
-    </div>
-  </div>
-</div>
+    <button
+      class="btn btn-primary"
+      onclick={handleSubmit}
+      disabled={loading || !isFormValid}
+    >
+      {#if loading}
+        <span class="loading loading-spinner loading-sm"></span>
+        En cours...
+      {:else}
+        <Check class="h-4 w-4" />
+        Appliquer à {selectedBadgeItems.length} produit(s)
+      {/if}
+    </button>
+  </ModalFooter>
+</ModalContainer>

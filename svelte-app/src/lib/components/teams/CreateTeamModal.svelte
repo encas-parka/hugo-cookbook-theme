@@ -2,6 +2,10 @@
   import { X, Plus, MapPin, Building2, Globe } from "@lucide/svelte";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import InviteMembersForm from "./InviteMembersForm.svelte";
+  import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
+  import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
+  import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
+  import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
 
   interface Props {
     isOpen: boolean;
@@ -90,26 +94,12 @@
   }
 </script>
 
-<div class="modal {isOpen && 'modal-open'}">
-  <div class="modal-box max-w-2xl">
-    <!-- Header -->
-    <div class="mb-4 flex items-center justify-between">
-      <h3 class="text-lg font-bold">
-        {step === "create" ? "Créer une équipe" : "Inviter des membres"}
-      </h3>
-      <button
-        class="btn btn-circle btn-ghost btn-sm"
-        onclick={handleClose}
-        aria-label="Fermer"
-      >
-        <X class="h-4 w-4" />
-      </button>
-    </div>
+<ModalContainer {isOpen} onClose={handleClose}>
+  {#if step === "create"}
+    <ModalHeader title="Créer une équipe" onClose={handleClose} />
 
-    <!-- Contenu -->
-    {#if step === "create"}
-      <!-- Étape 1: Création de l'équipe -->
-      <div class="space-y-4">
+    <ModalContent>
+      <form onsubmit={(e) => e.preventDefault()} class="space-y-4">
         <!-- Nom de l'équipe -->
         <div>
           <label class="label" for="create-team-name">
@@ -214,30 +204,33 @@
             <span class="text-sm">{error}</span>
           </div>
         {/if}
-      </div>
+      </form>
+    </ModalContent>
 
-      <!-- Actions -->
-      <div class="modal-action">
-        <button class="btn btn-ghost" onclick={handleClose} disabled={loading}>
-          Annuler
-        </button>
-        <button
-          class="btn btn-primary"
-          onclick={createTeam}
-          disabled={loading || !teamName.trim()}
-        >
-          {#if loading}
-            <span class="loading loading-spinner loading-sm"></span>
-          {:else}
-            <Plus class="h-5 w-5" />
-          {/if}
-          Créer l'équipe
-        </button>
-      </div>
-    {:else if step === "invite" && createdTeamId}
-      <!-- Étape 2: Invitation de membres -->
-      {@const team = teamsStore.getTeamById(createdTeamId)}
-      {#if team}
+    <ModalFooter>
+      <button class="btn btn-ghost" onclick={handleClose} disabled={loading}>
+        Annuler
+      </button>
+      <button
+        class="btn btn-primary"
+        onclick={createTeam}
+        disabled={loading || !teamName.trim()}
+      >
+        {#if loading}
+          <span class="loading loading-spinner loading-sm"></span>
+        {:else}
+          <Plus class="h-5 w-5" />
+        {/if}
+        Créer l'équipe
+      </button>
+    </ModalFooter>
+  {:else if step === "invite" && createdTeamId}
+    <!-- Étape 2: Invitation de membres -->
+    {@const team = teamsStore.getTeamById(createdTeamId)}
+    {#if team}
+      <ModalHeader title="Inviter des membres" onClose={handleClose} />
+
+      <ModalContent>
         <div class="mb-4">
           <div class="alert alert-success alert-soft flex flex-col">
             <p>Équipe "{team.name}" créée avec succès !</p>
@@ -246,14 +239,13 @@
         </div>
 
         <InviteMembersForm {team} onSuccess={finalize} />
+      </ModalContent>
 
-        <!-- Actions -->
-        <div class="modal-action">
-          <button class="btn btn-ghost" onclick={finalize}>
-            Passer cette étape
-          </button>
-        </div>
-      {/if}
+      <ModalFooter>
+        <button class="btn btn-ghost" onclick={finalize}>
+          Passer cette étape
+        </button>
+      </ModalFooter>
     {/if}
-  </div>
-</div>
+  {/if}
+</ModalContainer>

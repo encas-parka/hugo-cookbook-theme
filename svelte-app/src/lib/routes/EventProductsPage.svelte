@@ -346,15 +346,17 @@
     <div
       class="rounded-box border-base-300 bg-base-100 flex flex-wrap items-baseline justify-between gap-4 border-2 p-4"
     >
-      <h1 class="text-primary text-3xl font-bold">{eventName}</h1>
-      <div class="text-base-content/70 text-base">
-        {#if startDate && endDate}
-          <Calendar class="inline h-4 w-4" />
-          {formatDateShort(startDate)} au {formatDateShort(endDate)}
-        {:else if startDate}
-          <Calendar class="inline h-4 w-4" />
-          {formatDateShort(startDate)}
-        {/if}
+      <div class="flex w-full flex-wrap justify-between gap-6">
+        <h1 class="text-primary text-3xl font-bold">{eventName}</h1>
+        <div class="text-base-content/70 text-base">
+          {#if startDate && endDate}
+            <Calendar class="inline h-4 w-4" />
+            {formatDateShort(startDate)} au {formatDateShort(endDate)}
+          {:else if startDate}
+            <Calendar class="inline h-4 w-4" />
+            {formatDateShort(startDate)}
+          {/if}
+        </div>
       </div>
       <!-- Stats -->
       {#if currentEvent}
@@ -362,7 +364,9 @@
           <EventStats {currentEvent} />
         </div>
       {/if}
-      <div class="flex flex-1 flex-wrap justify-end gap-4">
+
+      <!-- card deense et produits ok/manquant -->
+      <div class="flex w-full flex-wrap justify-end gap-10">
         <!-- Carte des produits complétés/manquants -->
         <div class="card card-xs sm:card:sm border-2 border-orange-700">
           <div class="card-body">

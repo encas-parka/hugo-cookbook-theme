@@ -1,12 +1,8 @@
 <script lang="ts">
   import {
     Plus,
-    Store,
-    User,
-    Tag,
     X,
     PackagePlus,
-    Check,
     TriangleAlert,
     Thermometer,
     Snowflake,
@@ -17,6 +13,9 @@
   import QuantityInput from "../ui/QuantityInput.svelte";
   import StoreInput from "../ui/StoreInput.svelte";
   import WhoInput from "../ui/WhoInput.svelte";
+  import ModalContainer from "../ui/modal/ModalContainer.svelte";
+  import ModalHeader from "../ui/modal/ModalHeader.svelte";
+  import ModalContent from "../ui/modal/ModalContent.svelte";
 
   interface Props {
     open: boolean;
@@ -173,24 +172,16 @@
   }
 </script>
 
-<div class="modal" class:modal-open={open} role="dialog">
-  <div class="modal-box relative w-10/12 max-w-5xl">
-    <button
-      class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
-      onclick={handleClose}
-      aria-label="Fermer"
-    >
-      <X size={20} />
-    </button>
+<ModalContainer isOpen={open} onClose={handleClose}>
+  <ModalHeader title="Ajouter un produit" onClose={handleClose} />
 
-    <h3 class="text-lg font-bold">Ajouter un produit</h3>
-
+  <ModalContent>
     <form
       onsubmit={(e) => {
         e.preventDefault();
         handleSubmit(false);
       }}
-      class="mt-6 space-y-4"
+      class="flex h-full flex-col space-y-4"
     >
       {#if error}
         <div class="alert alert-error text-sm">
@@ -203,7 +194,6 @@
         <div class="flex flex-wrap gap-4">
           <!-- Nom du produit -->
           <fieldset class="fieldset">
-            <!-- <legend class="fieldset-legend">Nom du produit</legend> -->
             <label class="input w-72">
               <PackagePlus class="text-base-content/50 h-5 w-5" />
               <input
@@ -225,10 +215,8 @@
 
         <!-- Type de produit -->
         <fieldset class="fieldset">
-          <!-- <legend class="fieldset-legend">Type de produit</legend> -->
           <div class="flex flex-wrap items-baseline gap-2">
             <label class="input w-72">
-              <Tag class="text-base-content/50 h-5 w-5" />
               <input
                 id="product-type"
                 type="text"
@@ -259,76 +247,76 @@
           disabled={loading}
         />
 
-        <!-- Checkboxes Frais / Surgelé -->
-        <fieldset class="fieldset">
-          <label class="label cursor-pointer justify-start gap-4">
-            <input
-              type="checkbox"
-              class="checkbox checkbox-success"
-              bind:checked={formData.pF}
-              disabled={loading}
-            />
-            <span class="label-text flex items-center gap-2">
-              <Thermometer class="h-4 w-4" />
-              Produit frais
-            </span>
-          </label>
-        </fieldset>
+        <div class="flex flex-wrap gap-x-6">
+          <!-- Checkboxes Frais / Surgelé -->
+          <fieldset class="fieldset">
+            <label class="label cursor-pointer justify-start gap-2">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-success"
+                bind:checked={formData.pF}
+                disabled={loading}
+              />
+              <span class="label-text flex items-center gap-2">
+                Produit frais
+              </span>
+            </label>
+          </fieldset>
 
-        <fieldset class="fieldset">
-          <label class="label cursor-pointer justify-start gap-4">
-            <input
-              type="checkbox"
-              class="checkbox checkbox-info"
-              bind:checked={formData.pS}
-              disabled={loading}
-            />
-            <span class="label-text flex items-center gap-2">
-              <Snowflake class="h-4 w-4" />
-              Produit surgelé
-            </span>
-          </label>
-        </fieldset>
-      </fieldset>
+          <fieldset class="fieldset">
+            <label class="label cursor-pointer justify-start gap-2">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-info"
+                bind:checked={formData.pS}
+                disabled={loading}
+              />
+              <span class="label-text flex items-center gap-2">
+                Produit surgelé
+              </span>
+            </label>
+          </fieldset>
+        </div>
 
-      <div class="modal-action flex justify-between">
-        <button
-          type="button"
-          class="btn btn-ghost"
-          onclick={handleClose}
-          disabled={loading}
+        <!-- Actions avec mt-auto pour rester en bas -->
+        <div
+          class="border-base-300 mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-4"
         >
-          Annuler
-        </button>
-        <div class="flex gap-2">
           <button
             type="button"
-            class="btn btn-secondary"
-            onclick={() => handleSubmit(true)}
-            disabled={loading || !formData.productName}
+            class="btn btn-ghost"
+            onclick={handleClose}
+            disabled={loading}
           >
-            {#if loading}
-              <span class="loading loading-spinner"></span>
-            {:else}
-              <Plus size={18} />
-            {/if}
-            Ajouter et créer un nouveau
+            Annuler
           </button>
-          <button
-            type="submit"
-            class="btn btn-primary"
-            disabled={loading || !formData.productName}
-          >
-            {#if loading}
-              <span class="loading loading-spinner"></span>
-            {/if}
-            Ajouter et fermer
-          </button>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              onclick={() => handleSubmit(true)}
+              disabled={loading || !formData.productName}
+            >
+              {#if loading}
+                <span class="loading loading-spinner"></span>
+              {:else}
+                <Plus size={18} />
+              {/if}
+              Ajouter et créer un nouveau
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              disabled={loading || !formData.productName}
+            >
+              {#if loading}
+                <span class="loading loading-spinner"></span>
+              {/if}
+              Ajouter et fermer
+            </button>
+          </div>
         </div>
-      </div>
+      </fieldset>
     </form>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button onclick={handleClose}>close</button>
-  </form>
-</div>
+  </ModalContent>
+</ModalContainer>

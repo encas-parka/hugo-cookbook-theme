@@ -1,5 +1,8 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
+
+  type ModalSize = "sm" | "lg" | "xl";
 
   interface Props {
     isOpen: boolean;
@@ -8,6 +11,10 @@
     closeOnBackdropClick?: boolean;
     hasUnsavedChanges?: boolean;
     confirmCloseMessage?: string;
+    minWidth?: ModalSize;
+    minHeight?: ModalSize;
+    maxWidth?: ModalSize;
+    maxHeight?: ModalSize;
     children: Snippet;
   }
 
@@ -18,8 +25,42 @@
     closeOnBackdropClick = false,
     hasUnsavedChanges = false,
     confirmCloseMessage = "Vous avez des modifications non sauvegardées. Voulez-vous vraiment fermer ?",
+    minWidth,
+    minHeight,
+    maxWidth,
+    maxHeight = "xl",
     children,
   }: Props = $props();
+
+  // Fonctions utilitaires pour contourner le tree-shaking de Tailwind
+  // Toutes les classes doivent être mentionnées explicitement
+  function getSizeClass(
+    size: ModalSize,
+    dimension: "min-w" | "min-h" | "max-w" | "max-h",
+  ): string {
+    const sizeMap: Record<ModalSize, Record<typeof dimension, string>> = {
+      sm: {
+        "min-w": "min-w-[30vw]",
+        "min-h": "min-h-[30vh]",
+        "max-w": "max-w-[30vw]",
+        "max-h": "max-h-[30vh]",
+      },
+      lg: {
+        "min-w": "min-w-[50vw]",
+        "min-h": "min-h-[50vh]",
+        "max-w": "max-w-[50vw]",
+        "max-h": "max-h-[50vh]",
+      },
+      xl: {
+        "min-w": "min-w-[90vw]",
+        "min-h": "min-h-[90vh]",
+        "max-w": "max-w-[90vw]",
+        "max-h": "max-h-[90vh]",
+      },
+    };
+
+    return sizeMap[size][dimension];
+  }
 
   let showConfirmDialog = $state(false);
 
@@ -69,9 +110,21 @@
   <!-- Modal box -->
   {#if isOpen}
     <div
-      class="modal-box flex flex-col p-0 {fullscreenOnMobile
-        ? 'fixed inset-0 m-0 h-lvh w-lvw rounded-none md:fixed md:inset-auto md:m-auto md:h-auto md:max-h-[90vh] md:w-full md:max-w-6xl md:rounded-xl'
-        : 'max-h-[90vh] w-full max-w-6xl'}"
+      class="modal-box flex flex-col p-0 {fullscreenOnMobile &&
+      globalState.isMobile
+        ? 'fixed inset-0 m-0 h-lvh w-lvw rounded-none'
+        : 'fixed m-auto'} {globalState.isDesktop &&
+        !minWidth &&
+        !maxWidth &&
+        'w-auto'} {globalState.isDesktop &&
+        minWidth &&
+        getSizeClass(minWidth, 'min-w')} {globalState.isDesktop &&
+        minHeight &&
+        getSizeClass(minHeight, 'min-h')} {globalState.isDesktop &&
+        maxWidth &&
+        getSizeClass(maxWidth, 'max-w')} {globalState.isDesktop &&
+        maxHeight &&
+        getSizeClass(maxHeight, 'max-h')}"
       role="dialog"
       aria-modal="true"
     >

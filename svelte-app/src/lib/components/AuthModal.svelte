@@ -1,7 +1,11 @@
 <script lang="ts">
   import { getAppwriteInstances } from "../services/appwrite";
+  import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
+  import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
+  import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
+  import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
 
-  let { isOpen = $bindable(), onAuthSuccess = () => {} } = $props();
+  let { isOpen = $bindable(), onAuth_success = () => {} } = $props();
 
   // États avec runes Svelte 5
   let showLogin = $state(true);
@@ -44,7 +48,7 @@
 
       successMessage = "Connexion réussie !";
       setTimeout(() => {
-        onAuthSuccess();
+        onAuth_success();
       }, 1000);
     } catch (error: any) {
       console.error("Erreur de connexion:", error);
@@ -84,7 +88,7 @@
 
       successMessage = "Compte créé et connecté !";
       setTimeout(() => {
-        onAuthSuccess();
+        onAuth_success();
       }, 1000);
     } catch (error: any) {
       console.error("Erreur d'inscription:", error);
@@ -139,37 +143,22 @@
       successMessage = "";
     }
   });
+
+  function getTitle() {
+    if (showForgotPassword) return "Mot de passe oublié";
+    if (showLogin) return "Connexion";
+    return "Inscription";
+  }
 </script>
 
-<div class="modal {isOpen && 'modal-open'}" role="dialog">
-  <div class="modal-box">
-    <!-- Header -->
-    <div
-      class="border-base-300 flex items-center justify-between border-b pb-4"
-    >
-      <h3 class="text-lg font-bold">
-        {#if showForgotPassword}
-          Mot de passe oublié
-        {:else if showLogin}
-          Connexion
-        {:else}
-          Inscription
-        {/if}
-      </h3>
-      <button
-        onclick={closeModal}
-        class="btn btn-circle btn-ghost btn-sm"
-        disabled={isLoading}
-      >
-        ✕
-      </button>
-    </div>
+<ModalContainer {isOpen} onClose={closeModal}>
+  <ModalHeader title={getTitle()} onClose={closeModal} />
 
-    <!-- Content -->
-    <div class="py-4">
+  <ModalContent>
+    <div class="space-y-4">
       <!-- Messages -->
       {#if errorMessage}
-        <div role="alert" class="alert alert-error mb-4">
+        <div role="alert" class="alert alert-error">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="h-6 w-6 shrink-0 stroke-current"
@@ -188,7 +177,7 @@
       {/if}
 
       {#if successMessage}
-        <div role="alert" class="alert alert-success mb-4">
+        <div role="alert" class="alert alert-success">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="h-6 w-6 shrink-0 stroke-current"
@@ -227,21 +216,9 @@
             Un email avec un lien vous sera envoyé par "noreply@appwrite.io".
             Pensez à vérifier s'il n'a pas attéri dans votre dossier spam.
           </div>
-
-          <button
-            type="submit"
-            class="btn btn-primary btn-block"
-            disabled={isLoading}
-          >
-            {#if isLoading}
-              <span class="loading loading-spinner"></span>
-            {:else}
-              Envoyer l'email de réinitialisation
-            {/if}
-          </button>
         </form>
 
-        <div class="mt-4 text-center">
+        <div class="text-center">
           <button
             onclick={() => (showForgotPassword = false)}
             class="btn btn-ghost btn-sm"
@@ -283,21 +260,9 @@
               required
             />
           </div>
-
-          <button
-            type="submit"
-            class="btn btn-primary btn-block"
-            disabled={isLoading}
-          >
-            {#if isLoading}
-              <span class="loading loading-spinner"></span>
-            {:else}
-              Se connecter
-            {/if}
-          </button>
         </form>
 
-        <div class="mt-4 space-y-2 text-center">
+        <div class="space-y-2 text-center">
           <button
             onclick={() => (showForgotPassword = true)}
             class="btn btn-link btn-sm btn-primary"
@@ -369,20 +334,9 @@
             Un email avec un lien vous sera envoyé par "noreply@appwrite.io".
             Pensez à vérifier s'il n'a pas attéri dans votre dossier spam.
           </div>
-          <button
-            type="submit"
-            class="btn btn-success btn-block"
-            disabled={isLoading}
-          >
-            {#if isLoading}
-              <span class="loading loading-spinner"></span>
-            {:else}
-              Créer un compte
-            {/if}
-          </button>
         </form>
 
-        <div class="text-base-content/70 mt-4 text-center text-sm">
+        <div class="text-base-content/70 text-center text-sm">
           Déjà un compte ?
           <button
             onclick={() => (showLogin = true)}
@@ -394,8 +348,51 @@
         </div>
       {/if}
     </div>
-  </div>
-</div>
+  </ModalContent>
+
+  <ModalFooter>
+    {#if showForgotPassword}
+      <button
+        type="submit"
+        class="btn btn-primary btn-block"
+        onclick={handleForgotPassword}
+        disabled={isLoading}
+      >
+        {#if isLoading}
+          <span class="loading loading-spinner"></span>
+        {:else}
+          Envoyer l'email de réinitialisation
+        {/if}
+      </button>
+    {:else if showLogin}
+      <button
+        type="submit"
+        class="btn btn-primary btn-block"
+        onclick={handleLogin}
+        disabled={isLoading}
+      >
+        {#if isLoading}
+          <span class="loading loading-spinner"></span>
+        {:else}
+          Se connecter
+        {/if}
+      </button>
+    {:else}
+      <button
+        type="submit"
+        class="btn btn-success btn-block"
+        onclick={handleRegister}
+        disabled={isLoading}
+      >
+        {#if isLoading}
+          <span class="loading loading-spinner"></span>
+        {:else}
+          Créer un compte
+        {/if}
+      </button>
+    {/if}
+  </ModalFooter>
+</ModalContainer>
 
 <style>
   .space-y-4 > :not([hidden]) ~ :not([hidden]) {

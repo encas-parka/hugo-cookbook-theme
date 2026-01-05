@@ -399,7 +399,7 @@
                     onmouseleave={() => hoverHelp.reset()}
                   >
                     <Users size={18} />
-                    {#if product.who}
+                    {#if product.who && product.who.length}
                       {#if product.who.length > 1}
                         <div class="ml-1 flex gap-1">
                           {product.who

@@ -150,10 +150,10 @@
             </div>
 
             <!-- Badge de rôle -->
-            <div class="badge {getRoleBadgeClass(role)} gap-1">
+            <!-- <div class="badge {getRoleBadgeClass(role)} gap-1">
               <RoleIcon class="h-3 w-3" />
               {getRoleLabel(role)}
-            </div>
+            </div> -->
 
             <!-- Actions -->
             <div class="flex gap-2">

@@ -177,6 +177,7 @@
   {onClose}
   hasUnsavedChanges={false}
   fullscreenOnMobile={true}
+  minWidth={"lg"}
 >
   <ModalHeader {title} showBackButton={true} {onClose} />
 
@@ -239,25 +240,26 @@
 
       <!-- Liste des produits -->
       <div>
-        <h4 class="mb-2 font-medium">Produits concernés</h4>
-
         <!-- Mode de sélection -->
-        <div class=" mb-4 flex flex-wrap gap-2">
-          <button
-            name="selectionMode"
-            class="btn {selectionMode === 'empty' && 'btn-secondary'}"
-            onclick={() => (selectionMode = "empty")}
-          >
-            <span class="hidden sm:inline">Produits sans volontaire</span>
-            <span class="sm:hidden">Sans volontaire</span>
-          </button>
-          <button
-            name="selectionMode"
-            class="btn {selectionMode === 'all' && 'btn-secondary'}"
-            onclick={() => (selectionMode = "all")}
-          >
-            Tous les produits
-          </button>
+        <div class=" mb-4 flex flex-wrap items-start justify-between gap-4">
+          <div class="font-medium">Produits concernés</div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              name="selectionMode"
+              class="btn btn-sm {selectionMode === 'empty' && 'btn-secondary'}"
+              onclick={() => (selectionMode = "empty")}
+            >
+              <span class="hidden sm:inline">Produits sans volontaire</span>
+              <span class="sm:hidden">Sans volontaire</span>
+            </button>
+            <button
+              name="selectionMode"
+              class="btn btn-sm {selectionMode === 'all' && 'btn-secondary'}"
+              onclick={() => (selectionMode = "all")}
+            >
+              Tous les produits
+            </button>
+          </div>
         </div>
         <BtnGroupCheck
           items={badgeItems}

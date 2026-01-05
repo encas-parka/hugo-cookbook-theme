@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Users, UserPlus, Mail, Check } from "@lucide/svelte";
+  import { Users, UserPlus, Mail, Check, X } from "@lucide/svelte";
   import type { EventContributor } from "$lib/types/events";
   // import type { TeamsStore } from "$lib/stores/TeamsStore.svelte";
   import type { EventsStore } from "$lib/stores/EventsStore.svelte";
@@ -7,6 +7,10 @@
   import BtnGroupCheck from "$lib/components/ui/BtnGroupCheck.svelte";
   import { checkUserEmails } from "$lib/services/appwrite-functions";
   import { toastService } from "$lib/services/toast.service.svelte";
+  import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
+  import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
+  import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
+  import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
 
   // Interface des props
   interface Props {
@@ -110,7 +114,6 @@
     contributors.filter((c) => c.status === "invited"),
   );
 
-  // Fonctions pour la gestion des équipes
   // Fonctions pour la gestion des équipes
   function toggleTeam(teamId: string) {
     const team = teamsStore.teams.find((t) => t.$id === teamId);
@@ -297,12 +300,19 @@
         },
       );
 
-      // Vider la liste des nouveaux contributeurs après envoi réussi
+      // Fermer le modal et vider la liste des nouveaux contributeurs après envoi réussi
+      showInviteModal = false;
       newContributors = [];
     } catch (error) {
       console.error("Erreur lors de l'envoi des invitations:", error);
       // Le toast d'erreur est déjà géré par toastService.track
     }
+  }
+
+  function handleCloseInviteModal() {
+    showInviteModal = false;
+    emailInput = "";
+    inviteError = null;
   }
 </script>
 
@@ -319,9 +329,6 @@
         <!-- Accepted -->
         {#if acceptedContributors.length > 0}
           <fieldset class="fieldset">
-            <!-- <legend class="text-base-content/70 p-1 text-sm font-medium"
-              >Participants </legend
-            > -->
             <div class="flex flex-wrap gap-2">
               {#each acceptedContributors as contributor (contributor.id)}
                 <div class="badge badge-soft badge-success gap-2 p-3">
@@ -379,108 +386,108 @@
 </div>
 
 <!-- Modal d'invitation -->
-<div class="modal {showInviteModal && 'modal-open'}">
-  <div class="modal-box overflow-auto not-md:h-lvh">
-    <h3 class="mb-4 text-lg font-bold">Inviter des participants</h3>
+<ModalContainer isOpen={showInviteModal} onClose={handleCloseInviteModal}>
+  <ModalHeader
+    title="Inviter des participants"
+    onClose={handleCloseInviteModal}
+  />
 
-    <!-- Invitation par email -->
-    <fieldset class="fieldset mb-6">
-      <legend class="legend">Par email</legend>
-      <div class="flex gap-2">
-        <label class="input input-bordered flex flex-1 items-center gap-2">
-          <Mail class="h-4 w-4 opacity-70" />
-          <input
-            type="email"
-            class="grow"
-            placeholder="email@exemple.com"
-            bind:value={emailInput}
-            onkeydown={(e) => e.key === "Enter" && handleAddEmail()}
-          />
-        </label>
-        <button
-          class="btn btn-primary"
-          onclick={handleAddEmail}
-          disabled={isChecking || !emailInput}
-        >
-          {#if isChecking}<span class="loading loading-spinner loading-xs"
-            ></span>{/if}
-          Ajouter
-        </button>
-      </div>
-      {#if inviteError}
-        <p class="text-error mt-1 text-xs">{inviteError}</p>
-      {/if}
-      <p class="text-base-content/60 mt-1 text-xs">
-        Recherche automatiquement si l'utilisateur existe déjà.
-      </p>
-    </fieldset>
-
-    <div class="divider">OU</div>
-
-    <!-- Sélection des équipes -->
-    <fieldset>
-      <legend class="mb-2 text-sm font-medium"
-        >Invitez une équipe entière</legend
-      >
-      {#if teamsStore.teams.length > 0}
-        <div class="flex flex-col gap-2">
-          {#each teamsStore.teams as team}
-            <label
-              class="hover:bg-base-200 flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors"
-            >
-              <input
-                type="checkbox"
-                class="checkbox checkbox-primary checkbox-sm"
-                checked={selectedTeams.includes(team.$id)}
-                onchange={() => toggleTeam(team.$id)}
-              />
-              <span class="text-sm font-medium">{team.name}</span>
-            </label>
-          {/each}
+  <ModalContent>
+    <div class="space-y-6">
+      <!-- Invitation par email -->
+      <fieldset class="fieldset">
+        <legend class="legend">Par email</legend>
+        <div class="flex gap-2">
+          <label class="input flex items-center gap-2">
+            <Mail class="h-4 w-4 opacity-70" />
+            <input
+              type="email"
+              class="grow"
+              placeholder="email@exemple.com"
+              bind:value={emailInput}
+              onkeydown={(e) => e.key === "Enter" && handleAddEmail()}
+            />
+          </label>
+          <button
+            class="btn btn-primary"
+            onclick={handleAddEmail}
+            disabled={isChecking || !emailInput}
+          >
+            {#if isChecking}<span class="loading loading-spinner loading-xs"
+              ></span>{/if}
+            Ajouter
+          </button>
         </div>
+        {#if inviteError}
+          <p class="text-error mt-1 text-xs">{inviteError}</p>
+        {/if}
         <p class="text-base-content/60 mt-1 text-xs">
-          Tous les membres de l'équipe seront invités a participer.
+          Recherche automatiquement si l'utilisateur existe déjà.
         </p>
-      {:else}
-        <p class="text-sm italic opacity-60">Aucune équipe disponible</p>
-      {/if}
-    </fieldset>
+      </fieldset>
 
-    <div class="divider">OU</div>
+      <div class="divider">OU</div>
 
-    <!-- Membres des KTeams -->
-    <fieldset>
-      <legend class="mb-2 text-sm font-medium"
-        >Invitez des membres spécifiques</legend
-      >
-      {#if allInvitableMembers.length > 0}
-        <BtnGroupCheck
-          items={allInvitableMembers}
-          onToggleItem={toggleKTeamMember}
-          size="sm"
-        />
-      {:else}
-        <p class="text-sm italic opacity-60">
-          Aucun membre disponible à inviter.
-        </p>
-      {/if}
-    </fieldset>
+      <!-- Sélection des équipes -->
+      <fieldset>
+        <legend class="mb-2 text-sm font-medium"
+          >Invitez une équipe entière</legend
+        >
+        {#if teamsStore.teams.length > 0}
+          <div class="flex flex-col gap-2">
+            {#each teamsStore.teams as team}
+              <label
+                class="hover:bg-base-200 flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-primary checkbox-sm"
+                  checked={selectedTeams.includes(team.$id)}
+                  onchange={() => toggleTeam(team.$id)}
+                />
+                <span class="text-sm font-medium">{team.name}</span>
+              </label>
+            {/each}
+          </div>
+          <p class="text-base-content/60 mt-1 text-xs">
+            Tous les membres de l'équipe seront invités a participer.
+          </p>
+        {:else}
+          <p class="text-sm italic opacity-60">Aucune équipe disponible</p>
+        {/if}
+      </fieldset>
 
-    <div class="modal-action">
-      <button class="btn" onclick={() => (showInviteModal = false)}
-        >Annuler</button
-      >
-      <button
-        class="btn btn-primary"
-        onclick={() => {
-          showInviteModal = false;
-          validateInvitations();
-        }}
-        disabled={newContributors.length === 0}
-      >
-        <Check class="mr-2 h-4 w-4" />
-        Envoyer les invitations ({newContributors.length})
-      </button>
+      <div class="divider">OU</div>
+
+      <!-- Membres des KTeams -->
+      <fieldset>
+        <legend class="mb-2 text-sm font-medium"
+          >Invitez des membres spécifiques</legend
+        >
+        {#if allInvitableMembers.length > 0}
+          <BtnGroupCheck
+            items={allInvitableMembers}
+            onToggleItem={toggleKTeamMember}
+            size="sm"
+          />
+        {:else}
+          <p class="text-sm italic opacity-60">
+            Aucun membre disponible à inviter.
+          </p>
+        {/if}
+      </fieldset>
     </div>
-  </div>
-</div>
+  </ModalContent>
+
+  <ModalFooter>
+    <button class="btn" onclick={handleCloseInviteModal}>Annuler</button>
+    <button
+      class="btn btn-primary"
+      onclick={validateInvitations}
+      disabled={newContributors.length === 0}
+    >
+      <Check class="mr-2 h-4 w-4" />
+      Envoyer les invitations ({newContributors.length})
+    </button>
+  </ModalFooter>
+</ModalContainer>

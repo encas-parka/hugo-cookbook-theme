@@ -3,12 +3,10 @@
     Users,
     UserPlus,
     X,
-    Check,
     Mail,
-    Trash2,
-    Lock,
     ShieldAlert,
     Info,
+    Lock,
   } from "@lucide/svelte";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
@@ -17,6 +15,10 @@
   import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { fade } from "svelte/transition";
+  import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
+  import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
+  import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
+  import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
 
   interface Props {
     permissionWrite: string[] | null;
@@ -128,6 +130,12 @@
     if (id === createdBy) return; // Impossible de supprimer le propriétaire
     permissionWrite = (permissionWrite || []).filter((p) => p !== id);
   }
+
+  function handleCloseInviteModal() {
+    showInviteModal = false;
+    emailInput = "";
+    inviteError = null;
+  }
 </script>
 
 <Fieldset iconComponent={Users} legend="Permissions">
@@ -188,98 +196,85 @@
 </Fieldset>
 
 <!-- Modal de gestion -->
-<div class="modal {showInviteModal && 'modal-open'}">
-  <div class="modal-box max-w-lg">
-    <button
-      class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2"
-      onclick={() => (showInviteModal = false)}
-    >
-      <X size={20} />
-    </button>
+<ModalContainer isOpen={showInviteModal} onClose={handleCloseInviteModal}>
+  <ModalHeader
+    title="Gérer les collaborateurs"
+    onClose={handleCloseInviteModal}
+  >
+    <Users class="text-primary" />
+  </ModalHeader>
 
-    <h3 class="mb-6 flex items-center gap-2 text-lg font-bold">
-      <Users class="text-primary" />
-      Gérer les collaborateurs
-    </h3>
-
-    <!-- Par email -->
-    <fieldset class="fieldset mb-6">
-      <legend class="fieldset-legend">Ajouter par email</legend>
-      <div class="flex gap-2">
-        <label class="input input-bordered flex grow items-center gap-2">
-          <Mail class="opacity-40" size={18} />
-          <input
-            type="email"
-            class="grow"
-            placeholder="utilisateur@email.com"
-            bind:value={emailInput}
-            onkeydown={(e) => e.key === "Enter" && handleAddEmail()}
-          />
-        </label>
-        <button
-          class="btn btn-primary"
-          onclick={handleAddEmail}
-          disabled={isChecking || !emailInput}
-        >
-          {#if isChecking}
-            <span class="loading loading-spinner loading-xs"></span>
-          {:else}
-            Ajouter
-          {/if}
-        </button>
-      </div>
-      {#if inviteError}
-        <p class="text-error mt-2 flex items-center gap-1 text-xs">
-          <ShieldAlert size={14} />
-          {inviteError}
-        </p>
-      {/if}
-    </fieldset>
-
-    <div class="divider text-xs font-bold tracking-widest uppercase opacity-50">
-      Ou via vos équipes
-    </div>
-
-    <!-- Par équipe -->
-    <div class="space-y-4">
-      {#if invitableMembers.length > 0}
-        <p class="text-xs opacity-60">
-          Sélectionnez des membres de vos équipes pour les ajouter :
-        </p>
-        <div class="max-h-48 overflow-y-auto pr-2">
-          <BtnGroupCheck
-            items={invitableMembers}
-            onToggleItem={toggleMember}
-            size="sm"
-          />
+  <ModalContent>
+    <div class="space-y-6">
+      <!-- Par email -->
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend">Ajouter par email</legend>
+        <div class="flex gap-2">
+          <label class="input input-bordered flex grow items-center gap-2">
+            <Mail class="opacity-40" size={18} />
+            <input
+              type="email"
+              class="grow"
+              placeholder="utilisateur@email.com"
+              bind:value={emailInput}
+              onkeydown={(e) => e.key === "Enter" && handleAddEmail()}
+            />
+          </label>
+          <button
+            class="btn btn-primary"
+            onclick={handleAddEmail}
+            disabled={isChecking || !emailInput}
+          >
+            {#if isChecking}
+              <span class="loading loading-spinner loading-xs"></span>
+            {:else}
+              Ajouter
+            {/if}
+          </button>
         </div>
-      {:else if teamsStore.teams.length === 0}
-        <p class="py-4 text-center text-sm italic opacity-40">
-          Vous n'avez pas encore d'équipe créée.
-        </p>
-      {:else}
-        <p class="py-4 text-center text-sm italic opacity-40">
-          Tous les membres de vos équipes sont déjà ajoutés.
-        </p>
-      {/if}
-    </div>
+        {#if inviteError}
+          <p class="text-error mt-2 flex items-center gap-1 text-xs">
+            <ShieldAlert size={14} />
+            {inviteError}
+          </p>
+        {/if}
+      </fieldset>
 
-    <div class="modal-action">
-      <button
-        class="btn btn-block btn-primary"
-        onclick={() => (showInviteModal = false)}
+      <div
+        class="divider text-xs font-bold tracking-widest uppercase opacity-50"
       >
-        Terminer
-      </button>
+        Ou via vos équipes
+      </div>
+
+      <!-- Par équipe -->
+      <div class="space-y-4">
+        {#if invitableMembers.length > 0}
+          <p class="text-xs opacity-60">
+            Sélectionnez des membres de vos équipes pour les ajouter :
+          </p>
+          <div class="max-h-48 overflow-y-auto pr-2">
+            <BtnGroupCheck
+              items={invitableMembers}
+              onToggleItem={toggleMember}
+              size="sm"
+            />
+          </div>
+        {:else if teamsStore.teams.length === 0}
+          <p class="py-4 text-center text-sm italic opacity-40">
+            Vous n'avez pas encore d'équipe créée.
+          </p>
+        {:else}
+          <p class="py-4 text-center text-sm italic opacity-40">
+            Tous les membres de vos équipes sont déjà ajoutés.
+          </p>
+        {/if}
+      </div>
     </div>
-  </div>
-  <div
-    class="modal-backdrop"
-    role="button"
-    tabindex="0"
-    aria-label="Fermer"
-    onclick={() => (showInviteModal = false)}
-    onkeydown={(e) =>
-      e.key === "Enter" || e.key === " " ? (showInviteModal = false) : null}
-  ></div>
-</div>
+  </ModalContent>
+
+  <ModalFooter>
+    <button class="btn btn-block btn-primary" onclick={handleCloseInviteModal}>
+      Terminer
+    </button>
+  </ModalFooter>
+</ModalContainer>
