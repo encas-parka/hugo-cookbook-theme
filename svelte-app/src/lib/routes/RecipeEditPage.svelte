@@ -15,6 +15,7 @@
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import RecipeHeaderForm from "$lib/components/recipeEdit/RecipeHeaderForm.svelte";
   import RecipePrepaForm from "$lib/components/recipeEdit/RecipePrepaForm.svelte";
+  import RecipeVersionManager from "$lib/components/recipeEdit/RecipeVersionManager.svelte";
   import RecipePermissionsManager from "$lib/components/recipeEdit/RecipePermissionsManager.svelte";
   import UnsavedChangesGuard from "$lib/components/ui/UnsavedChangesGuard.svelte";
   import RecipeMetadata from "$lib/components/recipes/RecipeMetadata.svelte";
@@ -32,6 +33,7 @@
     validateRecipe,
     deleteRecipe,
   } from "./RecipeEditPage";
+  import RecipeVariants from "../components/recipes/RecipeVariants.svelte";
 
   // ============================================================================
   // PROPS & INITIALISATION
@@ -477,6 +479,12 @@
         />
       {/if}
 
+      {#if recipeId}
+        <div class="mt-8 print:hidden">
+          <RecipeVariants {recipeId} />
+        </div>
+      {/if}
+
       <!-- Zone de danger - Suppression -->
       {#if canEdit}
         <div class="alert alert-error alert-soft border-error mt-8 border-1">
@@ -485,7 +493,10 @@
             <h4 class="font-bold">Zone de danger</h4>
             <p class="text-sm">
               La suppression d'une recette est irréversible. Si elle était
-              utilisé dans des événements, ceux-ci n'y auront plus accès.
+              utilisé dans des événements, ceux-ci n'y auront plus accès. Vous
+              êtes seul·e autorisé à supprimer une recettes que vous avez crée.
+              Les versions alternatives crées à partir de celle-ci ne seront pas
+              supprimée.
             </p>
           </div>
           <button

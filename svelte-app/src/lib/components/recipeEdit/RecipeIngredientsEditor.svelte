@@ -419,7 +419,7 @@
       {@const TypeIcon = typeInfo.icon}
 
       <!-- Card pour le type -->
-      <div class="card bg-base-200 border-base-300 border shadow-sm">
+      <div class="card bg-base-300 border-base-300 border shadow-sm">
         <div class="card-body p-2">
           <div
             class="card-title text-secondary/80 flex items-center gap-2 px-4 text-sm font-semibold"

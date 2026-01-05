@@ -63,12 +63,14 @@
       {#if !globalState.isDesktop}
         <div class="flex gap-4">
           <div
-            class="text-primary mb-2 inline-flex items-center-safe gap-2 text-lg font-semibold"
+            class="text-primary mb-2 inline-flex flex-wrap items-center-safe gap-2 text-lg font-semibold"
           >
-            <svg class="size-6">
-              <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />
-            </svg>
-            {recipe.title}
+            <div class="items-start-safe inline-flex gap-2">
+              <svg class="mt-0.5 size-6 min-w-6">
+                <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />
+              </svg>
+              {recipe.title}
+            </div>
             {#if recipe.draft}
               <div class="badge badge-accent badge-outline badge-sm">
                 brouillon
@@ -80,22 +82,30 @@
           {/if}
         </div>
       {/if}
-
-      <div class="text-base-content/60 text-sm">
-        {#if recipe.auteur}
-          <span>de {recipe.auteur} - </span>
-        {/if}
-        {#if recipe.check}
-          <span>
-            testée pour {recipe.plate}
-            couverts
-          </span>
-        {:else}
-          <span>
-            théoriquement pour {recipe.plate} couverts
-            <strong>(non testée)</strong>
-          </span>
-        {/if}
+      <div class=" flex flex-col">
+        <div class="">
+          {#if recipe.versionLabel}
+            <span class="text-primary text-base font-bold">
+              {recipe.versionLabel}
+            </span>
+          {/if}
+          {#if recipe.auteur}
+            <span class="text-base-content/70">de {recipe.auteur}</span>
+          {/if}
+        </div>
+        <div class="text-base-content/60 text-sm">
+          {#if recipe.check}
+            <p>
+              testée pour {recipe.plate}
+              couverts
+            </p>
+          {:else}
+            <p class="">
+              théoriquement pour {recipe.plate} couverts
+              <strong>(non testée)</strong>
+            </p>
+          {/if}
+        </div>
       </div>
     </div>
 

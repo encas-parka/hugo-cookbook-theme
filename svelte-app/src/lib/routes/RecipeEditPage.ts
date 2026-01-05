@@ -5,6 +5,7 @@ import {
   type RecipeIngredient,
   type CreateRecipeData,
   RecettesTypeR,
+  type RecipeIndexEntry,
 } from "$lib/types/recipes.types";
 import { SvelteSet } from "svelte/reactivity";
 import { UnitConverter } from "$lib/utils/UnitConverter";
@@ -48,10 +49,13 @@ export interface RecipeFormState
   draft: boolean;
   rootRecipeId: string | null;
   versionLabel: string | null;
+  manuallyAddedVariants: RecipeIndexEntry[];
+  variantsToRemove: RecipeIndexEntry[];
 }
 
 export type ValidationError = {
   title?: string;
+  versionLabel?: string;
   typeR?: string;
   cuisson?: string;
   serveHot?: string;
@@ -97,6 +101,8 @@ export const RECIPE_SNAPSHOT_FIELDS = [
   "region",
   "rootRecipeId",
   "versionLabel",
+  "manuallyAddedVariants",
+  "variantsToRemove",
 ] as const;
 
 // ============================================================================
@@ -134,6 +140,8 @@ export function createDefaultRecipe(): RecipeFormState {
     permissionWrite: [globalState.userId || ""],
     rootRecipeId: null,
     versionLabel: null,
+    manuallyAddedVariants: [],
+    variantsToRemove: [],
   };
 }
 
@@ -359,6 +367,10 @@ export function validateRecipe(
     validationErrors.value.title =
       "Le titre ne peut pas dépasser 100 caractères";
     hasError = true;
+  } else if (!/^[a-zA-Z0-9\s\-]+$/.test(recipe.title.trim())) {
+    validationErrors.value.title =
+      "Le titre ne peut contenir que des caractères alphanumériques, des espaces et des tirets";
+    hasError = true;
   } else {
     const normalizedTitle = recipe.title.trim().toLowerCase();
     const duplicate = recipesStore.recipesIndex.find(
@@ -368,6 +380,15 @@ export function validateRecipe(
     );
     if (duplicate) {
       validationErrors.value.title = "Une recette porte déjà ce nom";
+      hasError = true;
+    }
+  }
+
+  // Validation de la versionLabel
+  if (recipe.versionLabel) {
+    if (!/^[a-zA-Z0-9\s\-]+$/.test(recipe.versionLabel.trim())) {
+      validationErrors.value.versionLabel =
+        "La version ne peut contenir que des caractères alphanumériques, des espaces et des tirets";
       hasError = true;
     }
   }

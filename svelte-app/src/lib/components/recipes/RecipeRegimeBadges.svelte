@@ -27,7 +27,7 @@
   );
 </script>
 
-<div class="flex items-center gap-2 text-sm">
+<div class="flex flex-wrap items-center justify-end gap-x-2 text-sm">
   <!-- Badges Régimes -->
   {#each filteredRegimes as regime, index (index)}
     <span

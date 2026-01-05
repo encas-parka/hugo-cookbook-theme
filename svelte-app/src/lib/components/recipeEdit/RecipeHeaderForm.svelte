@@ -34,13 +34,14 @@
     </h2>
 
     <div class="flex flex-col gap-4">
-      <div class="flex flex-wrap gap-x-10 gap-y-2">
-        <!-- Titre et description -->
-        <fieldset class="fieldset w-full">
-          <legend class="fieldset-legend">Titre de la recette</legend>
-          <div class="flex items-center gap-2">
+      <!-- Titre et description -->
+      <div class="flex flex-col gap-x-10 gap-y-2">
+        <div class="flex flex-wrap items-start gap-x-10">
+          <!-- Titre -->
+          <fieldset class="fieldset min-w-3/5 flex-1">
+            <legend class="fieldset-legend">Titre de la recette</legend>
             <label
-              class="input input-lg flex-1 {validationErrors.title
+              class="input input-lg w-full {validationErrors.title
                 ? 'input-error'
                 : ''}"
             >
@@ -56,40 +57,65 @@
                 aria-required="true"
               />
             </label>
-            {#if recipe.versionLabel}
-              <span class="badge badge-secondary badge-lg h-full">
-                {recipe.versionLabel}
-              </span>
-            {/if}
-          </div>
-          <div class="fieldset-label" id="title-help">
-            {#if validationErrors.title}
-              <span class="text-error">{validationErrors.title}</span>
-            {/if}
-            <span class="fieldset-label ms-auto italic"
-              >{recipe.title?.length || 0}/100 caractères</span
-            >
-          </div>
-          {#if recipe.rootRecipeId && recipe.rootRecipeId !== recipe.$id}
-            <div class="text-info mt-1 text-sm">
-              Variante de la recette originale :
-              <a
-                href="/recipe/{recipe.rootRecipeId}"
-                class="link link-primary"
-                target="_blank"
+            <div class="fieldset-label" id="title-help">
+              {#if validationErrors.title}
+                <span class="text-error">{validationErrors.title}</span>
+              {/if}
+              <span class="fieldset-label ms-auto italic"
+                >{recipe.title?.length || 0}/100 caractères</span
               >
-                {#if recipeInfo}
-                  {recipeInfo.recipesIndex?.get(recipe.rootRecipeId)?.n ||
-                    recipe.rootRecipeId}
-                {:else}
-                  {recipe.rootRecipeId}
-                {/if}
-              </a>
             </div>
-          {/if}
-        </fieldset>
+          </fieldset>
 
-        <fieldset class="fieldset min-w-2xs flex-1">
+          <!-- Version input -->
+          {#if canEdit}
+            {#if recipe.versionLabel}
+              {@const versionNumber = recipe.versionLabel.match(/^v(\d+)/)
+                ? parseInt(recipe.versionLabel.match(/^v(\d+)/)[1])
+                : null}
+              {#if versionNumber}
+                <fieldset class="fieldset min-w-1/5">
+                  <legend class="fieldset-legend">Version</legend>
+                  <label class="input input-lg w-full">
+                    <span class="badge badge-ghost font-mono"
+                      >v{versionNumber}</span
+                    >
+                    <span class="px-1 opacity-40">-</span>
+                    <input
+                      type="text"
+                      value={recipe.versionLabel.replace(/^v\d+\s*-\s*/, "")}
+                      oninput={(e) => {
+                        const input = e.target as HTMLInputElement;
+                        let newValue = input.value.toLowerCase().trim();
+                        recipe.versionLabel = `v${versionNumber} - ${newValue}`;
+                      }}
+                      placeholder="username"
+                      maxlength="20"
+                      class="grow font-mono text-sm"
+                    />
+                  </label>
+                  <p
+                    class="fieldset-label truncate"
+                    title="ex: &quot;économique&quot;, &quot;sans fromages&quot;, &quot;plus rapide&quot;..."
+                  >
+                    ex: "économique", "sans fromages", "plus rapide"...
+                  </p>
+                  {#if validationErrors.versionLabel}
+                    <span class="text-error text-wrap"
+                      >{validationErrors.versionLabel}</span
+                    >
+                  {/if}
+                </fieldset>
+              {/if}
+            {/if}
+          {:else if recipe.versionLabel}
+            <span class="badge badge-secondary badge-lg h-full">
+              {recipe.versionLabel}
+            </span>
+          {/if}
+        </div>
+
+        <fieldset class="fieldset flex-1">
           <legend class="fieldset-legend">Description</legend>
           <input
             type="text"
@@ -142,7 +168,7 @@
           <fieldset class="fieldset flex-1">
             <legend class="fieldset-legend">Description des quantités</legend>
             <label
-              class="input w-lg {validationErrors.quantite_desc
+              class="input w-full min-w-lg {validationErrors.quantite_desc
                 ? 'input-error'
                 : ''}"
             >

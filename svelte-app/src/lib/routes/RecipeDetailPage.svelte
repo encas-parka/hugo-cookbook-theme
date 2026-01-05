@@ -325,18 +325,16 @@
               preparation24h={recipeDetails.preparation24h || undefined}
               astuces={recipeDetails.astuces || []}
             />
-
-            <!-- Variantes de la recette -->
-            {#if recipeId}
-              <div class="mt-8 print:hidden">
-                <RecipeVariants {recipeId} />
-              </div>
-            {/if}
           </div>
         </div>
       </div>
     </div>
-
+    <!-- Variantes de la recette -->
+    {#if recipeId}
+      <div class="mt-8 print:hidden">
+        <RecipeVariants {recipeId} />
+      </div>
+    {/if}
     <!-- Métadonnées -->
     <RecipeMetadata
       auteur={recipeDetails.auteur}

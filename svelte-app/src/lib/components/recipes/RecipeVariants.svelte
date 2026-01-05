@@ -36,15 +36,15 @@
 </script>
 
 {#if loading}
-  <div class="card bg-base-200 mt-4 shadow-sm">
+  <div class="card bg-base-100 mt-4 shadow-sm">
     <div class="card-body p-4">
       <div class="loading loading-spinner loading-sm"></div>
     </div>
   </div>
 {:else if variants.length > 1}
-  <div class="card bg-base-200 mt-4 shadow-sm">
+  <div class="card bg-base-100 mt-4 shadow-sm">
     <div class="card-body p-4">
-      <h4 class="card-title flex items-center gap-2 text-sm">
+      <h4 class="card-title flex items-center gap-2">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           class="h-4 w-4"
@@ -62,30 +62,28 @@
         {variants.length} variante{variants.length > 1 ? "s" : ""} de cette recette
       </h4>
 
-      <div class="flex flex-col gap-1">
+      <div class="flex flex-wrap gap-4">
         {#each variants as variant}
-          <div class="flex items-center gap-2 text-sm">
-            {#if variant.$id === root?.$id}
-              <span class="badge badge-primary badge-xs">Originale</span>
-            {:else if variant.$id === recipeId}
-              <span class="badge badge-secondary badge-xs">Cette recette</span>
-            {/if}
-
-            <button
-              onclick={() => navigate(`/recipe/${variant.$id}`)}
-              class="link link-primary {variant.$id === recipeId
-                ? 'font-bold'
-                : ''}"
-            >
+          <button
+            class="btn btn-ghost"
+            onclick={() => navigate(`/recipe/${variant.$id}`)}
+          >
+            <div class="flex items-center gap-2 text-sm">
               {variant.title}
-            </button>
 
-            {#if variant.versionLabel}
-              <span class="badge badge-ghost badge-xs">
-                {variant.versionLabel}
-              </span>
-            {/if}
-          </div>
+              {#if variant.versionLabel}
+                <span class="badge badge-ghost badge-xs">
+                  {variant.versionLabel}
+                </span>
+              {/if}
+              {#if variant.$id === root?.$id}
+                <span class="badge badge-primary badge-xs">Originale</span>
+              {:else if variant.$id === recipeId}
+                <span class="badge badge-secondary badge-xs">Cette recette</span
+                >
+              {/if}
+            </div>
+          </button>
         {/each}
       </div>
     </div>
