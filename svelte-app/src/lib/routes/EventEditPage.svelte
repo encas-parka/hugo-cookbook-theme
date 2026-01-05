@@ -31,6 +31,7 @@
   import UnsavedChangesGuard from "../components/ui/UnsavedChangesGuard.svelte";
   import Fieldset from "../components/ui/Fieldset.svelte";
   import ConfirmModal from "../components/ui/ConfirmModal.svelte";
+  import type { Main, MainStatus } from "../types/appwrite";
 
   // ============================================================================
   // PROPS & INITIALISATION
@@ -46,7 +47,9 @@
   let meals = $state<EventMeal[]>([]);
   let eventName = $state("");
   let description = $state("");
-  let status = $state<MainStatus>("proposition");
+  let status = $state<
+    "proposition" | "confirmed" | "canceled" | "archive" | "locked"
+  >("proposition");
   let minContrib = $state<number>(1);
 
   // Meals triés par date pour l'affichage et la sauvegarde (computed réactif)

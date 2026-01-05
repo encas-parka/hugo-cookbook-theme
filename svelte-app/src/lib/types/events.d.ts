@@ -63,6 +63,7 @@ export interface CreateEventData {
   meals?: EventMeal[];
   teams?: string[];
   contributors?: EventContributor[]; // Tableau d'objets EventContributor
+  status?: "proposition" | "confirmed" | "canceled" | "archive" | "locked";
 }
 
 /**
@@ -77,5 +78,5 @@ export interface UpdateEventData {
   meals?: EventMeal[];
   teams?: string[];
   contributors?: EventContributor[]; // Tableau d'objets EventContributor
-  status?: import("./appwrite").MainStatus; // Statut de l'événement (active | archive)
+  status?: "proposition" | "confirmed" | "canceled" | "archive" | "locked";
 }

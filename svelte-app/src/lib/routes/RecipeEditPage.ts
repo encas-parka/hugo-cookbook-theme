@@ -46,6 +46,8 @@ export interface RecipeFormState
   description: string | null;
   region: string | null;
   draft: boolean;
+  rootRecipeId: string | null;
+  versionLabel: string | null;
 }
 
 export type ValidationError = {
@@ -93,6 +95,8 @@ export const RECIPE_SNAPSHOT_FIELDS = [
   "permissionWrite",
   "materiel",
   "region",
+  "rootRecipeId",
+  "versionLabel",
 ] as const;
 
 // ============================================================================
@@ -128,6 +132,8 @@ export function createDefaultRecipe(): RecipeFormState {
     publishedAt: null,
     createdBy: globalState.userId || "",
     permissionWrite: [globalState.userId || ""],
+    rootRecipeId: null,
+    versionLabel: null,
   };
 }
 
@@ -196,6 +202,8 @@ export function normalizeRecipeForAppwrite(
     prepAlt: null,
     lockedBy: null,
     publishedAt: null,
+    rootRecipeId: recipe.rootRecipeId || null,
+    versionLabel: recipe.versionLabel || null,
   } as CreateRecipeData;
 }
 

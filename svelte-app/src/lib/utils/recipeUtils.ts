@@ -333,5 +333,9 @@ export function parseAppwriteRecipeToIndexEntry(recipe: any): RecipeIndexEntry {
     $updatedAt: recipe.$updatedAt,
     createdBy: recipe.createdBy,
     plate: recipe.plate,
+
+    // Champs de versionnage
+    rootRecipeId: recipe.rootRecipeId || null,
+    versionLabel: recipe.versionLabel || null,
   };
 }

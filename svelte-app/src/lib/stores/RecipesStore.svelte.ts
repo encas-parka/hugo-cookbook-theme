@@ -895,6 +895,132 @@ class RecipesStore {
   }
 
   /**
+   * Récupère le groupe de variantes d'une recette
+   * @param recipeId - UUID de la recette
+   * @param maxDepth - Profondeur max de recherche (défaut: 2)
+   * @returns Racine + tableau de toutes les variantes connectées
+   */
+  async getVariantGroup(
+    recipeId: string,
+    maxDepth: number = 2,
+  ): Promise<{
+    root: RecipeIndexEntry | null;
+    variants: RecipeIndexEntry[];
+    isRoot: boolean;
+  }> {
+    const initial = this.getRecipeIndexByUuid(recipeId);
+    if (!initial) {
+      return { root: null, variants: [], isRoot: false };
+    }
+
+    const allVariants = new Map<string, RecipeIndexEntry>();
+    const visitedRoots = new Set<string>();
+
+    // Trouver la racine en remontant
+    let current = initial;
+    while (current.rootRecipeId && !visitedRoots.has(current.rootRecipeId)) {
+      visitedRoots.add(current.$id);
+      const parent = this.getRecipeIndexByUuid(current.rootRecipeId);
+      if (!parent) break;
+      current = parent;
+    }
+
+    const root = current;
+    allVariants.set(root.$id, root);
+
+    // Récupérer toutes les variantes (avec profondeur limitée)
+    await this.#collectVariants(
+      root.$id,
+      allVariants,
+      new Set([root.$id]),
+      0,
+      maxDepth,
+    );
+
+    return {
+      root,
+      variants: Array.from(allVariants.values()),
+      isRoot: !initial.rootRecipeId || initial.rootRecipeId === initial.$id,
+    };
+  }
+
+  /**
+   * Collecte récursive des variantes depuis IndexedDB
+   * @param rootId - Racine actuelle à explorer
+   * @param collected - Map des variantes collectées
+   * @param visitedRoots - Racines déjà visitées (évite les boucles)
+   * @param depth - Profondeur actuelle
+   * @param maxDepth - Profondeur max
+   */
+  async #collectVariants(
+    rootId: string,
+    collected: Map<string, RecipeIndexEntry>,
+    visitedRoots: Set<string>,
+    depth: number,
+    maxDepth: number,
+  ): Promise<void> {
+    if (depth > maxDepth) return;
+
+    // Parcourir tout l'index IndexedDB pour trouver les variantes
+    for (const [uuid, recipe] of this.#recipesIndex) {
+      // Ignorer si déjà collecté
+      if (collected.has(uuid)) continue;
+
+      // Vérifier si cette recette a ce root
+      if (recipe.rootRecipeId === rootId) {
+        collected.set(uuid, recipe);
+
+        // Si cette recette a un AUTRE root qu'on n'a pas visité, on le suit
+        if (
+          recipe.rootRecipeId &&
+          recipe.rootRecipeId !== rootId &&
+          !visitedRoots.has(recipe.rootRecipeId)
+        ) {
+          visitedRoots.add(recipe.rootRecipeId);
+          await this.#collectVariants(
+            recipe.rootRecipeId,
+            collected,
+            visitedRoots,
+            depth + 1,
+            maxDepth,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Trouve la racine finale d'une recette en remontant la chaîne
+   * @param recipeId - UUID de la recette
+   * @returns UUID de la racine finale
+   */
+  findRootRecipe(recipeId: string): string {
+    const visited = new Set<string>();
+    let currentId = recipeId;
+    let maxDepth = 10;
+
+    for (let i = 0; i < maxDepth; i++) {
+      const recipe = this.getRecipeIndexByUuid(currentId);
+      if (!recipe || !recipe.rootRecipeId) {
+        return currentId; // Racine trouvée
+      }
+
+      if (visited.has(currentId)) {
+        console.error(
+          "[RecipesStore] Cycle détecté dans rootRecipeId, retour à",
+          recipeId,
+        );
+        return recipeId;
+      }
+
+      visited.add(currentId);
+      currentId = recipe.rootRecipeId;
+    }
+
+    return recipeId; // Fallback
+  }
+
+  /**
    * Nettoie les ressources
    */
   destroy(): void {

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import type { RecipeForDisplay } from "$lib/types/recipes.types";
   import RecipeRegimeBadges from "$lib/components/recipes/RecipeRegimeBadges.svelte";
@@ -7,7 +6,7 @@
   import RecipeIngredientsList from "$lib/components/recipes/RecipeIngredientsList.svelte";
   import RecipePreparation from "$lib/components/recipes/RecipePreparation.svelte";
   import RecipeAlerts from "$lib/components/recipes/RecipeAlerts.svelte";
-  import RecipeAlternatives from "$lib/components/recipes/RecipeAlternatives.svelte";
+  import RecipeVariants from "$lib/components/recipes/RecipeVariants.svelte";
   import { ChefHat, PencilIcon, Copy } from "@lucide/svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
@@ -22,6 +21,8 @@
 
   let { params }: Props = $props();
 
+  let recipeId = $derived(params?.uuid);
+
   // État local
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -32,6 +33,16 @@
   const lockedBy = $derived(
     recipeDetails ? recipesStore.getRecipeLockStatus(recipeDetails.$id) : null,
   );
+
+  // Réagir aux changements d'UUID
+  $effect(() => {
+    if (recipeId) {
+      loadRecipe(recipeId);
+    } else {
+      error = "UUID de recette manquant";
+      loading = false;
+    }
+  });
 
   // Extraire les allergènes des ingrédients
   const allergens = $derived.by(() => {
@@ -68,16 +79,6 @@
       loading = false;
     }
   }
-
-  // Charger au montage
-  onMount(() => {
-    if (params?.uuid) {
-      loadRecipe(params.uuid);
-    } else {
-      error = "UUID de recette manquant";
-      loading = false;
-    }
-  });
 
   // Gérer le changement de servings
   function handleServingsChange(servings: number) {
@@ -325,15 +326,10 @@
               astuces={recipeDetails.astuces || []}
             />
 
-            <!-- Préparations alternatives -->
-            {#if recipeDetails.prepAlt && recipeDetails.prepAlt.length > 0}
+            <!-- Variantes de la recette -->
+            {#if recipeId}
               <div class="mt-8 print:hidden">
-                <RecipeAlternatives
-                  alternatives={recipeDetails.prepAlt.map((id) => ({
-                    recetteAlt: id,
-                  }))}
-                  recipesIndex={recipesIndexMap}
-                />
+                <RecipeVariants {recipeId} />
               </div>
             {/if}
           </div>

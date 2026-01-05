@@ -38,23 +38,30 @@
         <!-- Titre et description -->
         <fieldset class="fieldset w-full">
           <legend class="fieldset-legend">Titre de la recette</legend>
-          <label
-            class="input input-lg w-full {validationErrors.title
-              ? 'input-error'
-              : ''}"
-          >
-            <BookOpen class="h-4 w-4 opacity-50" />
-            <input
-              id="recipe-title"
-              type="text"
-              bind:value={recipe.title}
-              placeholder="Ex: Houmous maison"
-              disabled={!canEdit}
-              maxlength="100"
-              aria-describedby="title-help"
-              aria-required="true"
-            />
-          </label>
+          <div class="flex items-center gap-2">
+            <label
+              class="input input-lg flex-1 {validationErrors.title
+                ? 'input-error'
+                : ''}"
+            >
+              <BookOpen class="h-4 w-4 opacity-50" />
+              <input
+                id="recipe-title"
+                type="text"
+                bind:value={recipe.title}
+                placeholder="Ex: Houmous maison"
+                disabled={!canEdit}
+                maxlength="100"
+                aria-describedby="title-help"
+                aria-required="true"
+              />
+            </label>
+            {#if recipe.versionLabel}
+              <span class="badge badge-secondary badge-lg h-full">
+                {recipe.versionLabel}
+              </span>
+            {/if}
+          </div>
           <div class="fieldset-label" id="title-help">
             {#if validationErrors.title}
               <span class="text-error">{validationErrors.title}</span>
@@ -63,6 +70,23 @@
               >{recipe.title?.length || 0}/100 caractères</span
             >
           </div>
+          {#if recipe.rootRecipeId && recipe.rootRecipeId !== recipe.$id}
+            <div class="text-info mt-1 text-sm">
+              Variante de la recette originale :
+              <a
+                href="/recipe/{recipe.rootRecipeId}"
+                class="link link-primary"
+                target="_blank"
+              >
+                {#if recipeInfo}
+                  {recipeInfo.recipesIndex?.get(recipe.rootRecipeId)?.n ||
+                    recipe.rootRecipeId}
+                {:else}
+                  {recipe.rootRecipeId}
+                {/if}
+              </a>
+            </div>
+          {/if}
         </fieldset>
 
         <fieldset class="fieldset min-w-2xs flex-1">

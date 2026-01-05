@@ -184,7 +184,10 @@ export async function createRecipeAppwrite(
   try {
     const { tables, config, account } = await getAppwriteInstances();
 
-    const slugUuid = generateSlugUuid35(data.title);
+    const slugUuid = generateSlugUuid35(
+      data.title,
+      data.versionLabel || undefined,
+    );
 
     const permissions = [
       Permission.read(Role.users()),
@@ -223,6 +226,9 @@ export async function createRecipeAppwrite(
       $id: slugUuid,
       createdBy: userId,
       permissionWrite: data.permissionWrite || [userId],
+      // Champs de versionnage
+      rootRecipeId: data.rootRecipeId ?? null,
+      versionLabel: data.versionLabel ?? null,
     };
 
     const recipe = await tables.createRow({
@@ -332,4 +338,3 @@ export async function duplicateRecipe(
     throw error;
   }
 }
-

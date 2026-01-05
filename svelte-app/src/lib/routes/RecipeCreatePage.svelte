@@ -105,11 +105,21 @@
       isSaving = true;
       recipesStore
         .getRecipeByUuid(sourceRecipeId)
-        .then((data) => {
+        .then(async (data) => {
           if (data) {
             const userName = globalState.userName() || "utilisateur";
+
+            // Trouver la racine de la recette source
+            const rootRecipeId = data.rootRecipeId || data.$id;
+
+            // Récupérer les variantes existantes pour générer le numéro de version
+            const variantGroup =
+              await recipesStore.getVariantGroup(sourceRecipeId);
+            const nextVersion = variantGroup.variants.length + 1;
+            const versionLabel = `v${nextVersion} - ${userName}`;
+
             recipe = transformStoreDataToForm(data, {
-              title: `${data.title} (v-${userName})`,
+              title: data.title, // Title inchangé
               $id: "new-recipe",
               $createdAt: undefined,
               $updatedAt: undefined,
@@ -118,6 +128,9 @@
               permissionWrite: [globalState.userId || ""],
               check: null,
               draft: true,
+              // Nouveaux champs de versionnage
+              rootRecipeId: rootRecipeId,
+              versionLabel: versionLabel,
             });
             loaded = true;
           } else {
@@ -189,8 +202,11 @@
     const toastId = toastService.loading("Sauvegarde en cours...");
 
     try {
-      // Générer l'ID de la recette
-      recipe.$id = generateSlugUuid35(recipe.title);
+      // Générer l'ID de la recette avec le versionLabel si présent
+      recipe.$id = generateSlugUuid35(
+        recipe.title,
+        recipe.versionLabel || undefined,
+      );
 
       // Normaliser les types UI vers types Appwrite
       const normalized = normalizeRecipeForAppwrite(recipe);

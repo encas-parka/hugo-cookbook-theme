@@ -5,7 +5,7 @@
   import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
   import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
 
-  let { isOpen = $bindable(), onAuth_success = () => {} } = $props();
+  let { isOpen = $bindable(), onAuth_success = async () => {} } = $props();
 
   // États avec runes Svelte 5
   let showLogin = $state(true);
