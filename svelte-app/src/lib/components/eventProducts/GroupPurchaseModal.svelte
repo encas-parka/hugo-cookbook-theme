@@ -1,15 +1,5 @@
-<!-- Modal achat groupé -->
 <script lang="ts">
-  import {
-    TriangleAlert,
-    Check,
-    Euro,
-    MessageCircle,
-    ShoppingCart,
-    Store,
-    User,
-    X,
-  } from "@lucide/svelte";
+  import { TriangleAlert, Check, ShoppingCart, X } from "@lucide/svelte";
   import { createGroupPurchaseWithSync } from "$lib/services/appwrite-transaction";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
@@ -18,13 +8,17 @@
   import { formatDateWdDayMonthShort } from "$lib/utils/date-helpers";
   import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
   import InfoCollapse from "../ui/InfoCollapse.svelte";
-  import Suggestions from "../ui/Suggestions.svelte";
-  import QuantityInput from "../ui/QuantityInput.svelte";
   import StoreInput from "../ui/StoreInput.svelte";
   import WhoInput from "../ui/WhoInput.svelte";
   import CommentTextarea from "../ui/CommentTextarea.svelte";
   import PriceInput from "../ui/PriceInput.svelte";
   import StatusSelect from "../ui/StatusSelect.svelte";
+
+  // Modal Components
+  import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
+  import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
+  import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
+  import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
 
   interface Props {
     products: EnrichedProduct[];
@@ -37,11 +31,6 @@
   // État local du modal
   let loading = $state(false);
   let error = $state<string | null>(null);
-  let result = $state<{
-    purchases: number;
-    expense?: boolean;
-    batches?: number;
-  } | null>(null);
 
   // Données du formulaire
   let formData = $state({
@@ -50,19 +39,16 @@
     expense: null as number | null,
     notes: "",
     status: "delivered" as "ordered" | "delivered" | null,
-    orderDate: null as string | null,
     deliveryDate: null as string | null,
   });
 
   // État des produits actifs/inactifs
   let activeProductIds = $state<Set<string>>(new Set());
 
-  // Initialiser les produits actifs
   $effect(() => {
     activeProductIds = new Set(products.map((p) => p.$id));
   });
 
-  // Computed properties
   const activeProducts = $derived(
     products.filter((p) => activeProductIds.has(p.$id)),
   );
@@ -84,33 +70,25 @@
       }
     }
 
-    return `Achat groupé (${activeProducts.length} produits sélectionnés)${dateText}`;
+    return `Achat groupé (${activeProducts.length} produit${activeProducts.length > 1 ? "s" : ""})${dateText}`;
   });
 
-  // Actions
-  // Actions
   async function handleSubmit() {
     if (!isFormValid || loading) return;
 
     loading = true;
     error = null;
-    result = null;
 
-    // Générer un ID de facture
     const invoiceId = `FACTURE_${Date.now()}`;
-
-    // Marquer les produits comme "isSyncing"
     const productIds = activeProducts.map((p) => p.$id);
     productsStore.setSyncStatus(productIds, true);
 
-    // Signaler l'opération en arrière-plan
     globalState.backgroundOperation = {
       isRunning: true,
       name: `Achat groupé (${activeProducts.length} produits)`,
       progress: 0,
     };
 
-    // Utiliser le service avec gestion de lots et sync automatique
     const productsData: Array<{
       productId: string;
       isSynced: boolean;
@@ -120,20 +98,18 @@
 
     for (const product of activeProducts) {
       const productModel = productsStore.getProductModelById(product.$id);
-      // Convertir les quantités négatives en positif pour les achats
       const missingQuantities = (productModel?.stats.missingQuantities || [])
-        .filter((qty) => qty.q < 0) // Uniquement les quantités manquantes
-        .map((qty) => ({ ...qty, q: Math.abs(qty.q) })); // Convertir en positif
+        .filter((qty) => qty.q < 0)
+        .map((qty) => ({ ...qty, q: Math.abs(qty.q) }));
 
       productsData.push({
         productId: product.$id,
         isSynced: product.isSynced,
-        productData: product, // Envoyer les données complètes du produit
+        productData: product,
         missingQuantities,
       });
     }
 
-    // Préparer les données de facture
     const invoiceData = {
       invoiceId,
       invoiceTotal: formData.expense || undefined,
@@ -141,7 +117,6 @@
       notes:
         formData.notes || `Achat groupé pour ${activeProducts.length} produits`,
       who: formData.who.trim() || undefined,
-      // Passer le statut et la date de livraison des achats
       purchaseStatus: formData.status || "delivered",
       purchaseDeliveryDate: formData.deliveryDate || null,
     };
@@ -150,23 +125,19 @@
       `[GroupPurchaseModal] Création achat groupé avec sync pour ${productsData.length} produits...`,
     );
 
-    // FERMER LE MODAL IMMÉDIATEMENT POUR UX
     onClose();
 
     try {
-      // Utiliser track() avec des messages statiques pour suivre l'opération après la fermeture du modal
       await toastService.track(
         createGroupPurchaseWithSync(
           productsStore.currentMainId!,
           productsData,
           invoiceData,
         ).then((batchResult) => {
-          // Ajouter les détails dans la console pour le débogage
           console.log(
             `[GroupPurchaseModal] Achat groupé créé: ${batchResult.success ? "succès" : "échec"}, ${batchResult.totalProductsCreated} produits synchronisés, ${batchResult.totalPurchasesCreated} achats créés, ${batchResult.totalExpensesCreated} dépenses globales`,
           );
 
-          // Vérifier le succès et gérer les erreurs
           if (!batchResult.success) {
             throw new Error(
               batchResult.error ||
@@ -174,7 +145,6 @@
             );
           }
 
-          // Notifier le succès callback optionnel
           onSuccess?.();
           return batchResult;
         }),
@@ -185,28 +155,19 @@
         },
       );
     } catch (error) {
-      // L'erreur est déjà affichée dans le toast, mais on nettoie l'état
       console.error(
         "[GroupPurchaseModal] Erreur création achat groupé:",
         error,
       );
-
-      // 🔧 NETTOYAGE : Retirer le statut "isSyncing" en cas d'erreur
       productsStore.clearSyncStatus();
     } finally {
       loading = false;
-      // Reset background operation
       globalState.backgroundOperation = {
         isRunning: false,
         name: "",
         progress: 0,
       };
     }
-  }
-
-  function handleClose() {
-    if (loading) return;
-    onClose();
   }
 
   function handleToggleProduct(productId: string) {
@@ -219,7 +180,6 @@
     activeProductIds = newActiveIds;
   }
 
-  // Préparer les données pour BtnGroupCheck
   const badgeItems = $derived(
     products.map((product) => {
       const productModel = productsStore.getProductModelById(product.$id);
@@ -233,24 +193,15 @@
   );
 </script>
 
-<div class="modal modal-open">
-  <div class="modal-box mt-18 max-h-[90vh] max-w-4xl overflow-y-auto">
-    <!-- Header -->
-    <div class="mb-4 flex items-center justify-between border-b pb-4">
-      <h3 class="flex items-center gap-2 text-lg font-semibold">
-        <ShoppingCart class="h-5 w-5" />
-        {title}
-      </h3>
-      <button
-        class="btn btn-sm btn-circle btn-ghost"
-        onclick={handleClose}
-        disabled={loading}
-      >
-        <X class="h-4 w-4" />
-      </button>
-    </div>
+<ModalContainer
+  isOpen={true}
+  {onClose}
+  hasUnsavedChanges={false}
+  fullscreenOnMobile={true}
+>
+  <ModalHeader {title} showBackButton={true} {onClose} />
 
-    <!-- Contenu -->
+  <ModalContent>
     <div class="space-y-6">
       <!-- Erreur -->
       {#if error}
@@ -260,22 +211,7 @@
         </div>
       {/if}
 
-      <!-- Succès -->
-      {#if result}
-        <div class="alert alert-success">
-          <Check class="h-4 w-4" />
-          <span>
-            Achat groupé créé avec succès ! {result.purchases} produit(s) validés
-            {#if result.expense}
-              + 1 dépense globale
-            {/if}
-            {#if result.batches && result.batches > 1}
-              (traité en {result.batches} lots)
-            {/if}
-          </span>
-        </div>
-      {/if}
-
+      <!-- InfoCollapse -->
       <div>
         <InfoCollapse
           contentVisible="Un 'achat' sera créé avec les quantités manquantes pour chaque produit sur la période sélectionnée."
@@ -300,21 +236,26 @@
       <div class="space-y-4">
         <h4 class="font-medium">Détails de l'achat</h4>
 
-        <div class="items-top flex flex-wrap gap-4">
+        <div class="flex flex-col gap-4 sm:flex-row">
           <!-- Magasin -->
-          <StoreInput
-            bind:value={formData.store}
-            suggestions={productsStore.uniqueStores}
-            disabled={loading}
-          />
+          <div class="flex-1">
+            <StoreInput
+              bind:value={formData.store}
+              suggestions={productsStore.uniqueStores}
+              disabled={loading}
+            />
+          </div>
 
           <!-- Qui -->
-          <WhoInput
-            bind:value={formData.who}
-            suggestions={productsStore.uniqueWho}
-            disabled={loading}
-          />
+          <div class="flex-1">
+            <WhoInput
+              bind:value={formData.who}
+              suggestions={productsStore.uniqueWho}
+              disabled={loading}
+            />
+          </div>
         </div>
+
         <!-- Dépense -->
         <PriceInput bind:value={formData.expense} disabled={loading} />
 
@@ -326,22 +267,22 @@
         />
 
         <!-- Notes -->
-        <div>
-          <CommentTextarea bind:value={formData.notes} disabled={loading} />
-        </div>
+        <CommentTextarea bind:value={formData.notes} disabled={loading} />
       </div>
 
       <!-- Liste des produits -->
-      <div class="mb-4">
-        <h4 class=" font-medium">Produits concernés</h4>
-        <div class="text-base-content/70 mb-4">
-          les quantités manquantes du <span class="badge badge-info badge-sm"
-            >{formatDateWdDayMonthShort(productsStore.dateRange.start)}</span
-          >
+      <div>
+        <h4 class="mb-2 font-medium">Produits concernés</h4>
+        <div class="text-base-content/70 mb-4 text-sm">
+          Les quantités manquantes du
+          <span class="badge badge-info badge-sm">
+            {formatDateWdDayMonthShort(productsStore.dateRange.start)}
+          </span>
           au
-          <span class="badge badge-info badge-sm"
-            >{formatDateWdDayMonthShort(productsStore.dateRange.start)}</span
-          > pour les produits suivant seront déclarés "acheté"
+          <span class="badge badge-info badge-sm">
+            {formatDateWdDayMonthShort(productsStore.dateRange.end)}
+          </span>
+          pour les produits suivants seront déclarées "achetées"
         </div>
         <BtnGroupCheck
           items={badgeItems}
@@ -350,27 +291,34 @@
           color="success"
         />
       </div>
-
-      <!-- Actions -->
-      <div class="modal-action">
-        <button class="btn btn-ghost" onclick={handleClose} disabled={loading}>
-          Annuler
-        </button>
-
-        <button
-          class="btn btn-primary"
-          onclick={handleSubmit}
-          disabled={loading || !isFormValid}
-        >
-          {#if loading}
-            <span class="loading loading-spinner loading-sm"></span>
-            En cours...
-          {:else}
-            <ShoppingCart class="h-4 w-4" />
-            Valider {activeProducts.length} produit(s)
-          {/if}
-        </button>
-      </div>
     </div>
-  </div>
-</div>
+  </ModalContent>
+
+  <ModalFooter>
+    <div class="flex">
+      <button class="btn btn-ghost" onclick={onClose} disabled={loading}>
+        Annuler
+      </button>
+
+      <button
+        class="btn btn-primary"
+        onclick={handleSubmit}
+        disabled={loading || !isFormValid}
+      >
+        {#if loading}
+          <span class="loading loading-spinner loading-sm"></span>
+          En cours...
+        {:else}
+          <ShoppingCart class="h-4 w-4" />
+          <span
+            >Valider <span class="hidden sm:inline"
+              >{activeProducts.length} produit{activeProducts.length > 1
+                ? "s"
+                : ""}</span
+            ></span
+          >
+        {/if}
+      </button>
+    </div>
+  </ModalFooter>
+</ModalContainer>

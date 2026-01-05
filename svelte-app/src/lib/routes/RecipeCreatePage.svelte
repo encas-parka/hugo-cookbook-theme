@@ -18,6 +18,7 @@
   import RecipePermissionsManager from "$lib/components/recipeEdit/RecipePermissionsManager.svelte";
   import UnsavedChangesGuard from "$lib/components/ui/UnsavedChangesGuard.svelte";
   import { generateSlugUuid35 } from "$lib/utils/slugUtils";
+  import { warmUpEnkaData } from "$lib/services/appwrite-warmup";
   import {
     type RecipeFormState,
     type ValidationError,
@@ -80,6 +81,11 @@
   // ============================================================================
   // AUTO-EFFECTS
   // ============================================================================
+
+  // Warm-up de la fonction enkaData
+  $effect(() => {
+    warmUpEnkaData();
+  });
 
   // Vérifier que l'utilisateur est connecté
   $effect(() => {
@@ -272,7 +278,7 @@
       <!-- Métadonnées de base -->
       <RecipeHeaderForm
         bind:recipe
-        recipeInfo={recipeInfo}
+        {recipeInfo}
         validationErrors={validationErrors.value}
         {canEdit}
       />
@@ -296,7 +302,9 @@
 
 <!-- Guard de navigation pour modifications non sauvegardées -->
 <UnsavedChangesGuard
-  routeKey={sourceRecipeId ? `/recipe/${sourceRecipeId}/duplicate` : "/recipe/new"}
+  routeKey={sourceRecipeId
+    ? `/recipe/${sourceRecipeId}/duplicate`
+    : "/recipe/new"}
   shouldProtect={() => isDirty && !saveSuccessful}
   onLeaveWithoutSave={() => {
     // Ne rien de spécial à faire en mode création

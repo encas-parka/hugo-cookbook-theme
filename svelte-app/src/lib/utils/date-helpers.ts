@@ -23,11 +23,25 @@ export function extractDate(datetime: string): string {
 /**
  * Déduit le moment depuis l'heure d'un datetime
  */
-export function extractTime(datetime: string): "matin" | "midi" | "soir" {
+export function extractTime(
+  datetime: string | null,
+): "matin" | "midi" | "soir" | "" {
+  if (!datetime) return "";
+
   const hour = parseInt(datetime.split("T")[1]?.split(":")[0] || "12");
   if (hour < 10) return "matin";
   if (hour < 17) return "midi";
   return "soir";
+}
+
+export function DayMonthMoment(date: string | null, noDay = false): string {
+  if (!date) return "";
+  const dayMonth = noDay
+    ? formatDateMinimal(date)
+    : formatDateWdDayMonthShort(date);
+
+  const moment = extractTime(date);
+  return `${dayMonth} ${moment}`;
 }
 
 /**

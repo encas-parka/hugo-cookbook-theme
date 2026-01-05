@@ -18,6 +18,10 @@
   import { navigate } from "$lib/services/simple-router.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { onDestroy } from "svelte";
+  import {
+    warmUpUsersTeamsManager,
+    warmUpEnkaData,
+  } from "$lib/services/appwrite-warmup";
 
   import TeamSummaryCard from "$lib/components/dashboard/TeamSummaryCard.svelte";
   import CurrentEventsCard from "$lib/components/dashboard/CurrentEventsCard.svelte";
@@ -31,6 +35,12 @@
 
   // Invitations réelles
   const myInvitations = $derived(teamsStore.myPendingInvitations);
+
+  // WARM-UP
+  $effect(() => {
+    warmUpUsersTeamsManager();
+    warmUpEnkaData();
+  });
 
   // ============================================================================
   // NAVBAR CONFIGURATION

@@ -17,6 +17,9 @@
     Save,
     Lock,
     PencilLine,
+    CheckCircle2,
+    Clock,
+    AlertTriangle,
   } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
@@ -26,6 +29,8 @@
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { locksService, type AppwriteLock } from "../services/appwrite-locks";
   import UnsavedChangesGuard from "../components/ui/UnsavedChangesGuard.svelte";
+  import Fieldset from "../components/ui/Fieldset.svelte";
+  import ConfirmModal from "../components/ui/ConfirmModal.svelte";
 
   // ============================================================================
   // PROPS & INITIALISATION
@@ -41,8 +46,8 @@
   let meals = $state<EventMeal[]>([]);
   let eventName = $state("");
   let description = $state("");
-  let isConfirmed = $state(false);
-  let minContrib = $state<number>(0);
+  let status = $state<MainStatus>("proposition");
+  let minContrib = $state<number>(1);
 
   // Meals triés par date pour l'affichage et la sauvegarde (computed réactif)
   const sortedMeals = $derived(
@@ -60,6 +65,10 @@
   let editingDescription = $state(false);
   let editingMinContrib = $state(false);
 
+  // États des modales de confirmation
+  let showConfirmStatusModal = $state(false);
+  let showCancelStatusModal = $state(false);
+
   // État du verrou externe (via locksService)
   let activeLock = $state<AppwriteLock | null>(null);
   let lockUnsub: (() => void) | null = null;
@@ -72,16 +81,16 @@
     const current = JSON.stringify({
       name: currentEvent.name,
       meals: currentEvent.meals || [],
-      description: (currentEvent as any).description || "",
-      isConfirmed: (currentEvent as any).isConfirmed || false,
-      minContrib: (currentEvent as any).minContrib || 0,
+      description: currentEvent.description || "",
+      status: currentEvent.status || "proposition",
+      minContrib: currentEvent.minContrib || 1,
     });
 
     const local = JSON.stringify({
       name: eventName,
       meals: meals,
       description,
-      isConfirmed,
+      status,
       minContrib,
     });
 
@@ -161,8 +170,8 @@
       meals = $state.snapshot(currentEvent.meals || []);
       eventName = currentEvent.name || "";
       description = (currentEvent as any).description || "";
-      isConfirmed = (currentEvent as any).isConfirmed || false;
-      minContrib = (currentEvent as any).minContrib || 0;
+      status = (currentEvent as any).status || "PROPOSITION";
+      minContrib = (currentEvent as any).minContrib || 1;
 
       console.log("🔄 Shadow draft synchronisé depuis currentEvent (Preview)");
     }
@@ -382,7 +391,7 @@
     const eventData = {
       name: eventName,
       description,
-      isConfirmed,
+      status,
       minContrib,
       allDates: allDatesSorted as string[],
       dateStart: allDatesSorted.length > 0 ? allDatesSorted[0] : "",
@@ -587,6 +596,22 @@
       isBusy = false;
     }
   }
+
+  // ============================================================================
+  // STATUS CONFIRMATION HANDLERS
+  // ============================================================================
+
+  async function handleConfirmStatus() {
+    if (!(await startEditing())) return;
+    status = "confirmed";
+    showConfirmStatusModal = false;
+  }
+
+  async function handleCancelStatus() {
+    if (!(await startEditing())) return;
+    status = "canceled";
+    showCancelStatusModal = false;
+  }
 </script>
 
 <!-- {#debug}
@@ -668,7 +693,7 @@
           <p class="label">{description.length}/3000 caractères</p>
         {:else}
           <button
-            class="btn btn-ghost h-auto justify-start py-4 text-left"
+            class="btn btn-ghost bg-base-100 h-auto justify-start py-4 text-left"
             onclick={() => (editingDescription = true)}
             disabled={!canEdit}
           >
@@ -688,38 +713,66 @@
         {/if}
       </fieldset>
 
-      <!-- isConfirmed & minContrib -->
+      <!-- status & minContrib -->
       <div class="flex flex-col gap-4">
-        <!-- Événement confirmé -->
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend">Événement confirmé</legend>
-          {#if isConfirmed || editingDescription}
-            <label class="label cursor-pointer justify-start gap-4">
-              <input
-                type="checkbox"
-                class="checkbox checkbox-primary"
-                bind:checked={isConfirmed}
-                onclick={startEditing}
+        <!-- Statut de l'événement -->
+        <Fieldset legend="Statut de l'événement">
+          <div class="flex items-center justify-between gap-2">
+            <!-- Affichage du statut actuel -->
+            <div class="flex items-center gap-2">
+              {#if status === "confirmed"}
+                <div class="badge badge-lg badge-success gap-1">
+                  <CheckCircle2 class="h-3 w-3" />
+                  Confirmé
+                </div>
+              {:else if status === "proposition"}
+                <div class="badge badge-lg badge-info gap-1">
+                  <Clock class="h-3 w-3" />
+                  Proposition
+                </div>
+              {:else}
+                <div class="badge badge-lg badge-warning gap-1">
+                  <AlertTriangle class="h-3 w-3" />
+                  {status}
+                </div>
+              {/if}
+            </div>
+
+            <!-- Bouton d'action -->
+            {#if status === "proposition"}
+              <button
+                class="btn btn-success btn-sm"
+                onclick={() => (showConfirmStatusModal = true)}
                 disabled={!canEdit}
-              />
-              <span class="label-text">Événement confirmé</span>
-            </label>
-          {:else}
-            <p class="text-base-content/40 text-sm italic">Non confirmé</p>
-            <button
-              class="btn btn-ghost btn-sm justify-start px-0"
-              onclick={startEditing}
-              disabled={!canEdit}
-            >
-              <PencilLine class="mr-1 h-3 w-3" />
-              Modifier
-            </button>
-          {/if}
-        </fieldset>
+              >
+                Confirmer
+              </button>
+            {:else if status === "confirmed"}
+              <button
+                class="btn btn-link btn-error btn-sm"
+                onclick={() => (showCancelStatusModal = true)}
+                disabled={!canEdit}
+              >
+                Annuler l'événement
+              </button>
+            {:else}
+              <button
+                class="btn btn-link btn-sm"
+                onclick={async () => {
+                  if (await startEditing()) {
+                    status = "proposition";
+                  }
+                }}
+                disabled={!canEdit}
+              >
+                Réactiver
+              </button>
+            {/if}
+          </div>
+        </Fieldset>
 
         <!-- Équipe minimale -->
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend">Équipe minimale</legend>
+        <Fieldset legend="Équipe minimale">
           {#if editingMinContrib}
             <label class="input w-full">
               <input
@@ -729,7 +782,7 @@
                 onfocus={startEditing}
                 onblur={() => (editingMinContrib = false)}
                 disabled={!canEdit}
-                min="0"
+                min="1"
                 class="grow"
               />
             </label>
@@ -744,14 +797,14 @@
             >
               <div class="flex items-center gap-4">
                 <span class="text-lg">
-                  {minContrib || 0}
+                  {minContrib || 1}
                 </span>
                 <PencilLine class="h-4 w-4" />
               </div>
             </button>
           {/if}
           <p class="label">Nombre minimum de participants requis</p>
-        </fieldset>
+        </Fieldset>
       </div>
     </div>
   {/if}
@@ -876,6 +929,29 @@
     </div>
   {/if}
 </div>
+
+<!-- Modales de confirmation pour le statut -->
+<ConfirmModal
+  isOpen={showConfirmStatusModal}
+  title="Confirmer l'événement"
+  message="Êtes-vous sûr de vouloir confirmer cet événement ? "
+  variant="info"
+  confirmLabel="Confirmer"
+  cancelLabel="Annuler"
+  onConfirm={handleConfirmStatus}
+  onCancel={() => (showConfirmStatusModal = false)}
+/>
+
+<ConfirmModal
+  isOpen={showCancelStatusModal}
+  title="Annuler la confirmation"
+  message="Êtes-vous sûr de vouloir annuler cet événement ?."
+  variant="warning"
+  confirmLabel="Oui, annuler"
+  cancelLabel="Non, garder"
+  onConfirm={handleCancelStatus}
+  onCancel={() => (showCancelStatusModal = false)}
+/>
 
 <!-- Guard de navigation pour modifications non sauvegardées -->
 <UnsavedChangesGuard

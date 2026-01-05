@@ -16,7 +16,6 @@
     Users,
     ShoppingCart,
     Check,
-    ListTodo,
     LoaderCircle,
     ShoppingBasket,
     Snowflake,
@@ -32,8 +31,6 @@
     ClipboardCheck,
     PackageCheck,
     MessageCircleMore,
-    CircleArrowDown,
-    CircleArrowRight,
     ClipboardPenLine,
     CircleAlert,
   } from "@lucide/svelte";
@@ -41,11 +38,11 @@
   import DateBadge from "$lib/components/ui/DateBadge.svelte";
   import { globalState, hoverHelp } from "$lib/stores/GlobalState.svelte";
   import {
-    formatDateMinimal,
+    DayMonthMoment,
     formatDateWdDayMonthShort,
   } from "$lib/utils/date-helpers";
   import { calculateDateDisplayInfo } from "$lib/utils/dateRange";
-  import { fade } from "svelte/transition";
+  import IconSprite from "../ui/IconSprite.svelte";
 
   // Récupérer les icônes de statut depuis le parent pour éviter la duplication
   const statusIcons = {
@@ -143,27 +140,34 @@
         </div>
 
         {#if !globalState.isMobile}
-          <div class="text-primary-content">
+          <div class="text-primary-content px-2">
             {#if productsStore.dateStore.isFullRange}
               <div class="font-semibold">Sur toute la période</div>
             {:else if productsStore.dateStore.start !== productsStore.dateStore.end}
-              du <span class="font-semibold">{formatedStartDateRange}</span> au
-              <span class="font-semibold">{formatedEndDateRange}</span>
+              du <span class="font-semibold">
+                {DayMonthMoment(productsStore.dateStore.start)}
+              </span>
+              au
+              <span class="font-semibold">
+                {DayMonthMoment(productsStore.dateStore.end)}</span
+              >
             {:else}
-              le <span class="font-semibold">{formatedStartDateRange}</span>
+              le <span class="font-semibold"
+                >{DayMonthMoment(productsStore.dateStore.start)}
+              </span>
             {/if}
           </div>
         {:else}
           <div class="text-primary-content">
             {#if !productsStore.dateStore.isFullRange && productsStore.dateStore.start !== productsStore.dateStore.end}
               <span class="font-semibold"
-                >{formatDateMinimal(productsStore.dateStore.start)} → {formatDateMinimal(
+                >{DayMonthMoment(productsStore.dateStore.start)} → {DayMonthMoment(
                   productsStore.dateStore.end,
                 )}</span
               >
             {:else}
               le <span class="font-semibold"
-                >{formatDateMinimal(productsStore.dateStore.start)}</span
+                >{DayMonthMoment(productsStore.dateStore.start, true)}</span
               >
             {/if}
           </div>
@@ -245,7 +249,7 @@
     {/if}
 
     <!-- Cards des produits du groupe -->
-    <div class="space-y-4 sm:space-y-1">
+    <div class="space-y-4 sm:space-y-2">
       {#each groupProducts as productModel (productModel.data.$id)}
         {@const product = productModel.data}
         {@const productInDateRange = productModel.stats}
@@ -264,7 +268,7 @@
         >
           <div class="card-body p-2">
             <!-- Première ligne: Titre/Type à gauche, Store/Who à droite -->
-            <div class="flex items-center justify-between">
+            <div class="flex items-start justify-between">
               <!-- Section gauche: Titre & Type (prend la place disponible) -->
               <div
                 class="flex flex-1 cursor-pointer flex-wrap items-center gap-4"
@@ -327,7 +331,7 @@
                 <!-- 📅 Dates concernées (desktop only: sinon wrap degeu) -->
                 {#if !globalState.isMobile && productInDateRange.concernedDates.length > 0}
                   <div class="text-base-content/60">
-                    <div class="flex flex-wrap gap-1">
+                    <div class="flex flex-wrap items-center gap-1">
                       {#each productInDateRange.concernedDates as date (date)}
                         {@const recipes =
                           productInDateRange.recipesByDate.get(date) || []}
@@ -395,18 +399,22 @@
                     onmouseleave={() => hoverHelp.reset()}
                   >
                     <Users size={18} />
-                    {#if product.who && product.who.length > 0}
-                      <div class="ml-1 flex gap-1">
-                        {product.who
-                          .slice(0, 2)
-                          .map((person) => person.slice(0, 3))
-                          .join(" | ")}
-                        {#if product.who.length > 2}
-                          <span class="text-base-content/50 text-xs"
-                            >+{product.who.length - 2}</span
-                          >
-                        {/if}
-                      </div>
+                    {#if product.who}
+                      {#if product.who.length > 1}
+                        <div class="ml-1 flex gap-1">
+                          {product.who
+                            .slice(0, 2)
+                            .map((person) => person.slice(0, 5))
+                            .join(" | ")}...
+                          {#if product.who.length > 2}
+                            <span class="text-base-content/50 text-xs"
+                              >+{product.who.length - 2}</span
+                            >
+                          {/if}
+                        </div>
+                      {:else if product.who.length === 1}
+                        {product.who}
+                      {/if}
                     {:else}
                       <div class="ml-1 text-sm font-medium">?</div>
                     {/if}
@@ -458,7 +466,7 @@
                   id="needs-card"
                   role="button"
                   tabindex="0"
-                  class=" bg-base-300/80 relative flex flex-1 cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg p-3 shadow-sm"
+                  class=" bg-base-300/80 relative flex flex-1 cursor-pointer flex-wrap items-start justify-between gap-x-4 gap-y-1 rounded-lg p-3 shadow-sm"
                   onclick={() => onOpenModal(product.$id, "recettes")}
                   onkeydown={(e) =>
                     e.key === "Enter" && onOpenModal(product.$id, "recettes")}
@@ -529,7 +537,9 @@
                         ><span class="font-light">manque : </span>
                         {productInDateRange.formattedMissingQuantities}</span
                       >
-                      <div class="add-to-cart ms-1"></div>
+                      <span class="text-primary">
+                        <IconSprite name="add-to-cart" size={16} /></span
+                      >
                     </button>
                   {:else if shouldShowActionButtons}
                     <CircleCheckBig size={24} class="text-success ms-auto" />
@@ -563,11 +573,9 @@
                   <!-- <ListTodo class="bg-base-200 m-1 inline h-4 w-4" /> -->
                   Achat / reccup effectué
                 </div>
-                <!-- {globalState.isMobile
-                  ? 'border-neutral/50 hover:border-accent/60 border shadow-sm'
-                  : 'bg-base-300'}" -->
+
                 <div
-                  class="group hover:ring-accent/60 bg-base-300/80 relative flex flex-1 cursor-pointer items-center justify-between gap-2 rounded-lg p-3 shadow-sm transition-colors hover:ring-2"
+                  class="group hover:ring-accent/60 bg-base-300/80 relative flex flex-1 cursor-pointer items-start justify-between gap-2 rounded-lg p-3 shadow-sm transition-colors hover:ring-2"
                   role="button"
                   tabindex="0"
                   onclick={() => onOpenModal(product.$id, "achats")}
@@ -586,7 +594,7 @@
                   </div>
                 </div> -->
                   <!-- Liste des achats -->
-                  <ShoppingCart class=" h-4 w-4" />
+                  <ShoppingCart class="h-4 w-4 opacity-60" />
                   <div
                     class="text-base-content/30 blocktransition-opacity ms-2 text-xs italic {!shouldShowActionButtons
                       ? 'hidden'

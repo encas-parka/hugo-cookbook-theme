@@ -55,14 +55,14 @@
       </div>
     {/if}
     {#if hasChildren}
-      <div class="flex gap-1">
-        <span class="text-base-content/70 text-sm italic"
-          >{#if !isOpen}
+      <div class="flex items-center gap-1">
+        <div class="text-base-content/70 text-sm italic">
+          {#if !isOpen}
             en savoir plus
           {:else}
             masquer
           {/if}
-        </span>
+        </div>
         <ChevronDown
           class={`text-base-content h-4 w-4 flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
         />

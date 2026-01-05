@@ -21,6 +21,7 @@
     X,
     PanelRightClose,
     EyeClosed,
+    SquareArrowOutUpRight,
   } from "@lucide/svelte";
   // Store and global state
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
@@ -43,6 +44,7 @@
     upsertProduct,
   } from "$lib/services/appwrite-products";
   import { autoConvertUnit } from "$lib/utils/QuantityFormatter";
+  import { warmUpEnkaData } from "$lib/services/appwrite-warmup";
 
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
 
@@ -94,6 +96,11 @@
 
   // État de chargement
   let isLoading = $state(true);
+
+  // WARM-UP
+  $effect(() => {
+    warmUpEnkaData();
+  });
 
   // =========================================================================
   // INITIALISATION
@@ -309,15 +316,6 @@
 {#snippet navActions()}
   <div class="flex gap-2">
     <button
-      class="btn btn-outline btn-ghost btn-sm"
-      onclick={() => (GlobalPurchasesModalisOpen = true)}
-      title="Ajouter une dépense générale"
-    >
-      <BadgeEuro class="mr-1 h-4 w-4" />
-      Dépense
-    </button>
-
-    <button
       class="btn btn-primary btn-sm"
       onclick={handleOpenAddProductModal}
       title="Ajouter un produit manuellement"
@@ -346,7 +344,7 @@
   {:else}
     <!-- Contenu une fois chargé -->
     <div
-      class="rounded-box border-base-300 bg-base-100 flex flex-wrap items-baseline justify-between gap-4 px-4"
+      class="rounded-box border-base-300 bg-base-100 flex flex-wrap items-baseline justify-between gap-4 border-2 p-4"
     >
       <h1 class="text-primary text-3xl font-bold">{eventName}</h1>
       <div class="text-base-content/70 text-base">
@@ -360,10 +358,61 @@
       </div>
       <!-- Stats -->
       {#if currentEvent}
-        <div class="flex justify-end py-4 print:hidden">
+        <div class="flex-grow py-4 print:hidden">
           <EventStats {currentEvent} />
         </div>
       {/if}
+      <div class="flex flex-1 flex-wrap justify-end gap-4">
+        <!-- Carte des produits complétés/manquants -->
+        <div class="card card-xs sm:card:sm border-2 border-orange-700">
+          <div class="card-body">
+            <div class="card-title text-orange-800">
+              <PackageCheck class="text-orange-800 opacity-60" />
+              Produits
+            </div>
+            <div class="flex items-center justify-center px-2">
+              <div class="text-center">
+                <div class="text-success text-lg font-bold md:text-2xl">
+                  {productsStore.completionStats.completed}
+                </div>
+                <div class="text-base-content/60 text-xs">Ok</div>
+              </div>
+              <div class="divider divider-horizontal mx-1"></div>
+              <div class="text-center">
+                <div class="text-error text-lg font-bold md:text-2xl">
+                  {productsStore.completionStats.missing}
+                </div>
+                <div class="text-base-content/60 text-xs">Manquants</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Carte des dépenses -->
+        <div
+          class="card card-xs sm:card-sm border-2 border-orange-700 shadow hover:bg-orange-700/10"
+        >
+          <button
+            class="card-body cursor-pointer"
+            onclick={() => (GlobalPurchasesModalisOpen = true)}
+            title="Ajouter une dépense générale"
+            onmouseenter={() =>
+              (hoverHelp.msg = "Consulter ou modifie le détail des dépenses")}
+            onmouseleave={() => hoverHelp.reset()}
+          >
+            <div class="card-title text-orange-800">
+              <BadgeEuro class="text-orange-800 opacity-60" />
+              Dépense
+            </div>
+            <div class="text-base-content/70 text-center text-lg font-medium">
+              {productsStore.financialStats.totalGlobal} €
+            </div>
+            <SquarePen
+              class="text-base-content/60 absolute right-3 bottom-2 size-4"
+            />
+          </button>
+        </div>
+      </div>
     </div>
     <ProductsCards
       onOpenModal={openModal}

@@ -123,7 +123,7 @@
       </div>
 
       <!-- Actions -->
-      <div class="card-actions justify-end">
+      <!-- <div class="card-actions justify-end">
         <button
           class="btn btn-ghost btn-sm"
           onclick={handleCancel}
@@ -131,7 +131,7 @@
         >
           Annuler
         </button>
-      </div>
+      </div> -->
     </div>
   {/if}
 </div>

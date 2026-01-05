@@ -8,6 +8,7 @@
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { onDestroy } from "svelte";
   import { navigate } from "../services/simple-router.svelte";
+  import { warmUpUsersTeamsManager } from "$lib/services/appwrite-warmup";
 
   // État de la page
   let createModalOpen = $state(false);
@@ -38,6 +39,13 @@
     closeCreateModal();
     openTeamDetails(teamId);
   }
+
+  // ============================================================================
+  // WARM-UP
+  // ============================================================================
+  $effect(() => {
+    warmUpUsersTeamsManager();
+  });
 
   // ============================================================================
   // NAVBAR CONFIGURATION

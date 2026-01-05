@@ -6,6 +6,7 @@
   import { TriangleAlert } from "@lucide/svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { onDestroy } from "svelte";
+  import { warmUpUsersTeamsManager } from "$lib/services/appwrite-warmup";
 
   // États (Svelte 5 Runes)
   let loading = $state(true);
@@ -22,6 +23,9 @@
   let teamId = "";
 
   onMount(async () => {
+    // 0. Warm-up de la fonction usersTeamsManager
+    warmUpUsersTeamsManager();
+
     // 1. Récupération des paramètres via votre routeur
     // L'URL ressemble à : #/accept-invite?userId=xyz&secret=eyJ...&teamId=123
     userId = getQuery("userId") || "";

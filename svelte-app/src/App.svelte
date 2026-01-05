@@ -10,6 +10,7 @@
   import ErrorAlert from "./lib/components/ui/ErrorAlert.svelte";
   import HeaderNav from "./lib/components/HeaderNav.svelte";
   import Toast from "./lib/components/ui/Toast.svelte";
+  import ScrollToTopButton from "./lib/components/ui/ScrollToTopButton.svelte";
   import OverrideConflictModal from "./lib/components/OverrideConflictModal.svelte";
   import { globalState } from "./lib/stores/GlobalState.svelte";
 
@@ -139,14 +140,29 @@
 
   // Mettre à jour le composant actuel quand la route change
   // ET que l'app est prête (pour éviter les affichages partiels)
+  let previousRoutePath = $state("");
+
   $effect(() => {
     // On re-vérifie le matching à chaque changement de path ou d'état appState
     const _path = router.path;
     const _state = appState;
 
     if (_state === "READY") {
-      router.match().then((match) => {
+      router.match().then(async (match) => {
         currentRoute = match;
+
+        // Scroll to top si la route a changé
+        if (_path !== previousRoutePath) {
+          previousRoutePath = _path;
+          // Attendre que le DOM soit mis à jour
+          await tick();
+          // Double rAF pour attendre les contenus asynchrones
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            });
+          });
+        }
       });
     }
   });
@@ -219,6 +235,7 @@
 
 <!-- Éléments globaux -->
 <Toast />
+<ScrollToTopButton />
 
 <!-- Modales globales (visibles uniquement si connecté et app prête) -->
 {#if globalState.isAuthenticated && appState === "READY"}

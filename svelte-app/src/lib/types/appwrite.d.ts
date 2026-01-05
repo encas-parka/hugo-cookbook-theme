@@ -4,11 +4,11 @@ import type { Models } from 'appwrite';
 // You can regenerate it by running `appwrite types -l ts ../hugo-cookbook-theme/svelte-app/src/lib/types`.
 
 export enum MainStatus {
-    CREATING = "creating",
-    ACTIVE = "active",
-    FAILED = "failed",
     ARCHIVE = "archive",
-    LOCKED = "locked"
+    LOCKED = "locked",
+    PROPOSITION = "proposition",
+    CONFIRMED = "confirmed",
+    CANCELED = "canceled"
 }
 
 export enum RecettesTypeR {
@@ -69,6 +69,8 @@ export type Main = Models.Row & {
     kteams: Kteams[];
     meals: string[] | null;
     contributorsIds: string[] | null;
+    description: string | null;
+    minContrib: number;
 }
 
 export type Products = Models.Row & {
@@ -145,6 +147,8 @@ export type Kteams = Models.Row & {
     members: string[];
     invited: string[] | null;
     main: Main[];
+    department: string | null;
+    isPublic: boolean;
 }
 
 export type Materiel = Models.Row & {

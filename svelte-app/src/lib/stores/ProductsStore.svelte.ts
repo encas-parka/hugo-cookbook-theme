@@ -1516,6 +1516,28 @@ class ProductsStore {
   }
 
   /**
+   * Statistiques de complétion des produits (basé sur hasMissing)
+   */
+  completionStats = $derived.by(() => {
+    let completed = 0;
+    let missing = 0;
+
+    for (const model of this.#enrichedProducts.values()) {
+      if (model.stats.hasMissing) {
+        missing++;
+      } else {
+        completed++;
+      }
+    }
+
+    return {
+      completed,
+      missing,
+      total: completed + missing,
+    };
+  });
+
+  /**
    * Statistiques financières globales
    */
   financialStats = $derived.by(() => {

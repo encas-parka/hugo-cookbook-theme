@@ -8,7 +8,7 @@
   let {
     status = $bindable(),
     deliveryDate = $bindable(),
-    disabled = false
+    disabled = false,
   }: Props = $props();
 </script>
 
@@ -18,7 +18,7 @@
       <option value="delivered" selected>Acheté</option>
       <option value="ordered">Commandé</option>
     </select>
-    <div class="label {status === 'delivered' ? '' : 'hidden'}">
+    <div class="label text-xs {status === 'delivered' ? '' : 'hidden'}">
       Modifiez s'il s'agit d'une commande
     </div>
   </div>

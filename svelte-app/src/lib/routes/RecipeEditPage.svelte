@@ -19,6 +19,7 @@
   import UnsavedChangesGuard from "$lib/components/ui/UnsavedChangesGuard.svelte";
   import RecipeMetadata from "$lib/components/recipes/RecipeMetadata.svelte";
   import ConfirmModal from "$lib/components/ui/ConfirmModal.svelte";
+  import { warmUpEnkaData } from "$lib/services/appwrite-warmup";
   import {
     type RecipeFormState,
     type ValidationError,
@@ -101,6 +102,11 @@
   // ============================================================================
   // AUTO-EFFECTS
   // ============================================================================
+
+  // WARM-UP
+  $effect(() => {
+    warmUpEnkaData();
+  });
 
   // Vérifier que l'utilisateur est connecté
   $effect(() => {

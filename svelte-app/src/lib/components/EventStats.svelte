@@ -17,7 +17,7 @@
   const stats = $derived(useEventStats(currentEvent));
 </script>
 
-<div class="flex flex-wrap gap-2 font-medium">
+<div class="flex flex-wrap justify-end gap-2 font-medium">
   <!-- Repas -->
   <div class="badge badge-soft badge-primary badge-lg flex items-center gap-2">
     <CalendarDays class="h-4 w-4" />

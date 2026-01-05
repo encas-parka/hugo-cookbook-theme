@@ -7,6 +7,7 @@
     Users,
     Store,
     History,
+    Check,
   } from "@lucide/svelte";
 
   // Stores and Global States
@@ -20,7 +21,12 @@
   import RecipesManager from "./RecipesManager.svelte";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
   import { getProductTypeInfo } from "@/lib/utils/products-display";
-  import { getTypeDisplay } from "@/lib/utils/recipeUtils";
+
+  // Modal Components
+  import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
+  import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
+  import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
+  import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
 
   let {
     productId,
@@ -32,19 +38,15 @@
     onClose: () => void;
   }>();
 
-  // 1. Déclarer l'état du modal.
-  // Utilisation d'un état local qui sera recréé quand l'ID change
+  // État du modal
   let modalState = $state<ProductModalState | null>(null);
 
   $effect(() => {
-    // Créer une nouvelle instance d'état quand le productId change
-    // Cela nettoie implicitement les effets de l'instance précédente car
-    // l'effet parent (celui-ci) est ré-exécuté.
     modalState = new ProductModalState(productId, initialTab);
   });
 
-  // Mode archive si l'événement est passé
   let isArchiveMode = $derived(productsStore.isEventPassed);
+  let isLoading = $derived(modalState === null || modalState.product === null);
 
   function handleTabClick(tab: string) {
     modalState?.setCurrentTab(tab);
@@ -61,73 +63,64 @@
     modalState?.resetForms();
     onClose();
   }
+
+  // Indicateur de modifications non sauvegardées
+  let hasUnsavedChanges = $derived(modalState?.hasAnyChanges ?? false);
+
+  // Type info pour les badges
+  const productTypeInfo = $derived(() => {
+    if (!modalState?.product) return null;
+    return getProductTypeInfo(modalState.product.productType);
+  });
 </script>
 
-<div id="product_modal" class="modal {productId && 'modal-open'}">
-  <div
-    class="modal-box fixed top-0 flex h-lvh w-lvw flex-col overflow-auto md:top-18 md:h-full md:max-h-11/12 md:w-full md:max-w-6xl"
-  >
-    <!-- Header -->
-    <div class="flex items-center justify-between border-b p-4 pt-0">
-      {#if modalState && modalState.product}
-        <div class="text-xl font-bold">
-          {modalState.product?.productName}
-        </div>
-
-        <!-- Header avec indicateur d'archive -->
-        {#if modalState && isArchiveMode}
-          <div class="alert alert-warning py-0.5">
-            <History class="h-4 w-4" />
-            <span class="font-medium">Mode consultation</span>
-            <span class="">Événement terminé</span>
-          </div>
-        {/if}
-        {@const typeInfo = getProductTypeInfo(modalState.product?.productType)}
-
-        <div class="me-2 mt-2 flex items-center gap-3">
-          <span class="badge badge-secondary badge-soft">
-            <typeInfo.icon class="size-4 md:size-5" />
-            {typeInfo.displayName}
-          </span>
-
-          <div class="text-sm opacity-75">
-            <span class="font-medium">Besoin:</span>
-            {#if modalState.productModel}
-              {modalState.productModel.stats.formattedQuantities ||
-                "Aucun besoin"}
-            {:else}
-              {modalState.product?.displayTotalNeeded || "?"}
-            {/if}
-          </div>
-        </div>
-      {:else}
-        <div class="flex items-center gap-3">
-          <div class="loading loading-spinner loading-sm"></div>
-          <span class="text-sm opacity-50">Chargement du produit...</span>
-        </div>
-      {/if}
-      <button
-        class="btn btn-circle btn-ghost btn-sm absolute top-2 right-2"
-        onclick={handleModalClose}
-        aria-label="Fermer"
+<ModalContainer
+  isOpen={!!productId}
+  onClose={handleModalClose}
+  {hasUnsavedChanges}
+  fullscreenOnMobile={true}
+>
+  {#if isLoading}
+    <!-- Header de chargement -->
+    <ModalHeader
+      title="Chargement..."
+      showBackButton={true}
+      onClose={handleModalClose}
+    />
+  {:else}
+    <!-- Header avec indicateur d'archive -->
+    {#if isArchiveMode}
+      <div
+        class="alert alert-warning border-warning/20 border-b px-4 py-2 text-xs"
       >
-        <X class="h-4 w-4" />
-      </button>
-    </div>
+        <History class="h-4 w-4" />
+        <span class="font-medium">Mode consultation</span>
+        <span class="opacity-75">Événement terminé</span>
+      </div>
+    {/if}
+
+    <!-- Header principal -->
+    <ModalHeader
+      title={modalState?.product?.productName || "Produit"}
+      showBackButton={true}
+      onClose={handleModalClose}
+    ></ModalHeader>
 
     <!-- Onglets -->
-    {#if modalState}
-      <div class="tabs tabs-border flex-none" role="tablist">
+    <div class="border-base-300 flex-none border-b px-4">
+      <div class="tabs tabs-border" role="tablist">
         <button
           role="tab"
-          class="tab {modalState.currentTab === 'recettes' ? 'tab-active' : ''}"
+          class="tab {modalState?.currentTab === 'recettes'
+            ? 'tab-active'
+            : ''}"
           onclick={() => handleTabClick("recettes")}
         >
-          <CookingPot class="mr-1 h-5 w-5" />
-          Recettes
-          {#if modalState.product?.nbRecipes && modalState.product?.nbRecipes > 0}
+          <CookingPot class="mr-1 h-4 w-4" />
+          <span class="hidden sm:inline">Recettes</span>
+          {#if modalState?.product?.nbRecipes && modalState.product.nbRecipes > 0}
             <span class="badge badge-sm badge-secondary ml-1">
-              {modalState.product?.nbRecipes}
+              {modalState.product.nbRecipes}
             </span>
           {:else}
             <span class="badge badge-sm badge-ghost ml-1">0</span>
@@ -136,31 +129,33 @@
 
         <button
           role="tab"
-          class="tab {modalState.currentTab === 'magasins' ? 'tab-active' : ''}"
+          class="tab {modalState?.currentTab === 'magasins'
+            ? 'tab-active'
+            : ''}"
           onclick={() => handleTabClick("magasins")}
         >
-          <Store class="mr-1 h-5 w-5" />
-          Magasin
-          {#if modalState.hasChanges?.store}
+          <Store class="mr-1 h-4 w-4" />
+          <span class="hidden sm:inline">Magasin</span>
+          {#if modalState?.hasChanges?.store}
             <div class="bg-warning ml-1 h-2 w-2 rounded-full"></div>
           {/if}
         </button>
 
         <button
           role="tab"
-          class="tab {modalState.currentTab === 'volontaires'
+          class="tab {modalState?.currentTab === 'volontaires'
             ? 'tab-active'
             : ''}"
           onclick={() => handleTabClick("volontaires")}
         >
-          <Users class="mr-1 h-5 w-5" />
-          Volontaires
-          {#if modalState.hasChanges?.who}
+          <Users class="mr-1 h-4 w-4" />
+          <span class="hidden sm:inline">Volontaires</span>
+          {#if modalState?.hasChanges?.who}
             <div class="bg-warning ml-1 h-2 w-2 rounded-full"></div>
-          {:else if modalState.product?.who && modalState.product?.who.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1"
-              >{modalState.product?.who.length}</span
-            >
+          {:else if modalState?.product?.who && modalState.product.who.length > 0}
+            <span class="badge badge-sm badge-secondary ml-1">
+              {modalState.product.who.length}
+            </span>
           {:else}
             <span class="badge badge-sm badge-ghost ml-1">0</span>
           {/if}
@@ -168,14 +163,14 @@
 
         <button
           role="tab"
-          class="tab {modalState.currentTab === 'stock' ? 'tab-active' : ''}"
+          class="tab {modalState?.currentTab === 'stock' ? 'tab-active' : ''}"
           onclick={() => handleTabClick("stock")}
         >
-          <Archive class="mr-1 h-5 w-5" />
-          Stock
-          {#if modalState.hasChanges?.stock}
+          <Archive class="mr-1 h-4 w-4" />
+          <span class="hidden sm:inline">Stock</span>
+          {#if modalState?.hasChanges?.stock}
             <div class="bg-warning ml-1 h-2 w-2 rounded-full"></div>
-          {:else if modalState.stockParsed}
+          {:else if modalState?.stockParsed}
             <span class="badge badge-sm badge-secondary ml-1">1</span>
           {:else}
             <span class="badge badge-sm badge-ghost ml-1">0</span>
@@ -184,67 +179,67 @@
 
         <button
           role="tab"
-          class="tab {modalState.currentTab === 'achats' ? 'tab-active' : ''}"
+          class="tab {modalState?.currentTab === 'achats' ? 'tab-active' : ''}"
           onclick={() => handleTabClick("achats")}
         >
-          <ShoppingCart class="mr-1 h-5 w-5" />
-          Achats
-          {#if modalState.purchasesList.length > 0}
-            <span class="badge badge-sm badge-secondary ml-1"
-              >{modalState.purchasesList.length}</span
-            >
+          <ShoppingCart class="mr-1 h-4 w-4" />
+          <span class="hidden sm:inline">Achats</span>
+          {#if modalState?.purchasesList && modalState.purchasesList.length > 0}
+            <span class="badge badge-sm badge-secondary ml-1">
+              {modalState.purchasesList.length}
+            </span>
           {:else}
             <span class="badge badge-sm badge-ghost ml-1">0</span>
           {/if}
         </button>
       </div>
+    </div>
 
-      <!-- Contenu -->
-      <div class="flex-1 overflow-y-auto p-4">
-        {#if modalState.error}
-          <div class="alert alert-error mb-4">
-            <X class="h-4 w-4" />
-            <span>erreur : {modalState.error}</span>
-          </div>
-        {/if}
-
-        <div class="">
-          {#key modalState.currentTab}
-            {#if modalState.currentTab === "recettes"}
-              <RecipesManager {modalState} {isArchiveMode} />
-            {:else if modalState.currentTab === "achats"}
-              <PurchaseManager {modalState} {isArchiveMode} />
-            {:else if modalState.currentTab === "stock"}
-              <StockManager {modalState} {isArchiveMode} />
-            {:else if modalState.currentTab === "volontaires"}
-              <VolunteerManager {modalState} {isArchiveMode} />
-            {:else if modalState.currentTab === "magasins"}
-              <StoreManager {modalState} {isArchiveMode} />
-            {/if}
-          {/key}
+    <!-- Contenu -->
+    <ModalContent>
+      {#if modalState?.error}
+        <div class="alert alert-error mb-4">
+          <X class="h-4 w-4" />
+          <span>Erreur : {modalState.error}</span>
         </div>
-      </div>
+      {/if}
 
-      <!-- Footer -->
-      <div class="modal-action">
-        <button class="btn btn-ghost" onclick={handleModalClose}>
-          {modalState?.hasAnyChanges ? "Annuler" : "Fermer"}
-        </button>
+      <div>
+        {#key modalState?.currentTab}
+          {#if modalState?.currentTab === "recettes"}
+            <RecipesManager {modalState} {isArchiveMode} />
+          {:else if modalState?.currentTab === "achats"}
+            <PurchaseManager {modalState} {isArchiveMode} />
+          {:else if modalState?.currentTab === "stock"}
+            <StockManager {modalState} {isArchiveMode} />
+          {:else if modalState?.currentTab === "volontaires"}
+            <VolunteerManager {modalState} {isArchiveMode} />
+          {:else if modalState?.currentTab === "magasins"}
+            <StoreManager {modalState} {isArchiveMode} />
+          {/if}
+        {/key}
+      </div>
+    </ModalContent>
+
+    <!-- Footer -->
+    <ModalFooter>
+      <button class="btn btn-ghost" onclick={handleModalClose}>
+        {modalState?.hasAnyChanges ? "Annuler" : "Fermer"}
+      </button>
+      {#if modalState?.hasAnyChanges}
         <button
           class="btn btn-primary"
           onclick={saveAllAndClose}
-          disabled={modalState.loading || !modalState.hasAnyChanges}
+          disabled={modalState.loading}
         >
           {#if modalState.loading}
             <span class="loading loading-spinner loading-sm"></span>
           {:else}
+            <Check class="h-4 w-4" />
             Tout enregistrer
           {/if}
         </button>
-      </div>
-    {/if}
-  </div>
-</div>
-
-<style>
-</style>
+      {/if}
+    </ModalFooter>
+  {/if}
+</ModalContainer>
