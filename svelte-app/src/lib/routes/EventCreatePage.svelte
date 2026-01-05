@@ -1,11 +1,13 @@
 <script lang="ts">
   import EventMealCard from "$lib/components/eventEdit/EventMealCard.svelte";
   import PermissionsManager from "$lib/components/PermissionsManager.svelte";
+  import Fieldset from "$lib/components/ui/Fieldset.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import type { EventMeal } from "$lib/types/events";
+  import type { MainStatus } from "$lib/types/appwrite";
   import { Calendar, Plus, Save } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
@@ -18,6 +20,8 @@
 
   let meals = $state<EventMeal[]>([]);
   let eventName = $state("");
+  let status = $state<MainStatus | "">("");
+  let statusError = $state(false);
   let isBusy = $state(false);
   let editingMealIndex = $state<string | null>(null);
 
@@ -63,6 +67,14 @@
       };
     }
 
+    if (!status) {
+      statusError = true;
+      return {
+        isValid: false,
+        errorMessage: "Veuillez sélectionner le statut de l'événement",
+      };
+    }
+
     // Vérification des doublons
     const allDatesValidation = meals.map((m) => m.date);
     const duplicatedDates = allDatesValidation.filter(
@@ -90,6 +102,7 @@
       };
     }
 
+    statusError = false;
     return { isValid: true };
   }
 
@@ -121,6 +134,7 @@
 
     const eventData = {
       name: eventName,
+      status: status as MainStatus,
       allDates: allDatesSorted as string[],
       dateStart: allDatesSorted.length > 0 ? allDatesSorted[0] : "",
       dateEnd:
@@ -268,6 +282,44 @@
           userTeams={globalState.userTeams || []}
           eventId={undefined}
         />
+
+        <!-- Statut de l'événement -->
+        <Fieldset legend="Statut de l'événement">
+          <div class="space-y-3">
+            <label class="flex cursor-pointer items-center gap-3">
+              <input
+                type="radio"
+                bind:group={status}
+                value={"proposition"}
+                class="radio radio-primary"
+                onchange={() => (statusError = false)}
+              />
+              <div class="flex-1">
+                <div class="font-medium">Proposition</div>
+                <div class="text-sm opacity-70">En attente de confirmation</div>
+              </div>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-3">
+              <input
+                type="radio"
+                bind:group={status}
+                value={"confirmed"}
+                class="radio radio-primary"
+                onchange={() => (statusError = false)}
+              />
+              <div class="flex-1">
+                <div class="font-medium">Confirmé</div>
+                <div class="text-sm opacity-70">Événement validé</div>
+              </div>
+            </label>
+          </div>
+          {#if statusError}
+            <p class="text-error mt-2 text-sm">
+              Veuillez sélectionner un statut
+            </p>
+          {/if}
+        </Fieldset>
       </div>
 
       <!-- Colonne Droite : Repas -->

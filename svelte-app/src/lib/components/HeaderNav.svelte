@@ -126,7 +126,7 @@
   class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] border-b px-4 py-0 shadow-sm print:hidden {globalState.isMobile &&
     'min-h-11'}"
 >
-  <div class="navbar-start gap-1">
+  <div class="navbar-start w-fit flex-shrink-0 gap-1">
     <!-- Brand -->
     <button class="btn btn-ghost px-2" onclick={() => navigate("/")}>
       <img src="data/favicon-96x96.png" alt="logo" class="h-8 w-8" />
@@ -166,12 +166,13 @@
 
   <!-- navbar-center : SEULEMENT SUR DESKTOP -->
   {#if globalState.isDesktop}
-    <div class="navbar-center">
+    <div class="navbar-center min-w-0 flex-1 justify-center">
       {#if navBarStore.eventId !== undefined}
         <EventTabs eventId={navBarStore.eventId} />
       {:else}
         <h1
           class="truncate text-sm font-bold tracking-wider uppercase opacity-70"
+          title={navBarStore.title}
         >
           {navBarStore.title}
         </h1>
@@ -179,7 +180,7 @@
     </div>
   {/if}
 
-  <div class="navbar-end gap-4">
+  <div class="navbar-end ms-auto w-fit flex-shrink-0 gap-4">
     {#if navBarStore.isLockedByOthers}
       <div class="badge badge-warning flex items-center gap-1 py-3 font-medium">
         <LockIcon size={14} />
@@ -286,7 +287,7 @@
 </div>
 
 <!-- SECTION SÉPARÉE : SEULEMENT SUR MOBILE (NON-STICKY) -->
-{#if globalState.isMobile}
+{#if !globalState.isDesktop}
   <div class="border-base-300 bg-base-100 border-b px-4 py-3">
     {#if navBarStore.eventId !== undefined}
       <EventTabs eventId={navBarStore.eventId} />

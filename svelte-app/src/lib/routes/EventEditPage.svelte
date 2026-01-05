@@ -169,9 +169,9 @@
       // Mode Preview : Shadow draft suit currentEvent
       meals = $state.snapshot(currentEvent.meals || []);
       eventName = currentEvent.name || "";
-      description = (currentEvent as any).description || "";
-      status = (currentEvent as any).status || "PROPOSITION";
-      minContrib = (currentEvent as any).minContrib || 1;
+      description = currentEvent.description || "";
+      status = currentEvent.status || "proposition";
+      minContrib = currentEvent.minContrib || 1;
 
       console.log("🔄 Shadow draft synchronisé depuis currentEvent (Preview)");
     }
@@ -688,12 +688,12 @@
             onblur={() => (editingDescription = false)}
             disabled={!canEdit}
             maxlength="3000"
-            rows="4"
+            rows="9"
           ></textarea>
           <p class="label">{description.length}/3000 caractères</p>
         {:else}
           <button
-            class="btn btn-ghost bg-base-100 h-auto justify-start py-4 text-left"
+            class="btn btn-ghost bg-base-100 h-auto justify-start py-4 text-left font-normal"
             onclick={() => (editingDescription = true)}
             disabled={!canEdit}
           >
@@ -714,7 +714,7 @@
       </fieldset>
 
       <!-- status & minContrib -->
-      <div class="flex flex-col gap-4">
+      <div class="flex flex-col justify-end gap-4">
         <!-- Statut de l'événement -->
         <Fieldset legend="Statut de l'événement">
           <div class="flex items-center justify-between gap-2">
@@ -741,11 +741,11 @@
             <!-- Bouton d'action -->
             {#if status === "proposition"}
               <button
-                class="btn btn-success btn-sm"
+                class="btn btn-success btn-outline btn-sm"
                 onclick={() => (showConfirmStatusModal = true)}
                 disabled={!canEdit}
               >
-                Confirmer
+                Confirmez l'événement
               </button>
             {:else if status === "confirmed"}
               <button
