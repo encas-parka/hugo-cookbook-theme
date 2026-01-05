@@ -37,7 +37,7 @@
   <!-- Absolute top @md -->
   {#if globalState.isDesktop}
     <div
-      class="text-primary bg-base-100 rounded-t-box border-t-base-300 absolute -top-4 left-0 flex max-w-4/5 items-center-safe gap-2 border-t-1 py-0.5 ps-4 pe-6 text-lg font-semibold"
+      class="text-primary bg-base-100 rounded-t-box border-t-base-300 absolute -top-4 left-0 flex max-w-4/5 items-center-safe gap-3 border-t-1 py-0.5 ps-4 pe-6 text-lg font-semibold"
     >
       <svg class="size-6">
         <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />
@@ -56,6 +56,7 @@
       {/if}
     </div>
   {/if}
+
   <!-- Header -->
   <div class=" flex flex-wrap items-start justify-between gap-4 @md:my-2">
     <div class="min-w-72 flex-1">

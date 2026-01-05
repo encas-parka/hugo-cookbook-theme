@@ -52,7 +52,7 @@
                 bind:value={recipe.title}
                 placeholder="Ex: Houmous maison"
                 disabled={!canEdit}
-                maxlength="100"
+                maxlength="80"
                 aria-describedby="title-help"
                 aria-required="true"
               />
@@ -62,7 +62,7 @@
                 <span class="text-error">{validationErrors.title}</span>
               {/if}
               <span class="fieldset-label ms-auto italic"
-                >{recipe.title?.length || 0}/100 caractères</span
+                >{recipe.title?.length || 0}/80 caractères</span
               >
             </div>
           </fieldset>
