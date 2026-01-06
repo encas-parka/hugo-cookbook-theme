@@ -33,6 +33,7 @@
   import HomePage from "./lib/routes/HomePage.svelte";
   import ResetPassword from "./lib/routes/ResetPassword.svelte";
   import EventPosterPage from "./lib/routes/EventPosterPage.svelte";
+  import MaterielPage from "./lib/routes/MaterielPage.svelte";
 
   // États de l'application
   type AppState =
@@ -86,6 +87,7 @@
     requireAuth,
   );
   router.addRoute("/dashboard/eventPosters/:id", EventPosterPage, requireAuth);
+  router.addRoute("/dashboard/materiel", MaterielPage, requireAuth);
 
   // État du composant actuel
   let currentRoute = $state<any>(null);
