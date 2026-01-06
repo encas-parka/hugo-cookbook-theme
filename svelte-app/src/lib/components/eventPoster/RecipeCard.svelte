@@ -215,9 +215,14 @@
           class="recipe-title mb-2 block w-full border-none bg-transparent p-0 text-center text-lg font-semibold text-black transition-colors hover:bg-black/5"
           class:cursor-pointer={!isEditing}
           class:montserrat-font={config.fontRecettes === "montserrat-font"}
-          class:gluten-font={config.fontRecettes === "gluten-font"}
-          class:pacifico-regular={config.fontRecettes === "pacifico-regular"}
+          class:playfair-display={config.fontRecettes === "playfair-display"}
+          class:oswald-font={config.fontRecettes === "oswald-font"}
+          class:quicksand-font={config.fontRecettes === "quicksand-font"}
           class:fira-sans={config.fontRecettes === "fira-sans"}
+          class:dancing-script={config.fontRecettes === "dancing-script"}
+          class:pacifico-regular={config.fontRecettes === "pacifico-regular"}
+          class:caveat-font={config.fontRecettes === "caveat-font"}
+          class:gluten-font={config.fontRecettes === "gluten-font"}
           style={config.fontSizeRecettes}
           onclick={handleStartEdit}
         >
@@ -248,6 +253,15 @@
                 type="button"
                 class="recipe-description block border-none bg-transparent p-0 text-sm text-black italic opacity-90 transition-colors hover:bg-black/5"
                 class:cursor-pointer={!isEditingDescription}
+                class:montserrat-font={config.fontDesc === "montserrat-font"}
+                class:playfair-display={config.fontDesc === "playfair-display"}
+                class:oswald-font={config.fontDesc === "oswald-font"}
+                class:quicksand-font={config.fontDesc === "quicksand-font"}
+                class:fira-sans={config.fontDesc === "fira-sans"}
+                class:dancing-script={config.fontDesc === "dancing-script"}
+                class:pacifico-regular={config.fontDesc === "pacifico-regular"}
+                class:caveat-font={config.fontDesc === "caveat-font"}
+                class:gluten-font={config.fontDesc === "gluten-font"}
                 onclick={handleStartEditDescription}
               >
                 {#if displayDescription}
@@ -276,7 +290,21 @@
         <div class="mt-3 flex flex-wrap justify-center gap-2">
           {#each regimes as regime (regime)}
             <span
-              class="badge rounded-xl border-black bg-transparent font-medium text-black"
+              class:badge
+              rounded-xl
+              border-black
+              bg-transparent
+              font-medium
+              text-black
+              class:montserrat-font={config.fontRegimes === "montserrat-font"}
+              class:playfair-display={config.fontRegimes === "playfair-display"}
+              class:oswald-font={config.fontRegimes === "oswald-font"}
+              class:quicksand-font={config.fontRegimes === "quicksand-font"}
+              class:fira-sans={config.fontRegimes === "fira-sans"}
+              class:dancing-script={config.fontRegimes === "dancing-script"}
+              class:pacifico-regular={config.fontRegimes === "pacifico-regular"}
+              class:caveat-font={config.fontRegimes === "caveat-font"}
+              class:gluten-font={config.fontRegimes === "gluten-font"}
             >
               {regime}
             </span>
@@ -324,6 +352,15 @@
                 type="button"
                 class="mx-auto block border-none bg-transparent p-0 text-xs font-normal capitalize decoration-dotted opacity-80 transition-colors hover:bg-black/5 hover:underline"
                 class:cursor-pointer={!isEditingIngredients}
+                class:montserrat-font={config.fontIng === "montserrat-font"}
+                class:playfair-display={config.fontIng === "playfair-display"}
+                class:oswald-font={config.fontIng === "oswald-font"}
+                class:quicksand-font={config.fontIng === "quicksand-font"}
+                class:fira-sans={config.fontIng === "fira-sans"}
+                class:dancing-script={config.fontIng === "dancing-script"}
+                class:pacifico-regular={config.fontIng === "pacifico-regular"}
+                class:caveat-font={config.fontIng === "caveat-font"}
+                class:gluten-font={config.fontIng === "gluten-font"}
                 onclick={handleStartEditIngredients}
               >
                 {ingredientNames.join(", ")}

@@ -158,40 +158,60 @@
     <fieldset class="fieldset w-full">
       <legend class="fieldset-legend text-sm">Date</legend>
       <select class="select w-full" bind:value={config.fontDate}>
-        <option value="montserrat-font">Montserrat</option>
-        <option value="gluten-font">Gluten</option>
-        <option value="pacifico-regular">Pacifico</option>
-        <option value="fira-sans">Fira Sans</option>
+        <option value="montserrat-font">Montserrat (Standard)</option>
+        <option value="playfair-display">Playfair (Élégant)</option>
+        <option value="oswald-font">Oswald (Bistro/Impact)</option>
+        <option value="quicksand-font">Quicksand (Moderne)</option>
+        <option value="fira-sans">Fira Sans (Clean)</option>
+        <option value="dancing-script">Dancing Script (Cursive)</option>
+        <option value="pacifico-regular">Pacifico (Script)</option>
+        <option value="caveat-font">Caveat (Manuscrit)</option>
+        <option value="gluten-font">Gluten (Funky)</option>
       </select>
     </fieldset>
 
     <fieldset class="fieldset w-full">
       <legend class="fieldset-legend text-sm">Horaire</legend>
       <select class="select w-full" bind:value={config.fontHoraire}>
-        <option value="montserrat-font">Montserrat</option>
-        <option value="gluten-font">Gluten</option>
-        <option value="pacifico-regular">Pacifico</option>
-        <option value="fira-sans">Fira Sans</option>
+        <option value="montserrat-font">Montserrat (Standard)</option>
+        <option value="playfair-display">Playfair (Élégant)</option>
+        <option value="oswald-font">Oswald (Bistro/Impact)</option>
+        <option value="quicksand-font">Quicksand (Moderne)</option>
+        <option value="fira-sans">Fira Sans (Clean)</option>
+        <option value="dancing-script">Dancing Script (Cursive)</option>
+        <option value="pacifico-regular">Pacifico (Script)</option>
+        <option value="caveat-font">Caveat (Manuscrit)</option>
+        <option value="gluten-font">Gluten (Funky)</option>
       </select>
     </fieldset>
 
     <fieldset class="fieldset w-full">
       <legend class="fieldset-legend text-sm">Catégories</legend>
       <select class="select w-full" bind:value={config.fontCat}>
-        <option value="montserrat-font">Montserrat</option>
-        <option value="gluten-font">Gluten</option>
-        <option value="pacifico-regular">Pacifico</option>
-        <option value="fira-sans">Fira Sans</option>
+        <option value="montserrat-font">Montserrat (Standard)</option>
+        <option value="playfair-display">Playfair (Élégant)</option>
+        <option value="oswald-font">Oswald (Bistro/Impact)</option>
+        <option value="quicksand-font">Quicksand (Moderne)</option>
+        <option value="fira-sans">Fira Sans (Clean)</option>
+        <option value="dancing-script">Dancing Script (Cursive)</option>
+        <option value="pacifico-regular">Pacifico (Script)</option>
+        <option value="caveat-font">Caveat (Manuscrit)</option>
+        <option value="gluten-font">Gluten (Funky)</option>
       </select>
     </fieldset>
 
     <fieldset class="fieldset w-full">
       <legend class="fieldset-legend text-sm">Recettes</legend>
       <select class="select w-full" bind:value={config.fontRecettes}>
-        <option value="montserrat-font">Montserrat</option>
-        <option value="gluten-font">Gluten</option>
-        <option value="pacifico-regular">Pacifico</option>
-        <option value="fira-sans">Fira Sans</option>
+        <option value="montserrat-font">Montserrat (Standard)</option>
+        <option value="playfair-display">Playfair (Élégant)</option>
+        <option value="oswald-font">Oswald (Bistro/Impact)</option>
+        <option value="quicksand-font">Quicksand (Moderne)</option>
+        <option value="fira-sans">Fira Sans (Clean)</option>
+        <option value="dancing-script">Dancing Script (Cursive)</option>
+        <option value="pacifico-regular">Pacifico (Script)</option>
+        <option value="caveat-font">Caveat (Manuscrit)</option>
+        <option value="gluten-font">Gluten (Funky)</option>
       </select>
     </fieldset>
   </section>

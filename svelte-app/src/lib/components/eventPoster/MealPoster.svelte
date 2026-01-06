@@ -167,9 +167,14 @@
             <p
               class="m-0 text-center text-3xl font-light"
               class:montserrat-font={config.fontHoraire === "montserrat-font"}
-              class:gluten-font={config.fontHoraire === "gluten-font"}
-              class:pacifico-regular={config.fontHoraire === "pacifico-regular"}
+              class:playfair-display={config.fontHoraire === "playfair-display"}
+              class:oswald-font={config.fontHoraire === "oswald-font"}
+              class:quicksand-font={config.fontHoraire === "quicksand-font"}
               class:fira-sans={config.fontHoraire === "fira-sans"}
+              class:dancing-script={config.fontHoraire === "dancing-script"}
+              class:pacifico-regular={config.fontHoraire === "pacifico-regular"}
+              class:caveat-font={config.fontHoraire === "caveat-font"}
+              class:gluten-font={config.fontHoraire === "gluten-font"}
               style={config.fontSizeHoraire}
             >
               {horaire}
@@ -198,10 +203,16 @@
                     class="m-0 text-center text-3xl font-light"
                     class:montserrat-font={config.fontDate ===
                       "montserrat-font"}
-                    class:gluten-font={config.fontDate === "gluten-font"}
+                    class:playfair-display={config.fontDate ===
+                      "playfair-display"}
+                    class:oswald-font={config.fontDate === "oswald-font"}
+                    class:quicksand-font={config.fontDate === "quicksand-font"}
+                    class:fira-sans={config.fontDate === "fira-sans"}
+                    class:dancing-script={config.fontDate === "dancing-script"}
                     class:pacifico-regular={config.fontDate ===
                       "pacifico-regular"}
-                    class:fira-sans={config.fontDate === "fira-sans"}
+                    class:caveat-font={config.fontDate === "caveat-font"}
+                    class:gluten-font={config.fontDate === "gluten-font"}
                     style={config.fontSizeDate}
                   >
                     {formattedDate}
@@ -234,9 +245,14 @@
               <h3
                 class="mb-6 text-center text-xl font-bold tracking-widest uppercase opacity-60"
                 class:montserrat-font={config.fontCat === "montserrat-font"}
-                class:gluten-font={config.fontCat === "gluten-font"}
-                class:pacifico-regular={config.fontCat === "pacifico-regular"}
+                class:playfair-display={config.fontCat === "playfair-display"}
+                class:oswald-font={config.fontCat === "oswald-font"}
+                class:quicksand-font={config.fontCat === "quicksand-font"}
                 class:fira-sans={config.fontCat === "fira-sans"}
+                class:dancing-script={config.fontCat === "dancing-script"}
+                class:pacifico-regular={config.fontCat === "pacifico-regular"}
+                class:caveat-font={config.fontCat === "caveat-font"}
+                class:gluten-font={config.fontCat === "gluten-font"}
                 style={config.fontSizeCat}
               >
                 {getCategoryLabel(category)}
