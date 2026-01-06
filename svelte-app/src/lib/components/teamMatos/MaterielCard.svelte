@@ -1,0 +1,276 @@
+<script lang="ts">
+  import {
+    Package,
+    Wrench,
+    Zap,
+    ChefHat,
+    Box,
+    CheckCircle,
+    XCircle,
+    MapPin,
+    Edit,
+    Users,
+    AlertCircle,
+    Hand,
+    CalendarClock,
+    Share2,
+  } from "@lucide/svelte";
+  import type { EnrichedMateriel } from "$lib/types/materiel";
+  import type { MaterielStatus } from "$lib/types/appwrite";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
+  import { formatDateDayMonthShort } from "$lib/utils/date-helpers";
+
+  interface Props {
+    materiel: EnrichedMateriel;
+    onEdit?: (materielId: string) => void;
+  }
+
+  let { materiel, onEdit }: Props = $props();
+
+  // Icône du type
+  const TypeIcon = $derived.by(() => {
+    switch (materiel.type) {
+      case "electronic":
+        return Zap;
+      case "manual":
+        return Wrench;
+      case "cooking":
+        return ChefHat;
+      case "other":
+      default:
+        return Box;
+    }
+  });
+
+  // Badge du type
+  const typeBadgeClass = $derived.by(() => {
+    switch (materiel.type) {
+      case "electronic":
+        return "badge-warning";
+      case "manual":
+        return "badge-info";
+      case "cooking":
+        return "badge-success";
+      case "other":
+      default:
+        return "badge-neutral";
+    }
+  });
+
+  // Configuration du statut
+  const StatusConfig = $derived.by(() => {
+    const configs: Record<
+      MaterielStatus,
+      { icon: any; label: string; badgeClass: string; priority: number }
+    > = {
+      ok: {
+        icon: CheckCircle,
+        label: "OK",
+        badgeClass: "badge-success",
+        priority: 0,
+      },
+      lost: {
+        icon: XCircle,
+        label: "Perdu",
+        badgeClass: "badge-error",
+        priority: 4,
+      },
+      loan: {
+        icon: Hand,
+        label: "Prêté",
+        badgeClass: "badge-info",
+        priority: 2,
+      },
+      reserved: {
+        icon: CalendarClock,
+        label: "Réservé",
+        badgeClass: "badge-warning",
+        priority: 3,
+      },
+      torepair: {
+        icon: Wrench,
+        label: "À réparer",
+        badgeClass: "badge-warning",
+        priority: 1,
+      },
+    };
+
+    return configs[materiel.status];
+  });
+
+  // Est partageable ?
+  const isShareable = $derived(
+    materiel.shareableWith !== null && materiel.shareableWith.length > 0,
+  );
+
+  // L'utilisateur peut-il éditer ?
+  const canEdit = $derived.by(() => {
+    if (!globalState.userId) return false;
+
+    // Owner = user
+    if (materiel.ownerData?.userId === globalState.userId) return true;
+
+    // Owner = team, vérifier si l'utilisateur est membre
+    if (materiel.ownerData?.teamId) {
+      // TODO: vérifier si l'utilisateur est membre de l'équipe
+      return true; // Pour l'instant on simplifie
+    }
+
+    return false;
+  });
+
+  // Description tronquée
+  const truncatedDescription = $derived.by(() => {
+    if (!materiel.description) return null;
+    return materiel.description.length > 80
+      ? materiel.description.substring(0, 80) + "..."
+      : materiel.description;
+  });
+</script>
+
+<div
+  class="card card-side bg-base-100 border-base-200 hover:border-primary/50 group cursor-pointer border text-left shadow-sm transition-all hover:shadow-md"
+  role="button"
+  tabindex="0"
+  onclick={() => canEdit && onEdit?.(materiel.$id)}
+  onkeydown={(e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      canEdit && onEdit?.(materiel.$id);
+    }
+  }}
+>
+  <!-- Image/Icon placeholder -->
+  <div class="hidden pl-4 sm:flex sm:items-center">
+    <div class="bg-primary/10 rounded-lg p-3">
+      <TypeIcon class="text-primary h-6 w-6" />
+    </div>
+  </div>
+
+  <div class="card-body py-3">
+    <div
+      class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <!-- Main Info: Nom, Type, Description -->
+      <div class="flex min-w-0 flex-col gap-1">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-0">
+          <div class="flex items-center gap-2">
+            <div
+              class="text-primary group-hover:text-primary/80 text-base font-semibold transition-colors"
+            >
+              {materiel.name}
+            </div>
+            <span class="badge {typeBadgeClass} badge-soft badge-sm gap-1 py-0">
+              {materiel.type || "Autre"}
+            </span>
+          </div>
+          <div
+            class="text-base-content/80 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+          >
+            <!-- Localisation -->
+            {#if materiel.location}
+              <div class="flex items-center gap-1">
+                <MapPin class="h-3 w-3" />
+                <span class="max-w-[100px] truncate">{materiel.location}</span>
+              </div>
+            {/if}
+
+            <!-- Équipe -->
+            {#if materiel.ownerData?.teamName}
+              <div class="flex items-center gap-1">
+                <Users class="h-3 w-3" />
+                <span class="">{materiel.ownerData.teamName}</span>
+              </div>
+            {/if}
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-x-4 gap-y-2">
+          <!-- Quantité -->
+          <div class="text-sm font-medium">
+            <span
+              class={materiel.availableQuantity > 0
+                ? "text-success"
+                : "text-error"}
+            >
+              {materiel.availableQuantity}/{materiel.quantity}
+            </span>
+            <span class="text-base-content/60 ml-1 text-xs">disp.</span>
+          </div>
+          {#if truncatedDescription}
+            <div class="text-base-content/60 line-clamp-1 text-xs">
+              {truncatedDescription}
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Middle Info: Statut et partage -->
+      <div class="flex flex-col items-start gap-1 sm:items-center">
+        <!-- Badges de statut -->
+        <div class="flex flex-wrap gap-1">
+          <!-- Statut principal -->
+          {#if StatusConfig.icon}
+            <div class="badge {StatusConfig.badgeClass} badge-xs gap-1 py-0">
+              <StatusConfig.icon class="h-2.5 w-2.5" />
+              {StatusConfig.label}
+            </div>
+          {/if}
+
+          <!-- Partageable -->
+          {#if isShareable}
+            <div
+              class="badge badge-secondary badge-xs gap-1 py-0"
+              title="Partageable avec {materiel.shareableWith!
+                .length} équipe(s)"
+            >
+              <Share2 class="h-2.5 w-2.5" />
+              {materiel.shareableWith!.length}
+            </div>
+          {/if}
+        </div>
+
+        <!-- Info sur les prêts (si présent) -->
+        {#if materiel.totalLoanedQuantity > 0}
+          <div class="text-base-content/70 text-xs">
+            {materiel.totalLoanedQuantity}/{materiel.quantity} prêt(s)
+          </div>
+        {/if}
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center justify-end">
+        {#if canEdit}
+          <button
+            class="btn btn-ghost btn-xs text-primary"
+            onclick={(e) => {
+              e.stopPropagation();
+              onEdit?.(materiel.$id);
+            }}
+            aria-label="Éditer"
+          >
+            <Edit class="h-4 w-4" />
+          </button>
+        {/if}
+      </div>
+    </div>
+
+    <!-- Emprunts en cours (Compact, en bas si présents) -->
+    {#if materiel.loans.length > 0}
+      <div class="border-base-200/50 mt-2 border-t pt-2">
+        <div class="text-xs">
+          <span class="text-info font-semibold">
+            {materiel.loans.length} prêt(s) :
+          </span>
+          <span class="text-base-content/70 ml-2">
+            {materiel.loans
+              .map((l) => `${l.responsible} (${l.quantity})`)
+              .join(", ")}
+            du {materiel.loans[0].startDate}
+            jusqu'au {materiel.loans[0].endDate}
+          </span>
+        </div>
+      </div>
+    {/if}
+  </div>
+</div>
