@@ -60,6 +60,18 @@ export interface PosterConfig {
   centerVertical: boolean;
 }
 
+export interface SavedPosterConfig {
+  id: string; // uuid
+  name: string; // "Version du DD/MM/YYYY à HH:mm"
+  config: PosterConfig;
+  createdAt: string;
+}
+
+export interface PosterConfigContainer {
+  current: PosterConfig;
+  versions: SavedPosterConfig[];
+}
+
 export interface GroupedMeals {
   dateKey: string;
   date: Date;

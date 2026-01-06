@@ -4,6 +4,7 @@
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import type { RecipeForDisplay } from "$lib/types/recipes.types";
+  import type { SavedPosterConfig } from "$lib/components/eventPoster/poster.types";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
   import PosterConfiguration from "$lib/components/eventPoster/PosterConfiguration.svelte";
@@ -84,6 +85,10 @@
     italicIng: false,
     centerVertical: true,
   });
+
+  // Saved versions state
+  let versions = $state<SavedPosterConfig[]>([]);
+  let activeVersionId = $state<string | null>(null);
 
   // Print state
   let sectionsToPrint = $state<Record<string, boolean>>({});
@@ -186,11 +191,18 @@
 
   async function loadSavedConfig() {
     try {
-      const savedConfig = await eventsStore.loadPosterConfig(params.id);
-      if (savedConfig) {
+      const container = await eventsStore.loadPosterConfig(params.id);
+      if (container) {
         console.log("[EventPoster] Configuration chargée depuis le cache");
-        // Merge saved config with default config to handle potential new options
-        config = { ...config, ...savedConfig };
+        // Si c'est un container V2
+        if (container.current) {
+          config = { ...config, ...container.current };
+          versions = container.versions || [];
+        } else {
+          // Fallback legacy (ne devrait plus arriver avec la migration, mais sécu)
+          config = { ...config, ...container };
+          versions = [];
+        }
       }
     } catch (err) {
       console.error("[EventPoster] Erreur chargement config cache:", err);
@@ -201,7 +213,7 @@
     try {
       await eventsStore.savePosterConfig(params.id, $state.snapshot(config));
       globalState.toast.success("Configuration sauvegardée", {
-        details: "Les réglages sont enregistrés localement sur ce navigateur.",
+        details: "Les réglages courants sont enregistrés localement.",
       });
     } catch (err) {
       console.error("[EventPoster] Erreur sauvegarde config cache:", err);
@@ -209,6 +221,69 @@
         details: "Impossible d'enregistrer la configuration localement.",
       });
     }
+  }
+
+  async function createVersion() {
+    try {
+      const now = new Date();
+      const formattedDate = new Intl.DateTimeFormat("fr-FR", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }).format(now);
+      const name = `Version du ${formattedDate}`;
+
+      const newVersion = await eventsStore.createPosterVersion(
+        params.id,
+        $state.snapshot(config),
+        name,
+      );
+
+      // Recharger pour avoir la liste à jour
+      await loadSavedConfig();
+
+      if (newVersion) {
+        activeVersionId = newVersion.id;
+      }
+
+      globalState.toast.success("Version créée", {
+        details: "Une nouvelle version de la configuration a été archivée.",
+      });
+    } catch (err: any) {
+      console.error("[EventPoster] Erreur création version:", err);
+      globalState.toast.error("Erreur de création", {
+        details: err.message || "Impossible de créer une nouvelle version.",
+      });
+    }
+  }
+
+  async function deleteVersion(versionId: string) {
+    try {
+      await eventsStore.deletePosterVersion(params.id, versionId);
+
+      // Update local state directly to avoid full reload flicker
+      versions = versions.filter((v) => v.id !== versionId);
+
+      if (activeVersionId === versionId) {
+        activeVersionId = null;
+      }
+
+      globalState.toast.success("Version supprimée", {
+        details: "La version archivée a été supprimée.",
+      });
+    } catch (err) {
+      console.error("[EventPoster] Erreur suppression version:", err);
+      globalState.toast.error("Erreur de suppression", {
+        details: "Impossible de supprimer la version.",
+      });
+    }
+  }
+
+  function loadVersion(version: SavedPosterConfig) {
+    config = { ...config, ...version.config };
+    activeVersionId = version.id;
+    globalState.toast.info("Version chargée", {
+      details: `La configuration "${version.name}" a été appliquée.`,
+    });
   }
 
   // Load recipes when event is loaded (using $effect like EventRecipesPage)
@@ -389,7 +464,15 @@
   <div class="bg-base-200 min-h-screen">
     <!-- Left Panel for Configuration -->
     <LeftPanel bgClass="bg-base-200" width="120">
-      <PosterConfiguration bind:config onSave={saveConfig} />
+      <PosterConfiguration
+        bind:config
+        {versions}
+        {activeVersionId}
+        onSave={saveConfig}
+        onCreateVersion={createVersion}
+        onDeleteVersion={deleteVersion}
+        onLoadVersion={loadVersion}
+      />
     </LeftPanel>
 
     <!-- Main Content Area with left margin for desktop -->

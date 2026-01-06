@@ -1,13 +1,54 @@
 <script lang="ts">
   import Fieldset from "../ui/Fieldset.svelte";
-  import type { PosterConfig } from "./poster.types";
-  import { Bold, Italic } from "@lucide/svelte";
+  import type { PosterConfig, SavedPosterConfig } from "./poster.types";
+  import {
+    Bold,
+    Italic,
+    Save,
+    AlertTriangle,
+    Clock,
+    Trash2,
+    RotateCcw,
+    Plus,
+  } from "@lucide/svelte";
+  import ConfirmModal from "../ui/ConfirmModal.svelte";
 
   interface Props {
     config: PosterConfig;
+    versions?: SavedPosterConfig[];
+    activeVersionId?: string | null;
+    onSave?: () => void;
+    onCreateVersion?: () => void;
+    onDeleteVersion?: (id: string) => void;
+    onLoadVersion?: (version: SavedPosterConfig) => void;
   }
 
-  let { config = $bindable() }: Props = $props();
+  let {
+    config = $bindable(),
+    versions = [],
+    activeVersionId = null,
+    onSave,
+    onCreateVersion,
+    onDeleteVersion,
+    onLoadVersion,
+  }: Props = $props();
+
+  let showSaveModal = $state(false);
+  let showLimitModal = $state(false);
+  let versionToDelete = $state<string | null>(null);
+
+  function handleSave() {
+    showSaveModal = false;
+    onSave?.();
+  }
+
+  function handleCreateVersion() {
+    if (versions.length >= 3) {
+      showLimitModal = true;
+      return;
+    }
+    onCreateVersion?.();
+  }
 </script>
 
 <div class="bg-base-200 h-full w-full space-y-6 pt-10 sm:pt-16">
@@ -338,4 +379,167 @@
       )}
     </div>
   </Fieldset>
+
+  <!-- Versions Section -->
+  <Fieldset legend="Mes Versions">
+    <div class="space-y-4">
+      <div class="max-h-60 space-y-2 overflow-y-auto pr-1">
+        {#if versions.length === 0}
+          <div class="text-base-content/50 py-2 text-center text-sm italic">
+            Aucune version archivée
+          </div>
+        {:else}
+          {#each versions as version}
+            <div
+              class="flex items-center justify-between rounded-lg border p-3 transition-all {activeVersionId ===
+              version.id
+                ? 'bg-secondary/30 border-secondary/30'
+                : 'bg-base-100/50 hover:bg-base-100 hover:border-base-300 border-transparent'}"
+            >
+              <div class="flex flex-col">
+                <span class="text-sm font-medium">{version.name}</span>
+                <span
+                  class="text-base-content/50 flex items-center gap-1 text-xs"
+                >
+                  <Clock class="size-3" />
+                  {new Date(version.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  class="btn btn-ghost btn-xs btn-square"
+                  title="Charger cette version"
+                  onclick={() => onLoadVersion?.(version)}
+                >
+                  <RotateCcw class="size-4" />
+                </button>
+                <button
+                  class="btn btn-ghost text-error btn-xs btn-square"
+                  title="Supprimer"
+                  onclick={() => (versionToDelete = version.id)}
+                >
+                  <Trash2 class="size-4" />
+                </button>
+              </div>
+            </div>
+          {/each}
+        {/if}
+      </div>
+
+      <button
+        class="btn btn-outline btn-block gap-2 border-dashed"
+        onclick={handleCreateVersion}
+      >
+        <Plus class="size-4" />
+        Créer une nouvelle version
+      </button>
+      <p class="text-center text-[10px] opacity-40">
+        Maximum 3 versions sauvegardées
+      </p>
+    </div>
+  </Fieldset>
+
+  <!-- Save Action -->
+  <div class="px-4 pb-10">
+    <button
+      class="btn btn-primary btn-block gap-2 shadow-lg"
+      onclick={() => (showSaveModal = true)}
+    >
+      <Save class="size-5" />
+      Sauvegarder l'état actuel
+    </button>
+    <p class="mt-2 text-center text-[10px] opacity-40">
+      Mémoire locale uniquement
+    </p>
+  </div>
 </div>
+
+<!-- Limit Warning Modal -->
+{#if showLimitModal}
+  <div class="modal modal-open">
+    <div class="modal-box">
+      <h3 class="text-warning flex items-center gap-2 text-lg font-bold">
+        <AlertTriangle class="size-6" />
+        Limite atteinte
+      </h3>
+      <p class="py-4">
+        Vous avez atteint la limite de <strong>3 versions sauvegardées</strong>.
+      </p>
+      <p class="mb-4 text-sm opacity-80">
+        Veuillez supprimer une version existante avant d'en créer une nouvelle.
+      </p>
+      <div class="modal-action">
+        <button class="btn" onclick={() => (showLimitModal = false)}>
+          Fermer
+        </button>
+      </div>
+    </div>
+    <button class="modal-backdrop" onclick={() => (showLimitModal = false)}
+      >close</button
+    >
+  </div>
+{/if}
+
+<!-- Delete Confirmation Modal -->
+<ConfirmModal
+  title="Supprimer la version"
+  message="Êtes-vous sûr de vouloir supprimer cette version ? Cette action est irréversible."
+  variant="danger"
+  confirmLabel="Supprimer"
+  isOpen={!!versionToDelete}
+  onConfirm={() => {
+    if (versionToDelete) {
+      onDeleteVersion?.(versionToDelete);
+      versionToDelete = null;
+    }
+  }}
+  onCancel={() => (versionToDelete = null)}
+/>
+
+<!-- Save Confirmation Modal -->
+{#if showSaveModal}
+  <div class="modal modal-open">
+    <div class="modal-box border-warning/20 border">
+      <div class="text-warning mb-4 flex items-center gap-3">
+        <AlertTriangle class="size-8" />
+        <h3 class="text-lg font-bold">Sauvegarde locale</h3>
+      </div>
+
+      <p class="py-4">
+        Cette configuration sera enregistrée <strong
+          >uniquement sur ce navigateur</strong
+        >.
+      </p>
+
+      <div
+        class="bg-warning/5 border-warning/10 space-y-2 rounded-lg border p-4 text-sm"
+      >
+        <p>⚠️ <strong>Attention :</strong></p>
+        <ul class="list-disc pl-5 opacity-80">
+          <li>Elle ne sera pas visible sur vos autres appareils.</li>
+          <li>
+            Elle sera perdue si vous videz le cache ou les données du site dans
+            votre navigateur.
+          </li>
+        </ul>
+      </div>
+
+      <div class="modal-action">
+        <button class="btn btn-ghost" onclick={() => (showSaveModal = false)}>
+          Annuler
+        </button>
+        <button class="btn btn-warning gap-2" onclick={handleSave}>
+          <Save class="size-4" />
+          Confirmer la sauvegarde
+        </button>
+      </div>
+    </div>
+    <button
+      class="modal-backdrop"
+      onclick={() => (showSaveModal = false)}
+      aria-label="Fermer"
+    >
+      close
+    </button>
+  </div>
+{/if}
