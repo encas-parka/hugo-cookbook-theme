@@ -8,7 +8,6 @@
   import { navigate } from "$lib/services/simple-router.svelte";
   import PosterConfiguration from "$lib/components/eventPoster/PosterConfiguration.svelte";
   import PosterDisplay from "$lib/components/eventPoster/PosterDisplay.svelte";
-  import { notificationStore } from "$lib/stores/NotificationStore.svelte";
   import { ChevronLeft, Printer, AlertCircle } from "@lucide/svelte";
   import HeaderNav from "$lib/components/HeaderNav.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
@@ -97,10 +96,13 @@
   // Grouped meals by date and horaire
   type GroupedMeals = SvelteMap<string, SvelteMap<string, any[]>>;
 
-  let groupedMeals = $derived.by(() => {
-    if (!event?.meals) return new SvelteMap();
+  let groupedMeals: GroupedMeals = $derived.by(() => {
+    if (!event?.meals) return new SvelteMap<string, SvelteMap<string, any[]>>();
 
-    const grouped: GroupedMeals = new SvelteMap();
+    const grouped: GroupedMeals = new SvelteMap<
+      string,
+      SvelteMap<string, any[]>
+    >();
 
     event.meals.forEach((meal) => {
       const date = new Date(meal.date);
@@ -162,30 +164,63 @@
   });
 
   // Load event on mount
-  onMount(async () => {
-    if (!event) {
-      eventLoading = true;
-      try {
-        await eventsStore.fetchEvent(params.id);
-        // event is automatically updated via $derived after fetch
-      } catch (err) {
-        eventError =
-          err instanceof Error ? err.message : "Erreur de chargement";
-      } finally {
-        eventLoading = false;
+  onMount(() => {
+    (async () => {
+      if (!event) {
+        eventLoading = true;
+        try {
+          await eventsStore.fetchEvent(params.id);
+          // event is automatically updated via $derived after fetch
+        } catch (err) {
+          eventError =
+            err instanceof Error ? err.message : "Erreur de chargement";
+        } finally {
+          eventLoading = false;
+        }
       }
-    }
+
+      // Charger la configuration sauvegardée
+      await loadSavedConfig();
+    })();
   });
 
+  async function loadSavedConfig() {
+    try {
+      const savedConfig = await eventsStore.loadPosterConfig(params.id);
+      if (savedConfig) {
+        console.log("[EventPoster] Configuration chargée depuis le cache");
+        // Merge saved config with default config to handle potential new options
+        config = { ...config, ...savedConfig };
+      }
+    } catch (err) {
+      console.error("[EventPoster] Erreur chargement config cache:", err);
+    }
+  }
+
+  async function saveConfig() {
+    try {
+      await eventsStore.savePosterConfig(params.id, $state.snapshot(config));
+      globalState.toast.success("Configuration sauvegardée", {
+        details: "Les réglages sont enregistrés localement sur ce navigateur.",
+      });
+    } catch (err) {
+      console.error("[EventPoster] Erreur sauvegarde config cache:", err);
+      globalState.toast.error("Erreur de sauvegarde", {
+        details: "Impossible d'enregistrer la configuration localement.",
+      });
+    }
+  }
+
   // Load recipes when event is loaded (using $effect like EventRecipesPage)
-  $effect(async () => {
+  $effect(() => {
     if (!event || eventLoading) return;
 
     // Only load if we haven't loaded yet
     if (recipesDetails.length === 0 && !recipesLoading) {
-      await loadEventRecipes();
-      // Initialize recipe visibility and names after recipes are loaded
-      initializeRecipeState();
+      loadEventRecipes().then(() => {
+        // Initialize recipe visibility and names after recipes are loaded
+        initializeRecipeState();
+      });
     }
   });
 
@@ -354,7 +389,7 @@
   <div class="bg-base-200 min-h-screen">
     <!-- Left Panel for Configuration -->
     <LeftPanel bgClass="bg-base-200" width="120">
-      <PosterConfiguration bind:config />
+      <PosterConfiguration bind:config onSave={saveConfig} />
     </LeftPanel>
 
     <!-- Main Content Area with left margin for desktop -->

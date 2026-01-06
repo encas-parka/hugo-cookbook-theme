@@ -832,6 +832,26 @@ export class EventsStore {
   }
 
   // =============================================================================
+  // POSTER CONFIGS
+  // =============================================================================
+
+  /**
+   * Charge la configuration d'affiche depuis le cache local
+   */
+  async loadPosterConfig(eventId: string): Promise<any | null> {
+    if (!this.#cache) return null;
+    return await this.#cache.loadPosterConfig(eventId);
+  }
+
+  /**
+   * Sauvegarde la configuration d'affiche dans le cache local
+   */
+  async savePosterConfig(eventId: string, config: any): Promise<void> {
+    if (!this.#cache) return;
+    await this.#cache.savePosterConfig(eventId, config);
+  }
+
+  // =============================================================================
   // UTILITAIRES
   // =============================================================================
 
