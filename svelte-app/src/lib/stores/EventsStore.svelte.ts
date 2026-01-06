@@ -836,7 +836,7 @@ export class EventsStore {
   // =============================================================================
 
   /**
-   * Charge la configuration d'affiche depuis le cache local
+   * Charge la configuration d'affiche depuis le cache local (retourne le conteneur complet)
    */
   async loadPosterConfig(eventId: string): Promise<any | null> {
     if (!this.#cache) return null;
@@ -844,11 +844,69 @@ export class EventsStore {
   }
 
   /**
-   * Sauvegarde la configuration d'affiche dans le cache local
+   * Sauvegarde la configuration courante (Working Copy)
+   * Met à jour le champ `current` du conteneur.
    */
   async savePosterConfig(eventId: string, config: any): Promise<void> {
     if (!this.#cache) return;
-    await this.#cache.savePosterConfig(eventId, config);
+    
+    // Charger l'existant ou créer un nouveau conteneur
+    const existing = await this.#cache.loadPosterConfig(eventId);
+    const container = existing || { versions: [] };
+    
+    // Mettre à jour current
+    container.current = config;
+    
+    await this.#cache.savePosterConfig(eventId, container);
+  }
+
+  /**
+   * Crée une nouvelle version archivée à partir de la config donnée
+   * @throws Error si quota atteint (3 versions)
+   */
+  async createPosterVersion(eventId: string, config: any, name: string): Promise<any | undefined> {
+    if (!this.#cache) return;
+
+    const existing = await this.#cache.loadPosterConfig(eventId);
+    const container = existing || { current: config, versions: [] };
+    
+    if (!container.versions) container.versions = [];
+
+    // Vérifier la limite
+    if (container.versions.length >= 3) {
+      throw new Error("Limite de 3 versions atteinte");
+    }
+
+    // Créer la version
+    const newVersion = {
+      id: crypto.randomUUID(),
+      name,
+      config: JSON.parse(JSON.stringify(config)), // Deep copy par sécurité
+      createdAt: new Date().toISOString()
+    };
+
+    container.versions.push(newVersion);
+    
+    // Mettre à jour current pour refléter la nouvelle version
+    container.current = config;
+
+    await this.#cache.savePosterConfig(eventId, container);
+    
+    return newVersion;
+  }
+
+  /**
+   * Supprime une version archivée
+   */
+  async deletePosterVersion(eventId: string, versionId: string): Promise<void> {
+    if (!this.#cache) return;
+
+    const container = await this.#cache.loadPosterConfig(eventId);
+    if (!container || !container.versions) return;
+
+    container.versions = container.versions.filter((v: any) => v.id !== versionId);
+    
+    await this.#cache.savePosterConfig(eventId, container);
   }
 
   // =============================================================================
