@@ -318,6 +318,7 @@
   $effect(() => {
     if (event) {
       navBarStore.setConfig({
+        eventId: params.id,
         title: `Affiches : ${event.name}`,
         backAction: goBack,
         actions: navActions,
@@ -352,7 +353,7 @@
 {:else if event}
   <div class="bg-base-200 min-h-screen">
     <!-- Left Panel for Configuration -->
-    <LeftPanel bgClass="bg-base-100">
+    <LeftPanel bgClass="bg-base-200" width="120">
       <PosterConfiguration bind:config />
     </LeftPanel>
 

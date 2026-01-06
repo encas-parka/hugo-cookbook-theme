@@ -9,6 +9,7 @@
     { label: "Éditer l'événement", path: "/dashboard/eventEdit" },
     { label: "Voir les recettes", path: "/dashboard/eventEdit/recipes" },
     { label: "Listes des produits", path: "/dashboard/eventEdit/products" },
+    { label: "Affiches", path: "/dashboard/eventPosters" },
   ];
 
   // Déterminer l'onglet actif depuis l'URL courante
@@ -18,6 +19,7 @@
     // Pattern matching pour déterminer l'onglet
     if (currentPath.includes("/eventEdit/recipes/")) return 1;
     if (currentPath.includes("/eventEdit/products/")) return 2;
+    if (currentPath.includes("/eventPosters/")) return 3;
     // Par défaut, si on est sur /dashboard/eventEdit/:id (sans /recipes ou /products)
     if (currentPath.includes("/eventEdit/") && eventId) {
       // Vérifier que le path contient bien l'eventId
@@ -37,6 +39,8 @@
       navigate(`/dashboard/eventEdit/recipes/${eventId}`);
     } else if (index === 2) {
       navigate(`/dashboard/eventEdit/products/${eventId}`);
+    } else if (index === 3) {
+      navigate(`/dashboard/eventPosters/${eventId}`);
     } else {
       navigate(`/dashboard/eventEdit/${eventId}`);
     }

@@ -154,14 +154,14 @@
     </div>
 
     <!-- Back button (Keep if really needed by some specific page logic) -->
-    {#if navBarStore.backAction}
+    <!-- {#if navBarStore.backAction}
       <button
         class="btn btn-ghost btn-circle btn-sm ml-2"
         onclick={navBarStore.backAction}
       >
         <ChevronLeftIcon size={20} />
       </button>
-    {/if}
+    {/if} -->
   </div>
 
   <!-- navbar-center : SEULEMENT SUR DESKTOP -->
