@@ -111,7 +111,7 @@
 <ModalContainer isOpen={teamId !== null} {onClose}>
   {#if team}
     <ModalHeader title={team.name} subtitle={team.description} {onClose}>
-      {#if isOwner}
+      <!-- {#if isOwner}
         <button
           class="btn btn-error btn-sm"
           onclick={() => (confirmDeleteTeam = true)}
@@ -120,7 +120,7 @@
         >
           <Trash2 class="h-4 w-4" />
         </button>
-      {/if}
+      {/if} -->
     </ModalHeader>
 
     <ModalContent>

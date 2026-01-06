@@ -28,10 +28,11 @@ export enum MaterielType {
   ELECTRONIC = "electronic",
   MANUAL = "manual", // ustensiles
   OTHER = "other", // par defaut
-  TOOLS = "tools",
+  TOOLS = "tools", // bricolage
   DISH = "dish", // vaisselle
   COOKING = "cooking", //  matériel de cuisine
   GAZ = "gaz", // trepied, four à gaz, bouteille de gaz
+  HYGIENE = "hygiene", // torchon, tablier, balai
 }
 
 export enum MaterielStatus {

@@ -39,6 +39,7 @@ const APPWRITE_CONFIG: AppwriteConfig = {
     kteams: "kteams", // Collection custom pour gérer les équipes
     locks: "locks",
     user_notifications: "user_notifications",
+    materiel_loan: "materiel_loan",
   },
 };
 

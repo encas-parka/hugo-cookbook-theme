@@ -18,6 +18,7 @@ export interface AppwriteConfig {
     kteams: string;
     locks: string;
     user_notifications: string;
+    materiel_loan: string;
   };
 }
 

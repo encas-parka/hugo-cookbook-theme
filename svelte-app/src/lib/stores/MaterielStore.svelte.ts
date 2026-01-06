@@ -6,7 +6,7 @@ import type {
   MaterielLoan,
   MaterielOwner,
   MaterielFilters,
-} from "$lib/types/materiel";
+} from "@/lib/types/materiel.type";
 import {
   listMaterielsAppwrite,
   getMaterielAppwrite,
@@ -161,18 +161,29 @@ export class MaterielStore {
 
   #enrichMateriel(doc: Models.Document & Materiel): EnrichedMateriel {
     // Parsing du owner
-    const ownerData: MaterielOwner = doc.owner
-      ? JSON.parse(doc.owner)
-      : {
-          userName: "",
-          userId: "",
-          teamName: "",
-          teamId: "",
-        };
+    let ownerData: MaterielOwner = {
+      userName: "",
+      userId: "",
+      teamName: "",
+      teamId: "",
+    };
+
+    if (doc.owner) {
+      try {
+        ownerData =
+          typeof doc.owner === "string"
+            ? JSON.parse(doc.owner)
+            : (doc.owner as MaterielOwner);
+      } catch (e) {
+        console.error("[MaterielStore] Error parsing owner:", doc.owner, e);
+      }
+    }
 
     // Parsing des emprunts
     const loans: MaterielLoan[] =
-      doc.loan?.map((item) => JSON.parse(item)) || [];
+      doc.loan?.map((item) =>
+        typeof item === "string" ? JSON.parse(item) : item,
+      ) || [];
 
     // Calcul des quantités
     const totalLoanedQuantity = loans.reduce(

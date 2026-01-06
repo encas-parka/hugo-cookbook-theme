@@ -14,8 +14,12 @@
     Hand,
     CalendarClock,
     Share2,
+    Utensils,
+    SoapDispenserDroplet,
+    FireExtinguisher,
+    Flame,
   } from "@lucide/svelte";
-  import type { EnrichedMateriel } from "$lib/types/materiel";
+  import type { EnrichedMateriel } from "$lib/types/materiel.type";
   import type { MaterielStatus } from "$lib/types/appwrite";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { formatDateDayMonthShort } from "$lib/utils/date-helpers";
@@ -36,6 +40,13 @@
         return Wrench;
       case "cooking":
         return ChefHat;
+      case "dish":
+        return Utensils;
+      case "gaz":
+        return Flame;
+      case "hygiene":
+        return SoapDispenserDroplet;
+
       case "other":
       default:
         return Box;
@@ -61,34 +72,29 @@
   const StatusConfig = $derived.by(() => {
     const configs: Record<
       MaterielStatus,
-      { icon: any; label: string; badgeClass: string; priority: number }
+      { label: string; badgeClass: string; priority: number }
     > = {
       ok: {
-        icon: CheckCircle,
         label: "OK",
         badgeClass: "badge-success",
         priority: 0,
       },
       lost: {
-        icon: XCircle,
         label: "Perdu",
         badgeClass: "badge-error",
         priority: 4,
       },
       loan: {
-        icon: Hand,
         label: "Prêté",
         badgeClass: "badge-info",
         priority: 2,
       },
       reserved: {
-        icon: CalendarClock,
         label: "Réservé",
         badgeClass: "badge-warning",
         priority: 3,
       },
       torepair: {
-        icon: Wrench,
         label: "À réparer",
         badgeClass: "badge-warning",
         priority: 1,
@@ -185,7 +191,7 @@
           </div>
         </div>
 
-        <div class="flex flex-wrap gap-x-4 gap-y-2">
+        <div class="flex flex-wrap items-baseline gap-x-4 gap-y-2">
           <!-- Quantité -->
           <div class="text-sm font-medium">
             <span
@@ -197,9 +203,17 @@
             </span>
             <span class="text-base-content/60 ml-1 text-xs">disp.</span>
           </div>
+          <!-- Description -->
           {#if truncatedDescription}
             <div class="text-base-content/60 line-clamp-1 text-xs">
               {truncatedDescription}
+            </div>
+          {/if}
+
+          <!-- Statut principal -->
+          {#if materiel.status !== "ok"}
+            <div class="badge {StatusConfig.badgeClass} badge-xs gap-1 py-0">
+              {StatusConfig.label}
             </div>
           {/if}
         </div>
@@ -209,14 +223,6 @@
       <div class="flex flex-col items-start gap-1 sm:items-center">
         <!-- Badges de statut -->
         <div class="flex flex-wrap gap-1">
-          <!-- Statut principal -->
-          {#if StatusConfig.icon}
-            <div class="badge {StatusConfig.badgeClass} badge-xs gap-1 py-0">
-              <StatusConfig.icon class="h-2.5 w-2.5" />
-              {StatusConfig.label}
-            </div>
-          {/if}
-
           <!-- Partageable -->
           {#if isShareable}
             <div

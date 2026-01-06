@@ -7,6 +7,7 @@ export interface MaterielLoan {
   endDate: string; // ISO 8601
   reason: string; // Raison / événement
   quantity: number; // Quantité empruntée
+  status: string; // "asked" | "accepted" | "refused" | "canceled"
 }
 
 // Structure du propriétaire (après parsing du JSON)
