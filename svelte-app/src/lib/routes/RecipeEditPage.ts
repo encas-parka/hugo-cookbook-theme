@@ -205,6 +205,8 @@ export function normalizeRecipeForAppwrite(
     region: recipe.region || null,
     auteur: recipe.auteur || null,
     preparation24h: recipe.preparation24h || null,
+    teams: recipe.teams || null,
+    status: recipe.status || "private",
     ingredients: [] as string[],
     astuces: null,
     prepAlt: null,

@@ -26,6 +26,7 @@
   import { navigate } from "../services/simple-router.svelte";
   import { untrack, onDestroy } from "svelte";
   import EventStats from "../components/EventStats.svelte";
+  import EventTodoList from "../components/eventTodo/EventTodoList.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { locksService, type AppwriteLock } from "../services/appwrite-locks";
   import UnsavedChangesGuard from "../components/ui/UnsavedChangesGuard.svelte";
@@ -808,6 +809,9 @@
           {/if}
           <p class="label">Nombre minimum de participants requis</p>
         </Fieldset>
+
+        <!-- Liste des Tâches (TODO) -->
+        <EventTodoList {eventId} {contributors} />
       </div>
     </div>
   {/if}

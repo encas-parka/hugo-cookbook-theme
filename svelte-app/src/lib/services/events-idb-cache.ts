@@ -31,6 +31,10 @@ export interface EventsIDBCache {
   saveEvent(event: EnrichedEvent): Promise<void>;
   deleteEvent(eventId: string): Promise<void>;
 
+  // Poster Configs
+  loadPosterConfig(eventId: string): Promise<any | null>;
+  savePosterConfig(eventId: string, config: any): Promise<void>;
+
   // Metadata
   loadMetadata(): Promise<EventsCacheMetadata>;
   saveMetadata(metadata: EventsCacheMetadata): Promise<void>;
@@ -47,11 +51,12 @@ export interface EventsIDBCache {
 class EventsIndexedDBCache implements EventsIDBCache {
   private dbName = "events-cache";
   private db: IDBDatabase | null = null;
-  private version = 1;
+  private version = 2;
 
   // Noms des object stores
   private readonly EVENTS_STORE = "events";
   private readonly METADATA_STORE = "metadata";
+  private readonly POSTER_CONFIGS_STORE = "poster-configs";
 
   // Clés pour les métadonnées
   private readonly LAST_SYNC_KEY = "lastSync";
@@ -86,6 +91,12 @@ class EventsIndexedDBCache implements EventsIDBCache {
             db.createObjectStore(this.METADATA_STORE, { keyPath: "key" });
             console.log("[EventsIDBCache] Object store 'metadata' créé");
           }
+
+          // Store des configurations d'affiches (key = eventId)
+          if (!db.objectStoreNames.contains(this.POSTER_CONFIGS_STORE)) {
+            db.createObjectStore(this.POSTER_CONFIGS_STORE, { keyPath: "eventId" });
+            console.log("[EventsIDBCache] Object store 'poster-configs' créé");
+          }
         };
       });
     };
@@ -96,11 +107,12 @@ class EventsIndexedDBCache implements EventsIDBCache {
     // Vérifier que les object stores nécessaires existent
     const hasEventsStore = db.objectStoreNames.contains(this.EVENTS_STORE);
     const hasMetadataStore = db.objectStoreNames.contains(this.METADATA_STORE);
+    const hasPosterConfigsStore = db.objectStoreNames.contains(this.POSTER_CONFIGS_STORE);
 
-    if (!hasEventsStore || !hasMetadataStore) {
-      // La base est corrompue (existe mais sans les stores nécessaires)
+    if (!hasEventsStore || !hasMetadataStore || !hasPosterConfigsStore) {
+      // La base est corrompue ou obsolète (existe mais sans les stores nécessaires)
       console.warn(
-        `[EventsIDBCache] Base corrompue détectée (events=${hasEventsStore}, metadata=${hasMetadataStore}), suppression et recréation...`,
+        `[EventsIDBCache] Base incomplète détectée (events=${hasEventsStore}, metadata=${hasMetadataStore}, posters=${hasPosterConfigsStore}), suppression et recréation...`,
       );
 
       // Fermer la connexion actuelle
@@ -218,6 +230,85 @@ class EventsIndexedDBCache implements EventsIDBCache {
   }
 
   // =============================================================================
+  // POSTER CONFIGS
+  // =============================================================================
+
+  /**
+   * Charge la configuration d'affiche pour un événement
+   */
+  async loadPosterConfig(eventId: string): Promise<any | null> {
+    if (!this.db) throw new Error("DB non ouverte");
+
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(this.POSTER_CONFIGS_STORE, "readwrite");
+      const store = tx.objectStore(this.POSTER_CONFIGS_STORE);
+      const request = store.get(eventId);
+
+      request.onsuccess = () => {
+        const result = request.result;
+
+        if (!result) {
+          resolve(null);
+          return;
+        }
+
+        // MigrationV1 -> V2 : Si on a { config } mais pas { current }
+        if (result.config && !result.current) {
+          console.log(
+            `[EventsIDBCache] Migration config affiche V1 -> V2 pour ${eventId}`,
+          );
+          const migratedContainer = {
+            current: result.config,
+            versions: [],
+          };
+          // On sauvegarde la migration
+          store.put({
+            eventId,
+            ...migratedContainer,
+            updatedAt: new Date().toISOString(),
+          });
+          resolve(migratedContainer);
+        } else {
+          // Format V2 ou inconnu
+          if (result.current) {
+            resolve({ current: result.current, versions: result.versions });
+          } else {
+            resolve(null);
+          }
+        }
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Sauvegarde la configuration d'affiche pour un événement
+   */
+  async savePosterConfig(eventId: string, container: any): Promise<void> {
+    if (!this.db) throw new Error("DB non ouverte");
+
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(this.POSTER_CONFIGS_STORE, "readwrite");
+      const store = tx.objectStore(this.POSTER_CONFIGS_STORE);
+      const request = store.put({
+        eventId,
+        ...container, // spread { current, versions }
+        updatedAt: new Date().toISOString(),
+      });
+
+      request.onsuccess = () => {
+        console.log(
+          `[EventsIDBCache] Config affiche (container) pour ${eventId} sauvegardée`,
+        );
+        resolve();
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // =============================================================================
   // METADATA
   // =============================================================================
 
@@ -286,12 +377,13 @@ class EventsIndexedDBCache implements EventsIDBCache {
 
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction(
-        [this.EVENTS_STORE, this.METADATA_STORE],
+        [this.EVENTS_STORE, this.METADATA_STORE, this.POSTER_CONFIGS_STORE],
         "readwrite",
       );
 
       tx.objectStore(this.EVENTS_STORE).clear();
       tx.objectStore(this.METADATA_STORE).clear();
+      tx.objectStore(this.POSTER_CONFIGS_STORE).clear();
 
       tx.oncomplete = () => {
         console.log("[EventsIDBCache] Cache vidé");

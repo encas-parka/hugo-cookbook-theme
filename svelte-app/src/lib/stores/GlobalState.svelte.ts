@@ -200,7 +200,7 @@ class GlobalState {
     return this.isDesktopQuery.current;
   }
 
-  userName() {
+  get userName() {
     // Utiliser le user authentifié si disponible, sinon localStorage
     return this.#user?.name || localStorage.getItem("appwrite-user-name") || "";
   }

@@ -185,8 +185,6 @@ export type CreateRecipeData = Omit<
   | "$sequence"
   | "$tableId"
   | "createdBy"
-  | "teams"
-  | "status"
 >;
 
 /**
