@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Fieldset from "../ui/Fieldset.svelte";
   import type { PosterConfig } from "./poster.types";
   import { Bold, Italic } from "@lucide/svelte";
 
@@ -9,13 +10,11 @@
   let { config = $bindable() }: Props = $props();
 </script>
 
-<div class="bg-base-100 h-full w-full space-y-6 px-4 pt-10 sm:pt-16">
+<div class="bg-base-200 h-full w-full space-y-6 pt-10 sm:pt-16">
   <!-- Display Options -->
-  <section>
-    <h3 class="text-base-content mb-4 font-semibold">Éléments à afficher</h3>
-
+  <Fieldset legend="Éléments à afficher">
     <!-- Display Checkbox Component: Date -->
-    <div class="form-control">
+    <div class="flex flex-wrap gap-x-4 gap-y-1">
       <label class="label cursor-pointer justify-start gap-3">
         <input
           type="checkbox"
@@ -24,10 +23,9 @@
         />
         <span class="label-text">Date</span>
       </label>
-    </div>
 
-    <!-- Display Checkbox Component: Horaire -->
-    <div class="form-control">
+      <!-- Display Checkbox Component: Horaire -->
+
       <label class="label cursor-pointer justify-start gap-3">
         <input
           type="checkbox"
@@ -36,10 +34,9 @@
         />
         <span class="label-text">Horaire</span>
       </label>
-    </div>
 
-    <!-- Display Checkbox Component: Description -->
-    <div class="form-control">
+      <!-- Display Checkbox Component: Description -->
+
       <label class="label cursor-pointer justify-start gap-3">
         <input
           type="checkbox"
@@ -48,10 +45,9 @@
         />
         <span class="label-text">Description</span>
       </label>
-    </div>
 
-    <!-- Display Checkbox Component: Catégories -->
-    <div class="form-control">
+      <!-- Display Checkbox Component: Catégories -->
+
       <label class="label cursor-pointer justify-start gap-3">
         <input
           type="checkbox"
@@ -63,60 +59,52 @@
     </div>
 
     <!-- Display Component: Recettes (always show label) -->
-    <div class="form-control">
-      <span class="label-text-alt font-semibold">Recette</span>
-    </div>
+    <fieldset class="fieldset my-2">
+      <!-- Display Checkbox Component: Régimes -->
+      <div class="flex flex-wrap gap-x-4 gap-y-1">
+        <label class="label cursor-pointer justify-start gap-3">
+          <input
+            type="checkbox"
+            class="checkbox checkbox-primary"
+            bind:checked={config.showRegimes}
+          />
+          <span class="label-text">Régimes</span>
+        </label>
 
-    <!-- Display Checkbox Component: Régimes -->
-    <div class="form-control">
-      <label class="label cursor-pointer justify-start gap-3">
-        <input
-          type="checkbox"
-          class="checkbox checkbox-primary"
-          bind:checked={config.showRegimes}
-        />
-        <span class="label-text">Régimes</span>
-      </label>
-    </div>
+        <!-- Display Checkbox Component: Allergènes -->
+        <label class="label cursor-pointer justify-start gap-3">
+          <input
+            type="checkbox"
+            class="checkbox checkbox-primary"
+            bind:checked={config.showAllergens}
+          />
+          <span class="label-text">Allergènes</span>
+        </label>
 
-    <!-- Display Checkbox Component: Allergènes -->
-    <div class="form-control">
-      <label class="label cursor-pointer justify-start gap-3">
-        <input
-          type="checkbox"
-          class="checkbox checkbox-primary"
-          bind:checked={config.showAllergens}
-        />
-        <span class="label-text">Allergènes</span>
-      </label>
-    </div>
-
-    <!-- Display Checkbox Component: Ingrédients -->
-    <div class="form-control">
-      <label class="label cursor-pointer justify-start gap-3">
-        <input
-          type="checkbox"
-          class="checkbox checkbox-primary"
-          bind:checked={config.showIngredients}
-        />
-        <span class="label-text">Liste Ingrédients</span>
-      </label>
-    </div>
-  </section>
+        <!-- Display Checkbox Component: Ingrédients -->
+        <label class="label cursor-pointer justify-start gap-3">
+          <input
+            type="checkbox"
+            class="checkbox checkbox-primary"
+            bind:checked={config.showIngredients}
+          />
+          <span class="label-text">Liste Ingrédients</span>
+        </label>
+      </div>
+    </fieldset>
+  </Fieldset>
 
   <!-- Print Options -->
-  <section>
-    <h3 class="text-base-content mb-4 font-semibold">Options d'impression</h3>
-
+  <Fieldset legend="Options d'impression">
     <!-- Page break by category -->
-    <div class="form-control">
+    <div class="mb-4">
       <label class="label cursor-pointer justify-start gap-3">
         <input
           type="checkbox"
           class="checkbox checkbox-primary"
           bind:checked={config.catPageBreak}
         />
-        <span class="label-text">
+        <span class="label-text text-wrap">
           Nouvelle page par catégorie (entrée/plat/dessert)
         </span>
       </label>
@@ -124,7 +112,7 @@
 
     <!-- Date at top of each page -->
     {#if config.catPageBreak}
-      <div class="form-control">
+      <div class="">
         <label class="label cursor-pointer justify-start gap-3">
           <input
             type="checkbox"
@@ -137,7 +125,7 @@
     {/if}
 
     <!-- Vertical centering -->
-    <div class="form-control">
+    <div class="">
       <label class="label cursor-pointer justify-start gap-3">
         <input
           type="checkbox"
@@ -147,10 +135,9 @@
         <span class="label-text">Centrer le contenu sur la page</span>
       </label>
     </div>
-  </section>
+  </Fieldset>
 
-  <section class="space-y-4">
-    <h3 class="text-base-content font-semibold">Messages personnalisés</h3>
+  <Fieldset legend="Messages personnalisés">
     <fieldset class="fieldset w-full">
       <legend class="fieldset-legend text-xs opacity-60">
         Message en haut de chaque fiche
@@ -178,14 +165,10 @@
         />
       </label>
     </fieldset>
-  </section>
+  </Fieldset>
 
   <!-- Font Styles -->
-  <section class="pb-10">
-    <h3 class="text-base-content mb-4 font-semibold italic opacity-50">
-      Personnalisation des textes
-    </h3>
-
+  <Fieldset legend="Personnalisation des textes">
     <div class="space-y-4">
       <!-- Helper for Font Settings -->
       {#snippet fontSetting(
@@ -207,18 +190,16 @@
                 <!-- Style controls: Bold/Italic -->
                 <div class="mr-2 flex gap-0.5">
                   <button
-                    class="btn btn-ghost btn-xs btn-square {config[boldKey]
-                      ? 'btn-primary bg-primary/20'
-                      : 'opacity-40'}"
+                    class="btn btn-xs btn-square {config[boldKey] &&
+                      'btn-secondary'}"
                     onclick={() => (config[boldKey] = !config[boldKey])}
                     title="Gras"
                   >
                     <Bold class="size-3" />
                   </button>
                   <button
-                    class="btn btn-ghost btn-xs btn-square {config[italicKey]
-                      ? 'btn-primary bg-primary/20'
-                      : 'opacity-40'}"
+                    class="btn btn-xs btn-square {config[italicKey] &&
+                      'btn-secondary'}"
                     onclick={() => (config[italicKey] = !config[italicKey])}
                     title="Italique"
                   >
@@ -241,7 +222,7 @@
                       class="h-1 w-2 rounded-full transition-colors {config[
                         sizeKey
                       ] >= step
-                        ? 'bg-primary'
+                        ? 'bg-secondary'
                         : 'bg-base-content/10'}"
                     ></div>
                   {/each}
@@ -356,5 +337,5 @@
         !!config.messageBottom,
       )}
     </div>
-  </section>
+  </Fieldset>
 </div>

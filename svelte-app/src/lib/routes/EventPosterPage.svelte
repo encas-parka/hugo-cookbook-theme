@@ -352,7 +352,7 @@
 {:else if event}
   <div class="bg-base-200 min-h-screen">
     <!-- Left Panel for Configuration -->
-    <LeftPanel width="80" bgClass="bg-base-100">
+    <LeftPanel bgClass="bg-base-100">
       <PosterConfiguration bind:config />
     </LeftPanel>
 
