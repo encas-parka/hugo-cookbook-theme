@@ -26,6 +26,7 @@
   import TeamSummaryCard from "$lib/components/dashboard/TeamSummaryCard.svelte";
   import CurrentEventsCard from "$lib/components/dashboard/CurrentEventsCard.svelte";
   import LatestRecipesCard from "$lib/components/dashboard/LatestRecipesCard.svelte";
+  import MaterielSummaryCard from "$lib/components/dashboard/MaterielSummaryCard.svelte";
 
   const now = new Date();
 
@@ -154,6 +155,9 @@
             invitations={myInvitations}
             loading={teamsStore.loading}
           />
+
+          <!-- Résumé du matériel -->
+          <MaterielSummaryCard loading={eventsStore.loading} />
         </div>
       </div>
     {/if}

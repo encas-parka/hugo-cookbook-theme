@@ -30,7 +30,7 @@
         </div>
         <h1 class="text-6xl font-bold tracking-tight">Enka Cookbook</h1>
         <p class="text-base-content/70 mt-6 text-xl">
-          L'outil de planification de cantines autogérées
+          Outils de planification pour les cantines autogérées
         </p>
       </div>
     </div>
