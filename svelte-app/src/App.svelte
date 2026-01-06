@@ -32,6 +32,7 @@
   import EventProductsPage from "./lib/routes/EventProductsPage.svelte";
   import HomePage from "./lib/routes/HomePage.svelte";
   import ResetPassword from "./lib/routes/ResetPassword.svelte";
+  import EventPosterPage from "./lib/routes/EventPosterPage.svelte";
 
   // États de l'application
   type AppState =
@@ -56,21 +57,9 @@
     },
   };
 
-  // Guard: Redirige vers le dashboard si déjà connecté
-  const redirectIfAuth: RouteGuards = {
-    beforeEnter: async () => {
-      if (globalState.isAuthenticated) {
-        console.log("[Router] Déjà connecté > Redirection /dashboard");
-        navigate("/dashboard");
-        return false;
-      }
-      return true;
-    },
-  };
-
   // Définir les routes
   // Publiques
-  router.addRoute("/", HomePage, redirectIfAuth);
+  router.addRoute("/", HomePage);
   router.addRoute("/recipe", RecipesListPage);
   router.addRoute("/recipe/my", RecipesListPage, requireAuth);
   router.addRoute("/recipe/my/draft", RecipesListPage, requireAuth);
@@ -96,6 +85,7 @@
     EventProductsPage,
     requireAuth,
   );
+  router.addRoute("/dashboard/eventPosters/:id", EventPosterPage, requireAuth);
 
   // État du composant actuel
   let currentRoute = $state<any>(null);

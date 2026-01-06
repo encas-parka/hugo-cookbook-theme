@@ -124,7 +124,7 @@
 
 <div
   class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] border-b px-4 py-0 shadow-sm print:hidden {globalState.isMobile &&
-    'min-h-11'}"
+    'min-h-11'} relative"
 >
   <div class="navbar-start w-fit flex-shrink-0 gap-1">
     <!-- Brand -->
@@ -166,7 +166,7 @@
 
   <!-- navbar-center : SEULEMENT SUR DESKTOP -->
   {#if globalState.isDesktop}
-    <div class="navbar-center min-w-0 flex-1 justify-center">
+    <div class="navbar-center absolute left-1/2 -translate-x-1/2 transform">
       {#if navBarStore.eventId !== undefined}
         <EventTabs eventId={navBarStore.eventId} />
       {:else}
@@ -190,11 +190,11 @@
       </div>
     {/if}
     <!-- Actions -->
-    {#if navBarStore.actions}
-      <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2">
+      {#if navBarStore.actions}
         {@render navBarStore.actions()}
-      </div>
-    {/if}
+      {/if}
+    </div>
 
     <!-- User dropdown -->
     {#if globalState.isAuthenticated}
