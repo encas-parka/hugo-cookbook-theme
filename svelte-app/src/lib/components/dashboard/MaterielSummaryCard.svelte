@@ -63,7 +63,9 @@
         <div class="flex items-center justify-between">
           <div>
             <div class="text-base-content/70 text-sm">Total</div>
-            <div class="text-primary text-2xl font-bold">{totalMaterielsCount}</div>
+            <div class="text-primary text-2xl font-bold">
+              {totalMaterielsCount}
+            </div>
           </div>
         </div>
       </div>
@@ -72,7 +74,7 @@
       <div class="card-actions mt-4">
         <button
           class="btn btn-primary btn-block btn-sm"
-          onclick={() => navigate("/materiel")}
+          onclick={() => navigate("/dashboard/materiel")}
         >
           Gérer le matériel
           <ArrowRight class="h-4 w-4" />

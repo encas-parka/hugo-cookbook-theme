@@ -10,10 +10,13 @@
     | "other"
     | "tools"
     | "dish"
+    | "cooking"
+    | "gaz"
     | "";
   type MaterielStatusLiteral = "ok" | "lost" | "loan" | "reserved" | "torepair";
 
   interface Props {
+    showStatus?: boolean;
     onSubmit?: (data: {
       name: string;
       description: string | null;
@@ -27,7 +30,7 @@
     onCancel?: () => void;
   }
 
-  let { onSubmit, onCancel }: Props = $props();
+  let { showStatus = false, onSubmit, onCancel }: Props = $props();
 
   // Import du user info
   import { globalState } from "$lib/stores/GlobalState.svelte";
@@ -49,9 +52,11 @@
   // Options pour les RadioBadgeGroups
   const typeOptions = $derived([
     { id: "electronic", label: "Électronique" },
-    { id: "manual", label: "Manuel" },
+    { id: "manual", label: "Ustensile" },
     { id: "tools", label: "Outils" },
-    { id: "dish", label: "Plats" },
+    { id: "dish", label: "Vaisselle" },
+    { id: "cooking", label: "Matériel de Cuisine" },
+    { id: "gaz", label: "Gaz" },
     { id: "other", label: "Autre" },
   ]);
 
@@ -166,7 +171,7 @@
   }
 </script>
 
-<div class="space-y-4">
+<div class="space-y-6">
   <!-- Section 1: Nom + Description -->
   <div class="space-y-3">
     <div class="flex flex-wrap gap-x-6 gap-y-4">
@@ -215,11 +220,8 @@
     </fieldset>
   </div>
 
-  <!-- Section 2: Owner -->
-  <div class="flex flex-wrap gap-4"></div>
-
   <!-- Section 3: Type + Status + Quantité + Localisation -->
-  <div class="flex flex-wrap gap-x-4 gap-y-3">
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
     <!-- Type -->
     <div class="flex min-w-[200px] flex-1 flex-col gap-1">
       <span class="label-text-alt text-base-content/70">Type</span>
@@ -232,42 +234,44 @@
     </div>
 
     <!-- Status -->
-    <div class="flex min-w-[200px] flex-1 flex-col gap-1">
-      <span class="label-text-alt text-base-content/70">Status</span>
-      <RadioBadgeGroup
-        items={statusOptions}
-        bind:selected={status}
-        size="sm"
+    {#if showStatus}
+      <div class="flex min-w-[200px] flex-1 flex-col gap-1">
+        <span class="label-text-alt text-base-content/70">Status</span>
+        <RadioBadgeGroup
+          items={statusOptions}
+          bind:selected={status}
+          size="sm"
+          disabled={loading}
+        />
+      </div>
+    {/if}
+  </div>
+
+  <div class="flex flex-wrap gap-x-6 gap-y-4">
+    <!-- Quantité -->
+    <label class="input w-58">
+      <span class="label"> <Hash class="size-4" />Quantité *</span>
+      <input
+        type="number"
+        class=""
+        min="1"
+        bind:value={quantity}
         disabled={loading}
       />
-    </div>
+    </label>
 
-    <div class="flex flex-wrap gap-x-6 gap-y-4">
-      <!-- Quantité -->
-      <label class="input w-58">
-        <span class="label"> <Hash class="size-4" />Quantité *</span>
-        <input
-          type="number"
-          class=""
-          min="1"
-          bind:value={quantity}
-          disabled={loading}
-        />
-      </label>
-
-      <!-- Localisation -->
-      <label class="input w-80">
-        <span class="label"><MapPin class="size-4" />Localisation</span>
-        <input
-          type="text"
-          class="grow"
-          bind:value={location}
-          placeholder="où c'est stocker"
-          maxlength="50"
-          disabled={loading}
-        />
-      </label>
-    </div>
+    <!-- Localisation -->
+    <label class="input w-80">
+      <span class="label"><MapPin class="size-4" />Localisation</span>
+      <input
+        type="text"
+        class="grow"
+        bind:value={location}
+        placeholder="où c'est stocker"
+        maxlength="50"
+        disabled={loading}
+      />
+    </label>
   </div>
 
   <!-- Section 4: ShareableWith -->
@@ -294,7 +298,7 @@
   {/if}
 
   <!-- Boutons -->
-  <div class="flex justify-end gap-2">
+  <div class="ms-auto flex justify-end gap-2">
     <button class="btn btn-ghost" onclick={handleCancel} disabled={loading}>
       <X class="h-5 w-5" />
       Annuler

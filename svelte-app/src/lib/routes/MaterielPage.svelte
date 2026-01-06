@@ -135,7 +135,11 @@
   {#if showForm}
     <div class="card bg-base-100 mb-6 shadow-lg" transition:slide>
       <div class="card-body">
-        <MaterielForm onSubmit={handleMaterielSubmit} onCancel={closeForm} />
+        <MaterielForm
+          showStatus={false}
+          onSubmit={handleMaterielSubmit}
+          onCancel={closeForm}
+        />
       </div>
     </div>
   {/if}
