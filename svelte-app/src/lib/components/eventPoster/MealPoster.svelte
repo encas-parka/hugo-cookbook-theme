@@ -135,241 +135,227 @@
     const sizes = ["0.7rem", "0.85rem", "1rem", "1.2rem"];
     return `font-size: ${sizes[step] || "1rem"}`;
   }
+
+  // Logic for page-breaking
+  let pages = $derived.by(() => {
+    if (!config.catPageBreak) {
+      // Single page with all categories
+      return [
+        {
+          categories: sortedCategories,
+          isFirst: true,
+          isLast: true,
+        },
+      ];
+    }
+
+    // One page per category
+    return sortedCategories.map((cat, idx) => ({
+      categories: [cat],
+      isFirst: idx === 0,
+      isLast: idx === sortedCategories.length - 1,
+    }));
+  });
 </script>
 
-<div class=" grid grid-cols-[1fr_auto] items-start gap-4 p-2">
+<div class="grid grid-cols-[1fr_auto] items-start gap-4 p-2">
   <!-- L'affiche A4 (Colonne de gauche, centrée) -->
-  <div class="flex justify-end">
-    <!-- L'affiche A4 -->
-    <div
-      id={sectionId}
-      class="meal-poster-section relative bg-white shadow-2xl transition-shadow"
-      class:no-print={!sectionsToPrint[sectionId]}
-    >
-      <!-- Print action (no-print) -->
-      <div class=" group absolute top-4 right-4 print:hidden">
-        <button
-          class="btn btn-circle btn-ghost opacity-20 transition-opacity hover:opacity-100"
-          onclick={() => onPrintThis(sectionId)}
-          title="Imprimer ce menu"
-        >
-          <Printer class="h-4 w-4" />
-        </button>
-      </div>
-
-      <div class="poster-content text-black">
-        <!-- Message Top -->
-        {#if config.messageTop}
-          <div
-            class="mb-8 text-center"
-            class:montserrat-font={config.fontTop === "montserrat-font"}
-            class:playfair-display={config.fontTop === "playfair-display"}
-            class:oswald-font={config.fontTop === "oswald-font"}
-            class:quicksand-font={config.fontTop === "quicksand-font"}
-            class:fira-sans={config.fontTop === "fira-sans"}
-            class:dancing-script={config.fontTop === "dancing-script"}
-            class:pacifico-regular={config.fontTop === "pacifico-regular"}
-            class:caveat-font={config.fontTop === "caveat-font"}
-            class:gluten-font={config.fontTop === "gluten-font"}
-            class:font-bold={config.boldTop}
-            class:italic={config.italicTop}
-            style={getSmallFontSize(config.fontSizeTop)}
+  <div class="flex flex-col items-end gap-8">
+    {#each pages as page, pageIdx}
+      <!-- L'affiche A4 -->
+      <div
+        id={pageIdx === 0 ? sectionId : `${sectionId}-page-${pageIdx}`}
+        class="meal-poster-section relative bg-white shadow-2xl transition-shadow"
+        class:is-printing-target={sectionsToPrint[
+          pageIdx === 0 ? sectionId : `${sectionId}-page-${pageIdx}`
+        ]}
+        class:page-break-after={!page.isLast}
+      >
+        <!-- Print action (no-print) - Added to every page -->
+        <div class="group absolute top-4 right-4 print:hidden">
+          <button
+            class="btn btn-circle btn-ghost opacity-20 transition-opacity hover:opacity-100"
+            onclick={() =>
+              onPrintThis(
+                pageIdx === 0 ? sectionId : `${sectionId}-page-${pageIdx}`,
+              )}
+            title="Imprimer cette page"
           >
-            {config.messageTop}
-          </div>
-        {/if}
-
-        <!-- Date and Horaire Header -->
-        <div class="mb-8 text-center">
-          {#if config.showDate}
-            <p
-              class="m-0 text-center text-3xl"
-              class:montserrat-font={config.fontDate === "montserrat-font"}
-              class:gluten-font={config.fontDate === "gluten-font"}
-              class:pacifico-regular={config.fontDate === "pacifico-regular"}
-              class:fira-sans={config.fontDate === "fira-sans"}
-              class:font-bold={config.boldDate}
-              class:italic={config.italicDate}
-              style={getBigFontSize(config.fontSizeDate)}
-            >
-              {formattedDate}
-            </p>
-          {/if}
-
-          {#if config.showHoraire}
-            <p
-              class="m-0 text-center text-3xl"
-              class:montserrat-font={config.fontHoraire === "montserrat-font"}
-              class:playfair-display={config.fontHoraire === "playfair-display"}
-              class:oswald-font={config.fontHoraire === "oswald-font"}
-              class:quicksand-font={config.fontHoraire === "quicksand-font"}
-              class:fira-sans={config.fontHoraire === "fira-sans"}
-              class:dancing-script={config.fontHoraire === "dancing-script"}
-              class:pacifico-regular={config.fontHoraire === "pacifico-regular"}
-              class:caveat-font={config.fontHoraire === "caveat-font"}
-              class:gluten-font={config.fontHoraire === "gluten-font"}
-              class:font-bold={config.boldHoraire}
-              class:italic={config.italicHoraire}
-              style={getBigFontSize(config.fontSizeHoraire)}
-            >
-              {horaire}
-            </p>
-          {/if}
-
-          {#if config.showHoraire || config.showDate}
-            <div
-              class="separator mx-auto my-6 w-48 border-t border-black opacity-20"
-            ></div>
-          {/if}
+            <Printer class="h-4 w-4" />
+          </button>
         </div>
 
-        <!-- Recipes by Category -->
-        {#each sortedCategories as category (category)}
-          {@const isFirst = sortedCategories.indexOf(category) === 0}
-          <div
-            class="category-block mb-10"
-            class:page-break-before={config.catPageBreak && !isFirst}
-          >
-            <!-- Repeat date if catPageBreak and dateByPageBreak -->
-            {#if config.catPageBreak && config.dateByPageBreak && !isFirst}
-              <div class="mb-6 text-center">
-                {#if config.showDate}
-                  <p
-                    class="m-0 text-center text-3xl"
-                    class:montserrat-font={config.fontDate ===
-                      "montserrat-font"}
-                    class:playfair-display={config.fontDate ===
-                      "playfair-display"}
-                    class:oswald-font={config.fontDate === "oswald-font"}
-                    class:quicksand-font={config.fontDate === "quicksand-font"}
-                    class:fira-sans={config.fontDate === "fira-sans"}
-                    class:dancing-script={config.fontDate === "dancing-script"}
-                    class:pacifico-regular={config.fontDate ===
-                      "pacifico-regular"}
-                    class:caveat-font={config.fontDate === "caveat-font"}
-                    class:gluten-font={config.fontDate === "gluten-font"}
-                    class:font-bold={config.boldDate}
-                    class:italic={config.italicDate}
-                    style={getBigFontSize(config.fontSizeDate)}
-                  >
-                    {formattedDate}
-                  </p>
-                {/if}
+        <div
+          class="poster-content text-black"
+          class:centered-content={config.centerVertical}
+        >
+          <!-- Message Top (First page OR every page if dateByPageBreak) -->
+          {#if config.messageTop && (page.isFirst || config.dateByPageBreak)}
+            <div
+              class="mb-8 text-center"
+              class:montserrat-font={config.fontTop === "montserrat-font"}
+              class:playfair-display={config.fontTop === "playfair-display"}
+              class:oswald-font={config.fontTop === "oswald-font"}
+              class:quicksand-font={config.fontTop === "quicksand-font"}
+              class:fira-sans={config.fontTop === "fira-sans"}
+              class:dancing-script={config.fontTop === "dancing-script"}
+              class:pacifico-regular={config.fontTop === "pacifico-regular"}
+              class:caveat-font={config.fontTop === "caveat-font"}
+              class:gluten-font={config.fontTop === "gluten-font"}
+              class:font-bold={config.boldTop}
+              class:italic={config.italicTop}
+              style={getSmallFontSize(config.fontSizeTop)}
+            >
+              {config.messageTop}
+            </div>
+          {/if}
 
-                {#if config.showHoraire}
-                  <p
-                    class="m-0 text-center text-3xl"
-                    class:montserrat-font={config.fontHoraire ===
-                      "montserrat-font"}
-                    class:playfair-display={config.fontHoraire ===
-                      "playfair-display"}
-                    class:oswald-font={config.fontHoraire === "oswald-font"}
-                    class:quicksand-font={config.fontHoraire ===
-                      "quicksand-font"}
-                    class:fira-sans={config.fontHoraire === "fira-sans"}
-                    class:dancing-script={config.fontHoraire ===
-                      "dancing-script"}
-                    class:pacifico-regular={config.fontHoraire ===
-                      "pacifico-regular"}
-                    class:caveat-font={config.fontHoraire === "caveat-font"}
-                    class:gluten-font={config.fontHoraire === "gluten-font"}
-                    class:font-bold={config.boldHoraire}
-                    class:italic={config.italicHoraire}
-                    style={getBigFontSize(config.fontSizeHoraire)}
-                  >
-                    {horaire}
-                  </p>
-                {/if}
+          <!-- Date and Horaire Header (First page OR every page if dateByPageBreak) -->
+          {#if page.isFirst || config.dateByPageBreak}
+            <div class="mb-8 text-center">
+              {#if config.showDate}
+                <p
+                  class="m-0 text-center text-3xl"
+                  class:montserrat-font={config.fontDate === "montserrat-font"}
+                  class:gluten-font={config.fontDate === "gluten-font"}
+                  class:pacifico-regular={config.fontDate ===
+                    "pacifico-regular"}
+                  class:fira-sans={config.fontDate === "fira-sans"}
+                  class:font-bold={config.boldDate}
+                  class:italic={config.italicDate}
+                  style={getBigFontSize(config.fontSizeDate)}
+                >
+                  {formattedDate}
+                </p>
+              {/if}
 
+              {#if config.showHoraire}
+                <p
+                  class="m-0 text-center text-3xl"
+                  class:montserrat-font={config.fontHoraire ===
+                    "montserrat-font"}
+                  class:playfair-display={config.fontHoraire ===
+                    "playfair-display"}
+                  class:oswald-font={config.fontHoraire === "oswald-font"}
+                  class:quicksand-font={config.fontHoraire === "quicksand-font"}
+                  class:fira-sans={config.fontHoraire === "fira-sans"}
+                  class:dancing-script={config.fontHoraire === "dancing-script"}
+                  class:pacifico-regular={config.fontHoraire ===
+                    "pacifico-regular"}
+                  class:caveat-font={config.fontHoraire === "caveat-font"}
+                  class:gluten-font={config.fontHoraire === "gluten-font"}
+                  class:font-bold={config.boldHoraire}
+                  class:italic={config.italicHoraire}
+                  style={getBigFontSize(config.fontSizeHoraire)}
+                >
+                  {horaire}
+                </p>
+              {/if}
+
+              {#if config.showHoraire || config.showDate}
                 <div
                   class="separator mx-auto my-6 w-48 border-t border-black opacity-20"
                 ></div>
+              {/if}
+            </div>
+          {/if}
+
+          <!-- Recipes by Category -->
+          {#each page.categories as category (category)}
+            <div class="category-block mb-10">
+              <!-- Category Header -->
+              {#if config.showCategories}
+                <h3
+                  class="mb-6 text-center text-xl tracking-widest uppercase opacity-60"
+                  class:montserrat-font={config.fontCat === "montserrat-font"}
+                  class:playfair-display={config.fontCat === "playfair-display"}
+                  class:oswald-font={config.fontCat === "oswald-font"}
+                  class:quicksand-font={config.fontCat === "quicksand-font"}
+                  class:fira-sans={config.fontCat === "fira-sans"}
+                  class:dancing-script={config.fontCat === "dancing-script"}
+                  class:pacifico-regular={config.fontCat === "pacifico-regular"}
+                  class:caveat-font={config.fontCat === "caveat-font"}
+                  class:gluten-font={config.fontCat === "gluten-font"}
+                  class:font-bold={config.boldCat}
+                  class:italic={config.italicCat}
+                  style={getBigFontSize(config.fontSizeCat)}
+                >
+                  {getCategoryLabel(category)}
+                </h3>
+              {/if}
+
+              <!-- Recipes in this category -->
+              <div class="recipes-grid avoid-break-inside">
+                {#each recipesByCategory.get(category) ?? [] as recipe (recipe.recipeUuid)}
+                  {@const recipeKey = `${dateKey}${horaire}_${recipe.recipeUuid}`}
+                  {@const visible = recipeVisibility[recipeKey] ?? true}
+                  {@const name =
+                    recipeNames[recipeKey] ||
+                    recipesStore.getRecipeIndexByUuid(recipe.recipeUuid)
+                      ?.title ||
+                    recipe.recipeUuid}
+                  {@const recipeData =
+                    recipesDetails.find((r) => r.$id === recipe.recipeUuid) ||
+                    null}
+                  {@const descriptionVisible =
+                    descriptionVisibilities[recipeKey] ?? true}
+
+                  {#if visible}
+                    <RecipeCard
+                      {recipeKey}
+                      recipeUuid={recipe.recipeUuid}
+                      plates={recipe.plates}
+                      typeR={recipe.typeR}
+                      {category}
+                      {config}
+                      {visible}
+                      {name}
+                      {recipeData}
+                      customIngredients={recipeIngredients[recipeKey] || null}
+                      customDescription={recipeDescriptions[recipeKey] || null}
+                      {descriptionVisible}
+                      isEditing={editingRecipe === recipeKey}
+                      onToggle={onToggleRecipe}
+                      onStartEdit={onStartEditRecipe}
+                      onFinishEdit={onFinishEditRecipe}
+                      onUpdateName={onUpdateRecipeName}
+                      onUpdateIngredients={handleUpdateRecipeIngredients}
+                      onUpdateDescription={handleUpdateRecipeDescription}
+                      onToggleDescription={handleToggleRecipeDescription}
+                    />
+                  {/if}
+                {/each}
+              </div>
+            </div>
+          {/each}
+
+          <!-- Message Bottom (On Every Page) -->
+          <div class="pt-8" class:mt-auto={!config.centerVertical}>
+            {#if config.messageBottom}
+              <div
+                class="text-center opacity-60"
+                class:montserrat-font={config.fontBottom === "montserrat-font"}
+                class:playfair-display={config.fontBottom ===
+                  "playfair-display"}
+                class:oswald-font={config.fontBottom === "oswald-font"}
+                class:quicksand-font={config.fontBottom === "quicksand-font"}
+                class:fira-sans={config.fontBottom === "fira-sans"}
+                class:dancing-script={config.fontBottom === "dancing-script"}
+                class:pacifico-regular={config.fontBottom ===
+                  "pacifico-regular"}
+                class:caveat-font={config.fontBottom === "caveat-font"}
+                class:gluten-font={config.fontBottom === "gluten-font"}
+                class:font-bold={config.boldBottom}
+                class:italic={config.italicBottom}
+                style={getSmallFontSize(config.fontSizeBottom)}
+              >
+                {config.messageBottom}
               </div>
             {/if}
-
-            <!-- Category Header -->
-            {#if config.showCategories}
-              <h3
-                class="mb-6 text-center text-xl tracking-widest uppercase opacity-60"
-                class:montserrat-font={config.fontCat === "montserrat-font"}
-                class:playfair-display={config.fontCat === "playfair-display"}
-                class:oswald-font={config.fontCat === "oswald-font"}
-                class:quicksand-font={config.fontCat === "quicksand-font"}
-                class:fira-sans={config.fontCat === "fira-sans"}
-                class:dancing-script={config.fontCat === "dancing-script"}
-                class:pacifico-regular={config.fontCat === "pacifico-regular"}
-                class:caveat-font={config.fontCat === "caveat-font"}
-                class:gluten-font={config.fontCat === "gluten-font"}
-                class:font-bold={config.boldCat}
-                class:italic={config.italicCat}
-                style={getBigFontSize(config.fontSizeCat)}
-              >
-                {getCategoryLabel(category)}
-              </h3>
-            {/if}
-
-            <!-- Recipes in this category -->
-            <div class="recipes-grid avoid-break-inside">
-              {#each recipesByCategory.get(category) ?? [] as recipe (recipe.recipeUuid)}
-                {@const recipeKey = `${dateKey}${horaire}_${recipe.recipeUuid}`}
-                {@const visible = recipeVisibility[recipeKey] ?? true}
-                {@const name =
-                  recipeNames[recipeKey] ||
-                  recipesStore.getRecipeIndexByUuid(recipe.recipeUuid)?.title ||
-                  recipe.recipeUuid}
-                {@const recipeData =
-                  recipesDetails.find((r) => r.$id === recipe.recipeUuid) ||
-                  null}
-
-                <RecipeCard
-                  {recipeKey}
-                  recipeUuid={recipe.recipeUuid}
-                  plates={recipe.plates}
-                  typeR={recipe.typeR}
-                  {category}
-                  {config}
-                  {visible}
-                  {name}
-                  {recipeData}
-                  customIngredients={recipeIngredients[recipeKey] || null}
-                  customDescription={recipeDescriptions[recipeKey] || null}
-                  descriptionVisible={descriptionVisibilities[recipeKey] ??
-                    true}
-                  isEditing={editingRecipe === recipeKey}
-                  onToggle={onToggleRecipe}
-                  onStartEdit={onStartEditRecipe}
-                  onFinishEdit={onFinishEditRecipe}
-                  onUpdateName={onUpdateRecipeName}
-                  onUpdateIngredients={handleUpdateRecipeIngredients}
-                  onUpdateDescription={handleUpdateRecipeDescription}
-                  onToggleDescription={handleToggleRecipeDescription}
-                />
-              {/each}
-            </div>
           </div>
-        {/each}
-
-        {#if config.messageBottom}
-          <div
-            class="mt-12 text-center"
-            class:montserrat-font={config.fontBottom === "montserrat-font"}
-            class:playfair-display={config.fontBottom === "playfair-display"}
-            class:oswald-font={config.fontBottom === "oswald-font"}
-            class:quicksand-font={config.fontBottom === "quicksand-font"}
-            class:fira-sans={config.fontBottom === "fira-sans"}
-            class:dancing-script={config.fontBottom === "dancing-script"}
-            class:pacifico-regular={config.fontBottom === "pacifico-regular"}
-            class:caveat-font={config.fontBottom === "caveat-font"}
-            class:gluten-font={config.fontBottom === "gluten-font"}
-            class:font-bold={config.boldBottom}
-            class:italic={config.italicBottom}
-            style={getSmallFontSize(config.fontSizeBottom)}
-          >
-            {config.messageBottom}
-          </div>
-        {/if}
+        </div>
       </div>
-    </div>
+    {/each}
   </div>
 
   <!-- Boutons de restauration (no-print, Colonne de droite) -->
@@ -423,17 +409,20 @@
     width: 210mm;
     height: 297mm;
     margin: 2rem auto;
-    border: 1px solid #efefef;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
     padding: 20mm !important;
+    box-sizing: border-box; /* Crucial: padding does not increase 297mm */
   }
 
   .poster-content {
-    flex: 1;
+    flex-grow: 1; /* Ensure it takes all available vertical space */
     display: flex;
     flex-direction: column;
+    min-height: 0;
+  }
+
+  .poster-content.centered-content {
     justify-content: center; /* Center content vertically in the A4 sheet */
   }
 
@@ -451,14 +440,23 @@
     .meal-poster-section {
       box-shadow: none !important;
       border: none !important;
-      padding: 0 !important;
+      padding: 20mm !important; /* Restore padding even when printing */
       margin: 0 !important;
       width: 210mm !important;
       height: 297mm !important;
+      overflow: hidden !important; /* Force content to stay within A4 */
+      box-sizing: border-box !important;
+      display: none !important;
     }
 
-    .no-print {
-      display: none !important;
+    /* Only show the section if it's the target OR if we're in 'print all' mode */
+    /* Note: In 'print all' mode, sectionsToPrint keys are all true */
+    .meal-poster-section.is-printing-target {
+      display: flex !important;
+    }
+
+    .page-break-after {
+      break-after: page;
     }
   }
 

@@ -67,12 +67,14 @@
 <div
   class="bg-base-200 flex-1 overflow-auto p-4 print:m-0 print:overflow-visible print:p-0"
 >
-  <div class="mx-auto max-w-5xl space-y-8 print:w-full print:max-w-none">
-    <h2 class="no-print text-center text-2xl font-bold">Les Affiches</h2>
+  <div
+    class="mx-auto max-w-5xl space-y-8 print:m-0 print:w-full print:max-w-none print:space-y-0"
+  >
+    <h2 class="text-center text-2xl font-bold print:hidden">Les Affiches</h2>
 
     {#each flatMeals as mealGroup (mealGroup.dateKey + mealGroup.horaire)}
       {@const sectionId = `affiche${mealGroup.dateKey}${mealGroup.horaire}`}
-      <div class="space-y-4">
+      <div class="space-y-4 print:m-0 print:space-y-0 print:p-0">
         <MealPoster
           {sectionId}
           dateKey={mealGroup.dateKey}

@@ -135,6 +135,18 @@
         </label>
       </div>
     {/if}
+
+    <!-- Vertical centering -->
+    <div class="form-control">
+      <label class="label cursor-pointer justify-start gap-3">
+        <input
+          type="checkbox"
+          class="checkbox checkbox-primary"
+          bind:checked={config.centerVertical}
+        />
+        <span class="label-text">Centrer le contenu sur la page</span>
+      </label>
+    </div>
   </section>
 
   <section class="space-y-4">

@@ -83,6 +83,7 @@
     fontSizeIng: 1,
     boldIng: false,
     italicIng: false,
+    centerVertical: true,
   });
 
   // Print state
@@ -153,6 +154,11 @@
         sectionsToPrint[sectionId] = true;
       }
     });
+
+    // Also initialize page-specific IDs if catPageBreak is enabled
+    // Note: Since this depends on categories which depend on recipes,
+    // we use a broad initialization or let MealPoster handle its own buttons.
+    // Better: We ensure any sectionId passed to printThis exists in sectionsToPrint.
   });
 
   // Load event on mount
@@ -243,6 +249,11 @@
 
   // Print functions
   async function printThis(sectionId: string) {
+    // Ensure the sectionId exists in our record
+    if (!(sectionId in sectionsToPrint)) {
+      sectionsToPrint[sectionId] = true;
+    }
+
     // Set all sections to no-print except the one we want
     Object.keys(sectionsToPrint).forEach((key) => {
       sectionsToPrint[key] = key === sectionId;

@@ -57,6 +57,7 @@ export interface PosterConfig {
   fontSizeBottom: number;
   boldBottom: boolean;
   italicBottom: boolean;
+  centerVertical: boolean;
 }
 
 export interface GroupedMeals {
