@@ -22,10 +22,6 @@
     onStartEditRecipe: (recipeKey: string) => void;
     onFinishEditRecipe: () => void;
     onUpdateRecipeName: (recipeKey: string, newName: string) => void;
-    onUpdateRecipeIngredients: (
-      recipeKey: string,
-      ingredients: string[],
-    ) => void;
     getRecipeName: (recipeKey: string, originalName: string) => string;
   }
 
@@ -46,7 +42,6 @@
     onStartEditRecipe,
     onFinishEditRecipe,
     onUpdateRecipeName,
-    onUpdateRecipeIngredients,
     getRecipeName,
   }: Props = $props();
 
@@ -144,7 +139,7 @@
       <!-- Print action (no-print) -->
       <div class="no-print group absolute top-4 right-4 print:hidden">
         <button
-          class="btn btn-circle btn-ghost btn-sm opacity-20 transition-opacity hover:opacity-100"
+          class="btn btn-circle btn-ghost opacity-20 transition-opacity hover:opacity-100"
           onclick={() => onPrintThis(sectionId)}
           title="Imprimer ce menu"
         >

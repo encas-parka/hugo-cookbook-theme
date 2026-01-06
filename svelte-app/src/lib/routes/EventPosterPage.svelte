@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
@@ -112,7 +112,7 @@
 
     event.meals.forEach((meal) => {
       const date = new Date(meal.date);
-      const dateKey = date.toISOString().split("T")[0].replace(/-/g, "");
+      const dateKey = date.toISOString().split("T")[0];
       const hours = date.getHours();
       const horaire =
         hours < 12
@@ -173,7 +173,7 @@
       );
 
       const recipes = await Promise.all(recipesPromises);
-      recipesDetails = recipes.filter(Boolean);
+      recipesDetails = recipes.filter((r): r is RecipeForDisplay => r !== null);
 
       console.log(
         `[EventPoster] Loaded ${recipesDetails.length} recipes out of ${recipesPromises.length} requested`,
@@ -194,7 +194,7 @@
 
     event.meals.forEach((meal) => {
       const date = new Date(meal.date);
-      const dateKey = date.toISOString().split("T")[0].replace(/-/g, "");
+      const dateKey = date.toISOString().split("T")[0];
       const hours = date.getHours();
       const horaire =
         hours < 12
@@ -217,26 +217,36 @@
   }
 
   // Print functions
-  function printThis(sectionId: string) {
+  async function printThis(sectionId: string) {
     // Set all sections to no-print except the one we want
     Object.keys(sectionsToPrint).forEach((key) => {
       sectionsToPrint[key] = key === sectionId;
     });
 
+    // Wait for Svelte to update the DOM
+    await tick();
+
+    // Small timeout to ensure browser has processed the DOM changes
     setTimeout(() => {
       window.print();
       // Reset after print
       Object.keys(sectionsToPrint).forEach((key) => {
         sectionsToPrint[key] = true;
       });
-    }, 100);
+    }, 900);
   }
 
-  function printAll() {
+  async function printAll() {
+    // Force all to true first
     Object.keys(sectionsToPrint).forEach((key) => {
       sectionsToPrint[key] = true;
     });
-    window.print();
+
+    await tick();
+
+    setTimeout(() => {
+      window.print();
+    }, 500);
   }
 
   // Recipe modification functions
@@ -311,7 +321,11 @@
     </LeftPanel>
 
     <!-- Main Content Area with left margin for desktop -->
-    <div class="print-hidden {globalState.isDesktop ? 'ml-80' : ''}">
+    <div
+      class="print:m-0 print:block print:p-0 {globalState.isDesktop
+        ? 'ml-80'
+        : ''}"
+    >
       <PosterDisplay
         {event}
         {groupedMeals}
@@ -355,129 +369,5 @@
 
   .noDisplay {
     display: none !important;
-  }
-
-  /* Print styles */
-  @media print {
-    .no-print {
-      display: none !important;
-    }
-
-    .print-nocard {
-      background: transparent !important;
-      box-shadow: none !important;
-      border: none !important;
-    }
-
-    .page-break-after {
-      page-break-after: always;
-      break-after: always;
-    }
-
-    .page-break-before {
-      page-break-before: always;
-      break-before: always;
-    }
-
-    .avoid-break-inside {
-      page-break-inside: avoid;
-      break-inside: avoid;
-    }
-
-    .printonly {
-      display: block !important;
-    }
-
-    * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      color-adjust: exact !important;
-    }
-
-    .recipe-actions {
-      display: none !important;
-    }
-
-    .recipe-hidden-placeholder {
-      display: none !important;
-    }
-
-    body {
-      margin: 0;
-      padding: 0;
-    }
-
-    .print-col-12 {
-      width: 100% !important;
-      max-width: 100% !important;
-      flex: 0 0 100% !important;
-    }
-
-    .text-base-content {
-      color: #000 !important;
-    }
-
-    .badge-ghost {
-      background-color: #f0f0f0 !important;
-      color: #000 !important;
-      border: 1px solid #ccc !important;
-    }
-
-    .badge-info {
-      background-color: #e0f2fe !important;
-      color: #000 !important;
-      border: 1px solid #0284c7 !important;
-    }
-
-    .text-error {
-      color: #dc2626 !important;
-    }
-  }
-
-  .printonly {
-    display: none;
-  }
-
-  @media print {
-    .printonly {
-      display: block !important;
-    }
-  }
-
-  /* Recipe container styles */
-  .recipe-container {
-    position: relative;
-  }
-
-  .recipe-actions {
-    position: absolute;
-    top: 0;
-    right: 0;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    z-index: 10;
-  }
-
-  .recipe-container:hover .recipe-actions {
-    opacity: 1;
-  }
-
-  @media print {
-    .recipe-actions {
-      display: none !important;
-    }
-
-    .recipe-hidden-placeholder {
-      display: none !important;
-    }
-  }
-
-  .recipe-hidden-placeholder {
-    text-align: center;
-    padding: 20px;
-    background-color: #f8f9fa;
-    border: 2px dashed #dee2e6;
-    border-radius: 8px;
-    margin-bottom: 1rem;
   }
 </style>

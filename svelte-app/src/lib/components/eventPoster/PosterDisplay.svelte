@@ -62,13 +62,12 @@
     // Sort by date
     return result.sort((a, b) => a.date.getTime() - b.date.getTime());
   });
-
-  // Note: sectionsToPrint initialization is now handled in parent (EventPosterPage)
-  // to avoid mutating props from child component
 </script>
 
-<div class="bg-base-200 flex-1 overflow-auto p-4">
-  <div class="mx-auto max-w-5xl space-y-8">
+<div
+  class="bg-base-200 flex-1 overflow-auto p-4 print:m-0 print:overflow-visible print:p-0"
+>
+  <div class="mx-auto max-w-5xl space-y-8 print:w-full print:max-w-none">
     <h2 class="no-print text-center text-2xl font-bold">Les Affiches</h2>
 
     {#each flatMeals as mealGroup (mealGroup.dateKey + mealGroup.horaire)}
