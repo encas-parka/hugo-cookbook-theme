@@ -158,7 +158,6 @@
     <fieldset class="fieldset w-full">
       <legend class="fieldset-legend text-sm">Date</legend>
       <select class="select w-full" bind:value={config.fontDate}>
-        <option value="noDisplay">Masquer</option>
         <option value="montserrat-font">Montserrat</option>
         <option value="gluten-font">Gluten</option>
         <option value="pacifico-regular">Pacifico</option>
@@ -169,7 +168,6 @@
     <fieldset class="fieldset w-full">
       <legend class="fieldset-legend text-sm">Horaire</legend>
       <select class="select w-full" bind:value={config.fontHoraire}>
-        <option value="noDisplay">Masquer</option>
         <option value="montserrat-font">Montserrat</option>
         <option value="gluten-font">Gluten</option>
         <option value="pacifico-regular">Pacifico</option>
@@ -180,7 +178,6 @@
     <fieldset class="fieldset w-full">
       <legend class="fieldset-legend text-sm">Catégories</legend>
       <select class="select w-full" bind:value={config.fontCat}>
-        <option value="noDisplay">Masquer</option>
         <option value="montserrat-font">Montserrat</option>
         <option value="gluten-font">Gluten</option>
         <option value="pacifico-regular">Pacifico</option>
@@ -191,7 +188,6 @@
     <fieldset class="fieldset w-full">
       <legend class="fieldset-legend text-sm">Recettes</legend>
       <select class="select w-full" bind:value={config.fontRecettes}>
-        <option value="noDisplay">Masquer</option>
         <option value="montserrat-font">Montserrat</option>
         <option value="gluten-font">Gluten</option>
         <option value="pacifico-regular">Pacifico</option>

@@ -50,13 +50,13 @@
     fontSizeCat: "font-size: 24px",
     fontRecettes: "pacifico-regular",
     fontSizeRecettes: "font-size: 32px",
-    fontDesc: "noDisplay",
+    fontDesc: "montserrat-font",
     fontSizeDesc: "font-size: 16px",
-    fontRegimes: "noDisplay",
+    fontRegimes: "montserrat-font",
     fontSizeRegimes: "font-size: 18px",
-    fontAlert: "noDisplay",
+    fontAlert: "montserrat-font",
     fontSizeAlert: "font-size: 14px",
-    fontIng: "noDisplay",
+    fontIng: "montserrat-font",
     fontSizeIng: "font-size: 14px",
   });
 
@@ -345,29 +345,3 @@
     </div>
   </div>
 {/if}
-
-<style>
-  /* Google Fonts import */
-  @import url("https://fonts.googleapis.com/css2?family=Fira+Sans:ital,wght@0,400;0,700;0,900;1,900&family=Gluten:wght@500&family=Montserrat:wght@100..900&family=Pacifico&display=swap");
-
-  /* Font classes */
-  .montserrat-font {
-    font-family: "Montserrat", sans-serif;
-  }
-
-  .gluten-font {
-    font-family: "Gluten", cursive;
-  }
-
-  .pacifico-regular {
-    font-family: "Pacifico", cursive;
-  }
-
-  .fira-sans {
-    font-family: "Fira Sans", sans-serif;
-  }
-
-  .noDisplay {
-    display: none !important;
-  }
-</style>

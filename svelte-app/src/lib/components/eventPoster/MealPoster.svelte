@@ -137,7 +137,7 @@
       class:no-print={!sectionsToPrint[sectionId]}
     >
       <!-- Print action (no-print) -->
-      <div class="no-print group absolute top-4 right-4 print:hidden">
+      <div class=" group absolute top-4 right-4 print:hidden">
         <button
           class="btn btn-circle btn-ghost opacity-20 transition-opacity hover:opacity-100"
           onclick={() => onPrintThis(sectionId)}
@@ -294,7 +294,7 @@
   </div>
 
   <!-- Boutons de restauration (no-print, Colonne de droite) -->
-  <div class="no-print m-auto flex flex-col gap-4">
+  <div class="m-auto flex flex-col gap-4 print:hidden">
     {#each sortedCategories as category}
       {#each recipesByCategory.get(category) ?? [] as recipe}
         {@const recipeKey = `${dateKey}${horaire}_${recipe.recipeUuid}`}
