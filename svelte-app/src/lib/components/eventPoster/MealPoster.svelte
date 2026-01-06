@@ -125,6 +125,16 @@
     };
     return labels[category] || category;
   }
+  // Font size helpers
+  function getBigFontSize(step: number) {
+    const sizes = ["1.5rem", "2rem", "2.5rem", "3.2rem"];
+    return `font-size: ${sizes[step] || "2.5rem"}`;
+  }
+
+  function getSmallFontSize(step: number) {
+    const sizes = ["0.7rem", "0.85rem", "1rem", "1.2rem"];
+    return `font-size: ${sizes[step] || "1rem"}`;
+  }
 </script>
 
 <div class=" grid grid-cols-[1fr_auto] items-start gap-4 p-2">
@@ -148,24 +158,47 @@
       </div>
 
       <div class="poster-content text-black">
+        <!-- Message Top -->
+        {#if config.messageTop}
+          <div
+            class="mb-8 text-center"
+            class:montserrat-font={config.fontTop === "montserrat-font"}
+            class:playfair-display={config.fontTop === "playfair-display"}
+            class:oswald-font={config.fontTop === "oswald-font"}
+            class:quicksand-font={config.fontTop === "quicksand-font"}
+            class:fira-sans={config.fontTop === "fira-sans"}
+            class:dancing-script={config.fontTop === "dancing-script"}
+            class:pacifico-regular={config.fontTop === "pacifico-regular"}
+            class:caveat-font={config.fontTop === "caveat-font"}
+            class:gluten-font={config.fontTop === "gluten-font"}
+            class:font-bold={config.boldTop}
+            class:italic={config.italicTop}
+            style={getSmallFontSize(config.fontSizeTop)}
+          >
+            {config.messageTop}
+          </div>
+        {/if}
+
         <!-- Date and Horaire Header -->
         <div class="mb-8 text-center">
-          {#if config.showDate && config.fontDate !== "noDisplay"}
+          {#if config.showDate}
             <p
-              class="m-0 text-center text-3xl font-light"
+              class="m-0 text-center text-3xl"
               class:montserrat-font={config.fontDate === "montserrat-font"}
               class:gluten-font={config.fontDate === "gluten-font"}
               class:pacifico-regular={config.fontDate === "pacifico-regular"}
               class:fira-sans={config.fontDate === "fira-sans"}
-              style={config.fontSizeDate}
+              class:font-bold={config.boldDate}
+              class:italic={config.italicDate}
+              style={getBigFontSize(config.fontSizeDate)}
             >
               {formattedDate}
             </p>
           {/if}
 
-          {#if config.showHoraire && config.fontHoraire !== "noDisplay"}
+          {#if config.showHoraire}
             <p
-              class="m-0 text-center text-3xl font-light"
+              class="m-0 text-center text-3xl"
               class:montserrat-font={config.fontHoraire === "montserrat-font"}
               class:playfair-display={config.fontHoraire === "playfair-display"}
               class:oswald-font={config.fontHoraire === "oswald-font"}
@@ -175,13 +208,15 @@
               class:pacifico-regular={config.fontHoraire === "pacifico-regular"}
               class:caveat-font={config.fontHoraire === "caveat-font"}
               class:gluten-font={config.fontHoraire === "gluten-font"}
-              style={config.fontSizeHoraire}
+              class:font-bold={config.boldHoraire}
+              class:italic={config.italicHoraire}
+              style={getBigFontSize(config.fontSizeHoraire)}
             >
               {horaire}
             </p>
           {/if}
 
-          {#if (config.showHoraire || config.showDate) && (config.fontHoraire !== "noDisplay" || config.fontDate !== "noDisplay")}
+          {#if config.showHoraire || config.showDate}
             <div
               class="separator mx-auto my-6 w-48 border-t border-black opacity-20"
             ></div>
@@ -198,9 +233,9 @@
             <!-- Repeat date if catPageBreak and dateByPageBreak -->
             {#if config.catPageBreak && config.dateByPageBreak && !isFirst}
               <div class="mb-6 text-center">
-                {#if config.showDate && config.fontDate !== "noDisplay"}
+                {#if config.showDate}
                   <p
-                    class="m-0 text-center text-3xl font-light"
+                    class="m-0 text-center text-3xl"
                     class:montserrat-font={config.fontDate ===
                       "montserrat-font"}
                     class:playfair-display={config.fontDate ===
@@ -213,22 +248,34 @@
                       "pacifico-regular"}
                     class:caveat-font={config.fontDate === "caveat-font"}
                     class:gluten-font={config.fontDate === "gluten-font"}
-                    style={config.fontSizeDate}
+                    class:font-bold={config.boldDate}
+                    class:italic={config.italicDate}
+                    style={getBigFontSize(config.fontSizeDate)}
                   >
                     {formattedDate}
                   </p>
                 {/if}
 
-                {#if config.showHoraire && config.fontHoraire !== "noDisplay"}
+                {#if config.showHoraire}
                   <p
-                    class="m-0 text-center text-3xl font-light"
+                    class="m-0 text-center text-3xl"
                     class:montserrat-font={config.fontHoraire ===
                       "montserrat-font"}
-                    class:gluten-font={config.fontHoraire === "gluten-font"}
+                    class:playfair-display={config.fontHoraire ===
+                      "playfair-display"}
+                    class:oswald-font={config.fontHoraire === "oswald-font"}
+                    class:quicksand-font={config.fontHoraire ===
+                      "quicksand-font"}
+                    class:fira-sans={config.fontHoraire === "fira-sans"}
+                    class:dancing-script={config.fontHoraire ===
+                      "dancing-script"}
                     class:pacifico-regular={config.fontHoraire ===
                       "pacifico-regular"}
-                    class:fira-sans={config.fontHoraire === "fira-sans"}
-                    style={config.fontSizeHoraire}
+                    class:caveat-font={config.fontHoraire === "caveat-font"}
+                    class:gluten-font={config.fontHoraire === "gluten-font"}
+                    class:font-bold={config.boldHoraire}
+                    class:italic={config.italicHoraire}
+                    style={getBigFontSize(config.fontSizeHoraire)}
                   >
                     {horaire}
                   </p>
@@ -241,9 +288,9 @@
             {/if}
 
             <!-- Category Header -->
-            {#if config.showCategories && config.fontCat !== "noDisplay"}
+            {#if config.showCategories}
               <h3
-                class="mb-6 text-center text-xl font-bold tracking-widest uppercase opacity-60"
+                class="mb-6 text-center text-xl tracking-widest uppercase opacity-60"
                 class:montserrat-font={config.fontCat === "montserrat-font"}
                 class:playfair-display={config.fontCat === "playfair-display"}
                 class:oswald-font={config.fontCat === "oswald-font"}
@@ -253,7 +300,9 @@
                 class:pacifico-regular={config.fontCat === "pacifico-regular"}
                 class:caveat-font={config.fontCat === "caveat-font"}
                 class:gluten-font={config.fontCat === "gluten-font"}
-                style={config.fontSizeCat}
+                class:font-bold={config.boldCat}
+                class:italic={config.italicCat}
+                style={getBigFontSize(config.fontSizeCat)}
               >
                 {getCategoryLabel(category)}
               </h3>
@@ -301,7 +350,21 @@
         {/each}
 
         {#if config.messageBottom}
-          <div class="mt-12 text-center font-bold italic opacity-80">
+          <div
+            class="mt-12 text-center"
+            class:montserrat-font={config.fontBottom === "montserrat-font"}
+            class:playfair-display={config.fontBottom === "playfair-display"}
+            class:oswald-font={config.fontBottom === "oswald-font"}
+            class:quicksand-font={config.fontBottom === "quicksand-font"}
+            class:fira-sans={config.fontBottom === "fira-sans"}
+            class:dancing-script={config.fontBottom === "dancing-script"}
+            class:pacifico-regular={config.fontBottom === "pacifico-regular"}
+            class:caveat-font={config.fontBottom === "caveat-font"}
+            class:gluten-font={config.fontBottom === "gluten-font"}
+            class:font-bold={config.boldBottom}
+            class:italic={config.italicBottom}
+            style={getSmallFontSize(config.fontSizeBottom)}
+          >
             {config.messageBottom}
           </div>
         {/if}
@@ -401,15 +464,5 @@
 
   .category-block {
     break-inside: avoid;
-  }
-
-  .vertical-text {
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    transform: rotate(180deg);
-    white-space: nowrap;
-    max-height: 15ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 </style>

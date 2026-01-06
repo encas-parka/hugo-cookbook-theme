@@ -178,6 +178,16 @@
     if (!recipeData?.categories) return [];
     return recipeData.categories;
   });
+  // Font size helpers
+  function getBigFontSize(step: number) {
+    const sizes = ["1.5rem", "2rem", "2.5rem", "3.2rem"];
+    return `font-size: ${sizes[step] || "2.5rem"}`;
+  }
+
+  function getSmallFontSize(step: number) {
+    const sizes = ["0.7rem", "0.85rem", "1rem", "1.2rem"];
+    return `font-size: ${sizes[step] || "1rem"}`;
+  }
 </script>
 
 {#if visible}
@@ -212,7 +222,7 @@
       {:else}
         <button
           type="button"
-          class="recipe-title mb-2 block w-full border-none bg-transparent p-0 text-center text-lg font-semibold text-black transition-colors hover:bg-black/5"
+          class="recipe-title mb-2 block w-full border-none bg-transparent p-0 text-center text-lg text-black transition-colors hover:bg-black/5"
           class:cursor-pointer={!isEditing}
           class:montserrat-font={config.fontRecettes === "montserrat-font"}
           class:playfair-display={config.fontRecettes === "playfair-display"}
@@ -223,7 +233,9 @@
           class:pacifico-regular={config.fontRecettes === "pacifico-regular"}
           class:caveat-font={config.fontRecettes === "caveat-font"}
           class:gluten-font={config.fontRecettes === "gluten-font"}
-          style={config.fontSizeRecettes}
+          class:font-bold={config.boldRecettes}
+          class:italic={config.italicRecettes}
+          style={getBigFontSize(config.fontSizeRecettes)}
           onclick={handleStartEdit}
         >
           {name}
@@ -251,7 +263,7 @@
             <div class="flex items-center justify-center gap-2 px-4">
               <button
                 type="button"
-                class="recipe-description block border-none bg-transparent p-0 text-sm text-black italic opacity-90 transition-colors hover:bg-black/5"
+                class="recipe-description block border-none bg-transparent p-0 text-sm text-black opacity-90 transition-colors hover:bg-black/5"
                 class:cursor-pointer={!isEditingDescription}
                 class:montserrat-font={config.fontDesc === "montserrat-font"}
                 class:playfair-display={config.fontDesc === "playfair-display"}
@@ -262,6 +274,9 @@
                 class:pacifico-regular={config.fontDesc === "pacifico-regular"}
                 class:caveat-font={config.fontDesc === "caveat-font"}
                 class:gluten-font={config.fontDesc === "gluten-font"}
+                class:font-bold={config.boldDesc}
+                class:italic={config.italicDesc}
+                style={getSmallFontSize(config.fontSizeDesc)}
                 onclick={handleStartEditDescription}
               >
                 {#if displayDescription}
@@ -290,12 +305,10 @@
         <div class="mt-3 flex flex-wrap justify-center gap-2">
           {#each regimes as regime (regime)}
             <span
-              class:badge
-              rounded-xl
-              border-black
+              class="border-black
               bg-transparent
               font-medium
-              text-black
+              text-black"
               class:montserrat-font={config.fontRegimes === "montserrat-font"}
               class:playfair-display={config.fontRegimes === "playfair-display"}
               class:oswald-font={config.fontRegimes === "oswald-font"}
@@ -305,6 +318,9 @@
               class:pacifico-regular={config.fontRegimes === "pacifico-regular"}
               class:caveat-font={config.fontRegimes === "caveat-font"}
               class:gluten-font={config.fontRegimes === "gluten-font"}
+              class:font-bold={config.boldRegimes}
+              class:italic={config.italicRegimes}
+              style={getSmallFontSize(config.fontSizeRegimes)}
             >
               {regime}
             </span>
@@ -320,7 +336,23 @@
             <span class="text-[0.6rem] font-bold tracking-widest uppercase"
               >Attention:
             </span>
-            <span class="opacity-80">{allergens.join(", ")}</span>
+            <span
+              class:montserrat-font={config.fontAlert === "montserrat-font"}
+              class:playfair-display={config.fontAlert === "playfair-display"}
+              class:oswald-font={config.fontAlert === "oswald-font"}
+              class:quicksand-font={config.fontAlert === "quicksand-font"}
+              class:fira-sans={config.fontAlert === "fira-sans"}
+              class:dancing-script={config.fontAlert === "dancing-script"}
+              class:pacifico-regular={config.fontAlert === "pacifico-regular"}
+              class:caveat-font={config.fontAlert === "caveat-font"}
+              class:gluten-font={config.fontAlert === "gluten-font"}
+              class:font-bold={config.boldAlert}
+              class:italic={config.italicAlert}
+              style={getSmallFontSize(config.fontSizeAlert)}
+              class="opacity-80"
+            >
+              {allergens.join(", ")}
+            </span>
           </div>
         {/if}
 
@@ -361,6 +393,9 @@
                 class:pacifico-regular={config.fontIng === "pacifico-regular"}
                 class:caveat-font={config.fontIng === "caveat-font"}
                 class:gluten-font={config.fontIng === "gluten-font"}
+                class:font-bold={config.boldIng}
+                class:italic={config.italicIng}
+                style={getSmallFontSize(config.fontSizeIng)}
                 onclick={handleStartEditIngredients}
               >
                 {ingredientNames.join(", ")}
@@ -402,14 +437,6 @@
   .recipe-description {
     max-width: 55ch;
     line-height: 1.4;
-  }
-
-  .badge {
-    height: auto;
-    padding-top: 2px;
-    padding-bottom: 2px;
-    border-width: 1px;
-    font-size: 0.75rem;
   }
 
   @media print {

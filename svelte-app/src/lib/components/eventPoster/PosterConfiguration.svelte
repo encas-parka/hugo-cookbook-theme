@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PosterConfig } from "./poster.types";
+  import { Bold, Italic } from "@lucide/svelte";
 
   interface Props {
     config: PosterConfig;
@@ -136,15 +137,31 @@
     {/if}
   </section>
 
-  <!-- Bottom Message -->
-  <section>
+  <section class="space-y-4">
+    <h3 class="text-base-content font-semibold">Messages personnalisés</h3>
     <fieldset class="fieldset w-full">
-      <legend class="fieldset-legend"> Message en bas de chaque fiche </legend>
-      <label class="input w-full">
+      <legend class="fieldset-legend text-xs opacity-60">
+        Message en haut de chaque fiche
+      </legend>
+      <label class="input input-sm w-full">
         <input
           type="text"
           class="grow"
-          placeholder="Ajouter un message..."
+          placeholder="Ajouter un message en haut..."
+          bind:value={config.messageTop}
+        />
+      </label>
+    </fieldset>
+
+    <fieldset class="fieldset w-full">
+      <legend class="fieldset-legend text-xs opacity-60">
+        Message en bas de chaque fiche
+      </legend>
+      <label class="input input-sm w-full">
+        <input
+          type="text"
+          class="grow"
+          placeholder="Ajouter un message en bas..."
           bind:value={config.messageBottom}
         />
       </label>
@@ -152,67 +169,180 @@
   </section>
 
   <!-- Font Styles -->
-  <section>
-    <h3 class="text-base-content mb-4 font-semibold">Styles de police</h3>
+  <section class="pb-10">
+    <h3 class="text-base-content mb-4 font-semibold italic opacity-50">
+      Personnalisation des textes
+    </h3>
 
-    <fieldset class="fieldset w-full">
-      <legend class="fieldset-legend text-sm">Date</legend>
-      <select class="select w-full" bind:value={config.fontDate}>
-        <option value="montserrat-font">Montserrat (Standard)</option>
-        <option value="playfair-display">Playfair (Élégant)</option>
-        <option value="oswald-font">Oswald (Bistro/Impact)</option>
-        <option value="quicksand-font">Quicksand (Moderne)</option>
-        <option value="fira-sans">Fira Sans (Clean)</option>
-        <option value="dancing-script">Dancing Script (Cursive)</option>
-        <option value="pacifico-regular">Pacifico (Script)</option>
-        <option value="caveat-font">Caveat (Manuscrit)</option>
-        <option value="gluten-font">Gluten (Funky)</option>
-      </select>
-    </fieldset>
+    <div class="space-y-4">
+      <!-- Helper for Font Settings -->
+      {#snippet fontSetting(
+        label,
+        fontKey,
+        sizeKey,
+        boldKey,
+        italicKey,
+        visible = true,
+      )}
+        {#if visible}
+          <div
+            class="border-base-content/5 bg-base-200/30 rounded-xl border p-3"
+          >
+            <div class="mb-2 flex items-center justify-between">
+              <span class="text-xs font-bold uppercase opacity-60">{label}</span
+              >
+              <div class="flex items-center gap-1">
+                <!-- Style controls: Bold/Italic -->
+                <div class="mr-2 flex gap-0.5">
+                  <button
+                    class="btn btn-ghost btn-xs btn-square {config[boldKey]
+                      ? 'btn-primary bg-primary/20'
+                      : 'opacity-40'}"
+                    onclick={() => (config[boldKey] = !config[boldKey])}
+                    title="Gras"
+                  >
+                    <Bold class="size-3" />
+                  </button>
+                  <button
+                    class="btn btn-ghost btn-xs btn-square {config[italicKey]
+                      ? 'btn-primary bg-primary/20'
+                      : 'opacity-40'}"
+                    onclick={() => (config[italicKey] = !config[italicKey])}
+                    title="Italique"
+                  >
+                    <Italic class="size-3" />
+                  </button>
+                </div>
 
-    <fieldset class="fieldset w-full">
-      <legend class="fieldset-legend text-sm">Horaire</legend>
-      <select class="select w-full" bind:value={config.fontHoraire}>
-        <option value="montserrat-font">Montserrat (Standard)</option>
-        <option value="playfair-display">Playfair (Élégant)</option>
-        <option value="oswald-font">Oswald (Bistro/Impact)</option>
-        <option value="quicksand-font">Quicksand (Moderne)</option>
-        <option value="fira-sans">Fira Sans (Clean)</option>
-        <option value="dancing-script">Dancing Script (Cursive)</option>
-        <option value="pacifico-regular">Pacifico (Script)</option>
-        <option value="caveat-font">Caveat (Manuscrit)</option>
-        <option value="gluten-font">Gluten (Funky)</option>
-      </select>
-    </fieldset>
+                <!-- Size controls -->
+                <button
+                  class="btn btn-ghost btn-xs btn-square font-bold"
+                  onclick={() =>
+                    (config[sizeKey] = Math.max(0, config[sizeKey] - 1))}
+                  disabled={config[sizeKey] === 0}
+                >
+                  A-
+                </button>
+                <div class="flex gap-0.5">
+                  {#each [0, 1, 2, 3] as step}
+                    <div
+                      class="h-1 w-2 rounded-full transition-colors {config[
+                        sizeKey
+                      ] >= step
+                        ? 'bg-primary'
+                        : 'bg-base-content/10'}"
+                    ></div>
+                  {/each}
+                </div>
+                <button
+                  class="btn btn-ghost btn-xs btn-square font-bold"
+                  onclick={() =>
+                    (config[sizeKey] = Math.min(3, config[sizeKey] + 1))}
+                  disabled={config[sizeKey] === 3}
+                >
+                  A+
+                </button>
+              </div>
+            </div>
 
-    <fieldset class="fieldset w-full">
-      <legend class="fieldset-legend text-sm">Catégories</legend>
-      <select class="select w-full" bind:value={config.fontCat}>
-        <option value="montserrat-font">Montserrat (Standard)</option>
-        <option value="playfair-display">Playfair (Élégant)</option>
-        <option value="oswald-font">Oswald (Bistro/Impact)</option>
-        <option value="quicksand-font">Quicksand (Moderne)</option>
-        <option value="fira-sans">Fira Sans (Clean)</option>
-        <option value="dancing-script">Dancing Script (Cursive)</option>
-        <option value="pacifico-regular">Pacifico (Script)</option>
-        <option value="caveat-font">Caveat (Manuscrit)</option>
-        <option value="gluten-font">Gluten (Funky)</option>
-      </select>
-    </fieldset>
+            <select
+              class="select select-sm select-bordered w-full"
+              bind:value={config[fontKey]}
+            >
+              <option value="montserrat-font">Montserrat (Standard)</option>
+              <option value="playfair-display">Playfair (Élégant)</option>
+              <option value="oswald-font">Oswald (Bistro/Impact)</option>
+              <option value="quicksand-font">Quicksand (Moderne)</option>
+              <option value="fira-sans">Fira Sans (Clean)</option>
+              <option value="dancing-script">Dancing Script (Cursive)</option>
+              <option value="pacifico-regular">Pacifico (Script)</option>
+              <option value="caveat-font">Caveat (Manuscrit)</option>
+              <option value="gluten-font">Gluten (Funky)</option>
+            </select>
+          </div>
+        {/if}
+      {/snippet}
 
-    <fieldset class="fieldset w-full">
-      <legend class="fieldset-legend text-sm">Recettes</legend>
-      <select class="select w-full" bind:value={config.fontRecettes}>
-        <option value="montserrat-font">Montserrat (Standard)</option>
-        <option value="playfair-display">Playfair (Élégant)</option>
-        <option value="oswald-font">Oswald (Bistro/Impact)</option>
-        <option value="quicksand-font">Quicksand (Moderne)</option>
-        <option value="fira-sans">Fira Sans (Clean)</option>
-        <option value="dancing-script">Dancing Script (Cursive)</option>
-        <option value="pacifico-regular">Pacifico (Script)</option>
-        <option value="caveat-font">Caveat (Manuscrit)</option>
-        <option value="gluten-font">Gluten (Funky)</option>
-      </select>
-    </fieldset>
+      {@render fontSetting(
+        "Date",
+        "fontDate",
+        "fontSizeDate",
+        "boldDate",
+        "italicDate",
+        config.showDate,
+      )}
+      {@render fontSetting(
+        "Horaire",
+        "fontHoraire",
+        "fontSizeHoraire",
+        "boldHoraire",
+        "italicHoraire",
+        config.showHoraire,
+      )}
+      {@render fontSetting(
+        "Catégories",
+        "fontCat",
+        "fontSizeCat",
+        "boldCat",
+        "italicCat",
+        config.showCategories,
+      )}
+      {@render fontSetting(
+        "Titre Recettes",
+        "fontRecettes",
+        "fontSizeRecettes",
+        "boldRecettes",
+        "italicRecettes",
+        true,
+      )}
+      {@render fontSetting(
+        "Description",
+        "fontDesc",
+        "fontSizeDesc",
+        "boldDesc",
+        "italicDesc",
+        config.showDescription,
+      )}
+      {@render fontSetting(
+        "Régimes",
+        "fontRegimes",
+        "fontSizeRegimes",
+        "boldRegimes",
+        "italicRegimes",
+        config.showRegimes,
+      )}
+      {@render fontSetting(
+        "Ingrédients",
+        "fontIng",
+        "fontSizeIng",
+        "boldIng",
+        "italicIng",
+        config.showIngredients,
+      )}
+      {@render fontSetting(
+        "Allergènes",
+        "fontAlert",
+        "fontSizeAlert",
+        "boldAlert",
+        "italicAlert",
+        config.showAllergens,
+      )}
+      {@render fontSetting(
+        "Message Haut",
+        "fontTop",
+        "fontSizeTop",
+        "boldTop",
+        "italicTop",
+        !!config.messageTop,
+      )}
+      {@render fontSetting(
+        "Message Bas",
+        "fontBottom",
+        "fontSizeBottom",
+        "boldBottom",
+        "italicBottom",
+        !!config.messageBottom,
+      )}
+    </div>
   </section>
 </div>
