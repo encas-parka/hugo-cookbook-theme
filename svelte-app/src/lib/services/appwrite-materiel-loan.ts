@@ -159,7 +159,7 @@ export async function createMaterielLoan(
         ownerId: data.ownerId,
         ownerName: data.ownerName,
         ownerType: data.ownerType,
-        materiels: JSON.stringify(data.materiels),
+        materiels: data.materiels.map((item) => JSON.stringify(item)),
         notes: data.notes || null,
         status: data.status || "asked",
         completedAt: null,
@@ -202,7 +202,7 @@ export async function updateMaterielLoan(
     if (data.startDate !== undefined) updateData.startDate = data.startDate;
     if (data.endDate !== undefined) updateData.endDate = data.endDate;
     if (data.materiels !== undefined)
-      updateData.materiels = JSON.stringify(data.materiels);
+      updateData.materiels = data.materiels.map((item) => JSON.stringify(item));
     if (data.status !== undefined) updateData.status = data.status;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.completedAt !== undefined)

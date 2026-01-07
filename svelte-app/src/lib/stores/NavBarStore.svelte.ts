@@ -9,6 +9,8 @@ export interface NavBarConfig {
   isLockedByOthers?: boolean;
   lockedByUserName?: string;
   hasUnsavedChanges?: boolean;
+  materielContext?: "materiel" | "loans" | null;
+  teamId?: string;
 }
 
 class NavBarStore {
@@ -46,6 +48,14 @@ class NavBarStore {
 
   get hasUnsavedChanges() {
     return this.#config.hasUnsavedChanges || false;
+  }
+
+  get materielContext() {
+    return this.#config.materielContext || null;
+  }
+
+  get teamId() {
+    return this.#config.teamId;
   }
 
   setConfig(config: NavBarConfig) {

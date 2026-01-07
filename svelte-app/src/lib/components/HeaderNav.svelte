@@ -4,6 +4,7 @@
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { recipesStore } from "../stores/RecipesStore.svelte";
   import EventTabs from "./eventEdit/EventTabs.svelte";
+  import MaterielTabs from "./MaterielTabs.svelte";
   import { refreshAllStores } from "$lib/utils/storesReload";
 
   import {
@@ -167,7 +168,9 @@
   <!-- navbar-center : SEULEMENT SUR DESKTOP -->
   {#if globalState.isDesktop}
     <div class="navbar-center absolute left-1/2 -translate-x-1/2 transform">
-      {#if navBarStore.eventId !== undefined}
+      {#if navBarStore.materielContext}
+        <MaterielTabs currentTeamId={navBarStore.teamId} />
+      {:else if navBarStore.eventId !== undefined}
         <EventTabs eventId={navBarStore.eventId} />
       {:else}
         <h1
@@ -289,7 +292,9 @@
 <!-- SECTION SÉPARÉE : SEULEMENT SUR MOBILE (NON-STICKY) -->
 {#if !globalState.isDesktop}
   <div class="border-base-300 bg-base-100 border-b px-4 py-3">
-    {#if navBarStore.eventId !== undefined}
+    {#if navBarStore.materielContext}
+      <MaterielTabs currentTeamId={navBarStore.teamId} />
+    {:else if navBarStore.eventId !== undefined}
       <EventTabs eventId={navBarStore.eventId} />
     {:else if navBarStore.title}
       <h1

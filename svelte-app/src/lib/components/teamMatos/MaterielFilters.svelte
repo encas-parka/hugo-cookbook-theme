@@ -3,8 +3,8 @@
     Package,
     MapPin,
     AlertCircle,
-    Calendar,
     FunnelX,
+    Calendar,
   } from "@lucide/svelte";
   import Fieldset from "$lib/components/ui/Fieldset.svelte";
   import CheckboxBadge from "$lib/components/ui/CheckboxBadge.svelte";
@@ -14,7 +14,6 @@
     types: string[]; // Sélection multiple
     locations: string[]; // Sélection multiple
     statuses: string[]; // Sélection multiple
-    loanStatus: "all" | "available" | "planned" | "active"; // Sélection unique
   }
 
   interface Props {
@@ -130,20 +129,5 @@
         />
       {/each}
     </div>
-  </Fieldset>
-
-  <!-- Emprunts -->
-  <Fieldset legend="Emprunts" iconComponent={Calendar}>
-    <RadioBadgeGroup
-      items={[
-        { id: "all", label: "Tous" },
-        { id: "available", label: "Disponible" },
-        { id: "planned", label: "Prêts planifiés (futurs)" },
-        { id: "active", label: "Prêts en cours" },
-      ]}
-      bind:selected={filters.loanStatus}
-      color="secondary"
-      {disabled}
-    />
   </Fieldset>
 </div>

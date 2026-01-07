@@ -33,9 +33,9 @@
       "createdAt" (.Params.createdAt | default .Params.publishDate | default "2025-01-01T00:00:00Z")
       "updatedAt" (.Params.updatedAt | default .Params.publishDate | default "2025-01-01T00:00:00Z")
       "createdBy" (.Params.createdBy | default .Params.auteur | default "")
-      "rootRecipeId" (.Params.rootRecipeId | default null)
-      "versionLabel" (.Params.versionLabel | default null)
-      "teams" (.Params.teams | default null)
+      "rootRecipeId" (.Params.rootRecipeId | default "")
+      "versionLabel" (.Params.versionLabel | default "")
+      "teams" (.Params.teams | default "")
       "status" (.Params.status | default "public")
     -}}
     {{- $recipes = $recipes | append $recipe -}}

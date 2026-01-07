@@ -203,6 +203,13 @@
             </span>
             <span class="text-base-content/60 ml-1 text-xs">disp.</span>
           </div>
+
+          <!-- Info sur les prêts (si présent) -->
+          {#if materiel.totalLoanedQuantity > 0}
+            <div class="text-base-content/70 text-xs">
+              {materiel.totalLoanedQuantity}/{materiel.quantity} en prêt(s)
+            </div>
+          {/if}
           <!-- Description -->
           {#if truncatedDescription}
             <div class="text-base-content/60 line-clamp-1 text-xs">
@@ -235,13 +242,6 @@
             </div>
           {/if}
         </div>
-
-        <!-- Info sur les prêts (si présent) -->
-        {#if materiel.totalLoanedQuantity > 0}
-          <div class="text-base-content/70 text-xs">
-            {materiel.totalLoanedQuantity}/{materiel.quantity} prêt(s)
-          </div>
-        {/if}
       </div>
 
       <!-- Actions -->
@@ -263,7 +263,7 @@
 
     <!-- Emprunts en cours (Compact, en bas si présents) -->
     {#if materiel.loanDetails.length > 0}
-      <div class="border-base-200/50 mt-2 border-t pt-2">
+      <div class="border-base-200 mt-2 border-t">
         <div class="text-xs">
           <span class="text-info font-semibold">
             {materiel.loanDetails.length} prêt(s) :
