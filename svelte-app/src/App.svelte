@@ -5,6 +5,7 @@
   import { nativeTeamsStore as teamsStore } from "./lib/stores/NativeTeamsStore.svelte";
   import { recipesStore } from "./lib/stores/RecipesStore.svelte";
   import { notificationStore } from "./lib/stores/NotificationStore.svelte";
+  import { materielStore } from "./lib/stores/MaterielStore.svelte";
   import { realtimeManager } from "./lib/stores/RealtimeManager.svelte";
   import { onDestroy } from "svelte";
   import ErrorAlert from "./lib/components/ui/ErrorAlert.svelte";
@@ -113,6 +114,7 @@
           teamsStore.initialize(),
           eventsStore.initialize(),
           recipesStore.initialize(),
+          materielStore.initialize(),
         ]);
         // 3. Activer la connexion WebSocket centralisée
         await realtimeManager.initialize();

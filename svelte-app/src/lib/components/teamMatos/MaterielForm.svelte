@@ -18,6 +18,9 @@
   interface Props {
     showStatus?: boolean;
     buttonAction?: boolean;
+    ownerId?: string; // Optionnel : si fourni, pré-remplit l'owner
+    ownerName?: string; // Optionnel : nom de l'owner pour l'affichage
+    ownerType?: "user" | "team"; // Optionnel : type de l'owner
     onSubmit?: (data: {
       name: string;
       description: string | null;
@@ -36,6 +39,9 @@
     onSubmit,
     onCancel,
     buttonAction = true,
+    ownerId,
+    ownerName,
+    ownerType: propOwnerType,
   }: Props = $props();
 
   // Import du user info
@@ -55,6 +61,23 @@
 
   let loading = $state(false);
   let error = $state<string | null>(null);
+
+  // L'owner est-il verrouillé (pré-rempli depuis les props) ?
+  const isOwnerLocked = $derived(ownerId && propOwnerType);
+
+  // Initialiser l'owner depuis les props si fournies
+  $effect(() => {
+    if (ownerId && propOwnerType) {
+      if (propOwnerType === "team") {
+        selectedOwnerId = ownerId;
+      } else {
+        selectedOwnerId = "me";
+      }
+    } else {
+      // Reset si pas de props
+      selectedOwnerId = "me";
+    }
+  });
 
   // Options pour les RadioBadgeGroups
   const typeOptions = $derived([
@@ -95,8 +118,28 @@
     ...teamOptions,
   ]);
 
-  // Objet owner JSON (dérivé de selectedOwnerId)
+  // Objet owner JSON (dérivé de selectedOwnerId ou des props)
   const ownerJson = $derived.by(() => {
+    // Si l'owner est verrouillé via les props, les utiliser
+    if (isOwnerLocked && ownerId && propOwnerType) {
+      if (propOwnerType === "team") {
+        return JSON.stringify({
+          userName: "",
+          userId: "",
+          teamName: ownerName || "",
+          teamId: ownerId,
+        });
+      } else {
+        return JSON.stringify({
+          userName: ownerName || globalState.userName || "",
+          userId: ownerId,
+          teamName: "",
+          teamId: "",
+        });
+      }
+    }
+
+    // Sinon, utiliser selectedOwnerId
     if (selectedOwnerId === "me") {
       return JSON.stringify({
         userName: globalState.userName || "",
@@ -179,6 +222,11 @@
 </script>
 
 <div class="space-y-6">
+  <div class="text-lg font-medium">
+    Ajouter du matériel a l'inventaire de <span class="font-bold italic"
+      >{ownerName}</span
+    >
+  </div>
   <!-- Section 1: Nom + Description -->
   <div class="space-y-3">
     <div class="flex flex-wrap gap-x-6 gap-y-4">

@@ -51,21 +51,18 @@
   }
 
   // Ouvrir le modal de retour
-  function openReturnModal(loan: EnrichedMaterielLoan) {
-    selectedLoan = loan;
-    showReturnModal = true;
+  function openReturnModal(loanId: string) {
+    const loan = materielStore.getLoanById(loanId);
+    if (loan) {
+      selectedLoan = loan;
+      showReturnModal = true;
+    }
   }
 
   // Fermer le modal de retour
   function closeReturnModal() {
     showReturnModal = false;
     selectedLoan = null;
-  }
-
-  // Après retour
-  function handleLoanReturned() {
-    console.log("[LoansPage] Emprunt retourné avec succès");
-    closeReturnModal();
   }
 
   // Équipes de l'utilisateur
@@ -112,6 +109,7 @@
         await nativeTeamsStore.initialize();
       }
 
+      // MaterielStore est déjà initialisé via App.svelte avec le realtime actif
       if (!materielStore.isInitialized) {
         await materielStore.initialize();
       }
@@ -269,6 +267,5 @@
     loan={selectedLoan}
     isOpen={showReturnModal}
     onClose={closeReturnModal}
-    onSuccess={handleLoanReturned}
   />
 {/if}

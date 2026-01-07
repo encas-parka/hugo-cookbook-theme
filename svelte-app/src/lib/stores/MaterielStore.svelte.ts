@@ -46,8 +46,10 @@ export class MaterielStore {
   #loading = $state(false);
   #error = $state<string | null>(null);
   #isInitialized = $state(false);
+  #isRealtimeActive = $state(false);
   #lastSyncMateriel = $state<string | null>(null);
   #lastSyncLoans = $state<string | null>(null);
+  #realtimeUnsubscribe: (() => void) | null = null;
 
   // Getters simples
   get loading() {
@@ -58,6 +60,9 @@ export class MaterielStore {
   }
   get isInitialized() {
     return this.#isInitialized;
+  }
+  get isRealtimeActive() {
+    return this.#isRealtimeActive;
   }
   get count() {
     return this.#materiels.size;
@@ -199,7 +204,7 @@ export class MaterielStore {
       // 3. Sync incrémentiel avec Appwrite
       await this.#syncFromAppwrite();
 
-      // 4. Setup realtime
+      // 4. Setup realtime (materiels + loans via RealtimeManager)
       await this.#setupRealtime();
 
       this.#isInitialized = true;
@@ -309,55 +314,89 @@ export class MaterielStore {
       console.log("[MaterielStore] ⚡️ Realtime RECEIVED:", response.events);
 
       const event = response.events[0];
-      const [, , , , collectionId, documentId] = event.split(".");
+      const payload = response.payload;
+
+      const collectionId = event.split(".")[4];
 
       if (collectionId === "materiel") {
-        await this.#handleMaterielRealtime(event, documentId);
+        await this.#handleMaterielRealtime(response);
       } else if (collectionId === "materiel_loan") {
-        await this.#handleLoanRealtime(event, documentId);
+        await this.#handleLoanRealtime(response);
       }
     });
   }
 
-  async #handleMaterielRealtime(event: string, documentId: string) {
+  async #handleMaterielRealtime(response: any): Promise<void> {
     try {
-      // Pour les événements create et update, on doit récupérer le document complet
-      if (event.includes(".create") || event.includes(".update")) {
-        const doc = await getMateriel(documentId);
-        if (doc) {
-          const enriched = this.#enrichMaterielFromLoans(doc);
-          this.#materiels.set(doc.$id, enriched);
-          this.#idbCache?.upsertMateriel(enriched);
-        }
-      } else if (event.includes(".delete")) {
-        this.#materiels.delete(documentId);
-        this.#idbCache?.deleteMateriel(documentId);
+      const events = response.events;
+      const payload = response.payload as Materiel;
+
+      if (!payload) {
+        console.warn(
+          "[MaterielStore] Realtime Materiel : pas de payload dans la réponse",
+        );
+        return;
+      }
+
+      const eventType = events.some((e: string) => e.includes(".create"))
+        ? "create"
+        : events.some((e: string) => e.includes(".delete"))
+          ? "delete"
+          : "update";
+
+      console.log(
+        `[MaterielStore] ⚡️ Realtime Materiel RECEIVED: ${eventType} pour ${payload.$id}`,
+      );
+
+      if (eventType === "create" || eventType === "update") {
+        const enriched = this.#enrichMaterielFromLoans(payload);
+        this.#materiels.set(payload.$id, enriched);
+        this.#idbCache?.upsertMateriel(enriched);
+      } else if (eventType === "delete") {
+        this.#materiels.delete(payload.$id);
+        this.#idbCache?.deleteMateriel(payload.$id);
       }
     } catch (err) {
       console.error("[MaterielStore] Erreur realtime Materiel:", err);
     }
   }
 
-  async #handleLoanRealtime(event: string, documentId: string) {
+  async #handleLoanRealtime(response: any): Promise<void> {
     try {
-      // Pour les événements create et update, on doit récupérer le document complet
-      if (event.includes(".create") || event.includes(".update")) {
-        const loan = await getMaterielLoan(documentId);
-        if (loan) {
-          const enriched = enrichLoanFromAppwrite(loan);
-          this.#loans.set(loan.$id, enriched);
-          this.#idbCache?.upsertLoan(loan);
-          this.#reEnrichMaterielsFromLoan(enriched);
-        }
-      } else if (event.includes(".delete")) {
+      const events = response.events;
+      const payload = response.payload as MaterielLoan;
+
+      if (!payload) {
+        console.warn(
+          "[MaterielStore] Realtime Loan : pas de payload dans la réponse",
+        );
+        return;
+      }
+
+      const eventType = events.some((e: string) => e.includes(".create"))
+        ? "create"
+        : events.some((e: string) => e.includes(".delete"))
+          ? "delete"
+          : "update";
+
+      console.log(
+        `[MaterielStore] ⚡️ Realtime Loan RECEIVED: ${eventType} pour ${payload.$id}`,
+      );
+
+      if (eventType === "create" || eventType === "update") {
+        const enriched = enrichLoanFromAppwrite(payload);
+        this.#loans.set(payload.$id, enriched);
+        this.#idbCache?.upsertLoan(payload);
+        this.#reEnrichMaterielsFromLoan(enriched);
+      } else if (eventType === "delete") {
         // Conserver le loan pour le ré-enrichissement avant suppression
-        const loan = this.#loans.get(documentId);
+        const loan = this.#loans.get(payload.$id);
         if (loan) {
-          // ✅ Plus d'await : ré-enrichissement synchrone avec données locales
+          // Ré-enrichissement synchrone avec données locales
           this.#reEnrichMaterielsFromLoan(loan);
         }
-        this.#loans.delete(documentId);
-        this.#idbCache?.deleteLoan(documentId);
+        this.#loans.delete(payload.$id);
+        this.#idbCache?.deleteLoan(payload.$id);
       }
     } catch (err) {
       console.error("[MaterielStore] Erreur realtime Loan:", err);

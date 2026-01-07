@@ -8,7 +8,6 @@
   import { router } from "$lib/services/simple-router.svelte";
   import MaterielCard from "$lib/components/teamMatos/MaterielCard.svelte";
   import MaterielForm from "$lib/components/teamMatos/MaterielForm.svelte";
-  import CreateMaterielModal from "$lib/components/teamMatos/CreateMaterielModal.svelte";
   import EditMaterielModal from "$lib/components/teamMatos/EditMaterielModal.svelte";
   import MaterielFilters, {
     type MaterielFiltersType,
@@ -109,6 +108,11 @@
   // Équipes de l'utilisateur
   const userTeams = $derived(nativeTeamsStore.myTeams);
 
+  // Équipe active
+  const activeTeam = $derived(
+    activeTeamId ? userTeams.find((t) => t.$id === activeTeamId) : null,
+  );
+
   // Matériel filtré pour l'équipe active
   const teamMateriels = $derived.by(() => {
     if (!activeTeamId) return [];
@@ -185,6 +189,7 @@
         await nativeTeamsStore.initialize();
       }
 
+      // MaterielStore est déjà initialisé via App.svelte avec le realtime actif
       if (!materielStore.isInitialized) {
         await materielStore.initialize();
       }
@@ -229,7 +234,6 @@
       title: teamName,
       materielContext: "materiel",
       teamId: activeTeamId || undefined,
-      actions: navActions,
     });
   });
 
@@ -237,13 +241,6 @@
     navBarStore.reset();
   });
 </script>
-
-{#snippet navActions()}
-  <button class="btn btn-primary btn-sm gap-2" onclick={openCreateModal}>
-    <Plus size={16} />
-    Ajouter du matériel
-  </button>
-{/snippet}
 
 <!-- Filtres - Sidebar Desktop / Drawer Mobile -->
 <LeftPanel width="100">
@@ -293,13 +290,16 @@
     {/if}
 
     <!-- Formulaire déployable -->
-    {#if showForm}
+    {#if showForm && activeTeam}
       <div class="card bg-base-100 mb-6 shadow-lg" transition:slide>
         <div class="card-body">
           <MaterielForm
             showStatus={false}
             onSubmit={handleMaterielSubmit}
             onCancel={closeForm}
+            ownerId={activeTeam.$id}
+            ownerName={activeTeam.name}
+            ownerType="team"
           />
         </div>
       </div>
@@ -370,13 +370,6 @@
     {/if}
   </div>
 </div>
-
-<!-- Modals -->
-<CreateMaterielModal
-  isOpen={createModalOpen}
-  onClose={closeCreateModal}
-  onSuccess={handleMaterielCreated}
-/>
 
 <EditMaterielModal
   materielId={editModalMaterielId}
