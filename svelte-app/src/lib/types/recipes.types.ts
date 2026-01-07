@@ -2,9 +2,9 @@
  * Types pour le système de recettes et ingrédients
  */
 
-import { type Recettes, RecettesTypeR } from "./appwrite.d";
+import { type Recettes, RecettesTypeR, RecettesStatus } from "./appwrite.d";
 import type { Astuce } from "../utils/recipeUtils";
-export { RecettesTypeR };
+export { RecettesTypeR, RecettesStatus };
 
 // =============================================================================
 // INGRÉDIENTS
@@ -91,11 +91,14 @@ export type RecipeIndexEntry = Pick<
   | "$id"
   | "$createdAt"
   | "$updatedAt"
-  | "rootRecipeId"
-  | "versionLabel"
 > & {
   ingredients: string[]; // Noms des ingrédients uniquement (pour filtrage rapide)
   auteur?: string; // Auteur de la recette (optionnel)
+  // Champs optionnels (pas dans Hugo, présents dans Appwrite)
+  rootRecipeId?: string | null;
+  versionLabel?: string | null;
+  teams?: string[] | null;
+  status?: RecettesStatus;
 };
 
 // =============================================================================
@@ -173,18 +176,18 @@ export interface RecipesCacheMetadata {
 
 /**
  * Données pour créer une recette (format Appwrite)
- * Exclut uniquement les champs auto-générés de Models.Row
+ * Exclut uniquement les champs auto-générés de Models.Row (ceux commençant par $)
+ * Note: createdBy est un champ métier que NOTRE application renseigne, pas Appwrite
  */
 export type CreateRecipeData = Omit<
   Recettes,
-  | "$createdAt"
-  | "$updatedAt"
-  | "$permissions"
-  | "$databaseId"
-  | "$collectionId"
-  | "$sequence"
-  | "$tableId"
-  | "createdBy"
+  | "$createdAt" // Auto-généré par Appwrite
+  | "$updatedAt" // Auto-généré par Appwrite
+  | "$permissions" // Auto-généré par Appwrite
+  | "$databaseId" // Auto-généré par Appwrite
+  | "$collectionId" // Auto-généré par Appwrite
+  | "$sequence" // Auto-généré par Appwrite
+  | "$tableId" // Auto-généré par Appwrite
 >;
 
 /**

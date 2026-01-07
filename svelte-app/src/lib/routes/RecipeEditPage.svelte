@@ -251,7 +251,6 @@
           toastService.info("Verrou précédent expiré, vous prenez le contrôle");
         } else {
           toastService.warning("Cette recette est déjà en cours d'édition");
-          isLockedByOther = true;
           return false;
         }
       }

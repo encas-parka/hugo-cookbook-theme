@@ -121,7 +121,7 @@
       {/if}
 
       <!-- Emprunts en cours -->
-      {#if currentMateriel.loans.length > 0}
+      <!-- {#if currentMateriel.loans.length > 0}
         <div class="divider">Emprunts en cours</div>
         <div class="space-y-2">
           {#each currentMateriel.loans as loan, index}
@@ -148,7 +148,7 @@
         <p class="text-base-content/60 text-sm">
           💡 La gestion des emprunts sera disponible prochainement
         </p>
-      {/if}
+      {/if} -->
     {:else}
       <div class="alert alert-warning">
         <span>Matériel introuvable</span>

@@ -120,7 +120,7 @@
   });
 </script>
 
-<AuthModal bind:isOpen={showAuthModal} onAuthSuccess={handleLoginSuccess} />
+<AuthModal bind:isOpen={showAuthModal} onAuth_success={handleLoginSuccess} />
 
 <div
   class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] border-b px-4 py-0 shadow-sm print:hidden {globalState.isMobile &&

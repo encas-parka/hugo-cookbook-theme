@@ -67,7 +67,7 @@ export class ProductModalState implements ProductModalStateType {
       quantity: null,
       unit: "",
       store: "",
-      who: globalState.userName() ?? "",
+      who: globalState.userName ?? "",
       price: null,
       notes: "",
       status: null,
@@ -143,7 +143,7 @@ export class ProductModalState implements ProductModalStateType {
       this.forms.purchase.unit = model.data.totalNeededArray?.[0]?.u ?? "";
     }
     this.forms.purchase.store = model.data.storeInfo?.storeName ?? "";
-    this.forms.purchase.who = globalState.userName() ?? "";
+    this.forms.purchase.who = globalState.userName ?? "";
     this.forms.purchase.status = "delivered";
 
     this.forms.stock.unit = model.data.totalNeededArray?.[0]?.u ?? "";

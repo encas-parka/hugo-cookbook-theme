@@ -107,7 +107,7 @@
         .getRecipeByUuid(sourceRecipeId)
         .then(async (data) => {
           if (data) {
-            const userName = globalState.userName() || "utilisateur";
+            const userName = globalState.userName || "utilisateur";
 
             // Trouver la racine de la recette source
             const rootRecipeId = data.rootRecipeId || data.$id;

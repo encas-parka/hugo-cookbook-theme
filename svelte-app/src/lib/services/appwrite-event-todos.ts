@@ -3,10 +3,10 @@
  */
 
 import { ID, Query, type Models } from "appwrite";
-import { getAppwriteInstances } from "./appwrite";
+import { getAppwriteInstances, getAppwriteConfig } from "./appwrite";
 import type { EventTodo } from "../types/appwrite";
-import { DATABASE_ID } from "./appwrite-materiel"; // Réutilisation de DATABASE_ID
 
+const APPWRITE_CONFIG = getAppwriteConfig();
 export const EVENT_TODO_COLLECTION_ID = "eventTodo";
 
 // =============================================================================
@@ -37,7 +37,7 @@ export async function listEventTodos(
   const { databases } = await getAppwriteInstances();
 
   const response = await databases.listDocuments<EventTodo>(
-    DATABASE_ID,
+    APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
     EVENT_TODO_COLLECTION_ID,
     [
       Query.equal("eventId", eventId),
@@ -53,10 +53,10 @@ export async function listEventTodos(
 // =============================================================================
 
 export async function createEventTodo(
-  data: Omit<EventTodoCreate, "taskId">
+  data: Omit<EventTodoCreate, "taskId">,
 ): Promise<Models.Document<EventTodo>> {
   const { databases } = await getAppwriteInstances();
-  
+
   const id = ID.unique();
 
   const payload = {
@@ -65,7 +65,7 @@ export async function createEventTodo(
   };
 
   return await databases.createDocument<EventTodo>(
-    DATABASE_ID,
+    APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
     EVENT_TODO_COLLECTION_ID,
     id,
     payload,
@@ -83,7 +83,7 @@ export async function updateEventTodo(
   const { databases } = await getAppwriteInstances();
 
   return await databases.updateDocument<EventTodo>(
-    DATABASE_ID,
+    APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
     EVENT_TODO_COLLECTION_ID,
     documentId,
     data,
@@ -98,7 +98,7 @@ export async function deleteEventTodo(documentId: string): Promise<void> {
   const { databases } = await getAppwriteInstances();
 
   await databases.deleteDocument(
-    DATABASE_ID,
+    APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
     EVENT_TODO_COLLECTION_ID,
     documentId,
   );
@@ -109,5 +109,7 @@ export async function deleteEventTodo(documentId: string): Promise<void> {
 // =============================================================================
 
 export function getEventTodoRealtimeChannels(): string[] {
-  return [`databases.${DATABASE_ID}.collections.${EVENT_TODO_COLLECTION_ID}`];
+  return [
+    `databases.${APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId}.collections.${EVENT_TODO_COLLECTION_ID}`,
+  ];
 }

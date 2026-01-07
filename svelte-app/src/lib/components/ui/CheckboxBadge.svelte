@@ -23,7 +23,7 @@
     label,
     color = "secondary",
     rounded = "rounded-lg",
-    padding = "px-2 py-0.5 pe-3",
+    padding = "ps-2 py-1 pe-3",
     disabled = false,
     badge = null,
     size = "sm",

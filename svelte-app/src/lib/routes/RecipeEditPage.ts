@@ -6,6 +6,7 @@ import {
   type CreateRecipeData,
   RecettesTypeR,
   type RecipeIndexEntry,
+  RecettesStatus,
 } from "$lib/types/recipes.types";
 import { SvelteSet } from "svelte/reactivity";
 import { UnitConverter } from "$lib/utils/UnitConverter";
@@ -14,6 +15,8 @@ import {
   deleteRecipeAppwrite,
   executeManageDataRecipe,
 } from "$lib/services/appwrite-recipes";
+
+import type { RecettesStatus } from "$lib/types/appwrite";
 
 // ============================================================================
 // TYPES
@@ -30,6 +33,7 @@ export interface RecipeFormState
     | "serveHot"
     | "check"
     | "$id"
+    | "createdBy"
   > {
   $id?: string;
   ingredients: RecipeIngredient[];
@@ -47,6 +51,9 @@ export interface RecipeFormState
   description: string | null;
   region: string | null;
   draft: boolean;
+  // Métadonnées (optionnelles car null dans Hugo)
+  teams: string[] | null;
+  status: RecettesStatus;
   rootRecipeId: string | null;
   versionLabel: string | null;
   manuallyAddedVariants: RecipeIndexEntry[];
@@ -138,6 +145,9 @@ export function createDefaultRecipe(): RecipeFormState {
     publishedAt: null,
     createdBy: globalState.userId || "",
     permissionWrite: [globalState.userId || ""],
+    // Métadonnées (valeurs par défaut)
+    teams: null,
+    status: "public",
     rootRecipeId: null,
     versionLabel: null,
     manuallyAddedVariants: [],

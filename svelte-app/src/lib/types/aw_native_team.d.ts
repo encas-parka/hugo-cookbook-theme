@@ -11,19 +11,20 @@ export interface EnrichedNativeTeam {
   $updatedAt: string;
   members: NativeTeamMember[];
   prefs: Record<string, any>;
+  description?: string; // Optionnel, peut être stocké dans prefs
 }
 
 /**
  * Interface pour un membre d'une équipe native
  */
 export interface NativeTeamMember {
-  $id: string;           // Membership ID
-  id: string;            // User ID
+  $id: string; // Membership ID
+  id: string; // User ID
   name: string;
   userEmail: string;
-  roles: string[];       // ["owner"] ou ["member"]
+  roles: string[]; // ["owner"] ou ["member"]
   joinedAt: string;
-  confirmed: boolean;    // Si l'invitation a été acceptée
+  confirmed: boolean; // Si l'invitation a été acceptée
 }
 
 /**

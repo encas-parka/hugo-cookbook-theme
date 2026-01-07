@@ -19,7 +19,7 @@
     FireExtinguisher,
     Flame,
   } from "@lucide/svelte";
-  import type { EnrichedMateriel } from "$lib/types/materiel.type";
+  import type { EnrichedMateriel } from "$lib/types/materiel.types";
   import type { MaterielStatus } from "$lib/types/appwrite";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { formatDateDayMonthShort } from "$lib/utils/date-helpers";
@@ -262,18 +262,22 @@
     </div>
 
     <!-- Emprunts en cours (Compact, en bas si présents) -->
-    {#if materiel.loans.length > 0}
+    {#if materiel.loanDetails.length > 0}
       <div class="border-base-200/50 mt-2 border-t pt-2">
         <div class="text-xs">
           <span class="text-info font-semibold">
-            {materiel.loans.length} prêt(s) :
+            {materiel.loanDetails.length} prêt(s) :
           </span>
           <span class="text-base-content/70 ml-2">
-            {materiel.loans
-              .map((l) => `${l.responsible} (${l.quantity})`)
+            {materiel.loanDetails
+              .map((l) => `${l.responsibleName} (${l.quantity})`)
               .join(", ")}
-            du {materiel.loans[0].startDate}
-            jusqu'au {materiel.loans[0].endDate}
+            {#if materiel.loanDetails.length > 0}
+              du {formatDateDayMonthShort(materiel.loanDetails[0].startDate)}
+              jusqu'au {formatDateDayMonthShort(
+                materiel.loanDetails[0].endDate,
+              )}
+            {/if}
           </span>
         </div>
       </div>

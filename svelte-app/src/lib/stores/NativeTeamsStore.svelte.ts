@@ -1,9 +1,9 @@
 import { SvelteMap } from "svelte/reactivity";
 import type { Models } from "appwrite";
-import type { 
-  EnrichedNativeTeam, 
-  NativeTeamMember, 
-  InviteResult 
+import type {
+  EnrichedNativeTeam,
+  NativeTeamMember,
+  InviteResult,
 } from "$lib/types/aw_native_team.d";
 import {
   listUserTeams,
@@ -29,17 +29,29 @@ export class NativeTeamsStore {
   #isInitialized = $state(false);
 
   // Getters simples
-  get loading() { return this.#loading; }
-  get error() { return this.#error; }
-  get isInitialized() { return this.#isInitialized; }
-  get count() { return this.#teams.size; }
+  get loading() {
+    return this.#loading;
+  }
+  get error() {
+    return this.#error;
+  }
+  get isInitialized() {
+    return this.#isInitialized;
+  }
+  get count() {
+    return this.#teams.size;
+  }
 
   // Propriétés réactives ($derived)
   #teamsList = $derived(Array.from(this.#teams.values()));
-  get teams() { return this.#teamsList; }
+  get teams() {
+    return this.#teamsList;
+  }
 
   isUserInAnyTeam(userId: string): boolean {
-    return Array.from(this.#teams.values()).some(t => t.members?.some(m => m.id === userId));
+    return Array.from(this.#teams.values()).some((t) =>
+      t.members?.some((m) => m.id === userId),
+    );
   }
 
   #myTeamsList = $derived(() => {
@@ -47,25 +59,35 @@ export class NativeTeamsStore {
     // Dans les Teams natives, si on voit l'équipe, on en est membre
     return this.#teamsList;
   });
-  get myTeams() { return this.#myTeamsList(); }
+  get myTeams() {
+    return this.#myTeamsList();
+  }
 
   #pendingInvitesList = $derived(() => {
-    const invites: Array<{ teamId: string; teamName: string; membershipId: string }> = [];
-    
-    this.#teamsList.forEach(team => {
-      const myMembership = team.members.find(m => m.id === globalState.userId);
+    const invites: Array<{
+      teamId: string;
+      teamName: string;
+      membershipId: string;
+    }> = [];
+
+    this.#teamsList.forEach((team) => {
+      const myMembership = team.members.find(
+        (m) => m.id === globalState.userId,
+      );
       if (myMembership && !myMembership.confirmed) {
         invites.push({
           teamId: team.$id,
           teamName: team.name,
-          membershipId: myMembership.$id
+          membershipId: myMembership.$id,
         });
       }
     });
 
     return invites;
   });
-  get myPendingInvitations() { return this.#pendingInvitesList(); }
+  get myPendingInvitations() {
+    return this.#pendingInvitesList();
+  }
 
   // =============================================================================
   // INITIALISATION
@@ -87,13 +109,32 @@ export class NativeTeamsStore {
       await this.#setupRealtime();
 
       this.#isInitialized = true;
-      console.log(`[NativeTeamsStore] Initialisé : ${this.#teams.size} équipes`);
+      console.log(
+        `[NativeTeamsStore] Initialisé : ${this.#teams.size} équipes`,
+      );
     } catch (err) {
-      this.#error = err instanceof Error ? err.message : "Erreur d'initialisation";
+      this.#error =
+        err instanceof Error ? err.message : "Erreur d'initialisation";
       console.error("[NativeTeamsStore] Init error:", err);
     } finally {
       this.#loading = false;
     }
+  }
+
+  /**
+   * Réinitialise complètement le store (vidange + rechargement)
+   */
+  async hardReset(): Promise<void> {
+    console.log("[NativeTeamsStore] Hard reset...");
+
+    // Vider l'état
+    this.#teams.clear();
+    this.#isInitialized = false;
+
+    // Recharger depuis Appwrite
+    await this.initialize();
+
+    console.log("[NativeTeamsStore] Hard reset terminé");
   }
 
   async #loadTeams(): Promise<void> {
@@ -111,11 +152,14 @@ export class NativeTeamsStore {
       async (response: any) => {
         // Logique de mise à jour basée sur les événements
         // Les événements Team/Membership sont globaux car liés à l'utilisateur
-        console.log("[NativeTeamsStore] ⚡️ Realtime RECEIVED:", response.events);
-        
+        console.log(
+          "[NativeTeamsStore] ⚡️ Realtime RECEIVED:",
+          response.events,
+        );
+
         // On refresh tout pour simplifier car les événements natifs sont complexes à mapper 1:1 localement sans risque
         await this.#loadTeams();
-      }
+      },
     );
   }
 
@@ -139,15 +183,15 @@ export class NativeTeamsStore {
         $createdAt: team.$createdAt,
         $updatedAt: team.$updatedAt,
         prefs: team.prefs,
-        members: memberships.memberships.map(m => ({
+        members: memberships.memberships.map((m) => ({
           $id: m.$id,
           id: m.userId,
           name: m.userName,
           userEmail: m.userEmail,
           roles: m.roles,
           joinedAt: m.joined,
-          confirmed: m.confirm
-        }))
+          confirmed: m.confirm,
+        })),
       };
 
       this.#teams.set(teamId, enriched);
@@ -158,7 +202,10 @@ export class NativeTeamsStore {
     }
   }
 
-  async createTeam(name: string, prefs?: TeamPrefs): Promise<EnrichedNativeTeam> {
+  async createTeam(
+    name: string,
+    prefs?: TeamPrefs,
+  ): Promise<EnrichedNativeTeam> {
     const team = await createNativeTeam(name);
     if (prefs && Object.keys(prefs).length > 0) {
       await updateTeamPrefs(team.$id, prefs);
@@ -168,7 +215,11 @@ export class NativeTeamsStore {
     return enriched;
   }
 
-  async updateTeam(teamId: string, name?: string, prefs?: TeamPrefs): Promise<void> {
+  async updateTeam(
+    teamId: string,
+    name?: string,
+    prefs?: TeamPrefs,
+  ): Promise<void> {
     if (name) await updateNativeTeam(teamId, name);
     if (prefs && Object.keys(prefs).length > 0) {
       await updateTeamPrefs(teamId, prefs);
@@ -181,7 +232,11 @@ export class NativeTeamsStore {
     this.#teams.delete(teamId);
   }
 
-  async inviteTeamMember(teamId: string, emails: string[], message?: string): Promise<void> {
+  async inviteTeamMember(
+    teamId: string,
+    emails: string[],
+    message?: string,
+  ): Promise<void> {
     await inviteMembers(teamId, emails, message);
     await this.fetchTeam(teamId);
   }
@@ -191,7 +246,10 @@ export class NativeTeamsStore {
     await this.fetchTeam(teamId);
   }
 
-  async acceptTeamInvitation(teamId: string, membershipId: string): Promise<void> {
+  async acceptTeamInvitation(
+    teamId: string,
+    membershipId: string,
+  ): Promise<void> {
     await acceptInvitation(teamId, membershipId);
     await this.fetchTeam(teamId);
   }

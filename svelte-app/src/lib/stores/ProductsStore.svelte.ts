@@ -6,6 +6,7 @@ import type { ProductRangeStats } from "../types/store.types";
 import {
   matchesFilters,
   type FiltersState,
+  type TemperatureFilterMode,
   hasConversions,
 } from "../utils/productsUtils";
 import { sanitizePurchase } from "../utils/dataSanitization";

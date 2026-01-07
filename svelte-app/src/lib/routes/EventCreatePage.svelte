@@ -121,7 +121,7 @@
     const contributorsToSave = [
       {
         id: globalState.userId || "",
-        name: globalState.userName(),
+        name: globalState.userName,
         status: "accepted" as const,
         invitedAt: new Date().toISOString(),
         respondedAt: new Date().toISOString(),

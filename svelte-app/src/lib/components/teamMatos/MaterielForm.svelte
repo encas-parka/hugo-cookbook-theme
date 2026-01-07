@@ -17,6 +17,7 @@
 
   interface Props {
     showStatus?: boolean;
+    buttonAction?: boolean;
     onSubmit?: (data: {
       name: string;
       description: string | null;
@@ -30,11 +31,17 @@
     onCancel?: () => void;
   }
 
-  let { showStatus = false, onSubmit, onCancel }: Props = $props();
+  let {
+    showStatus = false,
+    onSubmit,
+    onCancel,
+    buttonAction = true,
+  }: Props = $props();
 
   // Import du user info
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
+  import BadgeList from "../ui/BadgeList.svelte";
 
   // État du formulaire
   let name = $state("");
@@ -192,7 +199,7 @@
       </label>
 
       <!-- owner -->
-      <label class="select min-w-[250px]">
+      <!-- <label class="select min-w-[250px]">
         <span class="l">Propriétaire *</span>
         <select
           class="w-full"
@@ -204,7 +211,7 @@
             <option value={ownerOpt.id}>{ownerOpt.name}</option>
           {/each}
         </select>
-      </label>
+      </label> -->
     </div>
     <!-- Description -->
     <fieldset class="fieldset bg-base-100">
@@ -247,7 +254,7 @@
     {/if}
   </div>
 
-  <div class="flex flex-wrap gap-x-6 gap-y-4">
+  <div class="flex flex-1 flex-wrap gap-x-6 gap-y-4">
     <!-- Quantité -->
     <label class="input w-58">
       <span class="label"> <Hash class="size-4" />Quantité *</span>
@@ -261,7 +268,7 @@
     </label>
 
     <!-- Localisation -->
-    <label class="input w-80">
+    <label class="input flex-1">
       <span class="label"><MapPin class="size-4" />Localisation</span>
       <input
         type="text"
@@ -296,20 +303,27 @@
       <span class="text-sm">{error}</span>
     </div>
   {/if}
-
+</div>
+<div>
   <!-- Boutons -->
-  <div class="ms-auto flex justify-end gap-2">
-    <button class="btn btn-ghost" onclick={handleCancel} disabled={loading}>
-      <X class="h-5 w-5" />
-      Annuler
-    </button>
-    <button class="btn btn-primary" onclick={handleSubmit} disabled={!isValid}>
-      {#if loading}
-        <span class="loading loading-spinner loading-sm"></span>
-      {:else}
-        <Check class="h-5 w-5" />
-      {/if}
-      Enregistrer
-    </button>
-  </div>
+  {#if buttonAction}
+    <div class="ms-auto flex justify-end gap-2">
+      <button class="btn btn-ghost" onclick={handleCancel} disabled={loading}>
+        <X class="h-5 w-5" />
+        Annuler
+      </button>
+      <button
+        class="btn btn-primary"
+        onclick={handleSubmit}
+        disabled={!isValid}
+      >
+        {#if loading}
+          <span class="loading loading-spinner loading-sm"></span>
+        {:else}
+          <Check class="h-5 w-5" />
+        {/if}
+        Enregistrer
+      </button>
+    </div>
+  {/if}
 </div>

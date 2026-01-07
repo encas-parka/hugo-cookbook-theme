@@ -89,7 +89,9 @@
   //   }
   // });
 
-  let newDateTime = $derived(dateToDateTime(newDateInput, newTimeInput));
+  let newDateTime = $derived(
+    dateToDateTime(newDateInput, newTimeInput) || "matin",
+  );
 
   // État pour savoir si la date actuelle du repas est en double dans allDates
   // On vérifie si meal.date apparaît plus d'une fois dans allDates

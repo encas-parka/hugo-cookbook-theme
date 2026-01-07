@@ -1,6 +1,13 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { Plus, Package, LoaderCircle, Users, Globe } from "@lucide/svelte";
+  import {
+    Plus,
+    Package,
+    LoaderCircle,
+    Users,
+    Globe,
+    ArrowRightLeft,
+  } from "@lucide/svelte";
   import { materielStore } from "$lib/stores/MaterielStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
@@ -9,18 +16,21 @@
   import MaterielForm from "$lib/components/teamMatos/MaterielForm.svelte";
   import CreateMaterielModal from "$lib/components/teamMatos/CreateMaterielModal.svelte";
   import EditMaterielModal from "$lib/components/teamMatos/EditMaterielModal.svelte";
+  import CreateLoanModal from "$lib/components/teamMatos/CreateLoanModal.svelte";
+  import LoansList from "$lib/components/teamMatos/LoansList.svelte";
   import MaterielFilters, {
     type MaterielFiltersType,
   } from "$lib/components/teamMatos/MaterielFilters.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
   import { slide } from "svelte/transition";
-  import type { EnrichedMateriel } from "$lib/types/materiel.type";
+  import type { EnrichedMateriel } from "$lib/types/materiel.types";
 
   // État de la page
   let showForm = $state(false);
   let createModalOpen = $state(false);
   let editModalMaterielId = $state<string | null>(null);
-  let activeTab = $state<"my" | "teams" | "shareable">("my");
+  let createLoanModalOpen = $state(false);
+  let activeTab = $state<"my" | "teams" | "shareable" | "loans">("my");
 
   // État des filtres
   let filters = $state<MaterielFiltersType>({
@@ -59,10 +69,26 @@
     editModalMaterielId = null;
   }
 
+  // Ouvrir le modal de création d'emprunt
+  function openCreateLoanModal() {
+    createLoanModalOpen = true;
+  }
+
+  // Fermer le modal de création d'emprunt
+  function closeCreateLoanModal() {
+    createLoanModalOpen = false;
+  }
+
   // Après création
   function handleMaterielCreated(materielId: string) {
     console.log("[MaterielPage] Matériel créé:", materielId);
     closeCreateModal();
+  }
+
+  // Après création d'emprunt
+  function handleLoanCreated() {
+    console.log("[MaterielPage] Emprunt créé avec succès");
+    closeCreateLoanModal();
   }
 
   // Gestion de la soumission du formulaire
@@ -127,7 +153,7 @@
     const now = new Date();
 
     // Vérifier si a des prêts actifs
-    const hasActiveLoans = materiel.loans.some((loan) => {
+    const hasActiveLoans = materiel.loanDetails.some((loan) => {
       const start = new Date(loan.startDate);
       const end = new Date(loan.endDate);
       return start <= now && end >= now;
@@ -136,7 +162,7 @@
     if (hasActiveLoans) return "active";
 
     // Vérifier si a des prêts planifiés
-    const hasPlannedLoans = materiel.loans.some((loan) => {
+    const hasPlannedLoans = materiel.loanDetails.some((loan) => {
       const start = new Date(loan.startDate);
       return start > now;
     });
@@ -230,12 +256,7 @@
   });
 </script>
 
-{#snippet navActions()}
-  <button class="btn btn-primary btn-sm" onclick={openCreateModal}>
-    <Plus class="h-4 w-4" />
-    Ajouter
-  </button>
-{/snippet}
+{#snippet navActions()}{/snippet}
 
 <!-- Filtres - Sidebar Desktop / Drawer Mobile -->
 <LeftPanel width="100">
@@ -254,8 +275,8 @@
   <div class="mx-auto max-w-7xl px-4 py-8">
     <!-- Bouton dépliable pour ajouter du matériel -->
     {#if !showForm}
-      <div class="mb-6 text-center">
-        <button class="btn btn-block btn-dash" onclick={toggleForm}>
+      <div class="mb-6 text-end">
+        <button class="btn btn-wide btn-primary" onclick={toggleForm}>
           <Plus class="h-4 w-4" />
           "Ajouter du matériel"
         </button>
@@ -323,74 +344,101 @@
             {materielStore.shareableMateriels.length}
           </span>
         </button>
+        <button
+          class="tab {activeTab === 'loans' ? 'tab-active' : ''}"
+          onclick={() => (activeTab = "loans")}
+        >
+          <ArrowRightLeft class="mr-2 h-4 w-4" />
+          Emprunts
+          <span class="badge badge-sm badge-neutral ml-2">
+            {materielStore.loans.length}
+          </span>
+        </button>
       </div>
 
-      <!-- Liste du matériel -->
-      {#if filteredMateriels.length === 0}
-        <!-- Vérifier si c'est à cause des filtres ou vraiment vide -->
-        {#if filters.types.length > 0 || filters.locations.length > 0 || filters.statuses.length > 0 || filters.loanStatus !== "all"}
-          <!-- Aucun résultat avec les filtres -->
-          <div class="py-12 text-center">
-            <p class="text-base-content/60 mb-4 text-lg">
-              Aucun matériel ne correspond aux critères de filtrage...
-            </p>
-            <button class="btn btn-warning btn-sm" onclick={resetFilters}>
-              Effacer les filtres
+      <!-- Contenu de l'onglet Emprunts -->
+      {#if activeTab === "loans"}
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl font-bold">Gestion des emprunts</h2>
+            <button
+              class="btn btn-primary btn-sm"
+              onclick={openCreateLoanModal}
+            >
+              <Plus class="h-4 w-4" />
+              Nouvel emprunt
             </button>
           </div>
-        {:else if activeTab === "my" && materielStore.myMateriels.length === 0}
-          <!-- Empty state -->
-          <div
-            class="bg-base-200 rounded-box border-base-200 border-2 border-dashed py-20 text-center"
-          >
-            <div class="bg-base-200 mb-4 inline-block rounded-full p-4">
-              <Package class="h-8 w-8 opacity-50" />
+          <LoansList />
+        </div>
+      {:else}
+        <!-- Liste du matériel -->
+        {#if filteredMateriels.length === 0}
+          <!-- Vérifier si c'est à cause des filtres ou vraiment vide -->
+          {#if filters.types.length > 0 || filters.locations.length > 0 || filters.statuses.length > 0 || filters.loanStatus !== "all"}
+            <!-- Aucun résultat avec les filtres -->
+            <div class="py-12 text-center">
+              <p class="text-base-content/60 mb-4 text-lg">
+                Aucun matériel ne correspond aux critères de filtrage...
+              </p>
+              <button class="btn btn-warning btn-sm" onclick={resetFilters}>
+                Effacer les filtres
+              </button>
             </div>
-            <h3 class="mb-2 text-lg font-bold">Aucun matériel</h3>
-            <p class="text-base-content/60 mb-6">
-              Vous n'avez pas encore créé de matériel.
-            </p>
-            <button class="btn btn-primary btn-sm" onclick={openCreateModal}>
-              Créer mon premier matériel
-            </button>
-          </div>
-        {:else if activeTab === "teams" && materielStore.teamMateriels.length === 0}
-          <!-- Empty state équipes -->
-          <div
-            class="bg-base-200 rounded-box border-base-200 border-2 border-dashed py-20 text-center"
-          >
-            <div class="bg-base-200 mb-4 inline-block rounded-full p-4">
-              <Users class="h-8 w-8 opacity-50" />
+          {:else if activeTab === "my" && materielStore.myMateriels.length === 0}
+            <!-- Empty state -->
+            <div
+              class="bg-base-200 rounded-box border-base-200 border-2 border-dashed py-20 text-center"
+            >
+              <div class="bg-base-200 mb-4 inline-block rounded-full p-4">
+                <Package class="h-8 w-8 opacity-50" />
+              </div>
+              <h3 class="mb-2 text-lg font-bold">Aucun matériel</h3>
+              <p class="text-base-content/60 mb-6">
+                Vous n'avez pas encore créé de matériel.
+              </p>
+              <button class="btn btn-primary btn-sm" onclick={openCreateModal}>
+                Créer mon premier matériel
+              </button>
             </div>
-            <h3 class="mb-2 text-lg font-bold">Aucun matériel d'équipe</h3>
-            <p class="text-base-content/60 mb-6">
-              Vos équipes n'ont pas encore de matériel.
-            </p>
-          </div>
-        {:else if activeTab === "shareable" && materielStore.shareableMateriels.length === 0}
-          <!-- Empty state partageable -->
-          <div
-            class="bg-base-200 rounded-box border-base-200 border-2 border-dashed py-20 text-center"
-          >
-            <div class="bg-base-200 mb-4 inline-block rounded-full p-4">
-              <Globe class="h-8 w-8 opacity-50" />
+          {:else if activeTab === "teams" && materielStore.teamMateriels.length === 0}
+            <!-- Empty state équipes -->
+            <div
+              class="bg-base-200 rounded-box border-base-200 border-2 border-dashed py-20 text-center"
+            >
+              <div class="bg-base-200 mb-4 inline-block rounded-full p-4">
+                <Users class="h-8 w-8 opacity-50" />
+              </div>
+              <h3 class="mb-2 text-lg font-bold">Aucun matériel d'équipe</h3>
+              <p class="text-base-content/60 mb-6">
+                Vos équipes n'ont pas encore de matériel.
+              </p>
             </div>
-            <h3 class="mb-2 text-lg font-bold">Aucun matériel partageable</h3>
-            <p class="text-base-content/60">
-              Aucun matériel partageable n'est disponible pour le moment.
-            </p>
+          {:else if activeTab === "shareable" && materielStore.shareableMateriels.length === 0}
+            <!-- Empty state partageable -->
+            <div
+              class="bg-base-200 rounded-box border-base-200 border-2 border-dashed py-20 text-center"
+            >
+              <div class="bg-base-200 mb-4 inline-block rounded-full p-4">
+                <Globe class="h-8 w-8 opacity-50" />
+              </div>
+              <h3 class="mb-2 text-lg font-bold">Aucun matériel partageable</h3>
+              <p class="text-base-content/60">
+                Aucun matériel partageable n'est disponible pour le moment.
+              </p>
+            </div>
+          {/if}
+        {:else}
+          <!-- Grille de matériel -->
+          <div class="grid grid-cols-1">
+            {#each filteredMateriels as materiel (materiel.$id)}
+              <MaterielCard
+                {materiel}
+                onEdit={(materielId) => openEditModal(materielId)}
+              />
+            {/each}
           </div>
         {/if}
-      {:else}
-        <!-- Grille de matériel -->
-        <div class="grid grid-cols-1">
-          {#each filteredMateriels as materiel (materiel.$id)}
-            <MaterielCard
-              {materiel}
-              onEdit={(materielId) => openEditModal(materielId)}
-            />
-          {/each}
-        </div>
       {/if}
     {/if}
   </div>
@@ -408,4 +456,10 @@
   isOpen={editModalMaterielId !== null}
   onClose={closeEditModal}
   onSuccess={handleMaterielUpdated}
+/>
+
+<CreateLoanModal
+  isOpen={createLoanModalOpen}
+  onClose={closeCreateLoanModal}
+  onSuccess={handleLoanCreated}
 />

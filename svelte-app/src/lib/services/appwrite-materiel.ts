@@ -1,29 +1,30 @@
 /**
- * Services d'interaction avec Appwrite - Collection Materiel
+ * Services d'interaction avec Appwrite Tables - Collection Materiel
  *
  * Couche d'accès aux données pure pour la gestion du matériel.
  *
  * Services principaux :
  * ─────────────────────────────────────────────────────────────
  * Lecture :
- * • listMaterielsAppwrite() : Lister tous les matériels
- * • getMaterielAppwrite() : Récupérer un matériel par ID
+ * • listMateriels() : Lister tous les matériels
+ * • getMateriel() : Récupérer un matériel par ID
  *
  * Écriture CRUD :
- * • createMaterielAppwrite() : Créer un matériel
- * • updateMaterielAppwrite() : Mettre à jour un matériel
- * • deleteMaterielAppwrite() : Supprimer un matériel
+ * • createMateriel() : Créer un matériel
+ * • updateMateriel() : Mettre à jour un matériel
+ * • deleteMateriel() : Supprimer un matériel
  *
  * Ce fichier est une couche sans état qui expose des fonctions pures
  * pour MaterielStore. Toute la logique de réactivité est gérée par le store.
  */
 
-import { ID, Query, type Models } from "appwrite";
-import { getAppwriteInstances } from "./appwrite";
+import { ID, Query, Permission, Role } from "appwrite";
+import { getAppwriteInstances, getAppwriteConfig } from "./appwrite";
 import type { Materiel } from "../types/appwrite";
+import type { MaterielOwner } from "../types/materiel.types";
 
+const APPWRITE_CONFIG = getAppwriteConfig();
 export const MATERIEL_COLLECTION_ID = "materiel";
-export const DATABASE_ID = "689d15b10003a5a13636"; // ID de la base de données "enka"
 
 // =============================================================================
 // TYPES
@@ -38,7 +39,6 @@ export type MaterielCreate = {
   location?: string | null;
   shareableWith?: string[] | null;
   owner: string; // JSON stringifié de MaterielOwner
-  loan?: string[] | null;
 };
 
 export type MaterielUpdate = Partial<{
@@ -50,7 +50,6 @@ export type MaterielUpdate = Partial<{
   location?: string | null;
   shareableWith?: string[] | null;
   owner?: string; // JSON stringifié de MaterielOwner
-  loan?: string[] | null;
 }>;
 
 // =============================================================================
@@ -60,35 +59,49 @@ export type MaterielUpdate = Partial<{
 /**
  * Liste tous les matériels avec filtres optionnels
  */
-export async function listMaterielsAppwrite(
-  queries?: string[],
-): Promise<(Models.Document & Materiel)[]> {
-  const { databases } = await getAppwriteInstances();
+export async function listMateriels(
+  queries?: any[],
+): Promise<(Materiel & { $id: string })[]> {
+  try {
+    const { tables } = await getAppwriteInstances();
 
-  const defaultQueries = [Query.limit(100)];
+    const response = await tables.listRows({
+      databaseId: APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
+      tableId: MATERIEL_COLLECTION_ID,
+      queries: queries || [],
+    });
 
-  const response = await databases.listDocuments(
-    DATABASE_ID,
-    MATERIEL_COLLECTION_ID,
-    queries ? [...defaultQueries, ...queries] : defaultQueries,
-  );
-
-  return response.documents as unknown as (Models.Document & Materiel)[];
+    return response.rows as unknown as (Materiel & { $id: string })[];
+  } catch (error) {
+    console.error("[appwrite-materiel] Error listing materiels:", error);
+    throw error;
+  }
 }
 
 /**
  * Récupère un matériel par son ID
  */
-export async function getMaterielAppwrite(
+export async function getMateriel(
   materielId: string,
-): Promise<Models.Document & Materiel> {
-  const { databases } = await getAppwriteInstances();
+): Promise<(Materiel & { $id: string }) | null> {
+  try {
+    const { tables } = await getAppwriteInstances();
 
-  return (await databases.getDocument(
-    DATABASE_ID,
-    MATERIEL_COLLECTION_ID,
-    materielId,
-  )) as Models.Document & Materiel;
+    const materiel = await tables.getRow({
+      databaseId: APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
+      tableId: MATERIEL_COLLECTION_ID,
+      rowId: materielId,
+    });
+
+    return materiel as unknown as Materiel & { $id: string };
+  } catch (error: any) {
+    if (error.code === 404) return null;
+    console.error(
+      `[appwrite-materiel] Error getting materiel ${materielId}:`,
+      error,
+    );
+    throw error;
+  }
 }
 
 // =============================================================================
@@ -96,27 +109,74 @@ export async function getMaterielAppwrite(
 // =============================================================================
 
 /**
- * Crée un nouveau matériel
+ * Crée un nouveau matériel avec les permissions appropriées
  *
  * @param data - Données du matériel (owner doit être JSON stringifié)
+ * @param currentUserId - ID de l'utilisateur qui crée (pour les permissions)
  * @returns Le matériel créé
  */
-export async function createMaterielAppwrite(
+export async function createMateriel(
   data: MaterielCreate,
-): Promise<Models.Document & Materiel> {
-  const { databases } = await getAppwriteInstances();
+  currentUserId: string,
+): Promise<Materiel & { $id: string }> {
+  try {
+    const { tables } = await getAppwriteInstances();
+    const materielId = ID.unique();
 
-  const payload: MaterielCreate = {
-    ...data,
-    loan: data.loan || [],
-  };
+    // Parser owner pour déterminer les permissions
+    let ownerData: MaterielOwner;
+    try {
+      ownerData =
+        typeof data.owner === "string" ? JSON.parse(data.owner) : data.owner;
+    } catch (e) {
+      console.error("[appwrite-materiel] Error parsing owner:", data.owner, e);
+      throw new Error("Invalid owner format");
+    }
 
-  return (await databases.createDocument(
-    DATABASE_ID,
-    MATERIEL_COLLECTION_ID,
-    ID.unique(),
-    payload as unknown as Partial<Models.Document>,
-  )) as unknown as Models.Document & Materiel;
+    // Préparer les permissions
+    const permissions = [
+      // Le créateur peut lire et mettre à jour
+      Permission.read(Role.user(currentUserId)),
+      Permission.update(Role.user(currentUserId)),
+    ];
+
+    // Si owner est une team, donner les permissions à la team
+    if (ownerData.teamId) {
+      permissions.push(
+        Permission.read(Role.team(ownerData.teamId)),
+        Permission.update(Role.team(ownerData.teamId)),
+      );
+    } else if (ownerData.userId) {
+      // Si owner est un user, donner les permissions à ce user
+      permissions.push(
+        Permission.read(Role.user(ownerData.userId)),
+        Permission.update(Role.user(ownerData.userId)),
+      );
+    }
+
+    const materiel = await tables.createRow({
+      databaseId: APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
+      tableId: MATERIEL_COLLECTION_ID,
+      rowId: materielId,
+      data: {
+        name: data.name,
+        description: data.description || null,
+        type: data.type || null,
+        quantity: data.quantity,
+        status: data.status || "ok",
+        location: data.location || null,
+        shareableWith: data.shareableWith || null,
+        owner: data.owner,
+      },
+      permissions,
+    });
+
+    console.log(`[appwrite-materiel] Materiel created: ${materielId}`);
+    return materiel as unknown as Materiel & { $id: string };
+  } catch (error) {
+    console.error("[appwrite-materiel] Error creating materiel:", error);
+    throw error;
+  }
 }
 
 // =============================================================================
@@ -127,21 +187,32 @@ export async function createMaterielAppwrite(
  * Met à jour un matériel
  *
  * @param materielId - ID du matériel
- * @param data - Données à mettre à jour (loan doit être un tableau de JSON stringifiés)
+ * @param data - Données à mettre à jour
  * @returns Le matériel mis à jour
  */
-export async function updateMaterielAppwrite(
+export async function updateMateriel(
   materielId: string,
   data: MaterielUpdate,
-): Promise<Models.Document & Materiel> {
-  const { databases } = await getAppwriteInstances();
+): Promise<Materiel & { $id: string }> {
+  try {
+    const { tables } = await getAppwriteInstances();
 
-  return (await databases.updateDocument(
-    DATABASE_ID,
-    MATERIEL_COLLECTION_ID,
-    materielId,
-    data as unknown as Partial<Models.Document>,
-  )) as unknown as Models.Document & Materiel;
+    const materiel = await tables.updateRow({
+      databaseId: APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
+      tableId: MATERIEL_COLLECTION_ID,
+      rowId: materielId,
+      data: data as any,
+    });
+
+    console.log(`[appwrite-materiel] Materiel updated: ${materielId}`);
+    return materiel as unknown as Materiel & { $id: string };
+  } catch (error) {
+    console.error(
+      `[appwrite-materiel] Error updating materiel ${materielId}:`,
+      error,
+    );
+    throw error;
+  }
 }
 
 // =============================================================================
@@ -153,16 +224,24 @@ export async function updateMaterielAppwrite(
  *
  * @param materielId - ID du matériel à supprimer
  */
-export async function deleteMaterielAppwrite(
-  materielId: string,
-): Promise<void> {
-  const { databases } = await getAppwriteInstances();
+export async function deleteMateriel(materielId: string): Promise<void> {
+  try {
+    const { tables } = await getAppwriteInstances();
 
-  await databases.deleteDocument(
-    DATABASE_ID,
-    MATERIEL_COLLECTION_ID,
-    materielId,
-  );
+    await tables.deleteRow({
+      databaseId: APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
+      tableId: MATERIEL_COLLECTION_ID,
+      rowId: materielId,
+    });
+
+    console.log(`[appwrite-materiel] Materiel deleted: ${materielId}`);
+  } catch (error) {
+    console.error(
+      `[appwrite-materiel] Error deleting materiel ${materielId}:`,
+      error,
+    );
+    throw error;
+  }
 }
 
 // =============================================================================
@@ -173,5 +252,7 @@ export async function deleteMaterielAppwrite(
  * Retourne les channels pour les souscriptions realtime
  */
 export function getMaterielRealtimeChannels(): string[] {
-  return [`databases.${DATABASE_ID}.collections.${MATERIEL_COLLECTION_ID}`];
+  return [
+    `databases.${APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId}.collections.${MATERIEL_COLLECTION_ID}`,
+  ];
 }

@@ -17,7 +17,7 @@
 
 <div class="card border-base-200 bg-base-100 border shadow-xl">
   <div class="card-body">
-    <h2 class="card-title flex items-center gap-2 text-lg">
+    <h2 class="card-title flex items-center gap-2 text-xl">
       <Package class="text-primary h-6 w-6" />
       Matériel
     </h2>
@@ -28,10 +28,16 @@
       </div>
     {:else}
       <div class="space-y-3">
+        <div class="card card-sm bg-base-300">
+          <div class="card-body text-center">
+            <p class="font-medium">Gérez le matériel collectif de cantine :</p>
+            <p>inventaire, gestion des emprunt, partage, etc.</p>
+          </div>
+        </div>
         <!-- Mon matériel -->
         <div class="flex items-center justify-between">
           <div>
-            <div class="text-base-content/70 text-sm">Mon matériel</div>
+            <div class="text-base-content/70 text-sm">Mon matériel perso</div>
             <div class="text-2xl font-bold">{myMaterielsCount}</div>
           </div>
         </div>
@@ -41,39 +47,19 @@
           <div class="divider divider-vertical my-1"></div>
           <div class="flex items-center justify-between">
             <div>
-              <div class="text-base-content/70 text-sm">Matériel d'équipe</div>
+              <div class="text-base-content/70 text-sm">
+                Matériel de vos équipes
+              </div>
               <div class="text-2xl font-bold">{teamMaterielsCount}</div>
             </div>
           </div>
         {/if}
-
-        <!-- Matériel partageable -->
-        {#if shareableCount > 0}
-          <div class="divider divider-vertical my-1"></div>
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="text-base-content/70 text-sm">Partageable</div>
-              <div class="text-2xl font-bold">{shareableCount}</div>
-            </div>
-          </div>
-        {/if}
-
-        <!-- Total -->
-        <div class="divider divider-vertical my-1"></div>
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="text-base-content/70 text-sm">Total</div>
-            <div class="text-primary text-2xl font-bold">
-              {totalMaterielsCount}
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- Actions -->
       <div class="card-actions mt-4">
         <button
-          class="btn btn-primary btn-block btn-sm"
+          class="btn btn-primary btn-soft btn-block btn-lg"
           onclick={() => navigate("/dashboard/materiel")}
         >
           Gérer le matériel

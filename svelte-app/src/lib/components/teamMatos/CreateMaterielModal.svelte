@@ -2,6 +2,8 @@
   import { X, Plus, Package, MapPin, Users } from "@lucide/svelte";
   import { materielStore } from "$lib/stores/MaterielStore.svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
+  import type { MaterielOwner } from "$lib/types/materiel.types";
   import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
   import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
   import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
@@ -60,18 +62,29 @@
       return;
     }
 
+    // Vérifier que l'utilisateur est connecté
+    if (ownerType === "me" && !globalState.userId) {
+      error = "Vous devez être connecté pour créer du matériel personnel";
+      return;
+    }
+
     loading = true;
     error = null;
 
     try {
+      // Construire l'owner correctement
+      const owner: MaterielOwner =
+        ownerType === "me"
+          ? { userId: globalState.userId || undefined }
+          : { teamId: selectedTeamId };
+
       const materiel = await materielStore.createMateriel({
         name: name.trim(),
         description: description.trim() || undefined,
         type: type || undefined,
         quantity,
         location: location.trim() || undefined,
-        ownerType,
-        teamId: selectedTeamId || undefined,
+        owner: JSON.stringify(owner),
       });
 
       console.log("[CreateMaterielModal] Matériel créé:", materiel);

@@ -41,7 +41,7 @@
   // Initialisation des noms connus (le créateur) et synchronisation avec les équipes
   $effect(() => {
     if (createdBy === globalState.userId) {
-      memberNames[createdBy] = globalState.userName() || "Propriétaire";
+      memberNames[createdBy] = globalState.userName || "Propriétaire";
     }
 
     // Synchroniser les noms depuis TeamsStore

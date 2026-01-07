@@ -94,6 +94,7 @@
           onchange={() => toggleArrayItem(filters.types, type)}
           {disabled}
           color="secondary"
+          size="md"
         />
       {/each}
     </div>
@@ -109,6 +110,7 @@
           onchange={() => toggleArrayItem(filters.locations, location)}
           {disabled}
           color="secondary"
+          size="md"
         />
       {/each}
     </div>
@@ -124,6 +126,7 @@
           onchange={() => toggleArrayItem(filters.statuses, status)}
           {disabled}
           color="secondary"
+          size="md"
         />
       {/each}
     </div>

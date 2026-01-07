@@ -63,12 +63,13 @@
     modalState.forms.purchase.store = purchase.store || "";
     modalState.forms.purchase.who = purchase.who || "";
     modalState.forms.purchase.notes = purchase.notes || "";
-    modalState.forms.purchase.status = purchase.status;
+    modalState.forms.purchase.status =
+      (purchase.status as "ordered" | "delivered") || null;
     modalState.forms.purchase.orderDate = purchase.orderDate || null;
     modalState.forms.purchase.deliveryDate = purchase.deliveryDate || null;
 
-    // Définir l'ID du purchase en cours d'édition
-    modalState.editingPurchaseId = purchase.$id;
+    // Définir l'ID du purchase en cours d'édition via la méthode dédiée
+    modalState.startEditPurchase(purchase);
 
     // Scroll vers le formulaire et focus sur l'input du prix
     setTimeout(() => {
@@ -109,7 +110,7 @@
       if (!edited || !isEditFormValid(edited)) return;
 
       // Mettre à jour avec les données du formulaire
-      edited.quantity = modalState.forms.purchase.quantity;
+      edited.quantity = modalState.forms.purchase.quantity ?? 0;
       edited.unit = modalState.forms.purchase.unit;
       edited.price = modalState.forms.purchase.price;
       edited.store = modalState.forms.purchase.store;

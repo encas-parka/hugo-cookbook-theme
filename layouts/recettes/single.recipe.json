@@ -25,5 +25,9 @@
   "publishedAt": {{ .Params.publishedAt | default "2025-01-01T00:00:00Z" | jsonify }},
   "createdAt": {{ .Params.createdAt | default .Params.publishDate | default "2025-01-01T00:00:00Z" | jsonify }},
   "updatedAt": {{ .Params.updatedAt | default .Params.publishDate | default "2025-01-01T00:00:00Z" | jsonify }},
-  "createdBy": {{ .Params.createdBy | default .Params.auteur | default "" | jsonify }}
+  "createdBy": {{ .Params.createdBy | default .Params.auteur | default "" | jsonify }},
+  "rootRecipeId": {{ .Params.rootRecipeId | default null | jsonify }},
+  "versionLabel": {{ .Params.versionLabel | default null | jsonify }},
+  "teams": {{ .Params.teams | default null | jsonify }},
+  "status": {{ .Params.status | default "public" | jsonify }}
 }

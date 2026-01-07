@@ -262,7 +262,7 @@
       const success = await locksService.acquireLock(
         eventId,
         globalState.userId,
-        globalState.userName(),
+        globalState.userName,
       );
 
       if (success) {
@@ -445,7 +445,7 @@
           await locksService.acquireLock(
             eventId,
             globalState.userId,
-            globalState.userName(),
+            globalState.userName,
           );
         } catch (e) {
           console.error("Erreur heartbeat lock:", e);
