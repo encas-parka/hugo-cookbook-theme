@@ -13,7 +13,7 @@
   // Configuration des onglets
   const tabs = [
     { label: "Matériel", getPath: () => getMaterielPath() },
-    { label: "Emprunts", getPath: () => "/dashboard/loans" },
+    { label: "Emprunts", getPath: () => getLoansPath() },
   ];
 
   // Déterminer l'onglet actif depuis l'URL courante
@@ -44,13 +44,30 @@
     return "/dashboard/materiel";
   }
 
+  // Obtenir le chemin pour la page emprunts
+  function getLoansPath(): string {
+    // Si un teamId est fourni, l'utiliser
+    if (currentTeamId) {
+      return `/dashboard/loans/${currentTeamId}`;
+    }
+
+    // Sinon, prendre la première équipe de l'utilisateur
+    const myTeams = teamsStore.myTeams;
+    if (myTeams.length > 0) {
+      return `/dashboard/loans/${myTeams[0].$id}`;
+    }
+
+    // Fallback
+    return "/dashboard/loans";
+  }
+
   function navigateToTab(index: number) {
     const path = tabs[index].getPath();
     navigate(path);
   }
 </script>
 
-<div class="tabs tabs-border justify-center">
+<div class="tabs tabs-lg tabs-border justify-center">
   {#each tabs as tab, index (index)}
     <button
       class="tab font-medium {index === activeTab ? 'tab-active' : ''}"

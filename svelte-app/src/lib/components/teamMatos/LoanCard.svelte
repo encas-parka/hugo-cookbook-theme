@@ -192,7 +192,9 @@
             {statusConfig.label}
           </span>
           <div class="text-base font-semibold">
-            Emprunt du {new Date(loan.startDate).toLocaleDateString("fr-FR")}
+            Réservation du {new Date(loan.startDate).toLocaleDateString(
+              "fr-FR",
+            )} au {new Date(loan.endDate).toLocaleDateString("fr-FR")}
           </div>
         </div>
 

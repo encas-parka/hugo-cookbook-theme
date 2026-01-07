@@ -18,9 +18,18 @@
     onClose: () => void;
     onAdd: (materielIds: string[]) => void;
     selectedIds?: Set<string>;
+    ownerId: string; // ID du propriétaire (user ou team)
+    ownerType: "user" | "team"; // Type de propriétaire
   }
 
-  let { isOpen, onClose, onAdd, selectedIds = new Set() }: Props = $props();
+  let {
+    isOpen,
+    onClose,
+    onAdd,
+    selectedIds = new Set(),
+    ownerId,
+    ownerType,
+  }: Props = $props();
 
   // Labels des types
   const typeLabels: Record<string, string> = $derived.by(() => ({
@@ -48,7 +57,13 @@
   const materielsByType = $derived.by(() => {
     const grouped: Record<string, EnrichedMateriel[]> = {};
 
-    materielStore.materiels.forEach((materiel) => {
+    // Filtrer par owner d'abord
+    const ownerMateriels = materielStore.getMaterielsByOwner(
+      ownerId,
+      ownerType,
+    );
+
+    ownerMateriels.forEach((materiel) => {
       // Uniquement les matériels disponibles
       if (!materiel.isAvailable || materiel.quantity === 0) return;
 

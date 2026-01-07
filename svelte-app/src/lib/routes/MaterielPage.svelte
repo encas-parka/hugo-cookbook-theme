@@ -30,6 +30,7 @@
   let createModalOpen = $state(false);
   let editModalMaterielId = $state<string | null>(null);
   let activeTeamId = $state<string | null>(null);
+  let isRedirecting = $state(false);
 
   // État des filtres (sans loanStatus)
   let filters = $state<Omit<MaterielFiltersType, "loanStatus">>({
@@ -192,29 +193,25 @@
     }
   });
 
-  // Surveiller les changements de teamId dans l'URL
+  // Surveiller les changements de teamId dans l'URL pour mettre à jour activeTeamId
   $effect(() => {
     const teamIdFromParams = params?.teamId;
 
-    if (teamIdFromParams) {
+    if (teamIdFromParams && teamIdFromParams !== activeTeamId) {
       // Vérifier que l'utilisateur appartient à cette équipe
       const team = userTeams.find((t) => t.$id === teamIdFromParams);
       if (team) {
         activeTeamId = teamIdFromParams;
-      } else {
-        console.error(
-          "[MaterielPage] L'utilisateur n'appartient pas à cette équipe",
-        );
-        // Rediriger vers la première équipe
-        if (userTeams.length > 0) {
-          navigate(`/dashboard/materiel/${userTeams[0].$id}`);
-        }
       }
-    } else {
-      // Pas de teamId, rediriger vers la première équipe
-      if (userTeams.length > 0) {
-        navigate(`/dashboard/materiel/${userTeams[0].$id}`);
-      }
+    } else if (
+      !teamIdFromParams &&
+      !activeTeamId &&
+      !isRedirecting &&
+      userTeams.length > 0
+    ) {
+      // Premier chargement sans teamId : rediriger vers la première équipe
+      isRedirecting = true;
+      navigate(`/dashboard/materiel/${userTeams[0].$id}`);
     }
   });
 

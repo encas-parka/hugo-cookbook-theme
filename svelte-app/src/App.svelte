@@ -91,6 +91,7 @@
   router.addRoute("/dashboard/materiel", MaterielPage, requireAuth);
   router.addRoute("/dashboard/materiel/:teamId", MaterielPage, requireAuth);
   router.addRoute("/dashboard/loans", LoansPage, requireAuth);
+  router.addRoute("/dashboard/loans/:teamId", LoansPage, requireAuth);
 
   // État du composant actuel
   let currentRoute = $state<any>(null);

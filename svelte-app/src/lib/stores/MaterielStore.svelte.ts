@@ -133,6 +133,48 @@ export class MaterielStore {
   }
 
   // =============================================================================
+  // FILTRAGE PAR OWNER
+  // =============================================================================
+
+  /**
+   * Récupère les matériels disponibles pour un owner spécifique
+   * @param ownerId ID du propriétaire (userId ou teamId)
+   * @param ownerType Type du propriétaire ("user" ou "team")
+   * @returns Liste des matériels disponibles appartenant à l'owner
+   */
+  getAvailableMaterielsByOwner(
+    ownerId: string,
+    ownerType: "user" | "team",
+  ): EnrichedMateriel[] {
+    return this.#availableMaterielsList.filter((m) => {
+      if (ownerType === "team") {
+        return m.ownerData?.teamId === ownerId;
+      } else {
+        return m.ownerData?.userId === ownerId;
+      }
+    });
+  }
+
+  /**
+   * Récupère tous les matériels pour un owner spécifique
+   * @param ownerId ID du propriétaire (userId ou teamId)
+   * @param ownerType Type du propriétaire ("user" ou "team")
+   * @returns Liste de tous les matériels appartenant à l'owner
+   */
+  getMaterielsByOwner(
+    ownerId: string,
+    ownerType: "user" | "team",
+  ): EnrichedMateriel[] {
+    return this.#materielsList.filter((m) => {
+      if (ownerType === "team") {
+        return m.ownerData?.teamId === ownerId;
+      } else {
+        return m.ownerData?.userId === ownerId;
+      }
+    });
+  }
+
+  // =============================================================================
   // INITIALISATION
   // =============================================================================
 

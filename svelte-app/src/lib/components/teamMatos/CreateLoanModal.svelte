@@ -46,9 +46,13 @@
     isOpen: boolean;
     onClose: () => void;
     onSuccess?: () => void;
+    ownerId: string; // ID du propriétaire (user ou team)
+    ownerName: string; // Nom du propriétaire
+    ownerType: "user" | "team"; // Type de propriétaire
   }
 
-  let { isOpen, onClose, onSuccess }: Props = $props();
+  let { isOpen, onClose, onSuccess, ownerId, ownerName, ownerType }: Props =
+    $props();
 
   // État du formulaire
   let startDate = $state("");
@@ -62,7 +66,7 @@
 
   // Dérivés
   const availableMateriels = $derived(
-    materielStore.materiels.filter((m) => m.isAvailable && m.quantity > 0),
+    materielStore.getAvailableMaterielsByOwner(ownerId, ownerType),
   );
 
   const isValid = $derived(
@@ -71,6 +75,8 @@
       startDate < endDate &&
       selectedMateriels.length > 0 &&
       selectedMateriels.every((m) => m.quantity >= 1) &&
+      globalState.userId !== null &&
+      globalState.userId !== undefined &&
       !loading,
   );
 
@@ -117,7 +123,7 @@
 
   function handleQuickSelectionAdd(materielIds: string[]) {
     materielIds.forEach((id) => {
-      const materiel = materielStore.materiels.find((m) => m.$id === id);
+      const materiel = availableMateriels.find((m) => m.$id === id);
       if (materiel && materiel.isAvailable) {
         handleAddMateriel(materiel);
       }
@@ -137,18 +143,18 @@
         quantity: m.quantity,
       }));
 
-      // Récupérer owner info (user actuel)
-      const ownerId = globalState.userId || "";
-      const ownerName = globalState.userName || "Inconnu";
+      // Owner info fournie via props
+      const responsibleId = globalState.userId || "";
+      const responsibleName = globalState.userName || "Inconnu";
 
       await materielStore.createLoan({
         startDate,
         endDate,
-        responsibleId: ownerId,
-        responsibleName: ownerName,
+        responsibleId,
+        responsibleName,
         ownerId,
         ownerName,
-        ownerType: "user",
+        ownerType,
         materiels: materielItems,
         notes: notes.trim() || undefined,
       });
@@ -186,7 +192,7 @@
     <div class="flex items-center justify-between border-b p-4 pt-0">
       <h3 class="flex items-center gap-2 text-lg font-bold">
         <Package class="h-5 w-5" />
-        Nouvel emprunt
+        Nouvel réservation - {ownerName}
       </h3>
       <button
         class="btn btn-circle btn-ghost btn-sm absolute top-2 right-2"
@@ -400,6 +406,8 @@
       onClose={() => (showQuickSelection = false)}
       onAdd={handleQuickSelectionAdd}
       selectedIds={new Set(selectedMateriels.map((m) => m.materielId))}
+      {ownerId}
+      {ownerType}
     />
   {/if}
 </div>
