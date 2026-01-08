@@ -49,7 +49,6 @@ export type MaterielLoanUpdate = Partial<{
   materiels: MaterielLoanItem[];
   status: MaterielLoanStatus;
   notes: string;
-  completedAt: string;
   returnedAt: string;
   returnNotes: string;
 }>;
@@ -190,8 +189,6 @@ export async function updateMaterielLoan(
       updateData.materiels = data.materiels.map((item) => JSON.stringify(item));
     if (data.status !== undefined) updateData.status = data.status;
     if (data.notes !== undefined) updateData.notes = data.notes;
-    if (data.completedAt !== undefined)
-      updateData.completedAt = data.completedAt;
     if (data.returnedAt !== undefined) updateData.returnedAt = data.returnedAt;
     if (data.returnNotes !== undefined)
       updateData.returnNotes = data.returnNotes;

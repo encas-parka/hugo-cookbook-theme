@@ -116,6 +116,14 @@
 
   // Configuration du statut
   const statusConfig = $derived.by(() => {
+    if (!loan || !loan.status) {
+      return {
+        label: "Chargement...",
+        badgeClass: "badge-neutral",
+        icon: AlertCircle,
+      };
+    }
+
     const configs: Record<
       MaterielLoanStatus,
       { label: string; badgeClass: string; icon: any }
@@ -140,13 +148,9 @@
         badgeClass: "badge-neutral",
         icon: X,
       },
-      returned: {
-        label: "Retourné",
-        badgeClass: "badge-warning",
-        icon: RotateCcw,
-      },
+
       completed: {
-        label: "Terminé",
+        label: "Retour effectué",
         badgeClass: "badge-success",
         icon: Check,
       },
@@ -157,7 +161,13 @@
       },
     };
 
-    return configs[loan.status];
+    return (
+      configs[loan.status] || {
+        label: "Statut inconnu",
+        badgeClass: "badge-neutral",
+        icon: AlertCircle,
+      }
+    );
   });
 
   // Actions disponibles selon le statut

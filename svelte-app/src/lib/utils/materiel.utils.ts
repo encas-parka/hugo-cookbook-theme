@@ -9,6 +9,7 @@ import type {
   Materiel,
   MaterielLoan,
   MaterielStatus,
+  MaterielType,
 } from "$lib/types/appwrite.d";
 import type {
   EnrichedMateriel,
@@ -18,6 +19,43 @@ import type {
   MaterielLoanDetail,
   MaterielOwner,
 } from "$lib/types/materiel.types";
+
+// =============================================================================
+// LABELS - Fonctions de labellisation pour l'affichage
+// =============================================================================
+
+/**
+ * Retourne le label lisible pour un type de matériel
+ */
+export function getMaterielTypeLabel(
+  type: MaterielType | string | null | undefined,
+): string {
+  const labels: Record<string, string> = {
+    electronic: "Électronique",
+    manual: "Manuel",
+    other: "Autre",
+    tools: "Outils",
+    dish: "Vaisselle",
+    cooking: "Cuisine",
+    gaz: "Gaz",
+    hygiene: "Hygiène",
+  };
+  return labels[type || "other"] || type || "Autre";
+}
+
+/**
+ * Retourne le label lisible pour un statut de matériel
+ */
+export function getMaterielStatusLabel(
+  status: MaterielStatus | string | null | undefined,
+): string {
+  const labels: Record<string, string> = {
+    ok: "OK",
+    lost: "Perdu",
+    torepair: "À réparer",
+  };
+  return labels[status || "ok"] || status || "OK";
+}
 
 // =============================================================================
 // DEFAULT VALUES

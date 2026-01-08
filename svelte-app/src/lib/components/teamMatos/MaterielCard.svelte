@@ -23,6 +23,10 @@
   import type { MaterielStatus } from "$lib/types/appwrite";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { formatDateDayMonthShort } from "$lib/utils/date-helpers";
+  import {
+    getMaterielTypeLabel,
+    getMaterielStatusLabel,
+  } from "$lib/utils/materiel.utils";
 
   interface Props {
     materiel: EnrichedMateriel;
@@ -55,13 +59,19 @@
 
   // Badge du type
   const typeBadgeClass = $derived.by(() => {
-    switch (materiel.type) {
+    switch (materiel.type || "other") {
       case "electronic":
         return "badge-warning";
       case "manual":
         return "badge-info";
       case "cooking":
         return "badge-success";
+      case "dish":
+        return "badge-primary";
+      case "gaz":
+        return "badge-error";
+      case "hygiene":
+        return "badge-info";
       case "other":
       default:
         return "badge-neutral";
@@ -70,28 +80,44 @@
 
   // Configuration du statut
   const StatusConfig = $derived.by(() => {
+    if (!materiel || !materiel.status) {
+      return {
+        label: "Chargement...",
+        badgeClass: "badge-neutral",
+        priority: 99,
+      };
+    }
+
+    const statusLabel = getMaterielStatusLabel(materiel.status);
+
     const configs: Record<
       MaterielStatus,
       { label: string; badgeClass: string; priority: number }
     > = {
       ok: {
-        label: "OK",
+        label: statusLabel,
         badgeClass: "badge-success",
         priority: 0,
       },
       lost: {
-        label: "Perdu",
+        label: statusLabel,
         badgeClass: "badge-error",
         priority: 4,
       },
       torepair: {
-        label: "À réparer",
+        label: statusLabel,
         badgeClass: "badge-warning",
         priority: 1,
       },
     };
 
-    return configs[materiel.status];
+    return (
+      configs[materiel.status] || {
+        label: statusLabel,
+        badgeClass: "badge-neutral",
+        priority: 99,
+      }
+    );
   });
 
   // Est partageable ?
@@ -157,7 +183,7 @@
               {materiel.name}
             </div>
             <span class="badge {typeBadgeClass} badge-soft badge-sm gap-1 py-0">
-              {materiel.type || "Autre"}
+              {getMaterielTypeLabel(materiel.type)}
             </span>
           </div>
           <div

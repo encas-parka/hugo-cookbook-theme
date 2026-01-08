@@ -4,11 +4,25 @@ import type {
   MaterielType,
   MaterielStatus,
   MaterielLoan,
+  MaterielLoanStatus,
 } from "./appwrite";
 
 // =============================================================================
 // TYPES APPWRITE - Format brut depuis Appwrite
 // =============================================================================
+
+/**
+ * Type union pour faciliter l'utilisation des status de prêt avec des string literals
+ * Évite les problèmes de typage avec les enums auto-générés
+ */
+export type MaterielLoanStatusUnion =
+  | "asked"
+  | "accepted"
+  | "refused"
+  | "canceled"
+  | "returned"
+  | "completed"
+  | "archived";
 
 /**
  * Type alias pour clarifier qu'il s'agit du format brut Appwrite

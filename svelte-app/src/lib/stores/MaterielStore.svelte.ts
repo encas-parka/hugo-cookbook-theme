@@ -8,6 +8,7 @@ import type {
   MaterielFromAppwrite,
   MaterielLoanItem,
   MaterielLoanDetail,
+  MaterielLoanStatusUnion,
 } from "$lib/types/materiel.types";
 import {
   listMateriels,
@@ -615,7 +616,8 @@ export class MaterielStore {
         "$lib/services/appwrite-materiel-loan"
       );
 
-      const loan = await createMaterielLoan(data, globalState.userId);
+      // Cast pour MaterielLoanStatus (enum) vs MaterielLoanStatusUnion (string literals)
+      const loan = await createMaterielLoan(data as any, globalState.userId);
 
       // Enrichir le loan créé pour le retour
       const enriched = enrichLoanFromAppwrite(loan);
@@ -639,9 +641,8 @@ export class MaterielStore {
       startDate?: string;
       endDate?: string;
       materiels?: MaterielLoanItem[];
-      status?: string;
+      status?: MaterielLoanStatusUnion;
       notes?: string;
-      completedAt?: string;
       returnedAt?: string;
       returnNotes?: string;
     },
@@ -654,20 +655,8 @@ export class MaterielStore {
         "$lib/services/appwrite-materiel-loan"
       );
 
-      const payload: any = {};
-
-      if (data.startDate !== undefined) payload.startDate = data.startDate;
-      if (data.endDate !== undefined) payload.endDate = data.endDate;
-      if (data.materiels !== undefined) payload.materiels = data.materiels;
-      if (data.status !== undefined) payload.status = data.status;
-      if (data.notes !== undefined) payload.notes = data.notes;
-      if (data.completedAt !== undefined)
-        payload.completedAt = data.completedAt;
-      if (data.returnedAt !== undefined) payload.returnedAt = data.returnedAt;
-      if (data.returnNotes !== undefined)
-        payload.returnNotes = data.returnNotes;
-
-      await updateMaterielLoan(loanId, payload);
+      // Cast pour MaterielLoanStatus (enum) vs MaterielLoanStatusUnion (string literals)
+      await updateMaterielLoan(loanId, data as any);
 
       // Le realtime va gérer la mise à jour locale
     } catch (err) {
@@ -703,6 +692,7 @@ export class MaterielStore {
   /**
    * Termine un emprunt en enregistrant l'état du matériel retourné
    * Combine les étapes returned + completed
+   * Met également à jour le statut des materiels si perdu/cassé
    */
   async completeLoanWithReturn(
     loanId: string,
@@ -711,9 +701,37 @@ export class MaterielStore {
       returnNotes?: string;
     },
   ): Promise<void> {
+    // Importer le service de mise à jour des materiels
+    const { updateMateriel } = await import("$lib/services/appwrite-materiel");
+
+    // Pour chaque materiel avec pertes/cassures, mettre à jour son statut
+    for (const item of data.materiels) {
+      const lost = item.lostQuantity || 0;
+      const broken = item.brokenQuantity || 0;
+
+      // Si tout est perdu ou cassé, marquer comme "lost"
+      if (lost + broken >= item.quantity) {
+        await updateMateriel(item.materielId, {
+          status: "lost",
+        });
+      }
+      // Si partiellement cassé (mais pas tout), marquer comme "torepair"
+      else if (broken > 0) {
+        await updateMateriel(item.materielId, {
+          status: "torepair",
+        });
+      }
+      // Sinon, s'assurer que le statut est "ok"
+      else {
+        await updateMateriel(item.materielId, {
+          status: "ok",
+        });
+      }
+    }
+
+    // Mettre à jour le loan
     await this.updateLoan(loanId, {
       status: "completed",
-      completedAt: new Date().toISOString(),
       returnedAt: new Date().toISOString(),
       returnNotes: data.returnNotes,
       materiels: data.materiels,
@@ -727,7 +745,7 @@ export class MaterielStore {
   async completeLoan(loanId: string): Promise<void> {
     await this.updateLoan(loanId, {
       status: "completed",
-      completedAt: new Date().toISOString(),
+      returnedAt: new Date().toISOString(),
     });
   }
 
