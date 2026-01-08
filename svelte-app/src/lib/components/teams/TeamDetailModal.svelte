@@ -125,7 +125,7 @@
 
     <ModalContent>
       <!-- Onglets -->
-      <div class="tabs tabs-border flex-none" role="tablist">
+      <div class="tabs tabs-border mb-6 flex-none" role="tablist">
         <button
           role="tab"
           class="tab {currentTab === 'members' ? 'tab-active' : ''}"

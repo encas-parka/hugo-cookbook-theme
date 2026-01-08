@@ -283,7 +283,6 @@
             onCancel={closeForm}
             ownerId={activeTeam.$id}
             ownerName={activeTeam.name}
-            ownerType="team"
           />
         </div>
       </div>

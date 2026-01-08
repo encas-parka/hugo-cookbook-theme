@@ -185,47 +185,27 @@
     >
       <!-- Info principale -->
       <div class="flex min-w-0 flex-1 flex-col gap-2">
-        <!-- Header: Statut + Nom événement -->
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="badge {statusConfig.badgeClass} badge-sm gap-1">
-            <StatusIcon class="h-3 w-3" />
-            {statusConfig.label}
-          </span>
-          <div class="text-base font-semibold">
-            Réservation du {new Date(loan.startDate).toLocaleDateString(
-              "fr-FR",
-            )} au {new Date(loan.endDate).toLocaleDateString("fr-FR")}
-          </div>
-        </div>
-
         <!-- Info: Responsable + Dates -->
-        <div
-          class="text-base-content/70 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"
-        >
+        <div class=" flex flex-wrap items-center gap-x-4 gap-y-1 text-base">
           <div class="flex items-center gap-1">
-            <User class="h-3 w-3" />
+            <User class="h-4 w-4" />
             <span>{loan.responsibleName}</span>
           </div>
           <div class="flex items-center gap-1">
-            <Calendar class="h-3 w-3" />
+            <Calendar class="h-4 w-4" />
             <span>
               {formatDateDayMonthShort(loan.startDate)} - {formatDateDayMonthShort(
                 loan.endDate,
               )}
             </span>
           </div>
+          <span class="badge {statusConfig.badgeClass} badge-sm gap-1">
+            {statusConfig.label}
+          </span>
         </div>
 
         <!-- Matériels -->
         <div class="flex flex-wrap items-start gap-2 text-sm">
-          <div class="text-base-content/60 flex items-center gap-1">
-            <Package class="h-3 w-3" />
-            <span
-              >{materiels.length} matériel{materiels.length > 1
-                ? "s"
-                : ""}</span
-            >
-          </div>
           <div class="text-base-content/80">
             {materiels
               .slice(0, 3)

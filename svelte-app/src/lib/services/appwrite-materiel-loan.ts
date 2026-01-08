@@ -38,7 +38,6 @@ export type MaterielLoanCreate = {
   responsibleName: string;
   ownerId: string;
   ownerName: string;
-  ownerType: "user" | "team";
   materiels: MaterielLoanItem[];
   notes?: string;
   status?: MaterielLoanStatus;
@@ -131,21 +130,10 @@ export async function createMaterielLoan(
       // Le créateur peut lire et mettre à jour
       Permission.read(Role.user(currentUserId)),
       Permission.update(Role.user(currentUserId)),
+      // Owner est toujours une team, donner les permissions à la team
+      Permission.read(Role.team(data.ownerId)),
+      Permission.update(Role.team(data.ownerId)),
     ];
-
-    // Si owner est une team, donner les permissions à la team
-    if (data.ownerType === "team") {
-      permissions.push(
-        Permission.read(Role.team(data.ownerId)),
-        Permission.update(Role.team(data.ownerId)),
-      );
-    } else {
-      // Si owner est un user, donner les permissions à ce user
-      permissions.push(
-        Permission.read(Role.user(data.ownerId)),
-        Permission.update(Role.user(data.ownerId)),
-      );
-    }
 
     const loan = await tables.createRow({
       databaseId: APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
@@ -158,7 +146,6 @@ export async function createMaterielLoan(
         responsibleName: data.responsibleName,
         ownerId: data.ownerId,
         ownerName: data.ownerName,
-        ownerType: data.ownerType,
         materiels: data.materiels.map((item) => JSON.stringify(item)),
         notes: data.notes || null,
         status: data.status || "asked",

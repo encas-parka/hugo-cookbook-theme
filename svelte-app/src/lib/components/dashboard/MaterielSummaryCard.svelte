@@ -8,10 +8,6 @@
   }
 
   let { loading = false }: Props = $props();
-
-  const teamMaterielsCount = $derived(materielStore.teamMateriels.length);
-  const totalMaterielsCount = $derived(myMaterielsCount + teamMaterielsCount);
-  const shareableCount = $derived(materielStore.shareableMateriels.length);
 </script>
 
 <div class="card border-base-200 bg-base-100 border shadow-xl">
@@ -41,7 +37,14 @@
           class="btn btn-primary btn-soft btn-block btn-lg"
           onclick={() => navigate("/dashboard/materiel")}
         >
-          Gérer le matériel
+          Inventaire
+          <ArrowRight class="h-4 w-4" />
+        </button>
+        <button
+          class="btn btn-primary btn-soft btn-block btn-lg"
+          onclick={() => navigate("/dashboard/loans")}
+        >
+          Réservations
           <ArrowRight class="h-4 w-4" />
         </button>
       </div>

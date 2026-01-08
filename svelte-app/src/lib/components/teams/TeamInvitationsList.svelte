@@ -81,9 +81,7 @@
 
   <!-- Formulaire d'invitation -->
   <div>
-    <h4 class="mb-3 text-sm font-medium opacity-70">
-      Inviter de nouveaux membres
-    </h4>
+    <h4 class=" text-sm font-medium opacity-70">Inviter de nouveaux membres</h4>
     <InviteMembersForm {team} onSuccess={onInvitationSent} />
   </div>
 </div>

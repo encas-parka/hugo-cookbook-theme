@@ -220,6 +220,7 @@ export function enrichMaterielFromAppwrite(
     const isPlanned = startDate > now;
     const isAcceptedOrAsked = ["accepted", "asked"].includes(loan.status);
 
+    // Ajouter aux loanDetails si actif OU planifié
     if ((isActive || isPlanned) && isAcceptedOrAsked) {
       itemsForThisMateriel.forEach((item) => {
         loanDetails.push({
@@ -230,6 +231,12 @@ export function enrichMaterielFromAppwrite(
           quantity: item.quantity,
           status: loan.status as "asked" | "accepted" | "canceled",
         });
+      });
+    }
+
+    // N'ajouter à totalLoanedQuantity QUE si actif (pas planifié)
+    if (isActive && isAcceptedOrAsked) {
+      itemsForThisMateriel.forEach((item) => {
         totalLoanedQuantity += item.quantity;
       });
     }
@@ -283,7 +290,7 @@ export function reEnrichMaterielFromLoans(
   const baseMateriel: Materiel = {
     ...currentMateriel,
     // Si le statut était "loan" à cause des emprunts, on remet le statut original
-    status: currentMateriel.status === "loan" ? "ok" : currentMateriel.status,
+    // status: currentMateriel.status === "loan" ? "ok" : currentMateriel.status,
   } as Materiel;
 
   return enrichMaterielFromAppwrite(baseMateriel, allLoans);
@@ -333,10 +340,11 @@ export function isLoanValid(loan: MaterielLoan): boolean {
 
 /**
  * Calcule la quantité totale empruntée pour un matériel à une date donnée
+ * Ne compte que les prêts ACTIFS (pas les prêts planifiés/futurs)
  * @param materielId - ID du matériel
  * @param loans - Liste des emprunts
  * @param now - Date de référence
- * @returns Quantité totale empruntée
+ * @returns Quantité totale empruntée (prêts actifs uniquement)
  */
 export function calculateTotalLoanedQuantity(
   materielId: string,
@@ -346,8 +354,8 @@ export function calculateTotalLoanedQuantity(
   let total = 0;
 
   loans.forEach((loan) => {
-    // Vérifier si le loan est actif/planifié et valide
-    if (!isLoanActive(loan, now) && !isLoanPlanned(loan, now)) {
+    // Vérifier si le loan est actif et valide (pas planifié)
+    if (!isLoanActive(loan, now)) {
       return;
     }
     if (!isLoanValid(loan)) {

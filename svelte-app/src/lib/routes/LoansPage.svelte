@@ -81,7 +81,7 @@
     }
     const filtered = materielStore.loans.filter((loan) => {
       // Vérifier si l'emprunt concerne l'équipe (owner)
-      return loan.ownerType === "team" && loan.ownerId === activeTeamId;
+      return loan.ownerId === activeTeamId;
     });
     console.log("[LoansPage] teamLoans filtrés:", {
       activeTeamId,
@@ -89,7 +89,6 @@
       filteredCount: filtered.length,
       allLoans: materielStore.loans.map((l) => ({
         id: l.$id,
-        ownerType: l.ownerType,
         ownerId: l.ownerId,
       })),
     });
@@ -185,7 +184,7 @@
       <div class="tabs tabs-border bg-base-200 tabs-lg mb-6 font-medium">
         {#each userTeams as team (team.$id)}
           {@const loansCount = materielStore.loans.filter(
-            (loan) => loan.ownerType === "team" && loan.ownerId === team.$id,
+            (loan) => loan.ownerId === team.$id,
           ).length}
           <button
             class="tab {activeTeamId === team.$id ? 'tab-active' : ''}"

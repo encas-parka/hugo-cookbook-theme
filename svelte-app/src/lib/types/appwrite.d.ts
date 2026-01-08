@@ -241,7 +241,6 @@ export type MaterielLoan = Models.Row & {
   responsibleName: string | null;
   ownerId: string;
   ownerName: string | null;
-  ownerType: string | null;
   materiels: string[] | null;
   notes: string | null;
   status: MaterielLoanStatus;

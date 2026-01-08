@@ -13,7 +13,7 @@
   // Configuration des onglets
   const tabs = [
     { label: "Matériel", getPath: () => getMaterielPath() },
-    { label: "Emprunts", getPath: () => getLoansPath() },
+    { label: "Reservations", getPath: () => getLoansPath() },
   ];
 
   // Déterminer l'onglet actif depuis l'URL courante

@@ -559,7 +559,6 @@ export class MaterielStore {
     responsibleName: string;
     ownerId: string;
     ownerName: string;
-    ownerType: "user" | "team";
     materiels: MaterielLoanItem[];
     notes?: string;
   }): Promise<EnrichedMaterielLoan> {

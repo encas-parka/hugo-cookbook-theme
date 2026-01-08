@@ -84,16 +84,6 @@
         badgeClass: "badge-error",
         priority: 4,
       },
-      loan: {
-        label: "Prêté",
-        badgeClass: "badge-info",
-        priority: 2,
-      },
-      reserved: {
-        label: "Réservé",
-        badgeClass: "badge-warning",
-        priority: 3,
-      },
       torepair: {
         label: "À réparer",
         badgeClass: "badge-warning",
@@ -229,9 +219,9 @@
       <!-- Middle Info: Statut et partage -->
       <div class="flex flex-col items-start gap-1 sm:items-center">
         <!-- Badges de statut -->
-        <div class="flex flex-wrap gap-1">
-          <!-- Partageable -->
-          {#if isShareable}
+        <!-- <div class="flex flex-wrap gap-1"> -->
+        <!-- Partageable -->
+        <!-- {#if isShareable}
             <div
               class="badge badge-secondary badge-xs gap-1 py-0"
               title="Partageable avec {materiel.shareableWith!
@@ -240,8 +230,32 @@
               <Share2 class="h-2.5 w-2.5" />
               {materiel.shareableWith!.length}
             </div>
-          {/if}
-        </div>
+          {/if} -->
+        <!-- </div> -->
+
+        <!-- Emprunts en cours (Compact, en bas si présents) -->
+        {#if materiel.loanDetails.length > 0}
+          <div class="">
+            <div class="text-xs">
+              <span class="text-info font-semibold">
+                {materiel.loanDetails.length} réservation :
+              </span>
+              <span class="text-base-content/80 ml-2 font-medium">
+                {materiel.loanDetails
+                  .map((l) => `${l.responsibleName} (${l.quantity})`)
+                  .join(", ")}
+                {#if materiel.loanDetails.length > 0}
+                  du {formatDateDayMonthShort(
+                    materiel.loanDetails[0].startDate,
+                  )}
+                  jusqu'au {formatDateDayMonthShort(
+                    materiel.loanDetails[0].endDate,
+                  )}
+                {/if}
+              </span>
+            </div>
+          </div>
+        {/if}
       </div>
 
       <!-- Actions -->
@@ -260,27 +274,5 @@
         {/if}
       </div>
     </div>
-
-    <!-- Emprunts en cours (Compact, en bas si présents) -->
-    {#if materiel.loanDetails.length > 0}
-      <div class="border-base-200 mt-2 border-t">
-        <div class="text-xs">
-          <span class="text-info font-semibold">
-            {materiel.loanDetails.length} réservation :
-          </span>
-          <span class="text-base-content/70 ml-2">
-            {materiel.loanDetails
-              .map((l) => `${l.responsibleName} (${l.quantity})`)
-              .join(", ")}
-            {#if materiel.loanDetails.length > 0}
-              du {formatDateDayMonthShort(materiel.loanDetails[0].startDate)}
-              jusqu'au {formatDateDayMonthShort(
-                materiel.loanDetails[0].endDate,
-              )}
-            {/if}
-          </span>
-        </div>
-      </div>
-    {/if}
   </div>
 </div>
