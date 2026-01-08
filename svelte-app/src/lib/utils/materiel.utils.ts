@@ -25,22 +25,110 @@ import type {
 // =============================================================================
 
 /**
+ * Configuration complète pour un type de matériel
+ */
+export interface MaterielTypeConfig {
+  label: string;
+  badgeClass: string;
+  textColor: string; // Classe de couleur pour le texte (ex: "text-warning")
+  bgColor: string; // Classe de fond (ex: "bg-warning/10")
+}
+
+/**
+ * Retourne la configuration complète (label, couleurs) pour un type de matériel
+ */
+export function getMaterielTypeConfig(
+  type: MaterielType | string | null | undefined,
+): MaterielTypeConfig {
+  const configs: Record<string, MaterielTypeConfig> = {
+    electronic: {
+      label: "Électronique",
+      badgeClass: "badge-warning",
+      textColor: "text-warning",
+      bgColor: "bg-warning/10",
+    },
+    manual: {
+      label: "Manuel",
+      badgeClass: "badge-info",
+      textColor: "text-info",
+      bgColor: "bg-info/10",
+    },
+    tools: {
+      label: "Outils",
+      badgeClass: "badge-secondary",
+      textColor: "text-secondary",
+      bgColor: "bg-secondary/10",
+    },
+    dish: {
+      label: "Vaisselle",
+      badgeClass: "badge-primary",
+      textColor: "text-primary",
+      bgColor: "bg-primary/10",
+    },
+    cooking: {
+      label: "Cuisine",
+      badgeClass: "badge-success",
+      textColor: "text-success",
+      bgColor: "bg-success/10",
+    },
+    gaz: {
+      label: "Gaz",
+      badgeClass: "badge-error",
+      textColor: "text-error",
+      bgColor: "bg-error/10",
+    },
+    hygiene: {
+      label: "Hygiène",
+      badgeClass: "badge-info",
+      textColor: "text-info",
+      bgColor: "bg-info/10",
+    },
+    other: {
+      label: "Autre",
+      badgeClass: "badge-neutral",
+      textColor: "text-neutral",
+      bgColor: "bg-neutral/10",
+    },
+  };
+
+  return configs[type || "other"] || configs.other;
+}
+
+/**
  * Retourne le label lisible pour un type de matériel
+ * @deprecated Use getMaterielTypeConfig().label instead
  */
 export function getMaterielTypeLabel(
   type: MaterielType | string | null | undefined,
 ): string {
-  const labels: Record<string, string> = {
-    electronic: "Électronique",
-    manual: "Manuel",
-    other: "Autre",
-    tools: "Outils",
-    dish: "Vaisselle",
-    cooking: "Cuisine",
-    gaz: "Gaz",
-    hygiene: "Hygiène",
-  };
-  return labels[type || "other"] || type || "Autre";
+  return getMaterielTypeConfig(type).label;
+}
+
+/**
+ * Retourne la classe de badge pour un type de matériel
+ */
+export function getMaterielTypeBadgeClass(
+  type: MaterielType | string | null | undefined,
+): string {
+  return getMaterielTypeConfig(type).badgeClass;
+}
+
+/**
+ * Retourne la classe de couleur pour les icônes d'un type de matériel
+ */
+export function getMaterielTypeColorClass(
+  type: MaterielType | string | null | undefined,
+): string {
+  return getMaterielTypeConfig(type).textColor;
+}
+
+/**
+ * Retourne la classe de fond pour un type de matériel
+ */
+export function getMaterielTypeBgClass(
+  type: MaterielType | string | null | undefined,
+): string {
+  return getMaterielTypeConfig(type).bgColor;
 }
 
 /**

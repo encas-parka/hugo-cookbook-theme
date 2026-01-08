@@ -25,7 +25,11 @@
   import { formatDateDayMonthShort } from "$lib/utils/date-helpers";
   import {
     getMaterielTypeLabel,
+    getMaterielTypeBadgeClass,
+    getMaterielTypeColorClass,
+    getMaterielTypeBgClass,
     getMaterielStatusLabel,
+    getMaterielTypeConfig,
   } from "$lib/utils/materiel.utils";
 
   interface Props {
@@ -58,25 +62,6 @@
   });
 
   // Badge du type
-  const typeBadgeClass = $derived.by(() => {
-    switch (materiel.type || "other") {
-      case "electronic":
-        return "badge-warning";
-      case "manual":
-        return "badge-info";
-      case "cooking":
-        return "badge-success";
-      case "dish":
-        return "badge-primary";
-      case "gaz":
-        return "badge-error";
-      case "hygiene":
-        return "badge-info";
-      case "other":
-      default:
-        return "badge-neutral";
-    }
-  });
 
   // Configuration du statut
   const StatusConfig = $derived.by(() => {
@@ -164,8 +149,8 @@
 >
   <!-- Image/Icon placeholder -->
   <div class="hidden pl-4 sm:flex sm:items-center">
-    <div class="bg-primary/10 rounded-lg p-3">
-      <TypeIcon class="text-primary h-6 w-6" />
+    <div class="{getMaterielTypeBgClass(materiel.type)} rounded-lg p-3">
+      <TypeIcon class="{getMaterielTypeColorClass(materiel.type)} h-6 w-6" />
     </div>
   </div>
 
@@ -182,8 +167,12 @@
             >
               {materiel.name}
             </div>
-            <span class="badge {typeBadgeClass} badge-soft badge-sm gap-1 py-0">
-              {getMaterielTypeLabel(materiel.type)}
+            <span
+              class="badge {getMaterielTypeBadgeClass(
+                materiel.type,
+              )} badge-soft badge-sm gap-1 py-0"
+            >
+              {getMaterielTypeConfig(materiel.type).label}
             </span>
           </div>
           <div

@@ -8,12 +8,24 @@
     Package,
     RotateCcw,
     Loader,
+    Zap,
+    Wrench,
+    ChefHat,
+    Box,
+    Utensils,
+    Flame,
+    SoapDispenserDroplet,
   } from "@lucide/svelte";
   import { materielStore } from "$lib/stores/MaterielStore.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import type { MaterielLoanItem } from "$lib/types/materiel.types";
   import { formatDateDayMonthShort } from "$lib/utils/date-helpers";
+  import {
+    getMaterielTypeBgClass,
+    getMaterielTypeColorClass,
+    getMaterielTypeConfig,
+  } from "$lib/utils/materiel.utils";
 
   interface Props {
     params?: { loanId?: string };
@@ -33,6 +45,7 @@
     Array<{
       materielId: string;
       materielName: string;
+      materielType: string | null; // Type du matériel
       quantity: number;
       lostQuantity: number;
       brokenQuantity: number;
@@ -47,6 +60,27 @@
     if (!loanId) return null;
     return materielStore.getLoanById(loanId);
   });
+
+  // Fonction pour obtenir l'icône selon le type de matériel
+  function getTypeIcon(type: string | null | undefined) {
+    switch (type) {
+      case "electronic":
+        return Zap;
+      case "manual":
+        return Wrench;
+      case "cooking":
+        return ChefHat;
+      case "dish":
+        return Utensils;
+      case "gaz":
+        return Flame;
+      case "hygiene":
+        return SoapDispenserDroplet;
+      case "other":
+      default:
+        return Box;
+    }
+  }
 
   // Initialisation
   onMount(() => {
@@ -84,9 +118,13 @@
         const broken = item.brokenQuantity || 0;
         const ok = item.quantity - lost - broken;
 
+        // Récupérer le type depuis le store
+        const materiel = materielStore.getMaterielById(item.materielId);
+
         return {
           materielId: item.materielId,
           materielName: item.materielName,
+          materielType: materiel?.type || null,
           quantity: item.quantity,
           lostQuantity: lost,
           brokenQuantity: broken,
@@ -96,15 +134,21 @@
       });
     } else {
       // Initialiser les matériels pour le retour (mode édition)
-      materielsReturns = loanData.materielItems.map((item) => ({
-        materielId: item.materielId,
-        materielName: item.materielName,
-        quantity: item.quantity,
-        lostQuantity: 0,
-        brokenQuantity: 0,
-        okQuantity: item.quantity,
-        state: "pending", // État initial : pas encore déclaré
-      }));
+      materielsReturns = loanData.materielItems.map((item) => {
+        // Récupérer le type depuis le store
+        const materiel = materielStore.getMaterielById(item.materielId);
+
+        return {
+          materielId: item.materielId,
+          materielName: item.materielName,
+          materielType: materiel?.type || null,
+          quantity: item.quantity,
+          lostQuantity: 0,
+          brokenQuantity: 0,
+          okQuantity: item.quantity,
+          state: "pending", // État initial : pas encore déclaré
+        };
+      });
     }
   });
 
@@ -241,10 +285,18 @@
                 item.lostQuantity === 0 && item.brokenQuantity === 0}
 
               <div
-                class="bg-base-200 rounded-box flex items-center justify-between px-4 py-2"
+                class="bg-base-200 rounded-box flex flex-wrap items-center justify-between p-4"
               >
                 <!-- Nom du matériel -->
-                <div class="flex flex-wrap items-center gap-4">
+                <div class="flex items-center gap-4">
+                  {#snippet typeIcon(type)}
+                    {@const Icon = getTypeIcon(type)}
+                    <div class="{getMaterielTypeBgClass(type)} rounded-lg p-2">
+                      <Icon class="{getMaterielTypeColorClass(type)} h-5 w-5" />
+                    </div>
+                  {/snippet}
+
+                  {@render typeIcon(item.materielType)}
                   <div class="text-lg font-semibold">{item.materielName}</div>
                   <p class="font-semibold opacity-70">
                     ({item.quantity})
@@ -255,7 +307,7 @@
                 {#if item.quantity === 1}
                   {#if isReadOnly}
                     <!-- Mode lecture seule : afficher l'état -->
-                    <div class="flex items-center gap-10 p-2">
+                    <div class="flex items-center gap-6 p-2">
                       {#if item.brokenQuantity > 0}
                         <div class="badge badge-warning gap-2">
                           <AlertTriangle class="h-4 w-4" />
@@ -277,7 +329,9 @@
                     </div>
                   {:else}
                     <!-- Mode édition : boutons interactifs -->
-                    <div class="flex items-center gap-10 p-2">
+                    <div
+                      class="ms-auto flex flex-wrap items-center justify-end gap-6 p-2"
+                    >
                       <button
                         class="btn btn-sm btn-warning {item.brokenQuantity ===
                           0 && 'btn-outline'}"
@@ -331,7 +385,7 @@
                   <!-- {item.quantity > 1 ? Inputs pour les quantités} -->
                   {#if isReadOnly}
                     <!-- Mode lecture seule : afficher les quantités -->
-                    <div class="flex flex-wrap gap-4">
+                    <div class="ms-auto flex flex-wrap justify-end gap-4">
                       {#if item.brokenQuantity > 0}
                         <div class="badge badge-warning gap-2">
                           <AlertTriangle class="h-4 w-4" />
