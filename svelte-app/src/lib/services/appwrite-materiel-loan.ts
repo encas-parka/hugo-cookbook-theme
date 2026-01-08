@@ -182,9 +182,7 @@ export async function updateMaterielLoan(
   try {
     const { tables } = await getAppwriteInstances();
 
-    const updateData: any = {
-      updatedAt: new Date().toISOString(),
-    };
+    const updateData: any = {};
 
     if (data.startDate !== undefined) updateData.startDate = data.startDate;
     if (data.endDate !== undefined) updateData.endDate = data.endDate;

@@ -36,6 +36,7 @@ import {
   parseOwnerFromAppwrite,
   parseLoanItemsFromAppwrite,
   extractMaterielIdsFromLoans,
+  calculateLoanedQuantityForPeriod,
 } from "$lib/utils/materiel.utils";
 
 export class MaterielStore {
@@ -136,7 +137,10 @@ export class MaterielStore {
    */
   getAvailableMaterielsByOwner(teamId: string): EnrichedMateriel[] {
     return this.#availableMaterielsList.filter(
-      (m) => m.ownerData?.teamId === teamId,
+      (m) =>
+        m.ownerData?.teamId === teamId &&
+        m.status !== "lost" &&
+        m.status !== "torepair",
     );
   }
 
@@ -147,6 +151,42 @@ export class MaterielStore {
    */
   getMaterielsByOwner(teamId: string): EnrichedMateriel[] {
     return this.#materielsList.filter((m) => m.ownerData?.teamId === teamId);
+  }
+
+  /**
+   * Récupère les matériels disponibles pour une équipe sur une période donnée
+   * @param teamId ID de l'équipe propriétaire
+   * @param startDate Date de début de la période
+   * @param endDate Date de fin de la période
+   * @returns Liste des matériels disponibles avec leur quantité disponible sur la période
+   */
+  getAvailableMaterielsForPeriod(
+    teamId: string,
+    startDate: string,
+    endDate: string,
+  ): Array<EnrichedMateriel & { availableForPeriod: number }> {
+    const periodStart = new Date(startDate);
+    const periodEnd = new Date(endDate);
+    const allLoans = Array.from(this.#loans.values());
+
+    return this.#materielsList
+      .filter((m) => m.ownerData?.teamId === teamId)
+      .filter((m) => m.status !== "lost" && m.status !== "torepair") // Exclure les matériels perdus ou à réparer
+      .map((materiel) => {
+        const loanedQuantity = calculateLoanedQuantityForPeriod(
+          materiel.$id,
+          allLoans,
+          periodStart,
+          periodEnd,
+        );
+        const availableForPeriod = materiel.quantity - loanedQuantity;
+
+        return {
+          ...materiel,
+          availableForPeriod,
+        };
+      })
+      .filter((m) => m.availableForPeriod > 0);
   }
 
   // =============================================================================
@@ -561,6 +601,7 @@ export class MaterielStore {
     ownerName: string;
     materiels: MaterielLoanItem[];
     notes?: string;
+    status?: "asked" | "accepted"; // Statut optionnel
   }): Promise<EnrichedMaterielLoan> {
     this.#loading = true;
     this.#error = null;
@@ -660,9 +701,10 @@ export class MaterielStore {
   }
 
   /**
-   * Marque un emprunt comme retourné (avec état du matériel)
+   * Termine un emprunt en enregistrant l'état du matériel retourné
+   * Combine les étapes returned + completed
    */
-  async returnLoan(
+  async completeLoanWithReturn(
     loanId: string,
     data: {
       materiels: MaterielLoanItem[]; // Avec lost/broken mis à jour
@@ -670,7 +712,8 @@ export class MaterielStore {
     },
   ): Promise<void> {
     await this.updateLoan(loanId, {
-      status: "returned",
+      status: "completed",
+      completedAt: new Date().toISOString(),
       returnedAt: new Date().toISOString(),
       returnNotes: data.returnNotes,
       materiels: data.materiels,
@@ -678,7 +721,8 @@ export class MaterielStore {
   }
 
   /**
-   * Termine complété un emprunt
+   * Termine un emprunt (sans fiche de retour)
+   * @deprecated
    */
   async completeLoan(loanId: string): Promise<void> {
     await this.updateLoan(loanId, {

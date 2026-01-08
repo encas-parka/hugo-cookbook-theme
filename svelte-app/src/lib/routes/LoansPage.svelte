@@ -50,19 +50,56 @@
     closeCreateLoanModal();
   }
 
-  // Ouvrir le modal de retour
-  function openReturnModal(loanId: string) {
-    const loan = materielStore.getLoanById(loanId);
-    if (loan) {
-      selectedLoan = loan;
-      showReturnModal = true;
-    }
+  // Ouvrir la fiche de retour
+  function openReturnForm(loanId: string) {
+    navigate(`/dashboard/loans/return/${loanId}`);
   }
 
   // Fermer le modal de retour
   function closeReturnModal() {
     showReturnModal = false;
     selectedLoan = null;
+  }
+
+  // Actions sur les emprunts
+  async function handleAcceptLoan(loanId: string) {
+    try {
+      await materielStore.acceptLoan(loanId);
+      toastService.success("Emprunt accepté avec succès");
+    } catch (error) {
+      console.error("[LoansPage] Erreur acceptation emprunt:", error);
+      toastService.error("Erreur lors de l'acceptation de l'emprunt");
+    }
+  }
+
+  async function handleCancelLoan(loanId: string) {
+    try {
+      await materielStore.cancelLoan(loanId);
+      toastService.success("Emprunt annulé avec succès");
+    } catch (error) {
+      console.error("[LoansPage] Erreur annulation emprunt:", error);
+      toastService.error("Erreur lors de l'annulation de l'emprunt");
+    }
+  }
+
+  async function handleCompleteLoan(loanId: string) {
+    try {
+      await materielStore.completeLoan(loanId);
+      toastService.success("Emprunt terminé avec succès");
+    } catch (error) {
+      console.error("[LoansPage] Erreur terminaison emprunt:", error);
+      toastService.error("Erreur lors de la terminaison de l'emprunt");
+    }
+  }
+
+  async function handleDeleteLoan(loanId: string) {
+    try {
+      await materielStore.deleteLoan(loanId);
+      toastService.success("Emprunt supprimé avec succès");
+    } catch (error) {
+      console.error("[LoansPage] Erreur suppression emprunt:", error);
+      toastService.error("Erreur lors de la suppression de l'emprunt");
+    }
   }
 
   // Équipes de l'utilisateur
@@ -160,7 +197,6 @@
       title: teamName,
       materielContext: "loans",
       teamId: activeTeamId || undefined,
-      actions: navActions,
     });
   });
 
@@ -169,13 +205,6 @@
     navBarStore.reset();
   });
 </script>
-
-{#snippet navActions()}
-  <button class="btn btn-primary btn-sm gap-2" onclick={openCreateLoanModal}>
-    <Plus size={16} />
-    Créer un emprunt
-  </button>
-{/snippet}
 
 <div class="container mx-auto p-4">
   <div class="mx-auto max-w-7xl px-4 py-8">
@@ -239,8 +268,23 @@
       {:else}
         <!-- Liste des emprunts -->
         <div class="space-y-4">
+          <div class="mb-6 flex justify-end">
+            <button
+              class="btn btn-primary btn-wide flex gap-2"
+              onclick={openCreateLoanModal}
+            >
+              <Plus size={16} />
+              Ajouter une reservation
+            </button>
+          </div>
           {#each teamLoans as loan (loan.$id)}
-            <LoanCard {loan} onReturn={openReturnModal} />
+            <LoanCard
+              {loan}
+              onReturn={openReturnForm}
+              onAccept={handleAcceptLoan}
+              onCancel={handleCancelLoan}
+              onDelete={handleDeleteLoan}
+            />
           {/each}
         </div>
       {/if}

@@ -126,9 +126,7 @@
   });
 
   // Validation
-  const isValid = $derived(
-    name.trim().length > 0 && quantity >= 1 && isOwnerLocked && !loading,
-  );
+  const isValid = $derived(name.trim().length > 0 && quantity >= 1 && !loading);
 
   // Gestion du toggle d'équipe pour shareableWith
   function handleShareableWithToggle(teamId: string) {

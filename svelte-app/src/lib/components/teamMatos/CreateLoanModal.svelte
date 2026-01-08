@@ -14,6 +14,7 @@
     Flame,
     SoapDispenserDroplet,
     Box,
+    Info,
   } from "@lucide/svelte";
   import AutocompleteInput from "../ui/AutocompleteInput.svelte";
   import { materielStore } from "$lib/stores/MaterielStore.svelte";
@@ -39,7 +40,7 @@
     materielName: string;
     quantity: number;
     type: MaterielTypeLiteral;
-    maxQuantity: number; // Quantité disponible
+    maxQuantity: number; // Quantité disponible sur la période
   }
 
   interface Props {
@@ -57,15 +58,25 @@
   let endDate = $state("");
   let notes = $state("");
   let selectedMateriels = $state<SelectedMateriel[]>([]);
+  let loanStatus = $state<any>("asked"); // Statut de l'emprunt
 
   // UI state
   let showQuickSelection = $state(false);
   let loading = $state(false);
 
-  // Dérivés
-  const availableMateriels = $derived(
-    materielStore.getAvailableMaterielsByOwner(ownerId),
-  );
+  // Dérivés - Matériels disponibles pour la période sélectionnée
+  const availableMateriels = $derived.by(() => {
+    if (!startDate || !endDate) {
+      // Si pas de dates, retourner tous les matériels (fallback)
+      return materielStore.getAvailableMaterielsByOwner(ownerId);
+    }
+    // Vérifier la disponibilité sur la période
+    return materielStore.getAvailableMaterielsForPeriod(
+      ownerId,
+      startDate,
+      endDate,
+    );
+  });
 
   const isValid = $derived(
     startDate !== "" &&
@@ -79,14 +90,20 @@
   );
 
   // Fonctions
-  function handleAddMateriel(materiel: EnrichedMateriel) {
+  function handleAddMateriel(
+    materiel: EnrichedMateriel & { availableForPeriod?: number },
+  ) {
+    // Récupérer la quantité disponible sur la période
+    const maxQty =
+      (materiel as any).availableForPeriod ?? materiel.availableQuantity;
+
     // Vérifier si déjà sélectionné
     const existing = selectedMateriels.find(
       (m) => m.materielId === materiel.$id,
     );
     if (existing) {
       // Augmenter la quantité si possible
-      if (existing.quantity < materiel.availableQuantity) {
+      if (existing.quantity < maxQty) {
         existing.quantity++;
       }
       return;
@@ -100,7 +117,7 @@
         materielName: materiel.name,
         quantity: 1,
         type: materiel.type || "",
-        maxQuantity: materiel.availableQuantity,
+        maxQuantity: maxQty,
       },
     ];
   }
@@ -122,7 +139,7 @@
   function handleQuickSelectionAdd(materielIds: string[]) {
     materielIds.forEach((id) => {
       const materiel = availableMateriels.find((m) => m.$id === id);
-      if (materiel && materiel.isAvailable) {
+      if (materiel) {
         handleAddMateriel(materiel);
       }
     });
@@ -152,9 +169,9 @@
         responsibleName,
         ownerId,
         ownerName,
-        ownerType,
         materiels: materielItems,
         notes: notes.trim() || undefined,
+        status: loanStatus, // Utiliser le statut sélectionné
       });
 
       // Reset et fermeture
@@ -174,6 +191,7 @@
     endDate = "";
     notes = "";
     selectedMateriels = [];
+    loanStatus = "asked"; // Reset du statut
   }
 
   function handleClose() {
@@ -261,6 +279,43 @@
             disabled={loading}
           ></textarea>
         </fieldset>
+
+        <!-- Statut de l'emprunt -->
+        <fieldset class="fieldset bg-base-100">
+          <legend class="fieldset-legend">Statut de la réservation</legend>
+          <div class="flex flex-wrap gap-4">
+            <label class="label justify-gap-3 cursor-pointer gap-3">
+              <input
+                type="radio"
+                class="radio radio-primary"
+                bind:group={loanStatus}
+                value="asked"
+                disabled={loading}
+              />
+              <span class="label-text">
+                <strong class="block">Demande de réservation</strong>
+                <span class="text-xs opacity-70">
+                  Si vous souhaitez attendre la validation du reste de l'équipe
+                </span>
+              </span>
+            </label>
+            <label class="label justify-gap-3 cursor-pointer gap-3">
+              <input
+                type="radio"
+                class="radio radio-primary"
+                bind:group={loanStatus}
+                value="accepted"
+                disabled={loading}
+              />
+              <span class="label-text">
+                <strong class="block">Réservation confirmée</strong>
+                <span class="text-xs opacity-70">
+                  L'emprunt est automatiquement validé
+                </span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
       </div>
 
       <!-- Section 2: Sélection du matériel -->
@@ -272,30 +327,54 @@
           Matériel à emprunter ({selectedMateriels.length})
         </h4>
 
-        <!-- Recherche + ajout rapide -->
-        <div class="flex gap-2">
-          <div class="flex-1">
-            <AutocompleteInput
-              items={availableMateriels}
-              itemToString={(m) => m.name}
-              onSelect={(m) => handleAddMateriel(m)}
-              placeholder="Rechercher du matériel..."
-              disabled={loading}
-            />
+        <!-- Message info si dates non définies -->
+        {#if !startDate || !endDate}
+          <div class="alert alert-info">
+            <Info class="h-5 w-5" />
+            <span>
+              Veuillez sélectionner une <strong>date de début</strong> et une
+              <strong>date de fin</strong> pour voir le matériel disponible sur cette
+              période.
+            </span>
           </div>
-          <button
-            class="btn btn-primary btn-md gap-2"
-            onclick={() => (showQuickSelection = true)}
-            disabled={loading}
-          >
-            <Sparkles class="h-4 w-4" />
-            Ajout rapide
-          </button>
-        </div>
+        {:else}
+          <!-- Recherche + ajout rapide -->
+          <div class="flex flex-wrap gap-6">
+            <div class="flex-1">
+              <AutocompleteInput
+                items={availableMateriels}
+                itemToString={(m) => m.name}
+                onSelect={(m) => handleAddMateriel(m)}
+                placeholder="Rechercher du matériel..."
+                disabled={loading}
+              />
+            </div>
+            <button
+              class="btn btn-secondary btn-md flex-1 gap-2"
+              onclick={() => (showQuickSelection = true)}
+              disabled={loading || availableMateriels.length === 0}
+            >
+              <Sparkles class="h-4 w-4" />
+              Ajout rapide
+            </button>
+          </div>
+          <!-- Info sur la disponibilité -->
+          {#if availableMateriels.length === 0}
+            <div class="alert alert-warning">
+              <Info class="h-5 w-5" />
+              <span>
+                Aucun matériel disponible pour la période sélectionnée.
+              </span>
+            </div>
+          {/if}
+        {/if}
 
         <!-- Liste des matériels sélectionnés -->
         {#if selectedMateriels.length > 0}
           <div class="space-y-2">
+            <p class="text-sm font-semibold opacity-70">
+              Matériels sélectionnés
+            </p>
             {#each selectedMateriels as materiel (materiel.materielId)}
               {@const TypeIcon =
                 materiel.type === "electronic"
@@ -319,10 +398,17 @@
                     <TypeIcon class="h-4 w-4 opacity-70" />
                   </div>
 
-                  <!-- Nom -->
-                  <span class="min-w-0 flex-1 truncate font-medium">
-                    {materiel.materielName}
-                  </span>
+                  <!-- Nom + dispo -->
+                  <div class="min-w-0 flex-1">
+                    <div class="truncate font-medium">
+                      {materiel.materielName}
+                    </div>
+                    <div class="text-xs opacity-70">
+                      Disponible : <span class="font-semibold"
+                        >{materiel.maxQuantity}</span
+                      >
+                    </div>
+                  </div>
 
                   <!-- Quantité -->
                   <div class="flex items-center gap-1">
@@ -404,7 +490,7 @@
       onClose={() => (showQuickSelection = false)}
       onAdd={handleQuickSelectionAdd}
       selectedIds={new Set(selectedMateriels.map((m) => m.materielId))}
-      {ownerId}
+      materiels={availableMateriels}
     />
   {/if}
 </div>

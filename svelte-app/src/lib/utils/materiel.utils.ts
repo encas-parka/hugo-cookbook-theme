@@ -394,3 +394,161 @@ export function extractMaterielIdsFromLoans(
 
   return materielIds;
 }
+
+// =============================================================================
+// HELPERS - Vérification de disponibilité sur une période
+// =============================================================================
+
+/**
+ * Vérifie si deux périodes de temps se chevauchent
+ * @param start1 - Date de début de la première période
+ * @param end1 - Date de fin de la première période
+ * @param start2 - Date de début de la deuxième période
+ * @param end2 - Date de fin de la deuxième période
+ * @returns true si les périodes se chevauchent
+ */
+export function doPeriodsOverlap(
+  start1: Date,
+  end1: Date,
+  start2: Date,
+  end2: Date,
+): boolean {
+  return start1 <= end2 && end1 >= start2;
+}
+
+/**
+ * Calcule la quantité empruntée pour un matériel sur une période donnée
+ * @param materielId - ID du matériel
+ * @param loans - Liste des emprunts
+ * @param periodStart - Date de début de la période
+ * @param periodEnd - Date de fin de la période
+ * @returns Quantité totale empruntée sur la période
+ */
+export function calculateLoanedQuantityForPeriod(
+  materielId: string,
+  loans: MaterielLoan[],
+  periodStart: Date,
+  periodEnd: Date,
+): number {
+  let total = 0;
+
+  loans.forEach((loan) => {
+    // Vérifier si le loan est valide
+    if (!isLoanValid(loan)) {
+      return;
+    }
+
+    // Vérifier si les périodes se chevauchent
+    const loanStart = new Date(loan.startDate);
+    const loanEnd = new Date(loan.endDate);
+
+    if (!doPeriodsOverlap(loanStart, loanEnd, periodStart, periodEnd)) {
+      return;
+    }
+
+    // Parser les items et sommer les quantités pour ce matériel
+    const loanItems = parseLoanItemsFromAppwrite(loan.materiels);
+    const itemsForThisMateriel = loanItems.filter(
+      (item) => item.materielId === materielId,
+    );
+
+    total += itemsForThisMateriel.reduce((sum, item) => sum + item.quantity, 0);
+  });
+
+  return total;
+}
+
+/**
+ * Vérifie si un matériel est disponible sur une période donnée
+ * @param materiel - Matériel enrichi
+ * @param loans - Liste des emprunts
+ * @param periodStart - Date de début de la période
+ * @param periodEnd - Date de fin de la période
+ * @param requestedQuantity - Quantité demandée (défaut: 1)
+ * @returns true si le matériel est disponible
+ */
+export function isMaterielAvailableForPeriod(
+  materiel: EnrichedMateriel,
+  loans: MaterielLoan[],
+  periodStart: Date,
+  periodEnd: Date,
+  requestedQuantity: number = 1,
+): boolean {
+  const loanedQuantity = calculateLoanedQuantityForPeriod(
+    materiel.$id,
+    loans,
+    periodStart,
+    periodEnd,
+  );
+
+  return materiel.quantity - loanedQuantity >= requestedQuantity;
+}
+
+/**
+ * Retourne les détails des conflits pour un matériel sur une période
+ * @param materielId - ID du matériel
+ * @param materielName - Nom du matériel
+ * @param loans - Liste des emprunts
+ * @param periodStart - Date de début de la période
+ * @param periodEnd - Date de fin de la période
+ * @returns Liste des conflits avec détails
+ */
+export function getMaterielConflictsForPeriod(
+  materielId: string,
+  materielName: string,
+  loans: MaterielLoan[],
+  periodStart: Date,
+  periodEnd: Date,
+): Array<{
+  loanId: string;
+  responsibleName: string;
+  startDate: string;
+  endDate: string;
+  quantity: number;
+}> {
+  const conflicts: Array<{
+    loanId: string;
+    responsibleName: string;
+    startDate: string;
+    endDate: string;
+    quantity: number;
+  }> = [];
+
+  loans.forEach((loan) => {
+    // Vérifier si le loan est valide
+    if (!isLoanValid(loan)) {
+      return;
+    }
+
+    // Vérifier si les périodes se chevauchent
+    const loanStart = new Date(loan.startDate);
+    const loanEnd = new Date(loan.endDate);
+
+    if (!doPeriodsOverlap(loanStart, loanEnd, periodStart, periodEnd)) {
+      return;
+    }
+
+    // Parser les items et vérifier si ce matériel est concerné
+    const loanItems = parseLoanItemsFromAppwrite(loan.materiels);
+    const itemsForThisMateriel = loanItems.filter(
+      (item) => item.materielId === materielId,
+    );
+
+    if (itemsForThisMateriel.length > 0) {
+      const quantity = itemsForThisMateriel.reduce(
+        (sum, item) => sum + item.quantity,
+        0,
+      );
+
+      conflicts.push({
+        loanId: loan.$id,
+        responsibleName: loan.responsibleName || "Inconnu",
+        startDate: loan.startDate,
+        endDate: loan.endDate,
+        quantity,
+      });
+    }
+  });
+
+  return conflicts;
+}

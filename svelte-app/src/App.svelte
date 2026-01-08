@@ -36,6 +36,7 @@
   import EventPosterPage from "./lib/routes/EventPosterPage.svelte";
   import MaterielPage from "./lib/routes/MaterielPage.svelte";
   import LoansPage from "./lib/routes/LoansPage.svelte";
+  import LoanReturnPage from "./lib/routes/LoanReturnPage.svelte";
 
   // États de l'application
   type AppState =
@@ -93,6 +94,11 @@
   router.addRoute("/dashboard/materiel/:teamId", MaterielPage, requireAuth);
   router.addRoute("/dashboard/loans", LoansPage, requireAuth);
   router.addRoute("/dashboard/loans/:teamId", LoansPage, requireAuth);
+  router.addRoute(
+    "/dashboard/loans/return/:loanId",
+    LoanReturnPage,
+    requireAuth,
+  );
 
   // État du composant actuel
   let currentRoute = $state<any>(null);

@@ -17,7 +17,7 @@
   }
 
   let {
-    position = "toast-right toast-bottom",
+    position = "toast-center toast-bottom",
     padding = "md",
     onShowDetails,
   }: Props = $props();

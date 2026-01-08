@@ -10,7 +10,6 @@
     SoapDispenserDroplet,
   } from "@lucide/svelte";
   import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
-  import { materielStore } from "$lib/stores/MaterielStore.svelte";
   import type { EnrichedMateriel } from "$lib/types/materiel.types";
 
   interface Props {
@@ -18,7 +17,7 @@
     onClose: () => void;
     onAdd: (materielIds: string[]) => void;
     selectedIds?: Set<string>;
-    ownerId: string; // ID de l'équipe propriétaire
+    materiels: EnrichedMateriel[]; // Liste des matériels disponibles (déjà filtrée)
   }
 
   let {
@@ -26,7 +25,7 @@
     onClose,
     onAdd,
     selectedIds = new Set(),
-    ownerId,
+    materiels,
   }: Props = $props();
 
   // Labels des types
@@ -55,13 +54,8 @@
   const materielsByType = $derived.by(() => {
     const grouped: Record<string, EnrichedMateriel[]> = {};
 
-    // Filtrer par owner d'abord
-    const ownerMateriels = materielStore.getMaterielsByOwner(ownerId);
-
-    ownerMateriels.forEach((materiel) => {
-      // Uniquement les matériels disponibles
-      if (!materiel.isAvailable || materiel.quantity === 0) return;
-
+    // Les materiels sont déjà filtrés par le parent
+    materiels.forEach((materiel) => {
       const type = materiel.type || "other";
       if (!grouped[type]) {
         grouped[type] = [];
@@ -119,6 +113,10 @@
 
     <!-- Contenu principal -->
     <div class="flex-1 space-y-6 overflow-y-auto p-4">
+      <div class="alert alert-info alert-soft text-base">
+        Les nombres indiquent les quantités disponibles de chaque matériel, vous
+        indiquerez après la quantité que vous souhaitez réserver.
+      </div>
       {#each Object.entries(materielsByType) as [type, materiels] (type)}
         {@const TypeIcon = TypeIcons[type]}
         <div class="mb-6">
