@@ -254,11 +254,8 @@ export class MaterielStore {
     try {
       // 1. Sync Materiel (modifiés depuis lastSyncMateriel)
       const materielQueries = this.#lastSyncMateriel
-        ? [
-            Query.greaterThan("$updatedAt", this.#lastSyncMateriel),
-            Query.limit(100),
-          ]
-        : [Query.limit(100)];
+        ? [Query.greaterThan("$updatedAt", this.#lastSyncMateriel)]
+        : [];
 
       const updatedMateriels = await listMateriels(materielQueries);
 
@@ -276,7 +273,7 @@ export class MaterielStore {
             Query.greaterThan("$updatedAt", this.#lastSyncLoans),
             Query.limit(100),
           ]
-        : [Query.limit(100)];
+        : [];
 
       const updatedLoans = await listMaterielLoans(loanQueries);
 
@@ -300,6 +297,50 @@ export class MaterielStore {
       console.log("[MaterielStore] Sync terminé");
     } catch (err) {
       console.error("[MaterielStore] Erreur sync:", err);
+      throw err;
+    }
+  }
+
+  /**
+   * Charge TOUS les documents depuis Appwrite (sans filtre $updatedAt)
+   * Utilisé pour le hard reset
+   */
+  async #forceLoadFromAppwrite(): Promise<void> {
+    try {
+      console.log("[MaterielStore] Chargement complet depuis Appwrite...");
+
+      // 1. Charger TOUS les matériels
+      const allMateriels = await listMateriels([Query.limit(1000)]);
+
+      for (const doc of allMateriels) {
+        const enriched = this.#enrichMaterielFromLoans(doc);
+        this.#materiels.set(doc.$id, enriched);
+      }
+
+      // 2. Charger TOUS les emprunts
+      const allLoans = await listMaterielLoans([Query.limit(1000)]);
+
+      const enrichedLoans: EnrichedMaterielLoan[] = [];
+      for (const loan of allLoans) {
+        const enriched = enrichLoanFromAppwrite(loan);
+        this.#loans.set(loan.$id, enriched);
+        enrichedLoans.push(enriched);
+      }
+
+      // 3. Ré-enrichir tous les matériels avec les emprunts chargés
+      for (const loan of enrichedLoans) {
+        this.#reEnrichMaterielsFromLoan(loan);
+      }
+
+      // 4. Mettre à jour les timestamps de sync
+      this.#lastSyncMateriel = new Date().toISOString();
+      this.#lastSyncLoans = new Date().toISOString();
+
+      console.log(
+        `[MaterielStore] ${allMateriels.length} matériels et ${allLoans.length} emprunts chargés`,
+      );
+    } catch (err) {
+      console.error("[MaterielStore] Erreur chargement complet:", err);
       throw err;
     }
   }
@@ -710,6 +751,68 @@ export class MaterielStore {
     } finally {
       this.#loading = false;
     }
+  }
+
+  /**
+   * Hard Reset - Vide tout (état Svelte + cache IDB) et recharge depuis Appwrite
+   */
+  async hardReset(): Promise<void> {
+    console.log("[MaterielStore] 🔄 HARD RESET - Vidage complet...");
+    this.#loading = true;
+    this.#error = null;
+
+    try {
+      // 1. Vider l'état Svelte
+      this.#materiels.clear();
+      this.#loans.clear();
+
+      // 2. Vider le cache IndexedDB
+      if (this.#idbCache) {
+        await this.#idbCache.clear();
+        console.log("[MaterielStore] Cache IDB vidé");
+      }
+
+      // 3. Recharger TOUT depuis Appwrite (sans filtre $updatedAt)
+      await this.#forceLoadFromAppwrite();
+
+      // 4. Recréer le cache avec les données fraîches
+      if (this.#idbCache) {
+        // Sauvegarder tous les matériels
+        for (const [, materiel] of this.#materiels) {
+          await this.#idbCache.upsertMateriel(materiel);
+        }
+
+        // Sauvegarder tous les emprunts
+        for (const [, loan] of this.#loans) {
+          await this.#idbCache.upsertLoan(loan);
+        }
+
+        // Sauvegarder les métadonnées
+        await this.#idbCache.saveMetadata({
+          lastSyncMateriel: this.#lastSyncMateriel,
+          lastSyncLoans: this.#lastSyncLoans,
+        });
+
+        console.log("[MaterielStore] Cache IDB recréé");
+      }
+
+      console.log("[MaterielStore] ✓ HARD RESET terminé");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erreur lors du hard reset";
+      this.#error = message;
+      console.error("[MaterielStore] Erreur hard reset:", err);
+      throw err;
+    } finally {
+      this.#loading = false;
+    }
+  }
+
+  destroy(): void {
+    this.#realtimeUnsubscribe?.();
+    this.#materiels.clear();
+    this.#loans.clear();
+    this.#idbCache = null;
   }
 }
 

@@ -11,6 +11,7 @@ import { productsStore } from "../stores/ProductsStore.svelte";
 import { recipesStore } from "../stores/RecipesStore.svelte";
 import { nativeTeamsStore as teamsStore } from "../stores/NativeTeamsStore.svelte";
 import { eventsStore } from "../stores/EventsStore.svelte";
+import { materielStore } from "../stores/MaterielStore.svelte";
 import { globalState } from "../stores/GlobalState.svelte";
 
 /**
@@ -64,7 +65,19 @@ export async function refreshAllStores(): Promise<{
       console.error("[StoresReload] ✗ Recipes erreur:", message);
     }
 
-    // 4. Hard reset des produits (seulement si un eventId est actif)
+    // 4. Hard reset du matériel
+    try {
+      await materielStore.hardReset();
+      results.materiel = { success: true };
+      console.log("[StoresReload] ✓ Materiel hard reset OK");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erreur inconnue";
+      results.materiel = { success: false, error: message };
+      console.error("[StoresReload] ✗ Materiel erreur:", message);
+    }
+
+    // 5. Hard reset des produits (seulement si un eventId est actif)
     try {
       const currentEventId = productsStore.currentMainId;
       if (currentEventId) {

@@ -196,6 +196,7 @@
     teamsStore.destroy();
     eventsStore.destroy();
     recipesStore.destroy();
+    materielStore.destroy();
     realtimeManager.destroy();
   });
 
