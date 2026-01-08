@@ -346,25 +346,21 @@ export class MaterielStore {
   }
 
   async #setupRealtime(): Promise<void> {
-    const channels = [
-      ...getMaterielRealtimeChannels(),
-      ...getMaterielLoanRealtimeChannels(),
-    ];
-
-    realtimeManager.register(channels, async (response: any) => {
-      console.log("[MaterielStore] ⚡️ Realtime RECEIVED:", response.events);
-
-      const event = response.events[0];
-      const payload = response.payload;
-
-      const collectionId = event.split(".")[4];
-
-      if (collectionId === "materiel") {
+    // Enregistrer un callback pour la collection materiel
+    realtimeManager.register(
+      getMaterielRealtimeChannels(),
+      async (response: any) => {
         await this.#handleMaterielRealtime(response);
-      } else if (collectionId === "materiel_loan") {
+      },
+    );
+
+    // Enregistrer un callback séparé pour la collection materiel_loan
+    realtimeManager.register(
+      getMaterielLoanRealtimeChannels(),
+      async (response: any) => {
         await this.#handleLoanRealtime(response);
-      }
-    });
+      },
+    );
   }
 
   async #handleMaterielRealtime(response: any): Promise<void> {
