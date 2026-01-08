@@ -257,7 +257,6 @@
     onSuccess={handleLoanCreated}
     ownerId={activeTeam.$id}
     ownerName={activeTeam.name}
-    ownerType="team"
   />
 {/if}
 

@@ -18,8 +18,7 @@
     onClose: () => void;
     onAdd: (materielIds: string[]) => void;
     selectedIds?: Set<string>;
-    ownerId: string; // ID du propriétaire (user ou team)
-    ownerType: "user" | "team"; // Type de propriétaire
+    ownerId: string; // ID de l'équipe propriétaire
   }
 
   let {
@@ -28,7 +27,6 @@
     onAdd,
     selectedIds = new Set(),
     ownerId,
-    ownerType,
   }: Props = $props();
 
   // Labels des types
@@ -58,10 +56,7 @@
     const grouped: Record<string, EnrichedMateriel[]> = {};
 
     // Filtrer par owner d'abord
-    const ownerMateriels = materielStore.getMaterielsByOwner(
-      ownerId,
-      ownerType,
-    );
+    const ownerMateriels = materielStore.getMaterielsByOwner(ownerId);
 
     ownerMateriels.forEach((materiel) => {
       // Uniquement les matériels disponibles

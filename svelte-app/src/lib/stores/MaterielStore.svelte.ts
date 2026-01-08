@@ -80,17 +80,6 @@ export class MaterielStore {
     return this.#loansList;
   }
 
-  // Matériels dont l'utilisateur est owner (userId)
-  #myMaterielsList = $derived.by(() => {
-    if (!globalState.userId) return [];
-    return this.#materielsList.filter(
-      (m) => m.ownerData?.userId === globalState.userId,
-    );
-  });
-  get myMateriels() {
-    return this.#myMaterielsList;
-  }
-
   // Matériels des équipes de l'utilisateur
   #teamMaterielsList = $derived.by(() => {
     if (!globalState.userId) return [];
@@ -106,7 +95,7 @@ export class MaterielStore {
     return this.#teamMaterielsList;
   }
 
-  // Matériels partageables des autres
+  // Matériels partageables des autres équipes
   #shareableMaterielsList = $derived.by(() => {
     if (!globalState.userId) return [];
 
@@ -120,7 +109,6 @@ export class MaterielStore {
 
       return (
         isShareableWithMyTeams &&
-        m.ownerData?.userId !== globalState.userId &&
         !(m.ownerData?.teamId && myTeamIds.includes(m.ownerData.teamId))
       );
     });
@@ -142,41 +130,23 @@ export class MaterielStore {
   // =============================================================================
 
   /**
-   * Récupère les matériels disponibles pour un owner spécifique
-   * @param ownerId ID du propriétaire (userId ou teamId)
-   * @param ownerType Type du propriétaire ("user" ou "team")
-   * @returns Liste des matériels disponibles appartenant à l'owner
+   * Récupère les matériels disponibles pour une équipe spécifique
+   * @param teamId ID de l'équipe propriétaire
+   * @returns Liste des matériels disponibles appartenant à l'équipe
    */
-  getAvailableMaterielsByOwner(
-    ownerId: string,
-    ownerType: "user" | "team",
-  ): EnrichedMateriel[] {
-    return this.#availableMaterielsList.filter((m) => {
-      if (ownerType === "team") {
-        return m.ownerData?.teamId === ownerId;
-      } else {
-        return m.ownerData?.userId === ownerId;
-      }
-    });
+  getAvailableMaterielsByOwner(teamId: string): EnrichedMateriel[] {
+    return this.#availableMaterielsList.filter(
+      (m) => m.ownerData?.teamId === teamId,
+    );
   }
 
   /**
-   * Récupère tous les matériels pour un owner spécifique
-   * @param ownerId ID du propriétaire (userId ou teamId)
-   * @param ownerType Type du propriétaire ("user" ou "team")
-   * @returns Liste de tous les matériels appartenant à l'owner
+   * Récupère tous les matériels pour une équipe spécifique
+   * @param teamId ID de l'équipe propriétaire
+   * @returns Liste de tous les matériels appartenant à l'équipe
    */
-  getMaterielsByOwner(
-    ownerId: string,
-    ownerType: "user" | "team",
-  ): EnrichedMateriel[] {
-    return this.#materielsList.filter((m) => {
-      if (ownerType === "team") {
-        return m.ownerData?.teamId === ownerId;
-      } else {
-        return m.ownerData?.userId === ownerId;
-      }
-    });
+  getMaterielsByOwner(teamId: string): EnrichedMateriel[] {
+    return this.#materielsList.filter((m) => m.ownerData?.teamId === teamId);
   }
 
   // =============================================================================

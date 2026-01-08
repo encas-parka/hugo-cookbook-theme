@@ -9,7 +9,6 @@
 
   let { loading = false }: Props = $props();
 
-  const myMaterielsCount = $derived(materielStore.myMateriels.length);
   const teamMaterielsCount = $derived(materielStore.teamMateriels.length);
   const totalMaterielsCount = $derived(myMaterielsCount + teamMaterielsCount);
   const shareableCount = $derived(materielStore.shareableMateriels.length);
@@ -34,26 +33,6 @@
             <p>inventaire, gestion des emprunt, partage, etc.</p>
           </div>
         </div>
-        <!-- Mon matériel -->
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="text-base-content/70 text-sm">Mon matériel perso</div>
-            <div class="text-2xl font-bold">{myMaterielsCount}</div>
-          </div>
-        </div>
-
-        <!-- Matériel d'équipe -->
-        {#if teamMaterielsCount > 0}
-          <div class="divider divider-vertical my-1"></div>
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="text-base-content/70 text-sm">
-                Matériel de vos équipes
-              </div>
-              <div class="text-2xl font-bold">{teamMaterielsCount}</div>
-            </div>
-          </div>
-        {/if}
       </div>
 
       <!-- Actions -->

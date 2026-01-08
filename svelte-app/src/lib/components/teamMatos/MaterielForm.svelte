@@ -29,9 +29,8 @@
   interface Props {
     showStatus?: boolean;
     buttonAction?: boolean;
-    ownerId?: string; // Optionnel : si fourni, pré-remplit l'owner
+    ownerId?: string; // Optionnel : si fourni, pré-remplit l'owner (teamId)
     ownerName?: string; // Optionnel : nom de l'owner pour l'affichage
-    ownerType?: "user" | "team"; // Optionnel : type de l'owner
     initialValues?: MaterielInitialValues | null; // Optionnel : valeurs initiales pour l'édition
     onSubmit?: (data: {
       name: string;
@@ -53,12 +52,10 @@
     buttonAction = true,
     ownerId,
     ownerName,
-    ownerType: propOwnerType,
     initialValues,
   }: Props = $props();
 
-  // Import du user info
-  import { globalState } from "$lib/stores/GlobalState.svelte";
+  // Import des composants UI
   import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
   import BadgeList from "../ui/BadgeList.svelte";
 
@@ -69,7 +66,6 @@
   let status = $state<MaterielStatusLiteral>(initialValues?.status || "ok");
   let quantity = $state(initialValues?.quantity || 1);
   let location = $state(initialValues?.location || "");
-  let selectedOwnerId = $state<string>("me"); // "me" ou teamId
   let shareableWithTeamNames = $state<string[]>(
     initialValues?.shareableWith || [],
   );
@@ -78,21 +74,7 @@
   let error = $state<string | null>(null);
 
   // L'owner est-il verrouillé (pré-rempli depuis les props) ?
-  const isOwnerLocked = $derived(ownerId && propOwnerType);
-
-  // Initialiser l'owner depuis les props si fournies
-  // $effect(() => {
-  //   if (ownerId && propOwnerType) {
-  //     if (propOwnerType === "team") {
-  //       selectedOwnerId = ownerId;
-  //     } else {
-  //       selectedOwnerId = "me";
-  //     }
-  //   } else {
-  //     // Reset si pas de props
-  //     selectedOwnerId = "me";
-  //   }
-  // });
+  const isOwnerLocked = $derived(ownerId);
 
   // Options pour les RadioBadgeGroups
   const typeOptions = $derived([
@@ -126,66 +108,26 @@
     })),
   );
 
-  // Owner combiné : "Moi" + Teams
-  const ownerOptions = $derived.by(() => [
-    { id: "me", name: `Moi (${globalState.userName || "Mon compte"})` },
-    ...teamOptions,
-  ]);
-
-  // Objet owner JSON (dérivé de selectedOwnerId ou des props)
+  // Objet owner JSON - uniquement pour les teams
   const ownerJson = $derived.by(() => {
     // Si l'owner est verrouillé via les props, les utiliser
-    if (isOwnerLocked && ownerId && propOwnerType) {
-      if (propOwnerType === "team") {
-        return JSON.stringify({
-          userName: "",
-          userId: "",
-          teamName: ownerName || "",
-          teamId: ownerId,
-        });
-      } else {
-        return JSON.stringify({
-          userName: ownerName || globalState.userName || "",
-          userId: ownerId,
-          teamName: "",
-          teamId: "",
-        });
-      }
+    if (isOwnerLocked && ownerId) {
+      return JSON.stringify({
+        teamName: ownerName || "",
+        teamId: ownerId,
+      });
     }
 
-    // Sinon, utiliser selectedOwnerId
-    if (selectedOwnerId === "me") {
-      return JSON.stringify({
-        userName: globalState.userName || "",
-        userId: globalState.userId || "",
-        teamName: "",
-        teamId: "",
-      });
-    } else {
-      const team = teamOptions.find((t) => t.id === selectedOwnerId);
-      if (!team) {
-        return JSON.stringify({
-          userName: "",
-          userId: "",
-          teamName: "",
-          teamId: "",
-        });
-      }
-      return JSON.stringify({
-        userName: "",
-        userId: "",
-        teamName: team.name,
-        teamId: team.id,
-      });
-    }
+    // Sinon, retourner un owner vide (ne devrait pas arriver en mode normal)
+    return JSON.stringify({
+      teamName: "",
+      teamId: "",
+    });
   });
 
   // Validation
   const isValid = $derived(
-    name.trim().length > 0 &&
-      quantity >= 1 &&
-      selectedOwnerId !== "" &&
-      !loading,
+    name.trim().length > 0 && quantity >= 1 && isOwnerLocked && !loading,
   );
 
   // Gestion du toggle d'équipe pour shareableWith
@@ -229,7 +171,6 @@
     status = "ok";
     quantity = 1;
     location = "";
-    selectedOwnerId = "me";
     shareableWithTeamNames = [];
     error = null;
   }

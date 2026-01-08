@@ -51,9 +51,9 @@
         name: data.name,
         description: data.description || undefined,
         type: data.type || "other",
+        status: data.status,
         quantity: data.quantity,
         location: data.location || undefined,
-        shareableWith: data.shareableWith || undefined,
       });
 
       console.log("[EditMaterielModal] Matériel mis à jour:", materielId);

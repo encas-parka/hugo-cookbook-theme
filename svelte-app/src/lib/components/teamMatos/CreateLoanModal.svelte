@@ -46,13 +46,11 @@
     isOpen: boolean;
     onClose: () => void;
     onSuccess?: () => void;
-    ownerId: string; // ID du propriétaire (user ou team)
-    ownerName: string; // Nom du propriétaire
-    ownerType: "user" | "team"; // Type de propriétaire
+    ownerId: string; // ID de l'équipe propriétaire
+    ownerName: string; // Nom de l'équipe
   }
 
-  let { isOpen, onClose, onSuccess, ownerId, ownerName, ownerType }: Props =
-    $props();
+  let { isOpen, onClose, onSuccess, ownerId, ownerName }: Props = $props();
 
   // État du formulaire
   let startDate = $state("");
@@ -66,7 +64,7 @@
 
   // Dérivés
   const availableMateriels = $derived(
-    materielStore.getAvailableMaterielsByOwner(ownerId, ownerType),
+    materielStore.getAvailableMaterielsByOwner(ownerId),
   );
 
   const isValid = $derived(
@@ -407,7 +405,6 @@
       onAdd={handleQuickSelectionAdd}
       selectedIds={new Set(selectedMateriels.map((m) => m.materielId))}
       {ownerId}
-      {ownerType}
     />
   {/if}
 </div>
