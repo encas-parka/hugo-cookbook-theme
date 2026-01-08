@@ -52,11 +52,6 @@
     createModalOpen = true;
   }
 
-  // Fermer le modal de création
-  function closeCreateModal() {
-    createModalOpen = false;
-  }
-
   // Ouvrir le modal d'édition
   function openEditModal(materielId: string) {
     editModalMaterielId = materielId;
@@ -65,12 +60,6 @@
   // Fermer le modal d'édition
   function closeEditModal() {
     editModalMaterielId = null;
-  }
-
-  // Après création
-  function handleMaterielCreated(materielId: string) {
-    console.log("[MaterielPage] Matériel créé:", materielId);
-    closeCreateModal();
   }
 
   // Gestion de la soumission du formulaire
@@ -337,22 +326,6 @@
             </p>
             <button class="btn btn-warning btn-sm" onclick={resetFilters}>
               Effacer les filtres
-            </button>
-          </div>
-        {:else}
-          <!-- Empty state -->
-          <div
-            class="bg-base-200 rounded-box border-base-200 border-2 border-dashed py-20 text-center"
-          >
-            <div class="bg-base-200 mb-4 inline-block rounded-full p-4">
-              <Package class="h-8 w-8 opacity-50" />
-            </div>
-            <h3 class="mb-2 text-lg font-bold">Aucun matériel</h3>
-            <p class="text-base-content/60 mb-6">
-              Cette équipe n'a pas encore de matériel.
-            </p>
-            <button class="btn btn-primary btn-sm" onclick={openCreateModal}>
-              Créer le premier matériel
             </button>
           </div>
         {/if}

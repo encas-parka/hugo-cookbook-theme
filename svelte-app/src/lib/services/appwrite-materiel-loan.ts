@@ -267,6 +267,6 @@ export async function deleteMaterielLoan(loanId: string): Promise<void> {
  */
 export function getMaterielLoanRealtimeChannels(): string[] {
   return [
-    `databases.${APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId}.collections.${MATERIEL_LOAN_COLLECTION_ID}`,
+    `databases.${APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId}.collections.${MATERIEL_LOAN_COLLECTION_ID}.documents`,
   ];
 }

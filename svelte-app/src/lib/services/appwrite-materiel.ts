@@ -253,6 +253,6 @@ export async function deleteMateriel(materielId: string): Promise<void> {
  */
 export function getMaterielRealtimeChannels(): string[] {
   return [
-    `databases.${APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId}.collections.${MATERIEL_COLLECTION_ID}`,
+    `databases.${APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId}.collections.${MATERIEL_COLLECTION_ID}.documents`,
   ];
 }
