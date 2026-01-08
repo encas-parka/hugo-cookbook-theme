@@ -12,8 +12,19 @@
     | "dish"
     | "cooking"
     | "gaz"
+    | "hygiene"
     | "";
-  type MaterielStatusLiteral = "ok" | "lost" | "loan" | "reserved" | "torepair";
+  type MaterielStatusLiteral = "ok" | "lost" | "torepair";
+
+  interface MaterielInitialValues {
+    name: string;
+    description: string | null;
+    type: MaterielTypeLiteral | null;
+    status: MaterielStatusLiteral;
+    quantity: number;
+    location: string | null;
+    shareableWith: string[] | null;
+  }
 
   interface Props {
     showStatus?: boolean;
@@ -21,6 +32,7 @@
     ownerId?: string; // Optionnel : si fourni, pré-remplit l'owner
     ownerName?: string; // Optionnel : nom de l'owner pour l'affichage
     ownerType?: "user" | "team"; // Optionnel : type de l'owner
+    initialValues?: MaterielInitialValues | null; // Optionnel : valeurs initiales pour l'édition
     onSubmit?: (data: {
       name: string;
       description: string | null;
@@ -42,6 +54,7 @@
     ownerId,
     ownerName,
     ownerType: propOwnerType,
+    initialValues,
   }: Props = $props();
 
   // Import du user info
@@ -49,15 +62,17 @@
   import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
   import BadgeList from "../ui/BadgeList.svelte";
 
-  // État du formulaire
-  let name = $state("");
-  let description = $state("");
-  let type = $state<MaterielTypeLiteral>("");
-  let status = $state<MaterielStatusLiteral>("ok");
-  let quantity = $state(1);
-  let location = $state("");
+  // État du formulaire - initialisé avec initialValues si fournis
+  let name = $state(initialValues?.name || "");
+  let description = $state(initialValues?.description || "");
+  let type = $state<MaterielTypeLiteral>(initialValues?.type || "");
+  let status = $state<MaterielStatusLiteral>(initialValues?.status || "ok");
+  let quantity = $state(initialValues?.quantity || 1);
+  let location = $state(initialValues?.location || "");
   let selectedOwnerId = $state<string>("me"); // "me" ou teamId
-  let shareableWithTeamNames = $state<string[]>([]);
+  let shareableWithTeamNames = $state<string[]>(
+    initialValues?.shareableWith || [],
+  );
 
   let loading = $state(false);
   let error = $state<string | null>(null);
@@ -66,18 +81,18 @@
   const isOwnerLocked = $derived(ownerId && propOwnerType);
 
   // Initialiser l'owner depuis les props si fournies
-  $effect(() => {
-    if (ownerId && propOwnerType) {
-      if (propOwnerType === "team") {
-        selectedOwnerId = ownerId;
-      } else {
-        selectedOwnerId = "me";
-      }
-    } else {
-      // Reset si pas de props
-      selectedOwnerId = "me";
-    }
-  });
+  // $effect(() => {
+  //   if (ownerId && propOwnerType) {
+  //     if (propOwnerType === "team") {
+  //       selectedOwnerId = ownerId;
+  //     } else {
+  //       selectedOwnerId = "me";
+  //     }
+  //   } else {
+  //     // Reset si pas de props
+  //     selectedOwnerId = "me";
+  //   }
+  // });
 
   // Options pour les RadioBadgeGroups
   const typeOptions = $derived([
@@ -87,14 +102,13 @@
     { id: "dish", label: "Vaisselle" },
     { id: "cooking", label: "Matériel de Cuisine" },
     { id: "gaz", label: "Gaz" },
+    { id: "hygiene", label: "Hygiène" },
     { id: "other", label: "Autre" },
   ]);
 
   const statusOptions = $derived([
     { id: "ok", label: "OK" },
     { id: "lost", label: "Perdu" },
-    { id: "loan", label: "Prêté" },
-    { id: "reserved", label: "Réservé" },
     { id: "torepair", label: "À réparer" },
   ]);
 
@@ -192,7 +206,7 @@
     const data = {
       name: name.trim(),
       description: description.trim() || null,
-      type: null,
+      type: type || "other", // "other" par défaut si non renseigné
       status,
       quantity,
       location: location.trim() || null,
@@ -330,7 +344,7 @@
   </div>
 
   <!-- Section 4: ShareableWith -->
-  <fieldset class="fieldset bg-base-100">
+  <!-- <fieldset class="fieldset bg-base-100">
     <legend class="fieldset-legend">Partageable avec</legend>
     <div class="space-y-2">
       <p class="text-sm opacity-70">
@@ -343,7 +357,7 @@
         color="primary"
       />
     </div>
-  </fieldset>
+  </fieldset> -->
 
   <!-- Message d'erreur -->
   {#if error}
@@ -355,7 +369,7 @@
 <div>
   <!-- Boutons -->
   {#if buttonAction}
-    <div class="ms-auto flex justify-end gap-2">
+    <div class="ms-auto mt-8 flex justify-end gap-2">
       <button class="btn btn-ghost" onclick={handleCancel} disabled={loading}>
         <X class="h-5 w-5" />
         Annuler

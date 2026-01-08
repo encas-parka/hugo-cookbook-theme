@@ -206,6 +206,7 @@ export type Materiel = Models.Row & {
     owner: string | null;
     storeIn: string[] | null;
     isStorage: boolean | null;
+    deleted: boolean;
 }
 
 export type Locks = Models.Row & {

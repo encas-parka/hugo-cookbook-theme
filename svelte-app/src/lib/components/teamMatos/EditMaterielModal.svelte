@@ -50,7 +50,7 @@
       await materielStore.updateMateriel(materielId, {
         name: data.name,
         description: data.description || undefined,
-        type: data.type || undefined,
+        type: data.type || "other",
         quantity: data.quantity,
         location: data.location || undefined,
         shareableWith: data.shareableWith || undefined,
@@ -92,12 +92,7 @@
         <div class="flex items-center gap-2 text-sm">
           <Users class="h-4 w-4" />
           <div>
-            {#if currentMateriel.ownerData?.userId}
-              <div>
-                <span class="font-semibold">Propriétaire :</span>
-                {currentMateriel.ownerData.userName}
-              </div>
-            {:else if currentMateriel.ownerData?.teamId}
+            {#if currentMateriel.ownerData?.teamId}
               <div>
                 <span class="font-semibold">Équipe propriétaire :</span>
                 {currentMateriel.ownerData.teamName}
@@ -109,6 +104,15 @@
 
       <MaterielForm
         showStatus={true}
+        initialValues={{
+          name: currentMateriel.name,
+          description: currentMateriel.description,
+          type: currentMateriel.type,
+          status: currentMateriel.status,
+          quantity: currentMateriel.quantity,
+          location: currentMateriel.location,
+          shareableWith: currentMateriel.shareableWith,
+        }}
         onSubmit={updateMateriel}
         onCancel={handleClose}
       />

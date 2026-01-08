@@ -266,7 +266,7 @@
       <div class="border-base-200 mt-2 border-t">
         <div class="text-xs">
           <span class="text-info font-semibold">
-            {materiel.loanDetails.length} prêt(s) :
+            {materiel.loanDetails.length} réservation :
           </span>
           <span class="text-base-content/70 ml-2">
             {materiel.loanDetails
