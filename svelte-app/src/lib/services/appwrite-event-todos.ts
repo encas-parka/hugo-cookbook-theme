@@ -4,6 +4,7 @@
 
 import { ID, Query, type Models } from "appwrite";
 import { getAppwriteInstances, getAppwriteConfig } from "./appwrite";
+import { safeOperation } from "$lib/utils/safe-operation";
 import type { EventTodo } from "../types/appwrite";
 
 const APPWRITE_CONFIG = getAppwriteConfig();
@@ -34,18 +35,27 @@ export type EventTodoUpdate = Partial<
 export async function listEventTodos(
   eventId: string,
 ): Promise<Models.Document<EventTodo>[]> {
-  const { databases } = await getAppwriteInstances();
+  return safeOperation(
+    async () => {
+      const { databases } = await getAppwriteInstances();
 
-  const response = await databases.listDocuments<EventTodo>(
-    APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
-    EVENT_TODO_COLLECTION_ID,
-    [
-      Query.equal("eventId", eventId),
-      Query.limit(100), // Limite raisonnable pour une todo list
-    ],
+      const response = await databases.listDocuments<EventTodo>(
+        APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
+        EVENT_TODO_COLLECTION_ID,
+        [
+          Query.equal("eventId", eventId),
+          Query.limit(100), // Limite raisonnable pour une todo list
+        ],
+      );
+
+      return response.documents;
+    },
+    {
+      context: "AppwriteEventTodos.list",
+      timeout: 15000, // 15s pour une liste de todos
+      errorMessage: "Erreur lors du chargement des tâches",
+    },
   );
-
-  return response.documents;
 }
 
 // =============================================================================
@@ -55,20 +65,30 @@ export async function listEventTodos(
 export async function createEventTodo(
   data: Omit<EventTodoCreate, "taskId">,
 ): Promise<Models.Document<EventTodo>> {
-  const { databases } = await getAppwriteInstances();
+  return safeOperation(
+    async () => {
+      const { databases } = await getAppwriteInstances();
 
-  const id = ID.unique();
+      const id = ID.unique();
 
-  const payload = {
-    ...data,
-    taskId: id, // taskId redundant avec $id mais requis par le schéma
-  };
+      const payload = {
+        ...data,
+        taskId: id, // taskId redundant avec $id mais requis par le schéma
+      };
 
-  return await databases.createDocument<EventTodo>(
-    APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
-    EVENT_TODO_COLLECTION_ID,
-    id,
-    payload,
+      return await databases.createDocument<EventTodo>(
+        APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
+        EVENT_TODO_COLLECTION_ID,
+        id,
+        payload,
+      );
+    },
+    {
+      context: "AppwriteEventTodos.create",
+      timeout: 10000,
+      successMessage: "Tâche créée",
+      errorMessage: "Erreur lors de la création",
+    },
   );
 }
 
@@ -80,13 +100,23 @@ export async function updateEventTodo(
   documentId: string,
   data: EventTodoUpdate,
 ): Promise<Models.Document<EventTodo>> {
-  const { databases } = await getAppwriteInstances();
+  return safeOperation(
+    async () => {
+      const { databases } = await getAppwriteInstances();
 
-  return await databases.updateDocument<EventTodo>(
-    APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
-    EVENT_TODO_COLLECTION_ID,
-    documentId,
-    data,
+      return await databases.updateDocument<EventTodo>(
+        APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
+        EVENT_TODO_COLLECTION_ID,
+        documentId,
+        data,
+      );
+    },
+    {
+      context: "AppwriteEventTodos.update",
+      timeout: 10000,
+      successMessage: "Tâche mise à jour",
+      errorMessage: "Erreur lors de la mise à jour",
+    },
   );
 }
 
@@ -95,12 +125,22 @@ export async function updateEventTodo(
 // =============================================================================
 
 export async function deleteEventTodo(documentId: string): Promise<void> {
-  const { databases } = await getAppwriteInstances();
+  return safeOperation(
+    async () => {
+      const { databases } = await getAppwriteInstances();
 
-  await databases.deleteDocument(
-    APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
-    EVENT_TODO_COLLECTION_ID,
-    documentId,
+      await databases.deleteDocument(
+        APPWRITE_CONFIG.APPWRITE_CONFIG.databaseId,
+        EVENT_TODO_COLLECTION_ID,
+        documentId,
+      );
+    },
+    {
+      context: "AppwriteEventTodos.delete",
+      timeout: 10000,
+      successMessage: "Tâche supprimée",
+      errorMessage: "Erreur lors de la suppression",
+    },
   );
 }
 

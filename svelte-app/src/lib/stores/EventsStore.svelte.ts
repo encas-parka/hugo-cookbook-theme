@@ -515,24 +515,19 @@ export class EventsStore {
    * Crée un nouvel événement
    */
   async createEvent(data: CreateEventData): Promise<EnrichedEvent> {
-    try {
-      if (!globalState.userId) throw new Error("Utilisateur non connecté");
+    if (!globalState.userId) throw new Error("Utilisateur non connecté");
 
-      const event = await createAppwriteEvent(data, globalState.userId);
-      const enriched = this.#enrichEvent(event);
-      this.#events.set(event.$id, enriched);
+    const event = await createAppwriteEvent(data, globalState.userId);
+    const enriched = this.#enrichEvent(event);
+    this.#events.set(event.$id, enriched);
 
-      // Persistance immédiate dans le cache
-      if (this.#cache) {
-        await this.#cache.saveEvent(enriched);
-      }
-
-      console.log(`[EventsStore] Événement créé: ${event.$id}`);
-      return enriched;
-    } catch (err) {
-      console.error("[EventsStore] Erreur création:", err);
-      throw err;
+    // Persistance immédiate dans le cache
+    if (this.#cache) {
+      await this.#cache.saveEvent(enriched);
     }
+
+    console.log(`[EventsStore] Événement créé: ${event.$id}`);
+    return enriched;
   }
 
   /**
@@ -542,22 +537,17 @@ export class EventsStore {
     eventId: string,
     data: UpdateEventData,
   ): Promise<EnrichedEvent> {
-    try {
-      const event = await updateAppwriteEvent(eventId, data);
-      const enriched = this.#enrichEvent(event);
-      this.#events.set(eventId, enriched);
+    const event = await updateAppwriteEvent(eventId, data);
+    const enriched = this.#enrichEvent(event);
+    this.#events.set(eventId, enriched);
 
-      // Persistance immédiate dans le cache
-      if (this.#cache) {
-        await this.#cache.saveEvent(enriched);
-      }
-
-      console.log(`[EventsStore] Événement mis à jour: ${eventId}`);
-      return enriched;
-    } catch (err) {
-      console.error(`[EventsStore] Erreur mise à jour ${eventId}:`, err);
-      throw err;
+    // Persistance immédiate dans le cache
+    if (this.#cache) {
+      await this.#cache.saveEvent(enriched);
     }
+
+    console.log(`[EventsStore] Événement mis à jour: ${eventId}`);
+    return enriched;
   }
 
   /**
@@ -585,22 +575,14 @@ export class EventsStore {
    * Supprime un événement
    */
   async deleteEvent(eventId: string): Promise<void> {
-    try {
-      await deleteAppwriteEvent(eventId);
-      this.#events.delete(eventId);
+    await deleteAppwriteEvent(eventId);
+    this.#events.delete(eventId);
 
-      // Suppression immédiate du cache
-      if (this.#cache) {
-        await this.#cache.deleteEvent(eventId);
-      }
-      console.log(`[EventsStore] Événement supprimé: ${eventId}`);
-    } catch (err) {
-      console.error(
-        `[EventsStore] Erreur lors de la suppression de ${eventId}:`,
-        err,
-      );
-      throw err;
+    // Suppression immédiate du cache
+    if (this.#cache) {
+      await this.#cache.deleteEvent(eventId);
     }
+    console.log(`[EventsStore] Événement supprimé: ${eventId}`);
   }
 
   // =============================================================================
@@ -849,14 +831,14 @@ export class EventsStore {
    */
   async savePosterConfig(eventId: string, config: any): Promise<void> {
     if (!this.#cache) return;
-    
+
     // Charger l'existant ou créer un nouveau conteneur
     const existing = await this.#cache.loadPosterConfig(eventId);
     const container = existing || { versions: [] };
-    
+
     // Mettre à jour current
     container.current = config;
-    
+
     await this.#cache.savePosterConfig(eventId, container);
   }
 
@@ -864,12 +846,16 @@ export class EventsStore {
    * Crée une nouvelle version archivée à partir de la config donnée
    * @throws Error si quota atteint (3 versions)
    */
-  async createPosterVersion(eventId: string, config: any, name: string): Promise<any | undefined> {
+  async createPosterVersion(
+    eventId: string,
+    config: any,
+    name: string,
+  ): Promise<any | undefined> {
     if (!this.#cache) return;
 
     const existing = await this.#cache.loadPosterConfig(eventId);
     const container = existing || { current: config, versions: [] };
-    
+
     if (!container.versions) container.versions = [];
 
     // Vérifier la limite
@@ -882,16 +868,16 @@ export class EventsStore {
       id: crypto.randomUUID(),
       name,
       config: JSON.parse(JSON.stringify(config)), // Deep copy par sécurité
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
 
     container.versions.push(newVersion);
-    
+
     // Mettre à jour current pour refléter la nouvelle version
     container.current = config;
 
     await this.#cache.savePosterConfig(eventId, container);
-    
+
     return newVersion;
   }
 
@@ -904,8 +890,10 @@ export class EventsStore {
     const container = await this.#cache.loadPosterConfig(eventId);
     if (!container || !container.versions) return;
 
-    container.versions = container.versions.filter((v: any) => v.id !== versionId);
-    
+    container.versions = container.versions.filter(
+      (v: any) => v.id !== versionId,
+    );
+
     await this.#cache.savePosterConfig(eventId, container);
   }
 
