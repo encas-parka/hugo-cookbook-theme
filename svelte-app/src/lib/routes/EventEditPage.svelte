@@ -106,6 +106,7 @@
    * Le shadow draft existe déjà, le $effect de synchronisation s'arrêtera automatiquement.
    */
   async function startEditing(): Promise<boolean> {
+    console.log("startEditing");
     if (isLockedByMe) return true; // Déjà en édition
 
     if (isLockedByOthers) {
@@ -618,9 +619,10 @@
   }
 </script>
 
-<!-- {#debug}
-  {$inspect("isDirty", isDirty)}
-{/debug} -->
+<!-- {#debug} -->
+{$inspect("isDirty", isDirty)}
+{$inspect("minContrib", minContrib)}
+<!-- {/debug} -->
 
 {#snippet navActions()}
   <div class="flex items-center gap-2">
@@ -775,41 +777,6 @@
           </div>
         </Fieldset>
 
-        <!-- Équipe minimale -->
-        <Fieldset legend="Équipe minimale">
-          {#if editingMinContrib}
-            <label class="input w-full">
-              <input
-                type="number"
-                placeholder="0"
-                bind:value={minContrib}
-                onfocus={startEditing}
-                onblur={() => (editingMinContrib = false)}
-                disabled={!canEdit}
-                min="1"
-                class="grow"
-              />
-            </label>
-          {:else}
-            <button
-              class="btn btn-ghost justify-start"
-              onclick={() => {
-                editingMinContrib = true;
-                startEditing();
-              }}
-              disabled={!canEdit}
-            >
-              <div class="flex items-center gap-4">
-                <span class="text-lg">
-                  {minContrib || 1}
-                </span>
-                <PencilLine class="h-4 w-4" />
-              </div>
-            </button>
-          {/if}
-          <p class="label">Nombre minimum de participants requis</p>
-        </Fieldset>
-
         <!-- Liste des Tâches (TODO) -->
         <EventTodoList {eventId} {contributors} />
       </div>
@@ -866,12 +833,15 @@
       <div class="space-y-6 lg:col-span-1">
         <!-- Permissions -->
         <PermissionsManager
+          {canEdit}
           {contributors}
           {teamsStore}
           {eventsStore}
+          bind:minContrib
           userId={globalState.userId || ""}
           userTeams={globalState.userTeams || []}
           {eventId}
+          onStartEdit={startEditing}
         />
       </div>
 

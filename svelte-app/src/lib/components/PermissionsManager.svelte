@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Users, UserPlus, Mail, Check, X } from "@lucide/svelte";
+  import { Users, UserPlus, Mail, Check, X, PencilLine } from "@lucide/svelte";
   import type { EventContributor } from "$lib/types/events";
   // import type { TeamsStore } from "$lib/stores/TeamsStore.svelte";
   import type { EventsStore } from "$lib/stores/EventsStore.svelte";
@@ -11,24 +11,31 @@
   import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
   import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
   import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
+  import Fieldset from "$lib/components/ui/Fieldset.svelte";
 
   // Interface des props
   interface Props {
+    minContrib: number;
+    canEdit: boolean;
     contributors: EventContributor[]; // Contributeurs DÉJÀ enregistrés (lecture seule)
     teamsStore: any; // Accepte TeamsStore ou NativeTeamsStore
     eventsStore: EventsStore;
     userId: string;
     userTeams: string[];
     eventId?: string;
+    onStartEdit: () => void;
   }
 
   // Props
   let {
+    minContrib = $bindable(),
+    canEdit,
     contributors, // Lecture seule - vient du parent via $derived
     teamsStore,
     eventsStore,
     userId = "",
     eventId = "",
+    onStartEdit = () => {},
   }: Props = $props();
 
   // État local - géré entièrement dans ce composant
@@ -37,6 +44,8 @@
 
   // État local pour le modal
   let showInviteModal = $state(false);
+
+  let editingMinContrib = $state(false);
 
   // Synchroniser selectedTeams depuis l'événement courant
   $effect(() => {
@@ -322,6 +331,41 @@
       <Users class="text-secondary h-5 w-5" />
       Participants
     </h3>
+
+    <!-- Équipe minimale -->
+    <Fieldset legend="Équipe minimale">
+      {#if editingMinContrib}
+        <label class="input w-full">
+          <input
+            type="number"
+            bind:value={minContrib}
+            onfocus={onStartEdit}
+            onblur={() => (editingMinContrib = false)}
+            disabled={!canEdit}
+            min="1"
+            defaultValue={1}
+            class="grow"
+          />
+        </label>
+      {:else}
+        <button
+          class="btn btn-ghost justify-start"
+          onclick={() => {
+            editingMinContrib = true;
+            onStartEdit();
+          }}
+          disabled={!canEdit}
+        >
+          <div class="flex items-center gap-4">
+            <span class="text-lg">
+              {minContrib || 1}
+            </span>
+            <PencilLine class="h-4 w-4" />
+          </div>
+        </button>
+      {/if}
+      <p class="label">Nombre minimum de participants requis</p>
+    </Fieldset>
 
     <!-- Participants (Déjà enregistrés) -->
     <div class="mb-6">
