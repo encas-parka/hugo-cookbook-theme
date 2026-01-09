@@ -1,63 +1,53 @@
 import { nanoid } from "nanoid";
+import { safeJsonArrayParse } from "./safe-operation";
 import type { EventMeal, EventContributor } from "../types/events.d";
 
 /**
  * Parse les meals d'un événement depuis une chaîne JSON
  */
-export function parseEventMeals(mealsStr: string[] | null | undefined): EventMeal[] {
-  if (!mealsStr || !Array.isArray(mealsStr)) return [];
-  
-  try {
-    const meals: EventMeal[] = [];
-
-    for (const mealStr of mealsStr) {
-      try {
-        const meal = JSON.parse(mealStr);
-        // Add IDs to meals that don't have them for UI tracking
-        if (!meal.id) {
-          meal.id = nanoid(6);
-        }
-        meals.push(meal);
-      } catch (e) {
-        console.warn("[events.utils] Failed to parse meal string:", mealStr);
-      }
-    }
-    
-    return meals;
-  } catch (error) {
-    console.error("[events.utils] Error parsing meals:", error);
-    return [];
-  }
+export function parseEventMeals(
+  mealsStr: string[] | null | undefined,
+): EventMeal[] {
+  return safeJsonArrayParse(mealsStr, {
+    context: "parseEventMeals",
+    itemFallback: (mealStr, index) => {
+      console.warn(
+        `[parseEventMeals] Meal ${index} invalide, utilisation d'un fallback`,
+        mealStr,
+      );
+      return {
+        id: `unknown-${index}`,
+        name: "Repas inconnu",
+        date: new Date().toISOString(),
+        guests: 1,
+        recipes: [],
+      };
+    },
+  });
 }
 
 /**
  * Parse les contributeurs d'un événement depuis un tableau de chaînes
  */
-export function parseEventContributors(contributorsStr: string[] | null | undefined): EventContributor[] {
-  if (!contributorsStr || !Array.isArray(contributorsStr)) return [];
-
-  // Parser le tableau de strings (chaque string peut être un JSON ou un simple ID)
-  try {
-    const contributors: EventContributor[] = [];
-
-    for (const contributorStr of contributorsStr) {
-      try {
-        // Essayer de parser le JSON pour obtenir les informations du contributeur
-        const contributor = JSON.parse(contributorStr);
-        contributors.push(contributor);
-      } catch (e) {
-        // Si le parsing échoue, considérer que c'est un simple ID (ancien format)
-        contributors.push({
-          id: contributorStr,
-          status: "accepted" as const,
-          invitedAt: new Date().toISOString(), // Ajout d'une date par défaut pour satisfaire le type
-        });
-      }
-    }
-
-    return contributors;
-  } catch (error) {
-    console.error("[events.utils] Error parsing contributors:", error);
-    return [];
-  }
+export function parseEventContributors(
+  contributorsStr: string[] | null | undefined,
+): EventContributor[] {
+  return safeJsonArrayParse(contributorsStr, {
+    context: "parseEventContributors",
+    itemFallback: (contributorStr, index) => {
+      // Fallback : si c'est un simple ID (ancien format), créer un objet complet
+      console.warn(
+        `[parseEventContributors] Contributor ${index} invalide, utilisation d'un fallback`,
+        contributorStr,
+      );
+      return {
+        id:
+          typeof contributorStr === "string"
+            ? contributorStr
+            : `unknown-${index}`,
+        status: "accepted" as const,
+        invitedAt: new Date().toISOString(),
+      };
+    },
+  });
 }
