@@ -20,7 +20,6 @@ import type { EnrichedProduct, NumericQuantity } from "../types/store.types";
 import type { EnrichedEvent } from "../types/events";
 
 import {
-  subscribeToRealtime,
   loadPurchasesListByIds,
   syncProductsWithPurchases,
 } from "../services/appwrite-products";
@@ -31,6 +30,8 @@ import { ProductModel } from "../models/ProductModel.svelte";
 import { DateRangeStore } from "./DateRangeStore.svelte";
 import { eventsStore } from "./EventsStore.svelte";
 import { recalculatePurchaseDependents } from "../utils/productEnrichment";
+import { realtimeManager } from "./RealtimeManager.svelte";
+import { getDatabaseId, getCollectionId } from "../services/appwrite";
 
 /**
  * ProductsStore - Store principal de gestion des produits avec Svelte 5
@@ -513,9 +514,9 @@ class ProductsStore {
       // Marquer comme initialisé
       this.#isInitialized = true;
 
-      // 6. Setup realtime (Appwrite)
+      // 6. Setup realtime (Appwrite via RealtimeManager avec inscription dynamique)
       const callbacks = this.#setupRealtimeCallbacks();
-      this.#unsubscribe = subscribeToRealtime(event.$id, callbacks);
+      this.#setupRealtimeSubscriptions(callbacks);
 
       // 7. Setup Reactive Sync avec EventsStore (Meals updates)
       if (this.#cleanupSyncEffect) this.#cleanupSyncEffect();
@@ -1205,6 +1206,124 @@ class ProductsStore {
         console.error("[ProductsStore] Erreur realtime:", error);
       },
     };
+  }
+
+  /**
+   * Configure les abonnements realtime via RealtimeManager
+   */
+  #setupRealtimeSubscriptions(callbacks: {
+    onProductCreate: (product: Products) => void;
+    onProductUpdate: (product: Products) => void;
+    onProductDelete: (productId: string) => void;
+    onPurchaseCreate: (purchase: Purchases) => void;
+    onPurchaseUpdate: (purchase: Purchases) => void;
+    onPurchaseDelete: (purchaseId: string) => void;
+    onConnect: () => void;
+    onDisconnect: () => void;
+    onError: (error: any) => void;
+  }): void {
+    const DB_ID = getDatabaseId();
+    const PRODUCTS_COLLECTION = getCollectionId("products");
+    const PURCHASES_COLLECTION = getCollectionId("purchases");
+
+    const channels = [
+      `databases.${DB_ID}.collections.${PRODUCTS_COLLECTION}.documents`,
+      `databases.${DB_ID}.collections.${PURCHASES_COLLECTION}.documents`,
+    ];
+
+    // Créer le handler pour les événements realtime
+    const handleRealtimeEvent = (response: any) => {
+      const { events, payload } = response;
+      if (!payload) return;
+
+      // Gérer les événements de connexion
+      if (response.event === "client.connected") {
+        callbacks.onConnect();
+        return;
+      }
+
+      // Déterminer le type de collection et d'événement
+      const isProductsCollection = events.some((e: string) =>
+        e.includes("products."),
+      );
+      const isPurchasesCollection = events.some((e: string) =>
+        e.includes("purchases."),
+      );
+
+      const isCreate = events.some((e: string) => e.includes(".create"));
+      const isUpdate = events.some((e: string) => e.includes(".update"));
+      const isDelete = events.some((e: string) => e.includes(".delete"));
+
+      // Dispatcher vers les callbacks appropriés
+      if (isProductsCollection) {
+        const product = payload as Products;
+
+        // Toast notifications pour les autres utilisateurs
+        if (product.updatedBy && product.updatedBy !== globalState.userName) {
+          if (isCreate || isUpdate) {
+            toastService.info(
+              `${product.updatedBy} a modifié le produit "${product.productName}"`,
+              { source: "realtime-other" },
+            );
+          } else if (isDelete) {
+            toastService.info(`${product.updatedBy} a supprimé un produit`, {
+              source: "realtime-other",
+            });
+          }
+        }
+
+        if (isCreate && callbacks.onProductCreate) {
+          callbacks.onProductCreate(product);
+        } else if (isUpdate && callbacks.onProductUpdate) {
+          callbacks.onProductUpdate(product);
+        } else if (isDelete && callbacks.onProductDelete) {
+          callbacks.onProductDelete(product.$id);
+        }
+      } else if (isPurchasesCollection) {
+        const purchase = payload as Purchases;
+
+        // Toast notifications pour les autres utilisateurs
+        if (purchase.createdBy && purchase.createdBy !== globalState.userName) {
+          const productName =
+            purchase.products?.[0]?.productName || "un produit";
+
+          if (isCreate && purchase.who !== globalState.userName) {
+            toastService.info(
+              `${purchase.who} a ajouté un achat pour ${productName}`,
+              { source: "realtime-other" },
+            );
+          } else if (isUpdate && purchase.who !== globalState.userName) {
+            toastService.info(
+              `${purchase.who} a modifié un achat pour ${productName}`,
+              { source: "realtime-other" },
+            );
+          } else if (isDelete) {
+            toastService.info(
+              `${purchase.who} a supprimé un achat pour ${productName}`,
+              { source: "realtime-other" },
+            );
+          }
+        }
+
+        if (isCreate && callbacks.onPurchaseCreate) {
+          callbacks.onPurchaseCreate(purchase);
+        } else if (isUpdate && callbacks.onPurchaseUpdate) {
+          callbacks.onPurchaseUpdate(purchase);
+        } else if (isDelete && callbacks.onPurchaseDelete) {
+          callbacks.onPurchaseDelete(purchase.$id);
+        }
+      }
+    };
+
+    // S'inscrire via RealtimeManager (inscription dynamique)
+    this.#unsubscribe = realtimeManager.registerDynamic(
+      channels,
+      handleRealtimeEvent,
+    );
+
+    console.log(
+      `[ProductsStore] ✅ Realtime configuré via RealtimeManager (${channels.length} channels)`,
+    );
   }
 
   // =========================================================================
