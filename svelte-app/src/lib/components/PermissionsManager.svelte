@@ -330,7 +330,7 @@
   <fieldset class="fieldset">
     <legend class="legend">Equipe minimale</legend>
     {#if editingMinContrib}
-      <label class="input w-full">
+      <label class="input w-36">
         <input
           type="number"
           bind:value={minContrib}
@@ -344,7 +344,7 @@
       </label>
     {:else}
       <button
-        class="btn btn-ghost justify-end"
+        class="btn btn-ghost justify-start"
         onclick={() => {
           editingMinContrib = true;
           onStartEdit();
