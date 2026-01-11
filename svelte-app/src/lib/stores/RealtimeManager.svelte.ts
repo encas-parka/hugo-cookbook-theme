@@ -27,11 +27,46 @@ export class RealtimeManager {
   register(channels: string[], callback: (response: any) => void): void {
     if (this.#isInitialized) {
       console.warn(
-        "[RealtimeManager] Enregistrement après initialisation. La connexion actuelle ne sera pas mise à jour immédiatement.",
+        "[RealtimeManager] Enregistrement après initialisation. Utilisez registerDynamic() pour les inscriptions dynamiques.",
       );
     }
     this.#registrations.push({ channels, callback });
     console.log(`[RealtimeManager] Channels enregistrés:`, channels);
+  }
+
+  /**
+   * Enregistre un ensemble de channels et un callback de manière dynamique.
+   * Peut être appelé APRÈS l'initialisation pour ajouter des channels spécifiques
+   * (ex: locks qui dépendent de l'événement courant).
+   *
+   * @returns Fonction de cleanup pour désinscrire ces channels
+   */
+  registerDynamic(
+    channels: string[],
+    callback: (response: any) => void,
+  ): () => void {
+    this.#registrations.push({ channels, callback });
+    console.log(`[RealtimeManager] Channels dynamiques enregistrés:`, channels);
+
+    // Si déjà initialisé, créer un nouvel abonnement pour ces channels
+    // Appwrite réutilisera automatiquement la connexion WebSocket existante
+    if (this.#isInitialized) {
+      this.#setupDynamicSubscription(channels, callback);
+    }
+
+    // Retourner une fonction de cleanup
+    return () => {
+      const index = this.#registrations.findIndex(
+        (r) => r.channels === channels && r.callback === callback,
+      );
+      if (index !== -1) {
+        this.#registrations.splice(index, 1);
+        console.log(
+          `[RealtimeManager] Channels dynamiques désenregistrés:`,
+          channels,
+        );
+      }
+    };
   }
 
   /**
@@ -73,6 +108,35 @@ export class RealtimeManager {
     } catch (err) {
       console.error("[RealtimeManager] Erreur lors de l'initialisation:", err);
       throw err;
+    }
+  }
+
+  /**
+   * Configure un abonnement pour des channels ajoutés dynamiquement
+   */
+  async #setupDynamicSubscription(
+    channels: string[],
+    callback: (response: any) => void,
+  ): Promise<void> {
+    try {
+      console.log(
+        `[RealtimeManager] Ajout de ${channels.length} channels à la connexion existante...`,
+      );
+      const { client } = await getAppwriteInstances();
+
+      client.subscribe(channels, (response) => {
+        callback(response);
+      });
+
+      console.log(
+        `[RealtimeManager] ✅ Channels dynamiques ajoutés:`,
+        channels,
+      );
+    } catch (err) {
+      console.error(
+        "[RealtimeManager] Erreur lors de l'ajout de channels dynamiques:",
+        err,
+      );
     }
   }
 

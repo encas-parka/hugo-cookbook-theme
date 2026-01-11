@@ -51,3 +51,33 @@ export function parseEventContributors(
     },
   });
 }
+
+import type { EventTodo } from "../types/events.d";
+
+/**
+ * Parse les todos d'un événement depuis un tableau de chaînes JSON
+ */
+export function parseEventTodos(
+  todosStr: string[] | null | undefined,
+): EventTodo[] {
+  return safeJsonArrayParse(todosStr, {
+    context: "parseEventTodos",
+    itemFallback: (todoStr, index) => {
+      console.warn(
+        `[parseEventTodos] Todo ${index} invalide, utilisation d'un fallback`,
+        todoStr,
+      );
+      return {
+        id: `unknown-${index}`,
+        taskName: "Tâche invalide",
+        taskDescription: null,
+        dueDate: null,
+        priority: null,
+        status: null,
+        taskOn: null,
+        requiredPeopleNb: 1,
+        assignedTo: null,
+      };
+    },
+  });
+}

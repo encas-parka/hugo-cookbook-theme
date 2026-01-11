@@ -10,17 +10,15 @@
     Check,
     AlignLeft,
   } from "@lucide/svelte";
-  import { eventTodoStore } from "$lib/stores/EventTodoStore.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
-  import type { EventTodo } from "$lib/types/appwrite";
+  import type { EventTodo } from "$lib/types/events";
   import type { EventContributor } from "$lib/types/events";
-  // We cannot import Enums from d.ts for values
   import type {
     EventTodoPriority,
     EventTodoStatus,
     EventTodoTaskOn,
-  } from "$lib/types/appwrite";
-
+  } from "$lib/types/events";
+  import { nanoid } from "nanoid";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
 
@@ -28,8 +26,10 @@
     open: boolean;
     eventId: string;
     todoToEdit?: EventTodo | null;
-    contributors?: EventContributor[]; // Passed from parent
+    contributors?: EventContributor[];
+    currentTodos?: EventTodo[];
     onClose: () => void;
+    onSave?: (todos: EventTodo[]) => void;
   }
 
   let {
@@ -37,7 +37,9 @@
     eventId,
     todoToEdit,
     contributors = [],
+    currentTodos = [],
     onClose,
+    onSave,
   }: Props = $props();
 
   // Form State
@@ -47,7 +49,7 @@
   let taskOn = $state<EventTodoTaskOn>("onEvent" as EventTodoTaskOn);
   let requiredPeopleNb = $state(1);
   let dueDate = $state<string>(""); // YYYY-MM-DD
-  let assignedTo = $state<string[]>([]); // We treat it as array locally
+  let assignedTo = $state<string[]>([]); // Array of user IDs
 
   // Loading State
   let isSaving = $state(false);
@@ -62,19 +64,7 @@
         taskOn = (todoToEdit.taskOn || "onEvent") as EventTodoTaskOn;
         requiredPeopleNb = todoToEdit.requiredPeopleNb || 1;
         dueDate = todoToEdit.dueDate ? todoToEdit.dueDate.split("T")[0] : "";
-
-        if (todoToEdit.assignedTo) {
-          try {
-            const parsed = JSON.parse(todoToEdit.assignedTo);
-            assignedTo = Array.isArray(parsed)
-              ? parsed
-              : [todoToEdit.assignedTo];
-          } catch {
-            assignedTo = [todoToEdit.assignedTo];
-          }
-        } else {
-          assignedTo = [];
-        }
+        assignedTo = todoToEdit.assignedTo ? [...todoToEdit.assignedTo] : [];
       } else {
         resetForm();
       }
@@ -99,28 +89,46 @@
 
     isSaving = true;
     try {
-      const payload: Partial<EventTodo> = {
-        taskName,
-        taskDescription: taskDescription || null,
-        priority,
-        taskOn,
-        requiredPeopleNb,
-        dueDate: dueDate ? new Date(dueDate).toISOString() : null,
-        assignedTo: assignedTo.length > 0 ? JSON.stringify(assignedTo) : null,
-
-        status: todoToEdit ? undefined : ("todo" as EventTodoStatus),
-      };
+      const now = new Date().toISOString();
 
       if (todoToEdit) {
-        await eventTodoStore.updateTodo(todoToEdit.$id, payload);
+        // Update existing todo
+        const updates: Partial<EventTodo> = {
+          taskName,
+          taskDescription: taskDescription || null,
+          priority,
+          taskOn,
+          requiredPeopleNb,
+          dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+          assignedTo: assignedTo.length > 0 ? assignedTo : null,
+        };
+
+        await eventsStore.updateTodo(eventId, todoToEdit.id, updates);
         toastService.success("Tâche mise à jour");
         handleClose();
       } else {
-        await eventTodoStore.createTodo(eventId, payload);
+        // Create new todo
+        const newTodo: EventTodo = {
+          id: nanoid(10),
+          taskName,
+          taskDescription: taskDescription || null,
+          priority,
+          taskOn,
+          requiredPeopleNb,
+          dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+          assignedTo: assignedTo.length > 0 ? assignedTo : null,
+          status: "todo" as EventTodoStatus,
+          locked: false,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        await eventsStore.addTodo(eventId, newTodo);
         toastService.success("Tâche créée");
+
         if (createAnother) {
           resetForm();
-          // Keep open
+          // Keep modal open
         } else {
           handleClose();
         }

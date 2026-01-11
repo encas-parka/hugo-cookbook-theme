@@ -12,30 +12,27 @@
     Plus,
     Minus,
   } from "@lucide/svelte";
-  import type { EventTodo } from "$lib/types/appwrite";
-  import type { EventTodoPriority, EventTodoStatus } from "$lib/types/appwrite";
-  import { eventTodoStore } from "$lib/stores/EventTodoStore.svelte";
+  import type { EventTodo } from "$lib/types/events";
+  import type { EventTodoPriority, EventTodoStatus } from "$lib/types/events";
+  import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
 
   interface Props {
     todo: EventTodo;
+    eventId: string;
     onEdit: (todo: EventTodo) => void;
+    disabled?: boolean;
   }
 
-  let { todo, onEdit }: Props = $props();
+  let { todo, eventId, onEdit, disabled = false }: Props = $props();
 
-  let isDeleting = $state(false);
+  let isUpdating = $state(false);
 
-  // Parse assignedTo
+  // Parse assignedTo - now it's string[] | null directly
   const assignedList = $derived.by(() => {
-    try {
-      if (!todo.assignedTo) return [];
-      const parsed = JSON.parse(todo.assignedTo);
-      return Array.isArray(parsed) ? parsed : [todo.assignedTo];
-    } catch {
-      return todo.assignedTo ? [todo.assignedTo] : [];
-    }
+    if (!todo.assignedTo) return [];
+    return Array.isArray(todo.assignedTo) ? todo.assignedTo : [];
   });
 
   const isAssigned = $derived(
@@ -44,7 +41,6 @@
 
   // Derived: Status Config
   const statusConfig = $derived.by(() => {
-    // Cast strict string to Enum type if needed, or compare as string
     const s = todo.status as string;
     switch (s) {
       case "done":
@@ -101,6 +97,8 @@
   });
 
   async function handleToggleStatus() {
+    if (isUpdating || disabled) return;
+
     // Rotate status: todo -> inprogress -> done -> todo
     const s = todo.status as string;
     let next: EventTodoStatus = "todo" as EventTodoStatus;
@@ -108,36 +106,42 @@
     else if (s === "inprogress") next = "done" as EventTodoStatus;
     else next = "todo" as EventTodoStatus;
 
+    isUpdating = true;
     try {
-      await eventTodoStore.updateTodo(todo.$id, { status: next });
+      await eventsStore.updateTodo(eventId, todo.id, { status: next });
     } catch {
       toastService.error("Erreur màj statut");
+    } finally {
+      isUpdating = false;
     }
   }
 
   async function handleToggleAssign() {
-    if (!globalState.userId) return;
+    if (!globalState.userId || isUpdating || disabled) return;
 
     const newAssigned = isAssigned
       ? assignedList.filter((id: string) => id !== globalState.userId)
       : [...assignedList, globalState.userId];
 
+    isUpdating = true;
     try {
-      // Stringify as per my convention
-      await eventTodoStore.updateTodo(todo.$id, {
-        assignedTo: newAssigned.length > 0 ? JSON.stringify(newAssigned) : null,
+      await eventsStore.updateTodo(eventId, todo.id, {
+        assignedTo: newAssigned.length > 0 ? newAssigned : null,
       });
       toastService.success(
         isAssigned ? "Vous avez quitté la tâche" : "Vous avez rejoint la tâche",
       );
     } catch (e) {
       toastService.error("Erreur assignation");
+    } finally {
+      isUpdating = false;
     }
   }
 </script>
 
 <div
   class="group bg-base-100 hover:bg-base-200/50 border-base-200 relative flex items-center justify-between rounded-lg border p-3 transition-all"
+  class:opacity-50={isUpdating}
 >
   <!-- Status Indicator / Action -->
   <div class="flex min-w-0 grow items-start gap-3">
@@ -145,6 +149,7 @@
       onclick={handleToggleStatus}
       class="btn btn-ghost btn-circle btn-sm {statusConfig.class} shrink-0"
       title={statusConfig.label}
+      {disabled}
     >
       <svelte:component this={statusConfig.icon} class="size-5" />
     </button>
@@ -177,6 +182,7 @@
             : ''}"
           onclick={handleToggleAssign}
           title={isAssigned ? "Quitter" : "Rejoindre"}
+          {disabled}
         >
           <Users class="size-3" />
           {assignedList.length} / {todo.requiredPeopleNb || 1}
@@ -213,6 +219,7 @@
         class="btn btn-ghost btn-xs btn-square text-primary"
         onclick={handleToggleAssign}
         title="Rejoindre"
+        {disabled}
       >
         <Plus class="size-4" />
       </button>
@@ -221,6 +228,7 @@
     <button
       class="btn btn-ghost btn-xs btn-square opacity-0 transition-opacity group-hover:opacity-100"
       onclick={() => onEdit(todo)}
+      {disabled}
     >
       <Pencil class="size-4" />
     </button>

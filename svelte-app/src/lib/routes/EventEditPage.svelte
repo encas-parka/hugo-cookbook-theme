@@ -210,7 +210,7 @@
           activeLock = await locksService.getLock(eventId);
 
           // S'abonner aux changements du verrou
-          lockUnsub = await locksService.subscribeToLock(eventId, (lock) => {
+          lockUnsub = locksService.subscribeToLock(eventId, (lock) => {
             console.log("[EventEditPage] 🔒 Verrou mis à jour (Realtime):", {
               lockedBy: lock?.userName,
               userId: lock?.userId,
@@ -681,46 +681,44 @@
       class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:col-span-2 lg:grid-cols-3"
     >
       <!-- Description -->
-      <fieldset class="fieldset lg:col-span-2">
-        <legend class="fieldset-legend flex items-center justify-between">
-          Description
-        </legend>
-        {#if editingDescription}
-          <textarea
-            class="textarea w-full"
-            placeholder="Décrivez l'événement..."
-            bind:value={description}
-            onfocus={startEditing}
-            onblur={() => (editingDescription = false)}
-            disabled={!canEdit}
-            maxlength="3000"
-            rows="9"
-          ></textarea>
-          <p class="label">{description.length}/3000 caractères</p>
-        {:else}
-          <button
-            class="btn btn-ghost bg-base-100 h-auto justify-start py-4 text-left font-normal"
-            onclick={() => (editingDescription = true)}
-            disabled={!canEdit}
-          >
-            <div class="flex w-full items-start justify-between gap-4">
-              <div class="flex-1">
-                {#if description}
-                  <p class="whitespace-pre-wrap">{description}</p>
-                {:else}
-                  <p class="text-base-content/40 italic">
-                    Ajoutez une description...
-                  </p>
-                {/if}
+      <div class="col-span-2">
+        <Fieldset legend="Description">
+          {#if editingDescription}
+            <textarea
+              class="textarea w-full"
+              placeholder="Décrivez l'événement..."
+              bind:value={description}
+              onfocus={startEditing}
+              onblur={() => (editingDescription = false)}
+              disabled={!canEdit}
+              maxlength="3000"
+              rows="9"
+            ></textarea>
+            <p class="label">{description.length}/3000 caractères</p>
+          {:else}
+            <button
+              class="btn btn-ghost bg-base-100 h-auto justify-start py-4 text-left font-normal"
+              onclick={() => (editingDescription = true)}
+              disabled={!canEdit}
+            >
+              <div class="flex w-full items-start justify-between gap-4">
+                <div class="flex-1">
+                  {#if description}
+                    <p class="whitespace-pre-wrap">{description}</p>
+                  {:else}
+                    <p class="text-base-content/40 italic">
+                      Ajoutez une description...
+                    </p>
+                  {/if}
+                </div>
+                <PencilLine class="h-4 w-4 shrink-0" />
               </div>
-              <PencilLine class="h-4 w-4 shrink-0" />
-            </div>
-          </button>
-        {/if}
-      </fieldset>
-
+            </button>
+          {/if}
+        </Fieldset>
+      </div>
       <!-- status & minContrib -->
-      <div class="flex flex-col justify-end gap-4">
+      <div class="flex flex-col justify-start gap-4">
         <!-- Statut de l'événement -->
         <Fieldset legend="Statut de l'événement">
           <div class="flex items-center justify-between gap-2">
@@ -776,9 +774,6 @@
             {/if}
           </div>
         </Fieldset>
-
-        <!-- Liste des Tâches (TODO) -->
-        <EventTodoList {eventId} {contributors} />
       </div>
     </div>
   {/if}
@@ -828,7 +823,7 @@
       </div>
     </div>
   {:else}
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <!-- Colonne Gauche : Infos & Permissions -->
       <div class="space-y-6 lg:col-span-1">
         <!-- Permissions -->
@@ -843,10 +838,19 @@
           {eventId}
           onStartEdit={startEditing}
         />
+
+        <!-- Liste des Tâches (TODO) -->
+        {#if currentEvent}
+          <EventTodoList
+            event={currentEvent}
+            {contributors}
+            disabled={!canEdit || isLockedByOthers}
+          />
+        {/if}
       </div>
 
       <!-- Colonne Droite : Repas -->
-      <div class="space-y-6 md:px-4 lg:col-span-3">
+      <div class="space-y-6 md:px-4 lg:col-span-2">
         <div class="mb-6 flex items-center justify-between">
           <h3 class="card-title text-lg">
             Repas & Menus ({sortedMeals.length})

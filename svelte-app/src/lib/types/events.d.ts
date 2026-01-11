@@ -32,6 +32,9 @@ export interface EventMeal {
 /**
  * Recette dans un repas d'événement
  */
+/**
+ * Recette dans un repas d'événement
+ */
 import { type RecettesTypeR } from "./recipes.types";
 
 export interface EventMealRecipe {
@@ -39,17 +42,51 @@ export interface EventMealRecipe {
   plates: number; // Nombre de couverts
   typeR: RecettesTypeR;
   hasOwnPlatesNb?: boolean; // Si true, ne pas auto-sync avec meal.guests
+  locked?: boolean; // Verrouillage manuel si besoin
 }
 
 import type { Main } from "./appwrite.d";
+
+export enum EventTodoPriority {
+    LOW = "low",
+    MEDIUM = "medium",
+    HIGH = "high"
+}
+
+export enum EventTodoStatus {
+    TODO = "todo",
+    DONE = "done",
+    WAITING = "waiting",
+    CANCELED = "canceled",
+    INPROGRESS = "inprogress"
+}
+
+export enum EventTodoTaskOn {
+    BEFORE_EVENT = "beforeEvent",
+    ON_EVENT = "onEvent",
+    AFTER_EVENT = "afterEvent"
+}
+
+export interface EventTodo {
+    id: string; // Identifiant unique (UUID généré client)
+    taskName: string;
+    taskDescription: string | null;
+    dueDate: string | null;
+    priority: EventTodoPriority | null;
+    status: EventTodoStatus | null; // Par défaut TODO
+    taskOn: EventTodoTaskOn | null;
+    requiredPeopleNb: number;
+    assignedTo: string[] | null; // IDs des utilisateurs
+}
 
 /**
  * Événement enrichi avec les données parsées
  * Utilisé dans le store et l'UI
  */
-export interface EnrichedEvent extends Omit<Main, "meals" | "contributors"> {
+export interface EnrichedEvent extends Omit<Main, "meals" | "contributors" | "todos"> {
   meals: EventMeal[];
   contributors: EventContributor[];
+  todos: EventTodo[];
 }
 
 /**
@@ -63,6 +100,7 @@ export interface CreateEventData {
   meals?: EventMeal[];
   teams?: string[];
   contributors?: EventContributor[]; // Tableau d'objets EventContributor
+  todos?: EventTodo[];
   status?: "proposition" | "confirmed" | "canceled" | "archive" | "locked";
 }
 
@@ -78,5 +116,7 @@ export interface UpdateEventData {
   meals?: EventMeal[];
   teams?: string[];
   contributors?: EventContributor[]; // Tableau d'objets EventContributor
+  todos?: EventTodo[];
   status?: "proposition" | "confirmed" | "canceled" | "archive" | "locked";
 }
+

@@ -3,12 +3,8 @@
  * Parsing et validation des priorités
  */
 
-import type { EventTodo } from "$lib/types/appwrite";
-
-/**
- * Type de priorité pour les todos
- */
-export type EventTodoPriority = "high" | "medium" | "low";
+import type { EventTodo } from "$lib/types/events";
+import { EventTodoPriority, EventTodoStatus } from "$lib/types/events";
 
 /**
  * Parse et valide la priorité d'un todo
@@ -18,23 +14,27 @@ export type EventTodoPriority = "high" | "medium" | "low";
 export function parseEventTodoPriority(
   priority: string | undefined,
 ): EventTodoPriority {
-  const validPriorities: EventTodoPriority[] = ["high", "medium", "low"];
+  const validPriorities: EventTodoPriority[] = [
+    EventTodoPriority.HIGH,
+    EventTodoPriority.MEDIUM,
+    EventTodoPriority.LOW,
+  ];
 
   if (priority && validPriorities.includes(priority as EventTodoPriority)) {
     return priority as EventTodoPriority;
   }
 
   console.warn(`[event-todo.utils] Priority invalide: ${priority}, utilisation de "medium"`);
-  return "medium"; // Valeur par défaut
+  return EventTodoPriority.MEDIUM; // Valeur par défaut
 }
 
 /**
  * Ordre de tri pour les priorités (utilisé dans le store)
  */
 export const PRIORITY_ORDER: Record<EventTodoPriority, number> = {
-  high: 3,
-  medium: 2,
-  low: 1,
+  [EventTodoPriority.HIGH]: 3,
+  [EventTodoPriority.MEDIUM]: 2,
+  [EventTodoPriority.LOW]: 1,
 };
 
 /**
@@ -42,9 +42,9 @@ export const PRIORITY_ORDER: Record<EventTodoPriority, number> = {
  */
 export function formatPriority(priority: EventTodoPriority): string {
   const labels: Record<EventTodoPriority, string> = {
-    high: "Haute",
-    medium: "Moyenne",
-    low: "Basse",
+    [EventTodoPriority.HIGH]: "Haute",
+    [EventTodoPriority.MEDIUM]: "Moyenne",
+    [EventTodoPriority.LOW]: "Basse",
   };
 
   return labels[priority] || priority;
@@ -54,14 +54,15 @@ export function formatPriority(priority: EventTodoPriority): string {
  * Vérifie si un todo est complété
  */
 export function isTodoCompleted(todo: EventTodo): boolean {
-  return todo.status === "completed";
+  return todo.status === EventTodoStatus.DONE;
 }
+
 
 /**
  * Vérifie si un todo est en retard
  */
 export function isTodoOverdue(todo: EventTodo): boolean {
-  if (!todo.dueDate || todo.status === "completed") {
+  if (!todo.dueDate || todo.status === EventTodoStatus.DONE) {
     return false;
   }
 

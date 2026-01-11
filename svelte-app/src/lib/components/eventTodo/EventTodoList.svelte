@@ -1,33 +1,31 @@
 <script lang="ts">
-  import { untrack } from "svelte";
   import { Plus, ListTodo, Loader2 } from "@lucide/svelte";
-  import { eventTodoStore } from "$lib/stores/EventTodoStore.svelte";
   import EventTodoItem from "./EventTodoItem.svelte";
   import EventTodoModal from "./EventTodoModal.svelte";
   import Fieldset from "../ui/Fieldset.svelte";
-  import { toastService } from "$lib/services/toast.service.svelte";
-  import type { EventContributor } from "$lib/types/events";
-  import type { EventTodo } from "$lib/types/appwrite";
+  import type { EventContributor, EnrichedEvent } from "$lib/types/events";
+  import type { EventTodo } from "$lib/types/events";
 
   interface Props {
-    eventId: string;
+    event: EnrichedEvent;
     contributors?: EventContributor[];
+    onTodosChange?: (todos: EventTodo[]) => void;
+    disabled?: boolean;
   }
 
-  let { eventId, contributors = [] }: Props = $props();
+  let {
+    event,
+    contributors = [],
+    onTodosChange,
+    disabled = false,
+  }: Props = $props();
+
+  // Derived todos from event - réactif aux mises à jour realtime
+  const todos = $derived(event.todos ?? []);
 
   // Modal State
   let showModal = $state(false);
   let todoToEdit = $state<EventTodo | null>(null);
-
-  // Load Todos
-  $effect(() => {
-    if (eventId) {
-      untrack(() => {
-        eventTodoStore.loadTodos(eventId);
-      });
-    }
-  });
 
   function handleAdd() {
     todoToEdit = null;
@@ -38,6 +36,10 @@
     todoToEdit = todo;
     showModal = true;
   }
+
+  function handleTodoSaved(updatedTodos: EventTodo[]) {
+    onTodosChange?.(updatedTodos);
+  }
 </script>
 
 <Fieldset legend="Tâches & Organisation">
@@ -45,20 +47,16 @@
   <div class="mb-4 flex items-center justify-between">
     <div class="flex items-center gap-2 text-sm opacity-60">
       <ListTodo class="size-4" />
-      <span>{eventTodoStore.todos.length} tâches</span>
+      <span>{todos.length} tâches</span>
     </div>
-    <button class="btn btn-sm btn-primary gap-2" onclick={handleAdd}>
+    <button class="btn btn-sm btn-primary gap-2" onclick={handleAdd} {disabled}>
       <Plus class="size-4" /> Nouvelle tâche
     </button>
   </div>
 
   <!-- List -->
-  <div class="max-h-96 space-y-2 overflow-y-auto">
-    {#if eventTodoStore.loading && eventTodoStore.todos.length === 0}
-      <div class="flex justify-center py-8 opacity-50">
-        <Loader2 class="text-primary size-8 animate-spin" />
-      </div>
-    {:else if eventTodoStore.todos.length === 0}
+  <div class=" space-y-2">
+    {#if todos.length === 0}
       <div
         class="text-base-content/50 border-base-200 hover:border-primary/50 cursor-pointer rounded-lg border-2 border-dashed py-8 text-center text-sm italic transition-colors"
         onclick={handleAdd}
@@ -73,8 +71,13 @@
         >
       </div>
     {:else}
-      {#each eventTodoStore.todos as todo (todo.$id)}
-        <EventTodoItem {todo} onEdit={handleEdit} />
+      {#each todos as todo (todo.id)}
+        <EventTodoItem
+          {todo}
+          eventId={event.$id}
+          onEdit={handleEdit}
+          {disabled}
+        />
       {/each}
     {/if}
   </div>
@@ -82,9 +85,11 @@
   <!-- Modal -->
   <EventTodoModal
     open={showModal}
-    {eventId}
+    eventId={event.$id}
     {todoToEdit}
     {contributors}
+    currentTodos={todos}
     onClose={() => (showModal = false)}
+    onSave={handleTodoSaved}
   />
 </Fieldset>

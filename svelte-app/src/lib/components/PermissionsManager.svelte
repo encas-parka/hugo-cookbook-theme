@@ -325,109 +325,103 @@
   }
 </script>
 
-<div class="card bg-base-100 shadow-xl">
-  <div class="card-body p-4">
-    <h3 class="card-title mb-2 flex items-center gap-2 text-lg">
-      <Users class="text-secondary h-5 w-5" />
-      Participants
-    </h3>
-
-    <!-- Équipe minimale -->
-    <Fieldset legend="Équipe minimale">
-      {#if editingMinContrib}
-        <label class="input w-full">
-          <input
-            type="number"
-            bind:value={minContrib}
-            onfocus={onStartEdit}
-            onblur={() => (editingMinContrib = false)}
-            disabled={!canEdit}
-            min="1"
-            defaultValue={1}
-            class="grow"
-          />
-        </label>
-      {:else}
-        <button
-          class="btn btn-ghost justify-start"
-          onclick={() => {
-            editingMinContrib = true;
-            onStartEdit();
-          }}
+<Fieldset legend="Participants">
+  <!-- Équipe minimale -->
+  <fieldset class="fieldset">
+    <legend class="legend">Equipe minimale</legend>
+    {#if editingMinContrib}
+      <label class="input w-full">
+        <input
+          type="number"
+          bind:value={minContrib}
+          onfocus={onStartEdit}
+          onblur={() => (editingMinContrib = false)}
           disabled={!canEdit}
-        >
-          <div class="flex items-center gap-4">
-            <span class="text-lg">
-              {minContrib || 1}
-            </span>
-            <PencilLine class="h-4 w-4" />
-          </div>
-        </button>
-      {/if}
-      <p class="label">Nombre minimum de participants requis</p>
-    </Fieldset>
-
-    <!-- Participants (Déjà enregistrés) -->
-    <div class="mb-6">
-      <div class="space-y-3">
-        <!-- Accepted -->
-        {#if acceptedContributors.length > 0}
-          <fieldset class="fieldset">
-            <div class="flex flex-wrap gap-2">
-              {#each acceptedContributors as contributor (contributor.id)}
-                <div class="badge badge-soft badge-success gap-2 p-3">
-                  <span class="font-medium"
-                    >{contributor.name || contributor.email}</span
-                  >
-                </div>
-              {/each}
-            </div>
-          </fieldset>
-        {/if}
-
-        <!-- Invited -->
-        {#if invitedContributors.length > 0}
-          <fieldset class="fieldset">
-            <legend class="text-base-content/70 p-1 text-sm font-medium"
-              >Invité·es</legend
-            >
-            <div class="flex flex-wrap gap-2">
-              {#each invitedContributors as contributor (contributor.id)}
-                <div class="badge badge-warning badge-soft gap-2 p-3">
-                  <span class="font-medium"
-                    >{contributor.name || contributor.email}</span
-                  >
-                </div>
-              {/each}
-            </div>
-          </fieldset>
-        {/if}
-
-        {#if contributors.length === 0}
-          <p class="text-xs italic opacity-60">Aucun participant enregistré</p>
-        {/if}
-      </div>
-    </div>
-
-    <!-- N'afficher le composant que si eventId est défini -->
-    {#if eventId}
-      <!-- Bouton pour ouvrir le modal d'invitation -->
-      <div class="my-2">
-        <button
-          class="btn btn-primary btn-outline btn-block gap-1"
-          onclick={() => (showInviteModal = true)}
-        >
-          <UserPlus class="mr-2 h-4 w-4" />
-          Inviter des participant·es
-        </button>
-      </div>
+          min="1"
+          defaultValue={1}
+          class="grow"
+        />
+      </label>
     {:else}
-      <p class="text-xs italic opacity-60">
-        Vous pourrez inviter des participants une fois l'événement créé
-      </p>
+      <button
+        class="btn btn-ghost justify-end"
+        onclick={() => {
+          editingMinContrib = true;
+          onStartEdit();
+        }}
+        disabled={!canEdit}
+      >
+        <div class="flex items-center gap-4">
+          <span class="text-lg">
+            {minContrib || 1}
+          </span>
+          <PencilLine class="h-4 w-4" />
+        </div>
+      </button>
     {/if}
+    <p class="label">Nombre minimum de participants requis</p>
+  </fieldset>
+
+  <!-- Participants (Déjà enregistrés) -->
+  <div class="mb-6">
+    <div class="space-y-3">
+      <!-- Accepted -->
+      {#if acceptedContributors.length > 0}
+        <fieldset class="fieldset">
+          <div class="flex flex-wrap gap-2">
+            {#each acceptedContributors as contributor (contributor.id)}
+              <div class="badge badge-soft badge-success gap-2 p-3">
+                <span class="font-medium"
+                  >{contributor.name || contributor.email}</span
+                >
+              </div>
+            {/each}
+          </div>
+        </fieldset>
+      {/if}
+
+      <!-- Invited -->
+      {#if invitedContributors.length > 0}
+        <fieldset class="fieldset">
+          <legend class="text-base-content/70 p-1 text-sm font-medium"
+            >Invité·es</legend
+          >
+          <div class="flex flex-wrap gap-2">
+            {#each invitedContributors as contributor (contributor.id)}
+              <div class="badge badge-warning badge-soft gap-2 p-3">
+                <span class="font-medium"
+                  >{contributor.name || contributor.email}</span
+                >
+              </div>
+            {/each}
+          </div>
+        </fieldset>
+      {/if}
+
+      {#if contributors.length === 0}
+        <p class="text-xs italic opacity-60">Aucun participant enregistré</p>
+      {/if}
+    </div>
   </div>
-</div>
+
+  <!-- N'afficher le composant que si eventId est défini -->
+  {#if eventId}
+    <!-- Bouton pour ouvrir le modal d'invitation -->
+    <div class="my-2">
+      <button
+        class="btn btn-primary btn-outline btn-block gap-1"
+        onclick={() => (showInviteModal = true)}
+      >
+        <UserPlus class="mr-2 h-4 w-4" />
+        Inviter des participant·es
+      </button>
+    </div>
+  {:else}
+    <p class="text-xs italic opacity-60">
+      Vous pourrez inviter des participants une fois l'événement créé
+    </p>
+  {/if}
+</Fieldset>
 
 <!-- Modal d'invitation -->
 <ModalContainer isOpen={showInviteModal} onClose={handleCloseInviteModal}>

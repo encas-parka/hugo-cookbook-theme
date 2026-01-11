@@ -114,6 +114,7 @@ export async function createEvent(
             ? data.contributors.map((c) => JSON.stringify(c))
             : [],
           contributorsIds, // Ajouter le tableau d'IDs pour le filtrage optimisé
+          todos: data.todos ? data.todos.map((t) => JSON.stringify(t)) : [],
         },
         // Les permissions par défaut sont gérées côté serveur
       });
@@ -155,6 +156,10 @@ export async function updateEvent(
 
         // Mettre à jour contributorsIds à partir des contributors
         updateData.contributorsIds = data.contributors.map((c) => c.id);
+      }
+
+      if (data.todos) {
+        updateData.todos = data.todos.map((t) => JSON.stringify(t));
       }
 
       // S'assurer que allDates est inclus s'il est présent

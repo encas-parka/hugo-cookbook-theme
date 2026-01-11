@@ -4,6 +4,7 @@ import {
   getDatabaseId,
   getCollectionId,
 } from "./appwrite";
+import { realtimeManager } from "../stores/RealtimeManager.svelte";
 
 export interface AppwriteLock {
   $id: string; // L'ID du document verrouillé (ex: eventId)
@@ -142,31 +143,36 @@ export const locksService = {
 
   /**
    * S'abonne aux changements d'un verrou
+   * Utilise RealtimeManager avec inscription dynamique pour le multiplexage WebSocket
    */
-  async subscribeToLock(
+  subscribeToLock(
     resourceId: string,
     callback: (lock: AppwriteLock | null) => void,
-  ) {
-    const { client } = await getAppwriteInstances();
+  ): () => void {
     const databaseId = getDatabaseId();
     const collectionId = getCollectionId("locks");
 
-    return client.subscribe(
-      [
-        `databases.${databaseId}.collections.${collectionId}.documents.${resourceId}`,
-      ],
-      (response: any) => {
-        if (response.events.some((e: string) => e.endsWith(".delete"))) {
-          callback(null);
-          return;
-        }
-        const payload = response.payload as AppwriteLock;
-        if (!payload.userId || new Date(payload.expiresAt) < new Date()) {
-          callback(null);
-        } else {
-          callback(payload);
-        }
-      },
-    );
+    const channel = `databases.${databaseId}.collections.${collectionId}.documents.${resourceId}`;
+
+    console.log(`[locksService] Enregistrement du channel de lock:`, channel);
+
+    // Utiliser RealtimeManager pour le multiplexage WebSocket (inscription dynamique)
+    return realtimeManager.registerDynamic([channel], (response: any) => {
+      // Événement de suppression
+      if (response.events?.some((e: string) => e.endsWith(".delete"))) {
+        callback(null);
+        return;
+      }
+
+      // Événement de création ou mise à jour
+      if (!response.payload) return;
+
+      const payload = response.payload as AppwriteLock;
+      if (!payload.userId || new Date(payload.expiresAt) < new Date()) {
+        callback(null);
+      } else {
+        callback(payload);
+      }
+    });
   },
 };

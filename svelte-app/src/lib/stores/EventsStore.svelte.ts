@@ -15,6 +15,7 @@
  */
 
 import { SvelteMap } from "svelte/reactivity";
+import { ExecutionMethod } from "appwrite";
 import type { Main, MainStatus } from "../types/appwrite.d";
 import type { UserNotifications } from "$lib/types/appwrite.d";
 import type {
@@ -23,6 +24,8 @@ import type {
   EnrichedEvent,
   EventMeal,
   EventContributor,
+  EventTodo,
+  EventTodoStatus,
 } from "../types/events.d";
 import {
   listEvents,
@@ -33,7 +36,7 @@ import {
   EVENTS_COLLECTION_ID,
 } from "../services/appwrite-events";
 import { globalState } from "./GlobalState.svelte";
-import { parseEventMeals, parseEventContributors } from "../utils/events.utils";
+import { parseEventMeals, parseEventContributors, parseEventTodos } from "../utils/events.utils";
 import {
   createEventsIDBCache,
   type EventsIDBCache,
@@ -281,6 +284,7 @@ export class EventsStore {
       ...event,
       meals: parseEventMeals(event.meals),
       contributors: parseEventContributors(event.contributors),
+      todos: parseEventTodos(event.todos),
     };
   }
 
@@ -797,6 +801,165 @@ export class EventsStore {
       return await this.updateEvent(eventId, { meals });
     } catch (err) {
       console.error(`[EventsStore] Erreur suppression meal:`, err);
+      throw err;
+    }
+  }
+
+  // =============================================================================
+  // API PUBLIQUE - TODOS
+  // =============================================================================
+
+  /**
+   * Récupère les todos d'un événement
+   */
+  getTodos(eventId: string): EventTodo[] {
+    const event = this.#events.get(eventId);
+    if (!event) return [];
+    return event.todos;
+  }
+
+  /**
+   * Ajoute un todo à un événement
+   */
+  async addTodo(eventId: string, todo: EventTodo): Promise<EnrichedEvent> {
+    try {
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      const todos = [...event.todos, todo];
+      return await this.updateEvent(eventId, { todos });
+    } catch (err) {
+      console.error(`[EventsStore] Erreur ajout todo:`, err);
+      throw err;
+    }
+  }
+
+  /**
+   * Met à jour le statut d'un todo via Cloud Function (Atomique)
+   */
+  async updateTodoStatus(
+    eventId: string,
+    todoId: string,
+    status: EventTodoStatus
+  ): Promise<void> {
+    try {
+      // Update optimiste local
+      const event = this.#events.get(eventId);
+      if (event) {
+        event.todos = event.todos.map((t) =>
+          t.id === todoId
+            ? { ...t, status, updatedAt: new Date().toISOString() }
+            : t
+        );
+      }
+
+      const { functions, config } = await getAppwriteInstances();
+
+      await functions.createExecution(
+        config.functions.enkaData,
+        JSON.stringify({
+          action: "update_todo_status",
+          data: { eventId, todoId, status },
+        }),
+        false,
+        "/",
+        ExecutionMethod.POST
+      );
+    } catch (err) {
+      console.error(`[EventsStore] Erreur updateTodoStatus:`, err);
+      // Revert serait idéal ici, mais pour l'instant on laisse le realtime corriger si échec
+      throw err;
+    }
+  }
+
+  /**
+   * Toggle l'assignation via Cloud Function (Atomique)
+   */
+  async toggleTodoAssignment(eventId: string, todoId: string): Promise<void> {
+    try {
+      const userId = globalState.userId;
+      if (!userId) throw new Error("Utilisateur non connecté");
+
+      // Update optimiste local
+      const event = this.#events.get(eventId);
+      if (event) {
+        const todo = event.todos.find((t) => t.id === todoId);
+        if (todo) {
+          let currentAssigned: string[] = [];
+           // Handle both string[] and string case for robustness (though types say string[] | null)
+          if (Array.isArray(todo.assignedTo)) {
+             currentAssigned = [...todo.assignedTo];
+          } else if (todo.assignedTo) {
+             currentAssigned = [todo.assignedTo as string];
+          }
+
+          if (currentAssigned.includes(userId)) {
+            currentAssigned = currentAssigned.filter((id) => id !== userId);
+          } else {
+            currentAssigned.push(userId);
+          }
+          
+           // Update event todos
+          event.todos = event.todos.map((t) =>
+            t.id === todoId
+              ? { ...t, assignedTo: currentAssigned.length > 0 ? currentAssigned : null, updatedAt: new Date().toISOString() }
+              : t
+          );
+        }
+      }
+
+      const { functions, config } = await getAppwriteInstances();
+
+      await functions.createExecution(
+        config.functions.enkaData,
+        JSON.stringify({
+          action: "toggle_todo_assignment",
+          data: { eventId, todoId },
+        }),
+        false,
+        "/",
+        ExecutionMethod.POST
+      );
+    } catch (err) {
+      console.error(`[EventsStore] Erreur toggleTodoAssignment:`, err);
+      throw err;
+    }
+  }
+
+  /**
+   * Met à jour un todo dans un événement (par id)
+   */
+  async updateTodo(
+    eventId: string,
+    todoId: string,
+    updates: Partial<EventTodo>,
+  ): Promise<EnrichedEvent> {
+    try {
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      const todos = event.todos.map((t) =>
+        t.id === todoId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t,
+      );
+      return await this.updateEvent(eventId, { todos });
+    } catch (err) {
+      console.error(`[EventsStore] Erreur maj todo:`, err);
+      throw err;
+    }
+  }
+
+  /**
+   * Supprime un todo d'un événement (par id)
+   */
+  async deleteTodo(eventId: string, todoId: string): Promise<EnrichedEvent> {
+    try {
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      const todos = event.todos.filter((t) => t.id !== todoId);
+      return await this.updateEvent(eventId, { todos });
+    } catch (err) {
+      console.error(`[EventsStore] Erreur suppression todo:`, err);
       throw err;
     }
   }
