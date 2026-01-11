@@ -81,7 +81,7 @@
   </div>
 
   <!-- List -->
-  <div class=" space-y-2">
+  <div class=" space-y-4">
     {#if sortedTodos.length === 0}
       <div
         class="text-base-content/50 border-base-200 hover:border-primary/50 cursor-pointer rounded-lg border-2 border-dashed py-8 text-center text-sm italic transition-colors"

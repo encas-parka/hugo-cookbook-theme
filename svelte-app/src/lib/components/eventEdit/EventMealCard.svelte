@@ -10,7 +10,7 @@
     ChefHat,
     X,
     Moon,
-    Cloud,
+    CloudSun,
     Sun,
     type Icon as IconType,
     Check,
@@ -77,18 +77,6 @@
   let newDateInput = $state(extractDate(meal.date || ""));
   let newTimeInput = $state(extractTime(meal.date || ""));
 
-  // Synchronisation interne si meal.date change de l'extérieur (ex: sync distante)
-  // USELESS  GARBAGE : un seul editeur possede le verrou
-  // $effect(() => {
-  //   if (meal.date) {
-  //     const extDate = extractDate(meal.date);
-  //     const extTime = extractTime(meal.date);
-  //     // On ne met à jour que si les valeurs diffèrent pour ne pas perturber l'édition locale
-  //     if (extDate !== newDateInput) newDateInput = extDate;
-  //     if (extTime !== newTimeInput) newTimeInput = extTime;
-  //   }
-  // });
-
   let newDateTime = $derived(
     dateToDateTime(newDateInput, newTimeInput) || "matin",
   );
@@ -118,7 +106,7 @@
   const TimeIcon: typeof IconType = $derived.by(() => {
     const time = displayTime || "";
     if (time === "matin") {
-      return Cloud;
+      return CloudSun;
     } else if (time === "midi") {
       return Sun;
     } else if (time === "soir") {

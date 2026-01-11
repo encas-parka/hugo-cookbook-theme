@@ -51,17 +51,14 @@
       const isCurrentUser = userId === globalState.userId;
       const name =
         contributor?.name || (isCurrentUser ? "Moi" : userId.substring(0, 5));
-      const initials = contributor?.name
-        ? contributor.name
-            .split(" ")
-            .map((n) => n[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2)
-        : userId.substring(0, 2).toUpperCase();
-      return { userId, name, initials, isCurrentUser };
+      return { userId, name, isCurrentUser };
     });
   });
+
+  // Derived: Check if enough people are assigned
+  const hasEnoughAssignees = $derived(
+    assigneeInfos.length >= (todo.requiredPeopleNb || 1),
+  );
 
   // Derived: TaskOn Card Config
   const taskOnCardConfig = $derived.by(() => {
@@ -132,14 +129,16 @@
 </script>
 
 <div
-  class="group bg-base-200 hover:bg-base-200/50 border-base-300 relative rounded-xl border p-4 transition-all"
+  class="group bg-base-200/50 relative rounded-xl p-4 shadow transition-all {hasEnoughAssignees
+    ? 'shadow-success/40 '
+    : 'shadow-warning/40 '}"
   class:opacity-50={isUpdating}
 >
   <div class="flex flex-col gap-3">
     <!-- Left: Status + Content -->
     <div class="flex min-w-0 items-start gap-3">
       <!-- Content -->
-      <div class="flex min-w-0 grow flex-col gap-2">
+      <div class="flex min-w-0 grow flex-col gap-4">
         <!-- Title + Priority -->
         <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div
@@ -150,21 +149,21 @@
             {todo.taskName}
           </div>
 
-          <!-- Priority Badge -->
-          <!-- {#if todo.priority && todo.priority !== "low"}
-            <div
-              class="badge badge-sm {priorityConfig.bg} {priorityConfig.class} w-fit border-0"
-            >
-              {priorityConfig.label}
-            </div>
-          {/if} -->
           <div
             class="card card-sm {taskOnCardConfig.bg} ms-auto flex flex-col justify-end px-4 py-1"
           >
+            <!-- Priority Badge -->
+            {#if todo.priority && todo.priority !== "low"}
+              <!-- <div
+                class="badge badge-sm w-fit border-0"
+              >
+                {priorityConfig.label}
+              </div> -->
+            {/if}
             <!-- Moment (TaskOn) -->
             {#if todo.taskOn}
               <div class="flex items-center gap-2">
-                <taskOnCardConfig.icon class="size-4 shrink-0 opacity-60" />
+                <taskOnCardConfig.icon class="size-4 shrink-0 opacity-70" />
                 <span>{taskOnCardConfig.label}</span>
               </div>
             {/if}
@@ -172,7 +171,7 @@
             <!-- Due Date -->
             {#if todo.dueDate}
               <div class="flex items-center gap-2">
-                <Calendar class="size-4 shrink-0 opacity-60" />
+                <Calendar class="size-4 shrink-0 opacity-70" />
                 <span> A réaliser avant le :</span>
                 <span class="font-medium">
                   {new Date(todo.dueDate).toLocaleDateString("fr-FR", {
@@ -198,9 +197,8 @@
                     (assignee.isCurrentUser ? " (vous)" : "")}
                 >
                   <div
-                    class="badge badge-soft {assignee.isCurrentUser
-                      ? 'badge-accent'
-                      : 'badge-info'}"
+                    class="badge badge-soft badge-info {assignee.isCurrentUser &&
+                      'ring-info font-semibold ring-1'}"
                   >
                     <span>{assignee.name}</span>
                   </div>
@@ -216,7 +214,7 @@
               {/if}
 
               {#if assigneeInfos.length === 0}
-                <span class="text-base-content/40 mx-1 text-base italic">
+                <span class="text-warning mx-1 text-base italic">
                   Non assigné
                 </span>
               {/if}
@@ -225,7 +223,7 @@
             <span
               class="mx-1 {assigneeInfos.length < (todo.requiredPeopleNb || 1)
                 ? 'text-warning'
-                : 'text-success'} font-medium"
+                : 'text-success'} font-bold"
             >
               {assigneeInfos.length}/{todo.requiredPeopleNb || 1} pers. requise
             </span>
@@ -270,7 +268,7 @@
           {disabled}
         >
           <Check class="size-4" />
-          <span class="">M'assigner</span>
+          <span class="">M'inscrire</span>
         </button>
       {:else if isAssigned}
         <button
@@ -280,13 +278,13 @@
           {disabled}
         >
           <Minus class="size-4" />
-          <span>Quitter</span>
+          <span>me désinscrire</span>
         </button>
       {/if}
 
       <!-- Edit button (always visible) -->
       <button
-        class="btn btn-ghost btn-sm btn-square"
+        class="btn btn-sm btn-square"
         onclick={() => onEdit(todo)}
         {disabled}
         title="Modifier la tâche"

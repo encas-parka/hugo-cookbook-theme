@@ -38,8 +38,7 @@
   let plates = $state(defaultPlates);
   let selectedRecipe = $state<RecipeIndexEntry | null>(null);
   let isLoadingDetails = $state(false);
-  let selectedIndex = $state(-1);
-  let isOpen = $state(false);
+  let selectedIndex = $state(0);
   let isManuallyOpened = $state(false); // Flag pour distinguer ouverture chevron vs recherche
   let containerRef: HTMLDivElement | undefined = $state();
   let listboxRef: HTMLDivElement | undefined = $state();
@@ -63,21 +62,17 @@
   // Le dropdown s'ouvre si y'a des résultats à afficher
   let shouldOpenDropdown = $derived(filteredRecipes.length > 0);
 
-  // Synchroniser isOpen avec shouldOpenDropdown (mais garder isManuallyOpened)
-  $effect(() => {
-    if (shouldOpenDropdown) {
-      isOpen = true;
-    }
-  });
+  // Le dropdown est ouvert si ouvert manuellement ou si y'a des résultats de recherche
+  let isOpen = $derived(shouldOpenDropdown || isManuallyOpened);
 
-  // Gérer le selectedIndex réactif
-  $effect(() => {
-    if (filteredRecipes.length > 0 && selectedIndex === -1) {
-      selectedIndex = 0;
-    } else if (filteredRecipes.length === 0 && selectedIndex !== -1) {
-      selectedIndex = -1;
-    }
-  });
+  // selectedIndex dérive de filteredRecipes (remet à 0 si y'a des résultats, -1 sinon)
+  let clampedSelectedIndex = $derived(
+    filteredRecipes.length > 0
+      ? selectedIndex === -1
+        ? 0
+        : selectedIndex % filteredRecipes.length
+      : -1,
+  );
 
   // Gestion du click outside
   $effect(() => {
@@ -98,8 +93,7 @@
     selectedRecipe = null;
     searchQuery = "";
     plates = defaultPlates;
-    selectedIndex = -1;
-    isOpen = false;
+    selectedIndex = 0;
     isManuallyOpened = false;
   }
 
@@ -107,14 +101,13 @@
     // Ouverture via chevron → afficher tous les résultats
     isManuallyOpened = true;
     searchQuery = "";
-    isOpen = true;
+    selectedIndex = 0;
   }
 
   function closeDropdown() {
     isManuallyOpened = false;
     searchQuery = "";
-    selectedIndex = -1;
-    isOpen = false;
+    selectedIndex = 0;
   }
 
   function toggleDropdown() {
@@ -157,18 +150,17 @@
     // Navigation avec les flèches
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      selectedIndex = (selectedIndex + 1) % filteredRecipes.length;
+      selectedIndex = selectedIndex + 1;
       scrollToSelected();
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      selectedIndex =
-        selectedIndex <= 0 ? filteredRecipes.length - 1 : selectedIndex - 1;
+      selectedIndex = selectedIndex - 1;
       scrollToSelected();
     }
     // Sélection avec Entrée
-    else if (event.key === "Enter" && selectedIndex >= 0) {
+    else if (event.key === "Enter" && clampedSelectedIndex >= 0) {
       event.preventDefault();
-      handleSelectRecipe(filteredRecipes[selectedIndex]);
+      handleSelectRecipe(filteredRecipes[clampedSelectedIndex]);
     }
     // Tab pour fermer
     // else if (event.key === "Tab") {
@@ -177,9 +169,9 @@
   }
 
   function scrollToSelected() {
-    if (selectedIndex >= 0 && listboxRef) {
+    if (clampedSelectedIndex >= 0 && listboxRef) {
       const selectedElement = listboxRef.querySelector(
-        `#recipe-${selectedIndex}`,
+        `#recipe-${clampedSelectedIndex}`,
       );
       if (selectedElement) {
         selectedElement.scrollIntoView({ block: "nearest" });
@@ -220,7 +212,7 @@
               aria-expanded={isOpen}
               aria-controls="recipes-list"
               aria-activedescendant={isOpen
-                ? `recipe-${selectedIndex}`
+                ? `recipe-${clampedSelectedIndex}`
                 : undefined}
             />
             {#if isLoadingDetails}
@@ -256,24 +248,24 @@
                   type="button"
                   id="recipe-{index}"
                   class="hover:bg-base-200 flex w-full items-center gap-2 px-4 py-3 text-left hover:cursor-pointer {index ===
-                  selectedIndex
+                  clampedSelectedIndex
                     ? 'bg-base-200'
                     : ''}"
                   onclick={() => handleSelectRecipe(recipe)}
                   onmouseenter={() => (selectedIndex = index)}
                   role="option"
-                  aria-selected={index === selectedIndex}
+                  aria-selected={index === clampedSelectedIndex}
                   disabled={isLoadingDetails}
                 >
                   <div class="bg-base-200 rounded p-1">
                     <ChefHat class="h-4 w-4 opacity-70" />
                   </div>
-                  <div class="flex min-w-0 flex-1 items-center gap-2">
+                  <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                     <span class="truncate text-sm font-medium"
                       >{recipe.title}</span
                     >
                     {#if recipe.versionLabel}
-                      <span class="text-muted-foreground text-xs"
+                      <span class="text-base-content/70 text-xs font-normal"
                         >({recipe.versionLabel})</span
                       >
                     {/if}
