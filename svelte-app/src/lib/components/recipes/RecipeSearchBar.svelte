@@ -19,7 +19,7 @@
       class=""
     />
     <button
-      class="btn btn-square"
+      class="btn btn-circle"
       onclick={onReset}
       title="Effacer la recherche"
     >

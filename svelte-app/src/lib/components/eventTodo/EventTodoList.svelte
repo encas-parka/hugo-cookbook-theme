@@ -23,6 +23,32 @@
   // Derived todos from event - réactif aux mises à jour realtime
   const todos = $derived(event.todos ?? []);
 
+  // Sort weight helper for enum ordering
+  function getTaskOnWeight(value: string): number {
+    const weights = { beforeEvent: 1, onEvent: 2, afterEvent: 3 };
+    return weights[value] ?? 0;
+  }
+
+  // Sorted todos derived: taskOn > dueDate
+  const sortedTodos = $derived.by(() => {
+    const todosCopy = [...todos];
+    return todosCopy.sort((a, b) => {
+      // First sort by taskOn
+      const aTaskOnWeight = getTaskOnWeight(a.taskOn ?? "");
+      const bTaskOnWeight = getTaskOnWeight(b.taskOn ?? "");
+      const taskOnComparison = aTaskOnWeight - bTaskOnWeight;
+
+      if (taskOnComparison !== 0) {
+        return taskOnComparison;
+      }
+
+      // Then sort by dueDate (ascending - earliest first)
+      const aDueDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+      const bDueDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+      return aDueDate - bDueDate;
+    });
+  });
+
   // Modal State
   let showModal = $state(false);
   let todoToEdit = $state<EventTodo | null>(null);
@@ -56,7 +82,7 @@
 
   <!-- List -->
   <div class=" space-y-2">
-    {#if todos.length === 0}
+    {#if sortedTodos.length === 0}
       <div
         class="text-base-content/50 border-base-200 hover:border-primary/50 cursor-pointer rounded-lg border-2 border-dashed py-8 text-center text-sm italic transition-colors"
         onclick={handleAdd}
@@ -71,12 +97,13 @@
         >
       </div>
     {:else}
-      {#each todos as todo (todo.id)}
+      {#each sortedTodos as todo (todo.id)}
         <EventTodoItem
           {todo}
           eventId={event.$id}
           onEdit={handleEdit}
           {disabled}
+          {contributors}
         />
       {/each}
     {/if}

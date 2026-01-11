@@ -1048,6 +1048,9 @@ export function parseStockData(stockJson: string | null): {
 /**
  * S'abonne aux événements realtime des collections products et purchases
  *
+ * @deprecated Utilisez realtimeManager.registerDynamic() directement depuis ProductsStore
+ * Cette fonction est conservée pour compatibilité mais ne devrait plus être utilisée.
+ *
  * Service principal pour les mises à jour en temps réel de ProductsStore.
  * Gère l'abonnement Appwrite et dispatche les événements vers les callbacks appropriés.
  *

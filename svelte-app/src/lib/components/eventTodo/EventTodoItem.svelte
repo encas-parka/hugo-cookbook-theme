@@ -1,110 +1,102 @@
 <script lang="ts">
   import {
-    CheckCircle2,
-    Circle,
-    Flag,
-    User,
     Clock,
-    X,
-    CircleDot,
-    Pencil,
+    ClockArrowUp,
+    ClockArrowDown,
     Users,
-    Plus,
     Minus,
+    Calendar,
+    PencilLine,
+    Check,
   } from "@lucide/svelte";
-  import type { EventTodo } from "$lib/types/events";
-  import type { EventTodoPriority, EventTodoStatus } from "$lib/types/events";
+  import type { EventTodo, EventContributor } from "$lib/types/events";
+  import type { EventTodoStatus } from "$lib/types/events";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
+  import CheckboxBadge from "../ui/CheckboxBadge.svelte";
 
   interface Props {
     todo: EventTodo;
     eventId: string;
     onEdit: (todo: EventTodo) => void;
     disabled?: boolean;
+    contributors?: EventContributor[];
   }
 
-  let { todo, eventId, onEdit, disabled = false }: Props = $props();
+  let {
+    todo,
+    eventId,
+    onEdit,
+    disabled = false,
+    contributors = [],
+  }: Props = $props();
 
   let isUpdating = $state(false);
 
   // Parse assignedTo - now it's string[] | null directly
-  const assignedList = $derived.by(() => {
-    if (!todo.assignedTo) return [];
-    return Array.isArray(todo.assignedTo) ? todo.assignedTo : [];
-  });
+  const assignedList = $derived(
+    Array.isArray(todo.assignedTo) ? todo.assignedTo : [],
+  );
 
   const isAssigned = $derived(
     globalState.userId && assignedList.includes(globalState.userId),
   );
 
-  // Derived: Status Config
-  const statusConfig = $derived.by(() => {
-    const s = todo.status as string;
-    switch (s) {
-      case "done":
-        return {
-          class: "text-success",
-          icon: CheckCircle2,
-          label: "Terminé",
-          bg: "bg-success/10",
-        };
-      case "inprogress":
-        return {
-          class: "text-primary",
-          icon: CircleDot,
-          label: "En cours",
-          bg: "bg-primary/10",
-        };
-      case "waiting":
-        return {
-          class: "text-warning",
-          icon: Clock,
-          label: "En attente",
-          bg: "bg-warning/10",
-        };
-      case "canceled":
-        return {
-          class: "text-error",
-          icon: X,
-          label: "Annulé",
-          bg: "bg-error/10",
-        };
-      case "todo":
-      default:
-        return {
-          class: "text-base-content/50",
-          icon: Circle,
-          label: "À faire",
-          bg: "bg-base-200",
-        };
-    }
+  // Derive assignee information with avatars
+  const assigneeInfos = $derived.by(() => {
+    if (!todo.assignedTo) return [];
+    return todo.assignedTo.map((userId: string) => {
+      const contributor = contributors.find((c) => c.id === userId);
+      const isCurrentUser = userId === globalState.userId;
+      const name =
+        contributor?.name || (isCurrentUser ? "Moi" : userId.substring(0, 5));
+      const initials = contributor?.name
+        ? contributor.name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2)
+        : userId.substring(0, 2).toUpperCase();
+      return { userId, name, initials, isCurrentUser };
+    });
   });
 
-  // Derived: Priority Config
-  const priorityConfig = $derived.by(() => {
-    const p = todo.priority as string;
-    switch (p) {
-      case "high":
-        return { class: "text-error", bg: "bg-error/10", label: "Haute" };
-      case "medium":
-        return { class: "text-warning", bg: "bg-warning/10", label: "Moyenne" };
-      case "low":
+  // Derived: TaskOn Card Config
+  const taskOnCardConfig = $derived.by(() => {
+    const t = todo.taskOn as string;
+    switch (t) {
+      case "beforeEvent":
+        return {
+          bg: "bg-accent/30",
+          icon: ClockArrowUp,
+          label: "Avant l'événement",
+        };
+      case "afterEvent":
+        return {
+          bg: "bg-secondary/10",
+          icon: ClockArrowDown,
+          label: "Après l'événement",
+        };
+      case "onEvent":
       default:
-        return { class: "text-info", bg: "bg-info/10", label: "Basse" };
+        return {
+          bg: "bg-secondary/20",
+          icon: Clock,
+          label: "Pendant l'événement",
+        };
     }
   });
 
   async function handleToggleStatus() {
     if (isUpdating || disabled) return;
 
-    // Rotate status: todo -> inprogress -> done -> todo
+    // Simplified: toggle between todo and done
     const s = todo.status as string;
-    let next: EventTodoStatus = "todo" as EventTodoStatus;
-    if (s === "todo") next = "inprogress" as EventTodoStatus;
-    else if (s === "inprogress") next = "done" as EventTodoStatus;
-    else next = "todo" as EventTodoStatus;
+    const next: EventTodoStatus = (
+      s === "done" ? "todo" : "done"
+    ) as EventTodoStatus;
 
     isUpdating = true;
     try {
@@ -140,97 +132,167 @@
 </script>
 
 <div
-  class="group bg-base-100 hover:bg-base-200/50 border-base-200 relative flex items-center justify-between rounded-lg border p-3 transition-all"
+  class="group bg-base-200 hover:bg-base-200/50 border-base-300 relative rounded-xl border p-4 transition-all"
   class:opacity-50={isUpdating}
 >
-  <!-- Status Indicator / Action -->
-  <div class="flex min-w-0 grow items-start gap-3">
-    <button
-      onclick={handleToggleStatus}
-      class="btn btn-ghost btn-circle btn-sm {statusConfig.class} shrink-0"
-      title={statusConfig.label}
-      {disabled}
-    >
-      <svelte:component this={statusConfig.icon} class="size-5" />
-    </button>
-
-    <div class="flex min-w-0 grow flex-col">
-      <div class="flex items-center gap-2">
-        <span
-          class="truncate font-medium {todo.status === 'done'
-            ? 'line-through opacity-50'
-            : ''}"
-        >
-          {todo.taskName}
-        </span>
-        <!-- Priority Badge -->
-        {#if todo.priority && todo.priority !== "low"}
+  <div class="flex flex-col gap-3">
+    <!-- Left: Status + Content -->
+    <div class="flex min-w-0 items-start gap-3">
+      <!-- Content -->
+      <div class="flex min-w-0 grow flex-col gap-2">
+        <!-- Title + Priority -->
+        <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div
-            class="badge badge-xs {priorityConfig.bg} {priorityConfig.class} border-0"
+            class="text-base font-medium {todo.status === 'done'
+              ? 'line-through opacity-50'
+              : ''}"
           >
-            {priorityConfig.label}
+            {todo.taskName}
           </div>
-        {/if}
-      </div>
 
-      <!-- Meta Row -->
-      <div class="mt-1 flex flex-wrap items-center gap-3 text-xs opacity-60">
-        <!-- Assignees -->
-        <button
-          class="hover:text-primary flex items-center gap-1 transition-colors {isAssigned
-            ? 'text-primary font-medium'
-            : ''}"
-          onclick={handleToggleAssign}
-          title={isAssigned ? "Quitter" : "Rejoindre"}
-          {disabled}
-        >
-          <Users class="size-3" />
-          {assignedList.length} / {todo.requiredPeopleNb || 1}
-        </button>
-
-        {#if todo.dueDate}
-          <span class="flex items-center gap-1">
-            <Clock class="size-3" />
-            {new Date(todo.dueDate).toLocaleDateString()}
-          </span>
-        {/if}
-
-        <!-- Moment -->
-        {#if todo.taskOn}
-          <span
-            class="bg-base-300 rounded px-1.5 text-[10px] tracking-wider uppercase"
+          <!-- Priority Badge -->
+          <!-- {#if todo.priority && todo.priority !== "low"}
+            <div
+              class="badge badge-sm {priorityConfig.bg} {priorityConfig.class} w-fit border-0"
+            >
+              {priorityConfig.label}
+            </div>
+          {/if} -->
+          <div
+            class="card card-sm {taskOnCardConfig.bg} ms-auto flex flex-col justify-end px-4 py-1"
           >
-            {todo.taskOn === "beforeEvent"
-              ? "Avant"
-              : todo.taskOn === "afterEvent"
-                ? "Après"
-                : "Pendant"}
-          </span>
+            <!-- Moment (TaskOn) -->
+            {#if todo.taskOn}
+              <div class="flex items-center gap-2">
+                <taskOnCardConfig.icon class="size-4 shrink-0 opacity-60" />
+                <span>{taskOnCardConfig.label}</span>
+              </div>
+            {/if}
+
+            <!-- Due Date -->
+            {#if todo.dueDate}
+              <div class="flex items-center gap-2">
+                <Calendar class="size-4 shrink-0 opacity-60" />
+                <span> A réaliser avant le :</span>
+                <span class="font-medium">
+                  {new Date(todo.dueDate).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
+            {/if}
+          </div>
+        </div>
+
+        <!-- Meta Information Grid -->
+        <!-- Assignees -->
+        <div class="flex items-center gap-2">
+          <Users class="mt-1 mb-auto size-4 shrink-0 opacity-60" />
+          <div class="flex min-w-0 items-center gap-1">
+            <div class="flex flex-wrap gap-2">
+              {#each assigneeInfos.slice(0, 3) as assignee, index (assignee.userId)}
+                <div
+                  title={assignee.name +
+                    (assignee.isCurrentUser ? " (vous)" : "")}
+                >
+                  <div
+                    class="badge badge-soft {assignee.isCurrentUser
+                      ? 'badge-accent'
+                      : 'badge-info'}"
+                  >
+                    <span>{assignee.name}</span>
+                  </div>
+                </div>
+              {/each}
+
+              {#if assigneeInfos.length > 3}
+                <div class="" title="+{assigneeInfos.length - 3} autres">
+                  <div class="bg-base-300 text-base-content w-7 rounded-full">
+                    <span class="text-base">+{assigneeInfos.length - 3}</span>
+                  </div>
+                </div>
+              {/if}
+
+              {#if assigneeInfos.length === 0}
+                <span class="text-base-content/40 mx-1 text-base italic">
+                  Non assigné
+                </span>
+              {/if}
+            </div>
+
+            <span
+              class="mx-1 {assigneeInfos.length < (todo.requiredPeopleNb || 1)
+                ? 'text-warning'
+                : 'text-success'} font-medium"
+            >
+              {assigneeInfos.length}/{todo.requiredPeopleNb || 1} pers. requise
+            </span>
+          </div>
+        </div>
+
+        <!-- Description (if exists) -->
+        {#if todo.taskDescription}
+          <p class="text-base-content/60 mt-1 line-clamp-2 text-sm">
+            {todo.taskDescription}
+          </p>
         {/if}
       </div>
     </div>
   </div>
-
   <!-- Actions -->
-  <div class="ml-2 flex items-center gap-1">
-    <!-- Join/Leave Quick Action -->
-    {#if !isAssigned && assignedList.length < (todo.requiredPeopleNb || 1)}
-      <button
-        class="btn btn-ghost btn-xs btn-square text-primary"
-        onclick={handleToggleAssign}
-        title="Rejoindre"
-        {disabled}
-      >
-        <Plus class="size-4" />
-      </button>
-    {/if}
+  <div class="mt-4 flex items-center justify-between gap-2">
+    <div class="flex gap-2">
+      {#if todo.taskOn === "beforeEvent"}
+        <button
+          onclick={handleToggleStatus}
+          class="btn btn-sm {todo.status !== 'done'
+            ? 'btn-dash'
+            : 'btn-success'}"
+          title={todo.status === "done" ? "Marquer à faire" : "Marquer fait"}
+          {disabled}
+        >
+          <Check class="size-4 {todo.status !== 'done' && 'opacity-60'}" />
+          Fait {#if todo.status !== "done"}
+            ?
+          {/if}
+        </button>
+      {/if}
+    </div>
+    <div class="ms-auto flex gap-2">
+      <!-- Assign/Unassign button -->
+      {#if !isAssigned && assigneeInfos.length < (todo.requiredPeopleNb || 1)}
+        <button
+          class="btn btn-primary btn-outline btn-sm gap-1"
+          onclick={handleToggleAssign}
+          title="Me porter volontaire pour cette tâche"
+          {disabled}
+        >
+          <Check class="size-4" />
+          <span class="">M'assigner</span>
+        </button>
+      {:else if isAssigned}
+        <button
+          class="btn btn-error btn-sm btn-outline gap-1"
+          onclick={handleToggleAssign}
+          title="Quitter cette tâche"
+          {disabled}
+        >
+          <Minus class="size-4" />
+          <span>Quitter</span>
+        </button>
+      {/if}
 
-    <button
-      class="btn btn-ghost btn-xs btn-square opacity-0 transition-opacity group-hover:opacity-100"
-      onclick={() => onEdit(todo)}
-      {disabled}
-    >
-      <Pencil class="size-4" />
-    </button>
+      <!-- Edit button (always visible) -->
+      <button
+        class="btn btn-ghost btn-sm btn-square"
+        onclick={() => onEdit(todo)}
+        {disabled}
+        title="Modifier la tâche"
+      >
+        <PencilLine class="size-4" />
+      </button>
+    </div>
   </div>
 </div>

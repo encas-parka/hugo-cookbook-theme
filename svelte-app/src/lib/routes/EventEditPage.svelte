@@ -823,7 +823,7 @@
       </div>
     </div>
   {:else}
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div class="grid grid-cols-1 gap-6 pb-20 lg:grid-cols-3">
       <!-- Colonne Gauche : Infos & Permissions -->
       <div class="space-y-6 lg:col-span-1">
         <!-- Permissions -->
