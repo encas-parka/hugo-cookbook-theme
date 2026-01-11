@@ -268,9 +268,22 @@
                   <div class="bg-base-200 rounded p-1">
                     <ChefHat class="h-4 w-4 opacity-70" />
                   </div>
-                  <span class="truncate text-sm font-medium"
-                    >{recipe.title}</span
-                  >
+                  <div class="flex min-w-0 flex-1 items-center gap-2">
+                    <span class="truncate text-sm font-medium"
+                      >{recipe.title}</span
+                    >
+                    {#if recipe.versionLabel}
+                      <span class="text-muted-foreground text-xs"
+                        >({recipe.versionLabel})</span
+                      >
+                    {/if}
+                    {#if recipe.draft}
+                      <span
+                        class="badge badge-ghost badge-sm text-xs opacity-70"
+                        >brouillon</span
+                      >
+                    {/if}
+                  </div>
                 </button>
               {/each}
             </div>

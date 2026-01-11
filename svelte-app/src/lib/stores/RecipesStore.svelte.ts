@@ -656,17 +656,28 @@ class RecipesStore {
   }
 
   /**
+   * Normalise une chaîne en ignorant les accents et la casse
+   */
+  #normalizeString(str: string): string {
+    return str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, ""); // Supprime les diacritiques
+  }
+
+  /**
    * Recherche des recettes par texte (mots entiers, début de mots)
+   * Ignorer les majuscules et accents
    */
   searchRecipes(query: string): RecipeIndexEntry[] {
     if (!query.trim()) {
       return this.recipesIndex;
     }
 
-    const searchTerms = query.toLowerCase().trim().split(/\s+/);
+    const searchTerms = this.#normalizeString(query.trim()).split(/\s+/);
 
     return this.recipesIndex.filter((recipe) => {
-      const recipeTitle = recipe.title.toLowerCase();
+      const recipeTitle = this.#normalizeString(recipe.title);
 
       // Découper le titre en mots (par espaces, tirets, underscores)
       const titleWords = recipeTitle.split(/[\s\-_]+/);
