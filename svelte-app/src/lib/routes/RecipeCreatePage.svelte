@@ -272,7 +272,7 @@
     <button
       onclick={save}
       disabled={isSaving || !isDirty}
-      class="btn btn-primary btn-sm"
+      class="btn btn-primary"
     >
       <Save class="h-4 w-4" />
       {isSaving ? "Sauvegarde..." : "Créer la recette"}

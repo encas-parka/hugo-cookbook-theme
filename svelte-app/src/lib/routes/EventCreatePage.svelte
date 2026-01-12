@@ -235,7 +235,7 @@
 {#snippet navActions()}
   <div class="flex items-center gap-2">
     <button
-      class="btn btn-accent btn-sm"
+      class="btn btn-accent"
       onclick={handleSave}
       disabled={isBusy || !hasData}
     >

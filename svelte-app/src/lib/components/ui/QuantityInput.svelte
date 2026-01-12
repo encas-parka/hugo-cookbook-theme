@@ -21,6 +21,7 @@
     <label class="input w-32">
       <Package class="h-4 w-4 opacity-50" />
       <input
+        class="w-full text-center"
         type="number"
         step="1"
         min="0"
@@ -30,16 +31,19 @@
         required
       />
     </label>
-    <select
-      class="custom-select input w-28"
-      bind:value={unit}
-      {disabled}
-      required
-    >
-      <option disabled selected value="">Unité ?</option>
-      {#each QUANTITY_UNITS as { value, label }}
-        <option {value}>{label}</option>
-      {/each}
-    </select>
+    <label class="input w-44">
+      <span class="fieldset-label">unité</span>
+      <select
+        class="custom-select w-full text-end"
+        bind:value={unit}
+        {disabled}
+        required
+      >
+        <option disabled selected value="">-</option>
+        {#each QUANTITY_UNITS as { value, label }}
+          <option {value}>{label}</option>
+        {/each}
+      </select>
+    </label>
   </div>
 </fieldset>

@@ -627,7 +627,7 @@
 {#snippet navActions()}
   <div class="flex items-center gap-2">
     <button
-      class="btn btn-accent btn-sm"
+      class="btn btn-accent"
       onclick={handleSave}
       disabled={isBusy || !isDirty || !canEdit}
     >
@@ -855,11 +855,7 @@
           <h3 class="card-title text-lg">
             Repas & Menus ({sortedMeals.length})
           </h3>
-          <button
-            class="btn btn-primary btn-sm"
-            onclick={addMeal}
-            disabled={!canEdit}
-          >
+          <button class="btn btn-primary" onclick={addMeal} disabled={!canEdit}>
             <Plus class="mr-1 h-4 w-4" />
             Ajouter un repas
           </button>

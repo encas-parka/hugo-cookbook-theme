@@ -134,7 +134,7 @@
     <div class="flex items-center gap-4">
       <!-- Bouton Créer une version alternative (disponible pour tous) -->
       <button
-        class="btn btn-secondary btn-sm"
+        class="btn btn-secondary"
         onclick={() => navigate(`/recipe/${recipeDetails?.$id}/duplicate`)}
       >
         <Copy size={18} />

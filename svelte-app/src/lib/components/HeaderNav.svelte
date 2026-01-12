@@ -137,7 +137,7 @@
     <div class="flex items-center gap-1">
       {#if globalState.isAuthenticated}
         <button
-          class="btn btn-ghost btn-sm not-md:btn-square md:gap-2"
+          class="btn btn-ghost not-md:btn-square md:gap-2"
           onclick={() => navigate("/dashboard")}
         >
           <LayoutDashboardIcon size={18} />
@@ -146,7 +146,7 @@
       {/if}
 
       <button
-        class="btn btn-ghost btn-sm not-md:btn-square md:gap-2"
+        class="btn btn-ghost not-md:btn-square md:gap-2"
         onclick={() => navigate("/recipe")}
       >
         <CookingPot size={18} />

@@ -312,7 +312,7 @@
 {#snippet navActions()}
   <div class="flex gap-2">
     <button
-      class="btn btn-primary btn-sm"
+      class="btn btn-primary"
       onclick={handleOpenAddProductModal}
       title="Ajouter un produit manuellement"
     >

@@ -47,10 +47,10 @@
   }
 </script>
 
-<div class="tabs tabs-border justify-center">
+<div class="tabs tabs-lg tabs-border justify-center">
   {#each eventTabs as tab, index (index)}
     <button
-      class="tab font-medium {index === activeTab ? 'tab-active' : ''}"
+      class="tab font-semibold {index === activeTab ? 'tab-active' : ''}"
       onclick={() => navigateToTab(index)}
     >
       {tab.label}

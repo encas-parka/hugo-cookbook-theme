@@ -62,16 +62,13 @@
 {#snippet navActions()}
   <div class="flex gap-2">
     <button
-      class="btn btn-primary btn-sm"
+      class="btn btn-primary"
       onclick={() => navigate("/dashboard/eventCreate")}
     >
       <Plus class="h-4 w-4" />
       Créer un Événement
     </button>
-    <button
-      class="btn btn-primary btn-sm"
-      onclick={() => navigate("/recipe/new")}
-    >
+    <button class="btn btn-primary" onclick={() => navigate("/recipe/new")}>
       <Plus class="h-4 w-4" />
       Créer une Recette
     </button>

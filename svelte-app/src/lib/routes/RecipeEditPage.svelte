@@ -416,7 +416,7 @@
     <button
       onclick={duplicate}
       disabled={!canEdit || isSaving}
-      class="btn btn-secondary btn-soft btn-sm"
+      class="btn btn-secondary btn-soft"
     >
       <Copy class="h-4 w-4" />
       Créer une version alternative
