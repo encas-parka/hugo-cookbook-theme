@@ -36,7 +36,11 @@ import {
   EVENTS_COLLECTION_ID,
 } from "../services/appwrite-events";
 import { globalState } from "./GlobalState.svelte";
-import { parseEventMeals, parseEventContributors, parseEventTodos } from "../utils/events.utils";
+import {
+  parseEventMeals,
+  parseEventContributors,
+  parseEventTodos,
+} from "../utils/events.utils";
 import {
   createEventsIDBCache,
   type EventsIDBCache,
@@ -146,6 +150,113 @@ export class EventsStore {
   }
 
   // =============================================================================
+  // INITIALISATION PHASÉE (OPTIMISATION)
+  // =============================================================================
+
+  /**
+   * Phase 1 : Charger uniquement depuis le cache IndexedDB
+   * Appelé au démarrage pour afficher l'UI rapidement
+   */
+  async loadCache(): Promise<void> {
+    if (this.#isInitialized) {
+      console.log("[EventsStore] Cache déjà chargé");
+      return;
+    }
+
+    console.log("[EventsStore] Chargement du cache...");
+    this.#loading = true;
+    this.#error = null;
+
+    try {
+      if (!globalState.isAuthenticated) {
+        throw new Error("Utilisateur non connecté");
+      }
+
+      this.#userId = globalState.userId;
+      this.#userTeams = globalState.userTeams;
+
+      this.#cache = await createEventsIDBCache();
+
+      const cachedEvents = await this.#cache.loadEvents();
+      if (cachedEvents.size > 0) {
+        console.log(
+          `[EventsStore] ${cachedEvents.size} événements chargés depuis le cache`,
+        );
+        this.#events.clear();
+        for (const [id, event] of cachedEvents) {
+          this.#events.set(id, event);
+        }
+      }
+
+      this.#isInitialized = true;
+      console.log(
+        `[EventsStore] Cache chargé: ${this.#events.size} événements`,
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Erreur lors du chargement du cache";
+      this.#error = message;
+      console.error("[EventsStore]", message, err);
+      throw err;
+    } finally {
+      this.#loading = false;
+    }
+  }
+
+  /**
+   * Phase 2 : Synchroniser avec Appwrite (appelé après loadCache)
+   */
+  async syncFromRemote(): Promise<void> {
+    if (!this.#cache) {
+      console.warn("[EventsStore] Impossible de sync : cache non initialisé");
+      return;
+    }
+
+    console.log("[EventsStore] Synchronisation depuis Appwrite...");
+    this.#loading = true;
+
+    try {
+      await this.#loadEvents();
+
+      await this.#cache.saveEvents(this.#events);
+      await this.#cache.saveMetadata({
+        lastSync: new Date().toISOString(),
+      });
+
+      console.log(
+        `[EventsStore] Synchronisation terminée: ${this.#events.size} événements`,
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Erreur lors de la synchronisation";
+      this.#error = message;
+      console.error("[EventsStore]", message, err);
+      throw err;
+    } finally {
+      this.#loading = false;
+    }
+  }
+
+  /**
+   * Phase 3 : Setup du realtime (appelé après syncFromRemote)
+   */
+  async setupRealtime(): Promise<void> {
+    if (!this.#cache) {
+      console.warn(
+        "[EventsStore] Impossible de setup realtime : cache non initialisé",
+      );
+      return;
+    }
+
+    console.log("[EventsStore] Configuration du realtime...");
+    await this.#setupRealtime();
+  }
+
+  // =============================================================================
   // INITIALISATION
   // =============================================================================
 
@@ -161,12 +272,8 @@ export class EventsStore {
   #initPromise: Promise<void> | null = null;
 
   /**
-   * Initialise le store
-   * 1. Ouvre le cache IndexedDB
-   * 2. Charge les événements depuis le cache
-   * 3. Charge les événements depuis Appwrite (mise à jour)
-   * 4. Sauvegarde dans le cache
-   * 5. Active le realtime
+   * Initialise le store (méthode legacy pour compatibilité)
+   * Combine les 3 phases : loadCache → syncFromRemote → setupRealtime
    */
   async initialize(): Promise<void> {
     if (this.#isInitialized) {
@@ -179,50 +286,21 @@ export class EventsStore {
       return this.#initPromise;
     }
 
-    console.log("[EventsStore] Initialisation...");
+    console.log("[EventsStore] Initialisation complète...");
     this.#loading = true;
     this.#error = null;
 
     this.#initPromise = (async () => {
       try {
-        // Vérifier que l'utilisateur est authentifié
-        if (!globalState.isAuthenticated) {
-          throw new Error("Utilisateur non connecté");
-        }
+        // Phase 1: Charger le cache
+        await this.loadCache();
 
-        this.#userId = globalState.userId;
-        this.#userTeams = globalState.userTeams;
+        // Phase 2: Sync depuis Appwrite
+        await this.syncFromRemote();
 
-        // 1. Ouvrir le cache IndexedDB
-        this.#cache = await createEventsIDBCache();
+        // Phase 3: Setup realtime
+        await this.setupRealtime();
 
-        // 2. Charger les événements depuis le cache
-        const cachedEvents = await this.#cache.loadEvents();
-        if (cachedEvents.size > 0) {
-          console.log(
-            `[EventsStore] ${cachedEvents.size} événements chargés depuis le cache`,
-          );
-          this.#events.clear();
-          for (const [id, event] of cachedEvents) {
-            this.#events.set(id, event);
-          }
-        }
-
-        // 3. Charger les événements depuis Appwrite (mise à jour)
-        await this.#loadEvents();
-
-        // 4. Sauvegarder dans le cache
-        if (this.#cache) {
-          await this.#cache.saveEvents(this.#events);
-          await this.#cache.saveMetadata({
-            lastSync: new Date().toISOString(),
-          });
-        }
-
-        // 5. Activer le realtime
-        await this.#setupRealtime();
-
-        this.#isInitialized = true;
         console.log(
           `[EventsStore] Initialisation complétée: ${this.#events.size} événements`,
         );
@@ -840,7 +918,7 @@ export class EventsStore {
   async updateTodoStatus(
     eventId: string,
     todoId: string,
-    status: EventTodoStatus
+    status: EventTodoStatus,
   ): Promise<void> {
     try {
       // Update optimiste local
@@ -849,7 +927,7 @@ export class EventsStore {
         event.todos = event.todos.map((t) =>
           t.id === todoId
             ? { ...t, status, updatedAt: new Date().toISOString() }
-            : t
+            : t,
         );
       }
 
@@ -863,7 +941,7 @@ export class EventsStore {
         }),
         false,
         "/",
-        ExecutionMethod.POST
+        ExecutionMethod.POST,
       );
     } catch (err) {
       console.error(`[EventsStore] Erreur updateTodoStatus:`, err);
@@ -886,11 +964,11 @@ export class EventsStore {
         const todo = event.todos.find((t) => t.id === todoId);
         if (todo) {
           let currentAssigned: string[] = [];
-           // Handle both string[] and string case for robustness (though types say string[] | null)
+          // Handle both string[] and string case for robustness (though types say string[] | null)
           if (Array.isArray(todo.assignedTo)) {
-             currentAssigned = [...todo.assignedTo];
+            currentAssigned = [...todo.assignedTo];
           } else if (todo.assignedTo) {
-             currentAssigned = [todo.assignedTo as string];
+            currentAssigned = [todo.assignedTo as string];
           }
 
           if (currentAssigned.includes(userId)) {
@@ -898,12 +976,17 @@ export class EventsStore {
           } else {
             currentAssigned.push(userId);
           }
-          
-           // Update event todos
+
+          // Update event todos
           event.todos = event.todos.map((t) =>
             t.id === todoId
-              ? { ...t, assignedTo: currentAssigned.length > 0 ? currentAssigned : null, updatedAt: new Date().toISOString() }
-              : t
+              ? {
+                  ...t,
+                  assignedTo:
+                    currentAssigned.length > 0 ? currentAssigned : null,
+                  updatedAt: new Date().toISOString(),
+                }
+              : t,
           );
         }
       }
@@ -918,7 +1001,7 @@ export class EventsStore {
         }),
         false,
         "/",
-        ExecutionMethod.POST
+        ExecutionMethod.POST,
       );
     } catch (err) {
       console.error(`[EventsStore] Erreur toggleTodoAssignment:`, err);
@@ -939,7 +1022,9 @@ export class EventsStore {
       if (!event) throw new Error("Événement introuvable");
 
       const todos = event.todos.map((t) =>
-        t.id === todoId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t,
+        t.id === todoId
+          ? { ...t, ...updates, updatedAt: new Date().toISOString() }
+          : t,
       );
       return await this.updateEvent(eventId, { todos });
     } catch (err) {

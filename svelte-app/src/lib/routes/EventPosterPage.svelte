@@ -305,19 +305,26 @@
 
     recipesLoading = true;
     try {
-      // Récupérer les détails de toutes les recettes en parallèle
-      const recipesPromises = event.meals.flatMap((meal) =>
-        meal.recipes.map((mealRecipe: any) => {
-          console.log(`[EventPoster] Loading recipe: ${mealRecipe.recipeUuid}`);
-          return recipesStore.getRecipeByUuid(mealRecipe.recipeUuid);
-        }),
+      // OPTIMISATION BULK : Extraire tous les UUIDs de recettes
+      const allRecipeUuids = event.meals.flatMap((meal) =>
+        meal.recipes.map((mealRecipe: any) => mealRecipe.recipeUuid),
       );
 
-      const recipes = await Promise.all(recipesPromises);
-      recipesDetails = recipes.filter((r): r is RecipeForDisplay => r !== null);
+      console.log(
+        `[EventPoster] Loading ${allRecipeUuids.length} recipes (bulk mode)...`,
+      );
+
+      // Utiliser la méthode bulk pour charger en une seule transaction IDB
+      const recipesMap =
+        await recipesStore.getRecipesByUuidsBulk(allRecipeUuids);
+
+      // Convertir la Map en array
+      recipesDetails = Array.from(recipesMap.values()).filter(
+        (r): r is RecipeForDisplay => r !== null,
+      );
 
       console.log(
-        `[EventPoster] Loaded ${recipesDetails.length} recipes out of ${recipesPromises.length} requested`,
+        `[EventPoster] Loaded ${recipesDetails.length}/${allRecipeUuids.length} recipes in bulk`,
       );
       console.log(
         `[EventPoster] Recipe IDs:`,

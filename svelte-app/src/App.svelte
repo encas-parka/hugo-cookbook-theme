@@ -14,6 +14,7 @@
   import ScrollToTopButton from "./lib/components/ui/ScrollToTopButton.svelte";
   import OverrideConflictModal from "./lib/components/OverrideConflictModal.svelte";
   import { globalState } from "./lib/stores/GlobalState.svelte";
+  import { toastService } from "./lib/services/toast.service.svelte";
 
   import {
     router,
@@ -41,8 +42,10 @@
   // États de l'application
   type AppState =
     | "BOOTING"
-    | "LOADING_PRIVATE"
-    | "LOADING_PUBLIC"
+    | "LOADING_PRIVATE_CACHE"
+    | "LOADING_PUBLIC_CACHE"
+    | "READY_WITH_CACHE"
+    | "READY_FULLY_SYNCED"
     | "READY"
     | "ERROR";
   let appState = $state<AppState>("BOOTING");
@@ -113,28 +116,95 @@
 
       // 2. Chargement des données
       if (globalState.isAuthenticated) {
-        appState = "LOADING_PRIVATE";
-        // Charger TOUT (Bloquant pour le dashboard)
-        await Promise.all([
+        // Mode authentifié : Chargement phasé avec toasts
+        appState = "LOADING_PRIVATE_CACHE";
+
+        // Toast de chargement initial
+        const syncToastId = toastService.loading("Chargement des données...");
+
+        // Phase 1: Charger caches uniquement (rapide)
+        await Promise.all([eventsStore.loadCache(), recipesStore.loadCache()]);
+
+        // Phase 2: Afficher UI avec données du cache
+        appState = "READY_WITH_CACHE";
+
+        // Mettre à jour le toast pour indiquer la synchro distante
+        toastService.update(syncToastId, {
+          state: "loading",
+          message: "Mise à jour des données en cours...",
+        });
+
+        // Phase 3: Synchro en arrière-plan (non-bloquant pour l'UI)
+        Promise.all([
+          eventsStore.syncFromRemote(),
+          recipesStore.syncFromRemote(),
           notificationStore.initialize(),
           teamsStore.initialize(),
-          eventsStore.initialize(),
-          recipesStore.initialize(),
           materielStore.initialize(),
-        ]);
-        // 3. Activer la connexion WebSocket centralisée
-        await realtimeManager.initialize();
-      } else {
-        appState = "LOADING_PUBLIC";
-        // Charger UNIQUEMENT les recettes (Bloquant pour /recipes)
-        await recipesStore.initialize();
-        // Activer le realtime même en mode public pour les recettes
-        await realtimeManager.initialize();
-      }
+        ])
+          .then(async () => {
+            // Succès : activer le realtime
+            await realtimeManager.initialize();
+            appState = "READY_FULLY_SYNCED";
 
-      // 3. Prêt
-      appState = "READY";
-      console.log("[App] Initialisation terminée. État: READY");
+            toastService.update(syncToastId, {
+              state: "success",
+              message: "Données à jour !",
+              autoCloseDelay: 2000,
+            });
+          })
+          .catch((err) => {
+            // Erreur de synchro mais UI fonctionnelle avec le cache
+            console.error("[App] Erreur synchro distante:", err);
+            toastService.update(syncToastId, {
+              state: "warning",
+              message: "Mode hors ligne : données mises en cache",
+              autoCloseDelay: 5000,
+            });
+
+            // Quand même activer le realtime pour les futures mises à jour
+            realtimeManager.initialize().catch(console.error);
+          });
+      } else {
+        // Mode public : Chargement phasé pour les recettes
+        appState = "LOADING_PUBLIC_CACHE";
+        const syncToastId = toastService.loading(
+          "Préparation de la cuisine...",
+        );
+
+        // Phase 1: Charger cache recettes
+        await recipesStore.loadCache();
+
+        // Phase 2: Afficher UI
+        appState = "READY_WITH_CACHE";
+
+        toastService.update(syncToastId, {
+          state: "loading",
+          message: "Mise à jour des recettes...",
+        });
+
+        // Phase 3: Synchro en arrière-plan
+        Promise.all([
+          recipesStore.syncFromRemote(),
+          realtimeManager.initialize(),
+        ])
+          .then(() => {
+            appState = "READY_FULLY_SYNCED";
+            toastService.update(syncToastId, {
+              state: "success",
+              message: "Recettes à jour !",
+              autoCloseDelay: 2000,
+            });
+          })
+          .catch((err) => {
+            console.error("[App] Erreur synchro recettes:", err);
+            toastService.update(syncToastId, {
+              state: "warning",
+              message: "Mode hors ligne : recettes en cache",
+              autoCloseDelay: 5000,
+            });
+          });
+      }
     } catch (err: any) {
       console.error("[App] Erreur fatale d'initialisation:", err);
       initError = err.message || "Erreur critique de chargement";
@@ -151,7 +221,12 @@
     const _path = router.path;
     const _state = appState;
 
-    if (_state === "READY") {
+    // L'UI est prête quand on a le cache (READY_WITH_CACHE) ou tout est sync (READY_FULLY_SYNCED, READY)
+    if (
+      _state === "READY_WITH_CACHE" ||
+      _state === "READY_FULLY_SYNCED" ||
+      _state === "READY"
+    ) {
       router.match().then(async (match) => {
         currentRoute = match;
 
@@ -184,7 +259,12 @@
   let wasAuthenticated = $state(false);
   $effect(() => {
     const isAuth = globalState.isAuthenticated;
-    if (appState === "READY" && isAuth !== wasAuthenticated) {
+    if (
+      (appState === "READY_WITH_CACHE" ||
+        appState === "READY_FULLY_SYNCED" ||
+        appState === "READY") &&
+      isAuth !== wasAuthenticated
+    ) {
       wasAuthenticated = isAuth;
       // Re-boot complet si changement d'état (Login ou Logout)
       console.log("[App] Changement d'état Auth détecté -> Rechargement");
@@ -214,7 +294,7 @@
 
 <!-- Rendu Principal -->
 <div class="bg-base-200 min-h-screen">
-  {#if appState === "READY" && currentRoute}
+  {#if (appState === "READY_WITH_CACHE" || appState === "READY_FULLY_SYNCED" || appState === "READY") && currentRoute}
     {@const Component = currentRoute.component}
     <Component params={currentRoute.params} query={currentRoute.query} />
   {:else if appState === "ERROR"}
@@ -228,9 +308,9 @@
       <p class="text-base-content/70 animate-pulse font-medium">
         {#if appState === "BOOTING"}
           Démarrage...
-        {:else if appState === "LOADING_PRIVATE"}
-          Chargement de votre espace...
-        {:else if appState === "LOADING_PUBLIC"}
+        {:else if appState === "LOADING_PRIVATE_CACHE"}
+          Chargement des données en cache...
+        {:else if appState === "LOADING_PUBLIC_CACHE"}
           Préparation de la cuisine...
         {/if}
       </p>

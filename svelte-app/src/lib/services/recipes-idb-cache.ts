@@ -36,6 +36,12 @@ export interface RecipesIDBCache {
   saveRecipeDetail(recipe: RecipeForDisplay): Promise<void>;
   loadAllRecipeDetails(): Promise<Map<string, RecipeForDisplay>>;
 
+  // Méthodes bulk (OPTIMISATION)
+  loadRecipeDetailsBulk(
+    uuids: string[],
+  ): Promise<Map<string, RecipeForDisplay>>;
+  saveRecipeDetailsBulk(recipes: Map<string, RecipeForDisplay>): Promise<void>;
+
   loadMetadata(): Promise<RecipesCacheMetadata>;
   saveMetadata(metadata: RecipesCacheMetadata): Promise<void>;
 
@@ -279,6 +285,123 @@ class RecipesIndexedDBCache implements RecipesIDBCache {
       };
 
       request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Charge les détails de plusieurs recettes en une seule transaction (OPTIMISATION BULK)
+   * @param uuids - Liste des UUIDs de recettes à charger
+   * @returns Map des recettes trouvées (UUID → RecipeForDisplay)
+   */
+  async loadRecipeDetailsBulk(
+    uuids: string[],
+  ): Promise<Map<string, RecipeForDisplay>> {
+    if (!this.db) throw new Error("DB non ouverte");
+
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(this.RECIPES_DETAILS_STORE, "readonly");
+      const store = tx.objectStore(this.RECIPES_DETAILS_STORE);
+      const results = new Map<string, RecipeForDisplay>();
+
+      // Compteur pour suivre les requêtes terminées
+      let completed = 0;
+      const total = uuids.length;
+
+      // Créer toutes les requêtes dans la même transaction
+      for (const uuid of uuids) {
+        const request = store.get(uuid);
+
+        request.onsuccess = () => {
+          const recipe = request.result as RecipeForDisplay | undefined;
+          if (recipe) {
+            results.set(uuid, recipe);
+          }
+          completed++;
+
+          // Résoudre quand toutes les requêtes sont terminées
+          if (completed === total) {
+            console.log(
+              `[RecipesIDBCache] ${results.size}/${total} recettes chargées en bulk`,
+            );
+            resolve(results);
+          }
+        };
+
+        request.onerror = () => {
+          console.warn(
+            `[RecipesIDBCache] Erreur chargement ${uuid} en bulk:`,
+            request.error,
+          );
+          completed++;
+
+          // Continuer même en cas d'erreur partielle
+          if (completed === total) {
+            console.log(
+              `[RecipesIDBCache] ${results.size}/${total} recettes chargées en bulk (avec erreurs)`,
+            );
+            resolve(results);
+          }
+        };
+      }
+
+      // Gérer le cas où la liste est vide
+      if (total === 0) {
+        console.log(`[RecipesIDBCache] 0 recettes à charger en bulk`);
+        resolve(results);
+      }
+    });
+  }
+
+  /**
+   * Sauvegarde les détails de plusieurs recettes en une seule transaction (OPTIMISATION BULK)
+   * @param recipes - Map des recettes à sauvegarder (UUID → RecipeForDisplay)
+   */
+  async saveRecipeDetailsBulk(
+    recipes: Map<string, RecipeForDisplay>,
+  ): Promise<void> {
+    if (!this.db) throw new Error("DB non ouverte");
+
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(this.RECIPES_DETAILS_STORE, "readwrite");
+      const store = tx.objectStore(this.RECIPES_DETAILS_STORE);
+
+      // Compteur pour suivre les opérations terminées
+      let completed = 0;
+      const total = recipes.size;
+
+      // Créer toutes les opérations dans la même transaction
+      recipes.forEach((recipe) => {
+        const request = store.put(recipe);
+
+        request.onsuccess = () => {
+          completed++;
+
+          // Résoudre quand toutes les opérations sont terminées
+          if (completed === total) {
+            console.log(
+              `[RecipesIDBCache] ${total} recettes sauvegardées en bulk`,
+            );
+            resolve();
+          }
+        };
+
+        request.onerror = () => {
+          console.error(
+            `[RecipesIDBCache] Erreur sauvegarde ${recipe.$id} en bulk:`,
+            request.error,
+          );
+          // Rejeter en cas d'erreur
+          reject(request.error);
+        };
+      });
+
+      // Gérer le cas où la map est vide
+      if (total === 0) {
+        console.log(`[RecipesIDBCache] 0 recettes à sauvegarder en bulk`);
+        resolve();
+      }
+
+      tx.onerror = () => reject(tx.error);
     });
   }
 

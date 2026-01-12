@@ -182,15 +182,22 @@
 
       eventMeals = event.meals || [];
 
-      // Récupérer les détails des recettes
-      const recipesPromises = eventMeals.flatMap((meal) =>
-        meal.recipes.map((mealRecipe: any) =>
-          recipesStore.getRecipeByUuid(mealRecipe.recipeUuid),
-        ),
+      // OPTIMISATION BULK : Charger toutes les recettes en une seule transaction IDB
+      // Extraire tous les UUIDs de recettes uniques
+      const allRecipeUuids = eventMeals.flatMap((meal) =>
+        meal.recipes.map((mealRecipe: any) => mealRecipe.recipeUuid),
       );
 
-      const recipes = await Promise.all(recipesPromises);
-      recipesDetails = recipes.filter(Boolean);
+      // Utiliser la méthode bulk pour charger en une seule transaction
+      const recipesMap =
+        await recipesStore.getRecipesByUuidsBulk(allRecipeUuids);
+
+      // Convertir la Map en array
+      recipesDetails = Array.from(recipesMap.values()).filter(Boolean);
+
+      console.log(
+        `[EventRecipesPage] ${recipesDetails.length}/${allRecipeUuids.length} recettes chargées`,
+      );
     } catch (err) {
       console.error("Erreur lors du chargement des données:", err);
       error = err instanceof Error ? err.message : "Erreur lors du chargement";
