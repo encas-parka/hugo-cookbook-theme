@@ -165,23 +165,6 @@
     navigate(`/dashboard/materiel/${teamId}`);
   }
 
-  // Initialisation
-  onMount(async () => {
-    try {
-      // S'assurer que les stores sont initialisés
-      if (!nativeTeamsStore.isInitialized) {
-        await nativeTeamsStore.initialize();
-      }
-
-      // MaterielStore est déjà initialisé via App.svelte avec le realtime actif
-      if (!materielStore.isInitialized) {
-        await materielStore.initialize();
-      }
-    } catch (error) {
-      console.error("[MaterielPage] Erreur lors de l'initialisation:", error);
-    }
-  });
-
   // Surveiller les changements de teamId dans l'URL pour mettre à jour activeTeamId
   $effect(() => {
     const teamIdFromParams = params?.teamId;
@@ -292,13 +275,6 @@
     {#if !globalState.isAuthenticated}
       <div class="alert alert-warning">
         <span>Vous devez être connecté pour voir le matériel.</span>
-      </div>
-    {:else if materielStore.loading && nativeTeamsStore.loading}
-      <div class="flex min-h-96 items-center justify-center">
-        <div class="flex flex-col items-center gap-4">
-          <LoaderCircle class="text-primary h-12 w-12 animate-spin" />
-          <p class="text-base-content/60 text-sm">Chargement du matériel...</p>
-        </div>
       </div>
     {:else if materielStore.error}
       <div class="alert alert-error shadow-lg">

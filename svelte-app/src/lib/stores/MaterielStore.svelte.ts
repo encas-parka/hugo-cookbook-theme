@@ -194,7 +194,10 @@ export class MaterielStore {
   // INITIALISATION
   // =============================================================================
 
-  async initialize(): Promise<void> {
+  /**
+   * Phase 1 : Charge le cache IndexedDB uniquement
+   */
+  async loadCache(): Promise<void> {
     if (this.#isInitialized) return;
 
     this.#loading = true;
@@ -210,28 +213,80 @@ export class MaterielStore {
       this.#idbCache = await createMaterielIDBCache();
 
       // 2. Charger depuis IDB
-      await this.#loadFromCache();
-
-      // 3. Sync incrémentiel avec Appwrite
-      await this.#syncFromAppwrite();
-
-      // 4. Setup realtime (materiels + loans via RealtimeManager)
-      await this.#setupRealtime();
+      await this.#loadFromCacheInternal();
 
       this.#isInitialized = true;
       console.log(
-        `[MaterielStore] Initialisé : ${this.#materiels.size} matériels, ${this.#loans.size} emprunts`,
+        `[MaterielStore] Cache chargé : ${this.#materiels.size} matériels, ${this.#loans.size} emprunts`,
       );
     } catch (err) {
       this.#error =
-        err instanceof Error ? err.message : "Erreur d'initialisation";
-      console.error("[MaterielStore] Init error:", err);
+        err instanceof Error ? err.message : "Erreur de chargement du cache";
+      console.error("[MaterielStore] LoadCache error:", err);
+      throw err;
     } finally {
       this.#loading = false;
     }
   }
 
-  async #loadFromCache(): Promise<void> {
+  /**
+   * Phase 2 : Synchronise avec Appwrite
+   */
+  async syncFromRemote(): Promise<void> {
+    this.#loading = true;
+    this.#error = null;
+
+    try {
+      if (!globalState.userId) {
+        return;
+      }
+
+      // Sync incrémentiel avec Appwrite
+      await this.#syncFromAppwrite();
+
+      console.log(
+        `[MaterielStore] Sync terminé : ${this.#materiels.size} matériels, ${this.#loans.size} emprunts`,
+      );
+    } catch (err) {
+      this.#error =
+        err instanceof Error ? err.message : "Erreur de synchronisation";
+      console.error("[MaterielStore] SyncFromRemote error:", err);
+      throw err;
+    } finally {
+      this.#loading = false;
+    }
+  }
+
+  /**
+   * Phase 3 : Configure les abonnements realtime
+   */
+  async setupRealtime(): Promise<void> {
+    if (!globalState.userId) {
+      return;
+    }
+
+    try {
+      await this.#setupRealtime();
+      this.#isRealtimeActive = true;
+      console.log("[MaterielStore] Realtime configuré");
+    } catch (err) {
+      this.#error =
+        err instanceof Error ? err.message : "Erreur de configuration realtime";
+      console.error("[MaterielStore] SetupRealtime error:", err);
+      throw err;
+    }
+  }
+
+  /**
+   * Initialise les 3 phases séquentiellement (méthode legacy pour compatibilité)
+   */
+  async initialize(): Promise<void> {
+    await this.loadCache();
+    await this.syncFromRemote();
+    await this.setupRealtime();
+  }
+
+  async #loadFromCacheInternal(): Promise<void> {
     if (!this.#idbCache) return;
 
     try {

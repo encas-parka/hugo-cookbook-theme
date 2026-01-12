@@ -104,7 +104,7 @@
       class="modal-box flex flex-col p-0 {modalClass} {fullscreenOnMobile &&
       globalState.isMobile
         ? 'fixed inset-0 m-0 h-lvh w-lvw rounded-none'
-        : 'fixed m-auto'} {globalState.isDesktop &&
+        : 'fixed top-10 m-auto'} {globalState.isDesktop &&
         getSizeClass(maxWidth, 'max-w')} {globalState.isDesktop &&
         !modalClass &&
         getSizeClass(maxHeight, 'max-h')}"

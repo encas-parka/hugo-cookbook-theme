@@ -123,7 +123,12 @@
         const syncToastId = toastService.loading("Chargement des données...");
 
         // Phase 1: Charger caches uniquement (rapide)
-        await Promise.all([eventsStore.loadCache(), recipesStore.loadCache()]);
+        await Promise.all([
+          eventsStore.loadCache(),
+          recipesStore.loadCache(),
+          materielStore.loadCache(),
+          notificationStore.loadCache(),
+        ]);
 
         // Phase 2: Afficher UI avec données du cache
         appState = "READY_WITH_CACHE";
@@ -138,20 +143,28 @@
         Promise.all([
           eventsStore.syncFromRemote(),
           recipesStore.syncFromRemote(),
-          notificationStore.initialize(),
-          teamsStore.initialize(),
-          materielStore.initialize(),
+          materielStore.syncFromRemote(),
+          teamsStore.syncFromRemote(),
+          notificationStore.syncFromRemote(),
         ])
           .then(async () => {
-            // Succès : activer le realtime
+            // Succès : configurer le realtime pour tous les stores
+            await Promise.all([
+              eventsStore.setupRealtime(),
+              recipesStore.setupRealtime(),
+              materielStore.setupRealtime(),
+              teamsStore.setupRealtime(),
+              notificationStore.setupRealtime(),
+            ]);
             await realtimeManager.initialize();
             appState = "READY_FULLY_SYNCED";
 
-            toastService.update(syncToastId, {
-              state: "success",
-              message: "Données à jour !",
-              autoCloseDelay: 2000,
-            });
+            // toastService.update(syncToastId, {
+            //   state: "success",
+            //   message: "Données à jour !",
+            //   autoCloseDelay: 2000,
+            // });
+            toastService.dismiss(syncToastId);
           })
           .catch((err) => {
             // Erreur de synchro mais UI fonctionnelle avec le cache

@@ -98,10 +98,6 @@
           Réessayer
         </button>
       </div>
-    {:else if recipesStore.loading || !recipesStore.isInitialized}
-      <div class="flex items-center justify-center py-8">
-        <span class="loading loading-spinner loading-md"></span>
-      </div>
     {:else if latestRecipes.length === 0}
       <div class="py-6 text-center">
         <ChefHat class="mx-auto mb-3 h-12 w-12 opacity-20" />

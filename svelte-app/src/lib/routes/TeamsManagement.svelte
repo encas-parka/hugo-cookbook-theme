@@ -76,10 +76,6 @@
     <div class="alert alert-warning">
       <span>Vous devez être connecté pour voir vos équipes</span>
     </div>
-  {:else if teamsStore.loading && teamsStore.count === 0}
-    <div class="flex items-center justify-center py-20">
-      <LoaderCircle class="text-primary h-8 w-8 animate-spin" />
-    </div>
   {:else if teamsStore.error}
     <div class="alert alert-error shadow-lg">
       <span>{teamsStore.error}</span>

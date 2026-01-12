@@ -291,9 +291,9 @@
   });
 
   onMount(async () => {
-    if (!recipesStore.isInitialized) {
-      await recipesStore.initialize();
-    }
+    // Note: recipesStore est déjà initialisé via App.svelte (loadCache + syncFromRemote)
+
+    // recipeDataStore est initialisé à la demande (pas global)
     if (!recipeDataStore.isInitialized) {
       await recipeDataStore.initialize();
     }
@@ -383,11 +383,7 @@
     </div>
 
     <!-- Liste des recettes -->
-    {#if recipesStore.loading || !recipesStore.isInitialized}
-      <div class="flex justify-center py-12">
-        <span class="loading loading-spinner loading-lg"></span>
-      </div>
-    {:else if recipesStore.error}
+    {#if recipesStore.error}
       <div class="alert alert-error">
         <span>Erreur : {recipesStore.error}</span>
       </div>

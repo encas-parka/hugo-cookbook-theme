@@ -109,18 +109,6 @@
           Se connecter
         </button>
       </div>
-    {:else if eventsStore.loading && teamsStore.loading}
-      <!-- État de chargement -->
-      <div class="flex items-center justify-center py-20">
-        <div class="text-center">
-          <LoaderCircle
-            class="text-primary mx-auto mb-4 h-12 w-12 animate-spin"
-          />
-          <p class="text-base-content/60">
-            Chargement de votre tableau de bord...
-          </p>
-        </div>
-      </div>
     {:else if eventsStore.error || teamsStore.error}
       <!-- État d'erreur -->
       <div class="alert alert-error shadow-lg">

@@ -204,7 +204,7 @@
       untrack(async () => {
         isBusy = true;
         try {
-          await eventsStore.initialize();
+          // Note: eventsStore est déjà initialisé via App.svelte (loadCache + syncFromRemote)
 
           // Initialiser l'état du verrou
           activeLock = await locksService.getLock(eventId);

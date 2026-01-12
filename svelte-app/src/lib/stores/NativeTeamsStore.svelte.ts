@@ -93,32 +93,76 @@ export class NativeTeamsStore {
   // INITIALISATION
   // =============================================================================
 
-  async initialize(): Promise<void> {
+  /**
+   * Phase 1 : Pas de cache pour les équipes natives (no-op)
+   */
+  async loadCache(): Promise<void> {
+    // Les équipes natives n'ont pas de cache IndexedDB
+    // On marque juste comme initialisé
     if (this.#isInitialized) return;
 
+    if (!globalState.userId) {
+      this.#isInitialized = true;
+      return;
+    }
+
+    this.#isInitialized = true;
+    console.log("[NativeTeamsStore] Cache chargé : 0 équipes (pas de cache)");
+  }
+
+  /**
+   * Phase 2 : Charge les équipes depuis Appwrite
+   */
+  async syncFromRemote(): Promise<void> {
     this.#loading = true;
     this.#error = null;
 
     try {
       if (!globalState.userId) {
-        this.#isInitialized = true;
         return;
       }
 
       await this.#loadTeams();
-      await this.#setupRealtime();
 
-      this.#isInitialized = true;
       console.log(
-        `[NativeTeamsStore] Initialisé : ${this.#teams.size} équipes`,
+        `[NativeTeamsStore] Sync terminé : ${this.#teams.size} équipes`,
       );
     } catch (err) {
       this.#error =
-        err instanceof Error ? err.message : "Erreur d'initialisation";
-      console.error("[NativeTeamsStore] Init error:", err);
+        err instanceof Error ? err.message : "Erreur de synchronisation";
+      console.error("[NativeTeamsStore] SyncFromRemote error:", err);
+      throw err;
     } finally {
       this.#loading = false;
     }
+  }
+
+  /**
+   * Phase 3 : Configure les abonnements realtime
+   */
+  async setupRealtime(): Promise<void> {
+    if (!globalState.userId) {
+      return;
+    }
+
+    try {
+      await this.#setupRealtimeInternal();
+      console.log("[NativeTeamsStore] Realtime configuré");
+    } catch (err) {
+      this.#error =
+        err instanceof Error ? err.message : "Erreur de configuration realtime";
+      console.error("[NativeTeamsStore] SetupRealtime error:", err);
+      throw err;
+    }
+  }
+
+  /**
+   * Initialise les 3 phases séquentiellement (méthode legacy pour compatibilité)
+   */
+  async initialize(): Promise<void> {
+    await this.loadCache();
+    await this.syncFromRemote();
+    await this.setupRealtime();
   }
 
   /**
@@ -144,7 +188,7 @@ export class NativeTeamsStore {
     }
   }
 
-  async #setupRealtime(): Promise<void> {
+  async #setupRealtimeInternal(): Promise<void> {
     // Les Teams natives utilisent des channels différents dans Appwrite
     // Note: Pour les Teams narratives, le channel est "teams" ou "memberships"
     realtimeManager.register(

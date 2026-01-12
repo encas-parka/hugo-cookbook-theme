@@ -165,13 +165,7 @@
       // L'eventId est stocké localement pour déclencher le derived eventStats
       eventId = currentEventId;
 
-      // Attendre que les stores soient prêts
-      if (!eventsStore.isInitialized) {
-        await eventsStore.initialize();
-      }
-      if (!recipesStore.isInitialized) {
-        await recipesStore.initialize();
-      }
+      // Note: eventsStore et recipesStore sont déjà initialisés via App.svelte (loadCache + syncFromRemote)
 
       // Récupérer les repas de l'événement
       const event = eventsStore.getEventById(currentEventId);

@@ -126,11 +126,7 @@
         return;
       }
 
-      // S'assurer que EventsStore est initialisé
-      if (!eventsStore.isInitialized) {
-        console.log("[EventProductsPage] Initialisation d'EventsStore...");
-        await eventsStore.initialize();
-      }
+      // Note: EventsStore est déjà initialisé via App.svelte (loadCache + syncFromRemote)
 
       // Vérifier que l'événement existe
       const event = eventsStore.getEventById(eventId);

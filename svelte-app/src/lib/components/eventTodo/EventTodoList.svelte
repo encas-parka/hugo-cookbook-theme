@@ -68,7 +68,7 @@
   }
 </script>
 
-<Fieldset legend="Tâches & Organisation">
+<Fieldset legend="Tâches & Organisation" legendSize="text-lg">
   <!-- Header / Actions -->
   <div class="mb-4 flex items-center justify-between">
     <div class="flex items-center gap-2 text-sm opacity-60">
