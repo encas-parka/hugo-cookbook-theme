@@ -82,6 +82,7 @@ class RecipesStore {
 
   // Promise d'initialisation en cours pour déduplication
   #initPromise: Promise<void> | null = null;
+  #realtimeInitialized = false;
 
   // Getters publics
   get loading() {
@@ -230,11 +231,18 @@ class RecipesStore {
       return;
     }
 
+    // Vérifier si déjà configuré pour éviter les doublons
+    if (this.#realtimeInitialized) {
+      console.log("[RecipesStore] Realtime déjà configuré");
+      return;
+    }
+
     console.log("[RecipesStore] Configuration du realtime...");
 
     if (globalState.userId) {
       try {
         this.#setupRealtime();
+        this.#realtimeInitialized = true;
       } catch (err) {
         console.warn("[RecipesStore] Erreur activation realtime:", err);
       }
@@ -1246,6 +1254,7 @@ class RecipesStore {
     }
     this.#recipesIndex.clear();
     this.#isInitialized = false;
+    this.#realtimeInitialized = false; // Reset pour permettre une réinitialisation
     console.log("[RecipesStore] Ressources nettoyées");
   }
 }

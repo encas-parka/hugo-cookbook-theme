@@ -252,8 +252,15 @@ export class EventsStore {
       return;
     }
 
+    // Vérifier si déjà configuré pour éviter les doublons
+    if (this.#realtimeInitialized) {
+      console.log("[EventsStore] Realtime déjà configuré");
+      return;
+    }
+
     console.log("[EventsStore] Configuration du realtime...");
     await this.#setupRealtime();
+    this.#realtimeInitialized = true;
   }
 
   // =============================================================================
@@ -270,6 +277,7 @@ export class EventsStore {
    */
   // Promise d'initialisation en cours pour déduplication
   #initPromise: Promise<void> | null = null;
+  #realtimeInitialized = false;
 
   /**
    * Initialise le store (méthode legacy pour compatibilité)
@@ -1227,6 +1235,7 @@ export class EventsStore {
 
     this.#events.clear();
     this.#isInitialized = false;
+    this.#realtimeInitialized = false; // Reset pour permettre une réinitialisation
     console.log("[EventsStore] Ressources nettoyées");
   }
 }

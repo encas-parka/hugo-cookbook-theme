@@ -28,7 +28,7 @@
           <!-- Logo ou path décoratif -->
           <img src="/data/logo.svg" alt="Enka Cookbook" class="" />
         </div>
-        <h1 class="text-6xl font-bold tracking-tight">Enka Cookbook</h1>
+        <h1 class="text-6xl font-black tracking-tight">Enka Cookbook</h1>
         <p class="text-base-content/70 mt-6 text-xl">
           Outils de planification pour les cantines autogérées
         </p>

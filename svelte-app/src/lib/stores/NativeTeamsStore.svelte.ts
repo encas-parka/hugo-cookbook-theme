@@ -27,6 +27,7 @@ export class NativeTeamsStore {
   #loading = $state(false);
   #error = $state<string | null>(null);
   #isInitialized = $state(false);
+  #realtimeInitialized = false;
 
   // Getters simples
   get loading() {
@@ -145,8 +146,15 @@ export class NativeTeamsStore {
       return;
     }
 
+    // Vérifier si déjà configuré pour éviter les doublons
+    if (this.#realtimeInitialized) {
+      console.log("[NativeTeamsStore] Realtime déjà configuré");
+      return;
+    }
+
     try {
       await this.#setupRealtimeInternal();
+      this.#realtimeInitialized = true;
       console.log("[NativeTeamsStore] Realtime configuré");
     } catch (err) {
       this.#error =
@@ -311,6 +319,7 @@ export class NativeTeamsStore {
   destroy(): void {
     this.#teams.clear();
     this.#isInitialized = false;
+    this.#realtimeInitialized = false; // Reset pour permettre une réinitialisation
   }
 }
 

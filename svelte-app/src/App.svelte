@@ -270,18 +270,29 @@
   // Gestion du Login/Logout pour recharger les données
   // Exposé globalement ou géré via un event si besoin, mais ici on peut juste watcher isAuthenticated
   let wasAuthenticated = $state(false);
+  let isInitializing = $state(false);
   $effect(() => {
     const isAuth = globalState.isAuthenticated;
+
+    // Éviter les réinitialisations pendant l'initialisation en cours
+    if (isInitializing) {
+      return;
+    }
+
+    // Ne réagir qu'après la première initialisation complète (évite le boot initial)
     if (
-      (appState === "READY_WITH_CACHE" ||
-        appState === "READY_FULLY_SYNCED" ||
-        appState === "READY") &&
+      appState !== "BOOTPING" &&
+      appState !== "LOADING_PRIVATE_CACHE" &&
+      appState !== "LOADING_PUBLIC_CACHE" &&
       isAuth !== wasAuthenticated
     ) {
       wasAuthenticated = isAuth;
       // Re-boot complet si changement d'état (Login ou Logout)
       console.log("[App] Changement d'état Auth détecté -> Rechargement");
-      initializeApp();
+      isInitializing = true;
+      initializeApp().finally(() => {
+        isInitializing = false;
+      });
     }
   });
 

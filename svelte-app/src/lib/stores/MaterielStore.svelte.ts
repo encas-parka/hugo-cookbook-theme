@@ -49,6 +49,7 @@ export class MaterielStore {
   #error = $state<string | null>(null);
   #isInitialized = $state(false);
   #isRealtimeActive = $state(false);
+  #realtimeInitialized = false;
   #lastSyncMateriel = $state<string | null>(null);
   #lastSyncLoans = $state<string | null>(null);
   #realtimeUnsubscribe: (() => void) | null = null;
@@ -265,9 +266,16 @@ export class MaterielStore {
       return;
     }
 
+    // Vérifier si déjà configuré pour éviter les doublons
+    if (this.#realtimeInitialized) {
+      console.log("[MaterielStore] Realtime déjà configuré");
+      return;
+    }
+
     try {
       await this.#setupRealtime();
       this.#isRealtimeActive = true;
+      this.#realtimeInitialized = true;
       console.log("[MaterielStore] Realtime configuré");
     } catch (err) {
       this.#error =
@@ -895,6 +903,7 @@ export class MaterielStore {
     this.#materiels.clear();
     this.#loans.clear();
     this.#idbCache = null;
+    this.#realtimeInitialized = false; // Reset pour permettre une réinitialisation
   }
 }
 

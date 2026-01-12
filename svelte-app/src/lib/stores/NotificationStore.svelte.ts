@@ -28,6 +28,7 @@ interface UserNotifications {
 
 class NotificationStore {
   #isInitialized = $state(false);
+  #realtimeInitialized = false;
 
   /**
    * Phase 1 : Pas de cache pour les notifications (no-op)
@@ -55,6 +56,12 @@ class NotificationStore {
    * Phase 3 : Configure les abonnements realtime
    */
   async setupRealtime(): Promise<void> {
+    // Vérifier si déjà configuré pour éviter les doublons
+    if (this.#realtimeInitialized) {
+      console.log("[NotificationStore] Déjà configuré, skip.");
+      return;
+    }
+
     if (this.#isInitialized) {
       console.log("[NotificationStore] Déjà initialisé, skip.");
       return;
@@ -109,6 +116,7 @@ class NotificationStore {
       );
 
       this.#isInitialized = true;
+      this.#realtimeInitialized = true;
       console.log(
         "[NotificationStore] ✅ Notifications de découverte configurées (RealtimeManager)",
       );
@@ -159,6 +167,8 @@ class NotificationStore {
    * Détruit le store et se désabonne
    */
   destroy(): void {
+    this.#isInitialized = false;
+    this.#realtimeInitialized = false; // Reset pour permettre une réinitialisation
     console.log("[NotificationStore] Store détruit");
   }
 }
