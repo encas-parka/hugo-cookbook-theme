@@ -1,7 +1,7 @@
 import { MediaQuery } from "svelte/reactivity";
 import { toastService } from "../services/toast.service.svelte";
 import { getAppwriteInstances, clearAppwriteCache } from "../services/appwrite";
-import { getUserTeamIds } from "../services/appwrite-kteams";
+import { nativeTeamsStore } from "./NativeTeamsStore.svelte";
 import type { Models } from "appwrite";
 
 class GlobalState {
@@ -74,8 +74,8 @@ class GlobalState {
       localStorage.setItem("appwrite-user-email", this.#user.email);
       localStorage.setItem("appwrite-user-id", this.#user.$id);
 
-      // Récupérer les équipes
-      this.#userTeams = await getUserTeamIds();
+      // Récupérer les équipes depuis NativeTeamsStore
+      this.#userTeams = nativeTeamsStore.myTeams.map((t) => t.$id);
 
       console.log(
         `[GlobalState] Authentifié: ${this.#user.name} (${this.#userTeams.length} équipes)`,
@@ -113,8 +113,8 @@ class GlobalState {
       localStorage.setItem("appwrite-user-email", this.#user.email);
       localStorage.setItem("appwrite-user-id", this.#user.$id);
 
-      // Récupérer les équipes de l'utilisateur
-      this.#userTeams = await getUserTeamIds();
+      // Récupérer les équipes depuis NativeTeamsStore
+      this.#userTeams = nativeTeamsStore.myTeams.map((t) => t.$id);
 
       console.log(
         `[GlobalState] Réinitialisé après login: ${this.#user.name} (${this.#userTeams.length} équipes)`,
@@ -170,7 +170,8 @@ class GlobalState {
     }
 
     try {
-      const teams = await getUserTeamIds();
+      // Récupérer les équipes depuis NativeTeamsStore
+      const teams = nativeTeamsStore.myTeams.map((t) => t.$id);
 
       // Mettre à jour seulement si on a récupéré des équipes
       // ou si c'était vide avant (cas d'initialisation)

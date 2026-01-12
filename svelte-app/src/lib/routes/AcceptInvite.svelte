@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getAppwriteInstances } from "$lib/services/appwrite";
-  import { validateInvitation } from "$lib/services/appwrite-kteams";
+  import { validateInvitation } from "$lib/services/appwrite-invitations";
   import { navigate, getQuery } from "$lib/services/simple-router.svelte"; // Adaptez le chemin vers votre fichier router
   import { TriangleAlert } from "@lucide/svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
@@ -18,8 +18,9 @@
   let name = $state("");
 
   // Params (récupérés via le Custom Router)
+  // L'URL ressemble à : #/accept-invite?userId=xyz&eventId=abc OU #/accept-invite?userId=xyz&teamId=123
   let userId = "";
-  let secret = ""; // Le JWT
+  let eventId = "";
   let teamId = "";
 
   onMount(async () => {
@@ -27,12 +28,11 @@
     warmUpUsersTeamsManager();
 
     // 1. Récupération des paramètres via votre routeur
-    // L'URL ressemble à : #/accept-invite?userId=xyz&secret=eyJ...&teamId=123
     userId = getQuery("userId") || "";
-    secret = getQuery("secret") || "";
+    eventId = getQuery("eventId") || "";
     teamId = getQuery("teamId") || "";
 
-    if (!userId || !secret) {
+    if (!userId || (!eventId && !teamId)) {
       step = "error";
       errorMsg = "Lien d'invitation incomplet ou invalide.";
       loading = false;
@@ -40,19 +40,23 @@
     }
 
     try {
-      console.log("[AcceptInvite] Initialisation avec Secret...");
+      console.log("[AcceptInvite] Initialisation...", {
+        userId,
+        eventId,
+        teamId,
+      });
 
       const { client, account } = await getAppwriteInstances();
 
-      // 2. Échange du Secret contre un Token Appwrite frais
-      // Cela appelle notre fonction cloud qui vérifie le secret (valide 7 jours)
-      // et nous renvoie un token Appwrite (valide 15 min)
-      const { token } = await validateInvitation(teamId, userId, secret);
+      // 2. Vérification de l'invitation et récupération d'un Token Appwrite
+      // La fonction vérifie que l'utilisateur a le Label (event) ou la membership (team)
+      // et nous renvoie un token Appwrite
+      const { token } = await validateInvitation(userId, eventId, teamId);
 
-      console.log("[AcceptInvite] Token frais reçu, création session...");
+      console.log("[AcceptInvite] Token reçu, création session...");
 
       // 3. Création de la session persistante (Login)
-      // C'est ici que l'utilisateur est réellement connecté (pour 1 an)
+      // C'est ici que l'utilisateur est réellement connecté
       await account.createSession({ userId: userId, secret: token });
 
       // 4. Récupération des infos utilisateur
@@ -62,19 +66,18 @@
       // Pré-remplir le nom
       name = user.name;
 
-      // Cas particulier : Si l'utilisateur a déjà un mot de passe (ex: ancien compte réinvité)
-      // On le redirige vers le login ou le dashboard
+      // Cas particulier : Si l'utilisateur a déjà un mot de passe
       if (user.passwordUpdate) {
-        // Optionnel : Vous pourriez vouloir le connecter auto ici si vous aviez son password,
-        // mais sans password, on le renvoie au login ou on le laisse définir un nouveau pass.
-        // Ici, on part du principe qu'on le laisse définir un (nouveau) mot de passe.
+        // L'utilisateur a déjà un mot de passe, on le redirige vers le dashboard
+        navigate("/dashboard");
+        return;
       }
 
       step = "set-password";
     } catch (e: any) {
       console.error("[AcceptInvite] Erreur validation:", e);
       step = "error";
-      errorMsg = "Ce lien d'invitation a expiré ou est invalide.";
+      errorMsg = e.message || "Ce lien d'invitation est invalide.";
     } finally {
       loading = false;
     }

@@ -120,11 +120,28 @@ export async function createEvent(
       });
 
       console.log(`[appwrite-events] Event created: ${eventId}`);
+
+      // 🔥 Attribuer le Label au créateur de l'événement
+      const { functions } = await getAppwriteInstances();
+      await functions.createExecution({
+        functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
+        body: JSON.stringify({
+          action: "add-label-to-user",
+          mainId: eventId,
+          userId: userId,
+        }),
+        async: false, // Attendre que le Label soit attribué
+      });
+
+      console.log(
+        `[appwrite-events] Label ${eventId} attribué au créateur ${userId}`,
+      );
+
       return event as unknown as Main;
     },
     {
       context: "AppwriteEvents.createEvent",
-      timeout: 10000,
+      timeout: 15000, // Augmenter le timeout pour la création du Label
       successMessage: "Événement créé avec succès",
       errorMessage: "Erreur lors de la création de l'événement",
     },
@@ -193,13 +210,30 @@ export async function updateEvent(
 export async function deleteEvent(eventId: string): Promise<void> {
   return safeOperation(
     async () => {
-      const { tables } = await getAppwriteInstances();
+      const { tables, functions } = await getAppwriteInstances();
+
+      // Supprimer l'événement
       await tables.deleteRow({
         databaseId: APPWRITE_CONFIG.databaseId,
         tableId: EVENTS_COLLECTION_ID,
         rowId: eventId,
       });
+
       console.log(`[appwrite-events] Event deleted: ${eventId}`);
+
+      // 🔥 Supprimer le Label associé
+      await functions.createExecution({
+        functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
+        body: JSON.stringify({
+          action: "delete-event-label",
+          mainId: eventId,
+        }),
+        async: true, // Async car le cleanup peut prendre du temps
+      });
+
+      console.log(
+        `[appwrite-events] Label deletion initiated for event: ${eventId}`,
+      );
     },
     {
       context: "AppwriteEvents.deleteEvent",

@@ -3,21 +3,22 @@
   import { navigate } from "$lib/services/simple-router.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import TeamDetailModal from "$lib/components/teams/TeamDetailModal.svelte";
-  import { teamsStore } from "$lib/stores/TeamsStore.svelte";
-  import type { KTeamInvitation } from "$lib/types/aw_kteam.d";
+  import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
+  import type { Team, Membership } from "$lib/types/appwrite.d";
 
   interface Team {
     $id: string;
     name: string;
     description?: string | null;
-    members?: any[];
+    total?: number;
   }
 
   interface PendingInvite {
     teamId: string;
     teamName: string;
-    invitation?: KTeamInvitation;
-    membershipId?: string;
+    membershipId: string;
+    userId: string;
+    userName: string;
   }
 
   interface Props {
@@ -43,17 +44,17 @@
     selectedTeamId = null;
   }
 
-  async function acceptInvitation(teamId: string) {
+  async function acceptInvitation(membershipId: string, teamId: string) {
     try {
-      await teamsStore.acceptTeamInvitation(teamId);
+      await teamsStore.acceptMembership(membershipId, teamId);
     } catch (error) {
       console.error("Erreur lors de l'acceptation de l'invitation:", error);
     }
   }
 
-  async function rejectInvitation(teamId: string) {
+  async function rejectInvitation(membershipId: string, teamId: string) {
     try {
-      await teamsStore.declineTeamInvitation(teamId);
+      await teamsStore.declineMembership(membershipId, teamId);
     } catch (error) {
       console.error("Erreur lors du rejet de l'invitation:", error);
     }
@@ -115,11 +116,9 @@
                 >
                   <div>
                     <div class="text-sm font-medium">{team.name}</div>
-                    {#if team.members}
+                    {#if team.total}
                       <div class="text-base-content/60 text-xs">
-                        {team.members.length} membre{team.members.length > 1
-                          ? "s"
-                          : ""}
+                        {team.total} membre{team.total > 1 ? "s" : ""}
                       </div>
                     {/if}
                   </div>
@@ -142,16 +141,17 @@
                 >
                   <div class="flex-1">
                     <div class="text-sm font-medium">{invite.teamName}</div>
-                    {#if invite.invitation?.invitedByName}
+                    {#if invite.userName}
                       <div class="text-base-content/60 text-xs">
-                        Invité par {invite.invitation.invitedByName}
+                        Invité par {invite.userName}
                       </div>
                     {/if}
                   </div>
                   <div class="flex gap-1">
                     <button
                       class="btn btn-success btn-xs"
-                      onclick={() => acceptInvitation(invite.teamId)}
+                      onclick={() =>
+                        acceptInvitation(invite.membershipId, invite.teamId)}
                       title="Accepter l'invitation"
                     >
                       Rejoindre l'équipe
@@ -159,7 +159,7 @@
                     </button>
                     <!-- <button
                       class="btn btn-error btn-xs"
-                      onclick={() => rejectInvitation(invite.teamId)}
+                      onclick={() => rejectInvitation(invite.membershipId, invite.teamId)}
                       title="Refuser l'invitation"
                     >
                       <XCircle class="h-3 w-3" />

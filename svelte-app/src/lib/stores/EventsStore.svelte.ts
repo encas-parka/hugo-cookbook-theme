@@ -771,6 +771,12 @@ export class EventsStore {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");
 
+      // 🔥 Retirer le Label de l'utilisateur
+      const { removeUserFromEvent } = await import(
+        "../services/appwrite-functions"
+      );
+      await removeUserFromEvent(eventId, contributorId);
+
       const contributors = event.contributors.filter(
         (c) => c.id !== contributorId && c.email !== contributorId,
       );
@@ -782,6 +788,75 @@ export class EventsStore {
       return await this.updateEvent(eventId, { contributors });
     } catch (err) {
       console.error(`[EventsStore] Erreur suppression contributeur:`, err);
+      throw err;
+    }
+  }
+
+  // =============================================================================
+  // API PUBLIQUE - TEAMS (Natives)
+  // =============================================================================
+
+  /**
+   * Invite des teams natives à un événement
+   * @param eventId - ID de l'événement
+   * @param teamIds - IDs des teams à inviter
+   * @returns L'événement mis à jour
+   */
+  async addTeams(eventId: string, teamIds: string[]): Promise<EnrichedEvent> {
+    try {
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      // Appeler la cloud function avec les teamIds
+      const { inviteTeamsToEvent } = await import(
+        "../services/appwrite-functions"
+      );
+      await inviteTeamsToEvent(eventId, event.name, teamIds);
+
+      // Recharger l'événement pour avoir les permissions à jour
+      // Attendre un peu plus longtemps car le batch update peut prendre du temps
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const updatedEvent = await this.fetchEvent(eventId);
+
+      if (!updatedEvent) throw new Error("Impossible de recharger l'événement");
+
+      console.log(
+        `[EventsStore] ${teamIds.length} team(s) ajoutée(s) à l'événement ${eventId}`,
+      );
+
+      return updatedEvent;
+    } catch (err) {
+      console.error(`[EventsStore] Erreur ajout teams:`, err);
+      throw err;
+    }
+  }
+
+  /**
+   * Retire une team d'un événement
+   * @param eventId - ID de l'événement
+   * @param teamId - ID de la team à retirer
+   * @returns L'événement mis à jour
+   */
+  async removeTeam(eventId: string, teamId: string): Promise<EnrichedEvent> {
+    try {
+      const { removeTeamFromEvent } = await import(
+        "../services/appwrite-functions"
+      );
+      await removeTeamFromEvent(eventId, teamId);
+
+      // Recharger l'événement
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const updatedEvent = await this.fetchEvent(eventId);
+
+      if (!updatedEvent) throw new Error("Impossible de recharger l'événement");
+
+      console.log(
+        `[EventsStore] Team ${teamId} retirée de l'événement ${eventId}`,
+      );
+
+      return updatedEvent;
+    } catch (err) {
+      console.error(`[EventsStore] Erreur retrait team:`, err);
       throw err;
     }
   }

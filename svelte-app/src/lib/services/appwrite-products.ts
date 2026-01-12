@@ -53,7 +53,14 @@
  * par ProductsStore et ProductModalState.
  */
 
-import { ID, Query, type Models, ExecutionMethod } from "appwrite";
+import {
+  ID,
+  Query,
+  Permission,
+  Role,
+  type Models,
+  ExecutionMethod,
+} from "appwrite";
 import {
   getAppwriteInstances,
   getAppwriteConfig,
@@ -68,6 +75,8 @@ import type {
 } from "../types/store.types";
 import { toastService } from "./toast.service.svelte";
 import { executeWithRetry } from "../utils/retry.utils";
+import { eventsStore } from "../stores/EventsStore.svelte";
+import type { EnrichedEvent } from "../types/events.d";
 
 // =============================================================================
 // TYPES INTERNE (utilise les types générés automatiquement ??)
@@ -97,6 +106,57 @@ export type PurchaseUpdate = Partial<
 
 export interface ProductWithPurchases extends Products {
   purchases: Purchases[];
+}
+
+// =============================================================================
+// UTILITAIRES DE PERMISSIONS LABEL
+// =============================================================================
+
+/**
+ * Génère les permissions pour un produit/achat basées sur un label (MAIN ID)
+ * @deprecated Utiliser getEventPermissionsFromEvent() à la place
+ * @param mainId - ID du main (utilisée comme label)
+ * @returns Array de permissions
+ */
+export function getLabelPermissions(mainId: string): string[] {
+  return [
+    Permission.read(Role.label(mainId)),
+    Permission.update(Role.label(mainId)),
+    Permission.delete(Role.label(mainId)),
+  ];
+}
+
+/**
+ * Génère les permissions pour un produit/achat à partir d'un événement
+ * Inclut les permissions labels ET teams
+ * @param event - Événement enrichi (venant du cache EventsStore)
+ * @returns Array de permissions à appliquer
+ */
+export function getEventPermissionsFromEvent(
+  event: EnrichedEvent | null,
+): string[] {
+  if (!event || !event.$permissions) {
+    // Fallback : utiliser le label seul si event non disponible
+    if (event) {
+      return [
+        Permission.read(Role.label(event.$id)),
+        Permission.update(Role.label(event.$id)),
+        Permission.delete(Role.label(event.$id)),
+      ];
+    }
+    return [];
+  }
+
+  const permissions: string[] = [];
+
+  for (const perm of event.$permissions) {
+    // Copier toutes les permissions read et update (pas delete pour les teams)
+    if (perm.includes("read(") || perm.includes("update(")) {
+      permissions.push(perm);
+    }
+  }
+
+  return permissions;
 }
 
 // =============================================================================
@@ -478,11 +538,20 @@ export async function updateProduct(
     updates.updatedBy = getCurrentUserName();
   }
 
+  // 🔥 PRÉSERVER les permissions existantes (Label)
+  // TOCHECK : est ce vraiment nécessaire ?
+  const existingProduct = await tables.getRow({
+    databaseId: config.databaseId,
+    tableId: config.collections.products,
+    rowId: productId,
+  });
+
   const response = await tables.updateRow({
     databaseId: config.databaseId,
     tableId: config.collections.products,
     rowId: productId,
     data: updates,
+    permissions: existingProduct.$permissions, // ← PRÉSERVER les permissions Label
   });
 
   return response as unknown as Products;
@@ -523,15 +592,21 @@ export async function upsertProduct(
     const enrichedData = await enrichProductWithUser(appwriteData);
 
     const { tables, config } = await getAppwriteInstances();
+
+    // 🔥 NOUVEAU: Récupérer les permissions depuis l'événement (inclut les teams)
+    const event = eventsStore.getEventById(enrichedData.mainId);
+    const eventPermissions = getEventPermissionsFromEvent(event);
+
     const response = await tables.createRow({
       databaseId: config.databaseId,
       tableId: config.collections.products,
       rowId: productId, // $id prédéfini
       data: enrichedData, // ← Utiliser les données enrichies
+      permissions: eventPermissions, // ← Inclut les labels ET les teams
     });
 
     console.log(
-      `[Appwrite Interactions] Produit ${productId} créé avec succès`,
+      `[Appwrite Interactions] Produit ${productId} créé avec permissions (labels + teams)`,
     );
 
     // Note : le ProductsStore mettra à jour isSynced via le realtime
@@ -606,15 +681,20 @@ export async function createManualProduct(
       manualProduct,
     );
 
+    // 🔥 NOUVEAU: Récupérer les permissions depuis l'événement (inclut les teams)
+    const event = eventsStore.getEventById(mainId);
+    const eventPermissions = getEventPermissionsFromEvent(event);
+
     const response = await tables.createRow({
       databaseId: config.databaseId,
       tableId: config.collections.products,
       rowId: uniqueId,
       data: manualProduct,
+      permissions: eventPermissions, // ← Inclut les labels ET les teams
     });
 
     console.log(
-      `[Appwrite Interactions] Produit manuel ${uniqueId} créé avec succès`,
+      `[Appwrite Interactions] Produit manuel ${uniqueId} créé avec permissions Label`,
     );
     return response as unknown as Products;
   } catch (error) {
@@ -827,14 +907,22 @@ export async function createPurchase(
     createdBy: getCurrentUserName(),
   };
 
+  // 🔥 NOUVEAU: Récupérer les permissions depuis l'événement (inclut les teams)
+  const event = eventsStore.getEventById(purchaseData.mainId);
+  const eventPermissions = getEventPermissionsFromEvent(event);
+
   const response = await tables.createRow(
     config.databaseId,
     config.collections.purchases,
     ID.unique(),
     completePurchaseData,
+    eventPermissions, // ← Inclut les labels ET les teams
   );
 
-  console.log("[Appwrite Interactions] Achat créé:", response);
+  console.log(
+    "[Appwrite Interactions] Achat créé avec permissions Label:",
+    response,
+  );
   return response as unknown as Purchases;
 }
 
@@ -851,7 +939,7 @@ export async function updatePurchase(
   try {
     const { tables, config, account } = await getAppwriteInstances();
 
-    // Récupérer le purchase existant pour préserver la relation products
+    // Récupérer le purchase existant pour préserver la relation products et les permissions
     const existingPurchase = await tables.getRow(
       config.databaseId,
       config.collections.purchases,
@@ -871,10 +959,11 @@ export async function updatePurchase(
       config.collections.purchases,
       purchaseId,
       finalUpdates,
+      existingPurchase.$permissions, // ← PRÉSERVER les permissions Label
     );
 
     console.log(
-      `[Appwrite Interactions] Achat ${purchaseId} mis à jour:`,
+      `[Appwrite Interactions] Achat ${purchaseId} mis à jour (permissions préservées):`,
       finalUpdates,
     );
     return response as unknown as Purchases;
@@ -1249,6 +1338,7 @@ export async function loadMainEventData(
 }
 
 /**
+ * @deprecated : no usage. appwrite-event for this.
  * Crée un document Main dans Appwrite
  */
 export async function createMainDocument(
@@ -1510,6 +1600,10 @@ export async function createQuickValidationPurchases(
     const { tables, config, account } = await getAppwriteInstances();
     const user = await account.get();
 
+    // 🔥 NOUVEAU: Récupérer les permissions depuis l'événement (inclut les teams)
+    const event = eventsStore.getEventById(mainId);
+    const eventPermissions = getEventPermissionsFromEvent(event);
+
     const purchases: Purchases[] = [];
 
     console.log(
@@ -1548,13 +1642,14 @@ export async function createQuickValidationPurchases(
         config.collections.purchases,
         ID.unique(),
         purchaseData,
+        eventPermissions, // ← Inclut les labels ET les teams
       );
 
       purchases.push(response as unknown as Purchases);
     }
 
     console.log(
-      `[Appwrite Interactions] ${purchases.length} validations rapides créées pour produit ${productId}`,
+      `[Appwrite Interactions] ${purchases.length} validations rapides créées avec permissions (labels + teams) pour produit ${productId}`,
     );
     return purchases;
   } catch (error) {
@@ -1596,6 +1691,10 @@ export async function createExpensePurchase(
       throw new Error("invoiceTotal est requis pour une dépense");
     }
 
+    // 🔥 NOUVEAU: Récupérer les permissions depuis l'événement (inclut les teams)
+    const event = eventsStore.getEventById(mainId);
+    const eventPermissions = getEventPermissionsFromEvent(event);
+
     const completeExpenseData = {
       products: [], // Pas de produits liés
       mainId: mainId,
@@ -1618,9 +1717,13 @@ export async function createExpensePurchase(
       config.collections.purchases,
       ID.unique(),
       completeExpenseData,
+      eventPermissions, // ← Inclut les labels ET les teams
     );
 
-    console.log("[Appwrite Interactions] Dépense créée:", response);
+    console.log(
+      "[Appwrite Interactions] Dépense créée avec permissions (labels + teams):",
+      response,
+    );
     return response as unknown as Purchases;
   } catch (error) {
     console.error("[Appwrite Interactions] Erreur création dépense:", error);

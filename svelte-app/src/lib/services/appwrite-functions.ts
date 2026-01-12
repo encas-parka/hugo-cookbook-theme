@@ -33,6 +33,100 @@ export async function warmUpFunctions() {
 }
 
 /**
+ * Invite des teams natives à un événement
+ * @param eventId - ID de l'événement
+ * @param eventName - Nom de l'événement
+ * @param teamIds - IDs des teams à inviter
+ */
+export async function inviteTeamsToEvent(
+  eventId: string,
+  eventName: string,
+  teamIds: string[],
+): Promise<void> {
+  return safeOperation(
+    async () => {
+      const { functions } = await getAppwriteInstances();
+
+      const response = await functions.createExecution({
+        functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
+        body: JSON.stringify({
+          action: "invite",
+          context: {
+            type: "event",
+            id: eventId,
+            name: eventName,
+          },
+          teamIds, // Les teamIds (côté serveur, les emails sont récupérés)
+        }),
+        async: false, // Synchrone pour attendre le batch update
+      });
+
+      const result = safeJsonParse<any>(response.responseBody, {
+        context: "inviteTeamsToEvent",
+        fallback: null,
+      });
+
+      if (!result || !result.success) {
+        throw new Error(
+          result?.error || "Erreur lors de l'invitation des teams",
+        );
+      }
+
+      console.log(
+        `[appwrite-functions] ${teamIds.length} team(s) invitée(s) à l'événement ${eventName}`,
+      );
+    },
+    {
+      context: "AppwriteFunctions.inviteTeamsToEvent",
+      timeout: 60000, // 60s car batch update peut être long
+      errorMessage: "Erreur lors de l'invitation des teams",
+    },
+  );
+}
+
+/**
+ * Retire une team d'un événement
+ */
+export async function removeTeamFromEvent(
+  eventId: string,
+  teamId: string,
+): Promise<void> {
+  return safeOperation(
+    async () => {
+      const { functions } = await getAppwriteInstances();
+
+      const response = await functions.createExecution({
+        functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
+        body: JSON.stringify({
+          action: "remove-user-from-event",
+          mainId: eventId,
+          teamId: teamId,
+        }),
+        async: false,
+      });
+
+      const result = safeJsonParse<any>(response.responseBody, {
+        context: "removeTeamFromEvent",
+        fallback: null,
+      });
+
+      if (!result || !result.success) {
+        throw new Error(result?.error || "Erreur lors du retrait de la team");
+      }
+
+      console.log(
+        `[appwrite-functions] Team ${teamId} retirée de l'événement ${eventId}`,
+      );
+    },
+    {
+      context: "AppwriteFunctions.removeTeamFromEvent",
+      timeout: 60000,
+      errorMessage: "Erreur lors du retrait de la team",
+    },
+  );
+}
+
+/**
  * Vérifie si des emails existent dans Appwrite
  * @returns Record<email, { id, name } | false>
  */
@@ -244,6 +338,52 @@ export async function acceptInvitation(
       context: "AppwriteFunctions.acceptInvitation",
       timeout: 15000, // 15s pour une cloud function
       errorMessage: "Erreur lors de l'acceptation de l'invitation",
+    },
+  );
+}
+
+/**
+ * Retire un utilisateur d'un événement (supprime son Label)
+ * @param mainId - ID de l'événement (main)
+ * @param userId - ID de l'utilisateur à retirer
+ */
+export async function removeUserFromEvent(
+  mainId: string,
+  userId: string,
+): Promise<void> {
+  return safeOperation(
+    async () => {
+      const { functions } = await getAppwriteInstances();
+
+      const response = await functions.createExecution({
+        functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
+        body: JSON.stringify({
+          action: "remove-user-from-event",
+          mainId,
+          userId,
+        }),
+        async: false,
+      });
+
+      const result = safeJsonParse<any>(response.responseBody, {
+        context: "removeUserFromEvent",
+        fallback: null,
+      });
+
+      if (!result || !result.success) {
+        throw new Error(
+          result?.error || "Erreur lors du retrait de l'utilisateur",
+        );
+      }
+
+      console.log(
+        `[appwrite-functions] Utilisateur ${userId} retiré de l'événement ${mainId}`,
+      );
+    },
+    {
+      context: "AppwriteFunctions.removeUserFromEvent",
+      timeout: 10000,
+      errorMessage: "Erreur lors du retrait de l'utilisateur",
     },
   );
 }
