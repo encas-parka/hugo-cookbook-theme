@@ -47,13 +47,15 @@
   }
 </script>
 
-<div class="tabs tabs-lg tabs-border justify-center">
-  {#each eventTabs as tab, index (index)}
-    <button
-      class="tab font-semibold {index === activeTab ? 'tab-active' : ''}"
-      onclick={() => navigateToTab(index)}
-    >
-      {tab.label}
-    </button>
-  {/each}
+<div class="rounded-box bg-secondary/10 px-4 py-0.5">
+  <div class="tabs tabs-lg tabs-border justify-center">
+    {#each eventTabs as tab, index (index)}
+      <button
+        class="tab font-semibold {index === activeTab ? 'tab-active' : ''}"
+        onclick={() => navigateToTab(index)}
+      >
+        {tab.label}
+      </button>
+    {/each}
+  </div>
 </div>
