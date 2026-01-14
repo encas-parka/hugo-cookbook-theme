@@ -112,22 +112,22 @@ export class EventsStore {
     return Array.from(this.#events.values()).filter((event) => {
       if (!event.dateStart || !event.dateEnd) return false;
       const end = new Date(event.dateEnd);
-      // Filtrer par date ET par accessibilité
-      return end >= today && this.#isEventAccessible(event);
+      // Filtrer uniquement par date (accessibilité gérée par Appwrite via permissions)
+      return end >= today;
     });
   });
 
   /**
    * Événements passés
-   * Filtrés par date ET par accessibilité (contributorsIds)
+   * Filtrés par date (accessibilité gérée par Appwrite via permissions)
    */
   #pastEvents = $derived.by(() => {
     const now = new Date();
     return Array.from(this.#events.values()).filter((event) => {
       if (!event.dateEnd) return false;
       const end = new Date(event.dateEnd);
-      // Filtrer par date ET par accessibilité
-      return end < now && this.#isEventAccessible(event);
+      // Filtrer uniquement par date (accessibilité gérée par Appwrite via permissions)
+      return end < now;
     });
   });
 
@@ -375,52 +375,6 @@ export class EventsStore {
   }
 
   /**
-   * Vérifie si l'utilisateur actuel a accès à un événement
-   * L'accès est autorisé si :
-   * - L'utilisateur est le créateur
-   * - L'utilisateur est dans contributorsIds
-   */
-  #isEventAccessible(event: any): boolean {
-    if (!this.#userId) return false;
-
-    // Si le payload est partiel (manque createdBy et contributorsIds),
-    // on vérifie si on a déjà l'événement dans le store.
-    // Si oui, on assume qu'il est toujours accessible sauf preuve du contraire.
-    const hasAccessibilityFields =
-      "createdBy" in event || "contributorsIds" in event;
-
-    if (!hasAccessibilityFields && this.#events.has(event.$id)) {
-      console.log(
-        `[EventsStore] Accessibilité confirmée (mémoire) pour ${event.$id}`,
-      );
-      return true;
-    }
-
-    // Créateur
-    if (event.createdBy === this.#userId) {
-      console.log(
-        `[EventsStore] Accessibilité confirmée (créateur) pour ${event.$id}`,
-      );
-      return true;
-    }
-
-    // Dans contributorsIds (logique métier)
-    if (event.contributorsIds?.includes(this.#userId)) {
-      console.log(
-        `[EventsStore] Accessibilité confirmée (contributeur) pour ${event.$id}`,
-      );
-      return true;
-    }
-
-    console.warn(`[EventsStore] Accessibilité REFUSÉE pour ${event.$id}`, {
-      userId: this.#userId,
-      createdBy: event.createdBy,
-      contributorsIds: event.contributorsIds,
-    });
-    return false;
-  }
-
-  /**
    * Configure le realtime pour les événements
    */
   async #setupRealtime(): Promise<void> {
@@ -446,19 +400,8 @@ export class EventsStore {
             { name: event.name, updatedAt: event.$updatedAt },
           );
 
-          // ⚠️ Vérifier l'accessibilité avant de traiter l'événement
-          if (!this.#isEventAccessible(event)) {
-            console.log(
-              `[EventsStore] Event ${event.$id} ignoré (utilisateur non autorisé - pas dans contributorsIds)`,
-            );
-            if (eventType === "update" || eventType === "delete") {
-              this.#events.delete(event.$id);
-              if (this.#cache) {
-                await this.#cache.deleteEvent(event.$id);
-              }
-            }
-            return;
-          }
+          // NOTE: L'accessibilité est gérée par Appwrite via les permissions (labels et teams)
+          // Si nous recevons cet événement via realtime, c'est que nous y avons accès
 
           if (eventType === "create" || eventType === "update") {
             const enrichedEvent = this.#enrichEvent(event);

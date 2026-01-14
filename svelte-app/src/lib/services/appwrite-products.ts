@@ -131,28 +131,52 @@ export function getLabelPermissions(mainId: string): string[] {
  * Inclut les permissions labels ET teams
  * @param event - Événement enrichi (venant du cache EventsStore)
  * @returns Array de permissions à appliquer
+ *
+ * IMPORTANT: Cette fonction génère de NOUVELLES permissions basées sur
+ * l'événement, plutôt que de copier les permissions existantes.
+ *
+ * Les permissions générées sont :
+ * 1. Permissions LABEL basées sur mainId (event.$id)
+ * 2. Permissions TEAM pour toutes les teams qui ont accès à l'événement
  */
 export function getEventPermissionsFromEvent(
   event: EnrichedEvent | null,
 ): string[] {
-  if (!event || !event.$permissions) {
-    // Fallback : utiliser le label seul si event non disponible
-    if (event) {
-      return [
-        Permission.read(Role.label(event.$id)),
-        Permission.update(Role.label(event.$id)),
-        Permission.delete(Role.label(event.$id)),
-      ];
-    }
+  if (!event) {
     return [];
   }
 
   const permissions: string[] = [];
+  const mainId = event.$id;
 
-  for (const perm of event.$permissions) {
-    // Copier toutes les permissions read et update (pas delete pour les teams)
-    if (perm.includes("read(") || perm.includes("update(")) {
-      permissions.push(perm);
+  // 1. TOUJOURS ajouter les permissions LABEL basées sur mainId
+  // Ces permissions permettent à tous les membres de l'événement d'accéder aux produits/achats
+  permissions.push(
+    Permission.read(Role.label(mainId)),
+    Permission.update(Role.label(mainId)),
+  );
+
+  // 2. Si l'événement a des permissions de team, les recréer pour ce document
+  // Cela permet aux teams d'accéder directement aux produits/achats
+  if (event.$permissions) {
+    const teamIds = new Set<string>(); // Utiliser un Set pour éviter les doublons
+
+    for (const perm of event.$permissions) {
+      // Extraire les team IDs des permissions de l'événement
+      // Format attendu: "read(\"team:XXXX\")" ou "update(\"team:YYYY\")"
+      const teamMatch = perm.match(/team:([^\/\\"\)]+)/);
+      if (teamMatch) {
+        const teamId = teamMatch[1];
+        teamIds.add(teamId);
+      }
+    }
+
+    // Recréer les permissions pour chaque team unique
+    for (const teamId of teamIds) {
+      permissions.push(
+        Permission.read(Role.team(teamId)),
+        Permission.update(Role.team(teamId)),
+      );
     }
   }
 
@@ -538,20 +562,12 @@ export async function updateProduct(
     updates.updatedBy = getCurrentUserName();
   }
 
-  // 🔥 PRÉSERVER les permissions existantes (Label)
-  // TOCHECK : est ce vraiment nécessaire ?
-  const existingProduct = await tables.getRow({
-    databaseId: config.databaseId,
-    tableId: config.collections.products,
-    rowId: productId,
-  });
-
   const response = await tables.updateRow({
     databaseId: config.databaseId,
     tableId: config.collections.products,
     rowId: productId,
     data: updates,
-    permissions: existingProduct.$permissions, // ← PRÉSERVER les permissions Label
+    // permissions non fourni = Appwrite préserve les permissions existantes
   });
 
   return response as unknown as Products;
@@ -937,34 +953,19 @@ export async function updatePurchase(
   updates: PurchaseUpdate,
 ): Promise<Purchases> {
   try {
-    const { tables, config, account } = await getAppwriteInstances();
-
-    // Récupérer le purchase existant pour préserver la relation products et les permissions
-    const existingPurchase = await tables.getRow(
-      config.databaseId,
-      config.collections.purchases,
-      purchaseId,
-    );
-
-    // Préparer les mises à jour en préservant la relation products
-    const finalUpdates = {
-      ...updates,
-      // Conserver la relation products existante si non fournie dans les updates
-      products:
-        updates.products || (existingPurchase as unknown as Purchases).products,
-    };
+    const { tables, config } = await getAppwriteInstances();
 
     const response = await tables.updateRow(
       config.databaseId,
       config.collections.purchases,
       purchaseId,
-      finalUpdates,
-      existingPurchase.$permissions, // ← PRÉSERVER les permissions Label
+      updates,
+      // permissions non fourni = Appwrite préserve les permissions existantes
     );
 
     console.log(
-      `[Appwrite Interactions] Achat ${purchaseId} mis à jour (permissions préservées):`,
-      finalUpdates,
+      `[Appwrite Interactions] Achat ${purchaseId} mis à jour:`,
+      updates,
     );
     return response as unknown as Purchases;
   } catch (error) {
