@@ -1,5 +1,6 @@
 import {
   type DateRange,
+  DEFAULT_PURCHASE_MARGIN_HOURS,
 } from "../utils/dateRange";
 
 export class DateRangeStore {
@@ -89,13 +90,11 @@ export class DateRangeStore {
     if (!this.#start || !this.#end) return false;
     if (this.isEventPassed) return false; // Totalement passé = autre cas
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Début de journée
-
-    const startDate = new Date(this.#start);
-
-    // Si le début de la plage est avant aujourd'hui ET qu'on n'est pas totalement dans le passé
-    return startDate < today;
+    // 🎯 Vérifier si la PREMIÈRE date du range est passée (avec marge)
+    // Si le début de la plage est déjà passée, on masque les boutons d'action
+    const startWithMargin = new Date(this.#start);
+    startWithMargin.setHours(startWithMargin.getHours() + DEFAULT_PURCHASE_MARGIN_HOURS);
+    return startWithMargin < new Date();
   });
 
 

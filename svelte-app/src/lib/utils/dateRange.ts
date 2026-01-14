@@ -22,6 +22,12 @@ export interface DateRange {
 }
 
 /**
+ * Marge en heures après la fin d'un repas pendant laquelle les purchases sont encore comptés
+ * Cette marge assure la cohérence entre l'UI (boutons visibles) et le calcul (missingQuantity)
+ */
+export const DEFAULT_PURCHASE_MARGIN_HOURS = 2;
+
+/**
  * Statistiques complètes d'un produit sur une plage de dates
  */
 export interface ProductStatsForDateRange {
@@ -295,20 +301,36 @@ function isPurchaseAvailableInRange(
   stockReferenceDate: string = "",
 ): boolean {
   // Annulé = jamais compté
-  if (purchase.status === "cancelled") return false;
+  if (purchase.status === "cancelled") {
+    return false;
+  }
 
   // Date de référence (deliveryDate ou $createdAt pour les delivered sans deliveryDate)
   const referenceDate = purchase.deliveryDate || purchase.$createdAt;
-  if (!referenceDate) return false;
+  if (!referenceDate) {
+    return false;
+  }
 
-  // Si la référence est après la fin de la plage = pas disponible
-  if (referenceDate > endDate) return false;
+  // 🎯 COHÉRENCE UI : Utiliser la même marge que hasPastDatesInRange
+  // Calculer la fin de la plage avec la marge
+  const endWithMargin = new Date(endDate);
+  endWithMargin.setHours(endWithMargin.getHours() + DEFAULT_PURCHASE_MARGIN_HOURS);
+
+  // Si la plage est déjà passée (avec marge) → aucun purchase n'est compté
+  if (endWithMargin < new Date()) {
+    return false;
+  }
+
+  // Si la référence du purchase est après la fin de la plage (avec marge) → pas compté
+  if (referenceDate > endWithMargin.toISOString()) {
+    return false;
+  }
 
   // Si le stock est postérieur à l'achat = l'achat est inclus dans le stock
   if (stockReferenceDate && purchase.$createdAt < stockReferenceDate) {
     return false;
   }
 
-  // L'achat est disponible si sa date de référence est avant ou à la fin de la plage
-  return referenceDate <= endDate;
+  // L'achat est disponible si sa date de référence est avant ou à la fin de la plage (avec marge)
+  return true;
 }

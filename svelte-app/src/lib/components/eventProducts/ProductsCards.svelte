@@ -141,7 +141,7 @@
 
         {#if !globalState.isMobile}
           <div class="text-primary-content px-2">
-            {#if productsStore.dateStore.isFullRange}
+            {#if productsStore.dateStore.isFullRange && productsStore.dateStore.start !== productsStore.dateStore.end}
               <div class="font-semibold">Sur toute la période</div>
             {:else if productsStore.dateStore.start !== productsStore.dateStore.end}
               du <span class="font-semibold">
