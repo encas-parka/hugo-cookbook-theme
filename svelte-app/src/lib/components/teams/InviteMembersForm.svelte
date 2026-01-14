@@ -123,6 +123,7 @@
       title="Ajouter à la liste"
     >
       <UserPlus class="h-5 w-5" />
+      Ajouter
     </button>
   </div>
 
