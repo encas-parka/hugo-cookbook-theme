@@ -221,6 +221,86 @@ export async function inviteToEvent(
 }
 
 /**
+ * Invite des participants (teams et/ou utilisateurs) à un événement
+ * Fonction unifiée avec contrôle des emails aux membres existants
+ *
+ * @param eventId - ID de l'événement
+ * @param eventName - Nom de l'événement
+ * @param options - Options d'invitation
+ *   @param options.teamIds - IDs des teams à inviter
+ *   @param options.emails - Emails des utilisateurs à inviter
+ *   @param options.userIds - IDs des utilisateurs à inviter
+ *   @param options.message - Message personnalisé (optionnel)
+ *   @param options.sendEmailToExistingMembers - Envoyer un email aux membres existants (défaut: true)
+ *
+ * @returns { success: boolean, processed: number, emailResults?: any }
+ */
+export async function inviteParticipantsToEvent(
+  eventId: string,
+  eventName: string,
+  options: {
+    teamIds?: string[];
+    emails?: string[];
+    userIds?: string[];
+    message?: string;
+    sendEmailToExistingMembers?: boolean;
+  },
+): Promise<{ success: boolean; processed: number; emailResults?: any }> {
+  const {
+    teamIds = [],
+    emails = [],
+    userIds = [],
+    message,
+    sendEmailToExistingMembers = true,
+  } = options;
+
+  return safeOperation(
+    async () => {
+      const { functions } = await getAppwriteInstances();
+
+      const response = await functions.createExecution({
+        functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
+        body: JSON.stringify({
+          action: "invite",
+          context: {
+            type: "event",
+            id: eventId,
+            name: eventName,
+          },
+          teamIds,
+          emails,
+          userIds,
+          message,
+          sendEmailToExistingMembers,
+        }),
+        async: false,
+      });
+
+      const result = safeJsonParse<any>(response.responseBody, {
+        context: "inviteParticipantsToEvent",
+        fallback: null,
+      });
+
+      if (!result || !result.success) {
+        throw new Error(result?.error || "Erreur lors de l'invitation");
+      }
+
+      console.log(
+        `[appwrite-functions] ${result.processed} invitations traitées pour ${eventName}`,
+      );
+
+      // ✅ Retourner le résultat détaillé
+      return result;
+    },
+    {
+      context: "AppwriteFunctions.inviteParticipantsToEvent",
+      timeout: 60000, // 60s car batch update peut être long avec les teams
+      errorMessage: "Erreur lors de l'invitation",
+    },
+  );
+}
+
+/**
  * Invite des utilisateurs à une équipe
  */
 export async function inviteToTeam(

@@ -35,11 +35,8 @@ export async function listEvents(userId: string): Promise<{ events: Main[] }> {
         tableId: EVENTS_COLLECTION_ID,
         queries: [
           Query.orderDesc("dateStart"),
-          // Filtrer les événements où l'utilisateur est contributeur ou créateur
-          Query.or([
-            Query.equal("createdBy", userId),
-            Query.contains("contributorsIds", userId),
-          ]),
+          // ✅ PLUS DE FILTRAGE: Les permissions gèrent l'accès via labels/teams
+          // Seuls les événements auxquels l'utilisateur a accès seront retournés
         ],
       });
       return { events: response.rows as unknown as Main[] };
@@ -93,11 +90,6 @@ export async function createEvent(
       const { tables } = await getAppwriteInstances();
       const eventId = ID.unique();
 
-      // Extraire les IDs des contributors pour le champ contributorsIds
-      const contributorsIds = data.contributors
-        ? data.contributors.map((c) => c.id)
-        : [];
-
       const event = await tables.createRow({
         databaseId: APPWRITE_CONFIG.databaseId,
         tableId: EVENTS_COLLECTION_ID,
@@ -113,7 +105,7 @@ export async function createEvent(
           contributors: data.contributors
             ? data.contributors.map((c) => JSON.stringify(c))
             : [],
-          contributorsIds, // Ajouter le tableau d'IDs pour le filtrage optimisé
+          // ✅ SUPPRIMÉ: contributorsIds n'est plus nécessaire
           todos: data.todos ? data.todos.map((t) => JSON.stringify(t)) : [],
         },
         // Les permissions par défaut sont gérées côté serveur
@@ -171,8 +163,7 @@ export async function updateEvent(
           ? data.contributors.map((c) => JSON.stringify(c))
           : [];
 
-        // Mettre à jour contributorsIds à partir des contributors
-        updateData.contributorsIds = data.contributors.map((c) => c.id);
+        // ✅ SUPPRIMÉ: contributorsIds n'est plus nécessaire
       }
 
       if (data.todos) {

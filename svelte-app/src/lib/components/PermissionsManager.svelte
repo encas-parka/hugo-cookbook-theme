@@ -39,6 +39,7 @@
   // État local - géré entièrement dans ce composant
   let selectedTeams = $state<string[]>([]);
   let newContributors = $state<EventContributor[]>([]);
+  let sendEmailToExistingMembers = $state(false);
 
   // État local pour le modal
   let showInviteModal = $state(false);
@@ -54,7 +55,7 @@
           event.$permissions
             ?.filter((p) => p.includes("team:"))
             .map((p) => p.match(/team:([a-z0-9]+)/i)?.[1])
-            .filter(Boolean) || [];
+            .filter((id): id is string => Boolean(id)) || [];
         selectedTeams = teamIds;
       }
     }
@@ -148,41 +149,41 @@
       return;
     }
 
-    try {
-      const event = eventsStore.getEventById(eventId);
-      if (!event) throw new Error("Événement introuvable");
+    const event = eventsStore.getEventById(eventId);
+    if (!event) throw new Error("Événement introuvable");
 
-      // 1. Traiter les teams (batch update automatique)
-      const teamsToAdd = selectedTeams.filter(
-        (teamId) =>
-          !event.$permissions?.some((p) => p.includes(`team:${teamId}`)),
+    // 1. Traiter les teams (batch update automatique)
+    const teamsToAdd = selectedTeams.filter(
+      (teamId) =>
+        !event.$permissions?.some((p) => p.includes(`team:${teamId}`)),
+    );
+
+    // 2. Traiter les utilisateurs individuels (par email)
+    const emails = newContributors.map((c) => c.email!).filter(Boolean);
+
+    // ✅ CRITIQUE : Validation AVANT d'appeler la cloud function
+    // Empêche l'erreur "Au moins un email ou un userId est requis"
+    if (teamsToAdd.length === 0 && emails.length === 0) {
+      toastService.warning(
+        "Sélectionnez au moins une équipe ou entrez un email",
       );
+      return;
+    }
 
-      if (teamsToAdd.length > 0) {
-        await toastService.track(eventsStore.addTeams(eventId, teamsToAdd), {
-          loading: `Ajout de ${teamsToAdd.length} équipe(s) en cours...`,
-          success: `${teamsToAdd.length} équipe(s) ajoutée(s) avec succès`,
-          error: "Erreur lors de l'ajout des équipes",
-        });
-      }
-
-      // 2. Traiter les utilisateurs individuels (par email)
-      const emails = newContributors.map((c) => c.email!).filter(Boolean);
-      if (emails.length > 0) {
-        await toastService.track(
-          eventsStore.addContributors(eventId, { emails }),
-          {
-            loading: "Envoi des invitations en cours...",
-            success: `${emails.length} invitation(s) envoyée(s) avec succès`,
-            error: "Erreur lors de l'envoi des invitations",
-          },
-        );
-      }
-
-      if (teamsToAdd.length === 0 && emails.length === 0) {
-        toastService.warning("Aucune nouvelle invitation à envoyer");
-        return;
-      }
+    // ✅ Utiliser la fonction unifiée (atomicité)
+    try {
+      await toastService.track(
+        eventsStore.inviteParticipants(eventId, {
+          teamIds: teamsToAdd,
+          emails: emails,
+          sendEmailToExistingMembers: sendEmailToExistingMembers,
+        }),
+        {
+          loading: "Envoi des invitations en cours...",
+          success: `${teamsToAdd.length} équipe(s) et ${emails.length} contributeur(s) invité(s) avec succès`,
+          error: "Erreur lors de l'envoi des invitations",
+        },
+      );
 
       // Fermer le modal
       showInviteModal = false;
@@ -191,6 +192,7 @@
     } catch (error) {
       console.error("Erreur lors de l'envoi des invitations:", error);
       // Le toast d'erreur est déjà géré par toastService.track
+      // ✅ NE PAS réinitialiser le form en cas d'erreur - laisser l'utilisateur réessayer
     }
   }
 
@@ -361,14 +363,14 @@
           entières</legend
         >
         {#if nativeTeamsStore.myTeams.length > 0}
-          <div class="flex flex-col gap-2">
+          <div class="flex flex-wrap gap-4">
             {#each nativeTeamsStore.myTeams as team}
               <label
-                class="hover:bg-base-200 flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors"
+                class="hover:bg-secondary/20 bg-secondary/10 flex cursor-pointer items-center gap-3 rounded-lg px-4 py-2 transition-colors"
               >
                 <input
                   type="checkbox"
-                  class="checkbox checkbox-primary checkbox-sm"
+                  class="checkbox bg-base-100 checkbox-sm"
                   checked={selectedTeams.includes(team.$id)}
                   onchange={() => toggleTeam(team.$id)}
                 />
@@ -385,6 +387,25 @@
             Toute l'équipe aura accès en lecture/écriture à cet événement et à
             tous ses produits/achats.
           </p>
+
+          <!-- ✅ NOUVEAU: Contrôle de l'envoi d'emails aux membres existants -->
+          {#if selectedTeams.length > 0}
+            <label class="label mt-4 cursor-pointer justify-start gap-4">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-sm"
+                bind:checked={sendEmailToExistingMembers}
+              />
+              <span class="label-text">
+                Envoyer un email de notification aux membres existants
+              </span>
+            </label>
+            <p class="text-base-content/60 mt-1 text-xs">
+              Si désactivé, les membres auront accès mais ne recevront pas
+              d'email. Les nouveaux utilisateurs recevront toujours leur email
+              de création de compte.
+            </p>
+          {/if}
         {:else}
           <p class="text-sm italic opacity-60">
             Vous ne faites partie d'aucune équipe. Créez une équipe pour inviter

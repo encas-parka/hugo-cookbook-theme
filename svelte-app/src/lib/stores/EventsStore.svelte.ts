@@ -832,6 +832,71 @@ export class EventsStore {
   }
 
   /**
+   * Invite des teams et/ou des utilisateurs à un événement (méthode unifiée)
+   *
+   * @param eventId - ID de l'événement
+   * @param options - Options d'invitation
+   *   @param options.teamIds - IDs des teams à inviter
+   *   @param options.emails - Emails des utilisateurs à inviter
+   *   @param options.userIds - IDs des utilisateurs à inviter
+   *   @param options.sendEmailToExistingMembers - Envoyer un email aux membres existants (défaut: true)
+   * @returns L'événement mis à jour
+   */
+  async inviteParticipants(
+    eventId: string,
+    options: {
+      teamIds?: string[];
+      emails?: string[];
+      userIds?: string[];
+      sendEmailToExistingMembers?: boolean;
+    },
+  ): Promise<EnrichedEvent> {
+    try {
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      const {
+        teamIds = [],
+        emails = [],
+        userIds = [],
+        sendEmailToExistingMembers = true,
+      } = options;
+
+      if (teamIds.length === 0 && emails.length === 0 && userIds.length === 0) {
+        console.log(`[EventsStore] Aucun participant à inviter`);
+        return event;
+      }
+
+      // Appeler la nouvelle fonction unifiée
+      const { inviteParticipantsToEvent } = await import(
+        "../services/appwrite-functions"
+      );
+      const result = await inviteParticipantsToEvent(eventId, event.name, {
+        teamIds,
+        emails,
+        userIds,
+        sendEmailToExistingMembers,
+      });
+
+      console.log(
+        `[EventsStore] Invitation result: ${result.processed} traités`,
+      );
+
+      // Recharger avec délai adaptatif (plus long pour les teams car batch update)
+      const delay = teamIds.length > 0 ? 2000 : 500;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
+      const updatedEvent = await this.fetchEvent(eventId);
+      if (!updatedEvent) throw new Error("Impossible de recharger l'événement");
+
+      return updatedEvent;
+    } catch (err) {
+      console.error(`[EventsStore] Erreur invitation participants:`, err);
+      throw err;
+    }
+  }
+
+  /**
    * Retire une team d'un événement
    * @param eventId - ID de l'événement
    * @param teamId - ID de la team à retirer

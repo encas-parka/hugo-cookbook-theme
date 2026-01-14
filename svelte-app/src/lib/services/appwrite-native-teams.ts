@@ -115,33 +115,6 @@ export async function inviteMembers(
 }
 
 /**
- * Accepte une invitation (via Cloud Function pour garder la cohérence avec le système actuel)
- * Note: Appwrite nativement demande un secret et userId, mais ici on veut simplifier.
- */
-export async function acceptInvitation(
-  teamId: string,
-  membershipId: string,
-): Promise<void> {
-  const { functions } = await getAppwriteInstances();
-  const functionId = getFunctionId("usersTeamsManager");
-
-  const payload = {
-    action: "native-accept",
-    teamId,
-    membershipId,
-  };
-
-  const response = await functions.createExecution({
-    functionId,
-    body: JSON.stringify(payload),
-  });
-
-  if (response.status !== "completed") {
-    throw new Error(`Erreur lors de l'acceptation : ${response.errors}`);
-  }
-}
-
-/**
  * Interface pour les préférences d'une équipe
  */
 export interface TeamPrefs {

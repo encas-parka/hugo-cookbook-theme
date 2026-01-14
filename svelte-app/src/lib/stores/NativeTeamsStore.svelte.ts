@@ -14,7 +14,6 @@ import {
   listMembers,
   removeMember,
   inviteMembers,
-  acceptInvitation,
   updateTeamPrefs,
   type TeamPrefs,
 } from "@/lib/services/appwrite-native-teams";
@@ -55,39 +54,10 @@ export class NativeTeamsStore {
     );
   }
 
-  #myTeamsList = $derived(() => {
-    if (!globalState.userId) return [];
-    // Dans les Teams natives, si on voit l'équipe, on en est membre
-    return this.#teamsList;
-  });
+  // Simplifié : utiliser directement #teamsList
   get myTeams() {
-    return this.#myTeamsList();
-  }
-
-  #pendingInvitesList = $derived(() => {
-    const invites: Array<{
-      teamId: string;
-      teamName: string;
-      membershipId: string;
-    }> = [];
-
-    this.#teamsList.forEach((team) => {
-      const myMembership = team.members.find(
-        (m) => m.id === globalState.userId,
-      );
-      if (myMembership && !myMembership.confirmed) {
-        invites.push({
-          teamId: team.$id,
-          teamName: team.name,
-          membershipId: myMembership.$id,
-        });
-      }
-    });
-
-    return invites;
-  });
-  get myPendingInvitations() {
-    return this.#pendingInvitesList();
+    if (!globalState.userId) return [];
+    return this.#teamsList;
   }
 
   // =============================================================================
@@ -295,14 +265,6 @@ export class NativeTeamsStore {
 
   async removeMember(teamId: string, membershipId: string): Promise<void> {
     await removeMember(teamId, membershipId);
-    await this.fetchTeam(teamId);
-  }
-
-  async acceptTeamInvitation(
-    teamId: string,
-    membershipId: string,
-  ): Promise<void> {
-    await acceptInvitation(teamId, membershipId);
     await this.fetchTeam(teamId);
   }
 
