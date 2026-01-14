@@ -144,9 +144,6 @@
           dueDate: dueDate ? new Date(dueDate).toISOString() : null,
           assignedTo: assignedTo.length > 0 ? assignedTo : null,
           status: "todo" as EventTodoStatus,
-          locked: false,
-          createdAt: now,
-          updatedAt: now,
         };
 
         await eventsStore.addTodo(eventId, newTodo);

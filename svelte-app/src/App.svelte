@@ -281,7 +281,7 @@
 
     // Ne réagir qu'après la première initialisation complète (évite le boot initial)
     if (
-      appState !== "BOOTPING" &&
+      appState !== "BOOTING" &&
       appState !== "LOADING_PRIVATE_CACHE" &&
       appState !== "LOADING_PUBLIC_CACHE" &&
       isAuth !== wasAuthenticated

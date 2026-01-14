@@ -371,13 +371,13 @@
               Produits
             </div>
             <div class="flex items-center justify-center px-2">
-              <div class="text-center">
+              <!-- <div class="text-center">
                 <div class="text-success text-lg font-bold md:text-2xl">
                   {productsStore.completionStats.completed}
                 </div>
                 <div class="text-base-content/60 text-xs">Ok</div>
               </div>
-              <div class="divider divider-horizontal mx-1"></div>
+              <div class="divider divider-horizontal mx-1"></div> -->
               <div class="text-center">
                 <div class="text-error text-lg font-bold md:text-2xl">
                   {productsStore.completionStats.missing}

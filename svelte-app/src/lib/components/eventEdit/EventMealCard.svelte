@@ -78,7 +78,7 @@
   let newTimeInput = $state(extractTime(meal.date || ""));
 
   let newDateTime = $derived(
-    dateToDateTime(newDateInput, newTimeInput) || "matin",
+    newTimeInput ? dateToDateTime(newDateInput, newTimeInput) : "",
   );
 
   // État pour savoir si la date actuelle du repas est en double dans allDates

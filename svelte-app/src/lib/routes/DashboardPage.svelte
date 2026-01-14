@@ -34,9 +34,6 @@
   const currentEvents = $derived(eventsStore.currentEvents);
   const pastEventsCount = $derived(eventsStore.pastEventsCount);
 
-  // Invitations réelles
-  const myInvitations = $derived(teamsStore.myPendingInvitations);
-
   // WARM-UP
   $effect(() => {
     warmUpUsersTeamsManager();
@@ -137,9 +134,10 @@
           <!-- Résumé des équipes -->
           <TeamSummaryCard
             teams={teamsStore.myTeams}
-            invitations={myInvitations}
+            invitations={[]}
             loading={teamsStore.loading}
           />
+          <!-- NOTE: invitations vide avec Server SDK (pas d'invitations en attente) -->
 
           <!-- Résumé du matériel -->
           <MaterielSummaryCard loading={eventsStore.loading} />

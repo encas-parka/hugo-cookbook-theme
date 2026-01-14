@@ -77,7 +77,9 @@
       formElement?.scrollIntoView({ behavior: "smooth", block: "center" });
 
       // Focus sur l'input du prix (premier input de type number dans PriceInput)
-      const priceInput = formElement?.querySelector('input[type="number"]');
+      const priceInput = formElement?.querySelector(
+        'input[type="number"]',
+      ) as HTMLInputElement;
       priceInput?.focus();
     }, 100);
   }

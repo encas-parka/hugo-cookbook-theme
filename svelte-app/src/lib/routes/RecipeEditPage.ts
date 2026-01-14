@@ -16,8 +16,6 @@ import {
   executeManageDataRecipe,
 } from "$lib/services/appwrite-recipes";
 
-import type { RecettesStatus } from "$lib/types/appwrite";
-
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -147,7 +145,7 @@ export function createDefaultRecipe(): RecipeFormState {
     permissionWrite: [globalState.userId || ""],
     // Métadonnées (valeurs par défaut)
     teams: null,
-    status: "public",
+    status: RecettesStatus.PUBLIC,
     rootRecipeId: null,
     versionLabel: null,
     manuallyAddedVariants: [],

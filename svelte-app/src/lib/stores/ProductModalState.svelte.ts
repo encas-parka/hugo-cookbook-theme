@@ -22,7 +22,7 @@ import type {
 import { formatDate } from "../utils/products-display";
 import {
   formatSingleQuantity,
-  autoConvertUnit,
+  convertAndFormatQuantity,
 } from "../utils/QuantityFormatter";
 import { globalState } from "./GlobalState.svelte";
 import { productsStore } from "./ProductsStore.svelte";
@@ -132,7 +132,7 @@ export class ProductModalState implements ProductModalStateType {
     // Les quantités manquantes sont négatives, mais nous voulons les afficher en positif dans le formulaire
     // Et nous voulons convertir automatiquement les unités (gr->kg, ml->l) pour >= 1000
     if (firstMissing) {
-      const { q: convertedQty, u: convertedUnit } = autoConvertUnit(
+      const { value: convertedQty, unit: convertedUnit } = convertAndFormatQuantity(
         Math.abs(firstMissing.q),
         firstMissing.u,
       );
@@ -232,7 +232,7 @@ export class ProductModalState implements ProductModalStateType {
         throw new Error("mainId non disponible");
       }
 
-      const { q: quantity, u: unit } = autoConvertUnit(
+      const { value: quantity, unit: unit } = convertAndFormatQuantity(
         this.forms.purchase.quantity,
         this.forms.purchase.unit,
       );
@@ -273,7 +273,7 @@ export class ProductModalState implements ProductModalStateType {
       let resetUnit = this.product!.totalNeededArray[0]?.u ?? "";
 
       if (firstMissingAfterAdd) {
-        const { q: convertedQty, u: convertedUnit } = autoConvertUnit(
+        const { value: convertedQty, unit: convertedUnit } = convertAndFormatQuantity(
           Math.abs(firstMissingAfterAdd.q),
           firstMissingAfterAdd.u,
         );
@@ -307,7 +307,7 @@ export class ProductModalState implements ProductModalStateType {
     if (!updatedPurchase.$id) return;
 
     await this.withLoading(async () => {
-      const { q: quantity, u: unit } = autoConvertUnit(
+      const { value: quantity, unit: unit } = convertAndFormatQuantity(
         updatedPurchase.quantity,
         updatedPurchase.unit,
       );

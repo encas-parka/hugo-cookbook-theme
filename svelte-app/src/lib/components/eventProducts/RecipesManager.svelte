@@ -43,6 +43,7 @@
 <OverrideManager {modalState} {isArchiveMode} />
 
 <div class="space-y-6">
+  <div></div>
   <h3 class="flex items-center gap-2 text-lg font-semibold">
     <CookingPot class="h-5 w-5" />
     Recettes utilisant ce produit

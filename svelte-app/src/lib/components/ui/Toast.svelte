@@ -49,8 +49,8 @@
   }
 </script>
 
-<!-- Conteneur de toasts DaisyUI CORRIGÉ -->
-<div class="toast {position} z-50">
+<!-- Conteneur de toasts DaisyUI -->
+<div class="toast {position} z-1050">
   {#each toasts as toast (toast.id)}
     <div class="alert alert-{toast.state} max-w-sm {paddingClass} shadow-lg">
       <div class="flex items-center justify-between gap-2">

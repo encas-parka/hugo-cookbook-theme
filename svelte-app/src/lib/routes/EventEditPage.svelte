@@ -3,6 +3,7 @@
   import PermissionsManager from "$lib/components/PermissionsManager.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
+  import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import {
     getContributors,
     getContributorStatus,
@@ -830,11 +831,10 @@
         <PermissionsManager
           {canEdit}
           {contributors}
-          {teamsStore}
+          {nativeTeamsStore}
           {eventsStore}
           bind:minContrib
           userId={globalState.userId || ""}
-          userTeams={globalState.userTeams || []}
           {eventId}
           onStartEdit={startEditing}
         />

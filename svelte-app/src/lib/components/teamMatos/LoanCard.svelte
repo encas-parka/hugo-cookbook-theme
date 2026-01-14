@@ -4,6 +4,7 @@
     User,
     Package,
     Check,
+    CheckCircle,
     X,
     RotateCcw,
     AlertCircle,
@@ -14,12 +15,21 @@
     ClockArrowUp,
     Trash2,
   } from "@lucide/svelte";
-  import type { MaterielLoanStatus } from "$lib/types/appwrite.d";
   import type {
     EnrichedMaterielLoan,
     MaterielLoanItem,
   } from "$lib/types/materiel.types";
   import { formatDateDayMonthShort } from "$lib/utils/date-helpers";
+
+  // Type union pour MaterielLoanStatus (évite les problèmes d'import enum)
+  type MaterielLoanStatusLiteral =
+    | "asked"
+    | "accepted"
+    | "refused"
+    | "canceled"
+    | "returned"
+    | "completed"
+    | "archived";
 
   interface Props {
     loan: EnrichedMaterielLoan;
@@ -125,7 +135,7 @@
     }
 
     const configs: Record<
-      MaterielLoanStatus,
+      MaterielLoanStatusLiteral,
       { label: string; badgeClass: string; icon: any }
     > = {
       asked: {
@@ -148,7 +158,6 @@
         badgeClass: "badge-neutral",
         icon: X,
       },
-
       completed: {
         label: "Retour effectué",
         badgeClass: "badge-success",
@@ -158,6 +167,11 @@
         label: "Archivé",
         badgeClass: "badge-neutral",
         icon: Archive,
+      },
+      returned: {
+        label: "Retourné",
+        badgeClass: "badge-success",
+        icon: CheckCircle,
       },
     };
 

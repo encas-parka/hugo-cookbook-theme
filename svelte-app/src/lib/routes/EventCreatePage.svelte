@@ -38,6 +38,15 @@
   // Teams sélectionnées pour les permissions
   let selectedTeams = $state<string[]>([]);
 
+  // Permissions Manager - création (pas d'édition)
+  let minContrib = $state(1);
+  let isEditable = $state(false);
+
+  function onStartEdit() {
+    // Pas d'édition possible en création
+    console.warn("Cannot edit in creation mode");
+  }
+
   // ============================================================================
   // NAVBAR CONFIGURATION
   // ============================================================================
@@ -276,11 +285,13 @@
       <div class="space-y-6 lg:col-span-1">
         <PermissionsManager
           contributors={[]}
-          {teamsStore}
+          nativeTeamsStore={teamsStore}
           {eventsStore}
+          {minContrib}
+          canEdit={isEditable}
           userId={globalState.userId || ""}
-          userTeams={globalState.userTeams || []}
           eventId={undefined}
+          {onStartEdit}
         />
 
         <!-- Statut de l'événement -->

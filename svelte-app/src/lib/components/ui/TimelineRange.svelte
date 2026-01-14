@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Cloud, Sun, Moon } from "@lucide/svelte";
   import { formatDateDayMonthShort } from "$lib/utils/date-helpers";
-  import { getTimeIcon } from "$lib/utils/dateRange";
+  import { getTimeIcon, DEFAULT_PURCHASE_MARGIN_HOURS } from "$lib/utils/dateRange";
   import type { DateRangeStore } from "$lib/stores/DateRangeStore.svelte";
 
   let {
@@ -56,7 +56,12 @@
       new Date(date) >= new Date(localStart) &&
       new Date(date) <= new Date(localEnd);
 
-    const isPassed = dateStore.start && new Date(date) <= new Date();
+    // 🎯 COHÉRENCE : Utiliser la même logique que hasPastDatesInRange
+    // Une date est "passée" si maintenant est après (date + marge)
+    // Cela permet de montrer visuellement les repas "en cours" comme actifs
+    const dateWithMargin = new Date(date);
+    dateWithMargin.setHours(dateWithMargin.getHours() + DEFAULT_PURCHASE_MARGIN_HOURS);
+    const isPassed = dateWithMargin < new Date();
 
     // Vérifier si la date serait dans le range prédit lors du survol
     let isInPredictedRange = false;
