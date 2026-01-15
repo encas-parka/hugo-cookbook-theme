@@ -3,11 +3,13 @@
     toastService,
     type Toast,
     type ToastAction,
+    type ToastPosition,
   } from "$lib/services/toast.service.svelte";
   import { X, LoaderCircle, ChevronDown } from "@lucide/svelte";
 
   interface Props {
-    position?: string;
+    /** Position par défaut pour les toasts sans position spécifiée */
+    position?: ToastPosition;
     padding?: "sm" | "md";
     onShowDetails?: (details: {
       id: string;
@@ -27,10 +29,20 @@
 
   const toasts = $derived(toastService.toasts);
 
-  // État réactif pour déterminer si un toast doit se fermer automatiquement
-  function shouldAutoClose(state: string): boolean {
-    return state === "success" || state === "info";
-  }
+  // Grouper les toasts par position
+  const toastsByPosition = $derived(() => {
+    const groups = new Map<ToastPosition, Toast[]>();
+
+    for (const toast of toasts) {
+      const pos = toast.position || position;
+      if (!groups.has(pos)) {
+        groups.set(pos, []);
+      }
+      groups.get(pos)!.push(toast);
+    }
+
+    return groups;
+  });
 
   function dismiss(toast: Toast) {
     toastService.dismiss(toast.id);
@@ -49,57 +61,59 @@
   }
 </script>
 
-<!-- Conteneur de toasts DaisyUI -->
-<div class="toast {position} z-1050">
-  {#each toasts as toast (toast.id)}
-    <div class="alert alert-{toast.state} max-w-sm {paddingClass} shadow-lg">
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2">
-          {#if toast.state === "loading"}
-            <LoaderCircle class="h-5 w-5 animate-spin" />
-          {/if}
+<!-- Conteneurs de toasts DaisyUI - un par position utilisée -->
+{#each Array.from(toastsByPosition().entries()) as [pos, positionToasts] (pos)}
+  <div class="toast {pos} z-1050">
+    {#each positionToasts as toast (toast.id)}
+      <div class="alert alert-{toast.state} max-w-sm {paddingClass} shadow-lg">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            {#if toast.state === "loading"}
+              <LoaderCircle class="h-5 w-5 animate-spin" />
+            {/if}
 
-          <span class="text-xs">{toast.message}</span>
-        </div>
+            <span class="text-xs">{toast.message}</span>
+          </div>
 
-        <div class="flex items-center gap-1">
-          <!-- Boutons d'action personnalisés -->
-          {#if toast.actions && toast.actions.length > 0}
-            {#each toast.actions as action}
+          <div class="flex items-center gap-1">
+            <!-- Boutons d'action personnalisés -->
+            {#if toast.actions && toast.actions.length > 0}
+              {#each toast.actions as action}
+                <button
+                  class="btn btn-sm btn-primary"
+                  onclick={() => handleActionClick(toast, action)}
+                >
+                  {action.label}
+                </button>
+              {/each}
+            {/if}
+
+            <!-- Bouton détails si disponible -->
+            {#if toast.details}
               <button
-                class="btn btn-sm btn-primary"
-                onclick={() => handleActionClick(toast, action)}
+                class="btn btn-ghost btn-xs btn-square"
+                onclick={() => showDetails(toast)}
+                title="Voir les détails"
+                aria-label="Voir les détails"
               >
-                {action.label}
+                <ChevronDown class="h-3 w-3" />
               </button>
-            {/each}
-          {/if}
+            {/if}
 
-          <!-- Bouton détails si disponible -->
-          {#if toast.details}
-            <button
-              class="btn btn-ghost btn-xs btn-square"
-              onclick={() => showDetails(toast)}
-              title="Voir les détails"
-              aria-label="Voir les détails"
-            >
-              <ChevronDown class="h-3 w-3" />
-            </button>
-          {/if}
-
-          <!-- Bouton de fermeture (erreurs et warnings uniquement) -->
-          {#if toast.state === "error" || toast.state === "warning" || !shouldAutoClose(toast.state)}
-            <button
-              class="btn btn-ghost btn-sm btn-circle absolute top-1 right-1"
-              onclick={() => dismiss(toast)}
-              title="Fermer"
-              aria-label="Fermer la notification"
-            >
-              <X class="h-4 w-4" />
-            </button>
-          {/if}
+            <!-- Bouton de fermeture (erreurs et warnings uniquement) -->
+            {#if toast.state === "error" || toast.state === "warning" || toast.state === "loading"}
+              <button
+                class="btn btn-ghost btn-sm btn-circle absolute top-1 right-1"
+                onclick={() => dismiss(toast)}
+                title="Fermer"
+                aria-label="Fermer la notification"
+              >
+                <X class="h-4 w-4" />
+              </button>
+            {/if}
+          </div>
         </div>
       </div>
-    </div>
-  {/each}
-</div>
+    {/each}
+  </div>
+{/each}
