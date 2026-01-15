@@ -79,7 +79,7 @@
   onClose={handleModalClose}
   {hasUnsavedChanges}
   fullscreenOnMobile={true}
-  maxWidth="xl"
+  maxWidth="lg"
   modalClass="h-10/12"
 >
   {#if isLoading}

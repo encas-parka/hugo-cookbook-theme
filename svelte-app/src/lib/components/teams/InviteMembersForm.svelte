@@ -103,6 +103,8 @@
   }
 </script>
 
+<!-- TODO : toast.service lorsqu'invitation réussi, (et fermeture du modal ?) -->
+
 <div class="space-y-4">
   <!-- Input email avec bouton d'ajout -->
   <div class="flex gap-2">

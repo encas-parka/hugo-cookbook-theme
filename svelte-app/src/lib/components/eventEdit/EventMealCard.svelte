@@ -284,7 +284,7 @@
           <TimeIcon size={16} />
           <div>{displayTime ? displayTime.toUpperCase() : "REPAS"}</div>
         </div>
-        <div class="text-base-content/60 flex items-center gap-1 text-sm">
+        <div class="text-base-content/80 flex items-center gap-1 font-bold">
           <Users class="h-3 w-3" />
           {meal.guests} pers.
         </div>

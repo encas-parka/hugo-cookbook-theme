@@ -722,7 +722,7 @@
       <div class="flex flex-col justify-start gap-4">
         <!-- Statut de l'événement -->
         <Fieldset legend="Statut de l'événement">
-          <div class="flex items-center justify-between gap-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <!-- Affichage du statut actuel -->
             <div class="flex items-center gap-2">
               {#if status === "confirmed"}

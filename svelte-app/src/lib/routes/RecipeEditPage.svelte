@@ -248,9 +248,7 @@
       if (currentLockedBy && currentLockedBy !== globalState.userId) {
         if (isExpired) {
           console.log("⏳ Verrou précédent expiré, reprise de contrôle...");
-          toastService.info("Verrou précédent expiré, vous prenez le contrôle");
         } else {
-          toastService.warning("Cette recette est déjà en cours d'édition");
           return false;
         }
       }
@@ -426,7 +424,7 @@
     <button
       onclick={save}
       disabled={!canEdit || isSaving || !isDirty}
-      class="btn btn-accent btn-sm"
+      class="btn btn-accent"
     >
       <Save class="h-4 w-4" />
       {isSaving ? "Sauvegarde..." : "Sauvegarder"}

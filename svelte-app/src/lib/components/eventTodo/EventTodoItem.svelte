@@ -118,7 +118,9 @@
         assignedTo: newAssigned.length > 0 ? newAssigned : null,
       });
       toastService.success(
-        isAssigned ? "Vous avez quitté la tâche" : "Vous avez rejoint la tâche",
+        !isAssigned
+          ? "Vous avez quitté la tâche"
+          : "Vous avez rejoint la tâche",
       );
     } catch (e) {
       toastService.error("Erreur assignation");

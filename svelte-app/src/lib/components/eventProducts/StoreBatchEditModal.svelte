@@ -141,6 +141,7 @@
           return result;
         }),
         {
+          // FIXIT : pas ces message: juste un success "batchupdate ..."
           loading: `Mise à jour du magasin pour ${selectedProductIds.length} produits...`,
           success: "Magasin mis à jour avec succès",
           error: "Erreur lors de la mise à jour du magasin",

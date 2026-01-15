@@ -103,7 +103,7 @@
           memberNames[userInfo.id] = userInfo.name || email;
           emailInput = "";
           toastService.success(
-            `Droit d'écriture ajouté pour ${userInfo.name || email}`,
+            `Permission d'édition ajouté pour ${userInfo.name || email}`,
           );
         }
       } else {

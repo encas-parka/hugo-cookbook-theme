@@ -32,7 +32,7 @@
     eventsStore,
     userId = "",
     eventId = "",
-    onStartEdit = () => {},
+    onStartEdit = () => {}, // TODO : il faudrait un releaseLock pour quand aucun modif n'a été effectivement effectué (qui desactiverait l'auto save tankaf)
   }: Props = $props();
 
   // État local - géré entièrement dans ce composant
@@ -70,6 +70,8 @@
   $effect(() => {
     if (!showInviteModal) {
       newContributors = [];
+    } else {
+      onStartEdit(); // TODO: relaseLock si pas de modif (close)
     }
   });
 
@@ -161,7 +163,7 @@
         }),
         {
           loading: "Envoi des invitations en cours...",
-          success: `${teamsToAdd.length} équipe(s) et ${emails.length} contributeur(s) invité(s) avec succès`,
+          success: `invitation envoyé avec succès`,
           error: "Erreur lors de l'envoi des invitations",
         },
       );
@@ -200,9 +202,9 @@
 <Fieldset legend="Participants">
   <!-- Équipe minimale -->
   <fieldset class="fieldset">
-    <legend class="legend">Equipe minimale</legend>
     {#if editingMinContrib}
-      <label class="input w-36">
+      <label class="input w-56">
+        <span class="label">Equipe minimale</span>
         <input
           type="number"
           bind:value={minContrib}
@@ -212,6 +214,7 @@
           min="1"
           defaultValue={1}
           class="grow"
+          id="min-contrib-input"
         />
       </label>
     {:else}
@@ -219,11 +222,15 @@
         class="btn btn-ghost justify-start"
         onclick={() => {
           editingMinContrib = true;
-          onStartEdit();
+          setTimeout(() => {
+            document.getElementById("min-contrib-input")?.focus();
+          }, 50);
         }}
         disabled={!canEdit}
       >
         <div class="flex items-center gap-4">
+          <span class="label">Equipe minimale</span>
+
           <span class="text-lg">
             {minContrib || 1}
           </span>

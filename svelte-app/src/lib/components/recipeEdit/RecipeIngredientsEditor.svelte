@@ -443,9 +443,22 @@
                     <div class="flex-1 space-y-2">
                       <!-- Nom + quantité & unit -->
                       <div class="flex flex-wrap gap-6">
-                        <span class="text-base font-medium"
-                          >{ingredient.name}</span
+                        <div
+                          class="item-start flex min-w-1/2 flex-1 justify-between"
                         >
+                          <div class="text-base font-medium">
+                            {ingredient.name}
+                          </div>
+                          <!-- Bouton supprimer -->
+                          <button
+                            class="btn btn-ghost btn-sm btn-square text-error"
+                            onclick={() => removeIngredient(ingredient.uuid)}
+                            title="Supprimer cet ingrédient"
+                            {disabled}
+                          >
+                            <Trash2 class="h-4 w-4" />
+                          </button>
+                        </div>
                         <div class="flex flex-wrap gap-2">
                           <label class="input input-sm w-44">
                             <span class="label text-base-content/80"
@@ -454,11 +467,11 @@
                             <div class="flex items-center gap-1">
                               <input
                                 type="number"
+                                class="text-center"
                                 bind:value={ingredient.originalQuantity}
                                 min="0"
                                 step="0.1"
                                 placeholder="0"
-                                class=""
                                 onblur={() => handleQuantityBlur(ingredient)}
                                 disabled={ingredient.originalUnit === "au goût"}
                               />
@@ -469,6 +482,7 @@
                             >
                             <select
                               bind:value={ingredient.originalUnit}
+                              class="text-center"
                               {disabled}
                               onblur={() => handleQuantityBlur(ingredient)}
                               onchange={() => {
@@ -511,16 +525,6 @@
                         />
                       </label>
                     </div>
-
-                    <!-- Bouton supprimer -->
-                    <button
-                      class="btn btn-ghost btn-sm btn-square text-error"
-                      onclick={() => removeIngredient(ingredient.uuid)}
-                      title="Supprimer cet ingrédient"
-                      {disabled}
-                    >
-                      <Trash2 class="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
               </div>

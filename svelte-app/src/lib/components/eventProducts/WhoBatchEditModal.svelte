@@ -127,8 +127,8 @@
           return result;
         }),
         {
-          loading: `Mise à jour des volontaires pour ${selectedProductIds.length} produits...`,
-          success: "Volontaires mis à jour avec succès",
+          loading: `Mise à jour des mandatés pour ${selectedProductIds.length} produits...`,
+          success: "Mise à jour effectué",
           error: "Erreur lors de la mise à jour des volontaires",
         },
       );

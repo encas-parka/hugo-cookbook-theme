@@ -273,26 +273,32 @@
       </div>
 
       <!-- Liste des produits -->
-      <div>
-        <h4 class="mb-2 font-medium">Produits concernés</h4>
-        <div class="text-base-content/70 mb-4 text-sm">
-          Les quantités manquantes du
-          <span class="badge badge-info badge-sm">
-            {formatDateWdDayMonthShort(productsStore.dateRange.start)}
-          </span>
-          au
-          <span class="badge badge-info badge-sm">
-            {formatDateWdDayMonthShort(productsStore.dateRange.end)}
-          </span>
-          pour les produits suivants seront déclarées "achetées"
+      {#if badgeItems.length > 0}
+        <div>
+          <h4 class="mb-2 font-medium">Produits concernés</h4>
+          <div class="text-base-content/70 mb-4 text-sm">
+            Les quantités manquantes du
+            <span class="badge badge-info badge-sm">
+              {formatDateWdDayMonthShort(productsStore.dateRange.start)}
+            </span>
+            au
+            <span class="badge badge-info badge-sm">
+              {formatDateWdDayMonthShort(productsStore.dateRange.end)}
+            </span>
+            pour les produits suivants seront déclarées "achetées"
+          </div>
+          <BtnGroupCheck
+            items={badgeItems}
+            onToggleItem={handleToggleProduct}
+            size="sm"
+            color="success"
+          />
         </div>
-        <BtnGroupCheck
-          items={badgeItems}
-          onToggleItem={handleToggleProduct}
-          size="sm"
-          color="success"
-        />
-      </div>
+      {:else}
+        <div class="alert alert-warning alert-soft font-medium">
+          Aucun besoin dans le groupe séléctionné
+        </div>
+      {/if}
     </div>
   </ModalContent>
 

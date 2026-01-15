@@ -326,7 +326,7 @@
 </LeftPanel>
 
 <div
-  class="space-y-6 pt-16 md:px-16 {globalState.isDesktop &&
+  class="space-y-6 pt-6 md:px-16 {globalState.isDesktop &&
     'ml-110 print:ml-0'} "
 >
   {#if isLoading}
@@ -343,9 +343,9 @@
       class="rounded-box border-base-300 bg-base-100 flex flex-wrap items-baseline justify-between gap-4 border-2 p-4"
     >
       <div class="flex w-full flex-wrap justify-between gap-6">
-        <h1 class="text-primary text-3xl font-bold text-shadow-md">
+        <div class="text-primary text-3xl font-black">
           {eventName}
-        </h1>
+        </div>
         <div class="text-base-content/70 text-base">
           {#if startDate && endDate}
             <Calendar class="inline h-4 w-4" />

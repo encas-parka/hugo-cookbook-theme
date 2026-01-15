@@ -274,7 +274,7 @@
 <div class="bg-base-200 min-h-screen">
   <!-- LeftPanel avec recherche et sommaire -->
   <div class="print:hidden">
-    <LeftPanel>
+    <LeftPanel width="120">
       <!-- Champ de recherche par ingrédient avec autocomplétion -->
       <div class="mt-16 mb-6">
         <h3 class="mb-3 text-lg font-semibold">Rechercher par ingrédient</h3>
@@ -399,7 +399,7 @@
     </LeftPanel>
   </div>
   <!-- Contenu principal -->
-  <div class="print:ml-0 {!globalState.isMobile && ' ml-110'}">
+  <div class="print:ml-0 {globalState.isDesktop && ' ml-110'}">
     <div class="mx-auto max-w-6xl px-1 py-8 md:px-4">
       <!-- En-tête de l'événement -->
       {#if loading}
