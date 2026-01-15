@@ -786,6 +786,7 @@ class ProductsStore {
         );
         const enriched = this.#enrichProduct(product, existingModel?.data); // ← Préserve les données locales
         enriched.isSynced = true; // ✅ SYNC : Les produits venant d'Appwrite sont sync
+        enriched.status = "active"; // 🔧 FIX : Réinitialiser le statut à "active" après sync réussi
 
         if (existingModel) {
           existingModel.update(enriched);

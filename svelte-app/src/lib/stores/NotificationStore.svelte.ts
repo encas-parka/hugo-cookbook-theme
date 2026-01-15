@@ -20,7 +20,10 @@ import { globalState } from "./GlobalState.svelte";
 interface UserNotifications {
   $id: string;
   userId: string;
-  notificationType: "event_access_granted" | "team_access_granted";
+  notificationType:
+    | "event_access_granted"
+    | "team_access_granted"
+    | "batch_products_update";
   targetCollection: string;
   targetDocumentId: string;
   createdAt: string;
@@ -59,11 +62,6 @@ class NotificationStore {
     // Vérifier si déjà configuré pour éviter les doublons
     if (this.#realtimeInitialized) {
       console.log("[NotificationStore] Déjà configuré, skip.");
-      return;
-    }
-
-    if (this.#isInitialized) {
-      console.log("[NotificationStore] Déjà initialisé, skip.");
       return;
     }
 
@@ -130,6 +128,12 @@ class NotificationStore {
                   "./ProductsStore.svelte"
                 );
                 await productsStore.syncFromAppwrite();
+
+                // Clear the isSyncing status after successful sync
+                productsStore.clearSyncStatus();
+                console.log(
+                  "[NotificationStore] ✅ Sync status cleared for batch update",
+                );
               }
 
               await this.#deleteNotification(payload.$id);

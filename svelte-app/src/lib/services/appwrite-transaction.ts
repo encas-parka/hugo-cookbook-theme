@@ -7,7 +7,6 @@ import { getAppwriteInstances, getAppwriteConfig } from "./appwrite";
 export interface GroupPurchaseProductData {
   productId: string;
   isSynced: boolean;
-  productData?: any; // Données complètes du produit si !isSynced
   missingQuantities: Array<{ q: number; u: string }>;
 }
 
@@ -21,24 +20,17 @@ export interface GroupPurchaseInvoiceData {
   purchaseDeliveryDate?: string | null; // Date de livraison pour les achats
 }
 
-export interface GroupPurchaseBatchData {
-  productsToCreate: Array<{
-    productId: string;
-    productData: any;
-  }>;
-  purchasesToCreate: Array<{
-    productId: string;
-    quantity: number;
-    unit: string;
-    status?: string;
-    notes?: string;
-    store?: string;
-    who?: string;
-    price?: number;
-    orderDate?: string | null;
-    deliveryDate?: string | null;
-    createdBy?: string | null;
-  }>;
+// 🔧 NOUVEAU : Données d'achat simplifiées pour la fonction cloud
+export interface GroupPurchaseData {
+  productId: string;
+  quantity: number;
+  unit: string;
+  status?: string;
+  notes?: string;
+  store?: string;
+  who?: string;
+  deliveryDate?: string | null;
+  createdBy?: string | null;
 }
 
 export interface GroupPurchaseResult {
@@ -72,39 +64,33 @@ function calculateRequiredOperations(
   productsData: GroupPurchaseProductData[],
   invoiceData: GroupPurchaseInvoiceData,
 ): number {
-  const productsOperations = productsData.reduce((total, product) => {
-    const productOperations = product.isSynced ? 0 : 1; // Création produit si non sync
-    const purchaseOperations = product.missingQuantities.length; // Achats
-    return total + productOperations + purchaseOperations;
+  // 🔧 SIMPLIFICATION : Plus d'upsert de produits, uniquement les purchases
+  const purchasesOperations = productsData.reduce((total, product) => {
+    return total + product.missingQuantities.length; // Achats uniquement
   }, 0);
 
   // Ajouter 1 opération pour l'expense globale si invoiceTotal est défini
   const expenseOperation = invoiceData.invoiceTotal ? 1 : 0;
 
-  return productsOperations + expenseOperation;
+  return purchasesOperations + expenseOperation;
 }
 
 /**
  * Prépare les données d'un lot pour l'envoi à la fonction cloud
  * @param productsBatch - Lot de produits à traiter
  * @param invoiceData - Données de la facture
+ * @param mainId - ID de l'événement principal
  * @returns Données formatées pour la fonction cloud
  */
 async function prepareBatchData(
   productsBatch: GroupPurchaseProductData[],
   invoiceData: GroupPurchaseInvoiceData,
+  mainId: string,
 ): Promise<{
   mainId: string;
-  batchData: GroupPurchaseBatchData;
+  purchasesData: GroupPurchaseData[];
   invoiceData: GroupPurchaseInvoiceData;
 }> {
-  const productsToCreate = productsBatch
-    .filter((product) => !product.isSynced)
-    .map((product) => ({
-      productId: product.productId,
-      productData: product.productData,
-    }));
-
   // Récupérer l'utilisateur connecté
   let currentUserId: string | null = null;
   try {
@@ -127,7 +113,8 @@ async function prepareBatchData(
     deliveryDate = new Date().toISOString(); // Conserve l'heure complète
   }
 
-  const purchasesToCreate = productsBatch.flatMap((product) =>
+  // 🔧 SIMPLIFICATION : Préparer uniquement les purchases (plus d'upsert de produits)
+  const purchasesData: GroupPurchaseData[] = productsBatch.flatMap((product) =>
     product.missingQuantities.map((quantity) => ({
       productId: product.productId,
       quantity: quantity.q,
@@ -136,22 +123,16 @@ async function prepareBatchData(
       notes: invoiceData.notes || "",
       store: invoiceData.store || "",
       who: invoiceData.who || undefined,
-      price: undefined,
-      orderDate: null,
+      price: undefined, // Gardé pour cohérence (sera null dans Appwrite)
+      orderDate: null, // Sera généré par la fonction cloud
       deliveryDate,
       createdBy: currentUserId,
     })),
   );
 
-  // Récupérer le mainId depuis le premier produit
-  const mainId = productsBatch[0]?.productData?.mainId;
-
   return {
     mainId,
-    batchData: {
-      productsToCreate,
-      purchasesToCreate,
-    },
+    purchasesData,
     invoiceData,
   };
 }
@@ -213,25 +194,25 @@ export async function createGroupPurchaseWithSync(
     // Un seul lot suffit
     batches.push(productsData);
   } else {
-    // Diviser en lots de 100 opérations maximum
+    // 🔧 SIMPLIFICATION : Diviser en lots de 100 opérations maximum (purchases uniquement)
     let currentBatch: GroupPurchaseProductData[] = [];
     let currentBatchOperations = 0;
 
     for (const product of productsData) {
-      const productOperations =
-        (product.isSynced ? 0 : 1) + product.missingQuantities.length;
+      // Plus de création de produits, uniquement les purchases
+      const purchaseOperations = product.missingQuantities.length;
 
-      if (currentBatchOperations + productOperations > maxOperationsPerBatch) {
+      if (currentBatchOperations + purchaseOperations > maxOperationsPerBatch) {
         // Démarrer un nouveau lot
         if (currentBatch.length > 0) {
           batches.push(currentBatch);
         }
         currentBatch = [product];
-        currentBatchOperations = productOperations;
+        currentBatchOperations = purchaseOperations;
       } else {
         // Ajouter au lot actuel
         currentBatch.push(product);
-        currentBatchOperations += productOperations;
+        currentBatchOperations += purchaseOperations;
       }
     }
 
@@ -259,7 +240,7 @@ export async function createGroupPurchaseWithSync(
     );
 
     try {
-      const batchData = await prepareBatchData(batch, invoiceData);
+      const batchData = await prepareBatchData(batch, invoiceData, mainId);
 
       // 🔄 RETRY LOGIC
       const result = await executeWithRetry(
@@ -331,7 +312,7 @@ export async function createGroupPurchaseWithSync(
  */
 async function executeGroupPurchaseBatch(batchData: {
   mainId: string;
-  batchData: GroupPurchaseBatchData;
+  purchasesData: GroupPurchaseData[];
   invoiceData: GroupPurchaseInvoiceData;
 }): Promise<GroupPurchaseResult> {
   try {
@@ -344,7 +325,7 @@ async function executeGroupPurchaseBatch(batchData: {
     };
 
     console.log(
-      `[Appwrite Interactions] Exécution du lot: ${batchData.batchData.productsToCreate.length} produits à créer, ${batchData.batchData.purchasesToCreate.length} achats créer`,
+      `[Appwrite Interactions] Exécution du lot: ${batchData.purchasesData.length} achats à créer`,
     );
 
     const execution = await functions.createExecution(
@@ -363,7 +344,7 @@ async function executeGroupPurchaseBatch(batchData: {
 
     if (result.success) {
       console.log(
-        `[Appwrite Interactions] Lot exécuté avec succès: ${result.productsCreated} produits créés, ${result.purchasesCreated} achats créés`,
+        `[Appwrite Interactions] Lot exécuté avec succès: ${result.purchasesCreated} achats créés`,
       );
     } else {
       console.error(`[Appwrite Interactions] Lot échoué:`, result.error);
