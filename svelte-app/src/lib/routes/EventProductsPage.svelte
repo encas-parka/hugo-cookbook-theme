@@ -343,7 +343,9 @@
       class="rounded-box border-base-300 bg-base-100 flex flex-wrap items-baseline justify-between gap-4 border-2 p-4"
     >
       <div class="flex w-full flex-wrap justify-between gap-6">
-        <h1 class="text-primary text-3xl font-bold">{eventName}</h1>
+        <h1 class="text-primary text-3xl font-bold text-shadow-md">
+          {eventName}
+        </h1>
         <div class="text-base-content/70 text-base">
           {#if startDate && endDate}
             <Calendar class="inline h-4 w-4" />

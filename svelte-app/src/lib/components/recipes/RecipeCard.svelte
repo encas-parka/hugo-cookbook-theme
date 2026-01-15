@@ -24,7 +24,8 @@
 </script>
 
 <div
-  class="card bg-base-100 cursor-pointer p-4 shadow-sm transition-shadow hover:shadow-md"
+  class="card bg-base-100 cursor-pointer p-4 shadow-sm transition-shadow hover:shadow-md {recipe.auteur ===
+    globalState.userName && 'border-accent/60 border-l-3'}"
   onclick={handleClick}
   role="button"
   tabindex="0"
@@ -91,7 +92,11 @@
             </span>
           {/if}
           {#if recipe.auteur}
-            <span class="text-base-content/70">de {recipe.auteur}</span>
+            <span
+              class={recipe.auteur === globalState.userName
+                ? "text-accent font-semibold"
+                : "text-base-content/70 "}>de {recipe.auteur}</span
+            >
           {/if}
         </div>
         <div class="text-base-content/60 text-sm">

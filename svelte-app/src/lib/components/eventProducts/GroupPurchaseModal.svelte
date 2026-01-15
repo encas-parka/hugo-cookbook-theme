@@ -92,7 +92,6 @@
     const productsData: Array<{
       productId: string;
       isSynced: boolean;
-      productData: any;
       missingQuantities: Array<{ q: number; u: string }>;
     }> = [];
 
@@ -105,7 +104,6 @@
       productsData.push({
         productId: product.$id,
         isSynced: product.isSynced,
-        productData: product,
         missingQuantities,
       });
     }
@@ -144,6 +142,10 @@
                 "Erreur lors de la création de l'achat groupé",
             );
           }
+
+          // Clear sync status on success (fallback in case notification doesn't arrive)
+          productsStore.clearSyncStatus();
+          console.log("[GroupPurchaseModal] ✅ Sync status cleared on success");
 
           onSuccess?.();
           return batchResult;

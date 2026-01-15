@@ -119,6 +119,10 @@
             throw new Error(result.error || "Erreur lors de la mise à jour");
           }
 
+          // Clear sync status on success (fallback in case notification doesn't arrive)
+          productsStore.clearSyncStatus();
+          console.log("[WhoEditModal] ✅ Sync status cleared on success");
+
           onSuccess?.(result);
           return result;
         }),

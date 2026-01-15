@@ -43,6 +43,7 @@
   } from "$lib/utils/date-helpers";
   import { calculateDateDisplayInfo } from "$lib/utils/dateRange";
   import IconSprite from "../ui/IconSprite.svelte";
+  import { fade } from "svelte/transition";
 
   // Récupérer les icônes de statut depuis le parent pour éviter la duplication
   const statusIcons = {
@@ -108,6 +109,14 @@
     !productsStore.dateStore.isEventPassed &&
       !productsStore.dateStore.hasPastDatesInRange,
   );
+
+  const groupHeadClass = $derived(
+    filters.completionStatus === "completed"
+      ? "bg-emerald-800"
+      : filters.completionStatus === "incomplete"
+        ? "bg-amber-800"
+        : "bg-primary",
+  );
 </script>
 
 <div class="space-y-4 rounded-lg print:hidden">
@@ -117,12 +126,14 @@
       <!-- Header de groupe sticky -->
       {@const groupTypeInfo = getProductTypeInfo(groupKey)}
       <div
-        class="bg-primary @container sticky {globalState.isMobile
+        class="{groupHeadClass} @container sticky {globalState.isMobile
           ? 'top-11'
           : 'top-16 rounded-lg'} z-2 flex flex-wrap items-center justify-between px-4 py-2 shadow-md @md:flex-nowrap print:shadow-none"
       >
         <!-- Nom du groupe -->
-        <div class="flex items-center gap-2 font-bold md:text-lg @md:min-w-48">
+        <div
+          class="flex items-center gap-2 font-bold text-shadow-md/20 md:text-lg @md:min-w-48"
+        >
           {#if filters.groupBy === "store"}
             <div class="text-primary-content flex items-center gap-2">
               <Store class="size-4 md:size-5" />
@@ -140,7 +151,7 @@
         </div>
 
         {#if !globalState.isMobile}
-          <div class="text-primary-content px-2">
+          <div class="text-primary-content px-2 text-shadow-md">
             {#if productsStore.dateStore.isFullRange && productsStore.dateStore.start !== productsStore.dateStore.end}
               <div class="font-semibold">Sur toute la période</div>
             {:else if productsStore.dateStore.start !== productsStore.dateStore.end}
@@ -265,6 +276,7 @@
             'border-base-300 border shadow'} {product.status === 'isSyncing'
             ? 'border-accent bg-accent/30 animate-pulse border-2'
             : ''}"
+          out:fade
         >
           <div class="card-body p-2">
             <!-- Première ligne: Titre/Type à gauche, Store/Who à droite -->
@@ -606,7 +618,7 @@
                     {#each purchasesBadges as purchase, index (index)}
                       {@const IconComponent = statusIcons[purchase.icon]}
                       <div
-                        class="badge badge-outline badge-lg flex flex-col items-center gap-1 {purchase.badgeClass}"
+                        class="badge badge-outline badge-lg flex h-auto flex-col items-center gap-1 {purchase.badgeClass}"
                       >
                         <div class="flex items-center gap-1">
                           <IconComponent class="h-4 w-4" />
