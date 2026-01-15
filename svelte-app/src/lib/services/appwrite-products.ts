@@ -1443,42 +1443,42 @@ export async function loadMainEventData(
   }
 }
 
-/**
- * @deprecated : no usage. appwrite-event for this.
- * Crée un document Main dans Appwrite
- */
-export async function createMainDocument(
-  mainId: string,
-  hugoContentHash: string,
-  allDates: string[],
-  name: string,
-): Promise<void> {
-  try {
-    console.log(`[Appwrite Interactions] Création du Main document: ${mainId}`);
+// /**
+//  * @deprecated : no usage. appwrite-event for this.
+//  * Crée un document Main dans Appwrite
+//  */
+// export async function createMainDocument(
+//   mainId: string,
+//   hugoContentHash: string,
+//   allDates: string[],
+//   name: string,
+// ): Promise<void> {
+//   try {
+//     console.log(`[Appwrite Interactions] Création du Main document: ${mainId}`);
 
-    const { tables, config, account } = await getAppwriteInstances();
-    const user = await account.get();
+//     const { tables, config, account } = await getAppwriteInstances();
+//     const user = await account.get();
 
-    await tables.createRow(config.databaseId, config.collections.main, mainId, {
-      name: name,
-      createdBy: user.$id,
-      isActive: true,
-      originalDataHash: hugoContentHash,
-      allDates: allDates,
-      status: "active",
-      dateStart: allDates[0] || null,
-      dateEnd: allDates[allDates.length - 1] || null,
-    });
+//     await tables.createRow(config.databaseId, config.collections.main, mainId, {
+//       name: name,
+//       createdBy: user.$id,
+//       isActive: true,
+//       originalDataHash: hugoContentHash,
+//       allDates: allDates,
+//       status: "active",
+//       dateStart: allDates[0] || null,
+//       dateEnd: allDates[allDates.length - 1] || null,
+//     });
 
-    console.log(`[Appwrite Interactions] Main document créé: ${mainId}`);
-  } catch (error) {
-    console.error(
-      `[Appwrite Interactions] Erreur création Main document:`,
-      error,
-    );
-    throw error;
-  }
-}
+//     console.log(`[Appwrite Interactions] Main document créé: ${mainId}`);
+//   } catch (error) {
+//     console.error(
+//       `[Appwrite Interactions] Erreur création Main document:`,
+//       error,
+//     );
+//     throw error;
+//   }
+// }
 
 // =============================================================================
 // SERVICES DE MODIFICATION GROUPÉE
@@ -1509,7 +1509,7 @@ export async function batchUpdateProductsOptimized(
   updateData: { names?: string[] } | StoreInfo,
 ): Promise<BatchUpdateResult> {
   try {
-    const { functions, config } = await getAppwriteInstances();
+    const { functions, config, account } = await getAppwriteInstances();
     const mainId = productsStore.currentMainId;
 
     if (!mainId) {
@@ -1517,6 +1517,9 @@ export async function batchUpdateProductsOptimized(
         "No current event - cannot determine mainId for permissions",
       );
     }
+
+    // ✅ Récupérer l'utilisateur courant
+    const user = await account.get();
 
     // 1. Préparer les données de mise à jour
     const batchUpdateData = prepareBatchUpdateData(updateType, updateData);
@@ -1537,7 +1540,10 @@ export async function batchUpdateProductsOptimized(
     // 3. Envoyer à la cloud function avec les rows complètes
     const payload = {
       operation: "batchUpdateProductsOptimized",
-      data: { rows }, // ✅ Juste les rows, rien d'autre !
+      data: {
+        rows,
+        fromUserId: user.$id,
+      },
     };
 
     // 🔄 RETRY LOGIC
@@ -1599,187 +1605,6 @@ export async function batchUpdateProductsOptimized(
       timestamp: new Date().toISOString(),
     };
   }
-}
-
-/**
- * Met à jour plusieurs produits en utilisant une transaction Appwrite
- * @param data - Données de la mise à jour groupée
- * @returns Promise<BatchUpdateResult> - Résultat de l'opération
- * @deprecated Utiliser batchUpdateProductsOptimized à la place
- */
-export async function batchUpdateProducts(
-  data: BatchUpdateData,
-): Promise<BatchUpdateResult> {
-  try {
-    const { functions, config } = await getAppwriteInstances();
-
-    const payload = {
-      operation: "batchUpdateProducts",
-      data: data,
-    };
-
-    console.log(
-      `[Appwrite Interactions] Lancement mise à jour groupée: ${data.productIds.length} produits, type: ${data.updateType}`,
-    );
-
-    // 🔄 RETRY LOGIC for the Appwrite function execution
-    const execution = await executeWithRetry<Models.Execution>(
-      () =>
-        functions.createExecution(
-          config.functions.batchUpdate,
-          JSON.stringify(payload),
-          false, // async = false pour attendre le résultat
-          "/",
-          ExecutionMethod.POST,
-        ),
-      {
-        operationName: `batchUpdateProducts (${data.productIds.length} products, type: ${data.updateType})`,
-        maxAutoRetries: 1,
-        autoRetryDelay: 2000,
-      },
-    );
-
-    if (!execution) {
-      // This case should ideally be handled by executeWithRetry throwing an error
-      // if all retries fail, but added for explicit safety.
-      throw new Error(
-        "Opération annulée ou échouée après tentatives de mise à jour groupée",
-      );
-    }
-
-    if (execution.status !== "completed") {
-      throw new Error(
-        `Exécution échouée avec statut: ${execution.status}. Erreur: ${(execution as any).stderr || execution.responseBody}`,
-      );
-    }
-
-    const result = JSON.parse(execution.responseBody) as BatchUpdateResult;
-
-    if (result.success) {
-      console.log(
-        `[Appwrite Interactions] Mise à jour groupée réussie: ${result.updatedCount} produits mis à jour`,
-      );
-    } else {
-      console.error(
-        `[Appwrite Interactions] Mise à jour groupée échouée:`,
-        result.error,
-      );
-    }
-
-    return result;
-  } catch (error) {
-    console.error("[Appwrite Interactions] Erreur mise à jour groupée:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Erreur inconnue";
-
-    return {
-      success: false,
-      updatedCount: data.productIds.length,
-      updateType: data.updateType,
-      error: errorMessage,
-      timestamp: new Date().toISOString(),
-    };
-  }
-}
-
-/**
- * Applique un store à plusieurs produits
- * @param productIds - Liste des IDs des produits à modifier
- * @param products - Liste complète des produits pour gérer les créations
- * @param storeInfo - Informations du magasin
- * @param options - Options de la mise à jour
- * @returns Promise<BatchUpdateResult>
- * @deprecated Utiliser batchUpdateStoreOptimized à la place
- */
-export async function batchUpdateStore(
-  productIds: string[],
-  products: any[],
-  storeInfo: StoreInfo,
-  options?: BatchUpdateOptions,
-): Promise<BatchUpdateResult> {
-  return batchUpdateProducts({
-    productIds,
-    products,
-    updateType: "store",
-    updateData: storeInfo,
-    options,
-  });
-}
-
-/**
- * Applique des volontaires à plusieurs produits
- * @param productIds - Liste des IDs des produits à modifier
- * @param products - Liste complète des produits pour gérer les créations
- * @param names - Liste des noms de volontaires
- * @param mode - Mode d'application ('replace' ou 'add')
- * @returns Promise<BatchUpdateResult>
- */
-export async function batchUpdateWho(
-  productIds: string[],
-  products: any[],
-  names: string[],
-  mode: "replace" | "add" = "replace",
-): Promise<BatchUpdateResult> {
-  return batchUpdateProducts({
-    productIds,
-    products,
-    updateType: "who",
-    updateData: { names },
-    options: { mode },
-  });
-}
-
-/**
- * Valide les données avant une mise à jour groupée
- * @param data - Données à valider
- * @returns true si valide, lève une erreur sinon
- */
-function validateBatchUpdateData(data: BatchUpdateData): boolean {
-  if (!data.productIds?.length) {
-    throw new Error("La liste des produits est vide");
-  }
-
-  if (data.productIds.length > 100) {
-    throw new Error("Trop de produits. Maximum 100 opérations par transaction");
-  }
-
-  if (
-    !data.updateType ||
-    !["store", "who", "stock"].includes(data.updateType)
-  ) {
-    throw new Error("Type de mise à jour invalide");
-  }
-
-  if (!data.updateData) {
-    throw new Error("Données de mise à jour manquantes");
-  }
-
-  // Validation spécifique par type
-  switch (data.updateType) {
-    case "store":
-      if (!data.updateData.storeName?.trim()) {
-        throw new Error("Le nom du magasin est requis");
-      }
-      break;
-    case "who":
-      if (
-        !Array.isArray(data.updateData.names) ||
-        !data.updateData.names.length
-      ) {
-        throw new Error("La liste des volontaires est vide");
-      }
-      break;
-    case "stock":
-      if (
-        typeof data.updateData.quantity !== "number" ||
-        !data.updateData.unit?.trim()
-      ) {
-        throw new Error("La quantité et l'unité sont requises pour le stock");
-      }
-      break;
-  }
-
-  return true;
 }
 
 /**
@@ -1976,7 +1801,6 @@ export async function loadOrphanPurchases(
 
 export default {
   // Services main
-  createMainDocument,
 
   // Services realtime
   subscribeToRealtime,
@@ -1990,9 +1814,6 @@ export default {
   removeTotalOverride,
 
   // Services produits - modification groupée
-  batchUpdateProducts,
-  batchUpdateStore,
-  batchUpdateWho,
 
   // Services achats
   createPurchase,

@@ -61,20 +61,6 @@
     })),
   );
 
-  const storeSuggestions = $derived(
-    productsStore.uniqueStores.map((s) => ({
-      id: s,
-      label: s,
-    })),
-  );
-
-  const whoSuggestions = $derived(
-    productsStore.uniqueWho.map((w) => ({
-      id: w,
-      label: w,
-    })),
-  );
-
   async function handleSubmit(keepOpen: boolean = false) {
     if (!isFormValid || loading) return;
 
