@@ -144,7 +144,7 @@
       <!-- Bouton Éditer (réservé aux utilisateurs avec droits d'écriture) -->
       {#if (recipeDetails.permissionWrite && globalState.userId && recipeDetails.permissionWrite.includes(globalState.userId)) || (recipeDetails.createdBy && recipeDetails.createdBy === globalState.userId)}
         <button
-          class="btn btn-primary btn-sm"
+          class="btn btn-primary"
           onclick={() => navigate(`/recipe/${recipeDetails?.$id}/edit`)}
         >
           <PencilIcon size={18} />
