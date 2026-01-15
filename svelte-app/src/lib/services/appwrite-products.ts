@@ -76,6 +76,7 @@ import type {
 import { toastService } from "./toast.service.svelte";
 import { executeWithRetry } from "../utils/retry.utils";
 import { eventsStore } from "../stores/EventsStore.svelte";
+import { productsStore } from "../stores/ProductsStore.svelte";
 import type { EnrichedEvent } from "../types/events.d";
 
 // =============================================================================
@@ -159,6 +160,70 @@ export function getEventPermissionsFromEvent(
   );
 
   return permissions;
+}
+
+// =============================================================================
+// HELPERS PRÉPARATION ROWS POUR BATCH OPERATIONS
+// =============================================================================
+
+/**
+ * Prépare les données de mise à jour selon le type
+ * @param updateType - Type de mise à jour ("who" | "store")
+ * @param updateData - Données brutes de mise à jour
+ * @returns Données formatées pour le produit
+ */
+function prepareBatchUpdateData(
+  updateType: "who" | "store",
+  updateData: { names?: string[] } | StoreInfo,
+): Partial<EnrichedProduct> {
+  switch (updateType) {
+    case "store":
+      // updateData: StoreInfo → JSON.stringify pour store
+      return { store: JSON.stringify(updateData) };
+    case "who":
+      // updateData: { names: string[] }
+      return { who: updateData.names };
+    default:
+      throw new Error(`Unsupported update type: ${updateType}`);
+  }
+}
+
+/**
+ * Prépare une row complète pour upsert avec permissions
+ * @param product - Produit enrichi
+ * @param updateData - Données de mise à jour à appliquer
+ * @param mainId - ID de l'événement pour les permissions Label
+ * @returns Row complète pour Appwrite
+ */
+function prepareProductRow(
+  product: EnrichedProduct,
+  updateData: Partial<EnrichedProduct>,
+  mainId: string,
+) {
+  return {
+    $id: product.$id,
+    // Champs de base du produit
+    productHugoUuid: product.productHugoUuid,
+    productName: product.productName,
+    mainId: product.mainId,
+    status: product.status || null,
+    // Champs modifiables (soit l'update, soit la valeur actuelle)
+    who: updateData.who !== undefined ? updateData.who : product.who,
+    store: updateData.store !== undefined ? updateData.store : product.store,
+    stockReel: product.stockReel || null,
+    previousNames: product.previousNames || null,
+    isMerged: product.isMerged || false,
+    mergedFrom: product.mergedFrom || null,
+    mergeDate: product.mergeDate || null,
+    mergeReason: product.mergeReason || null,
+    mergedInto: product.mergedInto || null,
+    totalNeededOverride: product.totalNeededOverride || null,
+    // Permissions Label (read + update)
+    $permissions: [
+      Permission.read(Role.label(mainId)),
+      Permission.update(Role.label(mainId)),
+    ],
+  };
 }
 
 // =============================================================================
@@ -1419,19 +1484,6 @@ export async function createMainDocument(
 // SERVICES DE MODIFICATION GROUPÉE
 // =============================================================================
 
-export interface BatchUpdateOptions {
-  mode?: "replace" | "add"; // Pour les champs de type tableau (who, etc.)
-  dryRun?: boolean; // Simuler l'opération sans appliquer
-}
-
-export interface BatchUpdateData {
-  productIds: string[];
-  products: any[]; // Produits complets pour créer ceux qui n'existent pas
-  updateType: "store" | "who" | "stock";
-  updateData: any;
-  options?: BatchUpdateOptions;
-}
-
 export interface BatchUpdateResult {
   success: boolean;
   transactionId?: string;
@@ -1442,9 +1494,118 @@ export interface BatchUpdateResult {
 }
 
 /**
+ * Version optimisée utilisant upsertRows côté serveur
+ * Les rows complètes sont préparées côté client avec les permissions
+ * @param productIds - IDs des produits à modifier
+ * @param products - Produits complets pour reconstruire les rows
+ * @param updateType - Type de mise à jour ("who" | "store")
+ * @param updateData - Données de mise à jour
+ * @returns Promise<BatchUpdateResult> - Résultat de l'opération
+ */
+export async function batchUpdateProductsOptimized(
+  productIds: string[],
+  products: EnrichedProduct[],
+  updateType: "who" | "store",
+  updateData: { names?: string[] } | StoreInfo,
+): Promise<BatchUpdateResult> {
+  try {
+    const { functions, config } = await getAppwriteInstances();
+    const mainId = productsStore.currentMainId;
+
+    if (!mainId) {
+      throw new Error(
+        "No current event - cannot determine mainId for permissions",
+      );
+    }
+
+    // 1. Préparer les données de mise à jour
+    const batchUpdateData = prepareBatchUpdateData(updateType, updateData);
+
+    // 2. Construire les rows complètes avec permissions
+    const rows = productIds.map((productId) => {
+      const product = products.find((p) => p.$id === productId);
+      if (!product) {
+        throw new Error(`Product ${productId} not found in products data`);
+      }
+      return prepareProductRow(product, batchUpdateData, mainId);
+    });
+
+    console.log(
+      `[Appwrite Interactions] Lancement mise à jour groupée OPTIMISÉE: ${rows.length} produits, type: ${updateType}`,
+    );
+
+    // 3. Envoyer à la cloud function avec les rows complètes
+    const payload = {
+      operation: "batchUpdateProductsOptimized",
+      data: { rows }, // ✅ Juste les rows, rien d'autre !
+    };
+
+    // 🔄 RETRY LOGIC
+    const execution = await executeWithRetry<Models.Execution>(
+      () =>
+        functions.createExecution(
+          config.functions.batchUpdate,
+          JSON.stringify(payload),
+          false, // async = false pour attendre le résultat
+          "/",
+          ExecutionMethod.POST,
+        ),
+      {
+        operationName: `batchUpdateProductsOptimized (${rows.length} products, type: ${updateType})`,
+        maxAutoRetries: 1,
+        autoRetryDelay: 2000,
+      },
+    );
+
+    if (!execution) {
+      throw new Error(
+        "Opération annulée ou échouée après tentatives de mise à jour groupée optimisée",
+      );
+    }
+
+    if (execution.status !== "completed") {
+      throw new Error(
+        `Exécution échouée avec statut: ${execution.status}. Erreur: ${(execution as any).stderr || execution.responseBody}`,
+      );
+    }
+
+    const result = JSON.parse(execution.responseBody) as BatchUpdateResult;
+
+    if (result.success) {
+      console.log(
+        `[Appwrite Interactions] Mise à jour groupée optimisée réussie: ${result.updatedCount} produits mis à jour`,
+      );
+    } else {
+      console.error(
+        `[Appwrite Interactions] Mise à jour groupée optimisée échouée:`,
+        result.error,
+      );
+    }
+
+    return result;
+  } catch (error) {
+    console.error(
+      "[Appwrite Interactions] Erreur mise à jour groupée optimisée:",
+      error,
+    );
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
+
+    return {
+      success: false,
+      updatedCount: productIds.length,
+      updateType: updateType,
+      error: errorMessage,
+      timestamp: new Date().toISOString(),
+    };
+  }
+}
+
+/**
  * Met à jour plusieurs produits en utilisant une transaction Appwrite
  * @param data - Données de la mise à jour groupée
  * @returns Promise<BatchUpdateResult> - Résultat de l'opération
+ * @deprecated Utiliser batchUpdateProductsOptimized à la place
  */
 export async function batchUpdateProducts(
   data: BatchUpdateData,
@@ -1528,6 +1689,7 @@ export async function batchUpdateProducts(
  * @param storeInfo - Informations du magasin
  * @param options - Options de la mise à jour
  * @returns Promise<BatchUpdateResult>
+ * @deprecated Utiliser batchUpdateStoreOptimized à la place
  */
 export async function batchUpdateStore(
   productIds: string[],

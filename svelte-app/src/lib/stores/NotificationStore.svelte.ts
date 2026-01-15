@@ -76,10 +76,16 @@ class NotificationStore {
         [`databases.${DB_ID}.collections.user_notifications.documents`],
         async (response: any) => {
           const payload = response.payload as UserNotifications;
-          const currentUserId = globalState.userId;
+          const currentMainId = globalState.currentMainId;
 
-          // Filtrer : uniquement pour moi
-          if (!currentUserId || payload.userId !== currentUserId) return;
+          // Filtrer : uniquement les notifications avec permissions Label (userId = 'broadcast')
+          // Les notifications avec userId spécifique sont legacy
+          if (
+            payload.userId !== "broadcast" &&
+            payload.userId !== globalState.userId
+          ) {
+            return;
+          }
 
           // Uniquement les nouvelles notifications (create)
           if (response.events.some((e: string) => e.includes(".create"))) {
@@ -109,6 +115,23 @@ class NotificationStore {
                 "./NativeTeamsStore.svelte"
               );
               await teamsStore.reload();
+              await this.#deleteNotification(payload.$id);
+            } else if (payload.notificationType === "batch_products_update") {
+              const targetMainId = payload.targetDocumentId;
+
+              // Seulement si je suis actuellement sur cet événement
+              if (currentMainId === targetMainId) {
+                console.log(
+                  "[NotificationStore] 🔔 Batch data update for current event:",
+                  targetMainId,
+                );
+
+                const { productsStore } = await import(
+                  "./ProductsStore.svelte"
+                );
+                await productsStore.syncFromAppwrite();
+              }
+
               await this.#deleteNotification(payload.$id);
             }
           }

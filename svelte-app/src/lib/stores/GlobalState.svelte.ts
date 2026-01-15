@@ -190,6 +190,21 @@ class GlobalState {
   }
 
   // =============================================================================
+  // CURRENT EVENT CONTEXT
+  // =============================================================================
+
+  #currentMainId = $state<string | null>(null);
+
+  get currentMainId() {
+    return this.#currentMainId;
+  }
+
+  setCurrentMainId(mainId: string | null) {
+    this.#currentMainId = mainId;
+    console.log(`[GlobalState] currentMainId mis à jour: ${mainId}`);
+  }
+
+  // =============================================================================
   // UI STATE
   // =============================================================================
 

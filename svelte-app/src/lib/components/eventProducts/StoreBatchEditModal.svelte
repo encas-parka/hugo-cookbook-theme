@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Store, X, Check, TriangleAlert } from "@lucide/svelte";
-  import { batchUpdateStore } from "$lib/services/appwrite-products";
+  import { batchUpdateProductsOptimized } from "$lib/services/appwrite-products";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
@@ -122,21 +122,24 @@
     // Utiliser track() avec des messages statiques pour suivre l'opération après la fermeture du modal
     try {
       const updateResult = await toastService.track(
-        batchUpdateStore(selectedProductIds, selectedProducts, storeInfo).then(
-          (result) => {
-            // Ajouter les détails dans la console pour le débogage
-            console.log(
-              `[StoreEditModal] Mise à jour groupée: ${result.success ? "succès" : "échec"}, ${result.updatedCount} produits modifiés`,
-            );
+        batchUpdateProductsOptimized(
+          selectedProductIds,
+          selectedProducts,
+          "store",
+          storeInfo,
+        ).then((result) => {
+          // Ajouter les détails dans la console pour le débogage
+          console.log(
+            `[StoreEditModal] Mise à jour groupée: ${result.success ? "succès" : "échec"}, ${result.updatedCount} produits modifiés`,
+          );
 
-            // Vérifier le succès et gérer les erreurs
-            if (!result.success) {
-              throw new Error(result.error || "Erreur lors de la mise à jour");
-            }
+          // Vérifier le succès et gérer les erreurs
+          if (!result.success) {
+            throw new Error(result.error || "Erreur lors de la mise à jour");
+          }
 
-            return result;
-          },
-        ),
+          return result;
+        }),
         {
           loading: `Mise à jour du magasin pour ${selectedProductIds.length} produits...`,
           success: "Magasin mis à jour avec succès",

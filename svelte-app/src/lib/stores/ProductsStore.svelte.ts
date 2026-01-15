@@ -377,11 +377,45 @@ class ProductsStore {
     return [...new Set(storeNames)] as string[];
   });
 
-  uniqueWho = $derived.by(() => {
+  /**
+   * Liste des noms des contributeurs de l'événement (contributors[].name)
+   * Filtre uniquement les contributeurs "accepted" avec un name défini
+   * @public Utilisé par VolunteerManager pour la sélection des volontaires
+   */
+  eventContributors = $derived.by(() => {
+    if (!this.#currentEventId) return [];
+
+    const event = eventsStore.getEventById(this.#currentEventId);
+    if (!event?.contributors) return [];
+
+    return event.contributors
+      .filter((c) => c.status === "accepted" && c.name?.trim())
+      .map((c) => c.name!.trim())
+      .sort();
+  });
+
+  /**
+   * Liste des personnes déjà utilisées dans les produits/purchases
+   * Conserve la flexibilité d'ajouter des personnes custom (ex: "Magasin X")
+   * @private Utilisé uniquement pour calculer uniqueWho
+   */
+  #usedWho = $derived.by(() => {
     const whos = Array.from(this.#enrichedProducts.values()).flatMap(
       (p) => p.who || [],
     );
-    return [...new Set(whos)] as string[];
+    return [...new Set(whos)].sort();
+  });
+
+  /**
+   * Fusion intelligente : contributors officiels + personnes déjà utilisées
+   * - Contributors de l'événement (eventContributors)
+   * - Personnes custom déjà utilisées (#usedWho)
+   * - Tri alphabétique pour l'affichage
+   * @public Utilisé par tous les composants pour les suggestions de "qui"
+   */
+  uniqueWho = $derived.by(() => {
+    const allWho = new Set([...this.eventContributors, ...this.#usedWho]);
+    return Array.from(allWho).sort();
   });
 
   uniqueProductTypes = $derived.by(() => {
@@ -482,6 +516,9 @@ class ProductsStore {
       this.#currentEventId = event.$id;
       this.#currentMainId = event.$id; // mainId = eventId dans la nouvelle architecture
 
+      // Exposer le mainId dans GlobalState pour les notifications batch
+      globalState.setCurrentMainId(this.#currentMainId);
+
       // 0. Initialiser le cache IndexedDB
       console.log(
         `[ProductsStore] Initialisation du cache IDB pour mainId: ${this.#currentMainId}`,
@@ -506,7 +543,7 @@ class ProductsStore {
       this.initializeDateRange();
 
       // 4. Sync en arrière-plan (purchases uniquement)
-      await this.#syncFromAppwrite();
+      await this.syncFromAppwrite();
 
       // 5. Charger les dépenses globales (orphelines)
       await this.#loadOrphanPurchases();
@@ -716,7 +753,11 @@ class ProductsStore {
     }
   }
 
-  async #syncFromAppwrite() {
+  /**
+   * Sync les données depuis Appwrite (public pour les notifications externes)
+   * Utilisé par NotificationStore pour les mises à jour batch
+   */
+  async syncFromAppwrite() {
     if (!this.#currentMainId) return;
     this.#syncing = true;
     console.log(

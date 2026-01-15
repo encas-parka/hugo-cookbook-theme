@@ -19,9 +19,12 @@
 
   // Créer la liste des items pour BtnGroupCheck
   const volunteerItems = $derived.by(() => {
-    // Combiner uniqueWho et forms.who, puis dédupliquer
+    // ✅ Utiliser les contributors de l'événement comme source principale
+    const eventContributors = productsStore.uniqueWho;
+
+    // Combiner eventContributors et forms.who (pour les nouveaux volontaires ajoutés manuellement)
     const allVolunteers = new Set([
-      ...productsStore.uniqueWho,
+      ...eventContributors,
       ...modalState.forms.who,
     ]);
 
@@ -116,7 +119,7 @@
               items={volunteerItems}
               onToggleItem={handleToggleVolunteer}
               size="sm"
-              color="success"
+              color="info"
             />
           </div>
         </div>

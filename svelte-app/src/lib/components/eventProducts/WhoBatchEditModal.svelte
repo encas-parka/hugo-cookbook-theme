@@ -1,7 +1,7 @@
 <script lang="ts">
   import { User, UserPlus, X, Check, TriangleAlert } from "@lucide/svelte";
   import {
-    batchUpdateWho,
+    batchUpdateProductsOptimized,
     type BatchUpdateResult,
   } from "$lib/services/appwrite-products";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
@@ -105,11 +105,11 @@
 
     try {
       await toastService.track(
-        batchUpdateWho(
+        batchUpdateProductsOptimized(
           selectedProductIds,
           selectedProducts,
-          whoNames,
-          "replace",
+          "who",
+          { names: whoNames },
         ).then((result) => {
           console.log(
             `[WhoEditModal] Mise à jour groupée: ${result.success ? "succès" : "échec"}, ${result.updatedCount} produits modifiés`,
@@ -182,7 +182,7 @@
   <ModalHeader {title} showBackButton={true} {onClose} />
 
   <ModalContent>
-    <div class="space-y-6">
+    <div class="space-y-10">
       <!-- Erreur -->
       {#if error}
         <div class="alert alert-error">
@@ -232,8 +232,8 @@
           <BtnGroupCheck
             items={volunteerItems}
             onToggleItem={handleToggleVolunteer}
-            size="sm"
-            color="success"
+            size="lg"
+            color="info"
           />
         </div>
       </div>
@@ -241,7 +241,7 @@
       <!-- Liste des produits -->
       <div>
         <!-- Mode de sélection -->
-        <div class=" mb-4 flex flex-wrap items-start justify-between gap-4">
+        <div class=" my-4 flex flex-wrap items-start justify-between gap-4">
           <div class="font-medium">Produits concernés</div>
           <div class="flex flex-wrap gap-2">
             <button
