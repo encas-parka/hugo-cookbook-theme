@@ -55,14 +55,34 @@ export interface GroupPurchaseBatchResult {
 }
 
 /**
+ * Calcule le nombre total d'achats à créer (purchases + éventuelle expense)
+ * @param productsData - Données des produits à traiter
+ * @param invoiceData - Données de la facture (pour savoir s'il faut créer une expense)
+ * @returns Nombre total d'achats
+ */
+function calculateTotalPurchases(
+  productsData: GroupPurchaseProductData[],
+  invoiceData: GroupPurchaseInvoiceData,
+): number {
+  const purchasesCount = productsData.reduce((total, product) => {
+    return total + product.missingQuantities.length;
+  }, 0);
+
+  // Ajouter 1 pour l'expense globale si invoiceTotal est défini
+  const expenseCount = invoiceData.invoiceTotal ? 1 : 0;
+
+  return purchasesCount + expenseCount;
+}
+
+/**
  * Prépare les données pour l'envoi à la fonction cloud
- * @param productsData - Données des produits avec leurs quantités manquantes
+ * @param productsBatch - Lot de produits à traiter
  * @param invoiceData - Données de la facture
  * @param mainId - ID de l'événement principal
  * @returns Données formatées pour la fonction cloud
  */
 async function prepareBatchData(
-  productsData: GroupPurchaseProductData[],
+  productsBatch: GroupPurchaseProductData[],
   invoiceData: GroupPurchaseInvoiceData,
   mainId: string,
 ): Promise<{
@@ -93,7 +113,7 @@ async function prepareBatchData(
     deliveryDate = new Date().toISOString(); // Conserve l'heure complète
   }
 
-  const purchasesData: GroupPurchaseData[] = productsData.flatMap((product) =>
+  const purchasesData: GroupPurchaseData[] = productsBatch.flatMap((product) =>
     product.missingQuantities.map((quantity) => ({
       productId: product.productId,
       quantity: quantity.q,
@@ -118,6 +138,60 @@ async function prepareBatchData(
 }
 
 /**
+ * Découpe les produits en lots respectant la limite de 100 achats par lot
+ * @param productsData - Tous les produits à traiter
+ * @param invoiceData - Données de la facture
+ * @param maxPurchasesPerBatch - Limite de purchases par lot (défaut: 100)
+ * @returns Lots de produits
+ */
+function splitIntoBatches(
+  productsData: GroupPurchaseProductData[],
+  invoiceData: GroupPurchaseInvoiceData,
+  maxPurchasesPerBatch = 100,
+): GroupPurchaseProductData[][] {
+  const batches: GroupPurchaseProductData[][] = [];
+  let currentBatch: GroupPurchaseProductData[] = [];
+  let currentBatchPurchases = 0;
+
+  // L'expense globale compte dans le premier lot
+  const hasExpense = !!invoiceData.invoiceTotal;
+  let expenseAdded = false;
+
+  for (const product of productsData) {
+    const purchaseCount = product.missingQuantities.length;
+
+    // Vérifier si on peut ajouter ce produit au lot actuel
+    let wouldExceedLimit =
+      currentBatchPurchases + purchaseCount > maxPurchasesPerBatch;
+
+    // Si on n'a pas encore ajouté l'expense et qu'on a de la place, on réserve la place
+    if (hasExpense && !expenseAdded && currentBatch.length > 0) {
+      wouldExceedLimit =
+        currentBatchPurchases + purchaseCount + 1 > maxPurchasesPerBatch;
+    }
+
+    if (wouldExceedLimit && currentBatch.length > 0) {
+      // Démarrer un nouveau lot
+      batches.push(currentBatch);
+      currentBatch = [product];
+      currentBatchPurchases = purchaseCount;
+      expenseAdded = false; // L'expense sera ajoutée dans le prochain lot si nécessaire
+    } else {
+      // Ajouter au lot actuel
+      currentBatch.push(product);
+      currentBatchPurchases += purchaseCount;
+    }
+  }
+
+  // Ajouter le dernier lot
+  if (currentBatch.length > 0) {
+    batches.push(currentBatch);
+  }
+
+  return batches;
+}
+
+/**
  * Exécute un lot d'achat groupé via la fonction cloud
  * @param batchData - Données du lot à exécuter
  * @returns Promise<GroupPurchaseResult> - Résultat du lot
@@ -138,7 +212,7 @@ async function executeGroupPurchaseBatch(batchData: {
     };
 
     console.log(
-      `[Appwrite Interactions] Exécution: ${batchData.purchasesData.length} achats à créer`,
+      `[Appwrite Interactions] Exécution du lot: ${batchData.purchasesData.length} achats à créer`,
     );
 
     const execution = await functions.createExecution(
@@ -157,15 +231,15 @@ async function executeGroupPurchaseBatch(batchData: {
 
     if (result.success) {
       console.log(
-        `[Appwrite Interactions] Succès: ${result.purchasesCreated} achats créés`,
+        `[Appwrite Interactions] Lot exécuté avec succès: ${result.purchasesCreated} achats créés`,
       );
     } else {
-      console.error(`[Appwrite Interactions] Échec:`, result.error);
+      console.error(`[Appwrite Interactions] Lot échoué:`, result.error);
     }
 
     return result;
   } catch (error) {
-    console.error("[Appwrite Interactions] Erreur exécution:", error);
+    console.error("[Appwrite Interactions] Erreur exécution lot:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Erreur inconnue";
 
@@ -185,19 +259,20 @@ async function executeGroupPurchaseBatch(batchData: {
 /**
  * Crée des achats groupés avec synchronisation de produits
  *
- * Service principal pour les achats groupés. Envoie toutes les données
- * en un seul lot à la fonction cloud Appwrite qui gère la création.
+ * Service principal pour les achats groupés. Gère automatiquement la limitation
+ * des 100 opérations par transaction Appwrite en divisant l'opération en lots.
  *
  * @param mainId - ID de l'événement principal
  * @param productsData - Données des produits avec leurs quantités manquantes
  * @param invoiceData - Données de la facture commune
  * @returns Promise<GroupPurchaseBatchResult> - Résultat de l'opération groupée
  *
- * Flux simplifié :
+ * Flux :
  * 1. Validation des données d'entrée
- * 2. Préparation des données pour la fonction cloud
- * 3. Exécution unique via la fonction cloud avec retry automatique
- * 4. Retour du résultat
+ * 2. Calcul du nombre total d'achats (purchases + expense)
+ * 3. Découpage en lots de 100 achats maximum
+ * 4. Exécution séquentielle de chaque lot avec retry automatique
+ * 5. Agrégation des résultats
  */
 export async function createGroupPurchaseWithSync(
   mainId: string,
@@ -216,49 +291,93 @@ export async function createGroupPurchaseWithSync(
     };
   }
 
+  // 2. Calculer le nombre total d'achats
+  const totalPurchases = calculateTotalPurchases(productsData, invoiceData);
   console.log(
-    `[Appwrite Interactions] Achat groupé: ${productsData.length} produits à traiter`,
+    `[Appwrite Interactions] Achat groupé: ${productsData.length} produits, ${totalPurchases} achats à créer`,
   );
 
-  // 2. Préparer les données
-  const batchData = await prepareBatchData(productsData, invoiceData, mainId);
+  // 3. Diviser en lots de 100 achats maximum
+  const batches = splitIntoBatches(productsData, invoiceData, 100);
 
-  // 3. Exécuter avec retry automatique
-  try {
-    const result = await executeWithRetry(
-      () => executeGroupPurchaseBatch(batchData),
-      {
-        operationName: "Achat groupé",
-        maxAutoRetries: 1,
-        autoRetryDelay: 2000,
-      },
+  console.log(
+    `[Appwrite Interactions] Découpage en ${batches.length} lot(s) pour respecter la limite de 100 achats par lot`,
+  );
+
+  // 4. Exécuter chaque lot séquentiellement
+  const results: GroupPurchaseResult[] = [];
+  let totalProductsCreated = 0;
+  let totalPurchasesCreated = 0;
+  let totalExpensesCreated = 0;
+
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    console.log(
+      `[Appwrite Interactions] Exécution du lot ${i + 1}/${batches.length} (${batch.length} produits)`,
     );
 
-    if (!result) {
-      throw new Error("Opération annulée ou échouée après tentatives");
+    try {
+      const batchData = await prepareBatchData(batch, invoiceData, mainId);
+
+      // 🔄 RETRY LOGIC
+      const result = await executeWithRetry(
+        () => executeGroupPurchaseBatch(batchData),
+        {
+          operationName: `Lot ${i + 1}/${batches.length}`,
+          maxAutoRetries: 1,
+          autoRetryDelay: 2000,
+        },
+      );
+
+      if (!result) {
+        throw new Error("Opération annulée ou échouée après tentatives");
+      }
+
+      results.push(result);
+
+      if (result.success) {
+        totalProductsCreated += result.productsCreated;
+        totalPurchasesCreated += result.purchasesCreated;
+        totalExpensesCreated += result.expenseCreated ? 1 : 0;
+      } else {
+        // Arrêter en cas d'erreur sur un lot
+        console.error(
+          `[Appwrite Interactions] Erreur sur le lot ${i + 1}: ${result.error}`,
+        );
+        break;
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erreur inconnue";
+      console.error(
+        `[Appwrite Interactions] Erreur lors de l'exécution du lot ${i + 1}:`,
+        error,
+      );
+
+      results.push({
+        success: false,
+        productsCreated: 0,
+        purchasesCreated: 0,
+        expenseCreated: false,
+        totalOperations: 0,
+        invoiceId: invoiceData.invoiceId,
+        error: errorMessage,
+        timestamp: new Date().toISOString(),
+      } as GroupPurchaseResult);
+
+      break; // Arrêter en cas d'erreur
     }
-
-    // 4. Retourner le résultat formaté
-    return {
-      success: result.success,
-      results: [result],
-      totalProductsCreated: result.productsCreated,
-      totalPurchasesCreated: result.purchasesCreated,
-      totalExpensesCreated: result.expenseCreated ? 1 : 0,
-      error: result.error,
-    };
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Erreur inconnue";
-    console.error("[Appwrite Interactions] Erreur lors de l'exécution:", error);
-
-    return {
-      success: false,
-      results: [],
-      totalProductsCreated: 0,
-      totalPurchasesCreated: 0,
-      totalExpensesCreated: 0,
-      error: errorMessage,
-    };
   }
+
+  const success = results.every((r) => r.success);
+  const hasError = results.some((r) => !r.success);
+
+  return {
+    success,
+    results,
+    totalProductsCreated,
+    totalPurchasesCreated,
+    totalExpensesCreated,
+    error: hasError ? "Un ou plusieurs lots ont échoué" : undefined,
+  };
 }
