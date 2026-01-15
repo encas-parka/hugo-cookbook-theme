@@ -1284,8 +1284,7 @@ class ProductsStore {
 
         // Toast notifications pour les autres utilisateurs
         if (purchase.createdBy && purchase.createdBy !== globalState.userName) {
-          const productName =
-            purchase.products?.[0]?.productName || "un produit";
+          const productName = "un produit"; // Message générique (purchase.products est maintenant string[])
 
           if (isCreate && purchase.who !== globalState.userName) {
             toastService.info(

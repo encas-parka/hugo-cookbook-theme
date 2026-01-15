@@ -46,7 +46,25 @@ export enum UserNotificationsNotificationType {
     EVENT_ACCESS_GRANTED = "event_access_granted"
 }
 
+export enum EventTodoPriority {
+    LOW = "low",
+    MEDIUM = "medium",
+    HIGH = "high"
+}
 
+export enum EventTodoStatus {
+    TODO = "todo",
+    DONE = "done",
+    WAITING = "waiting",
+    CANCELED = "canceled",
+    INPROGRESS = "inprogress"
+}
+
+export enum EventTodoTaskOn {
+    BEFORE_EVENT = "beforeEvent",
+    ON_EVENT = "onEvent",
+    AFTER_EVENT = "afterEvent"
+}
 
 export enum MaterielLoanStatus {
     ASKED = "asked",
@@ -56,6 +74,14 @@ export enum MaterielLoanStatus {
     RETURNED = "returned",
     COMPLETED = "completed",
     ARCHIVED = "archived"
+}
+
+export enum TestbulkTestCategory {
+    A = "A",
+    B = "B",
+    C = "C",
+    D = "D",
+    E = "E"
 }
 
 export type InscriptionCampaigns = Models.Row & {
@@ -85,12 +111,8 @@ export type Main = Models.Row & {
     status: MainStatus | null;
     error: string | null;
     allDates: string[] | null;
-    productsId: Products[];
-    purchasesId: Purchases[];
     contributors: string[] | null;
-    kteams: Kteams[];
     meals: string[] | null;
-    contributorsIds: string[] | null;
     description: string | null;
     minContrib: number;
     todos: string[] | null;
@@ -108,14 +130,14 @@ export type Products = Models.Row & {
     mergedFrom: string[] | null;
     mergeDate: string | null;
     mergeReason: string | null;
-    purchases: Purchases[];
     isSynced: boolean;
     mergedInto: string | null;
-    mainId: Main;
     totalNeededOverride: string | null;
     updatedBy: string | null;
     productType: string | null;
     specs: string | null;
+    mainId: string;
+    purchases: string[] | null;
 }
 
 export type Purchases = Models.Row & {
@@ -127,12 +149,11 @@ export type Purchases = Models.Row & {
     quantity: number;
     who: string | null;
     createdBy: string | null;
-    products: Products[];
-    mainId: Main;
     orderDate: string | null;
     deliveryDate: string | null;
     invoiceId: string | null;
     invoiceTotal: number | null;
+    products: string[] | null;
 }
 
 export type Recettes = Models.Row & {
@@ -171,7 +192,6 @@ export type Kteams = Models.Row & {
     description: string | null;
     members: string[];
     invited: string[] | null;
-    main: Main[];
     department: string | null;
     isPublic: boolean;
 }
@@ -203,7 +223,18 @@ export type UserNotifications = Models.Row & {
     userId: string;
 }
 
-
+export type EventTodo = Models.Row & {
+    eventId: string;
+    taskName: string;
+    taskDescription: string | null;
+    dueDate: string | null;
+    priority: EventTodoPriority | null;
+    status: EventTodoStatus | null;
+    taskOn: EventTodoTaskOn | null;
+    requiredPeopleNb: number;
+    locked: boolean;
+    assignedTo: string[] | null;
+}
 
 export type MaterielLoan = Models.Row & {
     startDate: string;
@@ -218,4 +249,14 @@ export type MaterielLoan = Models.Row & {
     completedAt: string | null;
     returnedAt: string | null;
     returnNotes: string | null;
+}
+
+export type Testbulk = Models.Row & {
+    testName: string;
+    testDescription: string | null;
+    testDate: string | null;
+    testScore: number | null;
+    isCompleted: boolean | null;
+    testCoordinates: Array<number> | null;
+    testCategory: TestbulkTestCategory | null;
 }

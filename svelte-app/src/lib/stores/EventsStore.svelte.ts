@@ -641,67 +641,67 @@ export class EventsStore {
    * Ajoute des contributeurs à un événement via la cloud function
    * Envoie les invitations et met à jour les permissions côté serveur
    */
-  async addContributors(
-    eventId: string,
-    contributorData: {
-      emails?: string[];
-      userIds?: string[];
-    },
-  ): Promise<EnrichedEvent> {
-    try {
-      const event = this.#events.get(eventId);
-      if (!event) throw new Error("Événement introuvable");
+  // async addContributors(
+  //   eventId: string,
+  //   contributorData: {
+  //     emails?: string[];
+  //     userIds?: string[];
+  //   },
+  // ): Promise<EnrichedEvent> {
+  //   try {
+  //     const event = this.#events.get(eventId);
+  //     if (!event) throw new Error("Événement introuvable");
 
-      const { emails = [], userIds = [] } = contributorData;
+  //     const { emails = [], userIds = [] } = contributorData;
 
-      if (
-        (!emails || emails.length === 0) &&
-        (!userIds || userIds.length === 0)
-      ) {
-        console.log(`[EventsStore] Aucun contributeur à ajouter`);
-        return event;
-      }
+  //     if (
+  //       (!emails || emails.length === 0) &&
+  //       (!userIds || userIds.length === 0)
+  //     ) {
+  //       console.log(`[EventsStore] Aucun contributeur à ajouter`);
+  //       return event;
+  //     }
 
-      // Filtrer les emails déjà présents
-      const existingEmails = new Set(
-        event.contributors.map((c) => c.email).filter(Boolean),
-      );
-      const newEmails = emails.filter((email) => !existingEmails.has(email));
+  //     // Filtrer les emails déjà présents
+  //     const existingEmails = new Set(
+  //       event.contributors.map((c) => c.email).filter(Boolean),
+  //     );
+  //     const newEmails = emails.filter((email) => !existingEmails.has(email));
 
-      // Filtrer les userIds déjà présents
-      const existingUserIds = new Set(event.contributors.map((c) => c.id));
-      const newUserIds = userIds.filter((id) => !existingUserIds.has(id));
+  //     // Filtrer les userIds déjà présents
+  //     const existingUserIds = new Set(event.contributors.map((c) => c.id));
+  //     const newUserIds = userIds.filter((id) => !existingUserIds.has(id));
 
-      if (newEmails.length === 0 && newUserIds.length === 0) {
-        console.log(`[EventsStore] Tous les contributeurs sont déjà présents`);
-        return event;
-      }
+  //     if (newEmails.length === 0 && newUserIds.length === 0) {
+  //       console.log(`[EventsStore] Tous les contributeurs sont déjà présents`);
+  //       return event;
+  //     }
 
-      // Appeler la cloud function pour gérer l'invitation
-      // Elle va :
-      // 1. Créer les utilisateurs si nécessaire
-      // 2. Ajouter les permissions
-      // 3. Envoyer les emails (groupé pour existants, individuel pour nouveaux)
-      const { inviteToEvent } = await import("../services/appwrite-functions");
-      await inviteToEvent(eventId, event.name, newEmails, newUserIds);
+  //     // Appeler la cloud function pour gérer l'invitation
+  //     // Elle va :
+  //     // 1. Créer les utilisateurs si nécessaire
+  //     // 2. Ajouter les permissions
+  //     // 3. Envoyer les emails (groupé pour existants, individuel pour nouveaux)
+  //     const { inviteToEvent } = await import("../services/appwrite-functions");
+  //     await inviteToEvent(eventId, event.name, newEmails, newUserIds);
 
-      // Recharger l'événement depuis Appwrite pour avoir les données à jour
-      // Attendre un court instant pour que le traitement côté serveur soit effectué
-      await new Promise((resolve) => setTimeout(resolve, 500));
+  //     // Recharger l'événement depuis Appwrite pour avoir les données à jour
+  //     // Attendre un court instant pour que le traitement côté serveur soit effectué
+  //     await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const updatedEvent = await this.fetchEvent(eventId);
-      if (!updatedEvent) throw new Error("Impossible de recharger l'événement");
+  //     const updatedEvent = await this.fetchEvent(eventId);
+  //     if (!updatedEvent) throw new Error("Impossible de recharger l'événement");
 
-      console.log(
-        `[EventsStore] ${newEmails.length + newUserIds.length} contributeur(s) ajouté(s) à l'événement ${eventId}`,
-      );
+  //     console.log(
+  //       `[EventsStore] ${newEmails.length + newUserIds.length} contributeur(s) ajouté(s) à l'événement ${eventId}`,
+  //     );
 
-      return updatedEvent;
-    } catch (err) {
-      console.error(`[EventsStore] Erreur ajout contributeurs:`, err);
-      throw err;
-    }
-  }
+  //     return updatedEvent;
+  //   } catch (err) {
+  //     console.error(`[EventsStore] Erreur ajout contributeurs:`, err);
+  //     throw err;
+  //   }
+  // }
 
   /**
    * Supprime un contributeur d'un événement
@@ -738,41 +738,6 @@ export class EventsStore {
   // =============================================================================
   // API PUBLIQUE - TEAMS (Natives)
   // =============================================================================
-
-  /**
-   * Invite des teams natives à un événement
-   * @param eventId - ID de l'événement
-   * @param teamIds - IDs des teams à inviter
-   * @returns L'événement mis à jour
-   */
-  async addTeams(eventId: string, teamIds: string[]): Promise<EnrichedEvent> {
-    try {
-      const event = this.#events.get(eventId);
-      if (!event) throw new Error("Événement introuvable");
-
-      // Appeler la cloud function avec les teamIds
-      const { inviteTeamsToEvent } = await import(
-        "../services/appwrite-functions"
-      );
-      await inviteTeamsToEvent(eventId, event.name, teamIds);
-
-      // Recharger l'événement pour avoir les permissions à jour
-      // Attendre un peu plus longtemps car le batch update peut prendre du temps
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      const updatedEvent = await this.fetchEvent(eventId);
-
-      if (!updatedEvent) throw new Error("Impossible de recharger l'événement");
-
-      console.log(
-        `[EventsStore] ${teamIds.length} team(s) ajoutée(s) à l'événement ${eventId}`,
-      );
-
-      return updatedEvent;
-    } catch (err) {
-      console.error(`[EventsStore] Erreur ajout teams:`, err);
-      throw err;
-    }
-  }
 
   /**
    * Invite des teams et/ou des utilisateurs à un événement (méthode unifiée)

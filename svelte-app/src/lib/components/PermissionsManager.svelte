@@ -4,7 +4,6 @@
   import type { NativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import type { EventsStore } from "$lib/stores/EventsStore.svelte";
   import { nanoid } from "nanoid";
-  import { checkUserEmails } from "$lib/services/appwrite-functions";
   import { toastService } from "$lib/services/toast.service.svelte";
   import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
   import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
@@ -45,17 +44,23 @@
   let showInviteModal = $state(false);
   let editingMinContrib = $state(false);
 
-  // Synchroniser selectedTeams depuis les permissions de l'événement
+  // Synchroniser selectedTeams depuis les teams de l'événement
   $effect(() => {
     if (eventId) {
       const event = eventsStore.getEventById(eventId);
-      if (event && event.$permissions) {
-        // Extraire les teamIds depuis les permissions
-        const teamIds =
-          event.$permissions
-            ?.filter((p) => p.includes("team:"))
-            .map((p) => p.match(/team:([a-z0-9]+)/i)?.[1])
-            .filter((id): id is string => Boolean(id)) || [];
+      if (event && event.teams) {
+        // event.teams[] contient les NOMS des teams
+        // On doit faire un lookup nom→ID depuis nativeTeamsStore
+        const teamNames = event.teams || [];
+        const teamIds: string[] = [];
+
+        for (const name of teamNames) {
+          const team = nativeTeamsStore.teams.find((t) => t.name === name);
+          if (team) {
+            teamIds.push(team.$id);
+          }
+        }
+
         selectedTeams = teamIds;
       }
     }
@@ -69,7 +74,6 @@
   });
 
   let emailInput = $state("");
-  let isChecking = $state(false);
   let inviteError = $state<string | null>(null);
 
   // Groupes de contributeurs pour l'affichage
@@ -89,12 +93,12 @@
     }
   }
 
-  // Ajouter par email (avec vérification)
-  async function handleAddEmail() {
+  // Ajouter par email (simplifié - la cloud function gère la vérification)
+  function handleAddEmail() {
     if (!emailInput) return;
     const email = emailInput.trim();
 
-    // Vérif doublons (contributors + newContributors)
+    // Vérif doublons LOCALEMENT uniquement
     if (
       contributors.some((c) => c.email === email) ||
       newContributors.some((c) => c.email === email)
@@ -103,43 +107,18 @@
       return;
     }
 
-    isChecking = true;
     inviteError = null;
 
-    try {
-      // Vérifier si l'utilisateur existe
-      const checkResult = await checkUserEmails([email]);
-      const userInfo = checkResult[email];
+    // Ajouter simplement l'email - la cloud function fera la distinction
+    const newContributor: EventContributor = {
+      id: nanoid(), // ID temporaire
+      email: email,
+      status: "invited",
+      invitedAt: new Date().toISOString(),
+    };
 
-      let newContributor: EventContributor;
-
-      if (userInfo) {
-        // Utilisateur existant
-        newContributor = {
-          id: userInfo.id,
-          name: userInfo.name,
-          email: email,
-          status: "invited",
-          invitedAt: new Date().toISOString(),
-        };
-      } else {
-        // Utilisateur inconnu (externe)
-        newContributor = {
-          id: nanoid(), // ID temporaire
-          email: email,
-          status: "invited",
-          invitedAt: new Date().toISOString(),
-        };
-      }
-
-      newContributors = [...newContributors, newContributor];
-      emailInput = "";
-    } catch (err) {
-      console.error("Erreur check email:", err);
-      inviteError = "Erreur lors de la vérification de l'email.";
-    } finally {
-      isChecking = false;
-    }
+    newContributors = [...newContributors, newContributor];
+    emailInput = "";
   }
 
   // Fonction pour valider et envoyer les invitations
@@ -152,11 +131,13 @@
     const event = eventsStore.getEventById(eventId);
     if (!event) throw new Error("Événement introuvable");
 
-    // 1. Traiter les teams (batch update automatique)
-    const teamsToAdd = selectedTeams.filter(
-      (teamId) =>
-        !event.$permissions?.some((p) => p.includes(`team:${teamId}`)),
-    );
+    // 1. Traiter les teams à ajouter
+    // Filtrer les teams qui ne sont pas encore dans event.teams[]
+    const teamsToAdd = selectedTeams.filter((teamId) => {
+      const team = nativeTeamsStore.teams.find((t) => t.$id === teamId);
+      if (!team) return false;
+      return !event.teams?.includes(team.name);
+    });
 
     // 2. Traiter les utilisateurs individuels (par email)
     const emails = newContributors.map((c) => c.email!).filter(Boolean);
@@ -208,10 +189,11 @@
     const event = eventsStore.getEventById(eventId);
     if (!event) return [];
 
-    return selectedTeams.filter(
-      (teamId) =>
-        !event.$permissions?.some((p) => p.includes(`team:${teamId}`)),
-    );
+    return selectedTeams.filter((teamId) => {
+      const team = nativeTeamsStore.teams.find((t) => t.$id === teamId);
+      if (!team) return false;
+      return !event.teams?.includes(team.name);
+    });
   });
 </script>
 
@@ -255,9 +237,29 @@
   <!-- Participants (Déjà enregistrés) -->
   <div class="mb-6">
     <div class="space-y-3">
+      <!-- Teams déjà invitées -->
+      {#if eventId}
+        {@const event = eventsStore.getEventById(eventId)}
+        {#if event && event.teams && event.teams.length > 0}
+          <fieldset class="fieldset">
+            <legend class="legend">Équipes invitées</legend>
+            <div class="flex flex-wrap gap-2">
+              {#each event.teams as teamName}
+                <div class="badge badge-primary badge-soft badge-lg gap-2 p-3">
+                  <Users class="inline size-4" />
+                  <span class="font-medium">{teamName}</span>
+                </div>
+              {/each}
+            </div>
+          </fieldset>
+        {/if}
+      {/if}
+
       <!-- Accepted -->
       {#if acceptedContributors.length > 0}
         <fieldset class="fieldset">
+          <legend class="legend">Participant confirmé</legend>
+
           <div class="flex flex-wrap gap-2">
             {#each acceptedContributors as contributor (contributor.id)}
               <div class="badge badge-soft badge-success gap-2 p-3">
@@ -339,19 +341,20 @@
           <button
             class="btn btn-primary"
             onclick={handleAddEmail}
-            disabled={isChecking || !emailInput}
+            disabled={!emailInput}
           >
-            {#if isChecking}<span class="loading loading-spinner loading-xs"
-              ></span>{/if}
             Ajouter
           </button>
         </div>
         {#if inviteError}
           <p class="text-error mt-1 text-xs">{inviteError}</p>
         {/if}
-        <p class="text-base-content/60 mt-1 text-xs">
-          Recherche automatiquement si l'utilisateur existe déjà.
-        </p>
+
+        <div>
+          {#each newContributors as contributor}
+            <p>{contributor.email}</p>
+          {/each}
+        </div>
       </fieldset>
 
       <div class="divider">OU</div>
@@ -362,48 +365,83 @@
           ><Users size={16} class="inline shrink-0 opacity-60" /> Inviter des équipes
           entières</legend
         >
+
+        {#if eventId}
+          {@const event = eventsStore.getEventById(eventId)}
+          {#if event && event.teams && event.teams.length > 0}
+            <!-- Teams déjà invitées -->
+            <div class="mb-4">
+              <p class="mb-2 text-sm font-medium opacity-70">
+                Équipes déjà invitées :
+              </p>
+              <div class="flex flex-wrap gap-2">
+                {#each event.teams as teamName}
+                  <div class="badge badge-primary badge-soft badge-lg">
+                    <Users class="inline size-4" />{teamName}
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+        {/if}
+
         {#if nativeTeamsStore.myTeams.length > 0}
-          <div class="flex flex-wrap gap-4">
-            {#each nativeTeamsStore.myTeams as team}
-              <label
-                class="hover:bg-secondary/20 bg-secondary/10 flex cursor-pointer items-center gap-3 rounded-lg px-4 py-2 transition-colors"
-              >
+          <!-- Filtrer les teams déjà invitées -->
+          {@const availableTeams = nativeTeamsStore.myTeams.filter((team) => {
+            if (!eventId) return true;
+            const event = eventsStore.getEventById(eventId);
+            if (!event || !event.teams) return true;
+            return !event.teams.includes(team.name);
+          })}
+
+          {#if availableTeams.length > 0}
+            <div class="flex flex-wrap gap-4">
+              {#each availableTeams as team}
+                <label
+                  class="hover:bg-secondary/20 bg-secondary/10 flex cursor-pointer items-center gap-3 rounded-lg px-4 py-2 transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    class="checkbox bg-base-100 checkbox-sm"
+                    checked={selectedTeams.includes(team.$id)}
+                    onchange={() => toggleTeam(team.$id)}
+                  />
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium"
+                      >{team.name}
+                      <span class="text-xs opacity-60"
+                        >{team.total} membre{team.total > 1 ? "s" : ""}</span
+                      ></span
+                    >
+                    <div class="text-xs opacity-70">
+                      {nativeTeamsStore.getTeamMemberNames(team.$id).join(", ")}
+                    </div>
+                  </div>
+                </label>
+              {/each}
+            </div>
+
+            <!-- ✅ NOUVEAU: Contrôle de l'envoi d'emails aux membres existants -->
+            {#if selectedTeams.length > 0}
+              <label class="mt-4 cursor-pointer justify-center gap-4">
                 <input
                   type="checkbox"
-                  class="checkbox bg-base-100 checkbox-sm"
-                  checked={selectedTeams.includes(team.$id)}
-                  onchange={() => toggleTeam(team.$id)}
+                  class="checkbox checkbox-sm"
+                  bind:checked={sendEmailToExistingMembers}
                 />
-                <div class="flex flex-col">
-                  <span class="text-sm font-medium">{team.name}</span>
-                  <span class="text-xs opacity-60"
-                    >{team.total} membre{team.total > 1 ? "s" : ""}</span
-                  >
-                </div>
+                <span class="font-base ms-1">
+                  Envoyer un email de notification
+                </span>
               </label>
-            {/each}
-          </div>
-          <p class="text-base-content/60 mt-1 text-xs">
-            Toute l'équipe aura accès en lecture/écriture à cet événement et à
-            tous ses produits/achats.
-          </p>
-
-          <!-- ✅ NOUVEAU: Contrôle de l'envoi d'emails aux membres existants -->
-          {#if selectedTeams.length > 0}
-            <label class="label mt-4 cursor-pointer justify-start gap-4">
-              <input
-                type="checkbox"
-                class="checkbox checkbox-sm"
-                bind:checked={sendEmailToExistingMembers}
-              />
-              <span class="label-text">
-                Envoyer un email de notification aux membres existants
-              </span>
-            </label>
-            <p class="text-base-content/60 mt-1 text-xs">
-              Si désactivé, les membres auront accès mais ne recevront pas
-              d'email. Les nouveaux utilisateurs recevront toujours leur email
-              de création de compte.
+              <p class="text-base-content/60 mt-1 text-xs">
+                Si désactivé, les membres auront accès à l'événement mais ne
+                recevront pas d'email. Les personnes invité n'ayant pas de
+                compte recevront toujours un email de création de compte.
+              </p>
+            {/if}
+          {:else}
+            <p class="text-sm italic opacity-60">
+              Toutes vos équipes sont déjà invitées.
             </p>
           {/if}
         {:else}

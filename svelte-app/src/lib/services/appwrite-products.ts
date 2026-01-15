@@ -128,7 +128,7 @@ export function getLabelPermissions(mainId: string): string[] {
 
 /**
  * Génère les permissions pour un produit/achat à partir d'un événement
- * Inclut les permissions labels ET teams
+ * Inclut uniquement les permissions labels (plus de teams)
  * @param event - Événement enrichi (venant du cache EventsStore)
  * @returns Array de permissions à appliquer
  *
@@ -137,7 +137,9 @@ export function getLabelPermissions(mainId: string): string[] {
  *
  * Les permissions générées sont :
  * 1. Permissions LABEL basées sur mainId (event.$id)
- * 2. Permissions TEAM pour toutes les teams qui ont accès à l'événement
+ *
+ * NOTE : Les permissions teams ne sont plus utilisées.
+ * Le contrôle d'accès est géré exclusivement par les labels.
  */
 export function getEventPermissionsFromEvent(
   event: EnrichedEvent | null,
@@ -149,36 +151,12 @@ export function getEventPermissionsFromEvent(
   const permissions: string[] = [];
   const mainId = event.$id;
 
-  // 1. TOUJOURS ajouter les permissions LABEL basées sur mainId
+  // Permissions LABEL basées sur mainId
   // Ces permissions permettent à tous les membres de l'événement d'accéder aux produits/achats
   permissions.push(
     Permission.read(Role.label(mainId)),
     Permission.update(Role.label(mainId)),
   );
-
-  // 2. Si l'événement a des permissions de team, les recréer pour ce document
-  // Cela permet aux teams d'accéder directement aux produits/achats
-  if (event.$permissions) {
-    const teamIds = new Set<string>(); // Utiliser un Set pour éviter les doublons
-
-    for (const perm of event.$permissions) {
-      // Extraire les team IDs des permissions de l'événement
-      // Format attendu: "read(\"team:XXXX\")" ou "update(\"team:YYYY\")"
-      const teamMatch = perm.match(/team:([^\/\\"\)]+)/);
-      if (teamMatch) {
-        const teamId = teamMatch[1];
-        teamIds.add(teamId);
-      }
-    }
-
-    // Recréer les permissions pour chaque team unique
-    for (const teamId of teamIds) {
-      permissions.push(
-        Permission.read(Role.team(teamId)),
-        Permission.update(Role.team(teamId)),
-      );
-    }
-  }
 
   return permissions;
 }
@@ -291,7 +269,7 @@ export async function loadProductsWithPurchases(
   try {
     const { tables, config } = await getAppwriteInstances();
 
-    // Charger les produits avec leurs relations purchases
+    // 1. Charger les produits (purchases est maintenant string[], pas une relation)
     const productsResponse = await tables.listRows({
       databaseId: config.databaseId,
       tableId: config.collections.products,
@@ -301,13 +279,56 @@ export async function loadProductsWithPurchases(
           orderBy === "productName" ? "productName" : "$updatedAt",
         ),
         Query.limit(limit),
-        Query.select(["*", "purchases.*"]), // Récupérer la relation purchases
       ],
     });
     const products = productsResponse.rows as unknown as Products[];
 
-    // Les relations sont déjà incluses dans les produits
-    const productsWithPurchases = products as ProductWithPurchases[];
+    // 2. Extraire tous les IDs de purchases uniques
+    const allPurchaseIds = new Set<string>();
+    products.forEach((product) => {
+      if (product.purchases?.length) {
+        product.purchases.forEach((id) => allPurchaseIds.add(id));
+      }
+    });
+
+    // 3. Charger toutes les purchases en une seule requête
+    let purchasesMap = new Map<string, Purchases>();
+    if (allPurchaseIds.size > 0) {
+      const purchasesResponse = await tables.listRows({
+        databaseId: config.databaseId,
+        tableId: config.collections.purchases,
+        queries: [Query.equal("$id", Array.from(allPurchaseIds))],
+      });
+      const purchases = purchasesResponse.rows as unknown as Purchases[];
+
+      // Créer un Map pour lookup O(1)
+      purchases.forEach((purchase) => {
+        purchasesMap.set(purchase.$id, purchase);
+      });
+
+      console.log(
+        `[Appwrite Interactions] ${purchases.length} purchases chargées pour ${products.length} produits`,
+      );
+    }
+
+    // 4. Fusionner les purchases dans les produits
+    const productsWithPurchases: ProductWithPurchases[] = products.map(
+      (product) => {
+        if (!product.purchases?.length) {
+          return { ...product, purchases: [] };
+        }
+
+        // Remplacer les IDs par les objets Purchases complets
+        const fullPurchases = product.purchases
+          .map((id) => purchasesMap.get(id))
+          .filter((p): p is Purchases => p !== undefined);
+
+        return {
+          ...product,
+          purchases: fullPurchases,
+        };
+      },
+    );
 
     console.log(
       `[Appwrite Interactions] ${productsResponse.rows.length} produits chargés avec achats`,
@@ -382,7 +403,7 @@ export async function loadUpdatedPurchases(
         Query.greaterThan("$updatedAt", lastSync),
         Query.equal("mainId", mainId),
         Query.limit(limit),
-        Query.select(["*", "products.$id"]), // Uniquement les IDs des produits
+        // Note: products est maintenant string[] (pas une relation), pas besoin de Query.select
       ],
     });
 
@@ -414,21 +435,7 @@ export async function loadProductsListByIds(
       tableId: config.collections.products,
       queries: [
         Query.equal("$id", productIds), // ← Filtre par IDs
-        Query.select([
-          "*",
-          "purchases.$id",
-          "purchases.unit",
-          "purchases.quantity",
-          "purchases.store",
-          "purchases.who",
-          "purchases.notes",
-          "purchases.price",
-          "purchases.status",
-          "purchases.deliveryDate",
-          "purchases.orderDate",
-          "purchases.createdBy",
-          "purchases.products.$id",
-        ]),
+        // Note: purchases est maintenant string[] (pas une relation), pas besoin de Query.select
       ],
     });
 
@@ -466,67 +473,100 @@ export async function syncProductsWithPurchases(
 
     if (!lastSync) {
       // === CHARGEMENT COMPLET ===
-      console.log("[Appwrite Interactions] Chargement complet des produits");
+      console.log(
+        "[Appwrite Interactions] Chargement complet des produits et achats",
+      );
 
-      const response = await tables.listRows({
+      // 1. Charger les produits (sans purchases)
+      const productsResponse = await tables.listRows({
         databaseId: config.databaseId,
         tableId: config.collections.products,
+        queries: [Query.equal("mainId", mainId), Query.limit(limit)],
+      });
+      const products = productsResponse.rows as unknown as Products[];
+
+      // 2. Charger les purchases
+      const purchasesResponse = await tables.listRows({
+        databaseId: config.databaseId,
+        tableId: config.collections.purchases,
         queries: [
           Query.equal("mainId", mainId),
-          Query.select([
-            "*",
-            "purchases.$id",
-            "purchases.unit",
-            "purchases.quantity",
-            "purchases.store",
-            "purchases.who",
-            "purchases.notes",
-            "purchases.price",
-            "purchases.status",
-            "purchases.deliveryDate",
-            "purchases.orderDate",
-            "purchases.createdBy",
-            "purchases.products.$id",
-          ]),
-          Query.limit(limit),
+          Query.limit(limit * 2), // Plus de purchases que de produits
         ],
       });
+      const purchases = purchasesResponse.rows as unknown as Purchases[];
 
-      return response.rows as unknown as ProductWithPurchases[];
+      // 3. Reconstruire la relation côté client
+      const productsMap = new Map<string, ProductWithPurchases>();
+      products.forEach((p) => {
+        productsMap.set(p.$id, { ...p, purchases: [] });
+      });
+
+      purchases.forEach((purchase) => {
+        purchase.products?.forEach((productId) => {
+          const product = productsMap.get(productId);
+          if (product) {
+            if (!product.purchases) product.purchases = [];
+            product.purchases.push(purchase);
+          }
+        });
+      });
+
+      console.log(
+        `[Appwrite Interactions] ${products.length} produits chargés avec ${purchases.length} achats`,
+      );
+
+      return Array.from(productsMap.values());
     }
 
-    const response = await tables.listRows({
+    // === CHARGEMENT INCRÉMENTAL ===
+    // Pour le delta, on fait la même chose
+    const productsResponse = await tables.listRows({
       databaseId: config.databaseId,
       tableId: config.collections.products,
       queries: [
         Query.greaterThan("$updatedAt", lastSync),
         Query.equal("mainId", mainId),
         Query.limit(limit),
-        Query.select([
-          "*",
-          "purchases.$id",
-          "purchases.unit",
-          "purchases.quantity",
-          "purchases.store",
-          "purchases.who",
-          "purchases.notes",
-          "purchases.price",
-          "purchases.status",
-          "purchases.deliveryDate",
-          "purchases.orderDate",
-          "purchases.createdBy",
-          "purchases.products.$id",
-        ]), // Récupérer la relation purchases sans récursion
       ],
     });
+    const products = productsResponse.rows as unknown as Products[];
 
-    if (response.rows.length > 0) {
+    // Charger aussi les purchases modifiées
+    const purchasesResponse = await tables.listRows({
+      databaseId: config.databaseId,
+      tableId: config.collections.purchases,
+      queries: [
+        Query.greaterThan("$updatedAt", lastSync),
+        Query.equal("mainId", mainId),
+        Query.limit(limit * 2),
+      ],
+    });
+    const purchases = purchasesResponse.rows as unknown as Purchases[];
+
+    // Reconstruire la relation pour le delta
+    const productsMap = new Map<string, ProductWithPurchases>();
+    products.forEach((p) => {
+      productsMap.set(p.$id, { ...p, purchases: [] });
+    });
+
+    purchases.forEach((purchase) => {
+      purchase.products?.forEach((productId) => {
+        const product = productsMap.get(productId);
+        if (product) {
+          if (!product.purchases) product.purchases = [];
+          product.purchases.push(purchase);
+        }
+      });
+    });
+
+    if (productsResponse.rows.length > 0) {
       console.log(
-        `[Appwrite Interactions] ${response.rows.length} produits synchronisés avec leurs purchases`,
+        `[Appwrite Interactions] ${productsResponse.rows.length} produits synchronisés (delta)`,
       );
     }
 
-    return response.rows as unknown as ProductWithPurchases[];
+    return Array.from(productsMap.values());
   } catch (error) {
     console.error(
       `[Appwrite Interactions] Erreur sync produits avec purchases pour mainId ${mainId}:`,
@@ -1030,7 +1070,7 @@ export async function loadPurchasesListByIds(
     const response = await tables.listRows(
       config.databaseId,
       config.collections.purchases,
-      [Query.equal("$id", purchaseIds), Query.select(["*", "products.$id"])],
+      [Query.equal("$id", purchaseIds)], // Note: products est maintenant string[], pas de relation
     );
 
     console.log(
@@ -1213,7 +1253,7 @@ export function subscribeToRealtime(
 
       // 🔄 TOAST REALTIME : Notification pour les achats d'autres utilisateurs
       if (purchase.createdBy && purchase.createdBy !== getCurrentUserName()) {
-        const productName = purchase.products?.[0]?.productName || "un produit";
+        const productName = "un produit"; // Message générique (purchase.products est maintenant string[])
 
         if (isCreate && purchase.who !== getCurrentUserName()) {
           toastService.info(

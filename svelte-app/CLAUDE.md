@@ -127,13 +127,28 @@ The application follows a **3-layer reactive architecture**:
 
 ### Key Directories & Files
 
-- `src/lib/stores/ProductsStore.svelte.ts` - Main reactive state store
-- `src/lib/models/ProductModel.svelte.ts` - Reactive product model
+**Core Stores:**
+- `src/lib/stores/ProductsStore.svelte.ts` - Products state management with SvelteMap
+- `src/lib/stores/RecipesStore.svelte.ts` - Recipes index + lazy loading details
+- `src/lib/stores/EventsStore.svelte.ts` - Events CRUD + participants + todos
+- `src/lib/stores/GlobalState.svelte.ts` - Auth, UI state, toasts, modals
+- `src/lib/stores/DateRangeStore.svelte.ts` - Date range selection logic
+- `src/lib/stores/RealtimeManager.svelte.ts` - Centralized WebSocket multiplexing
 - `src/lib/stores/ProductModalState.svelte.ts` - Per-product modal factory
-- `src/lib/services/appwrite-products.ts` - Pure Appwrite CRUD layer
-- `src/lib/services/appwrite-transaction.ts` - Cloud function transactions
-- `src/lib/services/hugo-loader.ts` - Hugo data import service
-- `src/lib/utils/productsUtils.ts` - Business logic calculations
+
+**Models & Services:**
+- `src/lib/models/ProductModel.svelte.ts` - Reactive product model wrapper
+- `src/lib/services/appwrite.ts` - Centralized Appwrite client + config
+- `src/lib/services/appwrite-products.ts` - Products CRUD layer
+- `src/lib/services/appwrite-recipes.ts` - Recipes CRUD layer
+- `src/lib/services/appwrite-events.ts` - Events CRUD layer
+- `src/lib/services/appwrite-transaction.ts` - Cloud function batch operations
+
+**Caching:**
+- `src/lib/services/recipes-idb-cache.ts` - IndexedDB cache for recipes
+- `src/lib/services/events-idb-cache.ts` - IndexedDB cache for events
+
+**Types:**
 - `src/lib/types/appwrite.d.ts` - Auto-generated Appwrite types
 - `src/lib/types/store.types.ts` - Local application types
 
@@ -156,7 +171,39 @@ The application follows a **3-layer reactive architecture**:
 
 ### Common Patterns
 
-**1. Reactive Store Usage**
+**1. Store Initialization (Phased)**
+
+All major stores follow a 3-phase initialization pattern:
+1. `loadCache()` - Load from IndexedDB (fast UI render)
+2. `syncFromRemote()` - Sync from Appwrite/Hugo (update data)
+3. `setupRealtime()` - Subscribe to live updates
+
+```typescript
+// Initialize stores in sequence
+await recipesStore.loadCache();      // Phase 1: Fast cache load
+await recipesStore.syncFromRemote(); // Phase 2: Fresh data
+await recipesStore.setupRealtime();  // Phase 3: Live updates
+```
+
+**2. Realtime Multiplexing**
+
+All stores register channels with the central RealtimeManager:
+
+```typescript
+// During store initialization
+realtimeManager.register(
+  [`databases.${DB_ID}.collections.${COLLECTION_ID}.documents`],
+  (response) => { /* handle realtime update */ }
+);
+
+// Dynamic registration (locks, event-specific)
+realtimeManager.registerDynamic(
+  channels,
+  callback
+);
+```
+
+**3. Reactive Store Usage**
 
 ```typescript
 // In components
@@ -169,58 +216,76 @@ const product = $derived(model.data); // Access raw data
 const stats = $derived(model.stats); // Access calculated stats
 ```
 
-**2. Modal State Management**
+**4. IndexedDB Caching**
+
+Stores use IndexedDB for offline-first caching:
 
 ```typescript
-// Create modal state for specific product
-const modalState = createProductModalState(productId);
-
-// Access data (reactive)
-modalState.product; // Always fresh from store
-modalState.forms.purchase; // Local form state
+// Cache is automatically managed by stores
+await store.loadCache();     // Read from IDB
+await store.syncFromRemote(); // Update from remote
+// Cache automatically persists changes
 ```
 
-**3. Sync Logic Pattern**
+**5. Global State Access**
 
 ```typescript
-// Check if product needs Appwrite creation
-if (!product.isSynced) {
-  await upsertProduct(productId, updates, getProductById);
-} else {
-  await updateProduct(productId, updates);
-}
+import { globalState } from './stores/GlobalState.svelte';
+
+// Auth state
+globalState.isAuthenticated
+globalState.userId
+globalState.userTeams
+
+// UI state
+globalState.isMobile
+globalState.toasts
 ```
 
 ### Performance Optimizations
 
-- **SvelteMap**: O(1) product access by ID
-- **$derived.by()**: Computed values with dependency tracking
-- **Debounced persistence**: 500ms debounce for localStorage writes
-- **Incremental sync**: Only fetch changes since lastSync
-- **Date range calculations**: Optimized byDate structure for totals
+- **SvelteMap**: O(1) product/recipe access by ID
+- **$derived.by()**: Computed values with automatic dependency tracking
+- **IndexedDB caching**: Offline-first with bulk operations
+- **Incremental sync**: Only fetch changes since lastSync timestamp
+- **Realtime multiplexing**: Single WebSocket for all subscriptions
+- **Lazy loading**: Recipe details loaded on-demand
+- **Bulk operations**: Parallel fetching with batch IDB writes
 
 ### Development Workflow
 
-**When adding new product features:**
+**When adding new features to existing stores:**
 
-1. Add types in `src/lib/types/`
-2. Update ProductsStore with new reactive calculations
-3. Add Appwrite functions in `appwrite-products.ts`
-4. Update ProductModalState with new forms/actions
+1. Add/update types in `src/lib/types/`
+2. Update store with new reactive calculations or methods
+3. Add Appwrite CRUD functions in appropriate `appwrite-*.ts` service
+4. Update modal/state factories with new forms/actions
 5. Create/update UI components consuming the store
+6. Register realtime channels if needed
+
+**When creating a new store:**
+
+1. Create `src/lib/stores/YourStore.svelte.ts` with class-based singleton
+2. Add 3-phase initialization: `loadCache()`, `syncFromRemote()`, `setupRealtime()`
+3. Create IndexedDB cache service in `src/lib/services/your-store-idb-cache.ts`
+4. Add CRUD service in `src/lib/services/appwrite-yourdomain.ts`
+5. Register channels with `realtimeManager.register()` during setup
+6. Export singleton instance
 
 **When debugging state issues:**
 
-1. Check ProductsStore initialization sequence
-2. Verify ProductModalState factory usage
-3. Confirm realtime subscription status
-4. Check localStorage cache state
-5. Review Appwrite sync timestamps
+1. Check store initialization sequence (cache → sync → realtime)
+2. Verify IndexedDB cache contents with browser DevTools
+3. Confirm realtime subscription status in console logs
+4. Review Appwrite sync timestamps in cache metadata
+5. Check GlobalState auth initialization for user context
 
 ### Important Notes
 
-- **Never copy product data** - Always use reactive derived values from ProductsStore
-- **Modal state is per-product** - Use factory function, don't share modal state
-- **Cache is automatic** - ProductsStore handles localStorage automatically
-- **Realtime is automatic** - Updates flow from Appwrite → Store → UI automatically
-- **Sync logic is important** - Always check `isSynced` before write operations
+- **Always use reactive derived values** - Never copy store data, use `$derived()` for automatic updates
+- **Stores are singletons** - Import and use directly, don't create instances
+- **IndexedDB is automatic** - Stores handle cache persistence transparently
+- **Realtime is multiplexed** - All stores share a single WebSocket via RealtimeManager
+- **Auth is required for most operations** - Check `globalState.isAuthenticated` before write operations
+- **Appwrite config is centralized** - Use `getAppwriteInstances()` from `appwrite.ts` service
+- **Permissions are handled server-side** - Appwrite enforces document-level access control

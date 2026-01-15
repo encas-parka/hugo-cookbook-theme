@@ -193,6 +193,24 @@ export class NativeTeamsStore {
     return this.#teams.get(teamId);
   }
 
+  /**
+   * Retourne la liste des usernames des membres d'une team
+   * @param teamId - ID de la team
+   * @returns string[] - Liste des noms des membres
+   */
+  getTeamMemberNames(teamId: string): string[] {
+    const team = this.#teams.get(teamId);
+    if (!team || !team.members) return [];
+    return team.members
+      .map((m) => {
+        // Priorité: name > partie avant le @ de l'email > "Inconnu"
+        if (m.name) return m.name;
+        if (m.userEmail) return m.userEmail.split("@")[0];
+        return "Inconnu";
+      })
+      .filter(Boolean);
+  }
+
   async fetchTeam(teamId: string): Promise<EnrichedNativeTeam | null> {
     try {
       const team = await getTeam(teamId);
