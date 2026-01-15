@@ -222,6 +222,7 @@ export type UserNotifications = Models.Row & {
   targetCollection: string | null;
   targetDocumentId: string | null;
   userId: string;
+  from: string | null; // ID de l'utilisateur à l'origine de l'action, ou 'system'
 };
 
 export type EventTodo = Models.Row & {

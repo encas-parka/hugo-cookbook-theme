@@ -203,18 +203,18 @@
         ])
           .then(() => {
             appState = "READY_FULLY_SYNCED";
-            toastService.update(syncToastId, {
-              state: "success",
-              message: "Recettes à jour !",
-              autoCloseDelay: 2000,
-            });
+            // toastService.update(syncToastId, {
+            //   state: "success",
+            //   message: "Recettes à jour !",
+            //   autoCloseDelay: 2000,
+            // });
           })
           .catch((err) => {
             console.error("[App] Erreur synchro recettes:", err);
             toastService.update(syncToastId, {
               state: "warning",
               message: "Mode hors ligne : recettes en cache",
-              autoCloseDelay: 5000,
+              autoCloseDelay: 10000,
             });
           });
       }

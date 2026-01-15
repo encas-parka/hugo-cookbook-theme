@@ -9,6 +9,17 @@ export type ToastState = "loading" | "success" | "error" | "info" | "warning";
 export type ToastSource = "user" | "realtime-other" | "system";
 
 /**
+ * Position du toast (valeurs DaisyUI)
+ */
+export type ToastPosition =
+  | "toast-center toast-bottom"
+  | "toast-top toast-end"
+  | "toast-top toast-start"
+  | "toast-bottom toast-end"
+  | "toast-bottom toast-start"
+  | "toast-center";
+
+/**
  * Interface pour une action de toast
  */
 export interface ToastAction {
@@ -30,9 +41,11 @@ export interface Toast {
   timestamp: number;
   /** Source de l'action */
   source: ToastSource;
+  /** Position du toast (optionnel, utilise la position globale par défaut) */
+  position?: ToastPosition;
   /** Délai d'auto-fermeture (ID du setTimeout) */
   timeoutId?: number;
-  /** Durée d'auto-fermeture personnalisée en ms */
+  /** Durée d'auto-fermeture personnalisée en ms (0 = persistant) */
   autoCloseDelay?: number;
   /** Détails optionnels pour affichage dans un modal */
   details?: any;
@@ -52,7 +65,9 @@ export interface ToastOptions {
   message: string;
   /** Source de l'action */
   source?: ToastSource;
-  /** Délai d'auto-fermeture personnalisé */
+  /** Position du toast (optionnel) */
+  position?: ToastPosition;
+  /** Délai d'auto-fermeture personnalisé (0 = persistant) */
   autoCloseDelay?: number;
   /** Détails optionnels pour affichage dans un modal */
   details?: any;
@@ -72,11 +87,30 @@ export interface ToastTrackOptions {
   error?: string;
   /** ID personnalisé du toast */
   id?: string;
-  /** Durée d'auto-fermeture pour le toast de succès */
+  /** Durée d'auto-fermeture pour le toast de succès (0 = persistant) */
   successDelay?: number;
-  /** Durée d'auto-fermeture pour le toast d'erreur */
+  /** Durée d'auto-fermeture pour le toast d'erreur (0 = persistant) */
   errorDelay?: number;
+  /** Position du toast */
+  position?: ToastPosition;
 }
+
+/**
+ * Durées d'auto-fermeture par défaut (en ms)
+ * 0 = pas d'auto-fermeture (toast persistant)
+ */
+const DEFAULT_AUTO_CLOSE_DELAYS = {
+  loading: 0, // Jamais d'auto-close pour loading
+  success: 2000,
+  info: 3000,
+  warning: 5000,
+  error: 0, // Pas d'auto-close par défaut pour les erreurs
+} as const;
+
+/**
+ * Multiplicateur pour les toasts realtime-other
+ */
+const REALTIME_MULTIPLIER = 2; // 2x plus long (success/info = 4s, warning = 10s)
 
 /**
  * Service de gestion des toasts
@@ -84,8 +118,8 @@ export interface ToastTrackOptions {
 export class ToastService {
   /** Array des toasts actifs avec réactivité Svelte 5 */
   #toasts = $state<Toast[]>([]);
-  /** Maximum de toasts simultanés */
-  readonly MAX_TOASTS = 3;
+  /** Maximum de toasts simultanés (1 par source) */
+  readonly MAX_TOASTS = 3; // user + realtime-other + system
 
   /** Accès en lecture seule aux toasts */
   get toasts(): Toast[] {
@@ -103,13 +137,14 @@ export class ToastService {
       message: options.message,
       timestamp: Date.now(),
       source: options.source || "user",
+      position: options.position,
       timeoutId: undefined,
       autoCloseDelay: options.autoCloseDelay,
       details: options.details,
       actions: options.actions || [],
     };
 
-    // Stratégie simple : 1 toast utilisateur + toasts secondaires
+    // Stratégie : 1 toast par source max
     this.#addToQueue(toast);
 
     return id;
@@ -134,6 +169,7 @@ export class ToastService {
       state: updates.state || existingToast.state,
       message: updates.message || existingToast.message,
       source: updates.source || existingToast.source,
+      position: updates.position || existingToast.position,
       actions: updates.actions || existingToast.actions,
       autoCloseDelay:
         updates.autoCloseDelay !== undefined
@@ -155,6 +191,7 @@ export class ToastService {
       state: "loading",
       message: options.loading,
       source: "user",
+      position: options.position,
     });
 
     try {
@@ -208,31 +245,34 @@ export class ToastService {
   }
 
   /**
-   * Stratégie d'ajout simple et efficace
+   * Stratégie d'ajout : 1 toast par source max
    */
   #addToQueue(newToast: Toast): void {
-    if (newToast.source === "user") {
-      // Remplacer le toast utilisateur existant
-      const userIndex = this.#toasts.findIndex((t) => t.source === "user");
-      if (userIndex >= 0) {
-        this.#toasts[userIndex] = newToast;
+    // Trouver et remplacer le toast existant de la même source
+    const existingIndex = this.#toasts.findIndex(
+      (t) => t.source === newToast.source,
+    );
+
+    if (existingIndex >= 0) {
+      // Remplacer le toast existant
+      const oldToast = this.#toasts[existingIndex];
+      if (oldToast.timeoutId) {
+        clearTimeout(oldToast.timeoutId);
+      }
+      this.#toasts[existingIndex] = newToast;
+    } else {
+      // Ajouter nouveau toast si max non atteint
+      if (this.#toasts.length < this.MAX_TOASTS) {
+        this.#toasts.push(newToast);
       } else {
+        // Max atteint - supprimer le plus ancien
+        const oldest = this.#toasts[0];
+        if (oldest.timeoutId) {
+          clearTimeout(oldest.timeoutId);
+        }
+        this.#toasts.shift();
         this.#toasts.push(newToast);
       }
-    } else {
-      // Ajouter un toast secondaire (max 2)
-      const secondaryToasts = this.#toasts.filter((t) => t.source !== "user");
-      if (secondaryToasts.length >= 2) {
-        // Supprimer le plus ancien
-        const oldestSecondary = secondaryToasts[0];
-        this.dismiss(oldestSecondary.id);
-      }
-      this.#toasts.push(newToast);
-    }
-
-    // Limiter le total
-    if (this.#toasts.length > this.MAX_TOASTS) {
-      this.#toasts.splice(0, this.#toasts.length - this.MAX_TOASTS);
     }
 
     // Auto-fermeture
@@ -240,49 +280,38 @@ export class ToastService {
   }
 
   /**
-   * Programme l'auto-fermeture si nécessaire
+   * Programme l'auto-fermeture selon les délais par défaut
    */
   #scheduleAutoClose(toast: Toast): void {
-    // Auto-fermeture pour success, info, error et warning si un délai est spécifié
-    const hasCustomDelay = toast.autoCloseDelay !== undefined;
-    const canAutoClose =
-      toast.state === "success" ||
-      toast.state === "info" ||
-      (toast.state === "error" && hasCustomDelay) ||
-      (toast.state === "warning" && hasCustomDelay);
-
-    if (!canAutoClose) {
-      return;
+    // Annuler l'ancien timeout si existe
+    if (toast.timeoutId) {
+      clearTimeout(toast.timeoutId);
     }
 
-    // Durée par défaut selon le type et la source, ou durée personnalisée si spécifiée
-    let delay: number;
+    // Déterminer le délai d'auto-fermeture
+    let delay: number | undefined;
 
     if (toast.autoCloseDelay !== undefined) {
-      // Utiliser la durée personnalisée
-      delay = toast.autoCloseDelay;
+      // Valeur personnalisée (0 signifie pas d'auto-close)
+      delay = toast.autoCloseDelay === 0 ? undefined : toast.autoCloseDelay;
     } else {
-      // Utiliser les durées par défaut
-      switch (toast.state) {
-        case "success":
-        case "info":
-          delay = toast.source === "realtime-other" ? 4000 : 2000;
-          break;
-        case "warning":
-          // Par défaut, les warnings ne s'auto-ferment pas
-          if (!toast.autoCloseDelay) return;
-          delay = toast.autoCloseDelay;
-          break;
-        case "error":
-          // Les erreurs ne s'auto-ferment que si un délai est spécifié
-          if (!toast.autoCloseDelay) return;
-          delay = toast.autoCloseDelay;
-          break;
-        default:
-          return;
+      // Utiliser les valeurs par défaut
+      const defaultDelay = DEFAULT_AUTO_CLOSE_DELAYS[toast.state];
+
+      // Pour realtime-other, multiplier par 2 (sauf si 0)
+      if (toast.source === "realtime-other" && defaultDelay > 0) {
+        delay = defaultDelay * REALTIME_MULTIPLIER;
+      } else {
+        delay = defaultDelay === 0 ? undefined : defaultDelay;
       }
     }
 
+    // Pas d'auto-fermeture si delay est undefined
+    if (delay === undefined) {
+      return;
+    }
+
+    // Programmer l'auto-fermeture
     toast.timeoutId = setTimeout(() => {
       this.dismiss(toast.id);
     }, delay) as unknown as number;
@@ -293,25 +322,35 @@ export class ToastService {
    */
   success(
     message: string,
-    options?: { details?: any; autoCloseDelay?: number },
+    options?: {
+      details?: any;
+      autoCloseDelay?: number;
+      position?: ToastPosition;
+    },
   ): string {
     return this.create({
       state: "success",
       message,
       details: options?.details,
       autoCloseDelay: options?.autoCloseDelay,
+      position: options?.position,
     });
   }
 
   error(
     message: string,
-    options?: { details?: any; autoCloseDelay?: number },
+    options?: {
+      details?: any;
+      autoCloseDelay?: number;
+      position?: ToastPosition;
+    },
   ): string {
     return this.create({
       state: "error",
       message,
       details: options?.details,
       autoCloseDelay: options?.autoCloseDelay,
+      position: options?.position,
     });
   }
 
@@ -322,6 +361,7 @@ export class ToastService {
       details?: any;
       actions?: ToastAction[];
       autoCloseDelay?: number;
+      position?: ToastPosition;
     },
   ): string {
     return this.create({
@@ -331,12 +371,18 @@ export class ToastService {
       details: options?.details,
       actions: options?.actions,
       autoCloseDelay: options?.autoCloseDelay,
+      position: options?.position,
     });
   }
 
   info(
     message: string,
-    options?: { source?: ToastSource; details?: any; autoCloseDelay?: number },
+    options?: {
+      source?: ToastSource;
+      details?: any;
+      autoCloseDelay?: number;
+      position?: ToastPosition;
+    },
   ): string {
     return this.create({
       state: "info",
@@ -344,18 +390,24 @@ export class ToastService {
       source: options?.source || "system",
       details: options?.details,
       autoCloseDelay: options?.autoCloseDelay,
+      position: options?.position,
     });
   }
 
   loading(
     message: string,
-    options?: { details?: any; autoCloseDelay?: number },
+    options?: {
+      details?: any;
+      autoCloseDelay?: number;
+      position?: ToastPosition;
+    },
   ): string {
     return this.create({
       state: "loading",
       message,
       details: options?.details,
       autoCloseDelay: options?.autoCloseDelay,
+      position: options?.position,
     });
   }
 }

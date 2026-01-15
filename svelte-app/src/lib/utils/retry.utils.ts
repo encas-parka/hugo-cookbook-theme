@@ -1,7 +1,5 @@
-import { toastService } from "../services/toast.service.svelte";
-
 export interface RetryOptions {
-  /** Nom de l'opération pour les messages */
+  /** Nom de l'opération pour les logs */
   operationName: string;
   /** Message de succès */
   successMessage?: string;
@@ -19,10 +17,13 @@ export interface RetryOptions {
 
 /**
  * Exécute une opération avec stratégie de réessai (auto + manuel)
- */
-/**
- * Exécute une opération avec stratégie de réessai (auto + manuel)
- * Retourne une Promise qui ne se résout qu'en cas de succès ou d'abandon définitif.
+ *
+ * NOTE: Cette fonction ne crée plus de toasts. C'est à l'appelant de gérer
+ * l'affichage via toastService.track() ou autre.
+ *
+ * @param operation - L'opération à exécuter
+ * @param options - Options de retry
+ * @returns Promise qui se résout avec le résultat ou null en cas d'échec
  */
 export function executeWithRetry<T>(
   operation: () => Promise<T>,
@@ -31,39 +32,18 @@ export function executeWithRetry<T>(
   const { operationName, maxAutoRetries = 1, autoRetryDelay = 1000 } = options;
 
   let attempt = 1;
-  let toastId: string | null = null;
 
   return new Promise<T | null>((resolve, reject) => {
-    const tryOperation = async (isManualRetry = false) => {
+    const tryOperation = async () => {
       try {
-        // Feedback visuel
-        if (isManualRetry) {
-          toastId = toastService.loading(`Tentative de ${operationName}...`);
-        } else if (attempt > 1) {
-          if (toastId) {
-            toastService.update(toastId, {
-              state: "loading",
-              message: `${operationName} (Tentative ${attempt}/${maxAutoRetries + 1})...`,
-            });
-          } else {
-            toastId = toastService.loading(
-              `${operationName} (Tentative ${attempt}/${maxAutoRetries + 1})...`,
-            );
-          }
-        } else {
-          toastId = toastService.loading(`${operationName} en cours...`);
-        }
+        console.log(
+          `[RetryUtils] ${operationName} - Tentative ${attempt}/${maxAutoRetries + 1}`,
+        );
 
         const result = await operation();
 
         // Succès
-        if (toastId) {
-          toastService.update(toastId, {
-            state: "success",
-            message: options.successMessage || `${operationName} réussie !`,
-            actions: undefined,
-          });
-        }
+        console.log(`[RetryUtils] ${operationName} - Succès`);
         options.onSuccess?.(result);
         resolve(result);
       } catch (error) {
@@ -77,43 +57,22 @@ export function executeWithRetry<T>(
         // Auto-retry
         if (attempt <= maxAutoRetries) {
           attempt++;
-
-          if (toastId) {
-            toastService.update(toastId, {
-              state: "loading",
-              message: `Erreur. Nouvelle tentative dans ${autoRetryDelay / 1000}s...`,
-            });
-          }
-
-          setTimeout(() => tryOperation(false), autoRetryDelay);
+          console.log(
+            `[RetryUtils] Nouvelle tentative dans ${autoRetryDelay / 1000}s...`,
+          );
+          setTimeout(() => tryOperation(), autoRetryDelay);
           return;
         }
 
-        // Échec de l'auto-retry -> Proposer Retry Manuel
-        if (toastId) {
-          toastService.update(toastId, {
-            state: "error",
-            message: `Échec ${operationName}: ${errMessage}`,
-            actions: [
-              {
-                label: "Réessayer",
-                onClick: () => {
-                  toastService.dismiss(toastId!);
-                  tryOperation(true);
-                },
-              },
-            ],
-          });
-        }
-
-        // On ne resolve/reject PAS ici, on attend que l'utilisateur clique sur Réessayer.
-        // Si l'utilisateur ferme le toast (via la croix), la promise restera pendante...
-        // Idéalement il faudrait un callback onDismiss sur le toast pour rejecter la promise.
-        // Mais pour l'instant, le comportement "bloquant" est ce qu'on veut pour ne pas casser la boucle.
+        // Échec définitif après tous les essais
+        console.error(
+          `[RetryUtils] ${operationName} - Échec après ${attempt} tentatives`,
+        );
         options.onError?.(error);
+        reject(error);
       }
     };
 
-    tryOperation(false);
+    tryOperation();
   });
 }

@@ -3,6 +3,7 @@ import { toastService } from "../services/toast.service.svelte";
 import { getAppwriteInstances, clearAppwriteCache } from "../services/appwrite";
 import { nativeTeamsStore } from "./NativeTeamsStore.svelte";
 import type { Models } from "appwrite";
+import { router } from "../services/simple-router.svelte";
 
 class GlobalState {
   private isMobileQuery = new MediaQuery("max-width: 768px");
@@ -193,8 +194,17 @@ class GlobalState {
   // CURRENT EVENT CONTEXT
   // =============================================================================
 
-  #currentMainId = $state<string | null>(null);
+  #currentMainId = $derived.by(() => {
+    const path = router.path;
+    const mainId = router.params.mainid || router.params.mainId; // Supporter les deux cas
 
+    // Vérifier si on est sur une route produits
+    if (path.startsWith("/products/") && mainId) {
+      return mainId;
+    }
+
+    return null;
+  });
   get currentMainId() {
     return this.#currentMainId;
   }

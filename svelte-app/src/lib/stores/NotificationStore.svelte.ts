@@ -16,6 +16,7 @@
 import { getDatabaseId, getAppwriteInstances } from "../services/appwrite";
 import { realtimeManager } from "./RealtimeManager.svelte";
 import { globalState } from "./GlobalState.svelte";
+import { toastService } from "$lib/services/toast.service.svelte";
 
 interface UserNotifications {
   $id: string;
@@ -27,6 +28,7 @@ interface UserNotifications {
   targetCollection: string;
   targetDocumentId: string;
   createdAt: string;
+  from?: string;
 }
 
 class NotificationStore {
@@ -100,10 +102,7 @@ class NotificationStore {
               const { eventsStore } = await import("./EventsStore.svelte");
               await eventsStore.reload();
               await this.#deleteNotification(payload.$id);
-            } else if (
-              payload.notificationType === "team_access_granted" &&
-              payload.targetCollection === "kteams"
-            ) {
+            } else if (payload.notificationType === "team_access_granted") {
               console.log(
                 "[NotificationStore] 🔔 Team access granted:",
                 payload.targetDocumentId,
@@ -134,9 +133,34 @@ class NotificationStore {
                 console.log(
                   "[NotificationStore] ✅ Sync status cleared for batch update",
                 );
+
+                // ✅ LOGIQUE DE TOAST : Distinguer user / system / other
+                if (payload.from) {
+                  if (payload.from === globalState.userId) {
+                    // Même utilisateur : pas de toast
+                    console.log(
+                      "[NotificationStore] Batch update from current user - no toast",
+                    );
+                  } else if (payload.from === "system") {
+                    toastService.info("Produits mis a jour", {
+                      source: "system",
+                    });
+                  } else {
+                    // Autre utilisateur : toast realtime-other
+                    toastService.info(
+                      `Les produits ont été modifiés par un·e autre utilisateur·ices`,
+                      { source: "realtime-other" },
+                    );
+                  }
+                } else {
+                  // Legacy : pas de champ 'from'
+                  console.warn(
+                    "[NotificationStore] Legacy notification without 'from' field - ignoring",
+                  );
+                }
               }
 
-              await this.#deleteNotification(payload.$id);
+              // await this.#deleteNotification(payload.$id); // TOCHECK redondant ?!
             }
           }
         },
