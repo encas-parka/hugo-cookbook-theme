@@ -48,42 +48,43 @@ export interface EventMealRecipe {
 import type { Main } from "./appwrite.d";
 
 export enum EventTodoPriority {
-    LOW = "low",
-    MEDIUM = "medium",
-    HIGH = "high"
+  LOW = "low",
+  MEDIUM = "medium",
+  HIGH = "high",
 }
 
 export enum EventTodoStatus {
-    TODO = "todo",
-    DONE = "done",
-    WAITING = "waiting",
-    CANCELED = "canceled",
-    INPROGRESS = "inprogress"
+  TODO = "todo",
+  DONE = "done",
+  WAITING = "waiting",
+  CANCELED = "canceled",
+  INPROGRESS = "inprogress",
 }
 
 export enum EventTodoTaskOn {
-    BEFORE_EVENT = "beforeEvent",
-    ON_EVENT = "onEvent",
-    AFTER_EVENT = "afterEvent"
+  BEFORE_EVENT = "beforeEvent",
+  ON_EVENT = "onEvent",
+  AFTER_EVENT = "afterEvent",
 }
 
 export interface EventTodo {
-    id: string; // Identifiant unique (UUID généré client)
-    taskName: string;
-    taskDescription: string | null;
-    dueDate: string | null;
-    priority: EventTodoPriority | null;
-    status: EventTodoStatus | null; // Par défaut TODO
-    taskOn: EventTodoTaskOn | null;
-    requiredPeopleNb: number;
-    assignedTo: string[] | null; // IDs des utilisateurs
+  id: string; // Identifiant unique (UUID généré client)
+  taskName: string;
+  taskDescription: string | null;
+  dueDate: string | null;
+  priority: EventTodoPriority | null;
+  status: EventTodoStatus | null; // Par défaut TODO
+  taskOn: EventTodoTaskOn | null;
+  requiredPeopleNb: number;
+  assignedTo: string[] | null; // IDs des utilisateurs
 }
 
 /**
  * Événement enrichi avec les données parsées
  * Utilisé dans le store et l'UI
  */
-export interface EnrichedEvent extends Omit<Main, "meals" | "contributors" | "todos"> {
+export interface EnrichedEvent
+  extends Omit<Main, "meals" | "contributors" | "todos"> {
   meals: EventMeal[];
   contributors: EventContributor[];
   todos: EventTodo[];
@@ -94,6 +95,7 @@ export interface EnrichedEvent extends Omit<Main, "meals" | "contributors" | "to
  */
 export interface CreateEventData {
   name: string;
+  description?: string;
   dateStart: string;
   dateEnd: string;
   allDates?: string[]; // Tableau de toutes les dates uniques des repas
@@ -119,4 +121,3 @@ export interface UpdateEventData {
   todos?: EventTodo[];
   status?: "proposition" | "confirmed" | "canceled" | "archive" | "locked";
 }
-

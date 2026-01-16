@@ -141,6 +141,91 @@ export async function createEvent(
 }
 
 /**
+ * Crée un nouvel événement avec des teams (action unifiée)
+ * Cette fonction remplace l'approche en 2 étapes (createEvent + invite)
+ * en utilisant une seule action cloud "create-event-with-teams"
+ *
+ * @param data - Données de l'événement
+ * @param userId - ID du créateur
+ * @param teamIds - IDs des teams à inviter (optionnel)
+ * @param sendEmailToExistingMembers - Envoyer un email aux membres des teams (défaut: true)
+ * @returns L'événement créé
+ */
+export async function createEventWithTeams(
+  data: CreateEventData,
+  userId: string,
+  teamIds: string[] = [],
+  sendEmailToExistingMembers: boolean = true,
+): Promise<Main> {
+  return safeOperation(
+    async () => {
+      const { functions } = await getAppwriteInstances();
+
+      // Préparer les données de l'événement
+      const eventData = {
+        name: data.name,
+        description: data.description || "",
+        dateStart: data.dateStart,
+        dateEnd: data.dateEnd,
+        allDates: data.allDates,
+        meals: data.meals ? data.meals.map((m) => JSON.stringify(m)) : [],
+        createdBy: userId, // Ajouter le créateur
+        teams: [], // TOUJOURS vide au départ - la cloud function le remplira
+        contributors: data.contributors
+          ? data.contributors.map((c) => JSON.stringify(c))
+          : [],
+        todos: data.todos ? data.todos.map((t) => JSON.stringify(t)) : [],
+        status: data.status || "proposition",
+      };
+
+      console.log(
+        `[appwrite-events] Création événement avec ${teamIds.length} team(s)`,
+      );
+
+      // Appeler l'action cloud unifiée
+      const execution = await functions.createExecution({
+        functionId: APPWRITE_CONFIG.functions.usersTeamsManager,
+        body: JSON.stringify({
+          action: "create-event-with-teams",
+          eventData: eventData,
+          creatorId: userId,
+          teamIds: teamIds,
+          sendEmailToExistingMembers: sendEmailToExistingMembers,
+        }),
+        async: false, // Attendre que tout soit complété
+      });
+
+      // Parser la réponse
+      const response = JSON.parse(execution.responseBody);
+
+      if (!response.success) {
+        throw new Error(response.error || "Erreur lors de la création");
+      }
+
+      console.log(
+        `[appwrite-events] Événement créé avec teams: ${response.eventId}`,
+      );
+
+      // Récupérer l'événement complet depuis la base
+      const { tables } = await getAppwriteInstances();
+      const event = await tables.getRow({
+        databaseId: APPWRITE_CONFIG.databaseId,
+        tableId: EVENTS_COLLECTION_ID,
+        rowId: response.eventId,
+      });
+
+      return event as unknown as Main;
+    },
+    {
+      context: "AppwriteEvents.createEventWithTeams",
+      timeout: 30000, // 30s pour la création complète avec invitations
+      successMessage: "Événement créé avec succès",
+      errorMessage: "Erreur lors de la création de l'événement",
+    },
+  );
+}
+
+/**
  * Met à jour un événement existant
  * Note: Les permissions sont gérées côté serveur via les fonctions Appwrite
  */

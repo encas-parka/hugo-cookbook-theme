@@ -147,7 +147,7 @@ async function prepareBatchData(
 function splitIntoBatches(
   productsData: GroupPurchaseProductData[],
   invoiceData: GroupPurchaseInvoiceData,
-  maxPurchasesPerBatch = 100,
+  maxPurchasesPerBatch = 98,
 ): GroupPurchaseProductData[][] {
   const batches: GroupPurchaseProductData[][] = [];
   let currentBatch: GroupPurchaseProductData[] = [];
@@ -298,7 +298,7 @@ export async function createGroupPurchaseWithSync(
   );
 
   // 3. Diviser en lots de 100 achats maximum
-  const batches = splitIntoBatches(productsData, invoiceData, 100);
+  const batches = splitIntoBatches(productsData, invoiceData, 98);
 
   console.log(
     `[Appwrite Interactions] Découpage en ${batches.length} lot(s) pour respecter la limite de 100 achats par lot`,

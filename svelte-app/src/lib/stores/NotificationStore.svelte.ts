@@ -160,7 +160,7 @@ class NotificationStore {
                 }
               }
 
-              // await this.#deleteNotification(payload.$id); // TOCHECK redondant ?!
+              await this.#deleteNotification(payload.$id); // TOCHECK redondant ?!
             }
           }
         },

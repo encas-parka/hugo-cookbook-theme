@@ -31,6 +31,7 @@ import {
   listEvents,
   getEvent as getAppwriteEvent,
   createEvent as createAppwriteEvent,
+  createEventWithTeams as createAppwriteEventWithTeams,
   updateEvent as updateAppwriteEvent,
   deleteEvent as deleteAppwriteEvent,
   EVENTS_COLLECTION_ID,
@@ -564,6 +565,41 @@ export class EventsStore {
   }
 
   /**
+   * Crée un nouvel événement avec des teams (action unifiée)
+   * Cette méthode remplace l'approche en 2 étapes pour une meilleure performance
+   *
+   * @param data - Données de l'événement
+   * @param teamIds - IDs des teams à inviter
+   * @param sendEmailToExistingMembers - Envoyer un email aux membres des teams
+   */
+  async createEventWithTeams(
+    data: CreateEventData,
+    teamIds: string[] = [],
+    sendEmailToExistingMembers: boolean = true,
+  ): Promise<EnrichedEvent> {
+    if (!globalState.userId) throw new Error("Utilisateur non connecté");
+
+    const event = await createAppwriteEventWithTeams(
+      data,
+      globalState.userId,
+      teamIds,
+      sendEmailToExistingMembers,
+    );
+    const enriched = this.#enrichEvent(event);
+    this.#events.set(event.$id, enriched);
+
+    // Persistance immédiate dans le cache
+    if (this.#cache) {
+      await this.#cache.saveEvent(enriched);
+    }
+
+    console.log(
+      `[EventsStore] Événement créé avec ${teamIds.length} team(s): ${event.$id}`,
+    );
+    return enriched;
+  }
+
+  /**
    * Met à jour un événement
    */
   async updateEvent(
@@ -964,6 +1000,22 @@ export class EventsStore {
       return await this.updateEvent(eventId, { todos });
     } catch (err) {
       console.error(`[EventsStore] Erreur ajout todo:`, err);
+      throw err;
+    }
+  }
+
+  /**
+   * Ajoute plusieurs todos à un événement
+   */
+  async addTodos(eventId: string, todos: EventTodo[]): Promise<EnrichedEvent> {
+    try {
+      const event = this.#events.get(eventId);
+      if (!event) throw new Error("Événement introuvable");
+
+      const updatedTodos = [...event.todos, ...todos];
+      return await this.updateEvent(eventId, { todos: updatedTodos });
+    } catch (err) {
+      console.error(`[EventsStore] Erreur ajout todos:`, err);
       throw err;
     }
   }
