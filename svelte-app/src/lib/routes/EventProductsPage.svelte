@@ -417,6 +417,7 @@
       </div>
     </div>
     <ProductsCards
+      {currentEvent}
       onOpenModal={openModal}
       onOpenGroupEditModal={openGroupEditModal}
       onOpenGroupPurchaseModal={openGroupPurchaseModal}

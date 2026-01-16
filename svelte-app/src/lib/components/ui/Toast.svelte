@@ -20,7 +20,7 @@
 
   let {
     position = "toast-center toast-bottom",
-    padding = "md",
+    padding = "sm",
     onShowDetails,
   }: Props = $props();
 
@@ -75,43 +75,41 @@
             <span class="text-xs">{toast.message}</span>
           </div>
 
-          <div class="flex items-center gap-1">
-            <!-- Boutons d'action personnalisés -->
-            {#if toast.actions && toast.actions.length > 0}
-              {#each toast.actions as action}
-                <button
-                  class="btn btn-sm btn-primary"
-                  onclick={() => handleActionClick(toast, action)}
-                >
-                  {action.label}
-                </button>
-              {/each}
-            {/if}
-
-            <!-- Bouton détails si disponible -->
-            {#if toast.details}
+          <!-- Boutons d'action personnalisés -->
+          {#if toast.actions && toast.actions.length > 0}
+            {#each toast.actions as action}
               <button
-                class="btn btn-ghost btn-xs btn-square"
-                onclick={() => showDetails(toast)}
-                title="Voir les détails"
-                aria-label="Voir les détails"
+                class="btn btn-sm btn-primary"
+                onclick={() => handleActionClick(toast, action)}
               >
-                <ChevronDown class="h-3 w-3" />
+                {action.label}
               </button>
-            {/if}
+            {/each}
+          {/if}
 
-            <!-- Bouton de fermeture (erreurs et warnings uniquement) -->
-            {#if toast.state === "error" || toast.state === "warning" || toast.state === "loading"}
-              <button
-                class="btn btn-ghost btn-sm btn-circle absolute top-1 right-1"
-                onclick={() => dismiss(toast)}
-                title="Fermer"
-                aria-label="Fermer la notification"
-              >
-                <X class="h-4 w-4" />
-              </button>
-            {/if}
-          </div>
+          <!-- Bouton détails si disponible -->
+          {#if toast.details}
+            <button
+              class="btn btn-ghost btn-xs btn-square"
+              onclick={() => showDetails(toast)}
+              title="Voir les détails"
+              aria-label="Voir les détails"
+            >
+              <ChevronDown class="h-3 w-3" />
+            </button>
+          {/if}
+
+          <!-- Bouton de fermeture (erreurs et warnings uniquement) -->
+          {#if toast.state === "error" || toast.state === "warning" || toast.state === "loading"}
+            <button
+              class="btn btn-ghost btn-sm btn-circle absolute top-1 right-1"
+              onclick={() => dismiss(toast)}
+              title="Fermer"
+              aria-label="Fermer la notification"
+            >
+              <X class="h-4 w-4" />
+            </button>
+          {/if}
         </div>
       </div>
     {/each}

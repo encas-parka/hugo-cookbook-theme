@@ -47,8 +47,8 @@
   }
 </script>
 
-<div class="rounded-box bg-secondary/10 px-4 py-0.5">
-  <div class="tabs tabs-lg tabs-border justify-center">
+<div class="rounded-box bg-secondary/10 px-4 py-1">
+  <div class="tabs tabs-border justify-center">
     {#each eventTabs as tab, index (index)}
       <button
         class="tab font-semibold {index === activeTab ? 'tab-active' : ''}"

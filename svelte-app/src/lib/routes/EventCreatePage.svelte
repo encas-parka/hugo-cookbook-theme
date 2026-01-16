@@ -8,7 +8,7 @@
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import type { EventMeal } from "$lib/types/events";
   import type { MainStatus } from "$lib/types/appwrite";
-  import { Calendar, Plus, Save } from "@lucide/svelte";
+  import { Calendar, CalendarPlus2, Plus, Save } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
   import { navigate } from "../services/simple-router.svelte";
@@ -20,6 +20,8 @@
 
   let meals = $state<EventMeal[]>([]);
   let eventName = $state("");
+  let description = $state("");
+
   let status = $state<MainStatus | "">("");
   let statusError = $state(false);
   let isBusy = $state(false);
@@ -37,10 +39,20 @@
 
   // Teams sélectionnées pour les permissions
   let selectedTeams = $state<string[]>([]);
+  let sendEmailToExistingMembers = $state(true);
+
+  // Fonction pour toggle une team
+  function toggleTeam(teamId: string) {
+    if (selectedTeams.includes(teamId)) {
+      selectedTeams = selectedTeams.filter((id) => id !== teamId);
+    } else {
+      selectedTeams = [...selectedTeams, teamId];
+    }
+  }
 
   // Permissions Manager - création (pas d'édition)
   let minContrib = $state(1);
-  let isEditable = $state(false);
+  let isEditable = $state(true);
 
   function onStartEdit() {
     // Pas d'édition possible en création
@@ -141,8 +153,11 @@
       new Set(sortedMeals.map((m) => m.date)),
     ).sort();
 
+    // Préparer les données de l'événement
+    // CRITICAL : teams est vide au départ, la cloud function le remplira
     const eventData = {
       name: eventName,
+      description,
       status: status as MainStatus,
       allDates: allDatesSorted as string[],
       dateStart: allDatesSorted.length > 0 ? allDatesSorted[0] : "",
@@ -150,13 +165,18 @@
         allDatesSorted.length > 0
           ? allDatesSorted[allDatesSorted.length - 1]
           : "",
-      teams: selectedTeams,
       contributors: contributorsToSave,
       meals: sortedMeals,
     };
 
     try {
-      const savedEvent = await eventsStore.createEvent(eventData);
+      // Utiliser la nouvelle méthode unifiée qui crée l'événement ET invite les teams
+      const savedEvent = await eventsStore.createEventWithTeams(
+        eventData,
+        selectedTeams,
+        sendEmailToExistingMembers,
+      );
+
       navigate(`/dashboard/eventEdit/${savedEvent.$id}`);
       return true;
     } catch (error) {
@@ -177,10 +197,6 @@
 
     isBusy = false;
   }
-
-  // ============================================================================
-  // HANDLERS
-  // ============================================================================
 
   function handleNameInput(e: Event) {
     eventName = (e.target as HTMLInputElement).value;
@@ -258,17 +274,46 @@
   </div>
 {/snippet}
 
-<div class="bg-base-200 min-h-lvh space-y-6 px-2 pt-4 pb-20 md:px-20">
-  <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+<div class="bg-base-200 min-h-lvh space-y-10 px-2 pt-4 pb-20 md:px-30 md:pb-20">
+  <div class="card bg-base-100">
+    <div class="card-body">
+      <div class="card-title mb-4">
+        <CalendarPlus2 /> Création d'un événement
+      </div>
+      <p>
+        La création d'événement permet d'organiser des menus sur plusieurs
+        jours, se répartir les taches, gérer une liste de courses générées à
+        partir des ingrédients des recettes, générer des affiches de menus...
+      </p>
+      <p>
+        A l'étape suivante, vous pourrez invitez vos équipes ou des individu·es
+        à participer, créer les menus, etc.
+      </p>
+    </div>
+  </div>
+
+  <div class="flex flex-col justify-between gap-6">
     <div class="min-w-80 flex-1 gap-2">
       <input
         type="text"
-        class="input input-lg min-w-full shadow-md"
+        class="input input-lg min-w-2/3 shadow-md"
         value={eventName}
         oninput={handleNameInput}
         disabled={isBusy}
         placeholder="Nom de l'événement"
       />
+    </div>
+    <div class="flex min-w-xs flex-1 flex-col">
+      <textarea
+        class="textarea w-full"
+        placeholder="Décrivez l'événement..."
+        bind:value={description}
+        maxlength="3000"
+        rows="9"
+      ></textarea>
+      <p class="label ms-auto me-2 text-end text-sm">
+        {description.length}/3000 caractères
+      </p>
     </div>
   </div>
 
@@ -280,7 +325,7 @@
       </div>
     </div>
   {:else}
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <!-- Colonne Gauche : Permissions -->
       <div class="space-y-6 lg:col-span-1">
         <PermissionsManager
@@ -293,6 +338,64 @@
           eventId={undefined}
           {onStartEdit}
         />
+
+        <!-- Sélection des teams -->
+        <Fieldset legend="Équipes participantes">
+          {#if teamsStore.myTeams.length > 0}
+            <div class="mb-4">
+              <p class="mb-2 text-sm opacity-70">
+                Sélectionnez les équipes à inviter à l'événement :
+              </p>
+              <div class="flex flex-wrap gap-2">
+                {#each teamsStore.myTeams as team (team.$id)}
+                  <label
+                    class="bg-secondary/10 hover:bg-secondary/20 flex cursor-pointer items-center gap-3 rounded-lg px-4 py-2"
+                  >
+                    <input
+                      type="checkbox"
+                      class="checkbox checkbox-sm bg-base-100"
+                      checked={selectedTeams.includes(team.$id)}
+                      onchange={() => toggleTeam(team.$id)}
+                    />
+                    <div class="flex flex-col">
+                      <span class="text-sm font-medium">
+                        {team.name}
+                        <span class="text-xs opacity-60">
+                          ({team.total} membre{team.total > 1 ? "s" : ""})
+                        </span>
+                      </span>
+                      <div class="text-xs opacity-70">
+                        {teamsStore.getTeamMemberNames(team.$id).join(", ")}
+                      </div>
+                    </div>
+                  </label>
+                {/each}
+              </div>
+            </div>
+
+            <!-- Checkbox envoi d'emails -->
+            {#if selectedTeams.length > 0}
+              <label class="cursor-pointer justify-center gap-4">
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm"
+                  bind:checked={sendEmailToExistingMembers}
+                />
+                <span class="ms-1">
+                  Envoyer un email de notification aux membres des équipes
+                </span>
+              </label>
+              <p class="text-base-content/60 mt-1 text-xs">
+                Si désactivé, les membres auront accès à l'événement mais ne
+                recevront pas d'email.
+              </p>
+            {/if}
+          {:else}
+            <p class="text-sm italic opacity-60">
+              Vous ne faites partie d'aucune équipe.
+            </p>
+          {/if}
+        </Fieldset>
 
         <!-- Statut de l'événement -->
         <Fieldset legend="Statut de l'événement">
@@ -334,7 +437,7 @@
       </div>
 
       <!-- Colonne Droite : Repas -->
-      <div class="space-y-6 md:px-4 lg:col-span-3">
+      <div class="space-y-6 md:px-4 lg:col-span-2">
         <div class="mb-6 flex items-center justify-between">
           <h3 class="card-title text-lg">
             Repas & Menus ({sortedMeals.length})

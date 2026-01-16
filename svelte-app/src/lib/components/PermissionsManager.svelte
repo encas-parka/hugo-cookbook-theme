@@ -201,45 +201,47 @@
 
 <Fieldset legend="Participants">
   <!-- Équipe minimale -->
-  <fieldset class="fieldset">
-    {#if editingMinContrib}
-      <label class="input w-56">
-        <span class="label">Equipe minimale</span>
-        <input
-          type="number"
-          bind:value={minContrib}
-          onfocus={onStartEdit}
-          onblur={() => (editingMinContrib = false)}
+  <div class="card card-xs border-base-300 border p-4">
+    <fieldset class="fieldset">
+      {#if editingMinContrib}
+        <label class="input w-56">
+          <span class="label">Minimum</span>
+          <input
+            type="number"
+            bind:value={minContrib}
+            onfocus={onStartEdit}
+            onblur={() => (editingMinContrib = false)}
+            disabled={!canEdit}
+            min="1"
+            defaultValue={1}
+            class="grow"
+            id="min-contrib-input"
+          />
+        </label>
+      {:else}
+        <button
+          class="btn btn-ghost justify-start"
+          onclick={() => {
+            editingMinContrib = true;
+            setTimeout(() => {
+              document.getElementById("min-contrib-input")?.focus();
+            }, 50);
+          }}
           disabled={!canEdit}
-          min="1"
-          defaultValue={1}
-          class="grow"
-          id="min-contrib-input"
-        />
-      </label>
-    {:else}
-      <button
-        class="btn btn-ghost justify-start"
-        onclick={() => {
-          editingMinContrib = true;
-          setTimeout(() => {
-            document.getElementById("min-contrib-input")?.focus();
-          }, 50);
-        }}
-        disabled={!canEdit}
-      >
-        <div class="flex items-center gap-4">
-          <span class="label">Equipe minimale</span>
+        >
+          <div class="flex items-center gap-4">
+            <span class="label">minimum</span>
 
-          <span class="text-lg">
-            {minContrib || 1}
-          </span>
-          <PencilLine class="h-4 w-4" />
-        </div>
-      </button>
-    {/if}
-    <p class="label">Nombre minimum de participants requis</p>
-  </fieldset>
+            <span class="text-lg">
+              {minContrib || 1}
+            </span>
+            <PencilLine class="h-4 w-4" />
+          </div>
+        </button>
+      {/if}
+      <p class="label">Nombre minimum de participants requis</p>
+    </fieldset>
+  </div>
 
   <!-- Participants (Déjà enregistrés) -->
   <div class="mb-6">
@@ -296,10 +298,6 @@
           </div>
         </fieldset>
       {/if}
-
-      {#if contributors.length === 0}
-        <p class="text-xs italic opacity-60">Aucun participant enregistré</p>
-      {/if}
     </div>
   </div>
 
@@ -315,10 +313,6 @@
         Inviter des participant·es
       </button>
     </div>
-  {:else}
-    <p class="text-xs italic opacity-60">
-      Vous pourrez inviter des participants une fois l'événement créé
-    </p>
   {/if}
 </Fieldset>
 

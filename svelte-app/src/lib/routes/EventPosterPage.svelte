@@ -9,7 +9,7 @@
   import { navigate } from "$lib/services/simple-router.svelte";
   import PosterConfiguration from "$lib/components/eventPoster/PosterConfiguration.svelte";
   import PosterDisplay from "$lib/components/eventPoster/PosterDisplay.svelte";
-  import { ChevronLeft, Printer, AlertCircle } from "@lucide/svelte";
+  import { ChevronLeft, Printer, AlertCircle, Info } from "@lucide/svelte";
   import HeaderNav from "$lib/components/HeaderNav.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
   import { navBarStore } from "$lib/stores/NavBarStore.svelte";
@@ -290,6 +290,17 @@
   $effect(() => {
     if (!event || eventLoading) return;
 
+    // Check if event has meals with recipes
+    const hasRecipes =
+      event.meals &&
+      event.meals.some((meal) => meal.recipes && meal.recipes.length > 0);
+
+    if (!hasRecipes) {
+      // No recipes to load - mark as not loading
+      recipesLoading = false;
+      return;
+    }
+
     // Only load if we haven't loaded yet
     if (recipesDetails.length === 0 && !recipesLoading) {
       loadEventRecipes().then(() => {
@@ -303,13 +314,19 @@
   async function loadEventRecipes() {
     if (!event?.meals) return;
 
+    // OPTIMISATION BULK : Extraire tous les UUIDs de recettes
+    const allRecipeUuids = event.meals.flatMap((meal) =>
+      meal.recipes.map((mealRecipe: any) => mealRecipe.recipeUuid),
+    );
+
+    // Early return if no recipes
+    if (allRecipeUuids.length === 0) {
+      recipesLoading = false;
+      return;
+    }
+
     recipesLoading = true;
     try {
-      // OPTIMISATION BULK : Extraire tous les UUIDs de recettes
-      const allRecipeUuids = event.meals.flatMap((meal) =>
-        meal.recipes.map((mealRecipe: any) => mealRecipe.recipeUuid),
-      );
-
       console.log(
         `[EventPoster] Loading ${allRecipeUuids.length} recipes (bulk mode)...`,
       );
@@ -465,6 +482,13 @@
     <div class="alert alert-error">
       <AlertCircle class="h-6 w-6 shrink-0" />
       <span>{eventError}</span>
+    </div>
+  </div>
+{:else if !event || (event.meals && event.meals.length > 0 && event.meals.every((meal) => !meal.recipes || meal.recipes.length === 0))}
+  <div class="flex min-h-[60vh] items-center justify-center">
+    <div class="alert alert-info alert-vertical">
+      <Info />
+      <p class="text-lg">Aucune recette pour le moment</p>
     </div>
   </div>
 {:else if event}

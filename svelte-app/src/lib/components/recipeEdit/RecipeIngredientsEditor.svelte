@@ -12,6 +12,8 @@
   } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import CreateIngredientModal from "./CreateIngredientModal.svelte";
+  import { toastService } from "@/lib/services/toast.service.svelte";
+  import { slide } from "svelte/transition";
 
   // ============================================================================
   // PROPS
@@ -138,6 +140,9 @@
     searchQuery = "";
     isOpen = false;
     selectedIndex = -1;
+
+    const typeName = getProductTypeInfo(newIngredient.type).displayName;
+    toastService.success(`Ingredient ajouté dans ${typeName}`);
   }
 
   function openDropdown() {
@@ -436,13 +441,16 @@
             {#each typeIngredients as ingredient, index (index)}
               {@const preview = getNormalizedPreview(ingredient)}
 
-              <div class="card bg-base-100 border-base-200 border shadow-sm">
+              <div
+                class="card bg-base-100 border-base-200 border shadow-sm"
+                transition:slide
+              >
                 <div class="card-body p-3">
                   <div class="flex items-start justify-between gap-3">
                     <!-- Contenu principal -->
                     <div class="flex-1 space-y-2">
                       <!-- Nom + quantité & unit -->
-                      <div class="flex flex-wrap gap-6">
+                      <div class="flex flex-wrap gap-2">
                         <div
                           class="item-start flex min-w-1/2 flex-1 justify-between"
                         >
