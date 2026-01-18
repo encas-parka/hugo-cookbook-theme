@@ -33,17 +33,26 @@
     MessageCircleMore,
     ClipboardPenLine,
     CircleAlert,
+    Warehouse,
   } from "@lucide/svelte";
   import Tooltip from "$lib/components/ui/Tooltip.svelte";
   import DateBadge from "$lib/components/ui/DateBadge.svelte";
   import { globalState, hoverHelp } from "$lib/stores/GlobalState.svelte";
   import {
     DayMonthMoment,
+    formatDateDayMonthShort,
     formatDateWdDayMonthShort,
   } from "$lib/utils/date-helpers";
   import { calculateDateDisplayInfo } from "$lib/utils/dateRange";
   import IconSprite from "../ui/IconSprite.svelte";
   import { fade } from "svelte/transition";
+
+  interface Stock {
+    quantity: number;
+    unit: string;
+    notes: string;
+    dateTime: string;
+  }
 
   // Récupérer les icônes de statut depuis le parent pour éviter la duplication
   const statusIcons = {
@@ -617,6 +626,26 @@
                     ajouter un achat
                   </div>
                   <div class="ms-auto flex flex-wrap gap-1.5">
+                    <!-- Badge de stock actuel -->
+                    {#if product.stockParsed}
+                      <div
+                        class="badge badge-outline badge-lg badge-secondary flex h-auto flex-col items-center gap-1"
+                      >
+                        <div class="flex items-center gap-1">
+                          <Warehouse class="text-secondary h-4 w-4" />
+                          <span class="text-sm font-medium text-nowrap">
+                            {product.stockParsed.quantity}
+                            {product.stockParsed.unit}
+                          </span>
+                        </div>
+                        <span class="text-xs opacity-75">
+                          stock: {formatDateDayMonthShort(
+                            product.stockParsed.dateTime,
+                          )}
+                        </span>
+                      </div>
+                    {/if}
+
                     {#each purchasesBadges as purchase, index (index)}
                       {@const IconComponent = statusIcons[purchase.icon]}
                       <div
@@ -636,7 +665,8 @@
                         {/if}
                       </div>
                     {/each}
-                    {#if purchasesBadges.length === 0}
+
+                    {#if purchasesBadges.length === 0 && !product?.stockParsed}
                       <div class="text-base-content/50 text-xs italic">
                         aucun
                       </div>
@@ -744,7 +774,25 @@
                 {/if}
               </td>
               <td class="border px-2 py-1 text-right text-sm">
-                {#if product.purchases?.length}
+                {#if product.stockParsed}
+                  <div class="flex flex-col items-end gap-0.5">
+                    <div class="font-medium text-nowrap">
+                      📦 {product.stockParsed.quantity}
+                      {#if product.stockParsed?.dateTime}
+                        <span class="text-xs opacity-70">
+                          ({formatDateDayMonthShort(
+                            product.stockParsed.dateTime,
+                          )})
+                        </span>
+                      {/if}
+                    </div>
+                    {#if product.purchases?.length}
+                      {#each product.purchases as p}
+                        <div class="text-nowrap">{p.quantity} {p.unit}</div>
+                      {/each}
+                    {/if}
+                  </div>
+                {:else if product.purchases?.length}
                   <div class="flex flex-col items-end gap-0.5">
                     {#each product.purchases as p}
                       <div class="text-nowrap">{p.quantity} {p.unit}</div>
@@ -776,7 +824,7 @@
           d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
         ></path>
       </svg>
-      {#if currentEvent && currentEvent.meals && currentEvent.meals.length > 0 && currentEvent.meals.every(meal => !meal.recipes || meal.recipes.length === 0)}
+      {#if currentEvent && currentEvent.meals && currentEvent.meals.length > 0 && currentEvent.meals.every((meal) => !meal.recipes || meal.recipes.length === 0)}
         <span>Aucune recette pour le moment</span>
       {:else}
         <span>Aucun produit trouvé avec les filtres actuels</span>

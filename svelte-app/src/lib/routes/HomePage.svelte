@@ -2,6 +2,7 @@
   import { navigate } from "../services/simple-router.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
   import { recipesStore } from "../stores/RecipesStore.svelte";
+  import FeatureCard from "../components/ui/FeatureCard.svelte";
   import {
     ChefHat,
     ArrowRight,
@@ -9,7 +10,7 @@
     Users,
     ShoppingCart,
     Package,
-    Sparkles,
+    Printer,
   } from "@lucide/svelte";
 
   // Ouvrir l'auth modal du HeaderNav
@@ -75,82 +76,67 @@
     </div>
   </section>
 
-  <!-- SECTION 2: Les 2 Cards -->
+  <!-- SECTION 2: Feature Cards -->
   <section class="bg-base-200 py-16">
     <div class="container mx-auto px-4">
-      <div class="grid gap-8 lg:grid-cols-3">
-        <!-- Card 1: Recettes (1/3) -->
-        <div class="card bg-base-100 shadow-xl">
-          <div class="card-body">
-            <div class="card-title text-primary mb-4 justify-center">
-              <BookOpen size={32} />
-              <h2 class="text-2xl">Recettes</h2>
-            </div>
-            <ul class="text-base-content/80 space-y-3">
-              <li class="flex items-start gap-2">
-                <Sparkles size={16} class="text-primary mt-1 flex-shrink-0" />
-                <span>Partagez vos recettes et découvrez celles des autres</span
-                >
-              </li>
-              <li class="flex items-start gap-2">
-                <Sparkles size={16} class="text-primary mt-1 flex-shrink-0" />
-                <span
-                  >Dupliquez et adaptez facilement les recettes existantes</span
-                >
-              </li>
-              <li class="flex items-start gap-2">
-                <Sparkles size={16} class="text-primary mt-1 flex-shrink-0" />
-                <span
-                  >Ajustement automatique des quantités selon le nombre de
-                  couverts</span
-                >
-              </li>
-              <li class="flex items-start gap-2">
-                <Sparkles size={16} class="text-primary mt-1 flex-shrink-0" />
-                <span>Imprimez vos recettes proprement</span>
-              </li>
-            </ul>
-          </div>
+      <div class="grid gap-8">
+        <!-- Recettes cards -->
+        <div class="grid gap-6 md:grid-cols-3">
+          <FeatureCard
+            images={["/images/plat.webp", "/images/salade.webp"]}
+            title="Partagez vos recettes"
+            description="Découvrez et partagez des recettes avec la communauté"
+            buttonText="Explorer"
+            buttonAction={() => navigate("/recipe")}
+            theme="primary"
+          />
+          <FeatureCard
+            images={[
+              "/images/home/recipe-print.webp",
+              "/images/home/recipe.webp",
+            ]}
+            title="Imprimez vos recettes"
+            description="Générez des fiches recettes propres et professionnelles"
+            buttonText="Imprimer"
+            theme="primary"
+          />
         </div>
 
-        <!-- Card 2: Cantine (2/3) -->
-        <div class="card bg-base-100 shadow-xl lg:col-span-2">
-          <div class="card-body">
-            <div class="card-title text-secondary mb-4 justify-center">
-              <Users size={32} />
-              <h2 class="text-2xl">Cantines autogérées</h2>
-            </div>
-            <div class="grid gap-6 md:grid-cols-2">
-              <div>
-                <h3 class="text-base-content mb-3 font-semibold">
-                  <ShoppingCart
-                    size={20}
-                    class="text-secondary mr-2 inline-block"
-                  />Organisation
-                </h3>
-                <ul class="text-base-content/80 space-y-2">
-                  <li>• Élaborez des menus, sur plusieurs jours si besoin</li>
-                  <li>• Organisez-vous en équipes</li>
-                  <li>• Générez automatiquement les listes de courses</li>
-                  <li>• Etablissez et répartissez-vous les tâches</li>
-                </ul>
-              </div>
-              <div>
-                <h3 class="text-base-content mb-3 font-semibold">
-                  <Package
-                    size={20}
-                    class="text-secondary mr-2 inline-block"
-                  />Gestion
-                </h3>
-                <ul class="text-base-content/80 space-y-2">
-                  <li>• Imprimez les recettes et affiches des menus</li>
-                  <li>• Gérez vos stocks et votre matériel</li>
-                  <li>• Découvrez des cantines autogérées près de chez vous</li>
-                  <li>• Rejoignez des équipes existantes</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+        <!-- Cantines autogérées cards -->
+        <div class="grid gap-6 md:grid-cols-3">
+          <FeatureCard
+            images={["/images/doc/explorer.png"]}
+            title="Organisation"
+            description="Élaborez des menus sur plusieurs jours et organisez-vous en équipes"
+            buttonText="Organiser"
+            buttonAction={() =>
+              globalState.isAuthenticated
+                ? navigate("/dashboard")
+                : openAuthModal()}
+            theme="secondary"
+          />
+          <FeatureCard
+            images={["/images/home/product.webp"]}
+            title="Listes de courses"
+            description="Générez automatiquement les listes de courses pour vos menus"
+            buttonText="Générer"
+            buttonAction={() =>
+              globalState.isAuthenticated
+                ? navigate("/dashboard")
+                : openAuthModal()}
+            theme="secondary"
+          />
+          <FeatureCard
+            images={["/images/friture.webp"]}
+            title="Gestion complète"
+            description="Gérez vos stocks, matériel et répartissez les tâches"
+            buttonText="Gérer"
+            buttonAction={() =>
+              globalState.isAuthenticated
+                ? navigate("/dashboard")
+                : openAuthModal()}
+            theme="secondary"
+          />
         </div>
       </div>
     </div>

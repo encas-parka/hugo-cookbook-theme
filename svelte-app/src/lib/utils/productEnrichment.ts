@@ -31,6 +31,7 @@ import {
   aggregateByUnit,
   subtractQuantities,
 } from "./QuantityFormatter";
+import { UnitConverter } from "./UnitConverter";
 import { calculateAllDateDisplayInfo } from "./dateRange";
 
 /**
@@ -68,7 +69,20 @@ export function createEnrichedProductFromAppwrite(
   const { numeric: missingQuantityArray, display: displayMissingQuantity } =
     calculateAndFormatMissing(effectiveNeededArray, totalPurchasesArray);
 
-  const stockParsed = safeJsonParse<any>(product.stockReel) ?? null;
+  // Parser et normaliser le stock (kg→gr., l.→ml)
+  let stockParsed = safeJsonParse<any>(product.stockReel) ?? null;
+  if (stockParsed && stockParsed.quantity && stockParsed.unit) {
+    const normalized = UnitConverter.normalize(
+      parseFloat(stockParsed.quantity),
+      stockParsed.unit,
+    );
+    stockParsed = {
+      ...stockParsed,
+      quantity: normalized.quantity,
+      unit: normalized.unit,
+    };
+  }
+
   const displayTotalPurchases = formatTotalQuantity(totalPurchasesArray);
   const storeInfo = product.store
     ? safeJsonParse<StoreInfo>(product.store)
@@ -187,9 +201,22 @@ export function updateExistingProduct(
 
   // Fusion intelligente du stock
   const mergedStockReel = product.stockReel ?? existing.stockReel;
-  const stockParsed = mergedStockReel
+  let stockParsed = mergedStockReel
     ? safeJsonParse<any>(mergedStockReel)
     : existing.stockParsed;
+
+  // Normaliser le stock (kg→gr., l.→ml)
+  if (stockParsed && stockParsed.quantity && stockParsed.unit) {
+    const normalized = UnitConverter.normalize(
+      parseFloat(stockParsed.quantity),
+      stockParsed.unit,
+    );
+    stockParsed = {
+      ...stockParsed,
+      quantity: normalized.quantity,
+      unit: normalized.unit,
+    };
+  }
 
   // Fusion intelligente du store
   const mergedStore = product.store ?? existing.store;

@@ -1,6 +1,5 @@
 <script lang="ts">
   import EventMealCard from "$lib/components/eventEdit/EventMealCard.svelte";
-  import PermissionsManager from "$lib/components/PermissionsManager.svelte";
   import Fieldset from "$lib/components/ui/Fieldset.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
@@ -52,12 +51,6 @@
 
   // Permissions Manager - création (pas d'édition)
   let minContrib = $state(1);
-  let isEditable = $state(true);
-
-  function onStartEdit() {
-    // Pas d'édition possible en création
-    console.warn("Cannot edit in creation mode");
-  }
 
   // ============================================================================
   // NAVBAR CONFIGURATION
@@ -282,12 +275,9 @@
       </div>
       <p>
         La création d'événement permet d'organiser des menus sur plusieurs
-        jours, se répartir les taches, gérer une liste de courses générées à
-        partir des ingrédients des recettes, générer des affiches de menus...
-      </p>
-      <p>
-        A l'étape suivante, vous pourrez invitez vos équipes ou des individu·es
-        à participer, créer les menus, etc.
+        jours, se répartir les taches (une fois l'événement crée), gérer une
+        liste de courses générées à partir des ingrédients des recettes, générer
+        des affiches de menus...
       </p>
     </div>
   </div>
@@ -303,101 +293,22 @@
         placeholder="Nom de l'événement"
       />
     </div>
-    <div class="flex min-w-xs flex-1 flex-col">
-      <textarea
-        class="textarea w-full"
-        placeholder="Décrivez l'événement..."
-        bind:value={description}
-        maxlength="3000"
-        rows="9"
-      ></textarea>
-      <p class="label ms-auto me-2 text-end text-sm">
-        {description.length}/3000 caractères
-      </p>
-    </div>
-  </div>
-
-  {#if isBusy}
-    <div class="flex items-center justify-center py-20">
-      <div class="flex flex-col items-center gap-4">
-        <span class="loading loading-spinner loading-lg text-primary"></span>
-        <p class="text-base-content/60">Création de l'événement...</p>
+    <div class="flex flex-wrap gap-x-10 gap-y-6">
+      <div class="span-2 flex min-w-xs flex-1 flex-col">
+        <textarea
+          class="textarea w-full"
+          placeholder="Décrivez l'événement..."
+          bind:value={description}
+          maxlength="3000"
+          rows="9"
+        ></textarea>
+        <p class="label ms-auto me-2 text-end text-sm">
+          {description.length}/3000 caractères
+        </p>
       </div>
-    </div>
-  {:else}
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <!-- Colonne Gauche : Permissions -->
-      <div class="space-y-6 lg:col-span-1">
-        <PermissionsManager
-          contributors={[]}
-          nativeTeamsStore={teamsStore}
-          {eventsStore}
-          {minContrib}
-          canEdit={isEditable}
-          userId={globalState.userId || ""}
-          eventId={undefined}
-          {onStartEdit}
-        />
 
-        <!-- Sélection des teams -->
-        <Fieldset legend="Équipes participantes">
-          {#if teamsStore.myTeams.length > 0}
-            <div class="mb-4">
-              <p class="mb-2 text-sm opacity-70">
-                Sélectionnez les équipes à inviter à l'événement :
-              </p>
-              <div class="flex flex-wrap gap-2">
-                {#each teamsStore.myTeams as team (team.$id)}
-                  <label
-                    class="bg-secondary/10 hover:bg-secondary/20 flex cursor-pointer items-center gap-3 rounded-lg px-4 py-2"
-                  >
-                    <input
-                      type="checkbox"
-                      class="checkbox checkbox-sm bg-base-100"
-                      checked={selectedTeams.includes(team.$id)}
-                      onchange={() => toggleTeam(team.$id)}
-                    />
-                    <div class="flex flex-col">
-                      <span class="text-sm font-medium">
-                        {team.name}
-                        <span class="text-xs opacity-60">
-                          ({team.total} membre{team.total > 1 ? "s" : ""})
-                        </span>
-                      </span>
-                      <div class="text-xs opacity-70">
-                        {teamsStore.getTeamMemberNames(team.$id).join(", ")}
-                      </div>
-                    </div>
-                  </label>
-                {/each}
-              </div>
-            </div>
-
-            <!-- Checkbox envoi d'emails -->
-            {#if selectedTeams.length > 0}
-              <label class="cursor-pointer justify-center gap-4">
-                <input
-                  type="checkbox"
-                  class="checkbox checkbox-sm"
-                  bind:checked={sendEmailToExistingMembers}
-                />
-                <span class="ms-1">
-                  Envoyer un email de notification aux membres des équipes
-                </span>
-              </label>
-              <p class="text-base-content/60 mt-1 text-xs">
-                Si désactivé, les membres auront accès à l'événement mais ne
-                recevront pas d'email.
-              </p>
-            {/if}
-          {:else}
-            <p class="text-sm italic opacity-60">
-              Vous ne faites partie d'aucune équipe.
-            </p>
-          {/if}
-        </Fieldset>
-
-        <!-- Statut de l'événement -->
+      <!-- Statut de l'événement -->
+      <div class="align-start min-w-96">
         <Fieldset legend="Statut de l'événement">
           <div class="space-y-3">
             <label class="flex cursor-pointer items-center gap-3">
@@ -431,6 +342,94 @@
           {#if statusError}
             <p class="text-error mt-2 text-sm">
               Veuillez sélectionner un statut
+            </p>
+          {/if}
+        </Fieldset>
+      </div>
+    </div>
+  </div>
+
+  {#if isBusy}
+    <div class="flex items-center justify-center py-20">
+      <div class="flex flex-col items-center gap-4">
+        <span class="loading loading-spinner loading-lg text-primary"></span>
+        <p class="text-base-content/60">Création de l'événement...</p>
+      </div>
+    </div>
+  {:else}
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <!-- Colonne Gauche : Permissions -->
+      <div class="space-y-6 lg:col-span-1">
+        <!-- Sélection des teams -->
+        <Fieldset legend="Équipes participantes">
+          {#if teamsStore.myTeams.length > 0}
+            <fieldset class="fieldset mb-6">
+              <legend class="fieldset-legend">Minimum de participant·es</legend>
+              <label class="input">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  bind:value={minContrib}
+                  placeholder="1"
+                />
+              </label>
+              <p class="fieldset-label text-base-content/60">
+                Combien il faudrait être pour tout gérer ?
+              </p>
+            </fieldset>
+
+            <fieldset class="fieldset mb-4">
+              <legend class="fieldset-legend"
+                >Sélectionnez les équipes à inviter à l'événement :</legend
+              >
+              <div class="flex flex-wrap gap-2">
+                {#each teamsStore.myTeams as team (team.$id)}
+                  <label
+                    class="bg-secondary/10 hover:bg-secondary/20 flex cursor-pointer items-center gap-3 rounded-lg px-4 py-2"
+                  >
+                    <input
+                      type="checkbox"
+                      class="checkbox checkbox-sm bg-base-100"
+                      checked={selectedTeams.includes(team.$id)}
+                      onchange={() => toggleTeam(team.$id)}
+                    />
+                    <div class="flex flex-col">
+                      <span class="text-sm font-medium">
+                        {team.name}
+                        <span class="text-xs opacity-60">
+                          ({team.total} membre{team.total > 1 ? "s" : ""})
+                        </span>
+                      </span>
+                      <div class="text-xs opacity-70">
+                        {teamsStore.getTeamMemberNames(team.$id).join(", ")}
+                      </div>
+                    </div>
+                  </label>
+                {/each}
+              </div>
+            </fieldset>
+
+            <!-- Checkbox envoi d'emails -->
+            {#if selectedTeams.length > 0}
+              <label class="cursor-pointer justify-center gap-4">
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm"
+                  bind:checked={sendEmailToExistingMembers}
+                />
+                <span class="ms-1">
+                  Envoyer un email de notification aux membres des équipes
+                </span>
+              </label>
+              <p class="text-base-content/60 mt-1 text-xs">
+                Si désactivé, les membres auront accès à l'événement mais ne
+                recevront pas d'email.
+              </p>
+            {/if}
+          {:else}
+            <p class="text-sm italic opacity-60">
+              Vous ne faites partie d'aucune équipe.
             </p>
           {/if}
         </Fieldset>

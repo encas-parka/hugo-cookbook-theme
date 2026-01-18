@@ -38,6 +38,7 @@
   import MaterielPage from "./lib/routes/MaterielPage.svelte";
   import LoansPage from "./lib/routes/LoansPage.svelte";
   import LoanReturnPage from "./lib/routes/LoanReturnPage.svelte";
+  import EventListPage from "./lib/routes/EventListPage.svelte";
 
   // États de l'application
   type AppState =
@@ -102,6 +103,7 @@
     LoanReturnPage,
     requireAuth,
   );
+  router.addRoute("/eventList", EventListPage, requireAuth);
 
   // État du composant actuel
   let currentRoute = $state<any>(null);

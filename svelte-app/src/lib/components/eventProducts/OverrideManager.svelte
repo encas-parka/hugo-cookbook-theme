@@ -136,7 +136,7 @@
 </script>
 
 {#if modalState.product}
-  <div class="mb-4 space-y-3">
+  <div class=" mb-4 space-y-3">
     <!-- ⚠️ Alerte si le contexte a changé depuis l'override -->
     {#if overrideMismatch?.hasMismatch && overrideMismatch?.details}
       <div class="alert alert-warning alert-soft">

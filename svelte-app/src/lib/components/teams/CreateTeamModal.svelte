@@ -101,85 +101,75 @@
     <ModalContent>
       <form onsubmit={(e) => e.preventDefault()} class="space-y-4">
         <!-- Nom de l'équipe -->
-        <div>
-          <label class="label" for="create-team-name">
-            <span class="label-text">Nom de l'équipe *</span>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend">Nom de l'équipe *</legend>
+          <label class="input">
+            <input
+              type="text"
+              bind:value={teamName}
+              placeholder="Ex: Équipe Marketing"
+              maxlength="50"
+              disabled={loading}
+              onkeydown={handleKeydown}
+            />
           </label>
-          <input
-            id="create-team-name"
-            type="text"
-            class="input input-bordered w-full"
-            bind:value={teamName}
-            placeholder="Ex: Équipe Marketing"
-            maxlength="50"
-            disabled={loading}
-            onkeydown={handleKeydown}
-          />
-          <span class="label label-text-alt opacity-50"
+          <span class="fieldset-label text-xs opacity-50"
             >{teamName.length}/50 caractères</span
           >
-        </div>
+        </fieldset>
 
         <!-- Description -->
-        <div>
-          <label class="label" for="create-team-description">
-            <span class="label-text">Description (optionnel)</span>
-          </label>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend">Description</legend>
           <textarea
-            id="create-team-description"
-            class="textarea textarea-bordered w-full"
+            class="textarea w-full"
             bind:value={teamDescription}
-            placeholder="Décrivez l'objectif de cette équipe..."
             rows="3"
             maxlength="350"
             disabled={loading}
           ></textarea>
-          <span class="label label-text-alt opacity-50"
+          <span class="fieldset-label text-xs opacity-50"
             >{teamDescription.length}/350 caractères</span
           >
-        </div>
+        </fieldset>
 
         <!-- Localisation -->
         <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="label" for="create-team-location">
-              <span class="label-text flex items-center gap-1">
-                <MapPin class="h-4 w-4" />
-                Département (optionnel)
-              </span>
+          <fieldset class="fieldset">
+            <legend class="fieldset-legend flex items-center gap-1">
+              <MapPin class="h-4 w-4" />
+              Département
+            </legend>
+            <label class="input">
+              <input
+                type="text"
+                bind:value={teamLocation}
+                placeholder="Ex: Île-de-France"
+                maxlength="50"
+                disabled={loading}
+              />
             </label>
-            <input
-              id="create-team-location"
-              type="text"
-              class="input input-bordered w-full"
-              bind:value={teamLocation}
-              placeholder="Ex: Île-de-France"
-              maxlength="50"
-              disabled={loading}
-            />
-          </div>
+          </fieldset>
 
-          <div>
-            <label class="label" for="create-team-city">
-              <span class="label-text flex items-center gap-1">
-                <Building2 class="h-4 w-4" />
-                Ville (optionnel)
-              </span>
+          <fieldset class="fieldset">
+            <legend class="fieldset-legend flex items-center gap-1">
+              <Building2 class="h-4 w-4" />
+              Ville
+            </legend>
+            <label class="input">
+              <input
+                type="text"
+                bind:value={teamCity}
+                placeholder="Ex: Paris"
+                maxlength="50"
+                disabled={loading}
+              />
             </label>
-            <input
-              id="create-team-city"
-              type="text"
-              class="input input-bordered w-full"
-              bind:value={teamCity}
-              placeholder="Ex: Paris"
-              maxlength="50"
-              disabled={loading}
-            />
-          </div>
+          </fieldset>
         </div>
 
         <!-- Équipe publique -->
-        <div class="form-control">
+        <!-- <div class="">
           <label class="label cursor-pointer justify-start gap-3">
             <input
               type="checkbox"
@@ -196,7 +186,7 @@
             Les équipes publiques sont visibles par tous les utilisateurs de la
             plateforme.
           </p>
-        </div>
+        </div> -->
 
         <!-- Message d'erreur -->
         {#if error}

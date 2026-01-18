@@ -33,6 +33,11 @@
   onMount(() => {
     loadVariants();
   });
+
+  // Filtrer pour ne pas afficher la recette actuelle
+  let displayVariants = $derived.by(() => {
+    return variants.filter((v) => v.$id !== recipeId);
+  });
 </script>
 
 {#if loading}
@@ -41,7 +46,7 @@
       <div class="loading loading-spinner loading-sm"></div>
     </div>
   </div>
-{:else if variants.length > 1}
+{:else if displayVariants.length > 0}
   <div class="card bg-base-100 mt-4 shadow-sm">
     <div class="card-body p-4">
       <h4 class="card-title flex items-center gap-2">
@@ -59,11 +64,12 @@
             d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
           />
         </svg>
-        {variants.length} variante{variants.length > 1 ? "s" : ""} de cette recette
+        {displayVariants.length} variante{displayVariants.length > 1 ? "s" : ""}
+        de cette recette
       </h4>
 
       <div class="flex flex-wrap gap-4">
-        {#each variants as variant}
+        {#each displayVariants as variant}
           <button
             class="btn btn-ghost"
             onclick={() => navigate(`/recipe/${variant.$id}`)}
@@ -77,9 +83,8 @@
                 </span>
               {/if}
               {#if variant.$id === root?.$id}
-                <span class="badge badge-primary badge-xs">Originale</span>
-              {:else if variant.$id === recipeId}
-                <span class="badge badge-secondary badge-xs">Cette recette</span
+                <span class="badge badge-primary badge-xs badge-soft"
+                  >Originale</span
                 >
               {/if}
             </div>

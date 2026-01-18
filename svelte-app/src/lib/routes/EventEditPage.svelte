@@ -746,7 +746,7 @@
             <!-- Bouton d'action -->
             {#if status === "proposition"}
               <button
-                class="btn btn-success btn-outline btn-sm"
+                class="btn btn-success btn-link btn-md"
                 onclick={() => (showConfirmStatusModal = true)}
                 disabled={!canEdit}
               >

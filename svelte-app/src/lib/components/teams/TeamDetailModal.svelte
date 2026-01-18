@@ -145,13 +145,6 @@
         >
           <Mail class="mr-1 h-5 w-5" />
           Invitations
-          {#if team.members.filter((m) => !m.confirmed).length > 0}
-            <span class="badge badge-sm badge-warning ml-1">
-              {team.members.filter((m) => !m.confirmed).length}
-            </span>
-          {:else}
-            <span class="badge badge-sm badge-ghost ml-1">0</span>
-          {/if}
         </button>
 
         {#if canEdit}

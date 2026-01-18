@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { Users, Calendar, CheckCircle, XCircle } from "@lucide/svelte";
+  import { Users, Calendar, CheckCircle, XCircle, Plus } from "@lucide/svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import TeamDetailModal from "$lib/components/teams/TeamDetailModal.svelte";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import type { Models } from "appwrite";
+  import CreateTeamModal from "../teams/CreateTeamModal.svelte";
 
   interface Team {
     $id: string;
@@ -29,6 +30,21 @@
 
   // État pour le modal de détails d'équipe
   let selectedTeamId = $state<string | null>(null);
+
+  let createModalOpen = $state(false);
+
+  function openCreateModal() {
+    createModalOpen = true;
+  }
+
+  function closeCreateModal() {
+    createModalOpen = false;
+  }
+
+  function handleTeamCreated(teamId: string) {
+    closeCreateModal();
+    openTeamDetailModal(teamId);
+  }
 
   function goToTeamsManagement() {
     navigate("/dashboard/teams");
@@ -111,8 +127,20 @@
         {/if}
       </div>
     {/if}
+    <div class="card-actions mt-4">
+      <button class="btn btn-primary btn-sm ms-auto" onclick={openCreateModal}
+        ><Plus class="size-4" /> Créer une équipe</button
+      >
+    </div>
   </div>
 </div>
+
+<!-- Modals -->
+<CreateTeamModal
+  isOpen={createModalOpen}
+  onClose={closeCreateModal}
+  onSuccess={handleTeamCreated}
+/>
 
 <!-- Modal de détails d'équipe -->
 {#if selectedTeamId}

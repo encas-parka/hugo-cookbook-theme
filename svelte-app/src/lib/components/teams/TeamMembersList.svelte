@@ -122,8 +122,12 @@
             <!-- Avatar et infos -->
             <div class="flex flex-1 items-center gap-3">
               <!-- Avatar avec initiales -->
-              <div class="avatar placeholder">
-                <div class="bg-neutral text-neutral-content w-12 rounded-full">
+              <div class="avatar avatar-placeholder">
+                <div
+                  class="{member.name === globalState.userName
+                    ? 'bg-accent'
+                    : 'bg-neutral'} text-neutral-content w-12 rounded-full"
+                >
                   <span class="text-lg">
                     {member.name
                       .split(" ")

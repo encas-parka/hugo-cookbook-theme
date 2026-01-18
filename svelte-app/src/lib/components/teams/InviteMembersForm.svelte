@@ -1,9 +1,19 @@
 <script lang="ts">
-  import { Plus, Mail, UserPlus, X } from "@lucide/svelte";
+  import {
+    CheckCircle,
+    Mail,
+    UserPlus,
+    X,
+    XCircle,
+    AlertCircle,
+    Info,
+  } from "@lucide/svelte";
   import Suggestions from "$lib/components/ui/Suggestions.svelte";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import type { EnrichedNativeTeam as EnrichedTeam } from "$lib/types/aw_native_team.d";
   import { isValidEmail } from "@/lib/utils/utils";
+  import { toastService } from "$lib/services/toast.service.svelte";
+  import InfoCollapse from "../ui/InfoCollapse.svelte";
   interface Props {
     team: EnrichedTeam;
     onSuccess?: () => void;
@@ -17,6 +27,7 @@
   let customMessage = $state("");
   let loading = $state(false);
   let error = $state<string | null>(null);
+  let successMessage = $state<string | null>(null);
 
   // Suggestions d'utilisateurs (TODO: implémenter la logique de récupération)
   // Pour l'instant, liste vide - à connecter avec une API pour récupérer
@@ -73,19 +84,32 @@
 
     loading = true;
     error = null;
+    successMessage = null;
 
     try {
-      await teamsStore.inviteTeamMember(
-        team.$id,
-        invitedEmails,
-        customMessage || undefined,
+      await toastService.track(
+        teamsStore.inviteTeamMember(
+          team.$id,
+          invitedEmails,
+          customMessage || undefined,
+        ),
+        {
+          loading: "Envoi des invitations en cours...",
+          success: `${invitedEmails.length} invitation${invitedEmails.length > 1 ? "s" : ""} envoyée${invitedEmails.length > 1 ? "s" : ""} avec succès`,
+          error: "Erreur lors de l'envoi des invitations",
+        },
       );
+
+      successMessage = `${invitedEmails.length} invitation${invitedEmails.length > 1 ? "s" : ""} envoyée${invitedEmails.length > 1 ? "s" : ""} avec succès`;
 
       // Réinitialiser le formulaire
       invitedEmails = [];
       customMessage = "";
 
-      onSuccess?.();
+      setTimeout(() => {
+        successMessage = null;
+        onSuccess?.();
+      }, 3000);
     } catch (err: any) {
       error = err.message || "Erreur lors de l'envoi des invitations";
       console.error("[InviteMembersForm] Erreur:", err);
@@ -106,6 +130,37 @@
 <!-- TODO : toast.service lorsqu'invitation réussi, (et fermeture du modal ?) -->
 
 <div class="space-y-4">
+  <div class="alert">
+    <Info class="h-6 w-6 shrink-0" />
+    <div>
+      <p>
+        Envoyez des invitations aux personnes qui font partie de votre cantine.
+        Si elles possèdent déjà un compte enka-cookbook, elles pourront
+        directement acceder aux événements de l'équipe, sinon, elles recevrons
+        un lien pour créer leur compte.
+      </p>
+      <p>
+        Il est aussi possible d'inviter des personnes individuellement à
+        participer aux évenements (depuis les pages d'évenements), même si elles
+        ne font pas partie de vos équipes
+      </p>
+    </div>
+  </div>
+  <!-- Message de succès -->
+  {#if successMessage}
+    <div class="alert alert-success">
+      <CheckCircle class="h-6 w-6 shrink-0" />
+      <span>{successMessage}</span>
+    </div>
+  {/if}
+
+  <!-- Message d'erreur général -->
+  {#if error}
+    <div class="alert alert-error">
+      <XCircle class="h-6 w-6 shrink-0" />
+      <span>{error}</span>
+    </div>
+  {/if}
   <!-- Input email avec bouton d'ajout -->
   <div class="flex gap-2">
     <label class="input flex-1">
@@ -117,16 +172,16 @@
         disabled={loading}
         onkeydown={handleKeydown}
       />
+      <button
+        class="btn btn-primary btn-sm"
+        onclick={addEmail}
+        disabled={loading || !emailInput.trim()}
+        title="Ajouter à la liste"
+      >
+        <UserPlus class="h-5 w-5" />
+        Ajouter
+      </button>
     </label>
-    <button
-      class="btn btn-primary"
-      onclick={addEmail}
-      disabled={loading || !emailInput.trim()}
-      title="Ajouter à la liste"
-    >
-      <UserPlus class="h-5 w-5" />
-      Ajouter
-    </button>
   </div>
 
   <!-- Suggestions (si disponibles) -->
@@ -140,13 +195,6 @@
       title="Suggestions"
       buttonSize="btn-sm"
     />
-  {/if}
-
-  <!-- Message d'erreur -->
-  {#if error}
-    <div class="alert alert-error">
-      <span class="text-sm">{error}</span>
-    </div>
   {/if}
 
   <!-- Liste des emails ajoutés -->

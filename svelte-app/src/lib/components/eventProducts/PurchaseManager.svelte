@@ -22,7 +22,11 @@
     getStatusBadge,
     formatDateOrNull,
   } from "$lib/utils/products-display.js";
-  import { formatSingleQuantity } from "$lib/utils/QuantityFormatter.js";
+  import {
+    formatSingleQuantity,
+    convertAndFormatQuantity,
+  } from "$lib/utils/QuantityFormatter.js";
+  import { UnitConverter } from "$lib/utils/UnitConverter.js";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import ArchiveMessage from "./ArchiveMessage.svelte";
@@ -56,9 +60,13 @@
     // Ne rien faire en mode archive
     if (isArchiveMode) return;
 
+    // Convertir les quantités pour l'affichage (≥1000 → kg/l.)
+    const { value: displayQuantity, unit: displayUnit } =
+      convertAndFormatQuantity(purchase.quantity, purchase.unit);
+
     // Copier les données du purchase dans le formulaire
-    modalState.forms.purchase.quantity = purchase.quantity;
-    modalState.forms.purchase.unit = purchase.unit;
+    modalState.forms.purchase.quantity = displayQuantity;
+    modalState.forms.purchase.unit = displayUnit;
     modalState.forms.purchase.price = purchase.price;
     modalState.forms.purchase.store = purchase.store || "";
     modalState.forms.purchase.who = purchase.who || "";
@@ -112,8 +120,13 @@
       if (!edited || !isEditFormValid(edited)) return;
 
       // Mettre à jour avec les données du formulaire
-      edited.quantity = modalState.forms.purchase.quantity ?? 0;
-      edited.unit = modalState.forms.purchase.unit;
+      // Normaliser les unités pour le stockage (kg→gr., l.→ml)
+      const rawQuantity = modalState.forms.purchase.quantity ?? 0;
+      const rawUnit = modalState.forms.purchase.unit;
+      const normalized = UnitConverter.normalize(rawQuantity, rawUnit);
+
+      edited.quantity = normalized.quantity;
+      edited.unit = normalized.unit;
       edited.price = modalState.forms.purchase.price;
       edited.store = modalState.forms.purchase.store;
       edited.who = modalState.forms.purchase.who;

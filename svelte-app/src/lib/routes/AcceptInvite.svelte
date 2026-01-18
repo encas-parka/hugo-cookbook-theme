@@ -84,6 +84,11 @@
   });
 
   async function handleFinish() {
+    if (!name || name.trim().length === 0) {
+      alert("Veuillez saisir votre pseudo / nom.");
+      return;
+    }
+
     if (password.length < 8) {
       alert("Le mot de passe doit faire au moins 8 caractères.");
       return;
@@ -147,12 +152,14 @@
         <label class="w-full text-left">
           <div class="label">
             <span class="label-text">Votre Pseudo / Nom</span>
+            <span class="label-text-alt text-error">*</span>
           </div>
           <input
             type="text"
             bind:value={name}
             class="input w-full"
-            placeholder="Ex: Chef Gusto"
+            required
+            maxlength="25"
           />
         </label>
 

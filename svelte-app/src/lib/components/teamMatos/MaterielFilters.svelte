@@ -5,6 +5,7 @@
     AlertCircle,
     FunnelX,
     Calendar,
+    Funnel,
   } from "@lucide/svelte";
   import Fieldset from "$lib/components/ui/Fieldset.svelte";
   import CheckboxBadge from "$lib/components/ui/CheckboxBadge.svelte";
@@ -76,7 +77,9 @@
 
 <div class="mt-16 space-y-4" class:opacity-30={disabled}>
   <div class="mb-4 flex items-center justify-between">
-    <h4 class="text-lg font-bold">Filtres</h4>
+    <h4 class="text-lg font-bold">
+      <Funnel class="inline size-4 align-baseline" /> Filtres
+    </h4>
     <button class="btn btn-warning btn-sm" onclick={onReset} {disabled}>
       <FunnelX class="h-4 w-4" />
       Effacer

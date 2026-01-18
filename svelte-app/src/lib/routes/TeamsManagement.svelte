@@ -14,22 +14,18 @@
   let createModalOpen = $state(false);
   let selectedTeamId = $state<string | null>(null);
 
-  // Ouvrir le modal de détails
   function openTeamDetails(teamId: string) {
     selectedTeamId = teamId;
   }
 
-  // Fermer le modal de détails
   function closeTeamDetails() {
     selectedTeamId = null;
   }
 
-  // Ouvrir le modal de création
   function openCreateModal() {
     createModalOpen = true;
   }
 
-  // Fermer le modal de création
   function closeCreateModal() {
     createModalOpen = false;
   }

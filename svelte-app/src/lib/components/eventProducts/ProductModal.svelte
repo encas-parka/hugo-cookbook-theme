@@ -109,7 +109,7 @@
     ></ModalHeader>
 
     <!-- Onglets -->
-    <div class="border-base-300 flex-none border-b px-4">
+    <div class="border-base-300 mb-4 flex-none border-b px-4">
       <div class="tabs tabs-border" role="tablist">
         <button
           role="tab"
