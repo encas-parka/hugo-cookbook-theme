@@ -151,7 +151,7 @@
   }
 </script>
 
-<ModalContainer {isOpen} onClose={closeModal}>
+<ModalContainer {isOpen} onClose={closeModal} maxWidth="sm">
   <ModalHeader title={getTitle()} onClose={closeModal} />
 
   <ModalContent>

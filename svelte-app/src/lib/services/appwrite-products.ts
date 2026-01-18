@@ -326,7 +326,7 @@ export async function loadProductsWithPurchases(
   options: LoadProductsOptions = {},
 ): Promise<ProductWithPurchases[]> {
   const {
-    limit = 100,
+    limit = 1000,
     orderBy = "productName",
     orderDirection = "asc",
   } = options;
@@ -531,7 +531,7 @@ export async function syncProductsWithPurchases(
   mainId: string,
   options: SyncOptions,
 ): Promise<ProductWithPurchases[]> {
-  const { lastSync, limit = 100 } = options;
+  const { lastSync, limit = 1000 } = options;
 
   try {
     const { tables, config } = await getAppwriteInstances();

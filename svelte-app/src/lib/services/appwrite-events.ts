@@ -178,7 +178,8 @@ export async function createEventWithTeams(
         allDates: data.allDates,
         meals: data.meals ? data.meals.map((m) => JSON.stringify(m)) : [],
         createdBy: userId, // Ajouter le créateur
-        teams: [], // TOUJOURS vide au départ - la cloud function le remplira
+        teams: data.teams || [], // Noms des équipes (pour affichage)
+        teamsId: data.teamsId || [], // IDs des équipes (pour filtrage)
         contributors: data.contributors
           ? data.contributors.map((c) => JSON.stringify(c))
           : [],

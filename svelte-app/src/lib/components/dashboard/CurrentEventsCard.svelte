@@ -11,6 +11,7 @@
     Edit,
     FileText,
     Image,
+    Rocket,
   } from "@lucide/svelte";
   import { formatDateRelative } from "$lib/utils/date-helpers";
   import type { EnrichedEvent } from "$lib/types/events.d";
@@ -42,9 +43,10 @@
     <span class="loading loading-spinner loading-md"></span>
   </div>
 {:else if events.length === 0}
-  <div class="py-6 text-center">
-    <Calendar class="mx-auto mb-3 h-12 w-12 opacity-20" />
-    <p class="text-base-content/60 mb-4 text-sm">Aucun événement prévu</p>
+  <div class="mx-auto flex items-center py-2">
+    <span class="text-base-content/60 text-center text-sm">
+      <Calendar class="me-2 inline size-4 opacity-60" />Aucun événement prévu
+    </span>
   </div>
 {:else}
   <!-- Événements à venir -->
@@ -80,8 +82,18 @@
                     {formatDateShort(event.dateStart)}
                   {/if}
                 </div>
+
+                <div
+                  class="badge badge-outline badge-sm font-medium {event.status ===
+                  'proposition'
+                    ? 'badge-accent'
+                    : 'badge-success'}"
+                >
+                  {event.status === "proposition" ? "proposition" : "confirmé"}
+                </div>
                 {#if hasInvitation(event.$id)}
                   <div class="badge badge-info badge-lg ms-auto">
+                    <Rocket class="size-4" />
                     Vous êtes invité à participer
                   </div>
                 {/if}
@@ -96,7 +108,9 @@
                       <span>{getEventLocation(event)}</span>
                     </div> -->
                 {#if event.teams && event.teams.length > 0}
-                  <div class="flex items-center gap-1">
+                  <div
+                    class="text-primary flex items-center gap-1 font-semibold"
+                  >
                     <Users class="h-3 w-3" />
                     <span>{event.teams.join(", ")}</span>
                   </div>
@@ -130,7 +144,7 @@
               <!-- Actions -->
               <div class="mt-3 flex flex-wrap gap-2">
                 <button
-                  class="btn btn-outline btn-xs"
+                  class="btn btn-outline btn-secondary btn-xs"
                   onclick={(e) => {
                     e.stopPropagation();
                     navigate(`/dashboard/eventEdit/${event.$id}`);
@@ -140,7 +154,7 @@
                   Éditer
                 </button>
                 <button
-                  class="btn btn-outline btn-xs"
+                  class="btn btn-outline btn-secondary btn-xs"
                   onclick={(e) => {
                     e.stopPropagation();
                     navigate(`/dashboard/eventEdit/recipes/${event.$id}`);
@@ -150,7 +164,7 @@
                   Recettes
                 </button>
                 <button
-                  class="btn btn-outline btn-xs"
+                  class="btn btn-outline btn-secondary btn-xs"
                   onclick={(e) => {
                     e.stopPropagation();
                     navigate(`/dashboard/eventEdit/products/${event.$id}`);
@@ -160,7 +174,7 @@
                   Produits
                 </button>
                 <button
-                  class="btn btn-outline btn-xs"
+                  class="btn btn-outline btn-secondary btn-xs"
                   onclick={(e) => {
                     e.stopPropagation();
                     navigate(`/dashboard/eventPosters/${event.$id}`);

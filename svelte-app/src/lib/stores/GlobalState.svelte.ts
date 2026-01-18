@@ -75,6 +75,9 @@ class GlobalState {
       localStorage.setItem("appwrite-user-email", this.#user.email);
       localStorage.setItem("appwrite-user-id", this.#user.$id);
 
+      // Initialiser NativeTeamsStore AVANT de récupérer les équipes
+      await nativeTeamsStore.initialize();
+
       // Récupérer les équipes depuis NativeTeamsStore
       this.#userTeams = nativeTeamsStore.myTeams.map((t) => t.$id);
 
@@ -113,6 +116,9 @@ class GlobalState {
       localStorage.setItem("appwrite-user-name", this.#user.name);
       localStorage.setItem("appwrite-user-email", this.#user.email);
       localStorage.setItem("appwrite-user-id", this.#user.$id);
+
+      // Initialiser NativeTeamsStore AVANT de récupérer les équipes
+      await nativeTeamsStore.initialize();
 
       // Récupérer les équipes depuis NativeTeamsStore
       this.#userTeams = nativeTeamsStore.myTeams.map((t) => t.$id);
@@ -171,6 +177,9 @@ class GlobalState {
     }
 
     try {
+      // Forcer la synchronisation depuis Appwrite
+      await nativeTeamsStore.syncFromRemote();
+
       // Récupérer les équipes depuis NativeTeamsStore
       const teams = nativeTeamsStore.myTeams.map((t) => t.$id);
 
@@ -188,6 +197,37 @@ class GlobalState {
         error,
       );
     }
+  }
+
+  /**
+   * Vérifie si l'utilisateur courant est owner d'une équipe spécifique
+   * @param teamId - L'ID de l'équipe à vérifier
+   * @returns true si l'utilisateur a le rôle "owner" pour cette équipe
+   */
+  isTeamOwner(teamId: string): boolean {
+    if (!this.#user) return false;
+
+    const team = nativeTeamsStore.myTeams.find((t) => t.$id === teamId);
+    if (!team) return false;
+
+    const member = team.members.find((m) => m.id === this.#user!.$id);
+    return member?.roles?.includes("owner") ?? false;
+  }
+
+  /**
+   * Vérifie si l'utilisateur courant a un rôle spécifique pour une équipe
+   * @param teamId - L'ID de l'équipe à vérifier
+   * @param role - Le rôle à vérifier (ex: "owner", "member")
+   * @returns true si l'utilisateur a ce rôle pour cette équipe
+   */
+  hasTeamRole(teamId: string, role: string): boolean {
+    if (!this.#user) return false;
+
+    const team = nativeTeamsStore.myTeams.find((t) => t.$id === teamId);
+    if (!team) return false;
+
+    const member = team.members.find((m) => m.id === this.#user!.$id);
+    return member?.roles?.includes(role) ?? false;
   }
 
   // =============================================================================

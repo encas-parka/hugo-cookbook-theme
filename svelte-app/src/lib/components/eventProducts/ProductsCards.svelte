@@ -93,6 +93,7 @@
     onOpenGroupPurchaseModal: (products: any[]) => void;
     onQuickValidation: (product: any, productInDateRange: any) => void;
     currentEvent?: any;
+    disabled?: boolean;
   }
 
   let {
@@ -101,6 +102,7 @@
     onOpenGroupPurchaseModal,
     onQuickValidation,
     currentEvent,
+    disabled = false,
   }: Props = $props();
 
   const groupedFilteredProducts = $derived(
@@ -130,7 +132,7 @@
   );
 </script>
 
-<div class="space-y-4 rounded-lg print:hidden">
+<div class="space-y-4 rounded-lg print:hidden {disabled ? 'opacity-50 pointer-events-none' : ''}">
   {#each Object.entries(groupedFilteredProducts) as [groupKey, gProducts] (groupKey)}
     {@const groupProducts : ProductModel[] = gProducts}
     {#if groupKey !== ""}

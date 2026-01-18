@@ -88,6 +88,8 @@ export interface EnrichedEvent
   meals: EventMeal[];
   contributors: EventContributor[];
   todos: EventTodo[];
+  teams?: string[]; // Noms des équipes (pour affichage)
+  teamsId?: string[]; // IDs des équipes (pour filtrage)
 }
 
 /**
@@ -100,7 +102,8 @@ export interface CreateEventData {
   dateEnd: string;
   allDates?: string[]; // Tableau de toutes les dates uniques des repas
   meals?: EventMeal[];
-  teams?: string[];
+  teams?: string[]; // Noms des équipes (pour affichage)
+  teamsId?: string[]; // IDs des équipes (pour filtrage)
   contributors?: EventContributor[]; // Tableau d'objets EventContributor
   todos?: EventTodo[];
   status?: "proposition" | "confirmed" | "canceled" | "archive" | "locked";
@@ -116,7 +119,8 @@ export interface UpdateEventData {
   dateEnd?: string;
   allDates?: string[]; // Tableau de toutes les dates uniques des repas
   meals?: EventMeal[];
-  teams?: string[];
+  teams?: string[]; // Noms des équipes (pour affichage)
+  teamsId?: string[]; // IDs des équipes (pour filtrage)
   contributors?: EventContributor[]; // Tableau d'objets EventContributor
   todos?: EventTodo[];
   status?: "proposition" | "confirmed" | "canceled" | "archive" | "locked";

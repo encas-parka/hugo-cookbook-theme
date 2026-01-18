@@ -7,7 +7,7 @@
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import type { EventMeal } from "$lib/types/events";
   import type { MainStatus } from "$lib/types/appwrite";
-  import { Calendar, CalendarPlus2, Plus, Save } from "@lucide/svelte";
+  import { Calendar, CalendarPlus2, Info, Plus, Save } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
   import { navigate } from "../services/simple-router.svelte";
@@ -146,8 +146,15 @@
       new Set(sortedMeals.map((m) => m.date)),
     ).sort();
 
+    // Récupérer les noms des teams sélectionnés pour l'affichage
+    const teamNames = selectedTeams
+      .map((teamId) => {
+        const team = teamsStore.getTeamById(teamId);
+        return team?.name || "";
+      })
+      .filter(Boolean);
+
     // Préparer les données de l'événement
-    // CRITICAL : teams est vide au départ, la cloud function le remplira
     const eventData = {
       name: eventName,
       description,
@@ -158,6 +165,8 @@
         allDatesSorted.length > 0
           ? allDatesSorted[allDatesSorted.length - 1]
           : "",
+      teams: teamNames, // Noms des équipes pour affichage
+      teamsId: selectedTeams, // IDs des équipes pour filtrage
       contributors: contributorsToSave,
       meals: sortedMeals,
     };
@@ -375,7 +384,7 @@
                 />
               </label>
               <p class="fieldset-label text-base-content/60">
-                Combien il faudrait être pour tout gérer ?
+                Combien faudrait-il être pour tout gérer ?
               </p>
             </fieldset>
 
@@ -407,6 +416,11 @@
                     </div>
                   </label>
                 {/each}
+              </div>
+              <div class="text-base-content/70 alert mt-4 text-sm">
+                <Info class="size-4 shrink-0" />
+                Une fois l'événement crée, il vous sera possible d'inviter des personnes
+                individuellement, indépendamment des équipes.
               </div>
             </fieldset>
 

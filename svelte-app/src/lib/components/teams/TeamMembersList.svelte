@@ -1,5 +1,12 @@
 <script lang="ts">
-  import { Users, Crown, Shield, UserMinus, LogOut } from "@lucide/svelte";
+  import {
+    Users,
+    Crown,
+    Shield,
+    UserMinus,
+    LogOut,
+    Info,
+  } from "@lucide/svelte";
   import type { EnrichedNativeTeam as EnrichedTeam } from "$lib/types/aw_native_team.d";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
@@ -92,11 +99,11 @@
   }
 
   function getRoleBadgeClass(role: string) {
-    return role === "owner" ? "badge-primary" : "badge-ghost";
+    return role === "owner" ? "badge-primary badge-soft" : "badge-ghost";
   }
 
   function getRoleLabel(role: string) {
-    return role === "owner" ? "Propriétaire" : "Membre";
+    return role === "owner" ? "Admin" : "Membre";
   }
 </script>
 
@@ -108,6 +115,10 @@
       <p class="text-sm">Aucun membre</p>
     </div>
   {:else}
+    <div class="alert">
+      <Info class="size-4 shrink-0" /> Seul les admins peuvent modifier les parametre
+      de l'équipe
+    </div>
     <div class="space-y-2">
       {#each team.members.filter((m) => m.confirmed) as member (member.id)}
         {@const role = member.roles[0]}
@@ -154,10 +165,10 @@
             </div>
 
             <!-- Badge de rôle -->
-            <!-- <div class="badge {getRoleBadgeClass(role)} gap-1">
+            <div class="badge {getRoleBadgeClass(role)} gap-1">
               <RoleIcon class="h-3 w-3" />
               {getRoleLabel(role)}
-            </div> -->
+            </div>
 
             <!-- Actions -->
             <div class="flex gap-2">

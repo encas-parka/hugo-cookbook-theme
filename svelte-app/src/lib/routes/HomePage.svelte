@@ -1,17 +1,8 @@
 <script lang="ts">
   import { navigate } from "../services/simple-router.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
-  import { recipesStore } from "../stores/RecipesStore.svelte";
   import FeatureCard from "../components/ui/FeatureCard.svelte";
-  import {
-    ChefHat,
-    ArrowRight,
-    BookOpen,
-    Users,
-    ShoppingCart,
-    Package,
-    Printer,
-  } from "@lucide/svelte";
+  import { ChefHat, ArrowRight } from "@lucide/svelte";
 
   // Ouvrir l'auth modal du HeaderNav
   function openAuthModal() {

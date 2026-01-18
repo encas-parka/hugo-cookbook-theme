@@ -34,3 +34,14 @@ export interface InviteResult {
   sent: string[];
   failed: { email: string; error: string }[];
 }
+
+/**
+ * Préférences d'équipe
+ */
+export interface TeamPrefs {
+  description?: string;
+  location?: string;
+  region?: string;
+  city?: string;
+  isPublic?: boolean;
+}

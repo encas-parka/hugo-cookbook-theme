@@ -1,7 +1,14 @@
 <script lang="ts">
   import RecipeIngredientsEditor from "$lib/components/recipeEdit/RecipeIngredientsEditor.svelte";
   import MarkdownEditor from "$lib/components/MarkdownEditor.svelte";
-  import { Utensils, FileText, Clock, Lightbulb } from "@lucide/svelte";
+  import {
+    Utensils,
+    FileText,
+    Clock,
+    Lightbulb,
+    X,
+    Trash2,
+  } from "@lucide/svelte";
 
   interface Props {
     recipe: any;
@@ -84,7 +91,7 @@
               recipe.astuces = [...recipe.astuces, { astuce: "" }];
             }}
             disabled={!canEdit}
-            class="btn btn-outline btn-primary btn-xs"
+            class="btn btn-outline btn-primary btn-sm"
           >
             + Ajouter une astuce
           </button>
@@ -117,10 +124,10 @@
                       );
                     }}
                     disabled={!canEdit}
-                    class="btn btn-ghost btn-circle btn-sm text-error"
+                    class="btn btn-square btn-sm text-error"
                     title="Supprimer l'astuce"
                   >
-                    ×
+                    <Trash2 size={14} />
                   </button>
                 </div>
                 <div class="flex justify-between px-1">

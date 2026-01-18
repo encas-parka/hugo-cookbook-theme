@@ -1,5 +1,12 @@
 <script lang="ts">
-  import { Users, UserPlus, Mail, Check, PencilLine } from "@lucide/svelte";
+  import {
+    Users,
+    UserPlus,
+    Mail,
+    Check,
+    PencilLine,
+    Plus,
+  } from "@lucide/svelte";
   import type { EventContributor } from "$lib/types/events";
   import type { NativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import type { EventsStore } from "$lib/stores/EventsStore.svelte";
@@ -201,51 +208,51 @@
 
 <Fieldset legend="Participants">
   <!-- Équipe minimale -->
-  <div class="card card-xs border-base-300 border p-4">
-    <fieldset class="fieldset">
-      {#if editingMinContrib}
-        <label class="input w-56">
-          <span class="label">Minimum</span>
-          <input
-            type="number"
-            bind:value={minContrib}
-            onfocus={onStartEdit}
-            onblur={() => (editingMinContrib = false)}
-            disabled={!canEdit}
-            min="1"
-            defaultValue={1}
-            class="grow"
-            id="min-contrib-input"
-          />
-        </label>
-      {:else}
-        <button
-          class="btn btn-ghost justify-start"
-          onclick={() => {
-            editingMinContrib = true;
-            setTimeout(() => {
-              document.getElementById("min-contrib-input")?.focus();
-            }, 50);
-          }}
+  <fieldset class="fieldset mb-4">
+    {#if editingMinContrib}
+      <label class="input w-56">
+        <span class="label">Minimum</span>
+        <input
+          type="number"
+          bind:value={minContrib}
+          onfocus={onStartEdit}
+          onblur={() => (editingMinContrib = false)}
           disabled={!canEdit}
-        >
-          <div class="flex items-center gap-4">
-            <span class="label">minimum</span>
+          min="1"
+          defaultValue={1}
+          class="grow"
+          id="min-contrib-input"
+        />
+      </label>
+    {:else}
+      <button
+        class="btn justify-start"
+        onclick={() => {
+          editingMinContrib = true;
+          setTimeout(() => {
+            document.getElementById("min-contrib-input")?.focus();
+          }, 50);
+        }}
+        disabled={!canEdit}
+      >
+        <div class="flex items-center gap-4">
+          <span class="label">minimum</span>
 
-            <span class="text-lg">
-              {minContrib || 1}
-            </span>
-            <PencilLine class="h-4 w-4" />
-          </div>
-        </button>
-      {/if}
-      <p class="label">Nombre minimum de participants requis</p>
-    </fieldset>
-  </div>
+          <span class="text-lg">
+            {minContrib || 1}
+          </span>
+          <PencilLine class="h-4 w-4" />
+        </div>
+      </button>
+    {/if}
+    <div class="fieldset-label ms-1">
+      Combien faudrait-il être pour tout gérer ?
+    </div>
+  </fieldset>
 
   <!-- Participants (Déjà enregistrés) -->
   <div class="mb-6">
-    <div class="space-y-3">
+    <div class="space-y-4">
       <!-- Teams déjà invitées -->
       {#if eventId}
         {@const event = eventsStore.getEventById(eventId)}
@@ -284,7 +291,7 @@
       <!-- Invited -->
       {#if invitedContributors.length > 0}
         <fieldset class="fieldset">
-          <legend class="text-base-content/70 p-1 text-sm font-medium"
+          <legend class="text-base-content/70 text-sm font-medium"
             >Invité·es</legend
           >
           <div class="flex flex-wrap gap-2">
@@ -344,6 +351,7 @@
             onclick={handleAddEmail}
             disabled={!emailInput}
           >
+            <Plus class="h-4 w-4 opacity-70" />
             Ajouter
           </button>
         </div>

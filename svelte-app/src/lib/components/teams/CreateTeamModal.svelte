@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { X, Plus, MapPin, Building2, Globe } from "@lucide/svelte";
+  import { X, Plus, Globe } from "@lucide/svelte";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import InviteMembersForm from "./InviteMembersForm.svelte";
+  import TeamFormFields from "./TeamFormFields.svelte";
   import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
   import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
   import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
@@ -100,93 +101,16 @@
 
     <ModalContent>
       <form onsubmit={(e) => e.preventDefault()} class="space-y-4">
-        <!-- Nom de l'équipe -->
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend">Nom de l'équipe *</legend>
-          <label class="input">
-            <input
-              type="text"
-              bind:value={teamName}
-              placeholder="Ex: Équipe Marketing"
-              maxlength="50"
-              disabled={loading}
-              onkeydown={handleKeydown}
-            />
-          </label>
-          <span class="fieldset-label text-xs opacity-50"
-            >{teamName.length}/50 caractères</span
-          >
-        </fieldset>
-
-        <!-- Description -->
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend">Description</legend>
-          <textarea
-            class="textarea w-full"
-            bind:value={teamDescription}
-            rows="3"
-            maxlength="350"
-            disabled={loading}
-          ></textarea>
-          <span class="fieldset-label text-xs opacity-50"
-            >{teamDescription.length}/350 caractères</span
-          >
-        </fieldset>
-
-        <!-- Localisation -->
-        <div class="grid grid-cols-2 gap-4">
-          <fieldset class="fieldset">
-            <legend class="fieldset-legend flex items-center gap-1">
-              <MapPin class="h-4 w-4" />
-              Département
-            </legend>
-            <label class="input">
-              <input
-                type="text"
-                bind:value={teamLocation}
-                placeholder="Ex: Île-de-France"
-                maxlength="50"
-                disabled={loading}
-              />
-            </label>
-          </fieldset>
-
-          <fieldset class="fieldset">
-            <legend class="fieldset-legend flex items-center gap-1">
-              <Building2 class="h-4 w-4" />
-              Ville
-            </legend>
-            <label class="input">
-              <input
-                type="text"
-                bind:value={teamCity}
-                placeholder="Ex: Paris"
-                maxlength="50"
-                disabled={loading}
-              />
-            </label>
-          </fieldset>
-        </div>
-
-        <!-- Équipe publique -->
-        <!-- <div class="">
-          <label class="label cursor-pointer justify-start gap-3">
-            <input
-              type="checkbox"
-              class="toggle toggle-primary"
-              bind:checked={teamIsPublic}
-              disabled={loading}
-            />
-            <span class="label-text flex items-center gap-2">
-              <Globe class="h-4 w-4" />
-              Équipe publique
-            </span>
-          </label>
-          <p class="ml-12 text-xs opacity-60">
-            Les équipes publiques sont visibles par tous les utilisateurs de la
-            plateforme.
-          </p>
-        </div> -->
+        <!-- Formulaire d'équipe -->
+        <TeamFormFields
+          bind:name={teamName}
+          bind:description={teamDescription}
+          bind:location={teamLocation}
+          bind:city={teamCity}
+          showLocation={true}
+          disabled={loading}
+          onNameKeydown={handleKeydown}
+        />
 
         <!-- Message d'erreur -->
         {#if error}

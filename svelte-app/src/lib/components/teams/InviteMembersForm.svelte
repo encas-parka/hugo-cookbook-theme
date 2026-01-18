@@ -14,25 +14,29 @@
   import { isValidEmail } from "@/lib/utils/utils";
   import { toastService } from "$lib/services/toast.service.svelte";
   import InfoCollapse from "../ui/InfoCollapse.svelte";
+  import { globalState } from "@/lib/stores/GlobalState.svelte";
   interface Props {
     team: EnrichedTeam;
-    onSuccess?: () => void;
+    invitedEmails?: string[];
+    customMessage?: string;
+    role?: string;
+    loading?: boolean;
   }
 
-  let { team, onSuccess }: Props = $props();
+  let {
+    team,
+    invitedEmails = $bindable([]),
+    customMessage = $bindable(""),
+    loading = false,
+    role = $bindable("member"),
+  }: Props = $props();
 
-  // État du formulaire
+  // État local pour l'input d'email courant
   let emailInput = $state("");
-  let invitedEmails = $state<string[]>([]);
-  let customMessage = $state("");
-  let loading = $state(false);
   let error = $state<string | null>(null);
   let successMessage = $state<string | null>(null);
 
-  // Suggestions d'utilisateurs (TODO: implémenter la logique de récupération)
-  // Pour l'instant, liste vide - à connecter avec une API pour récupérer
-  // les utilisateurs des équipes communes
-  const userSuggestions = $derived([]);
+  const isOwner = $derived(globalState.isTeamOwner(team.$id));
 
   // Ajouter un email à la liste
   function addEmail() {
@@ -75,49 +79,6 @@
     invitedEmails = invitedEmails.filter((e) => e !== email);
   }
 
-  // Envoyer les invitations
-  async function sendInvitations() {
-    if (invitedEmails.length === 0) {
-      error = "Veuillez ajouter au moins une adresse email";
-      return;
-    }
-
-    loading = true;
-    error = null;
-    successMessage = null;
-
-    try {
-      await toastService.track(
-        teamsStore.inviteTeamMember(
-          team.$id,
-          invitedEmails,
-          customMessage || undefined,
-        ),
-        {
-          loading: "Envoi des invitations en cours...",
-          success: `${invitedEmails.length} invitation${invitedEmails.length > 1 ? "s" : ""} envoyée${invitedEmails.length > 1 ? "s" : ""} avec succès`,
-          error: "Erreur lors de l'envoi des invitations",
-        },
-      );
-
-      successMessage = `${invitedEmails.length} invitation${invitedEmails.length > 1 ? "s" : ""} envoyée${invitedEmails.length > 1 ? "s" : ""} avec succès`;
-
-      // Réinitialiser le formulaire
-      invitedEmails = [];
-      customMessage = "";
-
-      setTimeout(() => {
-        successMessage = null;
-        onSuccess?.();
-      }, 3000);
-    } catch (err: any) {
-      error = err.message || "Erreur lors de l'envoi des invitations";
-      console.error("[InviteMembersForm] Erreur:", err);
-    } finally {
-      loading = false;
-    }
-  }
-
   // Gestion de la touche Entrée
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Enter") {
@@ -130,7 +91,7 @@
 <!-- TODO : toast.service lorsqu'invitation réussi, (et fermeture du modal ?) -->
 
 <div class="space-y-4">
-  <div class="alert">
+  <div class="alert alert-soft alert-info">
     <Info class="h-6 w-6 shrink-0" />
     <div>
       <p>
@@ -142,7 +103,7 @@
       <p>
         Il est aussi possible d'inviter des personnes individuellement à
         participer aux évenements (depuis les pages d'évenements), même si elles
-        ne font pas partie de vos équipes
+        ne font pas partie de vos équipes.
       </p>
     </div>
   </div>
@@ -162,40 +123,42 @@
     </div>
   {/if}
   <!-- Input email avec bouton d'ajout -->
-  <div class="flex gap-2">
-    <label class="input flex-1">
-      <Mail class="h-4 w-4 opacity-50" />
-      <input
-        type="email"
-        bind:value={emailInput}
-        placeholder="email@example.com"
-        disabled={loading}
-        onkeydown={handleKeydown}
-      />
-      <button
-        class="btn btn-primary btn-sm"
-        onclick={addEmail}
-        disabled={loading || !emailInput.trim()}
-        title="Ajouter à la liste"
-      >
-        <UserPlus class="h-5 w-5" />
-        Ajouter
-      </button>
-    </label>
+  <div class="rounded-box bg-base-200 flex flex-col gap-2 p-4">
+    <div class="flex flex-wrap gap-2">
+      <label class="input min-w-56 flex-1 gap-2">
+        <Mail class="h-4 w-4 opacity-50" />
+        <input
+          type="email"
+          bind:value={emailInput}
+          placeholder="email@example.com"
+          disabled={loading}
+          onkeydown={handleKeydown}
+        />
+      </label>
+      {#if isOwner}
+        <label for="" class="select">
+          <span class="label">Rôle</span>
+          <select class="select" bind:value={role}>
+            <option value="member" class="flex" selected>Membre</option>
+            <option value="owner">Administrateur</option>
+          </select>
+        </label>
+      {/if}
+    </div>
+    <div class="fieldset-label text-xs {!isOwner && 'hidden'}">
+      Les administrateur·ices sont seul·es autorisé·es à modifier les
+      informations concernant l'équipe et à supprimer des membres.
+    </div>
+    <button
+      class="btn btn-primary btn-sm ml-auto w-fit"
+      onclick={addEmail}
+      disabled={loading || !emailInput.trim()}
+      title="Ajouter à la liste"
+    >
+      <UserPlus class=" h-5 w-5" />
+      Ajouter
+    </button>
   </div>
-
-  <!-- Suggestions (si disponibles) -->
-  {#if userSuggestions.length > 0}
-    <Suggestions
-      suggestions={userSuggestions}
-      onSuggestionClick={(s) => {
-        emailInput = s.label;
-        addEmail();
-      }}
-      title="Suggestions"
-      buttonSize="btn-sm"
-    />
-  {/if}
 
   <!-- Liste des emails ajoutés -->
   {#if invitedEmails.length > 0}
@@ -239,23 +202,5 @@
     <span class="label label-text-alt opacity-50"
       >{customMessage.length}/200 caractères</span
     >
-  </div>
-
-  <!-- Bouton d'envoi -->
-  <div class="flex justify-end">
-    <button
-      class="btn btn-primary"
-      onclick={sendInvitations}
-      disabled={loading || invitedEmails.length === 0}
-    >
-      {#if loading}
-        <span class="loading loading-spinner loading-sm"></span>
-      {:else}
-        <UserPlus class="h-5 w-5" />
-      {/if}
-      Envoyer {invitedEmails.length > 0
-        ? `${invitedEmails.length} invitation${invitedEmails.length > 1 ? "s" : ""}`
-        : "les invitations"}
-    </button>
   </div>
 </div>

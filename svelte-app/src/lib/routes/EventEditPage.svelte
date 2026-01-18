@@ -1,6 +1,7 @@
 <script lang="ts">
   import EventMealCard from "$lib/components/eventEdit/EventMealCard.svelte";
   import PermissionsManager from "$lib/components/PermissionsManager.svelte";
+  import EventInvitationAlert from "$lib/components/EventInvitationAlert.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
@@ -12,7 +13,6 @@
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import type { EventMeal } from "$lib/types/events";
   import {
-    CircleAlert,
     Calendar,
     Plus,
     Save,
@@ -140,7 +140,7 @@
   // DONNÉES RÉACTIVES DÉRIVÉES EN LECTURE SEULE (Single Source of Truth depuis currentEvent)
   // Note: eventName est maintenant un $state local (shadow draft), pas un $derived
   const contributors = $derived(getContributors(currentEvent));
-  const selectedTeams = $derived(currentEvent?.teams ?? []);
+  const selectedTeams = $derived(currentEvent?.teamsId ?? []);
 
   const currentUserStatus = $derived(
     getContributorStatus(currentEvent, globalState.userId || ""),
@@ -394,6 +394,21 @@
       new Set(sortedMeals.map((m) => m.date)),
     ).sort();
 
+    // Récupérer les noms des teams sélectionnés
+    // 1. Commencer avec les noms existants de currentEvent
+    const existingTeamNames = currentEvent?.teams || [];
+    const existingTeamIds = currentEvent?.teamsId || [];
+    const teamNamesMap = new Map(
+      existingTeamIds.map((id, index) => [id, existingTeamNames[index]]),
+    );
+
+    // 2. Ajouter/mettre à jour les noms depuis nativeTeamsStore pour les teams sélectionnés
+    const teamNames = selectedTeams.map((teamId) => {
+      // Priorité: valeur depuis nativeTeamsStore, sinon valeur existante, sinon ID
+      const team = nativeTeamsStore.getTeamById(teamId);
+      return team?.name || teamNamesMap.get(teamId) || teamId;
+    });
+
     const eventData = {
       name: eventName,
       description,
@@ -405,7 +420,8 @@
         allDatesSorted.length > 0
           ? allDatesSorted[allDatesSorted.length - 1]
           : "",
-      teams: selectedTeams,
+      teams: teamNames, // Noms des équipes pour affichage
+      teamsId: selectedTeams, // IDs des équipes pour filtrage
       contributors: contributorsToSave,
       meals: sortedMeals,
     };
@@ -794,27 +810,11 @@
   {/if}
 
   <!-- Alerte d'invitation pour les utilisateurs invités -->
-  {#if currentUserStatus === "invited"}
-    <div class="alert alert-info">
-      <CircleAlert class="h-6 w-6 shrink-0" />
-      <div>
-        <h3 class="font-bold">Invitation à participer</h3>
-        <div class="text-xs">
-          Vous avez été invité à participer à cet événement. Acceptez pour
-          pouvoir modifier le menu et les repas.
-        </div>
-      </div>
-      <div class="flex gap-2">
-        <button
-          class="btn"
-          onclick={() => handleInvitationResponse(true)}
-          disabled={isBusy}
-        >
-          Accepter
-        </button>
-      </div>
-    </div>
-  {/if}
+  <EventInvitationAlert
+    currentEvent={currentEvent}
+    {isBusy}
+    onRespond={handleInvitationResponse}
+  />
 
   {#if isBusy && !isInitialised}
     <div class="flex items-center justify-center py-20">

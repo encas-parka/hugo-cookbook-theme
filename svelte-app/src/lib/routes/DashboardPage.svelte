@@ -12,7 +12,10 @@
     ArrowRight,
   } from "@lucide/svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
-  import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
+  import {
+    nativeTeamsStore,
+    nativeTeamsStore as teamsStore,
+  } from "$lib/stores/NativeTeamsStore.svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
@@ -27,8 +30,12 @@
   import CurrentEventsCard from "$lib/components/dashboard/CurrentEventsCard.svelte";
   import LatestRecipesCard from "$lib/components/dashboard/LatestRecipesCard.svelte";
   import MaterielSummaryCard from "$lib/components/dashboard/MaterielSummaryCard.svelte";
+  import TeamDashboardCard from "../components/dashboard/TeamDashboardCard.svelte";
+  import CreateTeamModal from "../components/teams/CreateTeamModal.svelte";
 
   const now = new Date();
+
+  let createModalOpen = $state(false);
 
   // Traitement des événements - utiliser les derived properties du store
   const currentEvents = $derived(eventsStore.currentEvents);
@@ -39,6 +46,10 @@
     warmUpUsersTeamsManager();
     warmUpEnkaData();
   });
+
+  function handleTeamCreated(teamId: string) {
+    createModalOpen = false;
+  }
 
   // ============================================================================
   // NAVBAR CONFIGURATION
@@ -114,6 +125,37 @@
       </div>
     {:else}
       <!-- Tableau de bord -->
+
+      <!-- SECTION 2.5: Team Cards (uniquement si authentifié avec équipes) -->
+      {#if globalState.userTeams.length > 0}
+        <section class="bg-base-200 py-8">
+          <div class="container mx-auto px-4">
+            <div class="tiems-center mb-4 flex justify-between gap-4">
+              <div class="mb-6 text-2xl font-bold">Mes Équipes</div>
+              <div class="card-actions mt-4">
+                <button
+                  class="btn btn-primary btn-sm ms-auto"
+                  onclick={() => (createModalOpen = true)}
+                  ><Plus class="size-4" /> Créer une équipe</button
+                >
+              </div>
+            </div>
+            <div class="grid grid-cols-1 gap-6">
+              {#each globalState.userTeams as teamId (teamId)}
+                {@const team = nativeTeamsStore.getTeamById(teamId)}
+                {#if team}
+                  <TeamDashboardCard
+                    {team}
+                    allEvents={eventsStore.events}
+                    loading={eventsStore.loading}
+                  />
+                {/if}
+              {/each}
+            </div>
+          </div>
+        </section>
+      {/if}
+
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <!-- Colonne principale (2/3) -->
         <div class="space-y-6 lg:col-span-2">
@@ -129,19 +171,21 @@
                 loading={eventsStore.loading}
                 cardClass="border-l-4 border-accent"
               />
-
-              <div class="fieldset-legend">Récents</div>
-              <CurrentEventsCard
-                events={pastEvents}
-                loading={eventsStore.loading}
-              />
+              {#if pastEvents.length > 0}
+                <div class="fieldset-legend">Récents</div>
+                <CurrentEventsCard
+                  events={pastEvents}
+                  loading={eventsStore.loading}
+                />
+              {/if}
 
               <!-- Événements passés -->
               <button
-                class="text-base-content/50 bg-base-200 hover:bg-base-300 cursor-pointer rounded p-3 text-center text-sm"
+                class="btn btn-bock"
                 onclick={() => navigate(`/eventList`)}
               >
                 Voir les événements passés
+                <ArrowRight class="ml-2 h-4 w-4" />
               </button>
 
               <!-- Bouton création rapide -->
@@ -183,3 +227,9 @@
     {/if}
   </div>
 </div>
+
+<CreateTeamModal
+  isOpen={createModalOpen}
+  onClose={() => (createModalOpen = false)}
+  onSuccess={handleTeamCreated}
+/>

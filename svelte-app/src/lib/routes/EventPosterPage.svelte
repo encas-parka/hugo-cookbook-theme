@@ -7,6 +7,7 @@
   import type { SavedPosterConfig } from "$lib/components/eventPoster/poster.types";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
+  import EventInvitationAlert from "$lib/components/EventInvitationAlert.svelte";
   import PosterConfiguration from "$lib/components/eventPoster/PosterConfiguration.svelte";
   import PosterDisplay from "$lib/components/eventPoster/PosterDisplay.svelte";
   import { ChevronLeft, Printer, AlertCircle, Info } from "@lucide/svelte";
@@ -92,6 +93,24 @@
 
   // Print state
   let sectionsToPrint = $state<Record<string, boolean>>({});
+
+  // Invitation state
+  let isBusy = $state(false);
+
+  // Check if user has accepted invitation
+  const canEdit = $derived.by(() => {
+    if (!event) return false;
+
+    const userId = globalState.userId || "";
+
+    // Creator can always edit
+    if (event.createdBy === userId) return true;
+
+    // Contributor with accepted status can edit
+    const contributor = event.contributors?.find((c) => c.id === userId);
+
+    return contributor?.status === "accepted";
+  });
 
   // Recipe modifications (temporary for printing)
   let recipeVisibility = $state<Record<string, boolean>>({});
@@ -448,6 +467,31 @@
     navigate(`/dashboard/eventEdit/${params.id}`);
   }
 
+  async function handleInvitationResponse(accept: boolean) {
+    if (!params.id || !globalState.userId) return;
+
+    try {
+      isBusy = true;
+
+      const newStatus = accept ? "accepted" : "declined";
+
+      await eventsStore.updateContributorStatus(
+        params.id,
+        globalState.userId,
+        newStatus,
+      );
+
+      globalState.toast.success(
+        accept ? "Invitation acceptée" : "Invitation déclinée",
+      );
+    } catch (error) {
+      console.error("Erreur réponse invitation:", error);
+      globalState.toast.error("Erreur lors de la réponse");
+    } finally {
+      isBusy = false;
+    }
+  }
+
   // Configure nav bar
   $effect(() => {
     if (event) {
@@ -492,21 +536,35 @@
     </div>
   </div>
 {:else if event}
-  <div class="bg-base-200 min-h-screen">
-    <!-- Left Panel for Configuration -->
-    <LeftPanel bgClass="bg-base-200" width="120">
-      <PosterConfiguration
-        bind:config
-        {versions}
-        {activeVersionId}
-        onSave={saveConfig}
-        onCreateVersion={createVersion}
-        onDeleteVersion={deleteVersion}
-        onLoadVersion={loadVersion}
-      />
-    </LeftPanel>
+  <!-- Left Panel for Configuration -->
+  <LeftPanel bgClass="bg-base-200" width="120">
+    <PosterConfiguration
+      bind:config
+      {versions}
+      {activeVersionId}
+      onSave={saveConfig}
+      onCreateVersion={createVersion}
+      onDeleteVersion={deleteVersion}
+      onLoadVersion={loadVersion}
+      disabled={!canEdit}
+    />
+  </LeftPanel>
 
-    <!-- Main Content Area with left margin for desktop -->
+  <!-- Main Content Area with left margin for desktop -->
+  <div
+    class="bg-base-200 min-h-screen print:hidden {globalState.isDesktop
+      ? 'ml-80'
+      : ''}"
+  >
+    <!-- Invitation Alert -->
+    <div class="mx-auto px-4 py-4">
+      <EventInvitationAlert
+        currentEvent={event}
+        {isBusy}
+        onRespond={handleInvitationResponse}
+      />
+    </div>
+
     <div
       class="print:m-0 print:block print:p-0 {globalState.isDesktop
         ? 'ml-80'

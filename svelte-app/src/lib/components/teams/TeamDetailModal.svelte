@@ -3,25 +3,33 @@
   import type { EnrichedNativeTeam as EnrichedTeam } from "$lib/types/aw_native_team.d";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
+  import { toastService } from "$lib/services/toast.service.svelte";
   import TeamMembersList from "./TeamMembersList.svelte";
-  import TeamInvitationsList from "./TeamInvitationsList.svelte";
+  import TeamFormFields from "./TeamFormFields.svelte";
   import ConfirmModal from "$lib/components/ui/ConfirmModal.svelte";
   import ModalContainer from "$lib/components/ui/modal/ModalContainer.svelte";
   import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
   import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
   import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
+  import InviteMembersForm from "./InviteMembersForm.svelte";
 
   interface Props {
     teamId: string | null;
     onClose: () => void;
+    initialTab?: string;
   }
 
-  let { teamId, onClose }: Props = $props();
+  let { teamId, onClose, initialTab = "members" }: Props = $props();
 
   // État du modal
-  let currentTab = $state<"members" | "invitations" | "settings">("members");
+  let currentTab = $state<string>(initialTab);
   let confirmDeleteTeam = $state(false);
   let loading = $state(false);
+
+  // État pour le formulaire d'invitation
+  let invitedEmails = $state<string[]>([]);
+  let inviteCustomMessage = $state("");
+  let inviteLoading = $state(false);
 
   // Équipe actuelle
   const team = $derived(teamId ? teamsStore.getTeamById(teamId) : null);
@@ -39,6 +47,8 @@
   // État du formulaire de paramètres
   let editName = $state("");
   let editDescription = $state("");
+  let editLocation = $state("");
+  let editCity = $state("");
   let hasChanges = $state(false);
 
   // Initialiser les valeurs d'édition
@@ -46,6 +56,8 @@
     if (team) {
       editName = team.name;
       editDescription = (team.prefs?.description as string) || "";
+      editLocation = (team.prefs?.location as string) || "";
+      editCity = (team.prefs?.city as string) || "";
       hasChanges = false;
     }
   });
@@ -55,7 +67,9 @@
     if (team) {
       hasChanges =
         editName !== team.name ||
-        editDescription !== ((team.prefs?.description as string) || "");
+        editDescription !== ((team.prefs?.description as string) || "") ||
+        editLocation !== ((team.prefs?.location as string) || "") ||
+        editCity !== ((team.prefs?.city as string) || "");
     }
   });
 
@@ -67,6 +81,8 @@
     try {
       await teamsStore.updateTeam(team.$id, editName.trim() || undefined, {
         description: editDescription.trim() || undefined,
+        location: editLocation.trim() || undefined,
+        city: editCity.trim() || undefined,
       });
       hasChanges = false;
     } catch (err: any) {
@@ -101,9 +117,38 @@
     }
   }
 
-  async function handleInvitationSent() {
-    if (teamId) {
-      await teamsStore.fetchTeam(teamId);
+  // Envoyer les invitations
+  async function sendInvitations() {
+    if (!team || invitedEmails.length === 0) return;
+
+    inviteLoading = true;
+
+    try {
+      await toastService.track(
+        teamsStore.inviteTeamMember(
+          team.$id,
+          invitedEmails,
+          inviteCustomMessage || undefined,
+        ),
+        {
+          loading: "Envoi des invitations en cours...",
+          success: `${invitedEmails.length} invitation${invitedEmails.length > 1 ? "s" : ""} envoyée${invitedEmails.length > 1 ? "s" : ""} avec succès`,
+          error: "Erreur lors de l'envoi des invitations",
+        },
+      );
+
+      // Réinitialiser le formulaire
+      invitedEmails = [];
+      inviteCustomMessage = "";
+
+      // Rafraîchir la liste
+      if (teamId) {
+        await teamsStore.fetchTeam(teamId);
+      }
+    } catch (err: any) {
+      console.error("[TeamDetailModal] Erreur envoi invitations:", err);
+    } finally {
+      inviteLoading = false;
     }
   }
 </script>
@@ -147,19 +192,17 @@
           Invitations
         </button>
 
-        {#if canEdit}
-          <button
-            role="tab"
-            class="tab {currentTab === 'settings' ? 'tab-active' : ''}"
-            onclick={() => (currentTab = "settings")}
-          >
-            <Settings class="mr-1 h-5 w-5" />
-            Paramètres
-            {#if hasChanges}
-              <div class="bg-warning ml-1 h-2 w-2 rounded-full"></div>
-            {/if}
-          </button>
-        {/if}
+        <button
+          role="tab"
+          class="tab {currentTab === 'settings' ? 'tab-active' : ''}"
+          onclick={() => (currentTab = "settings")}
+        >
+          <Settings class="mr-1 h-5 w-5" />
+          Paramètres
+          {#if hasChanges}
+            <div class="bg-warning ml-1 h-2 w-2 rounded-full"></div>
+          {/if}
+        </button>
       </div>
 
       <!-- Contenu -->
@@ -167,60 +210,65 @@
         {#if currentTab === "members"}
           <TeamMembersList {team} onMemberRemoved={handleMemberChange} />
         {:else if currentTab === "invitations"}
-          <TeamInvitationsList {team} onInvitationSent={handleInvitationSent} />
-        {:else if currentTab === "settings" && canEdit}
-          <!-- Paramètres -->
-          <div class="space-y-4">
-            <div>
-              <label class="label" for="team-name-input">
-                <span class="label-text">Nom de l'équipe</span>
-              </label>
-              <input
-                id="team-name-input"
-                type="text"
-                class="input input-bordered w-full"
-                bind:value={editName}
-                placeholder="Nom de l'équipe"
-                maxlength="50"
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label class="label" for="team-description-input">
-                <span class="label-text">Description</span>
-              </label>
-              <textarea
-                id="team-description-input"
-                class="textarea textarea-bordered w-full"
-                bind:value={editDescription}
-                placeholder="Description de l'équipe"
-                rows="3"
-                maxlength="200"
-                disabled={loading}
-              ></textarea>
-            </div>
-
-            <div class="flex justify-end">
-              <button
-                class="btn btn-primary"
-                onclick={saveSettings}
-                disabled={loading || !hasChanges}
-              >
-                {#if loading}
-                  <span class="loading loading-spinner loading-sm"></span>
-                {:else}
-                  Enregistrer
-                {/if}
-              </button>
-            </div>
+          <!-- Formulaire d'invitation -->
+          <div>
+            <h4 class=" text-sm font-medium opacity-70">
+              Inviter de nouveaux membres
+            </h4>
+            <InviteMembersForm
+              {team}
+              bind:invitedEmails
+              bind:customMessage={inviteCustomMessage}
+              loading={inviteLoading}
+              {isOwner}
+            />
           </div>
+        {:else if currentTab === "settings"}
+          <!-- Paramètres -->
+          <TeamFormFields
+            bind:name={editName}
+            bind:description={editDescription}
+            bind:location={editLocation}
+            bind:city={editCity}
+            showLocation={true}
+            disabled={loading || !isOwner}
+          />
         {/if}
       {/key}
     </ModalContent>
 
     <ModalFooter>
-      <button class="btn btn-ghost" onclick={onClose}>Fermer</button>
+      {#if currentTab === "settings"}
+        <button class="btn btn-ghost" onclick={onClose}>Annuler</button>
+        <button
+          class="btn btn-primary"
+          onclick={saveSettings}
+          disabled={loading || !hasChanges}
+        >
+          {#if loading}
+            <span class="loading loading-spinner loading-sm"></span>
+          {:else}
+            Enregistrer
+          {/if}
+        </button>
+      {:else if currentTab === "invitations"}
+        <button class="btn btn-ghost" onclick={onClose}>Fermer</button>
+        <button
+          class="btn btn-primary"
+          onclick={sendInvitations}
+          disabled={inviteLoading || invitedEmails.length === 0}
+        >
+          {#if inviteLoading}
+            <span class="loading loading-spinner loading-sm"></span>
+          {:else}
+            Envoyer {invitedEmails.length} invitation{invitedEmails.length > 1
+              ? "s"
+              : ""}
+          {/if}
+        </button>
+      {:else}
+        <button class="btn btn-ghost" onclick={onClose}>Fermer</button>
+      {/if}
     </ModalFooter>
   {/if}
 </ModalContainer>

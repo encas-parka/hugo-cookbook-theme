@@ -1,5 +1,0 @@
----
-title: "Connexion"
-type: "registration"
----
-

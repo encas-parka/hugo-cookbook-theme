@@ -21,6 +21,7 @@
     onCreateVersion?: () => void;
     onDeleteVersion?: (id: string) => void;
     onLoadVersion?: (version: SavedPosterConfig) => void;
+    disabled?: boolean;
   }
 
   let {
@@ -31,6 +32,7 @@
     onCreateVersion,
     onDeleteVersion,
     onLoadVersion,
+    disabled = false,
   }: Props = $props();
 
   let showSaveModal = $state(false);
