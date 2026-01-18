@@ -43,7 +43,7 @@
     createQuickValidationPurchases,
     upsertProduct,
   } from "$lib/services/appwrite-products";
-  import { autoConvertUnit } from "$lib/utils/QuantityFormatter";
+  import { UnitConverter } from "$lib/utils/UnitConverter";
   import { warmUpEnkaData } from "$lib/services/appwrite-warmup";
 
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
@@ -243,13 +243,13 @@
       }
 
       // ✅ CONVERSIONS : Les missingQuantités sont négatives, les convertir en positif pour les achats
-      // et normaliser les unités (kg→gr., l.→ml)
+      // et normaliser les unités (kg→gr., l.→ml) pour le stockage
       const normalizedQuantities = missingQuantities
         .filter((qty) => qty.q < 0) // Uniquement les quantités manquantes (négatives)
         .map((qty) => ({ ...qty, q: Math.abs(qty.q) })) // Convertir en positif pour les achats
         .map((qty) => {
-          const { q: quantity, u: unit } = autoConvertUnit(qty.q, qty.u);
-          return { q: quantity, u: unit };
+          const normalized = UnitConverter.normalize(qty.q, qty.u);
+          return { q: normalized.quantity, u: normalized.unit };
         });
 
       let finalProductId = product.$id;

@@ -24,6 +24,7 @@ import {
   formatSingleQuantity,
   convertAndFormatQuantity,
 } from "../utils/QuantityFormatter";
+import { UnitConverter } from "../utils/UnitConverter";
 import { globalState } from "./GlobalState.svelte";
 import { productsStore } from "./ProductsStore.svelte";
 
@@ -132,10 +133,8 @@ export class ProductModalState implements ProductModalStateType {
     // Les quantités manquantes sont négatives, mais nous voulons les afficher en positif dans le formulaire
     // Et nous voulons convertir automatiquement les unités (gr->kg, ml->l) pour >= 1000
     if (firstMissing) {
-      const { value: convertedQty, unit: convertedUnit } = convertAndFormatQuantity(
-        Math.abs(firstMissing.q),
-        firstMissing.u,
-      );
+      const { value: convertedQty, unit: convertedUnit } =
+        convertAndFormatQuantity(Math.abs(firstMissing.q), firstMissing.u);
       this.forms.purchase.quantity = convertedQty;
       this.forms.purchase.unit = convertedUnit;
     } else {
@@ -250,11 +249,16 @@ export class ProductModalState implements ProductModalStateType {
         deliveryDate = new Date().toISOString();
       }
 
+      // Normaliser les unités pour le stockage (kg→gr., l.→ml)
+      const normalized = UnitConverter.normalize(quantity, unit);
+      const normalizedQuantity = normalized.quantity;
+      const normalizedUnit = normalized.unit;
+
       await createPurchase({
         products: [this.product!.$id],
         mainId: productsStore.currentMainId!,
-        unit,
-        quantity,
+        unit: normalizedUnit,
+        quantity: normalizedQuantity,
         store: this.forms.purchase.store || null,
         who: this.forms.purchase.who || null,
         notes: this.forms.purchase.notes || "",
@@ -273,10 +277,11 @@ export class ProductModalState implements ProductModalStateType {
       let resetUnit = this.product!.totalNeededArray[0]?.u ?? "";
 
       if (firstMissingAfterAdd) {
-        const { value: convertedQty, unit: convertedUnit } = convertAndFormatQuantity(
-          Math.abs(firstMissingAfterAdd.q),
-          firstMissingAfterAdd.u,
-        );
+        const { value: convertedQty, unit: convertedUnit } =
+          convertAndFormatQuantity(
+            Math.abs(firstMissingAfterAdd.q),
+            firstMissingAfterAdd.u,
+          );
         resetQuantity = convertedQty;
         resetUnit = convertedUnit;
       }
@@ -307,7 +312,8 @@ export class ProductModalState implements ProductModalStateType {
     if (!updatedPurchase.$id) return;
 
     await this.withLoading(async () => {
-      const { value: quantity, unit: unit } = convertAndFormatQuantity(
+      // Normaliser les unités pour le stockage (kg→gr., l.→ml)
+      const normalized = UnitConverter.normalize(
         updatedPurchase.quantity,
         updatedPurchase.unit,
       );
@@ -320,8 +326,8 @@ export class ProductModalState implements ProductModalStateType {
       }
 
       await updatePurchase(updatedPurchase.$id, {
-        unit,
-        quantity,
+        unit: normalized.unit,
+        quantity: normalized.quantity,
         store: updatedPurchase.store || null,
         who: updatedPurchase.who || null,
         notes: updatedPurchase.notes || "",
@@ -358,9 +364,15 @@ export class ProductModalState implements ProductModalStateType {
         throw new Error("Veuillez remplir les champs obligatoires");
       }
 
+      // Normaliser les unités pour le stockage (kg→gr., l.→ml)
+      const normalized = UnitConverter.normalize(
+        this.forms.stock.quantity,
+        this.forms.stock.unit,
+      );
+
       const newEntry = {
-        quantity: this.forms.stock.quantity.toString(),
-        unit: this.forms.stock.unit,
+        quantity: normalized.quantity.toString(),
+        unit: normalized.unit,
         notes: this.forms.stock.notes,
         dateTime: this.forms.stock.dateTime,
       };
