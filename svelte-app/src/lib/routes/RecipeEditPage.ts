@@ -377,19 +377,34 @@ export function validateRecipe(
     validationErrors.value.title =
       "Le titre ne peut pas dépasser 100 caractères";
     hasError = true;
-  } else if (!/^[a-zA-Z0-9\s\-]+$/.test(recipe.title.trim())) {
+  } else if (
+    !/^[a-zA-Z0-9\s\-àâäéèêëïîôùûüçÀÂÄÉÈÊËÏÎÔÙÛÜÇ]+$/.test(recipe.title.trim())
+  ) {
     validationErrors.value.title =
-      "Le titre ne peut contenir que des caractères alphanumériques, des espaces et des tirets";
+      "Le titre ne peut contenir que des lettres, chiffres, espaces et tirets";
     hasError = true;
   } else {
+    // Vérifier l'unicité :
+    // - Interdit si même titre ET aucune version des deux côtés
+    // - Interdit si même titre ET même version des deux côtés
     const normalizedTitle = recipe.title.trim().toLowerCase();
-    const duplicate = recipesStore.recipesIndex.find(
-      (r) =>
-        r.title.trim().toLowerCase() === normalizedTitle &&
-        r.$id !== recipe!.$id,
-    );
+    const currentVersion = recipe.versionLabel?.trim().toLowerCase() || "";
+
+    const duplicate = recipesStore.recipesIndex.find((r) => {
+      const isSameTitle = r.title.trim().toLowerCase() === normalizedTitle;
+      const otherVersion = r.versionLabel?.trim().toLowerCase() || "";
+
+      // Interdit : même titre et (pas de version des deux côtés OU même version des deux côtés)
+      const isDuplicate =
+        isSameTitle && currentVersion === otherVersion && r.$id !== recipe!.$id;
+
+      return isDuplicate;
+    });
+
     if (duplicate) {
-      validationErrors.value.title = "Une recette porte déjà ce nom";
+      validationErrors.value.title = recipe.versionLabel
+        ? "Une recette avec ce nom et cette version existe déjà"
+        : "Une recette porte déjà ce nom (sans version)";
       hasError = true;
     }
   }
