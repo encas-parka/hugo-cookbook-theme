@@ -32,7 +32,7 @@
 
   // Traitement des événements - utiliser les derived properties du store
   const currentEvents = $derived(eventsStore.currentEvents);
-  const pastEventsCount = $derived(eventsStore.pastEventsCount);
+  const pastEvents = $derived(eventsStore.pastEvents);
 
   // WARM-UP
   $effect(() => {
@@ -117,18 +117,55 @@
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <!-- Colonne principale (2/3) -->
         <div class="space-y-6 lg:col-span-2">
-          <!-- test ingredient -->
           <!-- Événements -->
-          <CurrentEventsCard
-            {currentEvents}
-            {pastEventsCount}
-            loading={eventsStore.loading}
-          />
+          <div class="card bg-base-100 border-base-200 border shadow-xl">
+            <div class="card-body">
+              <h2 class="card-title flex items-center gap-2">
+                <Calendar class="text-primary h-5 w-5" />
+                Événements
+              </h2>
+              <CurrentEventsCard
+                events={currentEvents}
+                loading={eventsStore.loading}
+                cardClass="border-l-4 border-accent"
+              />
+
+              <div class="fieldset-legend">Récents</div>
+              <CurrentEventsCard
+                events={pastEvents}
+                loading={eventsStore.loading}
+              />
+
+              <!-- Événements passés -->
+              <button
+                class="text-base-content/50 bg-base-200 hover:bg-base-300 cursor-pointer rounded p-3 text-center text-sm"
+                onclick={() => navigate(`/eventList`)}
+              >
+                Voir les événements passés
+              </button>
+
+              <!-- Bouton création rapide -->
+              <div
+                class="card-actions border-base-200 mt-4 justify-end border-t pt-4"
+              >
+                <button
+                  class="btn btn-primary btn-sm"
+                  onclick={() => navigate("/dashboard/eventCreate")}
+                >
+                  <Calendar class="mr-2 h-4 w-4" />
+                  Créer un événement
+                </button>
+              </div>
+            </div>
+          </div>
 
           <!-- Dernières recettes -->
-          <LatestRecipesCard />
+          <div class="card bg-base-100 border-base-200 border shadow-xl">
+            <div class="card-body">
+              <LatestRecipesCard />
+            </div>
+          </div>
         </div>
-
         <!-- Colonne latérale (1/3) -->
         <div class="space-y-6">
           <!-- Résumé des équipes -->

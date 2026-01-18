@@ -24,20 +24,27 @@ export const EVENTS_COLLECTION_ID = "main";
 
 /**
  * Liste tous les événements accessibles à l'utilisateur
- * Filtrage optimisé avec contributorsIds pour récupérer uniquement les événements où l'utilisateur est contributeur
+ * @param userId - ID de l'utilisateur
+ * @param minDate - Date minimum pour filtrer les événements (ISO string). Si null, pas de filtre de date
  */
-export async function listEvents(userId: string): Promise<{ events: Main[] }> {
+export async function listEvents(
+  userId: string,
+  minDate: string | null = null,
+): Promise<{ events: Main[] }> {
   return safeOperation(
     async () => {
       const { tables } = await getAppwriteInstances();
+      const queries = [Query.orderDesc("dateStart")];
+
+      // Ajouter le filtre de date si minDate est fourni
+      if (minDate) {
+        queries.push(Query.greaterThanEqual("dateEnd", minDate));
+      }
+
       const response = await tables.listRows({
         databaseId: APPWRITE_CONFIG.databaseId,
         tableId: EVENTS_COLLECTION_ID,
-        queries: [
-          Query.orderDesc("dateStart"),
-          // ✅ PLUS DE FILTRAGE: Les permissions gèrent l'accès via labels/teams
-          // Seuls les événements auxquels l'utilisateur a accès seront retournés
-        ],
+        queries,
       });
       return { events: response.rows as unknown as Main[] };
     },
@@ -80,6 +87,7 @@ export async function getEvent(eventId: string): Promise<Main | null> {
 /**
  * Crée un nouvel événement
  * Note: Les permissions sont gérées côté serveur via les fonctions Appwrite
+ * @deprecated → use createEventWithTeams
  */
 export async function createEvent(
   data: CreateEventData,

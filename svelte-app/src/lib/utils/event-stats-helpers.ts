@@ -48,6 +48,13 @@ export function getTotalRecipes(event: EnrichedEvent | null): number {
 }
 
 /**
+ * Nombre de todos dans l'événement
+ */
+export function getTodosCount(event: EnrichedEvent | null): number {
+  return event?.todos?.length || 0;
+}
+
+/**
  * Nombre total d'ingrédients uniques dans l'événement
  * Note: Dépend de recipesStore pour récupérer les détails des recettes
  */

@@ -107,8 +107,6 @@ export class EventsStore {
   #currentEvents = $derived.by(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Début de la journée actuelle
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1); // Début de demain
 
     return Array.from(this.#events.values()).filter((event) => {
       if (!event.dateStart || !event.dateEnd) return false;
@@ -332,9 +330,9 @@ export class EventsStore {
 
   /**
    * Charge les événements depuis Appwrite
-   * Filtrage optimisé : seulement les événements où l'utilisateur est contributeur via contributorsIds
+   * Filtrage optimisé : seulement les événements récents (15 jours) ou futurs
    */
-  async #loadEvents(): Promise<void> {
+  async #loadEvents(minDate: string | null = null): Promise<void> {
     try {
       console.log("[EventsStore] Chargement des événements...");
 
@@ -346,8 +344,17 @@ export class EventsStore {
         return;
       }
 
-      // Utiliser le filtrage optimisé avec contributorsIds
-      const { events } = await listEvents(this.#userId);
+      // Calculer la date limite (15 jours en arrière) pour les événements courants
+      if (!minDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const fifteenDaysAgo = new Date(today);
+        fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+        minDate = fifteenDaysAgo.toISOString();
+      }
+
+      // Utiliser le filtrage optimisé avec minDate
+      const { events } = await listEvents(this.#userId, minDate);
 
       // Ajouter à la map
       events.forEach((event) => {
@@ -355,7 +362,7 @@ export class EventsStore {
       });
 
       console.log(
-        `[EventsStore] ${events.length} événements chargés (filtrés pour userId: ${this.#userId})`,
+        `[EventsStore] ${events.length} événements chargés (filtrés pour userId: ${this.#userId}, date >= ${minDate})`,
       );
     } catch (err) {
       console.error("[EventsStore] Erreur lors du chargement:", err);
@@ -547,6 +554,7 @@ export class EventsStore {
 
   /**
    * Crée un nouvel événement
+   * @deprecated : on utilise la CF appelé par createEventWithTeam
    */
   async createEvent(data: CreateEventData): Promise<EnrichedEvent> {
     if (!globalState.userId) throw new Error("Utilisateur non connecté");
@@ -1160,6 +1168,41 @@ export class EventsStore {
   // =============================================================================
   // CALCULS UTILITAIRES
   // =============================================================================
+
+  /**
+   * Charge TOUS les événements (y compris les anciens) depuis Appwrite
+   * Utilisé pour la page /eventList
+   * Cette méthode ajoute les événements à la map existante (sans vider)
+   */
+  async loadAllPastEvents(): Promise<void> {
+    try {
+      console.log("[EventsStore] Chargement de TOUS les événements...");
+
+      if (!this.#userId) {
+        console.warn("[EventsStore] userId non défini");
+        return;
+      }
+
+      this.#loading = true;
+
+      // Ne pas filtrer par date
+      const { events } = await listEvents(this.#userId, null);
+
+      // Ajouter à la map (sans vider les événements existants)
+      events.forEach((event) => {
+        this.#events.set(event.$id, this.#enrichEvent(event));
+      });
+
+      console.log(
+        `[EventsStore] ${events.length} événements chargés (sans filtre de date, total: ${this.#events.size})`,
+      );
+    } catch (err) {
+      console.error("[EventsStore] Erreur lors du chargement:", err);
+      throw err;
+    } finally {
+      this.#loading = false;
+    }
+  }
 
   /**
    * Calcule le scaleFactor pour une recette dans un repas
