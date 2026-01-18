@@ -25,7 +25,7 @@
   }: Props = $props();
 
   // Dériver les classes de padding
-  const paddingClass = $derived(padding === "sm" ? "px-2 py-0.5" : "");
+  const paddingClass = $derived(padding === "sm" ? " py-0.5" : "");
 
   const toasts = $derived(toastService.toasts);
 
@@ -65,9 +65,9 @@
 {#each Array.from(toastsByPosition().entries()) as [pos, positionToasts] (pos)}
   <div class="toast {pos} z-1050">
     {#each positionToasts as toast (toast.id)}
-      <div class="alert alert-{toast.state} max-w-sm {paddingClass} shadow-lg">
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
+      <div class="alert alert-{toast.state}  {paddingClass} shadow-lg">
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex flex-1 items-center gap-2">
             {#if toast.state === "loading"}
               <LoaderCircle class="h-5 w-5 animate-spin" />
             {/if}
@@ -102,7 +102,7 @@
           <!-- Bouton de fermeture (erreurs et warnings uniquement) -->
           {#if toast.state === "error" || toast.state === "warning" || toast.state === "loading"}
             <button
-              class="btn btn-ghost btn-sm btn-circle absolute top-1 right-1"
+              class="btn btn-ghost btn-xs btn-circle"
               onclick={() => dismiss(toast)}
               title="Fermer"
               aria-label="Fermer la notification"
