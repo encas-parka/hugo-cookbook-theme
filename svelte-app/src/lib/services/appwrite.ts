@@ -20,8 +20,8 @@ import type { AppwriteConfig } from "../types/global";
 // =============================================================================
 
 const APPWRITE_CONFIG: AppwriteConfig = {
-  endpoint: "https://cloud.appwrite.io/v1",
-  projectId: "689725820024e81781b7",
+  endpoint: "https://aw.oupla.net/v1",
+  projectId: "696b7acb0037bde79e3f",
   databaseId: "689d15b10003a5a13636",
   functions: {
     cmsAuth: "68976500002eb5c6ee4f",
@@ -31,7 +31,7 @@ const APPWRITE_CONFIG: AppwriteConfig = {
     enkaData: "68f00487000c624533a3", // ID fusionné (enka-products)
   },
   collections: {
-    events: "events", // Ajouté par déduction, à vérifier si nécessaire
+    events: "main", // TOCHECK
     ingredients: "ingredients", // Ajouté par déduction
     main: "main",
     purchases: "purchases",
