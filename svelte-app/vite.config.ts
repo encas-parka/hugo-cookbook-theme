@@ -72,6 +72,15 @@ export default defineConfig({
           });
         },
       },
+      "/images": {
+        target: "http://localhost:1313",
+        changeOrigin: true,
+        configure: (proxy, _options) => {
+          proxy.on("error", (_err, _req, _res) => {
+            console.log("[Vite Proxy] Hugo server not available for /images/");
+          });
+        },
+      },
     },
     // Très important : pour éviter une boucle infinie
     // Vite ne doit pas "watch" les fichiers qu'il écrit lui-même.
