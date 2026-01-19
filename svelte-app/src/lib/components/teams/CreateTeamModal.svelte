@@ -7,6 +7,7 @@
   import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
   import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
   import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
+  import { toastService } from "@/lib/services/toast.service.svelte";
 
   interface Props {
     isOpen: boolean;
@@ -26,6 +27,11 @@
   let error = $state<string | null>(null);
   let step = $state<"create" | "invite">("create");
   let createdTeamId = $state<string | null>(null);
+
+  // État pour le formulaire d'invitation
+  let invitedEmails = $state<string[]>([]);
+  let inviteCustomMessage = $state("");
+  let inviteLoading = $state(false);
 
   // Réinitialiser le formulaire
   function resetForm() {
@@ -68,6 +74,41 @@
       console.error("[CreateTeamModal] Erreur:", err);
     } finally {
       loading = false;
+    }
+  }
+
+  // Envoyer les invitations
+  async function sendInvitations() {
+    if (!createdTeamId || invitedEmails.length === 0) return;
+
+    inviteLoading = true;
+
+    try {
+      await toastService.track(
+        teamsStore.inviteTeamMember(
+          createdTeamId,
+          invitedEmails,
+          inviteCustomMessage || undefined,
+        ),
+        {
+          loading: "Envoi des invitations en cours...",
+          success: `${invitedEmails.length} invitation${invitedEmails.length > 1 ? "s" : ""} envoyée${invitedEmails.length > 1 ? "s" : ""} avec succès`,
+          error: "Erreur lors de l'envoi des invitations",
+        },
+      );
+
+      // Réinitialiser le formulaire
+      invitedEmails = [];
+      inviteCustomMessage = "";
+
+      // Rafraîchir la liste
+      if (createdTeamId) {
+        await teamsStore.fetchTeam(createdTeamId);
+      }
+    } catch (err: any) {
+      console.error("[TeamDetailModal] Erreur envoi invitations:", err);
+    } finally {
+      inviteLoading = false;
     }
   }
 
@@ -152,12 +193,31 @@
           </div>
         </div>
 
-        <InviteMembersForm {team} onSuccess={finalize} />
+        <InviteMembersForm
+          {team}
+          bind:invitedEmails
+          bind:customMessage={inviteCustomMessage}
+          loading={inviteLoading}
+        />
       </ModalContent>
 
       <ModalFooter>
         <button class="btn btn-ghost" onclick={finalize}>
           Passer cette étape
+        </button>
+
+        <button
+          class="btn btn-primary"
+          onclick={sendInvitations}
+          disabled={inviteLoading || invitedEmails.length === 0}
+        >
+          {#if inviteLoading}
+            <span class="loading loading-spinner loading-sm"></span>
+          {:else}
+            Envoyer {invitedEmails.length} invitation{invitedEmails.length > 1
+              ? "s"
+              : ""}
+          {/if}
         </button>
       </ModalFooter>
     {/if}

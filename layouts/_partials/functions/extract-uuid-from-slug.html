@@ -1,8 +1,0 @@
-{{/* Retourne la sous-chaîne après le dernier "_" s'il existe, sinon chaîne vide */}}
-{{- $slug := . -}}
-{{- $uuid := "" -}}
-{{- if and $slug (in $slug "_") -}}
-  {{- $last := delimit (last 1 (split $slug "_")) "" -}}
-  {{- $uuid = $last -}}
-{{- end -}}
-{{- return $uuid -}}

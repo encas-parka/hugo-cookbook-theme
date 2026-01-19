@@ -7,54 +7,13 @@ outputs:
   page:
     - HTML
 
-
 mediaTypes:
-  application/json:
-    suffixes:
-      - json
   text/netlify:
     suffixes:
       - ""
     delimiter: ""
 
 outputFormats:
-
-  Menus:
-    mediaType: "text/html"
-    baseName: "menus/index"
-    isHTML: true
-    permalinkable: true
-
-  Recettes:
-    mediaType: "text/html"
-    baseName: "recettes/index"
-    isHTML: true
-    permalinkable: true
-
-  Poster:
-    mediaType: "text/html"
-    baseName: "poster/index"
-    isHTML: true
-    permalinkable: true
-
-  Ingredients:
-    mediaType: "text/html"
-    baseName: "ingredients/index"
-    isHTML: true
-    permalinkable: true
-
-  IngredientsJSON:
-    mediaType: "application/json"
-    baseName: "ingredients/index"
-    isPlainText: true
-    notAlternative: true
-
-  JSON:
-    mediaType: application/json
-    baseName: index
-    isPlainText: true
-    notAlternative: true
-
   REDIRECTS:
     mediatype: text/netlify
     baseName: _redirects
@@ -80,35 +39,6 @@ sitemap:
 permalinks:
   blog: /:title/
 
-
-menus:
-  docs:
-    - name: Découvrir
-      pageRef: /docs/decouvrir
-      weight: 10
-    - name: Editer le site
-      pageRef: /docs/editer
-      weight: 20
-    - name: Commencer
-      pageRef: /docs/editer/commencer
-      weight: 21
-      parent: Editer le site
-    - name: Les Recettes
-      pageRef: /docs/editer/recettes
-      weight: 22
-      parent: Editer le site
-    - name: Les Evénements / Menus
-      pageRef: /docs/editer/evenements
-      weight: 23
-      parent: Editer le site
-    - name: Ajouter ingrédients, catégories...
-      pageRef: /docs/editer/autres
-      weight: 24
-      parent: Editer le site
-    - name: Autres Outils Web
-      pageRef: /docs/web-tools
-      weight: 25
-
 markup:
   goldmark:
     renderer:
@@ -119,26 +49,11 @@ module:
     extended: true
     min: "0.142.0"
   mounts:
-    # Workaround for https://github.com/gohugoio/hugo/issues/6945
-    - source: assets/scss/bootstrap/vendor
-      target: assets/scss/bootstrap/vendor
     - source: layouts
       target: layouts
-    - source: node_modules/vue/dist
-      target: assets/js/vue
-    - source: node_modules/@tanstack/vue-table/build/umd/index.development.js
-      target: assets/js/vuetable.development.js
-    - source: node_modules/@tanstack/vue-table/build/umd/index.production.js
-      target: assets/js/vuetable.production.js
     - source: static
       target: static
     - source: data
       target: data
     - source: assets
       target: assets
-  imports:
-    - path: github.com/thkukuk/hugo-photoswipe5-gallery
-      disable: false
-    - path: github.com/hugomods/bootstrap
-    - path: github.com/hugomods/images
-      disable: false

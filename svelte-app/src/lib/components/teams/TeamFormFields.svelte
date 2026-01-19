@@ -24,13 +24,17 @@
     descriptionMaxLength = 350,
     onNameKeydown,
   }: Props = $props();
+
+  let showAdminMsg = name !== "";
 </script>
 
 <div class="space-y-4">
-  <div class="alert">
-    <Info class="size-4 shrink-0" /> Seul·es les admins peuvent modifier les paramètres
-    de l'équipe.
-  </div>
+  {#if showAdminMsg}
+    <div class="alert">
+      <Info class="size-4 shrink-0" /> Seul·es les admins peuvent modifier les paramètres
+      de l'équipe.
+    </div>
+  {/if}
   <!-- Nom de l'équipe -->
   <fieldset class="fieldset">
     <legend class="fieldset-legend">Nom de l'équipe *</legend>

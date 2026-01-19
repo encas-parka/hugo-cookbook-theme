@@ -4,18 +4,14 @@
 
 <!doctype html>
 <html lang="{{ .Site.LanguageCode | default "fr" }}">
-  <!--FIXIT : bootstrap non chargé globalement pour les test DEV -->
-  {{/* partialCached "head/head.html" . .RelPermalink */}}
-
-  {{/*  Creer un espace au dessus de la navbar en rajoutant la class "section" à body. Mais de maniere générale définit des layout en fonction du type de page... from hyas*/}}
-  {{/*  {{- partial "head/body-class.html" . -}}
-   <body class="{{ delimit (.Scratch.Get "class") " " }}">   */}}
-
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ .Site.Title }}</title>
+  </head>
   <body>
 
-  {{/* partialCached "header/header.html" . "header" */}}
-  <div id="svelte-header"></div>
-
+  <div id="app"></div>
 
     <div class="wrap container" role="document">
       <div class="content">
@@ -23,11 +19,9 @@
       </div>
     </div>
 
-  {{ block "sidebar-footer" . }}{{ end }}
-  {{ partial "footer/footer.html" . "footer" }}
-  {{ partial "footer/script-footer.html" .  .Section }}
-
-
+  <!-- Charge l'app Svelte -->
+  <script type="module" src="/dist/assets/index.js"></script>
+  <link rel="stylesheet" href="/dist/assets/index.css">
 
   </body>
 </html>
