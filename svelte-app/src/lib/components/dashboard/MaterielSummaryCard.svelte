@@ -22,12 +22,10 @@
         <div class="loading loading-spinner loading-md"></div>
       </div>
     {:else}
-      <div class="space-y-3">
-        <div class="card card-sm bg-base-300">
-          <div class="card-body text-center">
-            <p class="font-medium">Gérez le matériel collectif de cantine :</p>
-            <p>inventaire, gestion des emprunt, partage, etc.</p>
-          </div>
+      <div class="card card-sm bg-base-300">
+        <div class="card-body text-center">
+          <p class="font-medium">Gérez le matériel collectif de cantine :</p>
+          <p>inventaire, gestion des emprunt, partage, etc.</p>
         </div>
       </div>
 

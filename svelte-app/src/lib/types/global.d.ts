@@ -19,6 +19,7 @@ export interface AppwriteConfig {
     locks: string;
     user_notifications: string;
     materiel_loan: string;
+    teamdocs: string;
   };
 }
 

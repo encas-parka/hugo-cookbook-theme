@@ -170,6 +170,8 @@
     <div class="navbar-center absolute left-1/2 -translate-x-1/2 transform">
       {#if navBarStore.materielContext}
         <MaterielTabs currentTeamId={navBarStore.teamId} />
+      {:else if navBarStore.tabs}
+        {@render navBarStore.tabs()}
       {:else if navBarStore.eventId !== undefined}
         <EventTabs eventId={navBarStore.eventId} />
       {:else}
@@ -296,6 +298,8 @@
       <MaterielTabs currentTeamId={navBarStore.teamId} />
     {:else if navBarStore.eventId !== undefined}
       <EventTabs eventId={navBarStore.eventId} />
+    {:else if navBarStore.tabs}
+      {@render navBarStore.tabs()}
     {:else if navBarStore.title}
       <h1
         class="text-center text-sm font-bold tracking-wider uppercase opacity-70"

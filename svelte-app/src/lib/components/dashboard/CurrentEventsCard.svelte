@@ -43,10 +43,9 @@
     <span class="loading loading-spinner loading-md"></span>
   </div>
 {:else if events.length === 0}
-  <div class="mx-auto flex items-center py-2">
-    <span class="text-base-content/60 text-center text-sm">
-      <Calendar class="me-2 inline size-4 opacity-60" />Aucun événement prévu
-    </span>
+  <div class="py-6 text-center">
+    <Calendar size={32} class="text-base-content/20 mx-auto mb-3" />
+    <p class="text-base-content/60 mb-4 text-sm">Aucun événement prévu</p>
   </div>
 {:else}
   <!-- Événements à venir -->
@@ -55,7 +54,7 @@
       <div class="space-y-3">
         {#each events as event (event.$id)}
           <div
-            class="bg-base-200 hover:bg-base-300 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors {cardClass}"
+            class="bg-base-200/60 hover:bg-base-200 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors {cardClass}"
             onclick={() => navigate(`/dashboard/eventEdit/${event.$id}`)}
             role="button"
             tabindex="0"

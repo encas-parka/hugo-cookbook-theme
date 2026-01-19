@@ -7,6 +7,7 @@
     Package,
     ShoppingCart,
     ArrowRight,
+    Calendar,
   } from "@lucide/svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
@@ -14,6 +15,7 @@
   import CurrentEventsCard from "./CurrentEventsCard.svelte";
   import type { EnrichedNativeTeam } from "$lib/types/aw_native_team.d";
   import type { EnrichedEvent } from "$lib/types/events.d";
+  import DocQuickAccess from "$lib/components/documents/DocQuickAccess.svelte";
 
   interface Props {
     team: EnrichedNativeTeam;
@@ -91,7 +93,7 @@
   }
 
   function goToCreateEvent() {
-    navigate("/dashboard/eventCreate");
+    navigate(`/dashboard/eventCreate?teamId=${team.$id}`);
   }
 
   function goToInventory() {
@@ -133,93 +135,112 @@
       </button>
     </div>
 
-    <!-- === SOUS-CARD MEMBRES === -->
-    <div class="card card-sm bg-base-300">
-      <div class="card-body py-3">
-        <div
-          class="grid grid-cols-1 items-center justify-between gap-2 text-sm md:grid-cols-4"
-        >
-          <div class="col-span-3 flex items-center gap-2">
-            <Users class="inline size-5 shrink-0 opacity-70" />
-            <!-- Liste des noms -->
-            <span class="text-base-content/70"> {memberNamesDisplay} </span>
-          </div>
-          <div class="ms-auto flex items-center gap-4">
-            <!-- Badge membres -->
-            <div class="badge badge-primary badge-lg badge-outline ml-auto">
-              {teamMembers.length} membre{teamMembers.length > 1 ? "s" : ""}
+    <!-- === SOUS-CARD MEMBRES | materiel  -->
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div class="card card-sm border-neutral/20 shoadow-sm self-start border">
+        <div class="card-body">
+          <div
+            class="flex flex-wrap items-center justify-between gap-2 text-sm"
+          >
+            <div class=" flex items-center gap-2">
+              <Users class="inline size-5 shrink-0 opacity-70" />
+              <!-- Liste des noms -->
+              <span class="text-base-content/70"> {memberNamesDisplay} </span>
             </div>
+            <div class="ms-auto flex items-center gap-4">
+              <!-- Badge membres -->
+              <div class="badge badge-primary badge-lg badge-outline ml-auto">
+                {teamMembers.length} membre{teamMembers.length > 1 ? "s" : ""}
+              </div>
 
-            <button class="btn btn-sm btn-accent" onclick={inviteMember}>
-              <Plus class="h-4 w-4" />
-              Inviter
-            </button>
+              <button class="btn btn-sm btn-accent" onclick={inviteMember}>
+                <Plus class="h-4 w-4" />
+                Inviter
+              </button>
+            </div>
           </div>
+        </div>
+      </div>
+
+      <div
+        class="card border-neutral/20 card-sm flex w-full justify-center border shadow-sm"
+      >
+        <!-- Actions Matériel -->
+        <div class="card-body">
+          <div class="card card-sm bg-base-300">
+            <div class="card-body text-center">
+              <p class="font-semibold">
+                Gérez le matériel collectif de cantine :
+              </p>
+              <p>inventaire, gestion des emprunt, partage, etc.</p>
+            </div>
+          </div>
+          <fieldset class="fieldset w-48">
+            <div class="flex justify-around gap-2">
+              <button
+                class="btn btn-primary btn-soft btn-wide"
+                onclick={goToInventory}
+              >
+                <Package class="h-3 w-3" />
+                Inventaire
+              </button>
+              <button
+                class="btn btn-primary btn-soft btn-wide"
+                onclick={goToReservations}
+              >
+                <ShoppingCart class="h-3 w-3" />
+                Réservations
+              </button>
+            </div>
+          </fieldset>
         </div>
       </div>
     </div>
 
-    <!-- === ÉVÉNEMENTS === -->
-    <div class="space-y-4">
-      <!-- Événements à venir -->
-      <CurrentEventsCard
-        events={currentEvents}
-        {loading}
-        cardClass="border-l-4 border-accent"
-      />
-
-      <!-- Événements récents -->
-      {#if pastEvents.length > 0}
-        <div class="fieldset-legend">Récents</div>
-        <CurrentEventsCard events={pastEvents} {loading} />
-      {/if}
-
-      <!-- Lien vers événements passés -->
-
-      <button class="btn btn-block" onclick={goToPastEvents}>
-        Voir les événements passés
-        <ArrowRight class="ml-2 h-4 w-4" />
-      </button>
-    </div>
-
-    <!-- === ACTIONS === -->
-    <div
-      class="card-actions border-base-200 flex justify-between border-t pt-4"
-    >
-      <!-- Actions Matériel -->
-      <div class="flex flex-col gap-2">
-        <fieldset class="fieldset w-48">
-          <legend class="fieldset-legend text-xs">
-            Gérez le matériel collectif de cantine
-          </legend>
-          <div class="flex gap-2">
-            <button
-              class="btn btn-primary btn-soft btn-sm flex-1"
-              onclick={goToInventory}
-            >
-              <Package class="h-3 w-3" />
-              Inventaire
-            </button>
-            <button
-              class="btn btn-primary btn-soft btn-sm flex-1"
-              onclick={goToReservations}
-            >
-              <ShoppingCart class="h-3 w-3" />
-              Réservations
+    <div class="card grid grid-cols-1 gap-6 text-sm md:grid-cols-2">
+      <!-- === ÉVÉNEMENTS === -->
+      <div class="card card-sm border-neutral/20 border shadow-sm">
+        <div class="card-body">
+          <div class="flex flex-wrap justify-between gap-2">
+            <div class="card-title items-center">
+              <Calendar class="text-primary inline size-5" /> Événements
+            </div>
+            <button class="btn btn-sm" onclick={goToPastEvents}>
+              Voir les événements passés
+              <ArrowRight class="ml-2 h-4 w-4" />
             </button>
           </div>
-        </fieldset>
+          <!-- Événements à venir -->
+          <CurrentEventsCard
+            events={currentEvents}
+            {loading}
+            cardClass="border-l-4 border-accent"
+          />
+
+          <!-- Événements récents -->
+          {#if pastEvents.length > 0}
+            <div class="fieldset-legend">Récents</div>
+            <CurrentEventsCard events={pastEvents} {loading} />
+          {/if}
+          <div class="card-actions mt-auto items-center justify-end">
+            <!-- Bouton Créer un événement -->
+            <button
+              class="btn btn-primary btn-soft btn-sm ml-auto"
+              onclick={goToCreateEvent}
+            >
+              <Plus class="h-4 w-4" />
+              Créer un événement
+            </button>
+          </div>
+        </div>
       </div>
 
-      <!-- Bouton Créer un événement -->
-      <button
-        class="btn btn-primary btn-sm mt-auto ml-auto"
-        onclick={goToCreateEvent}
-      >
-        <Plus class="h-4 w-4" />
-        Créer un événement
-      </button>
+      <div>
+        <DocQuickAccess teamId={team.$id} />
+      </div>
     </div>
+
+    <div class="flex justify-center"></div>
   </div>
 </div>
 

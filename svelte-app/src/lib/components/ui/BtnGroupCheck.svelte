@@ -42,8 +42,8 @@
   $effect(() => {
     const newStates: Record<string, boolean> = {};
     items.forEach((item) => {
-      // Utiliser la valeur de selected pour déterminer l'état
-      newStates[item.id] = item.selected ?? true;
+      // Utiliser la valeur de selected pour déterminer l'état (false par défaut)
+      newStates[item.id] = item.selected ?? false;
     });
 
     // Toujours synchroniser avec les props items.selected

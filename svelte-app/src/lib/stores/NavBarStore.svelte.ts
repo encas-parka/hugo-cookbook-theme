@@ -4,6 +4,7 @@ export interface NavBarConfig {
   title?: string;
   backAction?: () => void;
   actions?: Snippet;
+  tabs?: Snippet;
   eventId?: string;
   activeTab?: number;
   isLockedByOthers?: boolean;
@@ -28,6 +29,10 @@ class NavBarStore {
 
   get actions() {
     return this.#config.actions;
+  }
+
+  get tabs() {
+    return this.#config.tabs;
   }
 
   get eventId() {

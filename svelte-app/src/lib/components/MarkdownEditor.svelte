@@ -89,7 +89,7 @@
   // Un $effect ici créerait une boucle infinie avec onUpdate -> onTransaction -> updateTrigger
 </script>
 
-<div class="form-control w-full">
+<div class=" w-full">
   {#if label}
     <label class="label" for={id}>
       <span class="label-text font-medium">{label}</span>

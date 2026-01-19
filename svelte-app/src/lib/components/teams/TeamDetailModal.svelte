@@ -220,7 +220,6 @@
               bind:invitedEmails
               bind:customMessage={inviteCustomMessage}
               loading={inviteLoading}
-              {isOwner}
             />
           </div>
         {:else if currentTab === "settings"}

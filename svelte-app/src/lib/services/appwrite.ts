@@ -40,6 +40,7 @@ const APPWRITE_CONFIG: AppwriteConfig = {
     locks: "locks",
     user_notifications: "user_notifications",
     materiel_loan: "materiel_loan",
+    teamdocs: "teamdocs", // Documents d'équipe
   },
 };
 

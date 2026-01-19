@@ -7,6 +7,7 @@
   import { notificationStore } from "./lib/stores/NotificationStore.svelte";
   import { materielStore } from "./lib/stores/MaterielStore.svelte";
   import { realtimeManager } from "./lib/stores/RealtimeManager.svelte";
+  import { teamdocsStore } from "./lib/stores/TeamdocsStore.svelte";
   import { onDestroy } from "svelte";
   import ErrorAlert from "./lib/components/ui/ErrorAlert.svelte";
   import HeaderNav from "./lib/components/HeaderNav.svelte";
@@ -39,6 +40,9 @@
   import LoansPage from "./lib/routes/LoansPage.svelte";
   import LoanReturnPage from "./lib/routes/LoanReturnPage.svelte";
   import EventListPage from "./lib/routes/EventListPage.svelte";
+  import CreateDocumentPage from "./lib/routes/CreateDocumentPage.svelte";
+  import EditDocumentPage from "./lib/routes/EditDocumentPage.svelte";
+  import DocumentListPage from "./lib/routes/DocumentListPage.svelte";
 
   // États de l'application
   type AppState =
@@ -104,6 +108,17 @@
     requireAuth,
   );
   router.addRoute("/eventList", EventListPage, requireAuth);
+  router.addRoute(
+    "/createdocument/:teamId/new",
+    CreateDocumentPage,
+    requireAuth,
+  );
+  router.addRoute(
+    "/editdocument/:teamId/:docId",
+    EditDocumentPage,
+    requireAuth,
+  );
+  router.addRoute("/documents/:teamId", DocumentListPage, requireAuth);
 
   // État du composant actuel
   let currentRoute = $state<any>(null);
@@ -130,6 +145,7 @@
           recipesStore.loadCache(),
           materielStore.loadCache(),
           notificationStore.loadCache(),
+          teamdocsStore.loadCache(),
         ]);
 
         // Phase 2: Afficher UI avec données du cache
@@ -148,6 +164,7 @@
           materielStore.syncFromRemote(),
           teamsStore.syncFromRemote(),
           notificationStore.syncFromRemote(),
+          teamdocsStore.syncFromRemote(),
         ])
           .then(async () => {
             // Succès : configurer le realtime pour tous les stores
@@ -157,6 +174,7 @@
               materielStore.setupRealtime(),
               teamsStore.setupRealtime(),
               notificationStore.setupRealtime(),
+              teamdocsStore.setupRealtime(),
             ]);
             await realtimeManager.initialize();
             appState = "READY_FULLY_SYNCED";
@@ -309,6 +327,7 @@
     eventsStore.destroy();
     recipesStore.destroy();
     materielStore.destroy();
+    teamdocsStore.destroy();
     realtimeManager.destroy();
   });
 

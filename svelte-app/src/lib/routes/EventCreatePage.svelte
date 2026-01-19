@@ -40,6 +40,27 @@
   let selectedTeams = $state<string[]>([]);
   let sendEmailToExistingMembers = $state(true);
 
+  // Récupérer le teamId depuis l'URL si présent
+  const teamIdFromUrl = $derived.by(() => {
+    // Pour le hash-based routing, les paramètres sont après le #
+    const hash = window.location.hash;
+    const queryString = hash.split("?")[1];
+    if (!queryString) return null;
+    const urlParams = new URLSearchParams(queryString);
+    return urlParams.get("teamId");
+  });
+
+  // Précocher la team si présente dans l'URL
+  $effect(() => {
+    const teamId = teamIdFromUrl;
+    const myTeams = teamsStore.myTeams;
+    if (teamId && myTeams.some((t) => t.$id === teamId)) {
+      if (!selectedTeams.includes(teamId)) {
+        selectedTeams = [teamId];
+      }
+    }
+  });
+
   // Fonction pour toggle une team
   function toggleTeam(teamId: string) {
     if (selectedTeams.includes(teamId)) {
@@ -305,7 +326,7 @@
     <div class="flex flex-wrap gap-x-10 gap-y-6">
       <div class="span-2 flex min-w-xs flex-1 flex-col">
         <textarea
-          class="textarea w-full"
+          class="textarea shamd-sm w-full"
           placeholder="Décrivez l'événement..."
           bind:value={description}
           maxlength="3000"
