@@ -5,12 +5,8 @@
   import { toastService } from "$lib/services/toast.service.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
-  import {
-    getContributors,
-    getContributorStatus,
-  } from "$lib/utils/event-stats-helpers";
+  import { getContributors } from "$lib/utils/event-stats-helpers";
   import { globalState } from "$lib/stores/GlobalState.svelte";
-  import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import type { EventMeal } from "$lib/types/events";
   import {
     Calendar,
@@ -24,7 +20,6 @@
   } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
-  import { navigate } from "../services/simple-router.svelte";
   import { untrack, onDestroy } from "svelte";
   import EventStats from "../components/EventStats.svelte";
   import EventTodoList from "../components/eventTodo/EventTodoList.svelte";
@@ -33,7 +28,6 @@
   import UnsavedChangesGuard from "../components/ui/UnsavedChangesGuard.svelte";
   import Fieldset from "../components/ui/Fieldset.svelte";
   import ConfirmModal from "../components/ui/ConfirmModal.svelte";
-  import type { Main, MainStatus } from "../types/appwrite";
 
   // ============================================================================
   // PROPS & INITIALISATION
@@ -68,7 +62,6 @@
   let editingMealIndex = $state<string | null>(null);
   let editingTitle = $state(false);
   let editingDescription = $state(false);
-  let editingMinContrib = $state(false);
 
   // États des modales de confirmation
   let showConfirmStatusModal = $state(false);
@@ -141,10 +134,6 @@
   // Note: eventName est maintenant un $state local (shadow draft), pas un $derived
   const contributors = $derived(getContributors(currentEvent));
   const selectedTeams = $derived(currentEvent?.teamsId ?? []);
-
-  const currentUserStatus = $derived(
-    getContributorStatus(currentEvent, globalState.userId || ""),
-  );
 
   const isLockedByOthers = $derived.by(() => {
     if (!activeLock) return false;
@@ -636,11 +625,6 @@
   }
 </script>
 
-<!-- {#debug} -->
-{$inspect("isDirty", isDirty)}
-{$inspect("minContrib", minContrib)}
-<!-- {/debug} -->
-
 {#snippet navActions()}
   <div class="flex items-center gap-2">
     <button
@@ -811,7 +795,7 @@
 
   <!-- Alerte d'invitation pour les utilisateurs invités -->
   <EventInvitationAlert
-    currentEvent={currentEvent}
+    {currentEvent}
     {isBusy}
     onRespond={handleInvitationResponse}
   />
