@@ -90,9 +90,6 @@
       <h2 class="text-base-content text-xl font-bold">
         Bienvenue, {globalState.user?.name || ""}
       </h2>
-      <p class="text-base-content/60 text-sm">
-        Voici un aperçu de vos activités récentes.
-      </p>
     </div>
   </div>
 
@@ -131,7 +128,7 @@
         <section class="bg-base-200 py-8">
           <div class="container mx-auto px-4">
             <div class="tiems-center mb-4 flex justify-between gap-4">
-              <div class="mb-6 text-2xl font-bold">Mes Équipes</div>
+              <div class="mb-6 text-2xl font-bold">Vos Équipes</div>
               <div class="card-actions mt-4">
                 <button
                   class="btn btn-primary btn-sm ms-auto"
@@ -156,72 +153,9 @@
         </section>
       {/if}
 
-      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <!-- Colonne principale (2/3) -->
-        <div class="space-y-6 lg:col-span-2">
-          <!-- Événements -->
-          <div class="card bg-base-100 border-base-200 border shadow-xl">
-            <div class="card-body">
-              <h2 class="card-title flex items-center gap-2">
-                <Calendar class="text-primary h-5 w-5" />
-                Événements
-              </h2>
-              <CurrentEventsCard
-                events={currentEvents}
-                loading={eventsStore.loading}
-                cardClass="border-l-4 border-accent"
-              />
-              {#if pastEvents.length > 0}
-                <div class="fieldset-legend">Récents</div>
-                <CurrentEventsCard
-                  events={pastEvents}
-                  loading={eventsStore.loading}
-                />
-              {/if}
-
-              <!-- Événements passés -->
-              <button
-                class="btn btn-bock"
-                onclick={() => navigate(`/eventList`)}
-              >
-                Voir les événements passés
-                <ArrowRight class="ml-2 h-4 w-4" />
-              </button>
-
-              <!-- Bouton création rapide -->
-              <div
-                class="card-actions border-base-200 mt-4 justify-end border-t pt-4"
-              >
-                <button
-                  class="btn btn-primary btn-sm"
-                  onclick={() => navigate("/dashboard/eventCreate")}
-                >
-                  <Calendar class="mr-2 h-4 w-4" />
-                  Créer un événement
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Dernières recettes -->
-          <div class="card bg-base-100 border-base-200 border shadow-xl">
-            <div class="card-body">
-              <LatestRecipesCard />
-            </div>
-          </div>
-        </div>
-        <!-- Colonne latérale (1/3) -->
-        <div class="space-y-6">
-          <!-- Résumé des équipes -->
-          <TeamSummaryCard
-            teams={teamsStore.myTeams}
-            invitations={[]}
-            loading={teamsStore.loading}
-          />
-          <!-- NOTE: invitations vide avec Server SDK (pas d'invitations en attente) -->
-
-          <!-- Résumé du matériel -->
-          <MaterielSummaryCard loading={eventsStore.loading} />
+      <div class="card bg-base-100 border-base-200 border shadow-xl">
+        <div class="card-body">
+          <LatestRecipesCard />
         </div>
       </div>
     {/if}

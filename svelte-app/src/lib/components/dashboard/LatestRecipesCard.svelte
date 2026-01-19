@@ -262,7 +262,7 @@
 
   <!-- Bouton création rapide -->
   <div class="card-actions border-base-200 mt-4 justify-end border-t pt-4">
-    <button class="btn btn-primary btn-sm" onclick={createNewRecipe}>
+    <button class="btn btn-primary btn-sm btn-soft" onclick={createNewRecipe}>
       <BookOpen class="mr-2 h-4 w-4" />
       Créer une recette
     </button>

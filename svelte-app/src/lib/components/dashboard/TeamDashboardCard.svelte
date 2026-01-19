@@ -8,6 +8,8 @@
     ShoppingCart,
     ArrowRight,
     Calendar,
+    ScrollText,
+    NotebookPen,
   } from "@lucide/svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
@@ -84,6 +86,8 @@
 
   // Handlers
   function openTeamModal() {
+    teamModalTab = "members";
+
     showTeamModal = true;
   }
 
@@ -181,14 +185,14 @@
                 class="btn btn-primary btn-soft btn-wide"
                 onclick={goToInventory}
               >
-                <Package class="h-3 w-3" />
+                <NotebookPen class="size-4" />
                 Inventaire
               </button>
               <button
                 class="btn btn-primary btn-soft btn-wide"
                 onclick={goToReservations}
               >
-                <ShoppingCart class="h-3 w-3" />
+                <ScrollText class="size-4" />
                 Réservations
               </button>
             </div>

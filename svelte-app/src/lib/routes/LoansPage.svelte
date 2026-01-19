@@ -232,13 +232,13 @@
         <div
           class="bg-base-200 rounded-box border-base-200 border-2 border-dashed py-20 text-center"
         >
-          <Users class="mb-4 h-12 w-12 opacity-50" />
-          <h3 class="mb-2 text-lg font-bold">Aucun emprunt</h3>
+          <Users class="mx-auto mb-4 h-12 w-12  text-center opacity-50" />
+          <h3 class="mb-2 text-lg font-bold">Aucune réservation</h3>
           <p class="text-base-content/60 mb-6">
             Cette équipe n'a pas encore d'emprunt.
           </p>
           <button class="btn btn-primary btn-sm" onclick={openCreateLoanModal}>
-            Créer le premier emprunt
+            Créer une réservation
           </button>
         </div>
       {:else}

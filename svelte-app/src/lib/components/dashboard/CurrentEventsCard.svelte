@@ -141,7 +141,7 @@
               </div>
 
               <!-- Actions -->
-              <div class="mt-3 flex flex-wrap gap-2">
+              <div class="mt-3 flex flex-wrap justify-around gap-2">
                 <button
                   class="btn btn-outline btn-secondary btn-xs"
                   onclick={(e) => {
