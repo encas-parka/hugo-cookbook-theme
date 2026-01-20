@@ -342,7 +342,7 @@
       </div>
 
       <!-- Statut de l'événement -->
-      <div class="align-start max-md:min-w-96">
+      <div class="align-start md:min-w-96">
         <Fieldset legend="Statut de l'événement">
           <div class="space-y-3">
             <label class="flex cursor-pointer items-center gap-3">

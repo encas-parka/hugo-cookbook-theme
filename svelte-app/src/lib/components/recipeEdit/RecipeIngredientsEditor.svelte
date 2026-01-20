@@ -286,10 +286,10 @@
     <!-- Recherche et ajout d'ingrédient -->
     <div class="card bg-base-100 border-base-300 border shadow-sm">
       <div class="card-body gap-3 p-3">
-        <h4 class="flex items-center gap-2 font-bold">
+        <div class="flex items-center gap-2 font-bold">
           <Plus class="text-primary h-4 w-4" />
           Ajouter un ingrédient
-        </h4>
+        </div>
 
         <div class="mt-2" bind:this={containerRef}>
           <div class="relative">

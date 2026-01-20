@@ -158,7 +158,7 @@
       <!-- Propriétaire -->
       <div class="badge badge-lg badge-soft badge-info gap-2 p-4">
         <Lock size={14} />
-        <span class="font-bold"
+        <span class=""
           >{createdBy
             ? memberNames[createdBy] || "Propriétaire"
             : "Propriétaire"}</span

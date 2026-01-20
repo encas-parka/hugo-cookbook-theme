@@ -114,7 +114,7 @@
 </script>
 
 <div
-  class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] border-b px-4 py-0 shadow-sm print:hidden {globalState.isMobile &&
+  class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] min-h-13 border-b px-4 py-0 shadow-sm print:hidden {globalState.isMobile &&
     'min-h-11'} relative"
 >
   <div class="navbar-start w-fit flex-shrink-0 gap-1">
