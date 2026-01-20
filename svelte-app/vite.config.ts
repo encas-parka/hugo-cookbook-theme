@@ -32,15 +32,7 @@ export default defineConfig({
         assetFileNames: "assets/[name].[ext]",
 
         manualChunks(id) {
-          // Éditeur (TipTap + ProseMirror)
-          if (id.includes("@tiptap") || id.includes("prosemirror")) {
-            return "editor";
-          }
-
-          // Markdown
-          if (id.includes("markdown-it")) {
-            return "markdown";
-          }
+          // Éditeur (TipTap + markdown) - seulement quand utilisé
 
           // Icons Lucide (gros morceau)
           if (id.includes("@lucide/svelte")) {
@@ -50,11 +42,6 @@ export default defineConfig({
           // Appwrite SDK
           if (id.includes("appwrite")) {
             return "appwrite";
-          }
-
-          // Autres dépendances
-          if (id.includes("node_modules")) {
-            return "vendor";
           }
         },
       },
