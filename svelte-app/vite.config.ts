@@ -2,20 +2,65 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import path from "path";
+import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [tailwindcss(), svelte()],
+  plugins: [
+    tailwindcss(),
+    svelte(),
+    visualizer({
+      open: true,
+      gzipSize: true,
+      filename: "./dist/stats.html",
+    }),
+  ],
   build: {
     // Cible le dossier static/dist de votre thème Hugo
     outDir: "../static/dist",
     emptyOutDir: true, // Vide le dossier à chaque build (utile pour le dev)
     // Pour des noms de fichiers propres
+
+    // Optimisations importantes
+    minify: "esbuild",
+    // Important pour le code splitting
+    target: "es2020",
+
     rollupOptions: {
       output: {
-        entryFileNames: "assets/[name].js",
-        chunkFileNames: "assets/[name].js",
-        assetFileNames: "assets/[name].[ext]",
+        // entryFileNames: "assets/[name].js",
+        // chunkFileNames: "assets/[name].js",
+        // assetFileNames: "assets/[name].[ext]",
+        entryFileNames: "assets/[name].[hash].js",
+        chunkFileNames: "assets/[name].[hash].js",
+        assetFileNames: "assets/[name].[hash].[ext]",
+
+        manualChunks(id) {
+          // Éditeur (TipTap + ProseMirror)
+          if (id.includes("@tiptap") || id.includes("prosemirror")) {
+            return "editor";
+          }
+
+          // Markdown
+          if (id.includes("markdown-it")) {
+            return "markdown";
+          }
+
+          // Icons Lucide (gros morceau)
+          if (id.includes("@lucide/svelte")) {
+            return "icons";
+          }
+
+          // Appwrite SDK
+          if (id.includes("appwrite")) {
+            return "appwrite";
+          }
+
+          // Autres dépendances
+          if (id.includes("node_modules")) {
+            return "vendor";
+          }
+        },
       },
     },
   },

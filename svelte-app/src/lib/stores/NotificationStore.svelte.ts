@@ -17,6 +17,9 @@ import { getDatabaseId, getAppwriteInstances } from "../services/appwrite";
 import { realtimeManager } from "./RealtimeManager.svelte";
 import { globalState } from "./GlobalState.svelte";
 import { toastService } from "$lib/services/toast.service.svelte";
+import { eventsStore } from "./EventsStore.svelte";
+import { nativeTeamsStore } from "./NativeTeamsStore.svelte";
+import { productsStore } from "./ProductsStore.svelte";
 
 interface UserNotifications {
   $id: string;
@@ -99,7 +102,6 @@ class NotificationStore {
                 payload.targetDocumentId,
               );
 
-              const { eventsStore } = await import("./EventsStore.svelte");
               await eventsStore.reload();
               await this.#deleteNotification(payload.$id);
             } else if (payload.notificationType === "team_access_granted") {
@@ -108,10 +110,7 @@ class NotificationStore {
                 payload.targetDocumentId,
               );
 
-              const { nativeTeamsStore: teamsStore } = await import(
-                "./NativeTeamsStore.svelte"
-              );
-              await teamsStore.reload();
+              await nativeTeamsStore.reload();
               await this.#deleteNotification(payload.$id);
             } else if (payload.notificationType === "batch_products_update") {
               const targetMainId = payload.targetDocumentId;
@@ -123,9 +122,6 @@ class NotificationStore {
                   targetMainId,
                 );
 
-                const { productsStore } = await import(
-                  "./ProductsStore.svelte"
-                );
                 await productsStore.syncFromAppwrite();
 
                 // Clear the isSyncing status after successful sync

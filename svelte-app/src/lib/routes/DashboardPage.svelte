@@ -1,45 +1,26 @@
 <script lang="ts">
   import {
-    Plus,
-    Calendar,
-    BookOpen,
-    Settings,
-    LoaderCircle,
-    Sparkles,
-    Users,
-    Clock,
-    ChefHat,
-    ArrowRight,
-  } from "@lucide/svelte";
+    warmUpEnkaData,
+    warmUpUsersTeamsManager,
+  } from "$lib/services/appwrite-warmup";
+  import { navigate } from "$lib/services/simple-router.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
+  import { globalState } from "$lib/stores/GlobalState.svelte";
   import {
     nativeTeamsStore,
     nativeTeamsStore as teamsStore,
   } from "$lib/stores/NativeTeamsStore.svelte";
-  import { recipesStore } from "$lib/stores/RecipesStore.svelte";
-  import { globalState } from "$lib/stores/GlobalState.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
-  import { navBarStore } from "../stores/NavBarStore.svelte";
+  import { Plus, Settings } from "@lucide/svelte";
   import { onDestroy } from "svelte";
-  import {
-    warmUpUsersTeamsManager,
-    warmUpEnkaData,
-  } from "$lib/services/appwrite-warmup";
+  import { navBarStore } from "../stores/NavBarStore.svelte";
 
-  import TeamSummaryCard from "$lib/components/dashboard/TeamSummaryCard.svelte";
-  import CurrentEventsCard from "$lib/components/dashboard/CurrentEventsCard.svelte";
   import LatestRecipesCard from "$lib/components/dashboard/LatestRecipesCard.svelte";
-  import MaterielSummaryCard from "$lib/components/dashboard/MaterielSummaryCard.svelte";
   import TeamDashboardCard from "../components/dashboard/TeamDashboardCard.svelte";
   import CreateTeamModal from "../components/teams/CreateTeamModal.svelte";
-
-  const now = new Date();
 
   let createModalOpen = $state(false);
 
   // Traitement des événements - utiliser les derived properties du store
-  const currentEvents = $derived(eventsStore.currentEvents);
-  const pastEvents = $derived(eventsStore.pastEvents);
 
   // WARM-UP
   $effect(() => {

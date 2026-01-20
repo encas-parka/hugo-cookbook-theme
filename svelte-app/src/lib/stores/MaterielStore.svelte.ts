@@ -17,11 +17,15 @@ import {
   updateMateriel,
   deleteMateriel,
   getMaterielRealtimeChannels,
+  updateMateriel as updateMaterielService,
 } from "$lib/services/appwrite-materiel";
 import {
   listMaterielLoans,
   getMaterielLoan,
   getMaterielLoanRealtimeChannels,
+  createMaterielLoan,
+  updateMaterielLoan,
+  deleteMaterielLoan,
 } from "$lib/services/appwrite-materiel-loan";
 import {
   createMaterielIDBCache,
@@ -675,10 +679,6 @@ export class MaterielStore {
         throw new Error("Utilisateur non connecté");
       }
 
-      const { createMaterielLoan } = await import(
-        "$lib/services/appwrite-materiel-loan"
-      );
-
       // Cast pour MaterielLoanStatus (enum) vs MaterielLoanStatusUnion (string literals)
       const loan = await createMaterielLoan(data as any, globalState.userId);
 
@@ -714,10 +714,6 @@ export class MaterielStore {
     this.#error = null;
 
     try {
-      const { updateMaterielLoan } = await import(
-        "$lib/services/appwrite-materiel-loan"
-      );
-
       // Cast pour MaterielLoanStatus (enum) vs MaterielLoanStatusUnion (string literals)
       await updateMaterielLoan(loanId, data as any);
 
@@ -764,9 +760,6 @@ export class MaterielStore {
       returnNotes?: string;
     },
   ): Promise<void> {
-    // Importer le service de mise à jour des materiels
-    const { updateMateriel } = await import("$lib/services/appwrite-materiel");
-
     // Pour chaque materiel avec pertes/cassures, mettre à jour son statut
     for (const item of data.materiels) {
       const lost = item.lostQuantity || 0;
@@ -774,19 +767,19 @@ export class MaterielStore {
 
       // Si tout est perdu ou cassé, marquer comme "lost"
       if (lost + broken >= item.quantity) {
-        await updateMateriel(item.materielId, {
+        await updateMaterielService(item.materielId, {
           status: "lost",
         });
       }
       // Si partiellement cassé (mais pas tout), marquer comme "torepair"
       else if (broken > 0) {
-        await updateMateriel(item.materielId, {
+        await updateMaterielService(item.materielId, {
           status: "torepair",
         });
       }
       // Sinon, s'assurer que le statut est "ok"
       else {
-        await updateMateriel(item.materielId, {
+        await updateMaterielService(item.materielId, {
           status: "ok",
         });
       }
@@ -820,10 +813,6 @@ export class MaterielStore {
     this.#error = null;
 
     try {
-      const { deleteMaterielLoan } = await import(
-        "$lib/services/appwrite-materiel-loan"
-      );
-
       // Ré-enrichir les matériels avant suppression
       const loan = this.#loans.get(loanId);
       if (loan) {

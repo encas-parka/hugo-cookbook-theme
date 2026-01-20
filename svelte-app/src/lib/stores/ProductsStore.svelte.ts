@@ -22,6 +22,8 @@ import type { EnrichedEvent } from "../types/events";
 import {
   loadPurchasesListByIds,
   syncProductsWithPurchases,
+  loadUpdatedPurchases,
+  loadOrphanPurchases,
 } from "../services/appwrite-products";
 
 import { createIDBCache, type IDBCache } from "../services/indexeddb-cache";
@@ -29,6 +31,7 @@ import { globalState } from "./GlobalState.svelte";
 import { ProductModel } from "../models/ProductModel.svelte";
 import { DateRangeStore } from "./DateRangeStore.svelte";
 import { eventsStore } from "./EventsStore.svelte";
+import { recipesStore } from "./RecipesStore.svelte";
 import { recalculatePurchaseDependents } from "../utils/productEnrichment";
 import { realtimeManager } from "./RealtimeManager.svelte";
 import { getDatabaseId, getCollectionId } from "../services/appwrite";
@@ -609,7 +612,6 @@ class ProductsStore {
     );
     this.#lastMealsHash = mealsHash;
 
-    const { recipesStore } = await import("./RecipesStore.svelte");
     // Fonction pour récupérer les détails d'une recette
     const getRecipeDetails = async (uuid: string) => {
       return await recipesStore.getRecipeByUuid(uuid);
@@ -688,8 +690,6 @@ class ProductsStore {
    * Calcule les produits depuis les meals d'un événement
    */
   async #calculateProductsFromEvent(event: EnrichedEvent): Promise<void> {
-    const { recipesStore } = await import("./RecipesStore.svelte");
-
     // Fonction pour récupérer les détails d'une recette
     const getRecipeDetails = async (uuid: string) => {
       return await recipesStore.getRecipeByUuid(uuid);
@@ -803,9 +803,6 @@ class ProductsStore {
       if (this.#lastSync) {
         console.log(
           `[ProductsStore] Récupération des purchases modifiés depuis lastSync: ${this.#lastSync}`,
-        );
-        const { loadUpdatedPurchases } = await import(
-          "../services/appwrite-products"
         );
         const updatedPurchases = await loadUpdatedPurchases(
           this.#currentMainId,
@@ -1656,9 +1653,6 @@ class ProductsStore {
     if (!this.#currentMainId) return;
 
     try {
-      const { loadOrphanPurchases } = await import(
-        "../services/appwrite-products"
-      );
       const orphans = await loadOrphanPurchases(this.#currentMainId);
 
       orphans.forEach((purchase) => {

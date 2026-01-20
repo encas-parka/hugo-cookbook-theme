@@ -75,6 +75,7 @@ import type {
 } from "../types/store.types";
 import { toastService } from "./toast.service.svelte";
 import { executeWithRetry } from "../utils/retry.utils";
+import { slugify } from "../utils/productsUtils";
 import { eventsStore } from "../stores/EventsStore.svelte";
 import { productsStore } from "../stores/ProductsStore.svelte";
 import type { EnrichedEvent } from "../types/events.d";
@@ -763,7 +764,6 @@ export async function createManualProduct(
 ): Promise<Products> {
   try {
     const { tables, config } = await getAppwriteInstances();
-    const { slugify } = await import("../utils/productsUtils");
 
     // Générer un ID unique basé sur le nom slugifié (10 premiers chars) + timestamp
     const slug = slugify(productData.productName).substring(0, 10);

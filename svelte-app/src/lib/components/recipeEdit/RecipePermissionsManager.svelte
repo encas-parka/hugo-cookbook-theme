@@ -10,7 +10,6 @@
   } from "@lucide/svelte";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
-  import { checkUserEmails } from "$lib/services/appwrite-functions";
   import Fieldset from "../ui/Fieldset.svelte";
   import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
@@ -92,6 +91,9 @@
     inviteError = null;
 
     try {
+      const { checkUserEmails } = await import(
+        "$lib/services/appwrite-functions"
+      );
       const result = await checkUserEmails([email]);
       const userInfo = result[email];
 

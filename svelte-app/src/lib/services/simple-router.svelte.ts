@@ -7,6 +7,7 @@
  * - Query strings
  * - Support du bouton retour
  * - Guards de route (beforeLeave, beforeEnter)
+ * - Lazy loading des composants
  */
 
 type RouteParams = Record<string, string>;
@@ -23,9 +24,13 @@ interface RouteGuards {
   beforeEnter?: (to: RouteInfo, from: RouteInfo) => boolean | Promise<boolean>;
 }
 
+// ✅ Support pour lazy loading
+type LazyComponent = () => Promise<{ default: any }>;
+type RouteComponent = any | LazyComponent;
+
 interface RouteDefinition {
   path: string | RegExp;
-  component: any;
+  component: RouteComponent;
   guards?: RouteGuards;
 }
 
@@ -34,6 +39,7 @@ interface RouteMatch {
   params: RouteParams;
   query: QueryParams;
   guards?: RouteGuards;
+  isLoading?: boolean; // Pour indiquer qu'un composant lazy est en cours de chargement
 }
 
 class SimpleRouter {
@@ -45,50 +51,39 @@ class SimpleRouter {
   private isNavigating = false;
   private dynamicGuards: Map<string, RouteGuards> = new Map();
 
+  // ✅ Cache des composants lazy chargés
+  private componentCache: Map<string, any> = new Map();
+
   constructor() {
-    // Initialiser le path depuis le hash
     this.currentPath = this.getHashPath();
     this.updateQueryParams();
 
-    // Écouter les changements de hash
     window.addEventListener("hashchange", () => {
       const newPath = this.getHashPath();
       this.handleHashChange(newPath);
     });
   }
 
-  /**
-   * Définir les routes
-   */
-  addRoute(path: string | RegExp, component: any, guards?: RouteGuards) {
+  addRoute(
+    path: string | RegExp,
+    component: RouteComponent,
+    guards?: RouteGuards,
+  ) {
     this.routes.push({ path, component, guards });
   }
 
-  /**
-   * Enregistrer dynamiquement un guard pour une route
-   * @param routeKey Clé identifiant la route (ex: '/dashboard/eventEdit/123')
-   * @param guards Guards à appliquer
-   * @returns Fonction de cleanup
-   */
   registerRouteGuard(routeKey: string, guards: RouteGuards): () => void {
     this.dynamicGuards.set(routeKey, guards);
-
-    // Retourner la fonction de cleanup
     return () => {
       this.dynamicGuards.delete(routeKey);
     };
   }
 
-  /**
-   * Gérer les changements de hash (incluant bouton précédent/suivant)
-   */
   private async handleHashChange(newPath: string) {
     if (this.isNavigating) return;
 
-    // Mettre à jour la query string
     this.updateQueryParams();
 
-    // Construire les infos de route
     const from: RouteInfo = {
       path: this.currentPath,
       params: this.currentParams,
@@ -97,11 +92,11 @@ class SimpleRouter {
 
     const to: RouteInfo = {
       path: newPath,
-      params: {}, // Sera rempli après matching
+      params: {},
       query: this.currentQuery,
     };
 
-    // Priorité 1 : Vérifier les guards dynamiques enregistrés pour la route actuelle
+    // Guards dynamiques
     const dynamicGuard = this.dynamicGuards.get(from.path);
     if (dynamicGuard?.beforeLeave) {
       try {
@@ -121,7 +116,7 @@ class SimpleRouter {
       }
     }
 
-    // Priorité 2 : Vérifier les guards statiques de la route actuelle
+    // Guards statiques
     if (this.currentRouteMatch?.guards?.beforeLeave) {
       try {
         const canLeave = await this.currentRouteMatch.guards.beforeLeave(
@@ -144,25 +139,22 @@ class SimpleRouter {
     }
 
     // Trouver la nouvelle route
-    const newMatch = this.findRouteMatch(newPath);
+    const newMatch = await this.findRouteMatch(newPath);
     if (!newMatch) {
-      // Route non trouvée, autoriser la navigation (page 404)
       this.currentPath = newPath;
       this.currentParams = {};
       this.currentRouteMatch = null;
       return;
     }
 
-    // Mettre à jour les params dans "to"
     to.params = newMatch.params;
 
-    // Vérifier le guard beforeEnter de la nouvelle route
+    // beforeEnter
     if (newMatch.guards?.beforeEnter) {
       try {
         const canEnter = await newMatch.guards.beforeEnter(to, from);
         if (!canEnter) {
           console.log("[Router] Navigation annulée par beforeEnter");
-          // Rétablir l'ancien hash
           window.location.hash = from.path;
           return;
         }
@@ -171,37 +163,30 @@ class SimpleRouter {
       }
     }
 
-    // Navigation autorisée : mettre à jour l'état
     this.currentPath = newPath;
     this.currentParams = newMatch.params;
     this.currentRouteMatch = newMatch;
   }
 
-  /**
-   * Naviguer vers un path
-   */
   async navigate(path: string, query?: QueryParams) {
     if (this.isNavigating) return;
 
     this.isNavigating = true;
 
     try {
-      // Construire les infos de route
       const from: RouteInfo = {
         path: this.currentPath,
         params: this.currentParams,
         query: this.currentQuery,
       };
 
-      // Trouver la nouvelle route pour avoir les params
-      const tempMatch = this.findRouteMatch(path);
+      const tempMatch = await this.findRouteMatch(path);
       const to: RouteInfo = {
         path,
         params: tempMatch?.params || {},
         query: query || {},
       };
 
-      // Vérifier beforeLeave de la route actuelle
       if (this.currentRouteMatch?.guards?.beforeLeave) {
         const canLeave = await this.currentRouteMatch.guards.beforeLeave(
           from,
@@ -213,7 +198,6 @@ class SimpleRouter {
         }
       }
 
-      // Vérifier beforeEnter de la nouvelle route
       if (tempMatch?.guards?.beforeEnter) {
         const canEnter = await tempMatch.guards.beforeEnter(to, from);
         if (!canEnter) {
@@ -222,31 +206,33 @@ class SimpleRouter {
         }
       }
 
-      // Construire le hash : #/path?query
       const queryString = query
         ? "?" + new URLSearchParams(query).toString()
         : "";
       const fullHash =
         "#" + (path.startsWith("/") ? path : "/" + path) + queryString;
 
-      // Effectuer la navigation
       window.location.hash = fullHash;
-
-      // Note : la mise à jour de l'état se fera via hashchange
     } finally {
       this.isNavigating = false;
     }
   }
 
   /**
-   * Trouver la route correspondant au path
+   * ✅ Trouver et charger le composant (avec lazy loading)
    */
-  private findRouteMatch(path: string): RouteMatch | null {
+  private async findRouteMatch(path: string): Promise<RouteMatch | null> {
     for (const route of this.routes) {
       const match = this.matchRoute(route.path, path);
       if (match) {
+        // Résoudre le composant (lazy ou non)
+        const component = await this.resolveComponent(
+          route.path.toString(),
+          route.component,
+        );
+
         return {
-          component: route.component,
+          component,
           params: match.params,
           query: this.currentQuery,
           guards: route.guards,
@@ -257,10 +243,43 @@ class SimpleRouter {
   }
 
   /**
-   * Obtenir le composant actuel et ses paramètres
+   * ✅ Résoudre un composant (charger si lazy, utiliser cache si déjà chargé)
    */
+  private async resolveComponent(
+    routePath: string,
+    component: RouteComponent,
+  ): Promise<any> {
+    // Si c'est déjà un composant Svelte, le retourner directement
+    if (typeof component !== "function" || component.length > 0) {
+      return component;
+    }
+
+    // C'est une fonction d'import dynamique
+    // Vérifier le cache d'abord
+    if (this.componentCache.has(routePath)) {
+      return this.componentCache.get(routePath);
+    }
+
+    // Charger le composant
+    try {
+      const module = await component();
+      const loadedComponent = module.default;
+
+      // Mettre en cache
+      this.componentCache.set(routePath, loadedComponent);
+
+      return loadedComponent;
+    } catch (error) {
+      console.error(
+        `[Router] Erreur lors du chargement du composant pour ${routePath}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   async match(): Promise<RouteMatch | null> {
-    const match = this.findRouteMatch(this.currentPath);
+    const match = await this.findRouteMatch(this.currentPath);
     if (match) {
       this.currentParams = match.params;
       this.currentRouteMatch = match;
@@ -268,9 +287,6 @@ class SimpleRouter {
     return match;
   }
 
-  /**
-   * Matcher un path contre une définition de route
-   */
   private matchRoute(
     routePath: string | RegExp,
     currentPath: string,
@@ -303,19 +319,12 @@ class SimpleRouter {
     return null;
   }
 
-  /**
-   * Extraire le path depuis le hash
-   * Ex: #/eventEdit?id=1 -> /eventEdit
-   */
   private getHashPath(): string {
-    const hash = window.location.hash.slice(1); // Enlever le #
-    const path = hash.split("?")[0]; // Enlever la query string
-    return path || "/"; // Par défaut /
+    const hash = window.location.hash.slice(1);
+    const path = hash.split("?")[0];
+    return path || "/";
   }
 
-  /**
-   * Mettre à jour les query params depuis le hash
-   */
   private updateQueryParams() {
     const hash = window.location.hash.slice(1);
     const queryPart = hash.split("?")[1];
@@ -342,41 +351,52 @@ class SimpleRouter {
   get query() {
     return this.currentQuery;
   }
+
+  /**
+   * ✅ Précharger un composant (optionnel, pour optimisation)
+   */
+  async preload(path: string): Promise<void> {
+    const route = this.routes.find((r) => {
+      if (typeof r.path === "string") {
+        return r.path === path;
+      }
+      return false;
+    });
+
+    if (route) {
+      await this.resolveComponent(route.path.toString(), route.component);
+      console.log(`[Router] Composant préchargé: ${path}`);
+    }
+  }
 }
 
-/**
- * Instance globale du router
- */
 export const router = new SimpleRouter();
 
-/**
- * Helper pour naviguer
- */
 export function navigate(path: string, query?: QueryParams) {
   router.navigate(path, query);
 }
 
-/**
- * Helper pour obtenir un paramètre
- */
 export function getParam(name: string): string | undefined {
   return router.params[name];
 }
 
-/**
- * Helper pour obtenir un query param
- */
 export function getQuery(name: string): string | undefined {
   return router.query[name];
 }
 
 /**
- * Types exportés
+ * ✅ Helper pour précharger des routes
  */
+export function preloadRoute(path: string) {
+  return router.preload(path);
+}
+
 export type {
   RouteParams,
   QueryParams,
   RouteInfo,
   RouteGuards,
   RouteDefinition,
+  RouteComponent,
+  LazyComponent,
 };
