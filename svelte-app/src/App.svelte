@@ -14,6 +14,7 @@
   import Toast from "./lib/components/ui/Toast.svelte";
   import ScrollToTopButton from "./lib/components/ui/ScrollToTopButton.svelte";
   import OverrideConflictModal from "./lib/components/OverrideConflictModal.svelte";
+  import AuthModal from "./lib/components/AuthModal.svelte";
   import { globalState } from "./lib/stores/GlobalState.svelte";
   import { toastService } from "./lib/services/toast.service.svelte";
 
@@ -244,20 +245,12 @@
           });
       } else {
         appState = "LOADING_PUBLIC_CACHE";
-        const syncToastId = toastService.loading(
-          "Préparation de la cuisine...",
-        );
 
         await recipesStore.loadCache();
         appState = "READY_WITH_CACHE";
 
-        toastService.update(syncToastId, {
-          state: "loading",
-          message: "Mise à jour des recettes...",
-        });
-
         Promise.all([
-          recipesStore.syncFromRemote(),
+          recipesStore.syncFromRemotePublicOnly(),
           realtimeManager.initialize(),
         ])
           .then(() => {
@@ -270,11 +263,6 @@
           })
           .catch((err) => {
             console.error("[App] Erreur synchro recettes:", err);
-            toastService.update(syncToastId, {
-              state: "warning",
-              message: "Mode hors ligne : recettes en cache",
-              autoCloseDelay: 10000,
-            });
           });
       }
     } catch (err: any) {
@@ -351,7 +339,20 @@
   });
 
   let displayError = $derived(initError || productsStore.error);
+
+  async function handleLoginSuccess() {
+    globalState.authModal.isOpen = false;
+    // Réinitialiser l'authentification et déclencher le rechargement du dashboard
+    await globalState.refreshAuthAfterLogin();
+  }
 </script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Cherry+Bomb+One&family=Fredoka:wght@300..700&display=swap&family=Sora:wght@100..800&display=swap"
+  rel="stylesheet"
+/>
 
 <HeaderNav />
 
@@ -388,3 +389,11 @@
   {/if}
   <OverrideConflictModal />
 {/if}
+
+<AuthModal
+  bind:isOpen={globalState.authModal.isOpen}
+  onAuth_success={handleLoginSuccess}
+/>
+
+<style>
+</style>

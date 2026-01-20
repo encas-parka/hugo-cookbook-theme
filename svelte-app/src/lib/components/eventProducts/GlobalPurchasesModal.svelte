@@ -16,6 +16,7 @@ Modal de récapitulatif des dépenses
     Calendar,
     Store as StoreIcon,
     User,
+    Plus,
   } from "@lucide/svelte";
   import StoreInput from "$lib/components/ui/StoreInput.svelte";
   import WhoInput from "$lib/components/ui/WhoInput.svelte";
@@ -255,20 +256,7 @@ Modal de récapitulatif des dépenses
             class="btn btn-primary btn-sm"
             onclick={() => (showAddForm = true)}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="mr-1 h-4 w-4"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M12 4.5v15m7.5-7.5h-15"
-              />
-            </svg>
+            <Plus class="mr-1 h-4 w-4" />
             Ajouter une dépense
           </button>
         {/if}

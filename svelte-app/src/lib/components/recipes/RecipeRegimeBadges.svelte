@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { globalState } from "@/lib/stores/GlobalState.svelte";
+
   interface Props {
     regimes?: string[];
     iconOnly?: boolean;
@@ -27,7 +29,7 @@
   );
 </script>
 
-<div class="flex flex-wrap items-center justify-end gap-x-2 text-sm">
+<div class="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-sm">
   <!-- Badges Régimes -->
   {#each filteredRegimes as regime, index (index)}
     <span
@@ -46,7 +48,7 @@
           <use href={`/icons/sprite-icons.svg#${regimeIcons[regime]}`} />
         </svg>
       {/if}
-      {#if !iconOnly}
+      {#if !iconOnly && globalState.isDesktop}
         <span>{regime}</span>
       {/if}
     </span>

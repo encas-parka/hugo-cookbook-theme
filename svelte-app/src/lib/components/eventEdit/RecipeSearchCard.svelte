@@ -183,10 +183,10 @@
 <div class="card bg-base-100 border-base-300 border shadow-sm">
   <div class="card-body gap-3 p-3">
     <div class="flex items-center justify-between">
-      <h4 class="flex items-center gap-2 font-bold">
+      <h6 class="flex items-center gap-2">
         <Plus class="text-primary h-4 w-4" />
         Ajouter une recette
-      </h4>
+      </h6>
     </div>
 
     {#if !selectedRecipe}

@@ -4,6 +4,7 @@
   import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
   import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
   import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
+  import { CircleX, CircleCheck } from "@lucide/svelte";
 
   let { isOpen = $bindable(), onAuth_success = async () => {} } = $props();
 
@@ -159,38 +160,14 @@
       <!-- Messages -->
       {#if errorMessage}
         <div role="alert" class="alert alert-error max-md:alert-vertical">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6 shrink-0 stroke-current"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
+          <CircleX class="h-6 w-6 shrink-0 stroke-current" />
           <span>{errorMessage}</span>
         </div>
       {/if}
 
       {#if successMessage}
         <div role="alert" class="alert alert-success max-md:alert-vertical">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6 shrink-0 stroke-current"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
+          <CircleCheck class="h-6 w-6 shrink-0 stroke-current" />
           <span>{successMessage}</span>
         </div>
       {/if}

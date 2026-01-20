@@ -7,6 +7,7 @@
     bgClass?: string;
     iconComponent?: Component<{ size?: number; class?: string }>;
     legendSize?: string;
+    legendFont?: string;
     iconSize?: number;
   }
   let {
@@ -15,13 +16,16 @@
     bgClass = "bg-base-100",
     iconComponent,
     legendSize = "text-base",
+    legendFont = "font-medium",
     iconSize = 16,
   }: Props = $props();
 </script>
 
-<fieldset class="fieldset {bgClass} border-base-300 rounded-box border p-4">
+<fieldset
+  class="fieldset {bgClass}  rounded-box border-neutral/20 border-y-2 p-4 md:border"
+>
   <legend
-    class="fieldset-legend {bgClass} rounded-box text-base-content/80 px-4 py-1 print:text-sm {legendSize}"
+    class="fieldset-legend {legendFont} {bgClass} rounded-box border-neutral/20 text-base-content/80 border-t-1 px-4 py-1 print:text-sm {legendSize}"
   >
     {#if iconComponent}
       {@const IconComp = iconComponent}

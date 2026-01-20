@@ -10,6 +10,7 @@
   import { Calendar, CalendarPlus2, Info, Plus, Save } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
+  import { untrack } from "svelte";
   import { navigate } from "../services/simple-router.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
 
@@ -55,9 +56,11 @@
     const teamId = teamIdFromUrl;
     const myTeams = teamsStore.myTeams;
     if (teamId && myTeams.some((t) => t.$id === teamId)) {
-      if (!selectedTeams.includes(teamId)) {
-        selectedTeams = [teamId];
-      }
+      untrack(() => {
+        if (!selectedTeams.includes(teamId)) {
+          selectedTeams = [teamId];
+        }
+      });
     }
   });
 
@@ -233,7 +236,8 @@
 
     if (sortedMeals.length === 0) {
       const today = new Date();
-      today.setHours(12, 0, 0, 0);
+      today.setDate(today.getDate() + 7);
+      today.setHours(20, 0, 0, 0);
       defaultDateTime = today.toISOString();
     } else {
       const lastMeal = sortedMeals[sortedMeals.length - 1];
@@ -338,7 +342,7 @@
       </div>
 
       <!-- Statut de l'événement -->
-      <div class="align-start min-w-96">
+      <div class="align-start max-md:min-w-96">
         <Fieldset legend="Statut de l'événement">
           <div class="space-y-3">
             <label class="flex cursor-pointer items-center gap-3">
@@ -416,11 +420,13 @@
               <div class="flex flex-wrap gap-2">
                 {#each teamsStore.myTeams as team (team.$id)}
                   <label
-                    class="bg-secondary/10 hover:bg-secondary/20 flex cursor-pointer items-center gap-3 rounded-lg px-4 py-2"
+                    class="bg-secondary/10 hover:bg-secondary/20 flex cursor-pointer items-center gap-3 rounded-lg px-4 py-2 {selectedTeams.includes(
+                      team.$id,
+                    ) && 'ring-secondary ring-2'}"
                   >
                     <input
                       type="checkbox"
-                      class="checkbox checkbox-sm bg-base-100"
+                      class="checkbox checkbox-sm checkbox-secondary"
                       checked={selectedTeams.includes(team.$id)}
                       onchange={() => toggleTeam(team.$id)}
                     />
@@ -438,7 +444,9 @@
                   </label>
                 {/each}
               </div>
-              <div class="text-base-content/70 alert mt-4 text-sm">
+              <div
+                class="text-base-content/70 alert alert-vertical mt-4 text-sm"
+              >
                 <Info class="size-4 shrink-0" />
                 Une fois l'événement crée, il vous sera possible d'inviter des personnes
                 individuellement, indépendamment des équipes.
@@ -473,7 +481,7 @@
       <!-- Colonne Droite : Repas -->
       <div class="space-y-6 md:px-4 lg:col-span-2">
         <div class="mb-6 flex items-center justify-between">
-          <h3 class="card-title text-lg">
+          <h3 class="">
             Repas & Menus ({sortedMeals.length})
           </h3>
           <button class="btn btn-primary btn-sm" onclick={addMeal}>

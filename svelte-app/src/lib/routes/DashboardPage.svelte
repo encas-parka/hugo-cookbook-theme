@@ -66,13 +66,11 @@
 
 <div class="bg-base-200 min-h-screen">
   <!-- Greeting -->
-  <div class="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
-    <div class="flex flex-col">
-      <h2 class="text-base-content text-xl font-bold">
+  <!-- <div class="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
+      <h2 class="text-base-content">
         Bienvenue, {globalState.user?.name || ""}
       </h2>
-    </div>
-  </div>
+  </div> -->
 
   <!-- Contenu principal -->
   <div class="mx-auto max-w-7xl px-4 py-8">
@@ -108,15 +106,13 @@
       {#if globalState.userTeams.length > 0}
         <section class="bg-base-200 py-8">
           <div class="container mx-auto px-4">
-            <div class="tiems-center mb-4 flex justify-between gap-4">
-              <div class="mb-6 text-2xl font-bold">Vos Équipes</div>
-              <div class="card-actions mt-4">
-                <button
-                  class="btn btn-primary btn-sm ms-auto"
-                  onclick={() => (createModalOpen = true)}
-                  ><Plus class="size-4" /> Créer une équipe</button
-                >
-              </div>
+            <div class="mb-4 flex items-center justify-between gap-4">
+              <!-- <h3 class="mb-6">Vos Équipes</h3> -->
+              <button
+                class="btn btn-primary btn-sm ms-auto"
+                onclick={() => (createModalOpen = true)}
+                ><Plus class="size-4" /> Créer une équipe</button
+              >
             </div>
             <div class="grid grid-cols-1 gap-6">
               {#each globalState.userTeams as teamId (teamId)}

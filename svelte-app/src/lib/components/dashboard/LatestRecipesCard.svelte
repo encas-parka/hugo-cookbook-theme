@@ -6,6 +6,7 @@
     ArrowRight,
     Users,
     ArrowBigRight,
+    AlertTriangle,
   } from "@lucide/svelte";
   import { formatDateRelative } from "$lib/utils/date-helpers";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
@@ -86,7 +87,7 @@
 
 <div class="flex items-center justify-between">
   <h2 class="card-title flex items-center gap-2">
-    <BookOpen class="text-primary h-5 w-5" />
+    <BookOpen class="text-primary h-5 w-5 stroke-3" />
     Dernières Recettes
   </h2>
   <button class="btn" onclick={viewAllRecipes} title="Voir toutes les recettes">
@@ -98,20 +99,7 @@
 {#if recipesStore.error}
   <div class="py-6 text-center">
     <div class="text-error mb-2">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="mx-auto h-8 w-8"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-        />
-      </svg>
+      <AlertTriangle class="mx-auto h-8 w-8" />
     </div>
     <p class="text-base-content/60 text-sm">
       Erreur de chargement des recettes
@@ -227,9 +215,9 @@
               <svg class="text-primary h-4 w-4 flex-shrink-0">
                 <use href={`/icons/sprite.svg#${iconInfo.iconId}`} />
               </svg>
-              <div class="truncate text-sm font-medium">
+              <h4 class="truncate text-sm font-medium">
                 {recipe.title}
-              </div>
+              </h4>
               {#if recipe.versionLabel}
                 <span class="font-medium">
                   - {recipe.versionLabel}

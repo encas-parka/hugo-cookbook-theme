@@ -4,10 +4,9 @@
   import FeatureCard from "../components/ui/FeatureCard.svelte";
   import { ChefHat, ArrowRight } from "@lucide/svelte";
 
-  // Ouvrir l'auth modal du HeaderNav
+  // Ouvrir l'auth modal via GlobalState
   function openAuthModal() {
-    const event = new CustomEvent("open-auth-modal");
-    window.dispatchEvent(event);
+    globalState.authModal.isOpen = true;
   }
 </script>
 
@@ -18,9 +17,9 @@
       <div class="max-w-3xl">
         <div class="mb-4 flex justify-center">
           <!-- Logo ou path décoratif -->
-          <img src="/data/logo.svg" alt="Enka Cookbook" class="" />
+          <img src="images/logo.svg" alt="Enka Cookbook" class="size-80" />
         </div>
-        <h1 class="text-6xl font-black tracking-tight">Enka Cookbook</h1>
+        <h1 class="cherry-bomb-one-regular text-7xl">Enka Cookbook</h1>
         <p class="text-base-content/70 mt-6 text-xl">
           Outils de planification pour les cantines autogérées
         </p>
@@ -133,3 +132,11 @@
     </div>
   </section>
 </div>
+
+<style>
+  .cherry-bomb-one-regular {
+    font-family: "Cherry Bomb One", system-ui;
+    font-weight: 400;
+    font-style: normal;
+  }
+</style>

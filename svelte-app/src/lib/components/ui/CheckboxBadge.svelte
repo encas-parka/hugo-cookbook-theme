@@ -100,7 +100,7 @@
 </script>
 
 <label
-  class="text-base-content/80 label {bgClass} cursor-pointer justify-start {rounded} {padding}"
+  class="text-base-content/80 label {bgClass} cursor-pointer justify-start {rounded} {padding} font-family-sora"
   class:opacity-50={disabled}
 >
   <input

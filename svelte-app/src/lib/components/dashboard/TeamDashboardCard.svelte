@@ -119,8 +119,8 @@
     <div class="flex items-start justify-between gap-2">
       <!-- Nom + Localisation -->
       <div class="flex items-center gap-2">
-        <Users class="text-primary h-5 w-5 flex-shrink-0" />
-        <h2 class="text-xl font-bold">{team.name}</h2>
+        <Users class="text-primary size-6 flex-shrink-0 stroke-3" />
+        <h2>{team.name}</h2>
         {#if teamLocation}
           <div class="badge badge-soft badge-secondary gap-1">
             <MapPin class="h-3 w-3" />
@@ -206,9 +206,9 @@
       <div class="card card-sm border-neutral/20 border shadow-sm">
         <div class="card-body">
           <div class="flex flex-wrap justify-between gap-2">
-            <div class="card-title items-center">
+            <h3 class="card-title items-center">
               <Calendar class="text-primary inline size-5" /> Événements
-            </div>
+            </h3>
             <button class="btn btn-sm" onclick={goToPastEvents}>
               Voir les événements passés
               <ArrowRight class="ml-2 h-4 w-4" />

@@ -226,7 +226,7 @@
   <div class="mx-auto max-w-7xl px-4 py-8">
     <!-- Tabs par équipe (seulement si plus d'une équipe) -->
     {#if userTeams.length > 1}
-      <div class="tabs tabs-border bg-base-200 tabs-lg mb-6">
+      <div class="tabs tabs-border bg-base-200 tabs-lg mb-6 font-semibold">
         {#each userTeams as team (team.$id)}
           <button
             class="tab {activeTeamId === team.$id ? 'tab-active' : ''}"

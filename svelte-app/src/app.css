@@ -16,6 +16,8 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
+  --font-sans: "Sora", sans-serif;
+  --font-family-fredoka: "Fredoka", sans-serif;
   --color-lavender: oklch(0.8051 0.0952 298.69);
   --color-lavender-content: oklch(0.415 0.1018 298.69);
   --color-peach: oklch(88% 0.055 45.47);
@@ -31,6 +33,137 @@
   .prose li {
     @apply leading-snug;
   }
+
+  /* Appliquer Fredoka globalement aux badges, headings et boutons */
+  .badge {
+    font-family: "Fredoka", sans-serif;
+    font-weight: 500;
+  }
+
+  /* Headings avec hiérarchie claire et responsive */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Fredoka", sans-serif;
+    letter-spacing: 0.03em;
+    line-height: 1;
+  }
+
+  /* h1 - Titre principal, 2rem à partir de lg, font-weight 900 */
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 900;
+  }
+
+  @media (min-width: 640px) {
+    h1 {
+      font-size: 1.75rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    h1 {
+      font-size: 2rem;
+    }
+  }
+
+  /* h2 - Titre secondaire, légèrement plus petit */
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 800;
+  }
+
+  @media (min-width: 640px) {
+    h2 {
+      font-size: 1.375rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    h2 {
+      font-size: 1.5rem;
+    }
+  }
+
+  /* h3 - Titre tertiaire */
+  h3 {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  @media (min-width: 640px) {
+    h3 {
+      font-size: 1.15rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    h3 {
+      font-size: 1.275rem;
+    }
+  }
+
+  /* h4 - Titre de quatrième niveau */
+  h4 {
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
+  @media (min-width: 640px) {
+    h4 {
+      font-size: 1.125rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    h4 {
+      font-size: 1.25rem;
+    }
+  }
+
+  /* h5 - Titre de cinquième niveau */
+  h5 {
+    font-size: 0.9375rem;
+    font-weight: 500;
+  }
+
+  @media (min-width: 640px) {
+    h5 {
+      font-size: 1rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    h5 {
+      font-size: 1.125rem;
+    }
+  }
+
+  /* h6 - Titre de sixième niveau */
+  h6 {
+    font-size: 0.875rem;
+    font-weight: 400;
+  }
+
+  @media (min-width: 640px) {
+    h6 {
+      font-size: 0.9375rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    h6 {
+      font-size: 1rem;
+    }
+  }
+
+  /*
+  .btn {
+    font-family: "Fredoka", sans-serif;
+  }*/
 }
 
 @plugin "daisyui/theme" {
@@ -306,4 +439,16 @@
 
 .quicksand-font {
   font-family: "Quicksand", sans-serif;
+}
+
+.nunito-font {
+  font-family: "Nunito", sans-serif;
+}
+
+.fredoka-font {
+  font-family: "Fredoka", sans-serif;
+}
+
+.sora-font {
+  font-family: "Sora", sans-serif;
 }

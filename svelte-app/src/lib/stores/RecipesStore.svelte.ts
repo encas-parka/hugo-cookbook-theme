@@ -221,6 +221,49 @@ class RecipesStore {
   }
 
   /**
+   * Phase 2 (Publique): Synchroniser uniquement depuis Hugo JSON
+   * Appelé pour les utilisateurs non authentifiés
+   */
+  async syncFromRemotePublicOnly(): Promise<void> {
+    if (!this.#cache) {
+      console.warn("[RecipesStore] Impossible de sync : cache non initialisé");
+      return;
+    }
+
+    console.log("[RecipesStore] Synchronisation publique (Hugo uniquement)...");
+    this.#loading = true;
+
+    try {
+      const cachedMetadata = await this.#cache.loadMetadata();
+
+      // 1. Charger l'index depuis data.json (Hugo) - PAS de sync Appwrite
+      try {
+        await this.#loadIndexFromDataJson(cachedMetadata);
+      } catch (err) {
+        console.error("[RecipesStore] Erreur chargement data.json:", err);
+        if (this.#recipesIndex.size === 0) {
+          throw new Error("Aucun cache disponible et data.json inaccessible");
+        }
+        console.log("[RecipesStore] Continuation avec les données du cache");
+      }
+
+      console.log(
+        `[RecipesStore] Synchronisation publique terminée: ${this.#recipesIndex.size} recettes`,
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Erreur lors de la synchronisation publique";
+      this.#error = message;
+      console.error("[RecipesStore]", message, err);
+      throw err;
+    } finally {
+      this.#loading = false;
+    }
+  }
+
+  /**
    * Phase 3 : Setup du realtime (appelé après syncFromRemote)
    */
   async setupRealtime(): Promise<void> {

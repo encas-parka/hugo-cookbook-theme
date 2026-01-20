@@ -23,10 +23,8 @@
     ChefHat,
     CookingPot,
   } from "@lucide/svelte";
-  import AuthModal from "./AuthModal.svelte";
 
   let showDropdown = $state(false);
-  let showAuthModal = $state(false);
   let isReloading = $state(false);
   let isRefreshingAll = $state(false);
 
@@ -51,8 +49,8 @@
   }
 
   function handleLogin() {
-    showAuthModal = true;
-    console.log("showAuthModal", showAuthModal);
+    globalState.authModal.isOpen = true;
+    console.log("globalState.authModal.isOpen", globalState.authModal.isOpen);
   }
 
   async function handleReloadRecipes() {
@@ -107,12 +105,6 @@
     }
   }
 
-  async function handleLoginSuccess() {
-    showAuthModal = false;
-    // Réinitialiser l'authentification et déclencher le rechargement du dashboard
-    await globalState.refreshAuthAfterLogin();
-  }
-
   $effect(() => {
     if (showDropdown) {
       document.addEventListener("click", handleClickOutside);
@@ -121,16 +113,14 @@
   });
 </script>
 
-<AuthModal bind:isOpen={showAuthModal} onAuth_success={handleLoginSuccess} />
-
 <div
   class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] border-b px-4 py-0 shadow-sm print:hidden {globalState.isMobile &&
     'min-h-11'} relative"
 >
   <div class="navbar-start w-fit flex-shrink-0 gap-1">
     <!-- Brand -->
-    <button class="btn btn-ghost px-2" onclick={() => navigate("/")}>
-      <img src="data/favicon-96x96.png" alt="logo" class="h-8 w-8" />
+    <button class="btn btn-ghost btn-circle" onclick={() => navigate("/")}>
+      <img src="images/favicon.png" alt="logo" class="h-8 w-8" />
     </button>
 
     <!-- Permanent Nav Buttons -->
@@ -176,7 +166,7 @@
         <EventTabs eventId={navBarStore.eventId} />
       {:else}
         <h1
-          class="truncate text-sm font-bold tracking-wider uppercase opacity-70"
+          class="font-family-fredoka truncate text-sm font-bold tracking-wider uppercase opacity-70"
           title={navBarStore.title}
         >
           {navBarStore.title}

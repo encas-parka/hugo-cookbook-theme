@@ -51,6 +51,8 @@ export interface Toast {
   details?: any;
   /** Actions optionnelles (boutons) */
   actions?: ToastAction[];
+  /** Timeout pour le message "Échec, temps expiré" des toasts de loading */
+  loadingTimeoutId?: number;
 }
 
 /**
@@ -163,6 +165,11 @@ export class ToastService {
       clearTimeout(existingToast.timeoutId);
     }
 
+    // Annuler le timeout de loading précédent
+    if (existingToast.loadingTimeoutId) {
+      clearTimeout(existingToast.loadingTimeoutId);
+    }
+
     // Appliquer les mises à jour
     this.#toasts[index] = {
       ...existingToast,
@@ -175,6 +182,7 @@ export class ToastService {
         updates.autoCloseDelay !== undefined
           ? updates.autoCloseDelay
           : existingToast.autoCloseDelay,
+      loadingTimeoutId: undefined, // Reset du loading timeout
     };
 
     // Nouvelle auto-fermeture si nécessaire
@@ -228,6 +236,9 @@ export class ToastService {
     if (toast.timeoutId) {
       clearTimeout(toast.timeoutId);
     }
+    if (toast.loadingTimeoutId) {
+      clearTimeout(toast.loadingTimeoutId);
+    }
 
     this.#toasts.splice(index, 1);
   }
@@ -239,6 +250,9 @@ export class ToastService {
     this.#toasts.forEach((toast) => {
       if (toast.timeoutId) {
         clearTimeout(toast.timeoutId);
+      }
+      if (toast.loadingTimeoutId) {
+        clearTimeout(toast.loadingTimeoutId);
       }
     });
     this.#toasts = [];
@@ -402,13 +416,36 @@ export class ToastService {
       position?: ToastPosition;
     },
   ): string {
-    return this.create({
+    const DEFAULT_LOADING_TIMEOUT = 30000; // 30 secondes
+
+    // Utiliser le autoCloseDelay personnalisé si fourni, sinon 30s
+    const delay = options?.autoCloseDelay ?? DEFAULT_LOADING_TIMEOUT;
+
+    const id = this.create({
       state: "loading",
       message,
       details: options?.details,
-      autoCloseDelay: options?.autoCloseDelay,
+      autoCloseDelay: delay,
       position: options?.position,
     });
+
+    // Changer le message en "Échec, temps expiré" 2s avant la fermeture
+    // On stocke le loadingTimeoutId séparément pour pouvoir l'annuler si update() est appelé
+    const loadingTimeoutId = setTimeout(() => {
+      this.update(id, {
+        state: "warning",
+        message: "Échec, temps expiré",
+        autoCloseDelay: 2000,
+      });
+    }, delay - 2000) as unknown as number;
+
+    // Récupérer le toast et stocker le loadingTimeoutId
+    const toastIndex = this.#toasts.findIndex((t) => t.id === id);
+    if (toastIndex !== -1) {
+      this.#toasts[toastIndex].loadingTimeoutId = loadingTimeoutId;
+    }
+
+    return id;
   }
 }
 

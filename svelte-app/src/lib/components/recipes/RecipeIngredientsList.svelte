@@ -65,7 +65,12 @@
 <div class="space-y-6 print:space-y-2">
   {#each [...groupedIngredients] as [type, items] (type)}
     {@const typeInfo = getProductTypeInfo(type)}
-    <Fieldset legend={typeInfo.displayName} iconComponent={typeInfo.icon}>
+    <Fieldset
+      legend={typeInfo.displayName}
+      iconComponent={typeInfo.icon}
+      legendFont="font-light"
+      legendSize="text-sm"
+    >
       <ul class="break-inside-avoid space-y-2 print:space-y-1">
         {#each items as ingredient, index (index)}
           {@const scaled = getScaledIngredient(ingredient)}

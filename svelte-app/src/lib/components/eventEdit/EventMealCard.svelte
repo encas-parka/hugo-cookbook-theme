@@ -23,6 +23,7 @@
   } from "$lib/types/recipes.types";
   import RecipeSearchCard from "./RecipeSearchCard.svelte";
   import Fieldset from "$lib/components/ui/Fieldset.svelte";
+  import ConfirmModal from "$lib/components/ui/ConfirmModal.svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import { formatDateShort } from "$lib/utils/products-display";
   import { fade } from "svelte/transition";
@@ -222,6 +223,24 @@
     return !getRecipeIndex(uuid);
   }
 
+  // État pour la modal de confirmation
+  let showDeleteConfirm = $state(false);
+
+  // Fonction de gestion du clic sur supprimer
+  function handleDeleteClick() {
+    if (meal.recipes.length > 0) {
+      showDeleteConfirm = true;
+    } else {
+      onDelete();
+    }
+  }
+
+  // Fonction de suppression confirmée
+  function confirmDelete() {
+    showDeleteConfirm = false;
+    onDelete();
+  }
+
   function handleCardClick() {
     if (disabled || (isEditing && onEditToggle)) {
       return;
@@ -270,7 +289,7 @@
   <div class="card-body p-4">
     <!-- Header avec Actions -->
     <div class="mb-2 flex items-start justify-between">
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-4">
         <span
           class="text-primary text-lg font-medium {isDuplicateDate &&
             'text-error'}"
@@ -284,8 +303,8 @@
           <TimeIcon size={16} />
           <div>{displayTime ? displayTime.toUpperCase() : "REPAS"}</div>
         </div>
-        <div class="text-base-content/80 flex items-center gap-1 font-bold">
-          <Users class="h-3 w-3" />
+        <div class="text-base-content/80 flex items-center gap-1 font-semibold">
+          <Users class="size-4 stroke-3" />
           {meal.guests} pers.
         </div>
       </div>
@@ -313,7 +332,7 @@
           </button> -->
           <button
             class="btn btn-ghost btn-square text-error"
-            onclick={onDelete}
+            onclick={handleDeleteClick}
             title="Supprimer"
             {disabled}
           >
@@ -393,12 +412,14 @@
         </div>
 
         <!-- Liste des Recettes -->
-        <div class="space-y-2">
+        <div class="space-y-2 py-4">
           <div class="flex items-center justify-between">
-            <h4 class="flex items-center gap-2 font-semibold">
-              <ChefHat class="h-4 w-4" />
+            <div
+              class="text-base-content/70 flex items-center gap-2 font-medium"
+            >
+              <ChefHat class="size-5" />
               Recettes
-            </h4>
+            </div>
           </div>
 
           {#if meal.recipes.length >= 1}
@@ -565,4 +586,16 @@
       </div>
     {/if}
   </div>
+
+  <!-- Modal de confirmation de suppression -->
+  <ConfirmModal
+    isOpen={showDeleteConfirm}
+    title="Supprimer le repas"
+    message={`Ce repas contient ${meal.recipes.length} recette(s). Êtes-vous sûr de vouloir le supprimer ?`}
+    variant="danger"
+    confirmLabel="Supprimer"
+    cancelLabel="Annuler"
+    onConfirm={confirmDelete}
+    onCancel={() => (showDeleteConfirm = false)}
+  />
 </div>

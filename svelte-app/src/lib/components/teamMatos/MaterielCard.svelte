@@ -162,11 +162,11 @@
       <div class="flex min-w-0 flex-col gap-1">
         <div class="flex flex-wrap items-center gap-x-4 gap-y-0">
           <div class="flex items-center gap-2">
-            <div
+            <h3
               class="text-primary group-hover:text-primary/80 text-base font-semibold transition-colors"
             >
               {materiel.name}
-            </div>
+            </h3>
             <span
               class="badge {getMaterielTypeBadgeClass(
                 materiel.type,
