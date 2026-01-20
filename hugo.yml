@@ -14,18 +14,6 @@ mediaTypes:
     delimiter: ""
 
 outputFormats:
-  REDIRECTS:
-    mediatype: text/netlify
-    baseName: _redirects
-    isPlainText: true
-    notAlternative: true
-    permalinkable: false
-
-  HEADERS:
-    mediatype: text/netlify
-    baseName: _headers
-    isPlainText: true
-    notAlternative: true
 
 caches:
   getjson:
