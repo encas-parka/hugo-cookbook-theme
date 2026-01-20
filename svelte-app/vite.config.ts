@@ -19,7 +19,6 @@ export default defineConfig({
     // Cible le dossier static/dist de votre thème Hugo
     outDir: "../static/dist",
     emptyOutDir: true, // Vide le dossier à chaque build (utile pour le dev)
-    // Pour des noms de fichiers propres
 
     // Optimisations importantes
     minify: "esbuild",
@@ -127,11 +126,5 @@ export default defineConfig({
         },
       },
     },
-    // Très important : pour éviter une boucle infinie
-    // Vite ne doit pas "watch" les fichiers qu'il écrit lui-même.
-    // // En vrai c'est bon, c'est dans le parent ..?
-    // watch: {
-    //   ignored: ['**/static/dist/**']
-    // }
   },
 });
