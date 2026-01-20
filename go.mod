@@ -1,6 +1,3 @@
 module github.com/encas-parka/hugo-cookbook-theme
 
-go 1.24
-
-require (
-)
+go 1.25
