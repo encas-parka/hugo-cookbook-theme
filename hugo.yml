@@ -2,8 +2,6 @@
 outputs:
   home:
     - HTML
-    - REDIRECTS
-    - HEADERS
   page:
     - HTML
 
