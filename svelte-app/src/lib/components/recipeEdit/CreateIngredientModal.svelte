@@ -277,7 +277,7 @@
     >
       <!-- Erreur -->
       {#if serverError}
-        <div class="alert alert-error text-sm">
+        <div class="alert alert-error max-md:alert-vertical text-sm">
           <TriangleAlert size={18} />
           <span>{serverError}</span>
         </div>

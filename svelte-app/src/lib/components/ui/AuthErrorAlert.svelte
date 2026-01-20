@@ -8,7 +8,7 @@
   let { message }: Props = $props();
 </script>
 
-<div class="alert bg-error/20">
+<div class="alert bg-error/20 max-md:alert-vertical">
   <div class="flex items-start gap-3">
     <TriangleAlertIcon class="mt-0.5 h-6 w-6 shrink-0 stroke-current" />
 

@@ -270,7 +270,7 @@
         >
 
         <!-- Info sur l'utilité des variantes -->
-        <div class="alert alert-soft alert-info mb-4">
+        <div class="alert alert-soft alert-info max-md:alert-vertical mb-4">
           <Info class="h-4 w-4" />
           <span>
             Les variantes permettent de regrouper différentes versions d'une

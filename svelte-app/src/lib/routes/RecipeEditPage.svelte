@@ -482,7 +482,9 @@
 
       <!-- Zone de danger - Suppression -->
       {#if canEdit}
-        <div class="alert alert-error alert-soft border-error mt-8 border-1">
+        <div
+          class="alert alert-error alert-soft border-error max-md:alert-vertical mt-8 border-1"
+        >
           <Trash2 class="h-5 w-5 shrink-0" />
           <div class="flex-1">
             <h4 class="font-bold">Zone de danger</h4>

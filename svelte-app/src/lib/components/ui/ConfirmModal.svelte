@@ -58,7 +58,7 @@
 
   <ModalContent>
     <!-- Contenu avec alerte -->
-    <div class="alert alert-soft {alertClass}">
+    <div class="alert alert-soft {alertClass} max-md:alert-vertical">
       <IconComponent class="h-5 w-5" />
       <span>{message}</span>
     </div>

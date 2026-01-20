@@ -406,7 +406,7 @@
 >
   <!-- Alertes -->
   {#if isLockedByOthers}
-    <div class="alert alert-warning mb-4">
+    <div class="alert alert-warning max-md:alert-vertical mb-4">
       <Lock class="h-5 w-5" />
       <div>
         <h4 class="font-bold">Document verrouillé</h4>

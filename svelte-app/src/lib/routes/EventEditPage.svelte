@@ -542,7 +542,8 @@
 
     if (sortedMeals.length === 0) {
       const today = new Date();
-      today.setHours(12, 0, 0, 0);
+      today.setDate(today.getDate() + 7);
+      today.setHours(20, 0, 0, 0);
       defaultDateTime = today.toISOString();
     } else {
       const lastMeal = sortedMeals[sortedMeals.length - 1];
@@ -781,7 +782,7 @@
 
   <!-- Alerte de verrouillage par un autre utilisateur -->
   {#if isLockedByOthers}
-    <div class="alert alert-warning">
+    <div class="alert alert-warning max-md:alert-vertical">
       <Lock class="h-6 w-6 shrink-0" />
       <div>
         <h3 class="font-bold">Événement en cours de modification</h3>

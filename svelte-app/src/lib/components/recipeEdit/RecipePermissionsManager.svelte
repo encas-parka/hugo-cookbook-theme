@@ -142,7 +142,9 @@
 
 <Fieldset iconComponent={Users} legend="Permissions">
   <div class="space-y-4">
-    <div class="alert alert-info alert-soft border-info/20 text-xs">
+    <div
+      class="alert alert-info alert-soft border-info/20 max-md:alert-vertical text-xs"
+    >
       <Info size={16} />
       <span>
         Par défaut, seul l'auteur·ice peut modifier la recette. Les autres

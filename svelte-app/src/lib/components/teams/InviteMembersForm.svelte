@@ -91,7 +91,7 @@
 <!-- TODO : toast.service lorsqu'invitation réussi, (et fermeture du modal ?) -->
 
 <div class="space-y-4">
-  <div class="alert alert-soft alert-info">
+  <div class="alert alert-soft alert-info max-md:alert-vertical">
     <Info class="h-6 w-6 shrink-0" />
     <div>
       <p>

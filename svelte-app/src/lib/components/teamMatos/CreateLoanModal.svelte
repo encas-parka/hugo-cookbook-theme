@@ -329,7 +329,7 @@
 
         <!-- Message info si dates non définies -->
         {#if !startDate || !endDate}
-          <div class="alert alert-info">
+          <div class="alert alert-info max-md:alert-vertical">
             <Info class="h-5 w-5" />
             <span>
               Veuillez sélectionner une <strong>date de début</strong> et une

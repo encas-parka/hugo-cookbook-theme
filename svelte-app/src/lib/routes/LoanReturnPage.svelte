@@ -262,7 +262,7 @@
       <div class="card bg-base-100 mb-6 shadow-sm">
         <div class="card-body">
           {#if isReadOnly && returnedAt}
-            <div class="alert alert-info mb-4">
+            <div class="alert alert-info max-md:alert-vertical mb-4">
               <Package class="h-5 w-5" />
               <div>
                 <div class="font-bold">Retour enregistré</div>

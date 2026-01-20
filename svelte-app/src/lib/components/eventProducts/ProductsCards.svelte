@@ -132,7 +132,11 @@
   );
 </script>
 
-<div class="space-y-4 rounded-lg print:hidden {disabled ? 'opacity-50 pointer-events-none' : ''}">
+<div
+  class="space-y-4 rounded-lg print:hidden {disabled
+    ? 'pointer-events-none opacity-50'
+    : ''}"
+>
   {#each Object.entries(groupedFilteredProducts) as [groupKey, gProducts] (groupKey)}
     {@const groupProducts : ProductModel[] = gProducts}
     {#if groupKey !== ""}
@@ -812,7 +816,7 @@
 
 {#if Object.values(groupedFilteredProducts).flat().length === 0}
   <div class="py-8 text-center">
-    <div class="alert alert-info">
+    <div class="alert alert-info max-md:alert-vertical">
       <svg
         class="h-6 w-6 shrink-0 stroke-current"
         fill="none"

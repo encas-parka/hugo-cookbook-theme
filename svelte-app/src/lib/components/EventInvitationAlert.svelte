@@ -15,9 +15,7 @@
     if (!currentEvent) return null;
 
     const userId = globalState.userId || "";
-    const contributor = currentEvent.contributors?.find(
-      (c) => c.id === userId,
-    );
+    const contributor = currentEvent.contributors?.find((c) => c.id === userId);
 
     return contributor?.status || null;
   });
@@ -26,13 +24,13 @@
 </script>
 
 {#if isVisible}
-  <div class="alert alert-info">
+  <div class="alert alert-info max-md:alert-vertical">
     <CircleAlert class="h-6 w-6 shrink-0" />
     <div>
       <h3 class="font-bold">Invitation à participer</h3>
       <div class="text-xs">
-        Vous avez été invité à participer à cet événement. Acceptez pour
-        pouvoir modifier le menu et les repas.
+        Vous avez été invité à participer à cet événement. Acceptez pour pouvoir
+        modifier le menu et les repas.
       </div>
     </div>
     <div class="flex gap-2">

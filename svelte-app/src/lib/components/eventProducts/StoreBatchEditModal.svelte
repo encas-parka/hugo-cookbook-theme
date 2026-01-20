@@ -186,7 +186,7 @@
     <div class="space-y-6">
       <!-- Erreur -->
       {#if error}
-        <div class="alert alert-error">
+        <div class="alert alert-error max-md:alert-vertical">
           <TriangleAlert class="h-4 w-4" />
           <span>{error}</span>
         </div>

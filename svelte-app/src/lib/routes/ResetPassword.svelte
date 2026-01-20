@@ -127,7 +127,7 @@
 
         <!-- Lien invalide -->
       {:else if !isValidLink}
-        <div role="alert" class="alert alert-error mt-4">
+        <div role="alert" class="alert alert-error max-md:alert-vertical mt-4">
           <AlertCircle class="h-6 w-6 shrink-0" />
           <span>{errorMessage}</span>
         </div>
@@ -141,14 +141,20 @@
       {:else}
         <!-- Messages -->
         {#if errorMessage}
-          <div role="alert" class="alert alert-error mb-4">
+          <div
+            role="alert"
+            class="alert alert-error max-md:alert-vertical mb-4"
+          >
             <AlertCircle class="h-6 w-6 shrink-0" />
             <span>{errorMessage}</span>
           </div>
         {/if}
 
         {#if successMessage}
-          <div role="alert" class="alert alert-success mb-4">
+          <div
+            role="alert"
+            class="alert alert-success max-md:alert-vertical mb-4"
+          >
             <Check class="h-6 w-6 shrink-0" />
             <span>{successMessage}</span>
           </div>

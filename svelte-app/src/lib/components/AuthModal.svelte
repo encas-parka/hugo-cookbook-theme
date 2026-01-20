@@ -158,7 +158,7 @@
     <div class="space-y-4">
       <!-- Messages -->
       {#if errorMessage}
-        <div role="alert" class="alert alert-error">
+        <div role="alert" class="alert alert-error max-md:alert-vertical">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="h-6 w-6 shrink-0 stroke-current"
@@ -177,7 +177,7 @@
       {/if}
 
       {#if successMessage}
-        <div role="alert" class="alert alert-success">
+        <div role="alert" class="alert alert-success max-md:alert-vertical">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="h-6 w-6 shrink-0 stroke-current"

@@ -200,7 +200,7 @@
     <!-- Contenu -->
     <ModalContent>
       {#if modalState?.error}
-        <div class="alert alert-error mb-4">
+        <div class="alert alert-error max-md:alert-vertical mb-4">
           <X class="h-4 w-4" />
           <span>Erreur : {modalState.error}</span>
         </div>

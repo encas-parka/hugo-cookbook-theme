@@ -523,7 +523,7 @@
   </div>
 {:else if eventError}
   <div class="container mx-auto p-4">
-    <div class="alert alert-error">
+    <div class="alert alert-error max-md:alert-vertical">
       <AlertCircle class="h-6 w-6 shrink-0" />
       <span>{eventError}</span>
     </div>
