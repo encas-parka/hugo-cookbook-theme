@@ -68,6 +68,19 @@ export class EventsStore {
   // Appwrite
   #userId: string | null = null;
   #userTeams: string[] = [];
+  #currentEventId: string | null = null;
+
+  /**
+   * Détermine si un événement est en mode local (pas de communication Appwrite)
+   * @param eventId - ID de l'événement à vérifier (utilise l'event courant si non fourni)
+   */
+  #isLocalMode(eventId?: string): boolean {
+    const id = eventId || this.#currentEventId;
+    if (!id) return false;
+
+    const event = this.#events.get(id);
+    return (event?.status as string) === 'local';
+  }
 
   // Getters publics
   get loading() {
@@ -213,6 +226,12 @@ export class EventsStore {
       return;
     }
 
+    // 🔥 MODE LOCAL: Skip Appwrite sync
+    if (this.#isLocalMode()) {
+      console.log("[EventsStore] Mode local: skip syncFromRemote");
+      return;
+    }
+
     console.log("[EventsStore] Synchronisation depuis Appwrite...");
     this.#loading = true;
 
@@ -333,6 +352,13 @@ export class EventsStore {
    * Filtrage optimisé : seulement les événements récents (15 jours) ou futurs
    */
   async #loadEvents(minDate: string | null = null): Promise<void> {
+    // 🔥 MODE LOCAL: Skip Appwrite load
+    if (this.#isLocalMode()) {
+      console.log("[EventsStore] Mode local: skip loadEvents from Appwrite");
+      return;
+    }
+
+    // Mode normal (existing code)
     try {
       console.log("[EventsStore] Chargement des événements...");
 
@@ -383,9 +409,394 @@ export class EventsStore {
   }
 
   /**
+   * Met à jour un événement en mode local (sans Appwrite)
+   */
+  async #updateEventLocal(eventId: string, data: UpdateEventData): Promise<EnrichedEvent> {
+    const existing = this.#events.get(eventId);
+    if (!existing) {
+      throw new Error("Événement introuvable");
+    }
+
+    // Fusionner les données
+    const updated: EnrichedEvent = {
+      ...existing,
+      ...data,
+      $updatedAt: new Date().toISOString(),
+    };
+
+    // Mettre à jour la Map réactive
+    this.#events.set(eventId, updated);
+
+    // Persister dans IndexedDB
+    if (this.#cache) {
+      await this.#cache.saveEvent(updated);
+    }
+
+    console.log(`[EventsStore] Mode local: Event mis à jour: ${eventId}`);
+    return updated;
+  }
+
+  /**
+   * Met à jour le statut d'un événement en mode local
+   */
+  async #updateEventStatusLocal(eventId: string, status: MainStatus): Promise<void> {
+    const existing = this.#events.get(eventId);
+    if (!existing) {
+      throw new Error("Événement introuvable");
+    }
+
+    // Mettre à jour l'état local
+    existing.status = status;
+    existing.$updatedAt = new Date().toISOString();
+
+    // Persister dans IndexedDB
+    if (this.#cache) {
+      await this.#cache.saveEvent(existing);
+    }
+
+    console.log(`[EventsStore] Mode local: Status mis à jour: ${eventId} -> ${status}`);
+  }
+
+  /**
+   * Ajoute un repas à un événement en mode local
+   */
+  async #addMealLocal(eventId: string, meal: EventMeal): Promise<EnrichedEvent> {
+    const existing = this.#events.get(eventId);
+    if (!existing) {
+      throw new Error("Événement introuvable");
+    }
+
+    const updated: EnrichedEvent = {
+      ...existing,
+      meals: [...existing.meals, meal],
+      $updatedAt: new Date().toISOString(),
+    };
+
+    this.#events.set(eventId, updated);
+
+    if (this.#cache) {
+      await this.#cache.saveEvent(updated);
+    }
+
+    console.log(`[EventsStore] Mode local: Meal ajouté à ${eventId}`);
+    return updated;
+  }
+
+  /**
+   * Met à jour un repas dans un événement en mode local
+   */
+  async #updateMealLocal(
+    eventId: string,
+    mealIndex: number,
+    meal: EventMeal,
+  ): Promise<EnrichedEvent> {
+    const existing = this.#events.get(eventId);
+    if (!existing) {
+      throw new Error("Événement introuvable");
+    }
+
+    const meals = [...existing.meals];
+    if (mealIndex < 0 || mealIndex >= meals.length) {
+      throw new Error("Index invalide");
+    }
+
+    meals[mealIndex] = meal;
+
+    const updated: EnrichedEvent = {
+      ...existing,
+      meals,
+      $updatedAt: new Date().toISOString(),
+    };
+
+    this.#events.set(eventId, updated);
+
+    if (this.#cache) {
+      await this.#cache.saveEvent(updated);
+    }
+
+    console.log(`[EventsStore] Mode local: Meal mis à jour dans ${eventId}`);
+    return updated;
+  }
+
+  /**
+   * Supprime un repas d'un événement en mode local
+   */
+  async #deleteMealLocal(eventId: string, mealIndex: number): Promise<EnrichedEvent> {
+    const existing = this.#events.get(eventId);
+    if (!existing) {
+      throw new Error("Événement introuvable");
+    }
+
+    const meals = [...existing.meals];
+    if (mealIndex < 0 || mealIndex >= meals.length) {
+      throw new Error("Index invalide");
+    }
+
+    meals.splice(mealIndex, 1);
+
+    const updated: EnrichedEvent = {
+      ...existing,
+      meals,
+      $updatedAt: new Date().toISOString(),
+    };
+
+    this.#events.set(eventId, updated);
+
+    if (this.#cache) {
+      await this.#cache.saveEvent(updated);
+    }
+
+    console.log(`[EventsStore] Mode local: Meal supprimé de ${eventId}`);
+    return updated;
+  }
+
+  /**
+   * Ajoute un todo à un événement en mode local
+   */
+  async #addTodoLocal(eventId: string, todo: EventTodo): Promise<EnrichedEvent> {
+    const existing = this.#events.get(eventId);
+    if (!existing) {
+      throw new Error("Événement introuvable");
+    }
+
+    const updated: EnrichedEvent = {
+      ...existing,
+      todos: [...existing.todos, todo],
+      $updatedAt: new Date().toISOString(),
+    };
+
+    this.#events.set(eventId, updated);
+
+    if (this.#cache) {
+      await this.#cache.saveEvent(updated);
+    }
+
+    console.log(`[EventsStore] Mode local: Todo ajouté à ${eventId}`);
+    return updated;
+  }
+
+  /**
+   * Ajoute plusieurs todos à un événement en mode local
+   */
+  async #addTodosLocal(eventId: string, todos: EventTodo[]): Promise<EnrichedEvent> {
+    const existing = this.#events.get(eventId);
+    if (!existing) {
+      throw new Error("Événement introuvable");
+    }
+
+    const updated: EnrichedEvent = {
+      ...existing,
+      todos: [...existing.todos, ...todos],
+      $updatedAt: new Date().toISOString(),
+    };
+
+    this.#events.set(eventId, updated);
+
+    if (this.#cache) {
+      await this.#cache.saveEvent(updated);
+    }
+
+    console.log(`[EventsStore] Mode local: ${todos.length} todos ajoutés à ${eventId}`);
+    return updated;
+  }
+
+  /**
+   * Met à jour un todo dans un événement en mode local
+   */
+  async #updateTodoLocal(
+    eventId: string,
+    todoId: string,
+    updates: Partial<EventTodo>,
+  ): Promise<EnrichedEvent> {
+    const existing = this.#events.get(eventId);
+    if (!existing) {
+      throw new Error("Événement introuvable");
+    }
+
+    const todos = existing.todos.map((t) =>
+      t.id === todoId
+        ? { ...t, ...updates, updatedAt: new Date().toISOString() }
+        : t,
+    );
+
+    const updated: EnrichedEvent = {
+      ...existing,
+      todos,
+      $updatedAt: new Date().toISOString(),
+    };
+
+    this.#events.set(eventId, updated);
+
+    if (this.#cache) {
+      await this.#cache.saveEvent(updated);
+    }
+
+    console.log(`[EventsStore] Mode local: Todo mis à jour dans ${eventId}`);
+    return updated;
+  }
+
+  /**
+   * Supprime un todo d'un événement en mode local
+   */
+  async #deleteTodoLocal(eventId: string, todoId: string): Promise<EnrichedEvent> {
+    const existing = this.#events.get(eventId);
+    if (!existing) {
+      throw new Error("Événement introuvable");
+    }
+
+    const todos = existing.todos.filter((t) => t.id !== todoId);
+
+    const updated: EnrichedEvent = {
+      ...existing,
+      todos,
+      $updatedAt: new Date().toISOString(),
+    };
+
+    this.#events.set(eventId, updated);
+
+    if (this.#cache) {
+      await this.#cache.saveEvent(updated);
+    }
+
+    console.log(`[EventsStore] Mode local: Todo supprimé de ${eventId}`);
+    return updated;
+  }
+
+  /**
+   * Met à jour le statut d'un todo en mode local (sans Cloud Function)
+   */
+  async #updateTodoStatusLocal(
+    eventId: string,
+    todoId: string,
+    status: EventTodoStatus,
+  ): Promise<void> {
+    const existing = this.#events.get(eventId);
+    if (!existing) {
+      throw new Error("Événement introuvable");
+    }
+
+    // Update optimiste = vérité finale en mode local
+    existing.todos = existing.todos.map((t) =>
+      t.id === todoId
+        ? { ...t, status, updatedAt: new Date().toISOString() }
+        : t,
+    );
+
+    // Persister
+    if (this.#cache) {
+      await this.#cache.saveEvent(existing);
+    }
+
+    console.log(`[EventsStore] Mode local: Todo status mis à jour: ${todoId} -> ${status}`);
+  }
+
+  /**
+   * Toggle l'assignation d'un todo en mode local
+   */
+  async #toggleTodoAssignmentLocal(eventId: string, todoId: string): Promise<void> {
+    const userId = globalState.userId;
+    if (!userId) {
+      throw new Error("Utilisateur non connecté");
+    }
+
+    const existing = this.#events.get(eventId);
+    if (!existing) {
+      throw new Error("Événement introuvable");
+    }
+
+    const todo = existing.todos.find((t) => t.id === todoId);
+    if (!todo) {
+      throw new Error("Todo introuvable");
+    }
+
+    // Toggle l'assignation
+    let currentAssigned: string[] = [];
+    if (Array.isArray(todo.assignedTo)) {
+      currentAssigned = [...todo.assignedTo];
+    } else if (todo.assignedTo) {
+      currentAssigned = [todo.assignedTo as string];
+    }
+
+    if (currentAssigned.includes(userId)) {
+      currentAssigned = currentAssigned.filter((id) => id !== userId);
+    } else {
+      currentAssigned.push(userId);
+    }
+
+    // Update
+    existing.todos = existing.todos.map((t) =>
+      t.id === todoId
+        ? {
+            ...t,
+            assignedTo: currentAssigned.length > 0 ? currentAssigned : null,
+            updatedAt: new Date().toISOString(),
+          }
+        : t,
+    );
+
+    // Persister
+    if (this.#cache) {
+      await this.#cache.saveEvent(existing);
+    }
+
+    console.log(`[EventsStore] Mode local: Todo assignment toggled: ${todoId}`);
+  }
+
+  /**
+   * Met à jour le statut d'un contributeur en mode local
+   */
+  async #updateContributorStatusLocal(
+    eventId: string,
+    contributorId: string,
+    status: "accepted" | "declined",
+  ): Promise<EnrichedEvent> {
+    const existing = this.#events.get(eventId);
+    if (!existing) {
+      throw new Error("Événement introuvable");
+    }
+
+    const contributors = [...existing.contributors];
+    const index = contributors.findIndex(
+      (c) => c.id === contributorId || c.email === contributorId,
+    );
+
+    if (index === -1) {
+      throw new Error("Contributeur introuvable");
+    }
+
+    contributors[index] = {
+      ...contributors[index],
+      status,
+      respondedAt: new Date().toISOString(),
+    };
+
+    const updated: EnrichedEvent = {
+      ...existing,
+      contributors,
+      $updatedAt: new Date().toISOString(),
+    };
+
+    this.#events.set(eventId, updated);
+
+    if (this.#cache) {
+      await this.#cache.saveEvent(updated);
+    }
+
+    console.log(`[EventsStore] Mode local: Contributor status mis à jour: ${contributorId} -> ${status}`);
+    return updated;
+  }
+
+  /**
    * Configure le realtime pour les événements
    */
   async #setupRealtime(): Promise<void> {
+    // 🔥 MODE LOCAL: Skip realtime
+    if (this.#isLocalMode()) {
+      console.log("[EventsStore] Mode local: skip realtime setup");
+      return;
+    }
+
+    // Mode normal (existing code)
     try {
       console.log("[EventsStore] Activation du Realtime...");
       const DB_ID = getDatabaseId();
@@ -614,6 +1025,12 @@ export class EventsStore {
     eventId: string,
     data: UpdateEventData,
   ): Promise<EnrichedEvent> {
+    // 🔥 MODE LOCAL: Bypass Appwrite
+    if (this.#isLocalMode(eventId)) {
+      return await this.#updateEventLocal(eventId, data);
+    }
+
+    // Mode normal: Appwrite (code existant)
     const event = await updateAppwriteEvent(eventId, data);
     const enriched = this.#enrichEvent(event);
     this.#events.set(eventId, enriched);
@@ -631,6 +1048,13 @@ export class EventsStore {
    * Met à jour uniquement le statut d'un événement
    */
   async updateEventStatus(eventId: string, status: MainStatus): Promise<void> {
+    // 🔥 MODE LOCAL: Bypass Appwrite
+    if (this.#isLocalMode(eventId)) {
+      await this.#updateEventStatusLocal(eventId, status);
+      return;
+    }
+
+    // Mode normal: Appwrite (code existant)
     try {
       // Utiliser le service appwrite-events pour la cohérence
       await updateAppwriteEvent(eventId, { status });
@@ -886,6 +1310,12 @@ export class EventsStore {
     contributorId: string,
     status: "accepted" | "declined",
   ): Promise<EnrichedEvent> {
+    // 🔥 MODE LOCAL
+    if (this.#isLocalMode(eventId)) {
+      return await this.#updateContributorStatusLocal(eventId, contributorId, status);
+    }
+
+    // Mode normal
     try {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");
@@ -927,6 +1357,12 @@ export class EventsStore {
    * Ajoute un repas à un événement
    */
   async addMeal(eventId: string, meal: EventMeal): Promise<EnrichedEvent> {
+    // 🔥 MODE LOCAL
+    if (this.#isLocalMode(eventId)) {
+      return await this.#addMealLocal(eventId, meal);
+    }
+
+    // Mode normal (existing code)
     try {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");
@@ -947,6 +1383,12 @@ export class EventsStore {
     mealIndex: number,
     meal: EventMeal,
   ): Promise<EnrichedEvent> {
+    // 🔥 MODE LOCAL
+    if (this.#isLocalMode(eventId)) {
+      return await this.#updateMealLocal(eventId, mealIndex, meal);
+    }
+
+    // Mode normal (existing code)
     try {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");
@@ -967,6 +1409,12 @@ export class EventsStore {
    * Supprime un repas d'un événement
    */
   async deleteMeal(eventId: string, mealIndex: number): Promise<EnrichedEvent> {
+    // 🔥 MODE LOCAL
+    if (this.#isLocalMode(eventId)) {
+      return await this.#deleteMealLocal(eventId, mealIndex);
+    }
+
+    // Mode normal (existing code)
     try {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");
@@ -1000,6 +1448,12 @@ export class EventsStore {
    * Ajoute un todo à un événement
    */
   async addTodo(eventId: string, todo: EventTodo): Promise<EnrichedEvent> {
+    // 🔥 MODE LOCAL
+    if (this.#isLocalMode(eventId)) {
+      return await this.#addTodoLocal(eventId, todo);
+    }
+
+    // Mode normal
     try {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");
@@ -1016,6 +1470,12 @@ export class EventsStore {
    * Ajoute plusieurs todos à un événement
    */
   async addTodos(eventId: string, todos: EventTodo[]): Promise<EnrichedEvent> {
+    // 🔥 MODE LOCAL
+    if (this.#isLocalMode(eventId)) {
+      return await this.#addTodosLocal(eventId, todos);
+    }
+
+    // Mode normal
     try {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");
@@ -1036,6 +1496,13 @@ export class EventsStore {
     todoId: string,
     status: EventTodoStatus,
   ): Promise<void> {
+    // 🔥 MODE LOCAL
+    if (this.#isLocalMode(eventId)) {
+      await this.#updateTodoStatusLocal(eventId, todoId, status);
+      return;
+    }
+
+    // Mode normal: Cloud Function
     try {
       // Update optimiste local
       const event = this.#events.get(eventId);
@@ -1070,6 +1537,13 @@ export class EventsStore {
    * Toggle l'assignation via Cloud Function (Atomique)
    */
   async toggleTodoAssignment(eventId: string, todoId: string): Promise<void> {
+    // 🔥 MODE LOCAL
+    if (this.#isLocalMode(eventId)) {
+      await this.#toggleTodoAssignmentLocal(eventId, todoId);
+      return;
+    }
+
+    // Mode normal: Cloud Function
     try {
       const userId = globalState.userId;
       if (!userId) throw new Error("Utilisateur non connecté");
@@ -1133,6 +1607,12 @@ export class EventsStore {
     todoId: string,
     updates: Partial<EventTodo>,
   ): Promise<EnrichedEvent> {
+    // 🔥 MODE LOCAL
+    if (this.#isLocalMode(eventId)) {
+      return await this.#updateTodoLocal(eventId, todoId, updates);
+    }
+
+    // Mode normal
     try {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");
@@ -1153,6 +1633,12 @@ export class EventsStore {
    * Supprime un todo d'un événement (par id)
    */
   async deleteTodo(eventId: string, todoId: string): Promise<EnrichedEvent> {
+    // 🔥 MODE LOCAL
+    if (this.#isLocalMode(eventId)) {
+      return await this.#deleteTodoLocal(eventId, todoId);
+    }
+
+    // Mode normal
     try {
       const event = this.#events.get(eventId);
       if (!event) throw new Error("Événement introuvable");

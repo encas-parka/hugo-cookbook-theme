@@ -158,6 +158,16 @@ class ProductsStore {
     return this.#pendingOverrideConflicts;
   }
 
+  /**
+   * Détermine si l'événement courant est en mode local
+   */
+  #isLocalMode(): boolean {
+    if (!this.#currentEventId) return false;
+
+    const event = eventsStore.getEventById(this.#currentEventId);
+    return (event?.status as string) === 'local';
+  }
+
   // =========================================================================
   // INITIALISATION
   // =========================================================================
@@ -758,6 +768,13 @@ class ProductsStore {
    * Utilisé par NotificationStore pour les mises à jour batch
    */
   async syncFromAppwrite() {
+    // 🔥 MODE LOCAL: Skip Appwrite sync
+    if (this.#isLocalMode()) {
+      console.log("[ProductsStore] Mode local: skip syncFromAppwrite");
+      return;
+    }
+
+    // Mode normal (existing code)
     if (!this.#currentMainId) return;
     this.#syncing = true;
     console.log(
@@ -1261,6 +1278,13 @@ class ProductsStore {
     onDisconnect: () => void;
     onError: (error: any) => void;
   }): void {
+    // 🔥 MODE LOCAL: Skip realtime
+    if (this.#isLocalMode()) {
+      console.log("[ProductsStore] Mode local: skip realtime setup");
+      return;
+    }
+
+    // Mode normal (existing code)
     const DB_ID = getDatabaseId();
     const PRODUCTS_COLLECTION = getCollectionId("products");
     const PURCHASES_COLLECTION = getCollectionId("purchases");
@@ -1650,6 +1674,13 @@ class ProductsStore {
   // =========================================================================
 
   async #loadOrphanPurchases() {
+    // 🔥 MODE LOCAL: Skip Appwrite
+    if (this.#isLocalMode()) {
+      console.log("[ProductsStore] Mode local: skip loadOrphanPurchases");
+      return;
+    }
+
+    // Mode normal (existing code)
     if (!this.#currentMainId) return;
 
     try {
