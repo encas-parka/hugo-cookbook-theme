@@ -196,8 +196,11 @@ export async function generateDemoEvent(
   console.log(`[DemoEvents] Generating event: ${config.name}`);
 
   // 1. Calculer les dates de l'événement
+  // startDate est à minuit (00:00:00)
   const startDate = getNextFutureDate(offsetDays);
+  // endDate doit inclure le dernier jour complet, donc on ajoute durationDays et on met à 23:59:59
   const endDate = addDays(startDate, config.durationDays - 1);
+  endDate.setHours(23, 59, 59, 999);
 
   console.log(
     `[DemoEvents] Event dates: ${startDate.toISOString()} → ${endDate.toISOString()}`,
@@ -389,12 +392,14 @@ export function validateDemoEvent(event: EnrichedEvent): void {
   }
 
   // 6. Vérifier que tous les guests sont cohérents
+  // Note: On autorise un ratio plus élevé (2.5) car les "vegan options"
+  // s'ajoutent aux plats principaux pour offrir du choix
   for (const meal of event.meals) {
     const totalPlates = meal.recipes.reduce((sum, r) => sum + r.plates, 0);
-    if (totalPlates > meal.guests * 1.5) {
-      // Allow some margin for variety
+    if (totalPlates > meal.guests * 2.5) {
+      // Allow margin for variety + vegan options
       errors.push(
-        `Meal "${meal.id}" has ${totalPlates} plates for ${meal.guests} guests (ratio > 1.5)`,
+        `Meal "${meal.id}" has ${totalPlates} plates for ${meal.guests} guests (ratio > 2.5)`,
       );
     }
   }
