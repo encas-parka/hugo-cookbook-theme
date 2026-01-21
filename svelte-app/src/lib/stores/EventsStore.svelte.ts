@@ -48,6 +48,7 @@ import {
 } from "../services/events-idb-cache";
 import { getAppwriteInstances, getDatabaseId } from "$lib/services/appwrite";
 import { realtimeManager } from "./RealtimeManager.svelte";
+import { generateAllDemoEvents } from "$lib/data/demo-events";
 
 // =============================================================================
 // STORE SINGLETON
@@ -79,7 +80,7 @@ export class EventsStore {
     if (!id) return false;
 
     const event = this.#events.get(id);
-    return (event?.status as string) === 'local';
+    return (event?.status as string) === "local";
   }
 
   // Getters publics
@@ -348,6 +349,72 @@ export class EventsStore {
   }
 
   /**
+   * Initialise le store pour le mode public (non authentifié)
+   * Charge les événements de démonstration sans Appwrite
+   */
+  async initializeForPublic(): Promise<void> {
+    if (this.#isInitialized) {
+      console.log("[EventsStore] Déjà initialisé");
+      return;
+    }
+
+    console.log("[EventsStore] Initialisation mode public...");
+    this.#loading = true;
+    this.#error = null;
+
+    try {
+      // Ouvrir le cache IndexedDB
+      this.#cache = await createEventsIDBCache();
+
+      // Charger les events démo directement (pas depuis IDB)
+      await this.loadDemoEvents();
+
+      this.#isInitialized = true;
+      this.#userId = "guest"; // ← Utilisateur invité
+      this.#userTeams = [];
+
+      console.log("[EventsStore] Mode public initialisé : events démo chargés");
+    } catch (err) {
+      console.error("[EventsStore] Erreur init mode public:", err);
+      throw err;
+    } finally {
+      this.#loading = false;
+    }
+  }
+
+  /**
+   * Charge les événements de démonstration en mode local
+   * Cette méthode génère les événements à partir des configurations
+   * et les stocke directement dans le store et IDB
+   */
+  async loadDemoEvents(): Promise<void> {
+    console.log("[EventsStore] Loading demo events...");
+
+    try {
+      // Générer tous les événements de démonstration
+      const demoEvents = await generateAllDemoEvents();
+
+      console.log(`[EventsStore] Generated ${demoEvents.length} demo events`);
+
+      // Ajouter à la SvelteMap
+      demoEvents.forEach((event) => {
+        this.#events.set(event.$id, event);
+      });
+
+      // Persister dans IDB
+      if (this.#cache) {
+        await this.#cache.saveEvents(this.#events);
+        console.log("[EventsStore] Demo events persisted to IDB");
+      }
+
+      console.log(`[EventsStore] Total events in store: ${this.#events.size}`);
+    } catch (error) {
+      console.error("[EventsStore] Error loading demo events:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Charge les événements depuis Appwrite
    * Filtrage optimisé : seulement les événements récents (15 jours) ou futurs
    */
@@ -411,7 +478,10 @@ export class EventsStore {
   /**
    * Met à jour un événement en mode local (sans Appwrite)
    */
-  async #updateEventLocal(eventId: string, data: UpdateEventData): Promise<EnrichedEvent> {
+  async #updateEventLocal(
+    eventId: string,
+    data: UpdateEventData,
+  ): Promise<EnrichedEvent> {
     const existing = this.#events.get(eventId);
     if (!existing) {
       throw new Error("Événement introuvable");
@@ -439,7 +509,10 @@ export class EventsStore {
   /**
    * Met à jour le statut d'un événement en mode local
    */
-  async #updateEventStatusLocal(eventId: string, status: MainStatus): Promise<void> {
+  async #updateEventStatusLocal(
+    eventId: string,
+    status: MainStatus,
+  ): Promise<void> {
     const existing = this.#events.get(eventId);
     if (!existing) {
       throw new Error("Événement introuvable");
@@ -454,13 +527,18 @@ export class EventsStore {
       await this.#cache.saveEvent(existing);
     }
 
-    console.log(`[EventsStore] Mode local: Status mis à jour: ${eventId} -> ${status}`);
+    console.log(
+      `[EventsStore] Mode local: Status mis à jour: ${eventId} -> ${status}`,
+    );
   }
 
   /**
    * Ajoute un repas à un événement en mode local
    */
-  async #addMealLocal(eventId: string, meal: EventMeal): Promise<EnrichedEvent> {
+  async #addMealLocal(
+    eventId: string,
+    meal: EventMeal,
+  ): Promise<EnrichedEvent> {
     const existing = this.#events.get(eventId);
     if (!existing) {
       throw new Error("Événement introuvable");
@@ -521,7 +599,10 @@ export class EventsStore {
   /**
    * Supprime un repas d'un événement en mode local
    */
-  async #deleteMealLocal(eventId: string, mealIndex: number): Promise<EnrichedEvent> {
+  async #deleteMealLocal(
+    eventId: string,
+    mealIndex: number,
+  ): Promise<EnrichedEvent> {
     const existing = this.#events.get(eventId);
     if (!existing) {
       throw new Error("Événement introuvable");
@@ -553,7 +634,10 @@ export class EventsStore {
   /**
    * Ajoute un todo à un événement en mode local
    */
-  async #addTodoLocal(eventId: string, todo: EventTodo): Promise<EnrichedEvent> {
+  async #addTodoLocal(
+    eventId: string,
+    todo: EventTodo,
+  ): Promise<EnrichedEvent> {
     const existing = this.#events.get(eventId);
     if (!existing) {
       throw new Error("Événement introuvable");
@@ -578,7 +662,10 @@ export class EventsStore {
   /**
    * Ajoute plusieurs todos à un événement en mode local
    */
-  async #addTodosLocal(eventId: string, todos: EventTodo[]): Promise<EnrichedEvent> {
+  async #addTodosLocal(
+    eventId: string,
+    todos: EventTodo[],
+  ): Promise<EnrichedEvent> {
     const existing = this.#events.get(eventId);
     if (!existing) {
       throw new Error("Événement introuvable");
@@ -596,7 +683,9 @@ export class EventsStore {
       await this.#cache.saveEvent(updated);
     }
 
-    console.log(`[EventsStore] Mode local: ${todos.length} todos ajoutés à ${eventId}`);
+    console.log(
+      `[EventsStore] Mode local: ${todos.length} todos ajoutés à ${eventId}`,
+    );
     return updated;
   }
 
@@ -638,7 +727,10 @@ export class EventsStore {
   /**
    * Supprime un todo d'un événement en mode local
    */
-  async #deleteTodoLocal(eventId: string, todoId: string): Promise<EnrichedEvent> {
+  async #deleteTodoLocal(
+    eventId: string,
+    todoId: string,
+  ): Promise<EnrichedEvent> {
     const existing = this.#events.get(eventId);
     if (!existing) {
       throw new Error("Événement introuvable");
@@ -687,17 +779,20 @@ export class EventsStore {
       await this.#cache.saveEvent(existing);
     }
 
-    console.log(`[EventsStore] Mode local: Todo status mis à jour: ${todoId} -> ${status}`);
+    console.log(
+      `[EventsStore] Mode local: Todo status mis à jour: ${todoId} -> ${status}`,
+    );
   }
 
   /**
    * Toggle l'assignation d'un todo en mode local
    */
-  async #toggleTodoAssignmentLocal(eventId: string, todoId: string): Promise<void> {
-    const userId = globalState.userId;
-    if (!userId) {
-      throw new Error("Utilisateur non connecté");
-    }
+  async #toggleTodoAssignmentLocal(
+    eventId: string,
+    todoId: string,
+  ): Promise<void> {
+    // 🔥 MODE LOCAL : Utiliser "guest" si pas de userId
+    const userId = globalState.userId || "guest";
 
     const existing = this.#events.get(eventId);
     if (!existing) {
@@ -739,7 +834,9 @@ export class EventsStore {
       await this.#cache.saveEvent(existing);
     }
 
-    console.log(`[EventsStore] Mode local: Todo assignment toggled: ${todoId}`);
+    console.log(
+      `[EventsStore] Mode local: Todo assignment toggled: ${todoId} par ${userId}`,
+    );
   }
 
   /**
@@ -782,7 +879,9 @@ export class EventsStore {
       await this.#cache.saveEvent(updated);
     }
 
-    console.log(`[EventsStore] Mode local: Contributor status mis à jour: ${contributorId} -> ${status}`);
+    console.log(
+      `[EventsStore] Mode local: Contributor status mis à jour: ${contributorId} -> ${status}`,
+    );
     return updated;
   }
 
@@ -930,10 +1029,16 @@ export class EventsStore {
     userId: string,
     userTeams?: string[],
   ): boolean {
-    if (!userId) return false;
-
     const event = this.#events.get(eventId);
     if (!event) return false;
+
+    // ✅ MODE LOCAL : Toujours éditable
+    if ((event.status as string) === "local") {
+      return true;
+    }
+
+    // Mode normal (existing code)
+    if (!userId) return false;
 
     // Créateur
     if (event.createdBy === userId) return true;
@@ -1312,7 +1417,11 @@ export class EventsStore {
   ): Promise<EnrichedEvent> {
     // 🔥 MODE LOCAL
     if (this.#isLocalMode(eventId)) {
-      return await this.#updateContributorStatusLocal(eventId, contributorId, status);
+      return await this.#updateContributorStatusLocal(
+        eventId,
+        contributorId,
+        status,
+      );
     }
 
     // Mode normal

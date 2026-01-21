@@ -53,6 +53,50 @@
     },
   };
 
+  // ✅ Guard pour mode local (AVEC auto-initialisation)
+  const requireLocalEvent: RouteGuards = {
+    beforeEnter: async (params) => {
+      const eventId = params?.id;
+
+      if (!eventId) {
+        console.log("[Router] EventId manquant > Redirection /");
+        navigate("/");
+        return false;
+      }
+
+      // ✅ AUTO-INITIALISATION si le store n'est pas prêt
+      if (!eventsStore.isInitialized) {
+        console.log(
+          "[Router] EventsStore non initialisé > Auto-init mode public",
+        );
+        try {
+          await eventsStore.initializeForPublic();
+        } catch (error) {
+          console.error("[Router] Erreur initialisation:", error);
+          navigate("/");
+          return false;
+        }
+      }
+
+      // Vérifier que l'event existe ET est en mode local
+      const event = eventsStore.getEventById(eventId);
+
+      if (!event) {
+        console.log("[Router] Event introuvable > Redirection /");
+        navigate("/");
+        return false;
+      }
+
+      if ((event.status as string) !== "local") {
+        console.log("[Router] Event non local > Auth requise");
+        navigate("/");
+        return false;
+      }
+
+      return true;
+    },
+  };
+
   // ✅ Routes avec lazy loading (sauf HomePage)
   // Publiques
   router.addRoute("/", HomePage);
@@ -178,6 +222,28 @@
     "/documents/:teamId",
     () => import("./lib/routes/DocumentListPage.svelte"),
     requireAuth,
+  );
+
+  // ✅ Routes pour le mode démo (PAS de requireAuth)
+  router.addRoute(
+    "/demo/event/:id",
+    () => import("./lib/routes/EventEditPage.svelte"),
+    requireLocalEvent,
+  );
+  router.addRoute(
+    "/demo/event/recipes/:id",
+    () => import("./lib/routes/EventRecipesPage.svelte"),
+    requireLocalEvent,
+  );
+  router.addRoute(
+    "/demo/event/products/:id",
+    () => import("./lib/routes/EventProductsPage.svelte"),
+    requireLocalEvent,
+  );
+  router.addRoute(
+    "/demo/event/poster/:id",
+    () => import("./lib/routes/EventPosterPage.svelte"),
+    requireLocalEvent,
   );
 
   let currentRoute = $state<any>(null);

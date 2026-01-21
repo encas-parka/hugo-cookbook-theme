@@ -3,10 +3,45 @@
   import { globalState } from "../stores/GlobalState.svelte";
   import FeatureCard from "../components/ui/FeatureCard.svelte";
   import { ChefHat, ArrowRight } from "@lucide/svelte";
+  import { eventsStore } from "../stores/EventsStore.svelte";
+  import { toastService } from "../services/toast.service.svelte";
 
   // Ouvrir l'auth modal via GlobalState
   function openAuthModal() {
     globalState.authModal.isOpen = true;
+  }
+
+  async function handleDemoEvent() {
+    try {
+      const toastId = toastService.loading("Chargement de la démo...");
+
+      // ✅ Lazy initialization du store pour le mode public
+      if (!eventsStore.isInitialized) {
+        await eventsStore.initializeForPublic();
+      }
+
+      // ✅ Récupérer le premier event démo
+      const demoEvents = eventsStore.events.filter((e) => e.status === "local");
+
+      if (demoEvents.length === 0) {
+        toastService.update(toastId, {
+          state: "error",
+          message: "Aucun événement de démo disponible",
+          autoCloseDelay: 3000,
+        });
+        return;
+      }
+
+      const demoEvent = demoEvents[0];
+
+      toastService.dismiss(toastId);
+
+      // ✅ Naviguer vers l'édition de l'event démo
+      navigate(`/demo/event/${demoEvent.$id}`);
+    } catch (error) {
+      console.error("[HomePage] Erreur chargement démo:", error);
+      toastService.error("Erreur lors du chargement de la démo");
+    }
   }
 </script>
 
@@ -65,6 +100,10 @@
       </div>
     </div>
   </section>
+
+  <button class="btn btn-lg btn-primary" onclick={handleDemoEvent}>
+    Démo
+  </button>
 
   <!-- SECTION 2: Feature Cards -->
   <section class="bg-base-200 py-16">

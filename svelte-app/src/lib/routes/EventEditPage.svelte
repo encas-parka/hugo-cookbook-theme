@@ -17,6 +17,8 @@
     CheckCircle2,
     Clock,
     AlertTriangle,
+    Users,
+    Info,
   } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
@@ -245,6 +247,13 @@
   // ============================================================================
 
   async function acquireLock(): Promise<boolean> {
+    // 🔥 MODE LOCAL : Skip locks
+    if (currentEvent?.status === "local") {
+      console.log("[EventEditPage] Mode local: skip lock acquisition");
+      isLockedByMe = true; // Fake lock
+      return true;
+    }
+
     if (!eventId || !globalState.userId || isBusy || isAcquiringLock)
       return false;
 
@@ -277,6 +286,13 @@
   }
 
   async function releaseLock(): Promise<void> {
+    // 🔥 MODE LOCAL : Skip release
+    if (currentEvent?.status === "local") {
+      console.log("[EventEditPage] Mode local: skip lock release");
+      isLockedByMe = false;
+      return;
+    }
+
     if (!eventId || !globalState.userId) return;
 
     try {
@@ -813,16 +829,33 @@
       <!-- Colonne Gauche : Infos & Permissions -->
       <div class="space-y-6 lg:col-span-1">
         <!-- Permissions -->
-        <PermissionsManager
-          {canEdit}
-          {contributors}
-          {nativeTeamsStore}
-          {eventsStore}
-          bind:minContrib
-          userId={globalState.userId || ""}
-          {eventId}
-          onStartEdit={startEditing}
-        />
+        {#if currentEvent?.status === "local"}
+          <!-- Mode démo : Message informatif -->
+          <Fieldset legend="Participants" iconComponent={Users}>
+            <div class="alert alert-info">
+              <Info class="h-5 w-5" />
+              <div>
+                <h4 class="font-bold">Mode Démonstration</h4>
+                <p class="text-sm">
+                  Dans un véritable événement, vous pourrez inviter des équipes
+                  et des participants à collaborer sur la planification.
+                </p>
+              </div>
+            </div>
+          </Fieldset>
+        {:else}
+          <!-- Mode normal : PermissionsManager -->
+          <PermissionsManager
+            {canEdit}
+            {contributors}
+            {nativeTeamsStore}
+            {eventsStore}
+            bind:minContrib
+            userId={globalState.userId || ""}
+            {eventId}
+            onStartEdit={startEditing}
+          />
+        {/if}
 
         <!-- Liste des Tâches (TODO) -->
         {#if currentEvent}
