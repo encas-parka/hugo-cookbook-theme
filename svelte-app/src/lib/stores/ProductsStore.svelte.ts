@@ -1,7 +1,6 @@
 import { SvelteMap } from "svelte/reactivity";
 import { useDebounce } from "runed";
 import type { Products, Purchases } from "../types/appwrite.d";
-import type { ProductRangeStats } from "../types/store.types";
 
 import {
   matchesFilters,
@@ -16,7 +15,12 @@ import {
   createEnrichedProductsFromEvent,
 } from "../utils/productEnrichment";
 import { toastService } from "../services/toast.service.svelte";
-import type { EnrichedProduct, NumericQuantity } from "../types/store.types";
+import type {
+  EnrichedProduct,
+  StoreInfo,
+  TotalNeededOverrideData,
+  BatchUpdateResult,
+} from "../types/store.types";
 import type { EnrichedEvent } from "../types/events";
 
 import {
@@ -25,6 +29,7 @@ import {
   loadUpdatedPurchases,
   loadOrphanPurchases,
 } from "../services/appwrite-products";
+import type { GroupPurchaseBatchResult } from "../services/appwrite-transaction";
 
 import { createIDBCache, type IDBCache } from "../services/indexeddb-cache";
 import { globalState } from "./GlobalState.svelte";
@@ -165,7 +170,7 @@ class ProductsStore {
     if (!this.#currentEventId) return false;
 
     const event = eventsStore.getEventById(this.#currentEventId);
-    return (event?.status as string) === 'local';
+    return (event?.status as string) === "local";
   }
 
   // =========================================================================
@@ -1657,6 +1662,615 @@ class ProductsStore {
     };
 
     console.log("[ProductsStore] Reset terminé");
+  }
+
+  // =========================================================================
+  // MODE LOCAL : Méthodes dédiées (sans Appwrite)
+  // =========================================================================
+
+  /**
+   * Crée un purchase en mode local (sans Appwrite)
+   * Met à jour le produit concerné et persiste dans IndexedDB
+   */
+  async createPurchaseLocal(
+    productId: string,
+    quantities: Array<{ q: number; u: string }>,
+    options: {
+      invoiceId?: string;
+      notes?: string;
+      store?: string;
+      price?: number | null;
+    },
+  ): Promise<void> {
+    const productModel = this.#enrichedProducts.get(productId);
+    if (!productModel) {
+      throw new Error(`Produit ${productId} introuvable`);
+    }
+
+    // 1. Créer l'objet purchase plain
+    const newPurchase: Purchases = {
+      $id: crypto.randomUUID(),
+      $createdAt: new Date().toISOString(),
+      $updatedAt: new Date().toISOString(),
+      $databaseId: "localDemo",
+      $tableId: "localDemo",
+      $permissions: [],
+      $sequence: 0,
+      invoiceId: options.invoiceId || null,
+      notes: options.notes || "",
+      store: options.store || null,
+      mainId: this.#currentEventId!,
+      unit: quantities[0]?.u || "", // Unité principale
+      quantity: quantities.reduce((sum, qty) => sum + qty.q, 0), // Quantité totale
+      price: options.price || null,
+      status: "received",
+      who: null,
+      createdBy: "guest",
+      orderDate: new Date().toISOString(),
+      deliveryDate: null,
+      invoiceTotal: null,
+      products: [productId],
+    };
+
+    // 2. Ajouter au produit via le ProductModel
+    const currentProduct = productModel.data;
+    const updatedProduct: EnrichedProduct = {
+      ...currentProduct,
+      purchases: [...(currentProduct.purchases || []), newPurchase],
+      $updatedAt: new Date().toISOString(),
+    };
+
+    // Mettre à jour le ProductModel
+    productModel.update(updatedProduct);
+
+    // 3. Persister dans IndexedDB
+    if (this.#idbCache) {
+      await this.#idbCache.upsertProduct(updatedProduct);
+    }
+
+    console.log(`[ProductsStore] Mode local: purchase créé pour ${productId}`);
+  }
+
+  /**
+   * Crée un produit en mode local (sans Appwrite)
+   * Met à jour la Map réactive et persiste dans IndexedDB
+   */
+  async createProductLocal(productData: {
+    productName: string;
+    productType?: string;
+    pF?: boolean;
+    pS?: boolean;
+    status?: string;
+    who?: string[];
+    store?: string;
+    stockReel?: string;
+  }): Promise<string> {
+    const newProductId = crypto.randomUUID();
+
+    // 1. Créer l'objet produit plain
+    const newProduct: EnrichedProduct = {
+      $id: newProductId,
+      $createdAt: new Date().toISOString(),
+      $updatedAt: new Date().toISOString(),
+      $permissions: [], // Pas de permissions en mode local
+      // Données de base
+      productHugoUuid: null,
+      productName: productData.productName,
+      productType: productData.productType || "ingredient",
+      pF: productData.pF ?? false,
+      pS: productData.pS ?? false,
+      nbRecipes: 0,
+      totalAssiettes: 0,
+      isSynced: false, // Produit local, pas synchronisé avec Appwrite
+      mainId: this.#currentEventId!,
+      totalNeededRaw: [],
+      // Données interactives
+      status: productData.status || "ok",
+      who: productData.who || null,
+      store: productData.store || "",
+      stockReel: productData.stockReel || null,
+      previousNames: null,
+      isMerged: false,
+      mergedFrom: null,
+      mergeDate: null,
+      mergeReason: null,
+      isLocal: true,
+      mergedInto: null,
+      totalNeededOverride: null,
+      updatedBy: null,
+      specs: null,
+      // Données enrichies
+      purchases: [],
+      pL: null,
+      byDate: {},
+      storeInfo: null,
+      totalNeededOverrideParsed: null,
+      displayMissingQuantity: null,
+      missingQuantityArray: null,
+    };
+
+    // 2. Créer le ProductModel et l'ajouter à la Map
+    const productModel = new ProductModel(newProduct, this.dateStore);
+    this.#enrichedProducts.set(newProductId, productModel);
+
+    // 3. Persister dans IndexedDB
+    if (this.#idbCache) {
+      await this.#idbCache.upsertProduct(newProduct);
+    }
+
+    console.log(`[ProductsStore] Mode local: produit créé ${newProductId}`);
+    return newProductId;
+  }
+
+  /**
+   * Met à jour un produit en mode local
+   * Met à jour la Map réactive et persiste dans IndexedDB
+   * Maintenant publique pour être utilisée directement si besoin
+   */
+  async updateProductLocal(
+    productId: string,
+    updates: Partial<EnrichedProduct>,
+  ): Promise<void> {
+    const productModel = this.#enrichedProducts.get(productId);
+    if (!productModel) {
+      throw new Error(`Produit ${productId} introuvable`);
+    }
+
+    // 1. Fusionner les données
+    const updatedProduct: EnrichedProduct = {
+      ...productModel.data,
+      ...updates,
+      $updatedAt: new Date().toISOString(),
+    };
+
+    // 2. Mettre à jour le ProductModel (déclenche la réactivité Svelte 5)
+    productModel.update(updatedProduct);
+
+    // 3. Persister dans IndexedDB (avec snapshot pour supprimer les Proxy)
+    if (this.#idbCache) {
+      const snapshot = $state.snapshot(productModel.data);
+      await this.#idbCache.upsertProduct(snapshot);
+    }
+
+    console.log(`[ProductsStore] Mode local: produit mis à jour ${productId}`);
+  }
+
+  /**
+   * Ajoute un purchase en mode local (alias pour #createPurchaseLocal)
+   */
+  async addPurchaseToLocal(
+    productId: string,
+    quantities: Array<{ q: number; u: string }>,
+    options: {
+      invoiceId?: string;
+      notes?: string;
+      store?: string;
+    },
+  ): Promise<void> {
+    return await this.createPurchaseLocal(productId, quantities, options);
+  }
+
+  /**
+   * Met à jour un purchase en mode local
+   */
+  async updatePurchaseLocal(
+    purchaseId: string,
+    updates: Partial<Purchases>,
+  ): Promise<void> {
+    // 1. Trouver le produit qui contient ce purchase
+    let targetProductId: string | null = null;
+    for (const [productId, productModel] of this.#enrichedProducts) {
+      if (productModel.data.purchases?.some((p) => p.$id === purchaseId)) {
+        targetProductId = productId;
+        break;
+      }
+    }
+
+    if (!targetProductId) {
+      throw new Error(`Purchase ${purchaseId} introuvable`);
+    }
+
+    // 2. Mettre à jour le purchase dans la liste
+    const productModel = this.#enrichedProducts.get(targetProductId);
+    const updatedPurchases = productModel.data.purchases.map((p) =>
+      p.$id === purchaseId
+        ? { ...p, ...updates, $updatedAt: new Date().toISOString() }
+        : p,
+    );
+
+    // 3. Mettre à jour via la méthode générique
+    await this.updateProductLocal(targetProductId, {
+      purchases: updatedPurchases,
+    });
+  }
+
+  /**
+   * Supprime un purchase en mode local
+   */
+  async deletePurchaseLocal(purchaseId: string): Promise<void> {
+    // 1. Trouver le produit qui contient ce purchase
+    let targetProductId: string | null = null;
+    for (const [productId, productModel] of this.#enrichedProducts) {
+      if (productModel.data.purchases?.some((p) => p.$id === purchaseId)) {
+        targetProductId = productId;
+        break;
+      }
+    }
+
+    if (!targetProductId) {
+      throw new Error(`Purchase ${purchaseId} introuvable`);
+    }
+
+    // 2. Filtrer pour retirer le purchase
+    const productModel = this.#enrichedProducts.get(targetProductId);
+    const updatedPurchases = productModel.data.purchases.filter(
+      (p) => p.$id !== purchaseId,
+    );
+
+    // 3. Mettre à jour via la méthode générique
+    await this.updateProductLocal(targetProductId, {
+      purchases: updatedPurchases,
+    });
+  }
+
+  // =========================================================================
+  // API PUBLIQUE (avec guards intégrés)
+  // =========================================================================
+
+  /**
+   * Crée un purchase (avec détection automatique du mode)
+   * Cette méthode route vers la version locale ou Appwrite
+   */
+  async createPurchase(
+    productId: string,
+    quantities: Array<{ q: number; u: string }>,
+    options: {
+      invoiceId?: string;
+      notes?: string;
+      store?: string;
+    },
+  ): Promise<void> {
+    if (this.#isLocalMode()) {
+      return await this.createPurchaseLocal(productId, quantities, options);
+    } else {
+      // Mode normal : utiliser le service Appwrite
+      const { createQuickValidationPurchases } = await import(
+        "../services/appwrite-products"
+      );
+      await createQuickValidationPurchases(
+        this.#currentMainId!,
+        productId,
+        quantities,
+        options,
+      );
+    }
+  }
+
+  /**
+   * Met à jour un purchase (avec détection automatique du mode)
+   */
+  async updatePurchase(
+    purchaseId: string,
+    updates: Partial<Purchases>,
+  ): Promise<void> {
+    if (this.#isLocalMode()) {
+      return await this.updatePurchaseLocal(purchaseId, updates);
+    } else {
+      const { updatePurchase } = await import("../services/appwrite-products");
+      await updatePurchase(purchaseId, updates);
+    }
+  }
+
+  /**
+   * Supprime un purchase (avec détection automatique du mode)
+   */
+  async deletePurchase(purchaseId: string): Promise<void> {
+    if (this.#isLocalMode()) {
+      return await this.deletePurchaseLocal(purchaseId);
+    } else {
+      const { deletePurchase } = await import("../services/appwrite-products");
+      await deletePurchase(purchaseId);
+    }
+  }
+
+  /**
+   * Crée un produit (avec détection automatique du mode)
+   */
+  async createProduct(productData: {
+    productName: string;
+    productType?: string;
+    pF?: boolean;
+    pS?: boolean;
+    status?: string;
+    who?: string[];
+    store?: string;
+    stockReel?: string;
+  }): Promise<string> {
+    if (this.#isLocalMode()) {
+      return await this.createProductLocal(productData);
+    } else {
+      // Mode normal : utiliser le service Appwrite
+      const { upsertProduct } = await import("../services/appwrite-products");
+      const newProduct = await upsertProduct(
+        crypto.randomUUID(),
+        productData,
+        (id) => this.getEnrichedProductById(id),
+      );
+      return newProduct.$id;
+    }
+  }
+
+  /**
+   * Transforme les données EnrichedProduct vers le format ProductUpdate attendu par Appwrite
+   * Gère les sérialisations nécessaires (storeInfo, totalNeededOverride)
+   * @private
+   */
+  #transformToAppwriteFormat(
+    updates: Partial<EnrichedProduct>,
+  ): Record<string, any> {
+    const transformed: Record<string, any> = {};
+
+    // Transformation storeInfo → store (JSON string)
+    if ("storeInfo" in updates && updates.storeInfo !== undefined) {
+      transformed.store = updates.storeInfo
+        ? JSON.stringify(updates.storeInfo)
+        : null;
+    }
+
+    // Transformation totalNeededOverride → JSON string
+    if (
+      "totalNeededOverride" in updates &&
+      updates.totalNeededOverride !== undefined
+    ) {
+      transformed.totalNeededOverride = updates.totalNeededOverride
+        ? JSON.stringify(updates.totalNeededOverride)
+        : "";
+    }
+
+    // Champs qui passent tels quels (pas de transformation nécessaire)
+    const directFields: (keyof EnrichedProduct)[] = [
+      "productName",
+      "productType",
+      "status",
+      "who",
+      "store",
+      "stockReel",
+      "pF",
+      "pS",
+      "previousNames",
+      "isMerged",
+      "mergedFrom",
+      "mergeDate",
+      "mergeReason",
+      "mergedInto",
+    ];
+
+    for (const field of directFields) {
+      if (field in updates && updates[field] !== undefined) {
+        transformed[field] = updates[field];
+      }
+    }
+
+    return transformed;
+  }
+
+  /**
+   * Met à jour un produit (avec détection automatique du mode)
+   * Version générique qui remplace updateProductFields, updateWho, updateStore, etc.
+   */
+  async updateProduct(
+    productId: string,
+    updates: Partial<EnrichedProduct>,
+  ): Promise<void> {
+    if (this.#isLocalMode()) {
+      return await this.updateProductLocal(productId, updates);
+    } else {
+      // Mode normal : transformer vers format Appwrite et envoyer
+      const { updateProduct: updateProductAppwrite } = await import(
+        "../services/appwrite-products"
+      );
+      const appwriteUpdates = this.#transformToAppwriteFormat(updates);
+      await updateProductAppwrite(productId, appwriteUpdates);
+    }
+  }
+
+  /**
+   * Met à jour un produit en batch (avec détection automatique du mode)
+   * En mode normal : utilise la cloud function optimisée
+   * En mode local : boucle d'appels à updateProductLocal
+   */
+  async updateProductBatch(
+    productId: string,
+    updates: Partial<EnrichedProduct>,
+    callback?: (id: string) => EnrichedProduct | undefined,
+  ): Promise<void> {
+    if (this.#isLocalMode()) {
+      // Mode local : boucle d'appels à #updateProductLocal
+      for (const [key, value] of Object.entries(updates)) {
+        await this.updateProductLocal(productId, { [key]: value });
+      }
+    } else {
+      // Mode normal : appel batch Appwrite (cloud function optimisée)
+      const { updateProductBatch } = await import(
+        "../services/appwrite-products"
+      );
+      await updateProductBatch(
+        productId,
+        updates,
+        callback || ((id) => this.getEnrichedProductById(id)),
+      );
+    }
+  }
+
+  // =========================================================================
+  // MÉTHODES BATCH AVEC GUARDS
+  // =========================================================================
+
+  /**
+   * Met à jour plusieurs produits en batch (avec détection automatique du mode)
+   * Utilisé par WhoBatchEditModal et StoreBatchEditModal
+   */
+  async batchUpdateProducts(
+    productIds: string[],
+    products: EnrichedProduct[],
+    updateType: "who" | "store",
+    updateData: { names?: string[] } | StoreInfo,
+  ): Promise<BatchUpdateResult> {
+    if (this.#isLocalMode()) {
+      return await this.#batchUpdateProductsLocal(
+        productIds,
+        updateType,
+        updateData,
+      );
+    } else {
+      const { batchUpdateProductsOptimized } = await import(
+        "../services/appwrite-products"
+      );
+      return await batchUpdateProductsOptimized(
+        productIds,
+        products,
+        updateType,
+        updateData,
+      );
+    }
+  }
+
+  /**
+   * Met à jour plusieurs produits en mode local
+   */
+  async #batchUpdateProductsLocal(
+    productIds: string[],
+    updateType: "who" | "store",
+    updateData: { names?: string[] } | StoreInfo,
+  ): Promise<BatchUpdateResult> {
+    try {
+      let updatedCount = 0;
+
+      for (const productId of productIds) {
+        if (updateType === "who") {
+          const whoList = (updateData as { names?: string[] }).names || [];
+          await this.updateProductLocal(productId, { who: whoList });
+        } else if (updateType === "store") {
+          const storeInfo = updateData as StoreInfo;
+          await this.updateProductLocal(productId, { storeInfo });
+        }
+        updatedCount++;
+      }
+
+      return {
+        success: true,
+        updatedCount,
+        updateType,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        updatedCount: 0,
+        updateType,
+        error: error instanceof Error ? error.message : "Erreur inconnue",
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Crée des achats groupés (avec détection automatique du mode)
+   * Utilisé par GroupPurchaseModal
+   */
+  async createGroupPurchase(
+    productsData: Array<{
+      productId: string;
+      isSynced: boolean;
+      missingQuantities: Array<{ q: number; u: string }>;
+    }>,
+    invoiceData: {
+      invoiceId: string;
+      invoiceTotal?: number;
+      store?: string;
+      notes?: string;
+      who?: string;
+      purchaseStatus?: string | null;
+      purchaseDeliveryDate?: string | null;
+    },
+  ): Promise<GroupPurchaseBatchResult> {
+    if (this.#isLocalMode()) {
+      return await this.#createGroupPurchaseLocal(productsData, invoiceData);
+    } else {
+      const { createGroupPurchaseWithSync } = await import(
+        "../services/appwrite-transaction"
+      );
+      return await createGroupPurchaseWithSync(
+        this.#currentMainId!,
+        productsData,
+        invoiceData,
+      );
+    }
+  }
+
+  /**
+   * Crée des achats groupés en mode local
+   */
+  async #createGroupPurchaseLocal(
+    productsData: Array<{
+      productId: string;
+      isSynced: boolean;
+      missingQuantities: Array<{ q: number; u: string }>;
+    }>,
+    invoiceData: {
+      invoiceId: string;
+      invoiceTotal?: number;
+      store?: string;
+      notes?: string;
+      who?: string;
+      purchaseStatus?: string | null;
+      purchaseDeliveryDate?: string | null;
+    },
+  ): Promise<GroupPurchaseBatchResult> {
+    try {
+      if (!productsData?.length) {
+        return {
+          success: false,
+          results: [],
+          totalProductsCreated: 0,
+          totalPurchasesCreated: 0,
+          totalExpensesCreated: 0,
+          error: "Aucun produit à traiter",
+        };
+      }
+
+      let totalPurchasesCreated = 0;
+
+      for (const productData of productsData) {
+        await this.createPurchaseLocal(
+          productData.productId,
+          productData.missingQuantities,
+          {
+            invoiceId: invoiceData.invoiceId,
+            notes: invoiceData.notes,
+            store: invoiceData.store,
+          },
+        );
+        totalPurchasesCreated++;
+      }
+
+      return {
+        success: true,
+        results: [],
+        totalProductsCreated: productsData.length,
+        totalPurchasesCreated,
+        totalExpensesCreated: 0,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        results: [],
+        totalProductsCreated: 0,
+        totalPurchasesCreated: 0,
+        totalExpensesCreated: 0,
+        error: error instanceof Error ? error.message : "Erreur inconnue",
+      };
+    }
   }
 
   destroy() {

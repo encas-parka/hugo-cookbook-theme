@@ -37,13 +37,8 @@
  * Écriture CRUD :
  * • createMainDocument() : Création document main
  * • upsertProduct() : Création/Mise à jour produit (avec sync logic)
- * • updateProduct() : Mise à jour produit direct
+ * • updateProduct() : Mise à jour produit direct (générique)
  * • createPurchase/updatePurchase/deletePurchase() : CRUD achats
- *
- * Gestion spécifique :
- * • updateProductStock() : Mise à jour stock
- * • updateProductStore() : Mise à jour magasin
- * • updateProductWho() : Mise à jour volontaires
  *
  * Realtime :
  * • subscribeToRealtime() : Abonnement événements produits/achats
@@ -825,120 +820,6 @@ export async function createManualProduct(
     );
     throw error;
   }
-}
-
-/**
- * Met à jour le magasin d'un produit
- * @param productId - ID du produit
- * @param store - Nouveau magasin (objet StoreInfo ou null)
- */
-export async function updateProductStore(
-  productId: string,
-  store: StoreInfo,
-): Promise<Products> {
-  // console.log(`[Appwrite Interactions] Mise à jour du magasin pour produit ${productId}:`, store);
-
-  // Valider les entrées
-  if (!productId) {
-    throw new Error("ID du produit requis pour la mise à jour du magasin");
-  }
-
-  // Sérialiser l'objet StoreInfo en string JSON pour Appwrite
-  const serializedStore = store ? JSON.stringify(store) : null;
-
-  const result = await updateProduct(productId, {
-    store: serializedStore || undefined,
-  });
-  console.log(
-    `[Appwrite Interactions] Magasin mis à jour pour produit ${productId}, nouvelle valeur:`,
-    result.store,
-  );
-
-  return result;
-}
-
-/**
- * Met à jour la liste des volontaires pour un produit
- * @param productId - ID du produit
- * @param who - Liste des volontaires (null pour vide)
- */
-export async function updateProductWho(
-  productId: string,
-  who: string[] | null,
-): Promise<Products> {
-  return updateProduct(productId, { who });
-}
-
-/**
- * Met à jour le stock réel d'un produit
- * @param productId - ID du produit
- * @param stockReel - Nouveau stock au format JSON string
- */
-export async function updateProductStock(
-  productId: string,
-  stockReel: string | null,
-): Promise<Products> {
-  return updateProduct(productId, { stockReel });
-}
-
-/**
- * Met à jour le totalNeededOverride d'un produit
- * @param productId - ID du produit à mettre à jour
- * @param overrideData - Données de l'override
- * @param putUpdatedBy - Si true, ajoute le champ updatedBy (défaut: false pour les updates automatiques)
- * @returns Promise<Products>
- */
-export async function updateTotalOverride(
-  productId: string,
-  overrideData: TotalNeededOverrideData,
-  putUpdatedBy: boolean = false,
-): Promise<Products> {
-  if (!productId) {
-    throw new Error("ID du produit requis pour la mise à jour de l'override");
-  }
-
-  // Sérialiser l'objet TotalNeededOverrideData en string JSON pour Appwrite
-  const serializedOverride = JSON.stringify(overrideData);
-
-  const result = await updateProduct(
-    productId,
-    { totalNeededOverride: serializedOverride },
-    putUpdatedBy,
-  );
-
-  console.log(
-    `[Appwrite Interactions] Total override mis à jour pour le produit ${productId}:`,
-    overrideData,
-  );
-
-  return result;
-}
-
-/**
- * Supprime le totalNeededOverride d'un produit (remet à chaîne vide)
- * @param productId - ID du produit à mettre à jour
- * @param putUpdatedBy - Si true, ajoute le champ updatedBy (défaut: false)
- * @returns Promise<Products>
- */
-export async function removeTotalOverride(
-  productId: string,
-  putUpdatedBy: boolean = true,
-): Promise<Products> {
-  if (!productId) {
-    throw new Error("ID du produit requis pour la suppression de l'override");
-  }
-
-  const result = await updateProduct(
-    productId,
-    { totalNeededOverride: "" },
-    putUpdatedBy,
-  );
-
-  console.log(
-    `[Appwrite Interactions] Total override supprimé pour le produit ${productId}`,
-  );
-
-  return result;
 }
 
 // =============================================================================
@@ -1807,11 +1688,6 @@ export default {
 
   // Services produits - mise à jour
   updateProduct,
-  updateProductStore,
-  updateProductWho,
-  updateProductStock,
-  updateTotalOverride,
-  removeTotalOverride,
 
   // Services produits - modification groupée
 

@@ -1,15 +1,3 @@
-import {
-  createPurchase,
-  deletePurchase,
-  updateProductStock,
-  updateProductStore,
-  updateProductWho,
-  updatePurchase,
-  upsertProduct,
-  updateProductBatch,
-  updateTotalOverride,
-  removeTotalOverride,
-} from "../services/appwrite-products";
 import { generateRecipesWithDates } from "../utils/productsUtils";
 import type { Purchases } from "../types/appwrite";
 import type {
@@ -227,20 +215,10 @@ export class ProductModalState implements ProductModalStateType {
         throw new Error("Veuillez remplir les champs obligatoires");
       }
 
-      if (!productsStore.currentMainId) {
-        throw new Error("mainId non disponible");
-      }
-
       const { value: quantity, unit: unit } = convertAndFormatQuantity(
         this.forms.purchase.quantity,
         this.forms.purchase.unit,
       );
-
-      if (!this.product!.isSynced) {
-        await upsertProduct(this.product!.$id, {}, (id) =>
-          productsStore.getEnrichedProductById(id),
-        );
-      }
 
       const purchaseStatus = this.forms.purchase.status || "delivered";
       let deliveryDate = this.forms.purchase.deliveryDate || null;
@@ -254,24 +232,23 @@ export class ProductModalState implements ProductModalStateType {
       const normalizedQuantity = normalized.quantity;
       const normalizedUnit = normalized.unit;
 
-      await createPurchase({
-        products: [this.product!.$id],
-        mainId: productsStore.currentMainId!,
-        unit: normalizedUnit,
-        quantity: normalizedQuantity,
-        store: this.forms.purchase.store || null,
-        who: this.forms.purchase.who || null,
-        notes: this.forms.purchase.notes || "",
-        price: this.forms.purchase.price || null,
-        status: purchaseStatus,
-        orderDate: this.forms.purchase.orderDate || null,
-        deliveryDate,
-        invoiceId: null,
-        invoiceTotal: null,
-      });
+      // Utiliser ProductsStore (guard interne local/Appwrite)
+      await productsStore.createPurchase(
+        this.product!.$id,
+        [{ q: normalizedQuantity, u: normalizedUnit }],
+        {
+          store: this.forms.purchase.store || undefined,
+          who: this.forms.purchase.who || undefined,
+          notes: this.forms.purchase.notes || "",
+          price: this.forms.purchase.price || null,
+          status: purchaseStatus,
+          orderDate: this.forms.purchase.orderDate || null,
+          deliveryDate,
+          invoiceId: undefined,
+        },
+      );
 
       // Reset form
-      // Convertir automatiquement les unités (gr->kg, ml->l) pour >= 1000
       const firstMissingAfterAdd = this.product!.missingQuantityArray[0];
       let resetQuantity: number | null = null;
       let resetUnit = this.product!.totalNeededArray[0]?.u ?? "";
@@ -325,7 +302,8 @@ export class ProductModalState implements ProductModalStateType {
         deliveryDate = new Date().toISOString();
       }
 
-      await updatePurchase(updatedPurchase.$id, {
+      // Utiliser ProductsStore
+      await productsStore.updatePurchase(updatedPurchase.$id, {
         unit: normalized.unit,
         quantity: normalized.quantity,
         store: updatedPurchase.store || null,
@@ -352,7 +330,8 @@ export class ProductModalState implements ProductModalStateType {
     }
 
     await this.withLoading(async () => {
-      await deletePurchase(purchaseId);
+      // Utiliser ProductsStore
+      await productsStore.deletePurchase(purchaseId);
     }, "Achat supprimé avec succès");
   }
 
@@ -377,15 +356,10 @@ export class ProductModalState implements ProductModalStateType {
         dateTime: this.forms.stock.dateTime,
       };
 
-      if (!this.product!.isSynced) {
-        await upsertProduct(
-          this.product!.$id,
-          { stockReel: JSON.stringify(newEntry) },
-          (id) => productsStore.getEnrichedProductById(id),
-        );
-      } else {
-        await updateProductStock(this.product!.$id, JSON.stringify(newEntry));
-      }
+      // Utiliser ProductsStore - updateProduct générique
+      await productsStore.updateProduct(this.product!.$id, {
+        stockReel: JSON.stringify(newEntry),
+      });
 
       this.forms.stock.quantity = null;
       this.forms.stock.notes = "";
@@ -399,13 +373,10 @@ export class ProductModalState implements ProductModalStateType {
     if (!confirm("Supprimer le stock actuel ?")) return;
 
     await this.withLoading(async () => {
-      if (!this.product!.isSynced) {
-        await upsertProduct(this.product!.$id, { stockReel: null }, (id) =>
-          productsStore.getEnrichedProductById(id),
-        );
-      } else {
-        await updateProductStock(this.product!.$id, null);
-      }
+      // Utiliser ProductsStore - updateProduct générique
+      await productsStore.updateProduct(this.product!.$id, {
+        stockReel: null,
+      });
     }, "Stock supprimé");
   }
 
@@ -413,13 +384,10 @@ export class ProductModalState implements ProductModalStateType {
     if (!this.product) return;
 
     await this.withLoading(async () => {
-      if (!this.product!.isSynced) {
-        await upsertProduct(this.product!.$id, { who: newWhoList }, (id) =>
-          productsStore.getEnrichedProductById(id),
-        );
-      } else {
-        await updateProductWho(this.product!.$id, newWhoList);
-      }
+      // Utiliser ProductsStore - updateProduct générique
+      await productsStore.updateProduct(this.product!.$id, {
+        who: newWhoList,
+      });
     }, "Volontaires mis à jour");
   }
 
@@ -427,15 +395,10 @@ export class ProductModalState implements ProductModalStateType {
     if (!this.product) return;
 
     await this.withLoading(async () => {
-      if (!this.product!.isSynced) {
-        await upsertProduct(
-          this.product!.$id,
-          { store: JSON.stringify(storeInfo) },
-          (id) => productsStore.getEnrichedProductById(id),
-        );
-      } else {
-        await updateProductStore(this.product!.$id, storeInfo);
-      }
+      // Utiliser ProductsStore - updateProduct générique
+      await productsStore.updateProduct(this.product!.$id, {
+        storeInfo,
+      });
     }, "Magasin mis à jour");
   }
 
@@ -443,15 +406,10 @@ export class ProductModalState implements ProductModalStateType {
     if (!this.product) return;
 
     await this.withLoading(async () => {
-      if (!this.product!.isSynced) {
-        await upsertProduct(
-          this.product!.$id,
-          { totalNeededOverride: JSON.stringify(overrideData) },
-          (id) => productsStore.getEnrichedProductById(id),
-        );
-      } else {
-        await updateTotalOverride(this.product!.$id, overrideData, true);
-      }
+      // Utiliser ProductsStore - updateProduct générique
+      await productsStore.updateProduct(this.product!.$id, {
+        totalNeededOverride: JSON.stringify(overrideData),
+      });
     }, "Override appliqué");
   }
 
@@ -464,7 +422,10 @@ export class ProductModalState implements ProductModalStateType {
       return;
 
     await this.withLoading(async () => {
-      await removeTotalOverride(this.product!.$id, true);
+      // Utiliser ProductsStore - updateProduct générique
+      await productsStore.updateProduct(this.product!.$id, {
+        totalNeededOverride: null,
+      });
     }, "Override supprimé");
   }
 
@@ -501,8 +462,11 @@ export class ProductModalState implements ProductModalStateType {
       }
 
       if (Object.keys(batchUpdates).length > 0) {
-        await updateProductBatch(this.product!.$id, batchUpdates, (id) =>
-          productsStore.getEnrichedProductById(id),
+        // Utiliser ProductsStore (guard gère le mode)
+        await productsStore.updateProductBatch(
+          this.product!.$id,
+          batchUpdates,
+          (id) => productsStore.getEnrichedProductById(id),
         );
 
         this.originalFormsSnapshot = {
