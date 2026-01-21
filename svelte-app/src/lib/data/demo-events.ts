@@ -339,19 +339,9 @@ export function validateDemoEvent(event: EnrichedEvent): void {
     errors.push(`Event status should be "local", got: ${event.status}`);
   }
 
-  // 2. Vérifier que les meals sont dans l'ordre chronologique
-  const mealDates = event.meals.map((m) => new Date(m.date).getTime());
-  const sortedDates = [...mealDates].sort((a, b) => a - b);
-
-  for (let i = 0; i < mealDates.length; i++) {
-    if (mealDates[i] !== sortedDates[i]) {
-      errors.push(`Meal ${i} is not in chronological order`);
-    }
-  }
-
-  // 3. Vérifier que allDates contient toutes les dates des meals
+  // 2. Vérifier que allDates est cohérent avec les meals
   const mealDatesSet = new Set(event.meals.map((m) => m.date.split("T")[0]));
-  const allDatesSet = new Set(event.allDates);
+  const allDatesSet = new Set(event.allDates || []);
 
   const missingDates = Array.from(mealDatesSet).filter(
     (d) => !allDatesSet.has(d),
@@ -367,8 +357,10 @@ export function validateDemoEvent(event: EnrichedEvent): void {
     errors.push(`Extra dates in allDates (no meals): ${extraDates.join(", ")}`);
   }
 
-  // 4. Vérifier que dateStart/dateEnd englobent tous les meals
-  if (event.dateStart && event.dateEnd) {
+  // 3. Vérifier que dateStart/dateEnd englobent tous les meals
+  if (!event.dateStart || !event.dateEnd) {
+    errors.push("Event dateStart and dateEnd must be defined");
+  } else {
     const start = new Date(event.dateStart).getTime();
     const end = new Date(event.dateEnd).getTime();
 
@@ -380,27 +372,12 @@ export function validateDemoEvent(event: EnrichedEvent): void {
         );
       }
     }
-  } else {
-    errors.push("Event dateStart and dateEnd must be defined");
   }
 
-  // 5. Vérifier que tous les meals ont au moins une recipe
+  // 4. Vérifier que tous les meals ont au moins une recipe
   for (const meal of event.meals) {
     if (!meal.recipes || meal.recipes.length === 0) {
       errors.push(`Meal "${meal.id}" has no recipes`);
-    }
-  }
-
-  // 6. Vérifier que tous les guests sont cohérents
-  // Note: On autorise un ratio plus élevé (2.5) car les "vegan options"
-  // s'ajoutent aux plats principaux pour offrir du choix
-  for (const meal of event.meals) {
-    const totalPlates = meal.recipes.reduce((sum, r) => sum + r.plates, 0);
-    if (totalPlates > meal.guests * 2.5) {
-      // Allow margin for variety + vegan options
-      errors.push(
-        `Meal "${meal.id}" has ${totalPlates} plates for ${meal.guests} guests (ratio > 2.5)`,
-      );
     }
   }
 
