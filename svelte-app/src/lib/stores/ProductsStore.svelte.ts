@@ -38,8 +38,7 @@ import { DateRangeStore } from "./DateRangeStore.svelte";
 import { eventsStore } from "./EventsStore.svelte";
 import { recipesStore } from "./RecipesStore.svelte";
 import { recalculatePurchaseDependents } from "../utils/productEnrichment";
-import { realtimeManager } from "./RealtimeManager.svelte";
-import { getDatabaseId, getCollectionId } from "../services/appwrite";
+import { setupProductsRealtimeHandler } from "../services/products-realtime.service";
 
 /**
  * ProductsStore - Store principal de gestion des produits avec Svelte 5
@@ -569,9 +568,8 @@ class ProductsStore {
       // Marquer comme initialisé
       this.#isInitialized = true;
 
-      // 6. Setup realtime (Appwrite via RealtimeManager avec inscription dynamique)
-      const callbacks = this.#setupRealtimeCallbacks();
-      this.#setupRealtimeSubscriptions(callbacks);
+      // 6. Setup realtime (Appwrite via service externalisé)
+      this.#setupRealtimeSubscriptions();
 
       // 7. Setup Reactive Sync avec EventsStore (Meals updates)
       if (this.#cleanupSyncEffect) this.#cleanupSyncEffect();
@@ -1179,42 +1177,28 @@ class ProductsStore {
   // REALTIME
   // =========================================================================
 
+  /**
+   * Handler commun pour create/update de produit (DRY)
+   */
+  #handleProductUpsert(product: Products): void {
+    this.#upsertEnrichedProduct(product);
+    // Persistence immédiate du produit modifié
+    if (this.#idbCache) {
+      const model = this.#enrichedProducts.get(product.$id);
+      if (model) {
+        this.#idbCache
+          .upsertProduct($state.snapshot(model.data))
+          .catch((err) =>
+            console.error("[ProductsStore] Erreur persistence produit:", err),
+          );
+      }
+    }
+  }
+
   #setupRealtimeCallbacks() {
     return {
-      onProductCreate: (product: Products) => {
-        this.#upsertEnrichedProduct(product);
-        // Persistence immédiate du produit modifié
-        if (this.#idbCache) {
-          const model = this.#enrichedProducts.get(product.$id);
-          if (model) {
-            this.#idbCache
-              .upsertProduct($state.snapshot(model.data))
-              .catch((err) =>
-                console.error(
-                  "[ProductsStore] Erreur persistence produit:",
-                  err,
-                ),
-              );
-          }
-        }
-      },
-      onProductUpdate: (product: Products) => {
-        this.#upsertEnrichedProduct(product);
-        // Persistence immédiate du produit modifié
-        if (this.#idbCache) {
-          const model = this.#enrichedProducts.get(product.$id);
-          if (model) {
-            this.#idbCache
-              .upsertProduct($state.snapshot(model.data))
-              .catch((err) =>
-                console.error(
-                  "[ProductsStore] Erreur persistence produit:",
-                  err,
-                ),
-              );
-          }
-        }
-      },
+      onProductCreate: (product: Products) => this.#handleProductUpsert(product),
+      onProductUpdate: (product: Products) => this.#handleProductUpsert(product),
       onProductDelete: (productId: string) => {
         this.#removeEnrichedProduct(productId);
         // Persistence immédiate de la suppression
@@ -1270,127 +1254,18 @@ class ProductsStore {
   }
 
   /**
-   * Configure les abonnements realtime via RealtimeManager
+   * Configure les abonnements realtime via le service externalisé
    */
-  #setupRealtimeSubscriptions(callbacks: {
-    onProductCreate: (product: Products) => void;
-    onProductUpdate: (product: Products) => void;
-    onProductDelete: (productId: string) => void;
-    onPurchaseCreate: (purchase: Purchases) => void;
-    onPurchaseUpdate: (purchase: Purchases) => void;
-    onPurchaseDelete: (purchaseId: string) => void;
-    onConnect: () => void;
-    onDisconnect: () => void;
-    onError: (error: any) => void;
-  }): void {
+  #setupRealtimeSubscriptions(): void {
     // 🔥 MODE LOCAL: Skip realtime
     if (this.#isLocalMode()) {
       console.log("[ProductsStore] Mode local: skip realtime setup");
       return;
     }
 
-    // Mode normal (existing code)
-    const DB_ID = getDatabaseId();
-    const PRODUCTS_COLLECTION = getCollectionId("products");
-    const PURCHASES_COLLECTION = getCollectionId("purchases");
-
-    const channels = [
-      `databases.${DB_ID}.collections.${PRODUCTS_COLLECTION}.documents`,
-      `databases.${DB_ID}.collections.${PURCHASES_COLLECTION}.documents`,
-    ];
-
-    // Créer le handler pour les événements realtime
-    const handleRealtimeEvent = (response: any) => {
-      const { events, payload } = response;
-      if (!payload) return;
-
-      // Gérer les événements de connexion
-      if (response.event === "client.connected") {
-        callbacks.onConnect();
-        return;
-      }
-
-      // Déterminer le type de collection et d'événement
-      const isProductsCollection = events.some((e: string) =>
-        e.includes("products."),
-      );
-      const isPurchasesCollection = events.some((e: string) =>
-        e.includes("purchases."),
-      );
-
-      const isCreate = events.some((e: string) => e.includes(".create"));
-      const isUpdate = events.some((e: string) => e.includes(".update"));
-      const isDelete = events.some((e: string) => e.includes(".delete"));
-
-      // Dispatcher vers les callbacks appropriés
-      if (isProductsCollection) {
-        const product = payload as Products;
-
-        // Toast notifications pour les autres utilisateurs
-        if (product.updatedBy && product.updatedBy !== globalState.userName) {
-          if (isCreate || isUpdate) {
-            toastService.info(
-              `${product.updatedBy} a modifié le produit "${product.productName}"`,
-              { source: "realtime-other" },
-            );
-          } else if (isDelete) {
-            toastService.info(`${product.updatedBy} a supprimé un produit`, {
-              source: "realtime-other",
-            });
-          }
-        }
-
-        if (isCreate && callbacks.onProductCreate) {
-          callbacks.onProductCreate(product);
-        } else if (isUpdate && callbacks.onProductUpdate) {
-          callbacks.onProductUpdate(product);
-        } else if (isDelete && callbacks.onProductDelete) {
-          callbacks.onProductDelete(product.$id);
-        }
-      } else if (isPurchasesCollection) {
-        const purchase = payload as Purchases;
-
-        // Toast notifications pour les autres utilisateurs
-        if (purchase.createdBy && purchase.createdBy !== globalState.userName) {
-          const productName = "un produit"; // Message générique (purchase.products est maintenant string[])
-
-          if (isCreate && purchase.who !== globalState.userName) {
-            toastService.info(
-              `${purchase.who} a ajouté un achat pour ${productName}`,
-              { source: "realtime-other" },
-            );
-          } else if (isUpdate && purchase.who !== globalState.userName) {
-            toastService.info(
-              `${purchase.who} a modifié un achat pour ${productName}`,
-              { source: "realtime-other" },
-            );
-          } else if (isDelete) {
-            toastService.info(
-              `${purchase.who} a supprimé un achat pour ${productName}`,
-              { source: "realtime-other" },
-            );
-          }
-        }
-
-        if (isCreate && callbacks.onPurchaseCreate) {
-          callbacks.onPurchaseCreate(purchase);
-        } else if (isUpdate && callbacks.onPurchaseUpdate) {
-          callbacks.onPurchaseUpdate(purchase);
-        } else if (isDelete && callbacks.onPurchaseDelete) {
-          callbacks.onPurchaseDelete(purchase.$id);
-        }
-      }
-    };
-
-    // S'inscrire via RealtimeManager (inscription dynamique)
-    this.#unsubscribe = realtimeManager.registerDynamic(
-      channels,
-      handleRealtimeEvent,
-    );
-
-    console.log(
-      `[ProductsStore] ✅ Realtime configuré via RealtimeManager (${channels.length} channels)`,
-    );
+    // Utiliser le service externalisé
+    const callbacks = this.#setupRealtimeCallbacks();
+    this.#unsubscribe = setupProductsRealtimeHandler(callbacks);
   }
 
   // =========================================================================
@@ -2001,62 +1876,9 @@ class ProductsStore {
   }
 
   /**
-   * Transforme les données EnrichedProduct vers le format ProductUpdate attendu par Appwrite
-   * Gère les sérialisations nécessaires (storeInfo, totalNeededOverride)
-   * @private
-   */
-  #transformToAppwriteFormat(
-    updates: Partial<EnrichedProduct>,
-  ): Record<string, any> {
-    const transformed: Record<string, any> = {};
-
-    // Transformation storeInfo → store (JSON string)
-    if ("storeInfo" in updates && updates.storeInfo !== undefined) {
-      transformed.store = updates.storeInfo
-        ? JSON.stringify(updates.storeInfo)
-        : null;
-    }
-
-    // Transformation totalNeededOverride → JSON string
-    if (
-      "totalNeededOverride" in updates &&
-      updates.totalNeededOverride !== undefined
-    ) {
-      transformed.totalNeededOverride = updates.totalNeededOverride
-        ? JSON.stringify(updates.totalNeededOverride)
-        : "";
-    }
-
-    // Champs qui passent tels quels (pas de transformation nécessaire)
-    const directFields: (keyof EnrichedProduct)[] = [
-      "productName",
-      "productType",
-      "status",
-      "who",
-      "store",
-      "stockReel",
-      "pF",
-      "pS",
-      "previousNames",
-      "isMerged",
-      "mergedFrom",
-      "mergeDate",
-      "mergeReason",
-      "mergedInto",
-    ];
-
-    for (const field of directFields) {
-      if (field in updates && updates[field] !== undefined) {
-        transformed[field] = updates[field];
-      }
-    }
-
-    return transformed;
-  }
-
-  /**
    * Met à jour un produit (avec détection automatique du mode)
    * Version générique qui remplace updateProductFields, updateWho, updateStore, etc.
+   *
    */
   async updateProduct(
     productId: string,
@@ -2065,12 +1887,13 @@ class ProductsStore {
     if (this.#isLocalMode()) {
       return await this.updateProductLocal(productId, updates);
     } else {
-      // Mode normal : transformer vers format Appwrite et envoyer
+      // Mode normal : passer updates direct à Appwrite (sérialisation automatique)
       const { updateProduct: updateProductAppwrite } = await import(
         "../services/appwrite-products"
       );
-      const appwriteUpdates = this.#transformToAppwriteFormat(updates);
-      await updateProductAppwrite(productId, appwriteUpdates);
+      // ⚡ SIMPLIFICATION 2026-01-21 : Plus de #transformToAppwriteFormat()
+      // Appwrite client fait le JSON.stringify automatiquement des objets
+      await updateProductAppwrite(productId, updates);
     }
   }
 
