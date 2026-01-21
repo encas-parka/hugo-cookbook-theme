@@ -143,6 +143,11 @@
   });
 
   const isLockedByMe = $derived.by(() => {
+    // 🔥 MODE LOCAL : Toujours considéré comme verrouillé par nous
+    if ((currentEvent?.status as string) === "local") {
+      return true;
+    }
+
     if (!activeLock) return false;
     return activeLock.userId === globalState.userId;
   });
