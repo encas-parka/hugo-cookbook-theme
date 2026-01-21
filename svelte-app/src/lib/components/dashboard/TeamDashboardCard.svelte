@@ -171,7 +171,7 @@
       >
         <!-- Actions Matériel -->
         <div class="card-body">
-          <div class="card card-sm bg-base-300">
+          <div class="card card-sm bg-base-300/60">
             <div class="card-body text-center">
               <p class="font-semibold">
                 Gérez le matériel collectif de cantine :
@@ -179,24 +179,22 @@
               <p>inventaire, gestion des emprunt, partage, etc.</p>
             </div>
           </div>
-          <fieldset class="fieldset w-48">
-            <div class="flex justify-around gap-2">
-              <button
-                class="btn btn-primary btn-soft btn-wide"
-                onclick={goToInventory}
-              >
-                <NotebookPen class="size-4" />
-                Inventaire
-              </button>
-              <button
-                class="btn btn-primary btn-soft btn-wide"
-                onclick={goToReservations}
-              >
-                <ScrollText class="size-4" />
-                Réservations
-              </button>
-            </div>
-          </fieldset>
+          <div class="flex w-full justify-around gap-2">
+            <button
+              class="btn btn-primary btn-soft flex-1"
+              onclick={goToInventory}
+            >
+              <NotebookPen class="size-4" />
+              Inventaire
+            </button>
+            <button
+              class="btn btn-primary btn-soft flex-1"
+              onclick={goToReservations}
+            >
+              <ScrollText class="size-4" />
+              Réservations
+            </button>
+          </div>
         </div>
       </div>
     </div>

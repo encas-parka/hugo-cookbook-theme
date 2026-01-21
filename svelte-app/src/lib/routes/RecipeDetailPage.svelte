@@ -174,7 +174,7 @@
         <div class="mb-4 print:mb-2">
           <div class="flex items-center justify-between gap-x-10 gap-y-4">
             <h1 class="text-primary flex items-center gap-3 print:text-xl">
-              <svg class="me-2 size-9 shrink-0">
+              <svg class="me-2 size-9 shrink-0 stroke-3">
                 <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />
               </svg>
               {recipeDetails.title}

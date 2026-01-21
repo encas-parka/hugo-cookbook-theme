@@ -24,6 +24,14 @@
 
   // Event data
   let event = $derived(eventsStore.getEventById(params.id));
+
+  // Déterminer le basePath selon le mode (demo ou normal)
+  const basePath = $derived.by(() => {
+    return (event?.status as string) === "local"
+      ? "/demo/event"
+      : "/dashboard/eventEdit";
+  });
+
   let eventLoading = $state(false);
   let eventError = $state<string | null>(null);
   let recipesDetails = $state<RecipeForDisplay[]>([]);
@@ -464,7 +472,7 @@
 
   // Go back to event edit
   function goBack() {
-    navigate(`/dashboard/eventEdit/${params.id}`);
+    navigate(`${basePath}/${params.id}`);
   }
 
   async function handleInvitationResponse(accept: boolean) {
@@ -497,6 +505,7 @@
     if (event) {
       navBarStore.setConfig({
         eventId: params.id,
+        basePath,
         title: `Affiches : ${event.name}`,
         backAction: goBack,
         actions: navActions,

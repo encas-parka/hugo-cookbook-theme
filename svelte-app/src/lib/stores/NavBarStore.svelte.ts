@@ -6,6 +6,7 @@ export interface NavBarConfig {
   actions?: Snippet;
   tabs?: Snippet;
   eventId?: string;
+  basePath?: string; // Chemin de base pour les tabs d'événement (ex: "/dashboard/eventEdit" ou "/demo/event")
   activeTab?: number;
   isLockedByOthers?: boolean;
   lockedByUserName?: string;
@@ -37,6 +38,10 @@ class NavBarStore {
 
   get eventId() {
     return this.#config.eventId;
+  }
+
+  get basePath() {
+    return this.#config.basePath || "/dashboard/eventEdit";
   }
 
   get activeTab() {

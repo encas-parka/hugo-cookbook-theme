@@ -194,11 +194,11 @@
       <span class="text-base-content/70 font-medium">Besoin total calculés</span
       >
       <div class="flex items-center gap-3">
-        <span class="text-base-content/60 flex items-center gap-1 text-xs">
+        <span class="text-base-content/80 flex items-center gap-1 text-xs">
           {modalState.product.nbRecipes}
           <CookingPot class="h-3 w-3" />
         </span>
-        <span class="text-base-content/60 flex items-center gap-1 text-xs">
+        <span class="text-base-content/80 flex items-center gap-1 text-xs">
           {modalState.product.totalAssiettes}
           <Utensils class="h-3 w-3" />
         </span>

@@ -65,6 +65,13 @@
   let editingTitle = $state(false);
   let editingDescription = $state(false);
 
+  // Déterminer le basePath selon le mode (demo ou normal)
+  const basePath = $derived.by(() => {
+    return (currentEvent?.status as string) === "local"
+      ? "/demo/event"
+      : "/dashboard/eventEdit";
+  });
+
   // États des modales de confirmation
   let showConfirmStatusModal = $state(false);
   let showCancelStatusModal = $state(false);
@@ -186,6 +193,7 @@
   $effect(() => {
     navBarStore.setConfig({
       eventId: eventId,
+      basePath,
       actions: navActions,
       isLockedByOthers,
       lockedByUserName,
@@ -684,7 +692,7 @@
           disabled={!canEdit}
         >
           <div class="flex items-baseline gap-4">
-            <div class="text-4xl font-bold">
+            <h1 class="">
               {eventName || "Nom de l'événement"}
             </div>
             <PencilLine class="h-4 w-4" />

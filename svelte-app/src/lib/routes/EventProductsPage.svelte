@@ -365,14 +365,11 @@
 
       <!-- card deense et produits ok/manquant -->
       <div class="flex w-full flex-wrap justify-end gap-10">
-      
-        <div class="alert" id="info-past-event">
-          
-        </div>
+        <div class="alert" id="info-past-event"></div>
         <!-- Carte des produits complétés/manquants -->
         <div class="card card-xs sm:card:sm border-2 border-orange-700">
           <div class="card-body">
-                        <div class="card-title text-orange-800">
+            <div class="card-title text-orange-800">
               <PackageCheck class="text-orange-800 opacity-60" />
               Produits
             </div>

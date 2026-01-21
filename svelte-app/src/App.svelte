@@ -174,7 +174,7 @@
     requireAuth,
   );
   router.addRoute(
-    "/dashboard/eventPosters/:id",
+    "/dashboard/eventEdit/posters/:id",
     () => import("./lib/routes/EventPosterPage.svelte"),
     requireAuth,
   );
@@ -241,7 +241,7 @@
     requireLocalEvent,
   );
   router.addRoute(
-    "/demo/event/poster/:id",
+    "/demo/event/posters/:id",
     () => import("./lib/routes/EventPosterPage.svelte"),
     requireLocalEvent,
   );

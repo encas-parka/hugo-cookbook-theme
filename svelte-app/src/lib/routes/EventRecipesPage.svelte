@@ -40,6 +40,14 @@
   const currentEvent = $derived(
     eventId ? eventsStore.getEventById(eventId) : null,
   );
+
+  // Déterminer le basePath selon le mode (demo ou normal)
+  const basePath = $derived.by(() => {
+    return (currentEvent?.status as string) === "local"
+      ? "/demo/event"
+      : "/dashboard/eventEdit";
+  });
+
   let eventMeals = $state<any[]>([]);
   let recipesDetails = $state<any[]>([]);
 
@@ -245,6 +253,7 @@
   $effect(() => {
     navBarStore.setConfig({
       eventId: eventId || undefined,
+      basePath,
       actions: navActions,
     });
   });
@@ -418,7 +427,7 @@
           <!-- Informations principales -->
           <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 class="text-3xl font-bold">{eventName}</h1>
+              <h1 class="">{eventName}</h1>
               <div class="text-base-content/60 text-sm">
                 {#if startDate && endDate}
                   <Calendar class="inline h-4 w-4" />

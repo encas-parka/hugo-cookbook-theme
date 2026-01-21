@@ -163,7 +163,10 @@
       {:else if navBarStore.tabs}
         {@render navBarStore.tabs()}
       {:else if navBarStore.eventId !== undefined}
-        <EventTabs eventId={navBarStore.eventId} />
+        <EventTabs
+          eventId={navBarStore.eventId}
+          basePath={navBarStore.basePath}
+        />
       {:else}
         <h1
           class="font-family-fredoka truncate text-sm font-bold tracking-wider uppercase opacity-70"
@@ -287,7 +290,10 @@
     {#if navBarStore.materielContext}
       <MaterielTabs currentTeamId={navBarStore.teamId} />
     {:else if navBarStore.eventId !== undefined}
-      <EventTabs eventId={navBarStore.eventId} />
+      <EventTabs
+        eventId={navBarStore.eventId}
+        basePath={navBarStore.basePath}
+      />
     {:else if navBarStore.tabs}
       {@render navBarStore.tabs()}
     {:else if navBarStore.title}

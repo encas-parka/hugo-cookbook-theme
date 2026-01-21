@@ -87,7 +87,7 @@
               <!-- Couverts + quantités -->
               <div class="ms-auto flex flex-wrap items-center gap-4">
                 <span class="badge badge-soft gap-1">
-                  <Utensils class="h-3 w-3" />
+                  <Utensils class=" me-1 h-3 w-3 stroke-2" />
                   {recipe.a || 0} c.
                 </span>
                 <span class="text-base font-medium"

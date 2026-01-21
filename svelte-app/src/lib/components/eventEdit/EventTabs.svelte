@@ -1,32 +1,37 @@
 <script lang="ts">
   import { navigate, router } from "$lib/services/simple-router.svelte";
 
-  // Props : eventId uniquement, l'onglet actif est déterminé par l'URL
-  let { eventId }: { eventId: string } = $props();
+  // Props : eventId et basePath optionnel
+  let {
+    eventId,
+    basePath = "/dashboard/eventEdit",
+  }: {
+    eventId: string;
+    basePath?: string;
+  } = $props();
 
   // Configuration des onglets pour les pages d'événement
+  // Les chemins relatifs seront combinés avec basePath
   const eventTabs = [
-    { label: "Éditer l'événement", path: "/dashboard/eventEdit" },
-    { label: "Voir les recettes", path: "/dashboard/eventEdit/recipes" },
-    { label: "Listes des produits", path: "/dashboard/eventEdit/products" },
-    { label: "Affiches", path: "/dashboard/eventPosters" },
+    { label: "Éditer l'événement", relativePath: "" },
+    { label: "Voir les recettes", relativePath: "recipes" },
+    { label: "Listes des produits", relativePath: "products" },
+    { label: "Affiches", relativePath: "posters" },
   ];
 
   // Déterminer l'onglet actif depuis l'URL courante
   const activeTab = $derived.by(() => {
     const currentPath = router.path;
 
-    // Pattern matching pour déterminer l'onglet
-    if (currentPath.includes("/eventEdit/recipes/")) return 1;
-    if (currentPath.includes("/eventEdit/products/")) return 2;
-    if (currentPath.includes("/eventPosters/")) return 3;
-    // Par défaut, si on est sur /dashboard/eventEdit/:id (sans /recipes ou /products)
-    if (currentPath.includes("/eventEdit/") && eventId) {
+    // Pattern matching pour déterminer l'onglet basé sur le basePath
+    if (currentPath.includes(`${basePath}/recipes/`)) return 1;
+    if (currentPath.includes(`${basePath}/products/`)) return 2;
+    if (currentPath.includes(`${basePath}/posters/`)) return 3;
+    // Par défaut, si on est sur {basePath}/{eventId} (sans sous-route)
+    if (currentPath.includes(basePath) && eventId) {
       // Vérifier que le path contient bien l'eventId
-      const eventEditPattern = new RegExp(
-        `/dashboard/eventEdit/${eventId}(/?$)`,
-      );
-      if (eventEditPattern.test(currentPath)) return 0;
+      const basePathPattern = new RegExp(`${basePath}/${eventId}(/?$)`);
+      if (basePathPattern.test(currentPath)) return 0;
     }
 
     return 0; // Défaut
@@ -35,15 +40,12 @@
   function navigateToTab(index: number) {
     if (!eventId) return;
 
-    if (index === 1) {
-      navigate(`/dashboard/eventEdit/recipes/${eventId}`);
-    } else if (index === 2) {
-      navigate(`/dashboard/eventEdit/products/${eventId}`);
-    } else if (index === 3) {
-      navigate(`/dashboard/eventPosters/${eventId}`);
-    } else {
-      navigate(`/dashboard/eventEdit/${eventId}`);
-    }
+    const relativePath = eventTabs[index].relativePath;
+    const fullPath = relativePath
+      ? `${basePath}/${relativePath}/${eventId}`
+      : `${basePath}/${eventId}`;
+
+    navigate(fullPath);
   }
 </script>
 
