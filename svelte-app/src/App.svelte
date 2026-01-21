@@ -55,8 +55,8 @@
 
   // ✅ Guard pour mode local (AVEC auto-initialisation)
   const requireLocalEvent: RouteGuards = {
-    beforeEnter: async (params) => {
-      const eventId = params?.id;
+    beforeEnter: async (to) => {
+      const eventId = to.params.id;
 
       if (!eventId) {
         console.log("[Router] EventId manquant > Redirection /");

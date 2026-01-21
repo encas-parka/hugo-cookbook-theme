@@ -21,7 +21,9 @@
       }
 
       // ✅ Récupérer le premier event démo
-      const demoEvents = eventsStore.events.filter((e) => e.status === "local");
+      const demoEvents = eventsStore.events.filter(
+        (e) => (e.status as string) === "local",
+      );
 
       if (demoEvents.length === 0) {
         toastService.update(toastId, {

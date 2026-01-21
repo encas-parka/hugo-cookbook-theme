@@ -248,9 +248,9 @@
 
   async function acquireLock(): Promise<boolean> {
     // 🔥 MODE LOCAL : Skip locks
-    if (currentEvent?.status === "local") {
+    if ((currentEvent?.status as string) === "local") {
       console.log("[EventEditPage] Mode local: skip lock acquisition");
-      isLockedByMe = true; // Fake lock
+      // Pas de verrou en mode local
       return true;
     }
 
@@ -287,9 +287,8 @@
 
   async function releaseLock(): Promise<void> {
     // 🔥 MODE LOCAL : Skip release
-    if (currentEvent?.status === "local") {
+    if ((currentEvent?.status as string) === "local") {
       console.log("[EventEditPage] Mode local: skip lock release");
-      isLockedByMe = false;
       return;
     }
 
@@ -829,7 +828,7 @@
       <!-- Colonne Gauche : Infos & Permissions -->
       <div class="space-y-6 lg:col-span-1">
         <!-- Permissions -->
-        {#if currentEvent?.status === "local"}
+        {#if (currentEvent?.status as string) === "local"}
           <!-- Mode démo : Message informatif -->
           <Fieldset legend="Participants" iconComponent={Users}>
             <div class="alert alert-info">

@@ -240,6 +240,7 @@ export async function generateDemoEvent(
     name: "Visiteur",
     email: "guest@demo.local",
     status: "accepted",
+    invitedAt: new Date().toISOString(),
     respondedAt: new Date().toISOString(),
   };
 
