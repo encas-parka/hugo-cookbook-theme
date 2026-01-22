@@ -22,6 +22,8 @@
     PanelRightClose,
     EyeClosed,
     SquareArrowOutUpRight,
+    Triangle,
+    CircleAlert,
   } from "@lucide/svelte";
   // Store and global state
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
@@ -122,6 +124,8 @@
   const eventName = $derived(currentEvent?.name ?? "");
   const startDate = $derived(currentEvent?.dateStart ?? null);
   const endDate = $derived(currentEvent?.dateEnd ?? null);
+
+  const eventIsPassed = $derived(endDate && new Date() > new Date(endDate));
 
   onMount(async () => {
     try {
@@ -393,32 +397,43 @@
 
       <!-- card deense et produits ok/manquant -->
       <div class="flex w-full flex-wrap justify-end gap-10">
-        <!-- <div class="alert" id="info-past-event"></div> -->
-        <!-- Carte des produits complétés/manquants -->
-        <div class="card card-xs sm:card:sm border-2 border-orange-700">
-          <div class="card-body">
-            <div class="card-title text-orange-800">
-              <PackageCheck class="text-orange-800 opacity-60" />
-              Produits
-            </div>
-            <div class="flex items-center justify-center px-2">
-              <!-- <div class="text-center">
+        {#if eventIsPassed}
+          <div
+            class="alert alert-warning alert-soft max-sm:alert-vertical self-center"
+            id="info-past-event"
+          >
+            <CircleAlert size={20} class="shrink-0" />
+            Toutes les dates de cet événement sont passées. Il n'est plus possible
+            de modifier les produits.
+          </div>
+        {/if}
+        {#if !eventIsPassed}
+          <!-- Carte des produits complétés/manquants -->
+          <div class="card card-xs sm:card:sm border-2 border-orange-700">
+            <div class="card-body">
+              <div class="card-title text-orange-800">
+                <PackageCheck class="text-orange-800 opacity-60" />
+                Produits
+              </div>
+
+              <div class="flex items-center justify-center px-2">
+                <!-- <div class="text-center">
                 <div class="text-success text-lg font-bold md:text-2xl">
                   {productsStore.completionStats.completed}
                 </div>
                 <div class="text-base-content/60 text-xs">Ok</div>
               </div>
               <div class="divider divider-horizontal mx-1"></div> -->
-              <div class="text-center">
-                <div class="text-error text-lg font-bold md:text-2xl">
-                  {productsStore.completionStats.missing}
+                <div class="text-center">
+                  <div class="text-error text-lg font-bold md:text-2xl">
+                    {productsStore.completionStats.missing}
+                  </div>
+                  <div class="text-base-content/60 text-xs">Manquants</div>
                 </div>
-                <div class="text-base-content/60 text-xs">Manquants</div>
               </div>
             </div>
           </div>
-        </div>
-
+        {/if}
         <!-- Carte des dépenses -->
         <div
           class="card card-xs sm:card-sm border-2 border-orange-700 shadow hover:bg-orange-700/10"

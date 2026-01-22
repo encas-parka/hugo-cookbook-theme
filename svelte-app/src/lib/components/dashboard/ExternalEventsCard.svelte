@@ -2,7 +2,7 @@
   import { Calendar, Users } from "@lucide/svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
-  import CurrentEventsCard from "./CurrentEventsCard.svelte";
+  import ListEventCard from "./ListEventCard.svelte";
   import type { EnrichedEvent } from "$lib/types/events.d";
 
   interface Props {
@@ -144,7 +144,7 @@
       </div>
 
       <!-- Liste des événements -->
-      <CurrentEventsCard
+      <ListEventCard
         events={displayedEvents}
         {loading}
         cardClass={showAllEvents ? "" : "border-l-4 border-info"}

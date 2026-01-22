@@ -14,7 +14,7 @@
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { navigate } from "$lib/services/simple-router.svelte";
   import TeamDetailModal from "$lib/components/teams/TeamDetailModal.svelte";
-  import CurrentEventsCard from "./CurrentEventsCard.svelte";
+  import ListEventCard from "./ListEventCard.svelte";
   import type { EnrichedNativeTeam } from "$lib/types/aw_native_team.d";
   import type { EnrichedEvent } from "$lib/types/events.d";
   import DocQuickAccess from "$lib/components/documents/DocQuickAccess.svelte";
@@ -213,7 +213,7 @@
             </button>
           </div>
           <!-- Événements à venir -->
-          <CurrentEventsCard
+          <ListEventCard
             events={currentEvents}
             {loading}
             cardClass="border-l-4 border-accent/60"
@@ -222,7 +222,7 @@
           <!-- Événements récents -->
           {#if pastEvents.length > 0}
             <div class="fieldset-legend">Récents</div>
-            <CurrentEventsCard events={pastEvents} {loading} />
+            <ListEventCard events={pastEvents} {loading} />
           {/if}
           <div class="card-actions mt-auto items-center justify-end">
             <!-- Bouton Créer un événement -->

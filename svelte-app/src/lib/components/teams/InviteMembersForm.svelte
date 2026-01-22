@@ -90,9 +90,9 @@
 
 <!-- TODO : toast.service lorsqu'invitation réussi, (et fermeture du modal ?) -->
 
-<div class="space-y-4">
-  <div class="alert alert-soft alert-info max-md:alert-vertical">
-    <Info class="h-6 w-6 shrink-0" />
+<div class="@container space-y-4">
+  <div class="alert alert-soft alert-info @max-lg:alert-vertical">
+    <Info class="h-6 w-6 shrink-0 self-baseline" />
     <div>
       <p>
         Envoyez des invitations aux personnes qui font partie de votre cantine.

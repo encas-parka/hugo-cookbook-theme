@@ -28,11 +28,11 @@
   let showAdminMsg = name !== "";
 </script>
 
-<div class="space-y-4">
+<div class="@container space-y-4">
   {#if showAdminMsg}
-    <div class="alert">
-      <Info class="size-4 shrink-0" /> Seul·es les admins peuvent modifier les paramètres
-      de l'équipe.
+    <div class="alert alert-soft alert-warning @max-lg:alert-vertical">
+      <Info class="size-5 shrink-0 self-baseline" /> Seul·es les admins peuvent modifier
+      les paramètres de l'équipe.
     </div>
   {/if}
   <!-- Nom de l'équipe -->

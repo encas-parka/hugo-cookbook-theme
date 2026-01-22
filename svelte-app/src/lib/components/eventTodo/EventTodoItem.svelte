@@ -225,7 +225,7 @@
             <span
               class="mx-1 {assigneeInfos.length < (todo.requiredPeopleNb || 1)
                 ? 'text-warning'
-                : 'text-success'} font-bold"
+                : 'text-success'} font-medium"
             >
               {assigneeInfos.length}/{todo.requiredPeopleNb || 1} pers. requise
             </span>
@@ -262,7 +262,7 @@
     </div>
     <div class="ms-auto flex gap-2">
       <!-- Assign/Unassign button -->
-      {#if !isAssigned && assigneeInfos.length < (todo.requiredPeopleNb || 1)}
+      {#if !isAssigned}
         <button
           class="btn btn-primary btn-outline btn-sm gap-1"
           onclick={handleToggleAssign}

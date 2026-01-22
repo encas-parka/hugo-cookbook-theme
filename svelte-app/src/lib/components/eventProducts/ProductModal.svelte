@@ -100,7 +100,7 @@
     <!-- Header avec indicateur d'archive -->
     {#if isArchiveMode}
       <div
-        class="alert alert-warning border-warning/20 border-b px-4 py-2 text-xs"
+        class="alert alert-warning border-warning/20 m-4 border-b px-4 py-2 text-xs"
       >
         <History class="h-4 w-4" />
         <span class="font-medium">Mode consultation</span>

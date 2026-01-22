@@ -42,11 +42,11 @@
     }
   });
 
-  // Helper pour obtenir le lieu (même logique que CurrentEventsCard)
+  // Helper pour obtenir le lieu (même logique que ListEventCard)
   function getEventLocation(event) {
     return "Lieu à définir"; // Placeholder
   }
-  
+
   // Helper pour vérifier si l'utilisateur a une invitation
   function hasInvitation(eventId) {
     return eventsStore.getContributorStatus(eventId) === "invited";

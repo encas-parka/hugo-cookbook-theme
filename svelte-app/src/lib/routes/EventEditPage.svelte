@@ -176,13 +176,17 @@
   $effect(() => {
     if (currentEvent && isInitialised && !isLockedByMe) {
       // Mode Preview : Shadow draft suit currentEvent
-      meals = $state.snapshot(currentEvent.meals || []);
-      eventName = currentEvent.name || "";
-      description = currentEvent.description || "";
-      status = currentEvent.status || "proposition";
-      minContrib = currentEvent.minContrib || 1;
+      untrack(() => {
+        meals = $state.snapshot(currentEvent.meals || []);
+        eventName = currentEvent.name || "";
+        description = currentEvent.description || "";
+        status = currentEvent.status || "proposition";
+        minContrib = currentEvent.minContrib || 1;
 
-      console.log("🔄 Shadow draft synchronisé depuis currentEvent (Preview)");
+        console.log(
+          "🔄 Shadow draft synchronisé depuis currentEvent (Preview)",
+        );
+      });
     }
   });
 
