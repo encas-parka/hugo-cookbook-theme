@@ -37,10 +37,12 @@
   import WhoBatchEditModal from "$lib/components/eventProducts/WhoBatchEditModal.svelte";
   import GlobalPurchasesModal from "$lib/components/eventProducts/GlobalPurchasesModal.svelte";
   import EventStats from "$lib/components/EventStats.svelte";
+  import EventInvitationAlert from "$lib/components/EventInvitationAlert.svelte";
 
   // Services
   import { UnitConverter } from "$lib/utils/UnitConverter";
   import { warmUpEnkaData } from "$lib/services/appwrite-warmup";
+  import { toastService } from "$lib/services/toast.service.svelte";
 
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
 
@@ -269,6 +271,46 @@
   let GlobalPurchasesModalisOpen = $state(false);
 
   // =========================================================================
+  // PERMISSIONS & INVITATION
+  // =========================================================================
+
+  /**
+   * Vérifie si l'utilisateur peut éditer les produits de l'événement
+   * Même logique que EventEditPage
+   */
+  const canEdit = $derived(
+    eventsStore.canUserEditEvent(eventId || "", globalState.userId || ""),
+  );
+
+  /**
+   * Gère la réponse à l'invitation (accepter/refuser)
+   */
+  async function handleInvitationResponse(accept: boolean) {
+    if (!eventId || !globalState.userId) return;
+
+    try {
+      isLoading = true;
+
+      const newStatus = accept ? "accepted" : "declined";
+
+      await eventsStore.updateContributorStatus(
+        eventId,
+        globalState.userId,
+        newStatus,
+      );
+
+      toastService.success(
+        accept ? "Invitation acceptée" : "Invitation déclinée",
+      );
+    } catch (error) {
+      console.error("Erreur réponse invitation:", error);
+      toastService.error("Erreur lors de la réponse");
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  // =========================================================================
   // NAVBAR CONFIGURATION
   // =========================================================================
 
@@ -293,6 +335,7 @@
       class="btn btn-primary"
       onclick={handleOpenAddProductModal}
       title="Ajouter un produit manuellement"
+      disabled={!canEdit}
     >
       <Plus class="mr-1 h-4 w-4" />
       Produit
@@ -316,6 +359,13 @@
       </div>
     </div>
   {:else}
+    <!-- Alerte d'invitation pour les utilisateurs invités -->
+    <EventInvitationAlert
+      {currentEvent}
+      isBusy={isLoading}
+      onRespond={handleInvitationResponse}
+    />
+
     <!-- Contenu une fois chargé -->
     <div
       class="rounded-box border-base-300 bg-base-100 flex flex-wrap items-baseline justify-between gap-4 border-2 p-4"
@@ -380,6 +430,7 @@
             onmouseenter={() =>
               (hoverHelp.msg = "Consulter ou modifie le détail des dépenses")}
             onmouseleave={() => hoverHelp.reset()}
+            disabled={!canEdit}
           >
             <div class="card-title text-orange-800">
               <BadgeEuro class="text-orange-800 opacity-60" />
@@ -401,6 +452,7 @@
       onOpenGroupEditModal={openGroupEditModal}
       onOpenGroupPurchaseModal={openGroupPurchaseModal}
       onQuickValidation={handleQuickValidation}
+      disabled={!canEdit}
     />
   {/if}
 
