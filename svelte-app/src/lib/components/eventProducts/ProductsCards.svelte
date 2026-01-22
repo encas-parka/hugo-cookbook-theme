@@ -495,7 +495,7 @@
                   id="needs-card"
                   role="button"
                   tabindex="0"
-                  class=" bg-base-300/80 relative flex flex-1 cursor-pointer flex-wrap items-start justify-between gap-x-4 gap-y-1 rounded-lg p-3 shadow-sm"
+                  class=" bg-base-300/80 group hover:ring-accent/60 relative flex flex-1 cursor-pointer flex-wrap items-start justify-between gap-x-4 gap-y-1 rounded-lg p-3 shadow-sm hover:ring-2"
                   onclick={() => onOpenModal(product.$id, "recettes")}
                   onkeydown={(e) =>
                     e.key === "Enter" && onOpenModal(product.$id, "recettes")}

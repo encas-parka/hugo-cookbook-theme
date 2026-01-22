@@ -32,7 +32,7 @@
 </script>
 
 <div
-  class={`bg-base-100 border-base-200 overflow-hidden rounded-lg border ${className}`}
+  class={`bg-base-100 border-base-200 relative overflow-hidden rounded-lg border ${className}`}
   {style}
 >
   <button
@@ -43,19 +43,21 @@
     aria-expanded={isOpen}
     aria-controls="collapse-content"
   >
-    <div class="flex items-center gap-3">
-      <Icon size={24} class="text-base-content me-4 flex-shrink-0" />
-      {#if title}
-        <span class="text-base-content font-semibold">{title}</span>
+    <div class="flex gap-6 max-md:flex-col">
+      <div class=" flex items-center gap-3 self-start">
+        <Icon size={24} class="text-base-content flex-shrink-0" />
+        {#if title}
+          <span class="text-base-content font-semibold">{title}</span>
+        {/if}
+      </div>
+      {#if contentVisible}
+        <div class="text-base-content/80 flex-1 md:max-w-4/5">
+          {contentVisible}
+        </div>
       {/if}
     </div>
-    {#if contentVisible}
-      <div class="text-base-content/80 flex-1">
-        {contentVisible}
-      </div>
-    {/if}
     {#if hasChildren}
-      <div class="flex items-center gap-1">
+      <div class="absolute top-4 right-4 flex items-center gap-1">
         <div class="text-base-content/70 text-sm italic">
           {#if !isOpen}
             en savoir plus
@@ -73,7 +75,8 @@
   {#if hasChildren}
     <div
       id="collapse-content"
-      class={`overflow-hidden transition-all duration-200 ${isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"}`}
+      class={`overflow-hidden transition-all duration-200 ${isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"} hover:cursor-pointer`}
+      onclick={toggle}
     >
       <div class="text-base-content p-4 pt-0 text-sm">
         {@render children?.()}

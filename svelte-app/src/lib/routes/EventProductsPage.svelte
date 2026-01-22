@@ -24,6 +24,10 @@
     SquareArrowOutUpRight,
     Triangle,
     CircleAlert,
+    Funnel,
+    Store,
+    UserPlus,
+    Users,
   } from "@lucide/svelte";
   // Store and global state
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
@@ -409,7 +413,9 @@
         {/if}
         {#if !eventIsPassed}
           <!-- Carte des produits complétés/manquants -->
-          <div class="card card-xs sm:card:sm border-2 border-orange-700">
+          <div
+            class="card card-xs sm:card-sm min-w-48 border-2 border-orange-700"
+          >
             <div class="card-body">
               <div class="card-title text-orange-800">
                 <PackageCheck class="text-orange-800 opacity-60" />
@@ -431,36 +437,123 @@
                   <div class="text-base-content/60 text-xs">Manquants</div>
                 </div>
               </div>
+              <div class="card-action mt-auto">
+                <button
+                  class="btn btn-primary btn-soft w-full"
+                  onclick={handleOpenAddProductModal}
+                  title="Ajouter un produit manuellement"
+                  disabled={!canEdit}
+                >
+                  <Plus class="mr-1 h-4 w-4" />
+                  Produit
+                </button>
+              </div>
             </div>
           </div>
         {/if}
         <!-- Carte des dépenses -->
-        <div
-          class="card card-xs sm:card-sm border-2 border-orange-700 shadow hover:bg-orange-700/10"
-        >
-          <button
-            class="card-body cursor-pointer"
-            onclick={() => (GlobalPurchasesModalisOpen = true)}
-            title="Ajouter une dépense générale"
-            onmouseenter={() =>
-              (hoverHelp.msg = "Consulter ou modifie le détail des dépenses")}
-            onmouseleave={() => hoverHelp.reset()}
-            disabled={!canEdit}
-          >
+        <div class="card card-xs sm:card-sm border-2 border-orange-700 shadow">
+          <div class="card-body">
             <div class="card-title text-orange-800">
               <BadgeEuro class="text-orange-800 opacity-60" />
-              Dépense
+              Dépenses
             </div>
             <div class="text-base-content/70 text-center text-lg font-medium">
               {productsStore.financialStats.totalGlobal} €
             </div>
-            <SquarePen
-              class="text-base-content/60 absolute right-3 bottom-2 size-4"
-            />
-          </button>
+            <div class="card-action mt-auto">
+              <button
+                class="btn btn-soft btn-primary"
+                onclick={() => (GlobalPurchasesModalisOpen = true)}
+                title="Ajouter une dépense générale"
+                onmouseenter={() =>
+                  (hoverHelp.msg =
+                    "Consulter ou modifie le détail des dépenses")}
+                onmouseleave={() => hoverHelp.reset()}
+                disabled={!canEdit}
+              >
+                <Plus class="size-4" />
+                Voir, ajouter
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+    <InfoCollapse
+      title="Aide"
+      contentVisible="Page de gestion des produits nécéssaire pour l'événement. Cliquer pour découvrir ce que vous pouvez y faire..."
+      class="shadow-info shadow"
+    >
+      <p class="">
+        Cette page liste l'ensemble des produits présent dans les recettes de
+        l'événement. La liste est <span class="font-semibold"
+          >mise à jour dès que les menus sont modifiés</span
+        >
+        (recettes ajoutées, supprimées, nombre de couvert modifié, etc.) Vous pouvez
+        :
+      </p>
+      <ul>
+        <li>
+          Ajouter des produits non présent dans les recettes grace au bouton <kbd
+            class="kbd kbd-sm">+ Produit</kbd
+          > en haut à gauche
+        </li>
+        <li>
+          Filtrer les produits par type, température, date, manquant etc.
+          {#if globalState.isMobile}
+            grace au bouton en bas à gauche <Funnel size={14} />
+          {:else}
+            grace au menu de droite
+          {/if}
+        </li>
+        <li>
+          Déclarer des achats soit en cliquant dans la zone d'achat d'un
+          produit, soit via le bouton <kbd class="kbd kbd-sm">manque ...</kbd> dans
+          la colonne des besoins (déclare acheté la quantité manquante). Les achats
+          peuvent être déclarés comme des 'commandes', et vous pouvez préciser la
+          date de réception
+        </li>
+        <li>
+          Déclarer tout un groupe de produit acheté via le bouton <kbd
+            class="kbd kbd-sm">Achat groupé</kbd
+          > dans l'entête de chaque groupe
+        </li>
+        <li>
+          Définir des magasins ou vous mandater pour l'achat de produit
+          (individuel ou par groupe) → <Store
+            size={14}
+            class="text-primary inline"
+          />
+          <Users size={14} class="text-primary inline" />
+        </li>
+        <li>
+          Modifier la quantité réclamée pour un produit. Si les recettes et
+          menus sont modifié entre temps, la carte des besoin du produit
+          indiquera que les quantités calculé ont changé depuis la modification
+          manuelle des besoins déclarés pour ce produit.
+          <p>
+            Cela peut aussi servir a <span class="font-semibold"
+              >remplacer un produit par un autre</span
+            > sans modifier les recettes
+          </p>
+        </li>
+        <li>
+          Déclarer des dépenses indépendamment des achats (possible y compris
+          après que l'événement soit fini)
+        </li>
+        <li>
+          Visualiser l'ensemble des dépenses effectué, et par qui, en cliquant
+          sur <kbd class="kbd">Dépenses</kbd> dans l'entête
+        </li>
+      </ul>
+      <p>
+        Tous les membres des équipes ou individus invité à participer à
+        l'événement peuvent modifier les produits, ajouter des achats, dépenses,
+        etc.
+      </p>
+    </InfoCollapse>
+
     <ProductsCards
       {currentEvent}
       onOpenModal={openModal}
@@ -540,3 +633,15 @@
     </div>
   {/if}
 </div>
+
+<style>
+  ul {
+    list-style-type: disc;
+
+    margin: 1rem;
+  }
+
+  li {
+    margin-bottom: 0.5rem;
+  }
+</style>

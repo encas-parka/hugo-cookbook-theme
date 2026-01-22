@@ -29,7 +29,7 @@
     <span class="whitespace-nowrap">{dateDisplayInfo.formattedDate}</span>
 
     {#if IconComponent}
-      <IconComponent class="h-3 w-3" />
+      <IconComponent class="h-3 w-3 stroke-3" />
     {/if}
   </div>
 </div>
