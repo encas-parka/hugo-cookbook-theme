@@ -1197,8 +1197,10 @@ class ProductsStore {
 
   #setupRealtimeCallbacks() {
     return {
-      onProductCreate: (product: Products) => this.#handleProductUpsert(product),
-      onProductUpdate: (product: Products) => this.#handleProductUpsert(product),
+      onProductCreate: (product: Products) =>
+        this.#handleProductUpsert(product),
+      onProductUpdate: (product: Products) =>
+        this.#handleProductUpsert(product),
       onProductDelete: (productId: string) => {
         this.#removeEnrichedProduct(productId);
         // Persistence immédiate de la suppression
@@ -1588,20 +1590,20 @@ class ProductsStore {
     };
 
     // 2. Ajouter au produit via le ProductModel
-    const currentProduct = productModel.data;
+    const currentProduct = $state.snapshot(productModel.data);
     const updatedProduct: EnrichedProduct = {
       ...currentProduct,
       purchases: [...(currentProduct.purchases || []), newPurchase],
       $updatedAt: new Date().toISOString(),
     };
 
-    // Mettre à jour le ProductModel
-    productModel.update(updatedProduct);
-
-    // 3. Persister dans IndexedDB
+    // 3. Persister dans IndexedDB AVANT de mettre à jour l'état réactif
     if (this.#idbCache) {
       await this.#idbCache.upsertProduct(updatedProduct);
     }
+
+    // Mettre à jour le ProductModel APRÈS
+    productModel.update(updatedProduct);
 
     console.log(`[ProductsStore] Mode local: purchase créé pour ${productId}`);
   }
