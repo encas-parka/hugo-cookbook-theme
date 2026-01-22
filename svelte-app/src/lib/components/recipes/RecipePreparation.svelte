@@ -7,10 +7,18 @@
   interface Props {
     preparation: string;
     preparation24h?: string;
+    preparationHtml?: string;
+    preparation24hHtml?: string;
     astuces?: Astuce[];
   }
 
-  let { preparation, preparation24h, astuces = [] }: Props = $props();
+  let {
+    preparation,
+    preparation24h,
+    preparationHtml,
+    preparation24hHtml,
+    astuces = [],
+  }: Props = $props();
 </script>
 
 <div class="space-y-4">
@@ -23,7 +31,11 @@
       iconSize={18}
     >
       <div class="prose max-w-none">
-        <SvelteMarkdown source={preparation24h} />
+        {#if preparation24hHtml}
+          <div>{@html preparation24hHtml}</div>
+        {:else}
+          <SvelteMarkdown source={preparation24h} />
+        {/if}
       </div>
     </Fieldset>
   {/if}
@@ -35,7 +47,11 @@
     legendSize="text-lg"
   >
     <div class="prose max-w-none">
-      <SvelteMarkdown source={preparation} />
+      {#if preparationHtml}
+        <div>{@html preparationHtml}</div>
+      {:else}
+        <SvelteMarkdown source={preparation} />
+      {/if}
     </div>
   </Fieldset>
 
