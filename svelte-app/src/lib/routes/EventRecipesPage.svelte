@@ -358,7 +358,7 @@
                     (r) => r.$id === mealRecipe.recipeUuid,
                   )}
                   {@const mealRecipeKey =
-                    (meals[0].id || meals[0].date) + "-" + recipeIndex}
+                    (meals[0].id || meals[0].date) + "_" + recipeIndex}
                   {#if recipe}
                     <li>
                       <button
@@ -565,7 +565,7 @@
                 {@const mealRecipesToDisplay = selectedMealRecipeFilter
                   ? (() => {
                       const [mealId, recipeIndex] =
-                        selectedMealRecipeFilter.split("-");
+                        selectedMealRecipeFilter.split("_");
                       const currentMealId = meal.id || meal.date;
                       if (mealId !== currentMealId.toString()) return [];
                       return meal.recipes.filter(
