@@ -99,8 +99,8 @@
   let versions = $state<SavedPosterConfig[]>([]);
   let activeVersionId = $state<string | null>(null);
 
-  // Print state
-  let sectionsToPrint = $state<Record<string, boolean>>({});
+  // Print state - null = print all, string = print only this section
+  let currentPrintTarget = $state<string | null>(null);
 
   // Invitation state
   let isBusy = $state(false);
@@ -164,35 +164,6 @@
     });
 
     return grouped;
-  });
-
-  // Initialize sections to print based on groupedMeals
-  $effect(() => {
-    if (!event?.meals) return;
-
-    event.meals.forEach((meal) => {
-      const date = new Date(meal.date);
-      const dateKey = date.toISOString().split("T")[0];
-      const hours = date.getHours();
-      const horaire =
-        hours < 12
-          ? "Petit-déjeuner"
-          : hours < 14
-            ? "Déjeuner"
-            : hours < 18
-              ? "Goûter"
-              : "Dîner";
-      const sectionId = `affiche${dateKey}${horaire}`;
-
-      if (!(sectionId in sectionsToPrint)) {
-        sectionsToPrint[sectionId] = true;
-      }
-    });
-
-    // Also initialize page-specific IDs if catPageBreak is enabled
-    // Note: Since this depends on categories which depend on recipes,
-    // we use a broad initialization or let MealPoster handle its own buttons.
-    // Better: We ensure any sectionId passed to printThis exists in sectionsToPrint.
   });
 
   // Load event on mount
@@ -410,40 +381,20 @@
 
   // Print functions
   async function printThis(sectionId: string) {
-    // Ensure the sectionId exists in our record
-    if (!(sectionId in sectionsToPrint)) {
-      sectionsToPrint[sectionId] = true;
-    }
-
-    // Set all sections to no-print except the one we want
-    Object.keys(sectionsToPrint).forEach((key) => {
-      sectionsToPrint[key] = key === sectionId;
-    });
-
-    // Wait for Svelte to update the DOM
+    currentPrintTarget = sectionId;
     await tick();
-
-    // Small timeout to ensure browser has processed the DOM changes
     setTimeout(() => {
       window.print();
-      // Reset after print
-      Object.keys(sectionsToPrint).forEach((key) => {
-        sectionsToPrint[key] = true;
-      });
-    }, 900);
+      currentPrintTarget = null;
+    }, 1000);
   }
 
   async function printAll() {
-    // Force all to true first
-    Object.keys(sectionsToPrint).forEach((key) => {
-      sectionsToPrint[key] = true;
-    });
-
+    currentPrintTarget = null;
     await tick();
-
     setTimeout(() => {
       window.print();
-    }, 500);
+    }, 1000);
   }
 
   // Recipe modification functions
@@ -560,13 +511,9 @@
   </LeftPanel>
 
   <!-- Main Content Area with left margin for desktop -->
-  <div
-    class="bg-base-200 min-h-screen print:hidden {globalState.isDesktop
-      ? 'ml-80'
-      : ''}"
-  >
+  <div class="bg-base-200 min-h-screen print:h-auto print:min-h-0">
     <!-- Invitation Alert -->
-    <div class="mx-auto px-4 py-4">
+    <div class="mx-auto px-4 py-4 print:hidden">
       <EventInvitationAlert
         currentEvent={event}
         {isBusy}
@@ -574,16 +521,12 @@
       />
     </div>
 
-    <div
-      class="print:m-0 print:block print:p-0 {globalState.isDesktop
-        ? 'ml-80'
-        : ''}"
-    >
+    <div class="print:m-0 print:p-0 {globalState.isDesktop ? 'ml-80' : ''}">
       <PosterDisplay
         {event}
         {groupedMeals}
         {config}
-        {sectionsToPrint}
+        {currentPrintTarget}
         {recipesDetails}
         {recipeVisibility}
         {recipeNames}
