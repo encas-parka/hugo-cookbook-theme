@@ -163,39 +163,41 @@ export function getEventPermissionsFromEvent(
 // =============================================================================
 
 /**
- * Prépare les données de mise à jour selon le type
- * @param updateType - Type de mise à jour ("who" | "store")
- * @param updateData - Données brutes de mise à jour
- * @returns Données formatées pour le produit
- */
-function prepareBatchUpdateData(
-  updateType: "who" | "store",
-  updateData: { names?: string[] } | StoreInfo,
-): Partial<EnrichedProduct> {
-  switch (updateType) {
-    case "store":
-      // updateData: StoreInfo → JSON.stringify pour store
-      return { store: JSON.stringify(updateData) };
-    case "who":
-      // updateData: { names: string[] }
-      return { who: updateData.names };
-    default:
-      throw new Error(`Unsupported update type: ${updateType}`);
-  }
-}
-
-/**
  * Prépare une row complète pour upsert avec permissions
+ *
+
+ * Contrairement aux updates individuels (updateProduct) où la lib Appwrite client
+ * est permissive et ignore les champs inconnus, la cloud function de batch est
+ * stricte sur les types et valide que "store" est bien une string.
+ *
+ * C'est pourquoi on DOIT transformer :
+ * - StoreInfo (objet) → store (JSON string)
+ * - whoData.names → who (array direct)
+ *
  * @param product - Produit enrichi
- * @param updateData - Données de mise à jour à appliquer
+ * @param updateData - Données de mise à jour à appliquer (StoreInfo objet ou { names })
+ * @param updateType - Type de mise à jour ("who" | "store")
  * @param mainId - ID de l'événement pour les permissions Label
  * @returns Row complète pour Appwrite
  */
 function prepareProductRow(
   product: EnrichedProduct,
-  updateData: Partial<EnrichedProduct>,
+  updateData: { names?: string[] } | StoreInfo,
+  updateType: "who" | "store",
   mainId: string,
 ) {
+  let whoValue = product.who;
+  let storeValue = product.store;
+
+  if (updateType === "who") {
+    // Type guard pour TypeScript
+    const whoData = updateData as { names?: string[] };
+    whoValue = whoData.names || null;
+  } else if (updateType === "store") {
+    const storeInfoData = updateData as StoreInfo;
+    storeValue = JSON.stringify(storeInfoData);
+  }
+
   return {
     $id: product.$id,
     // Champs de base du produit
@@ -204,8 +206,8 @@ function prepareProductRow(
     mainId: product.mainId,
     status: product.status || null,
     // Champs modifiables (soit l'update, soit la valeur actuelle)
-    who: updateData.who !== undefined ? updateData.who : product.who,
-    store: updateData.store !== undefined ? updateData.store : product.store,
+    who: whoValue,
+    store: storeValue,
     stockReel: product.stockReel || null,
     previousNames: product.previousNames || null,
     isMerged: product.isMerged || false,
@@ -368,7 +370,7 @@ export async function loadProductsWithPurchases(
       });
 
       console.log(
-        `[Appwrite Interactions] ${purchases.length} purchases chargées pour ${products.length} produits`,
+        `[Appwrite product] ${purchases.length} purchases chargées pour ${products.length} produits`,
       );
     }
 
@@ -392,13 +394,13 @@ export async function loadProductsWithPurchases(
     );
 
     console.log(
-      `[Appwrite Interactions] ${productsResponse.rows.length} produits chargés avec achats`,
+      `[Appwrite product] ${productsResponse.rows.length} produits chargés avec achats`,
     );
 
     return productsWithPurchases;
   } catch (error) {
     console.error(
-      `[Appwrite Interactions] Erreur chargement produits pour mainId ${mainId}:`,
+      `[Appwrite product] Erreur chargement produits pour mainId ${mainId}:`,
       error,
     );
     const errorMessage =
@@ -437,7 +439,7 @@ export async function loadProductById(
     });
     return response as unknown as Products;
   } catch (err) {
-    console.error("[Appwrite Interactions] Erreur chargement produit:", err);
+    console.error("[Appwrite product] Erreur chargement produit:", err);
     return null;
   }
 }
@@ -469,12 +471,12 @@ export async function loadUpdatedPurchases(
     });
 
     console.log(
-      `[Appwrite Interactions] ${response.rows.length} purchases modifiés chargés`,
+      `[Appwrite product] ${response.rows.length} purchases modifiés chargés`,
     );
     return response.rows as unknown as Purchases[];
   } catch (error) {
     console.error(
-      "[Appwrite Interactions] Erreur chargement purchases modifiés:",
+      "[Appwrite product] Erreur chargement purchases modifiés:",
       error,
     );
     return [];
@@ -502,7 +504,7 @@ export async function loadProductsListByIds(
 
     return response.rows as unknown as Products[];
   } catch (err) {
-    console.error("[Appwrite Interactions] Erreur chargement produits:", err);
+    console.error("[Appwrite product] Erreur chargement produits:", err);
     return [];
   }
 }
@@ -535,7 +537,7 @@ export async function syncProductsWithPurchases(
     if (!lastSync) {
       // === CHARGEMENT COMPLET ===
       console.log(
-        "[Appwrite Interactions] Chargement complet des produits et achats",
+        "[Appwrite product] Chargement complet des produits et achats",
       );
 
       // 1. Charger les produits (sans purchases)
@@ -574,7 +576,7 @@ export async function syncProductsWithPurchases(
       });
 
       console.log(
-        `[Appwrite Interactions] ${products.length} produits chargés avec ${purchases.length} achats`,
+        `[Appwrite product] ${products.length} produits chargés avec ${purchases.length} achats`,
       );
 
       return Array.from(productsMap.values());
@@ -623,14 +625,14 @@ export async function syncProductsWithPurchases(
 
     if (productsResponse.rows.length > 0) {
       console.log(
-        `[Appwrite Interactions] ${productsResponse.rows.length} produits synchronisés (delta)`,
+        `[Appwrite product] ${productsResponse.rows.length} produits synchronisés (delta)`,
       );
     }
 
     return Array.from(productsMap.values());
   } catch (error) {
     console.error(
-      `[Appwrite Interactions] Erreur sync produits avec purchases pour mainId ${mainId}:`,
+      `[Appwrite product] Erreur sync produits avec purchases pour mainId ${mainId}:`,
       error,
     );
     const errorMessage =
@@ -696,7 +698,7 @@ export async function upsertProduct(
     }
 
     console.log(
-      `[Appwrite Interactions] Création produit ${productId} sur Appwrite...`,
+      `[Appwrite product] Création produit ${productId} sur Appwrite...`,
     );
 
     // Transformer en données Appwrite avec les updates utilisateur
@@ -723,14 +725,14 @@ export async function upsertProduct(
     });
 
     console.log(
-      `[Appwrite Interactions] Produit ${productId} créé avec permissions (labels + teams)`,
+      `[Appwrite product] Produit ${productId} créé avec permissions (labels + teams)`,
     );
 
     // Note : le ProductsStore mettra à jour isSynced via le realtime
     return response as unknown as Products;
   } catch (error) {
     console.error(
-      `[Appwrite Interactions] Erreur création produit ${productId}:`,
+      `[Appwrite product] Erreur création produit ${productId}:`,
       error,
     );
     const errorMessage =
@@ -793,7 +795,7 @@ export async function createManualProduct(
     };
 
     console.log(
-      `[Appwrite Interactions] Création produit manuel ${uniqueId}...`,
+      `[Appwrite product] Création produit manuel ${uniqueId}...`,
       manualProduct,
     );
 
@@ -810,14 +812,11 @@ export async function createManualProduct(
     });
 
     console.log(
-      `[Appwrite Interactions] Produit manuel ${uniqueId} créé avec permissions Label`,
+      `[Appwrite product] Produit manuel ${uniqueId} créé avec permissions Label`,
     );
     return response as unknown as Products;
   } catch (error) {
-    console.error(
-      "[Appwrite Interactions] Erreur création produit manuel:",
-      error,
-    );
+    console.error("[Appwrite product] Erreur création produit manuel:", error);
     throw error;
   }
 }
@@ -871,19 +870,19 @@ export async function updateProductBatch(
     if (!enrichedProduct.isSynced) {
       // Produit local : utiliser upsertProduct pour créer sur Appwrite
       console.log(
-        `[Appwrite Interactions] Produit ${productId} local, création batch avec upsert...`,
+        `[Appwrite product] Produit ${productId} local, création batch avec upsert...`,
       );
       return await upsertProduct(productId, productUpdates, getEnrichedProduct);
     } else {
       // Produit déjà sync : utiliser updateProduct normal
       console.log(
-        `[Appwrite Interactions] Produit ${productId} déjà sync, update batch normal...`,
+        `[Appwrite product] Produit ${productId} déjà sync, update batch normal...`,
       );
       return await updateProduct(productId, productUpdates);
     }
   } catch (error) {
     console.error(
-      `[Appwrite Interactions] Erreur lors de la mise à jour batch du produit ${productId}:`,
+      `[Appwrite product] Erreur lors de la mise à jour batch du produit ${productId}:`,
       error,
     );
     throw error;
@@ -922,7 +921,7 @@ export async function createPurchase(
   );
 
   console.log(
-    "[Appwrite Interactions] Achat créé avec permissions Label:",
+    "[Appwrite product] Achat créé avec permissions Label:",
     response,
   );
   return response as unknown as Purchases;
@@ -949,14 +948,11 @@ export async function updatePurchase(
       // permissions non fourni = Appwrite préserve les permissions existantes
     );
 
-    console.log(
-      `[Appwrite Interactions] Achat ${purchaseId} mis à jour:`,
-      updates,
-    );
+    console.log(`[Appwrite product] Achat ${purchaseId} mis à jour:`, updates);
     return response as unknown as Purchases;
   } catch (error) {
     console.error(
-      `[Appwrite Interactions] Erreur mise à jour achat ${purchaseId}:`,
+      `[Appwrite product] Erreur mise à jour achat ${purchaseId}:`,
       error,
     );
     const errorMessage =
@@ -979,10 +975,10 @@ export async function deletePurchase(purchaseId: string): Promise<void> {
       purchaseId,
     );
 
-    console.log(`[Appwrite Interactions] Achat ${purchaseId} supprimé`);
+    console.log(`[Appwrite product] Achat ${purchaseId} supprimé`);
   } catch (error) {
     console.error(
-      `[Appwrite Interactions] Erreur suppression achat ${purchaseId}:`,
+      `[Appwrite product] Erreur suppression achat ${purchaseId}:`,
       error,
     );
     const errorMessage =
@@ -1020,12 +1016,12 @@ export async function loadPurchasesListByIds(
     );
 
     console.log(
-      `[Appwrite Interactions] ${response.rows.length} purchases chargés avec relations products`,
+      `[Appwrite product] ${response.rows.length} purchases chargés avec relations products`,
     );
     return response.rows as unknown as Purchases[];
   } catch (error) {
     console.error(
-      "[Appwrite Interactions] Erreur chargement purchases avec relations:",
+      "[Appwrite product] Erreur chargement purchases avec relations:",
       error,
     );
     const errorMessage =
@@ -1112,7 +1108,7 @@ export function parseStockData(stockJson: string | null): {
   try {
     return JSON.parse(stockJson);
   } catch (error) {
-    console.error("[Appwrite Interactions] Erreur parsing stock data:", error);
+    console.error("[Appwrite product] Erreur parsing stock data:", error);
     return null;
   }
 }
@@ -1148,7 +1144,7 @@ export function subscribeToRealtime(
   callbacks: RealtimeCallbacks = {},
 ): () => void {
   console.log(
-    "[Appwrite Interactions] subscribeToRealtime appelé avec mainId:",
+    "[Appwrite product] subscribeToRealtime appelé avec mainId:",
     mainId,
   );
   let unsubscribe: (() => void) | null = null;
@@ -1231,16 +1227,16 @@ export function subscribeToRealtime(
 
   const setupSubscription = async () => {
     try {
-      console.log("[Appwrite Interactions] Setup Realtime Subscription...");
+      console.log("[Appwrite product] Setup Realtime Subscription...");
 
       // S'assurer que les instances Appwrite sont initialisées
       const instances = await getAppwriteInstances();
       const { config } = instances;
 
       console.log(
-        "[Appwrite Interactions] Appwrite instances initialisées, subscribing to collections...",
+        "[Appwrite product] Appwrite instances initialisées, subscribing to collections...",
       );
-      console.log("[Appwrite Interactions] Config:", config);
+      console.log("[Appwrite product] Config:", config);
 
       // S'abonner aux canaux de collections pour le mainId spécifique
       const channels = [
@@ -1251,7 +1247,7 @@ export function subscribeToRealtime(
       unsubscribe = await appwriteSubscribe(channels, (response) => {
         // Gérer les callbacks de connexion
         if (response.event === "client.connected") {
-          console.log("[Appwrite Interactions] Realtime connecté");
+          console.log("[Appwrite product] Realtime connecté");
           callbacks.onConnect?.();
         }
 
@@ -1263,7 +1259,7 @@ export function subscribeToRealtime(
       });
 
       console.log(
-        "[Appwrite Interactions] Abonnement realtime configuré avec succès",
+        "[Appwrite product] Abonnement realtime configuré avec succès",
       );
 
       // Signaler la connexion initiale
@@ -1272,7 +1268,7 @@ export function subscribeToRealtime(
       }, 100);
     } catch (error) {
       console.error(
-        "[Appwrite Interactions] Impossible de configurer realtime:",
+        "[Appwrite product] Impossible de configurer realtime:",
         error,
       );
       callbacks.onError?.(error);
@@ -1301,7 +1297,7 @@ export async function loadMainEventData(
 ): Promise<MainEventData | null> {
   try {
     console.log(
-      `[Appwrite Interactions] Chargement des données principales pour mainId: ${mainId}`,
+      `[Appwrite product] Chargement des données principales pour mainId: ${mainId}`,
     );
 
     const { tables, config } = await getAppwriteInstances();
@@ -1312,12 +1308,12 @@ export async function loadMainEventData(
       mainId,
     );
     console.log(
-      `[Appwrite Interactions] Données principales chargées pour: ${mainData.name}`,
+      `[Appwrite product] Données principales chargées pour: ${mainData.name}`,
     );
     return mainData as unknown as MainEventData;
   } catch (error) {
     console.error(
-      `[Appwrite Interactions] Erreur chargement données principales pour mainId ${mainId}:`,
+      `[Appwrite product] Erreur chargement données principales pour mainId ${mainId}:`,
       error,
     );
     return null;
@@ -1335,7 +1331,7 @@ export async function loadMainEventData(
 //   name: string,
 // ): Promise<void> {
 //   try {
-//     console.log(`[Appwrite Interactions] Création du Main document: ${mainId}`);
+//     console.log(`[Appwrite product] Création du Main document: ${mainId}`);
 
 //     const { tables, config, account } = await getAppwriteInstances();
 //     const user = await account.get();
@@ -1351,10 +1347,10 @@ export async function loadMainEventData(
 //       dateEnd: allDates[allDates.length - 1] || null,
 //     });
 
-//     console.log(`[Appwrite Interactions] Main document créé: ${mainId}`);
+//     console.log(`[Appwrite product] Main document créé: ${mainId}`);
 //   } catch (error) {
 //     console.error(
-//       `[Appwrite Interactions] Erreur création Main document:`,
+//       `[Appwrite product] Erreur création Main document:`,
 //       error,
 //     );
 //     throw error;
@@ -1402,20 +1398,21 @@ export async function batchUpdateProductsOptimized(
     // ✅ Récupérer l'utilisateur courant
     const user = await account.get();
 
-    // 1. Préparer les données de mise à jour
-    const batchUpdateData = prepareBatchUpdateData(updateType, updateData);
+    // ⚡ SIMPLIFICATION 2026-01-21 : Plus de prepareBatchUpdateData()
+    // On construit directement les rows avec updateType + updateData
+    // La sérialisation JSON sera faite automatiquement par Appwrite client
 
-    // 2. Construire les rows complètes avec permissions
+    // 1. Construire les rows complètes avec permissions
     const rows = productIds.map((productId) => {
       const product = products.find((p) => p.$id === productId);
       if (!product) {
         throw new Error(`Product ${productId} not found in products data`);
       }
-      return prepareProductRow(product, batchUpdateData, mainId);
+      return prepareProductRow(product, updateData, updateType, mainId);
     });
 
     console.log(
-      `[Appwrite Interactions] Lancement mise à jour groupée OPTIMISÉE: ${rows.length} produits, type: ${updateType}`,
+      `[Appwrite product] Lancement mise à jour groupée OPTIMISÉE: ${rows.length} produits, type: ${updateType}`,
     );
 
     // 3. Envoyer à la cloud function avec les rows complètes
@@ -1460,11 +1457,11 @@ export async function batchUpdateProductsOptimized(
 
     if (result.success) {
       console.log(
-        `[Appwrite Interactions] Mise à jour groupée optimisée réussie: ${result.updatedCount} produits mis à jour`,
+        `[Appwrite product] Mise à jour groupée optimisée réussie: ${result.updatedCount} produits mis à jour`,
       );
     } else {
       console.error(
-        `[Appwrite Interactions] Mise à jour groupée optimisée échouée:`,
+        `[Appwrite product] Mise à jour groupée optimisée échouée:`,
         result.error,
       );
     }
@@ -1472,7 +1469,7 @@ export async function batchUpdateProductsOptimized(
     return result;
   } catch (error) {
     console.error(
-      "[Appwrite Interactions] Erreur mise à jour groupée optimisée:",
+      "[Appwrite products] Erreur mise à jour groupée optimisée:",
       error,
     );
     const errorMessage =
@@ -1515,16 +1512,13 @@ export async function createQuickValidationPurchases(
 
     const purchases: Purchases[] = [];
 
-    console.log(
-      "[Appwrite Interactions] Debug createQuickValidationPurchases:",
-      {
-        mainId,
-        productId,
-        productIdType: typeof productId,
-        quantities,
-        options,
-      },
-    );
+    console.log("[Appwrite product] Debug createQuickValidationPurchases:", {
+      mainId,
+      productId,
+      productIdType: typeof productId,
+      quantities,
+      options,
+    });
 
     for (const qty of quantities) {
       const purchaseData = {
@@ -1558,12 +1552,12 @@ export async function createQuickValidationPurchases(
     }
 
     console.log(
-      `[Appwrite Interactions] ${purchases.length} validations rapides créées avec permissions (labels + teams) pour produit ${productId}`,
+      `[Appwrite product] ${purchases.length} validations rapides créées avec permissions (labels + teams) pour produit ${productId}`,
     );
     return purchases;
   } catch (error) {
     console.error(
-      "[Appwrite Interactions] Erreur création validation rapide:",
+      "[Appwrite product] Erreur création validation rapide:",
       error,
     );
     const errorMessage =
@@ -1630,12 +1624,12 @@ export async function createExpensePurchase(
     );
 
     console.log(
-      "[Appwrite Interactions] Dépense créée avec permissions (labels + teams):",
+      "[Appwrite product] Dépense créée avec permissions (labels + teams):",
       response,
     );
     return response as unknown as Purchases;
   } catch (error) {
-    console.error("[Appwrite Interactions] Erreur création dépense:", error);
+    console.error("[Appwrite product] Erreur création dépense:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Erreur inconnue";
     throw new Error(`Échec de la création de la dépense: ${errorMessage}`);
@@ -1664,12 +1658,12 @@ export async function loadOrphanPurchases(
     );
 
     console.log(
-      `[Appwrite Interactions] ${response.rows.length} dépenses globales chargées`,
+      `[Appwrite product] ${response.rows.length} dépenses globales chargées`,
     );
     return response.rows as unknown as Purchases[];
   } catch (error) {
     console.error(
-      "[Appwrite Interactions] Erreur chargement dépenses globales:",
+      "[Appwrite product] Erreur chargement dépenses globales:",
       error,
     );
     return [];
