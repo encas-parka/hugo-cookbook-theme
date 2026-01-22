@@ -16,6 +16,7 @@
 
   import LatestRecipesCard from "$lib/components/dashboard/LatestRecipesCard.svelte";
   import TeamDashboardCard from "../components/dashboard/TeamDashboardCard.svelte";
+  import ExternalEventsCard from "../components/dashboard/ExternalEventsCard.svelte";
   import CreateTeamModal from "../components/teams/CreateTeamModal.svelte";
 
   let createModalOpen = $state(false);
@@ -102,7 +103,18 @@
     {:else}
       <!-- Tableau de bord -->
 
-      <!-- SECTION 2.5: Team Cards (uniquement si authentifié avec équipes) -->
+      <!-- SECTION 1: Événements personnels (invitations externes) -->
+      <section class="bg-base-200 py-8">
+        <div class="container mx-auto px-4">
+          <ExternalEventsCard
+            allEvents={eventsStore.events}
+            userTeamIds={globalState.userTeams}
+            loading={eventsStore.loading}
+          />
+        </div>
+      </section>
+
+      <!-- SECTION 2: Team Cards (uniquement si authentifié avec équipes) -->
       {#if globalState.userTeams.length > 0}
         <section class="bg-base-200 py-8">
           <div class="container mx-auto px-4">

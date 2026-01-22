@@ -24,6 +24,7 @@
     getTotalRecipes,
     getTodosCount,
   } from "$lib/utils/event-stats-helpers";
+  import { slide } from "svelte/transition";
 
   interface Props {
     events: EnrichedEvent[];
@@ -54,7 +55,7 @@
       <div class="space-y-3">
         {#each events as event (event.$id)}
           <div
-            class="bg-base-200/60 hover:bg-base-200 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors {cardClass}"
+            class="bg-base-200/60 hover:bg-base-200 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors {cardClass} @container"
             onclick={() => navigate(`/dashboard/eventEdit/${event.$id}`)}
             role="button"
             tabindex="0"
@@ -64,6 +65,7 @@
                 () => navigate(`/eventEdit/${event.$id}`);
               }
             }}
+            transition:slide
           >
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-4">
@@ -141,45 +143,45 @@
               </div>
 
               <!-- Actions -->
-              <div class="mt-3 flex flex-wrap justify-around gap-2">
+              <div class=" mt-3 flex flex-wrap justify-end gap-2">
                 <button
-                  class="btn btn-outline btn-secondary btn-xs"
+                  class="btn btn-outline btn-secondary @max-sm:btn-xs btn-sm"
                   onclick={(e) => {
                     e.stopPropagation();
                     navigate(`/dashboard/eventEdit/${event.$id}`);
                   }}
                 >
-                  <Edit class="h-3 w-3" />
+                  <Edit class="size-4 @max-xs:size-3" />
                   Éditer
                 </button>
                 <button
-                  class="btn btn-outline btn-secondary btn-xs"
+                  class="btn btn-outline btn-secondary @max-sm:btn-xs btn-sm"
                   onclick={(e) => {
                     e.stopPropagation();
                     navigate(`/dashboard/eventEdit/recipes/${event.$id}`);
                   }}
                 >
-                  <FileText class="h-3 w-3" />
+                  <FileText class="size-4 @max-xs:size-3" />
                   Recettes
                 </button>
                 <button
-                  class="btn btn-outline btn-secondary btn-xs"
+                  class="btn btn-outline btn-secondary @max-sm:btn-xs btn-sm"
                   onclick={(e) => {
                     e.stopPropagation();
                     navigate(`/dashboard/eventEdit/products/${event.$id}`);
                   }}
                 >
-                  <ShoppingCart class="h-3 w-3" />
+                  <ShoppingCart class="size-4 @max-xs:size-3" />
                   Produits
                 </button>
                 <button
-                  class="btn btn-outline btn-secondary btn-xs"
+                  class="btn btn-outline btn-secondary @max-sm:btn-xs btn-sm"
                   onclick={(e) => {
                     e.stopPropagation();
-                    navigate(`/dashboard/eventPosters/${event.$id}`);
+                    navigate(`/dashboard/eventEdit/posters/${event.$id}`);
                   }}
                 >
-                  <Image class="h-3 w-3" />
+                  <Image class="size-4 @max-xs:size-3" />
                   Affiches
                 </button>
               </div>
