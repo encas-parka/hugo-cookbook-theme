@@ -174,7 +174,7 @@
   // ============================================================================
 
   $effect(() => {
-    if (currentEvent && isInitialised) {
+    if (currentEvent && isInitialised && !isLockedByMe) {
       // Mode Preview : Shadow draft suit currentEvent
       meals = $state.snapshot(currentEvent.meals || []);
       eventName = currentEvent.name || "";
@@ -209,8 +209,6 @@
       untrack(async () => {
         isBusy = true;
         try {
-          // Note: eventsStore est déjà initialisé via App.svelte (loadCache + syncFromRemote)
-
           // Initialiser l'état du verrou
           activeLock = await locksService.getLock(eventId);
 
@@ -437,9 +435,11 @@
         allDatesSorted.length > 0
           ? allDatesSorted[allDatesSorted.length - 1]
           : "",
-      teams: teamNames, // Noms des équipes pour affichage
-      teamsId: selectedTeams, // IDs des équipes pour filtrage
-      contributors: contributorsToSave,
+
+      // ON ne save pas, car peut etre édité de manière concurrente par d'autre utilisateur
+      // teams: teamNames, // Noms des équipes pour affichage
+      // teamsId: selectedTeams, // IDs des équipes pour filtrage
+      // contributors: contributorsToSave,
       meals: sortedMeals,
     };
     try {
@@ -808,20 +808,6 @@
     </div>
   {/if}
 
-  <!-- Alerte de verrouillage par un autre utilisateur -->
-  {#if isLockedByOthers}
-    <div class="alert alert-warning max-md:alert-vertical">
-      <Lock class="h-6 w-6 shrink-0" />
-      <div>
-        <h3 class="font-bold">Événement en cours de modification</h3>
-        <div class="text-xs">
-          Un autre utilisateur est en train de modifier cet événement. Les
-          contrôles sont temporairement désactivés.
-        </div>
-      </div>
-    </div>
-  {/if}
-
   <!-- Alerte d'invitation pour les utilisateurs invités -->
   <EventInvitationAlert
     {currentEvent}
@@ -881,6 +867,20 @@
 
       <!-- Colonne Droite : Repas -->
       <div class="space-y-6 md:px-4 lg:col-span-2">
+        <!-- Alerte de verrouillage par un autre utilisateur -->
+        {#if isLockedByOthers}
+          <div class="alert alert-warning max-md:alert-vertical">
+            <Lock class="h-6 w-6 shrink-0" />
+            <div>
+              <h3 class="font-bold">Événement en cours de modification</h3>
+              <div class="text-xs">
+                Un autre utilisateur est en train de modifier cet événement. Les
+                contrôles sont temporairement désactivés.
+              </div>
+            </div>
+          </div>
+        {/if}
+
         <div class="mb-6 flex items-center justify-between">
           <h3 class="card-title text-lg">
             Repas & Menus ({sortedMeals.length})

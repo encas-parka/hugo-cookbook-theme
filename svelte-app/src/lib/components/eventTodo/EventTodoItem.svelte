@@ -106,7 +106,7 @@
   }
 
   async function handleToggleAssign() {
-    if (!globalState.userId || isUpdating || disabled) return;
+    if (!globalState.userId || isUpdating) return;
 
     const newAssigned = isAssigned
       ? assignedList.filter((id: string) => id !== globalState.userId)
@@ -267,7 +267,6 @@
           class="btn btn-primary btn-outline btn-sm gap-1"
           onclick={handleToggleAssign}
           title="Me porter volontaire pour cette tâche"
-          {disabled}
         >
           <Check class="size-4" />
           <span class="">M'inscrire</span>
@@ -277,7 +276,6 @@
           class="btn btn-error btn-sm btn-outline gap-1"
           onclick={handleToggleAssign}
           title="Quitter cette tâche"
-          {disabled}
         >
           <Minus class="size-4" />
           <span>me désinscrire</span>
@@ -288,7 +286,6 @@
       <button
         class="btn btn-sm btn-square"
         onclick={() => onEdit(todo)}
-        {disabled}
         title="Modifier la tâche"
       >
         <PencilLine class="size-4" />

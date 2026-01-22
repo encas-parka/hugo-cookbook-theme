@@ -75,7 +75,7 @@
       <ListTodo class="size-4" />
       <span>{todos.length} tâches</span>
     </div>
-    <button class="btn btn-sm btn-primary gap-2" onclick={handleAdd} {disabled}>
+    <button class="btn btn-sm btn-primary gap-2" onclick={handleAdd}>
       <Plus class="size-4" /> Nouvelle tâche
     </button>
   </div>

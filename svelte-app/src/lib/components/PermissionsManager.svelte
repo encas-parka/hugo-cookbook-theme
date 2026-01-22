@@ -78,7 +78,7 @@
     if (!showInviteModal) {
       newContributors = [];
     } else {
-      onStartEdit(); // TODO: relaseLock si pas de modif (close)
+      // onStartEdit(); // TODO: relaseLock si pas de modif (close)
     }
   });
 
