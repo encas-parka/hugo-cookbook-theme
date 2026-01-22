@@ -12,7 +12,7 @@
     horaire: string;
     meals: any[];
     config: any;
-    sectionsToPrint: Record<string, boolean>;
+    currentPrintTarget: string | null;
     recipesDetails: RecipeForDisplay[];
     recipeVisibility: Record<string, boolean>;
     recipeNames: Record<string, string>;
@@ -32,7 +32,7 @@
     horaire,
     meals,
     config,
-    sectionsToPrint,
+    currentPrintTarget,
     recipesDetails,
     recipeVisibility,
     recipeNames,
@@ -130,6 +130,11 @@
     const sizes = ["1.5rem", "2rem", "2.5rem", "3.2rem"];
     return `font-size: ${sizes[step] || "2.5rem"}`;
   }
+  // Font size helpers
+  function getLargeFontSize(step: number) {
+    const sizes = ["1.3rem", "1.7rem", "2rem", "2.5rem"];
+    return `font-size: ${sizes[step] || "2.5rem"}`;
+  }
 
   function getSmallFontSize(step: number) {
     const sizes = ["0.7rem", "0.85rem", "1rem", "1.2rem"];
@@ -163,18 +168,25 @@
   <div class="flex flex-col items-end gap-8">
     {#each pages as page, pageIdx}
       <!-- L'affiche A4 -->
+      {@const currentPageId =
+        pageIdx === 0 ? sectionId : `${sectionId}-page-${pageIdx}`}
+      {@const isPrintTarget = currentPrintTarget === currentPageId}
+      {@const isTarget = currentPrintTarget === currentPageId}
+
       <div
-        id={pageIdx === 0 ? sectionId : `${sectionId}-page-${pageIdx}`}
-        class="meal-poster-section relative bg-white shadow-2xl transition-shadow"
-        class:is-printing-target={sectionsToPrint[
-          pageIdx === 0 ? sectionId : `${sectionId}-page-${pageIdx}`
+        id={currentPageId}
+        style:display={currentPrintTarget !== null &&
+        currentPrintTarget !== currentPageId
+          ? "none"
+          : undefined}
+        class={[
+          "meal-poster-section relative bg-white shadow-2xl transition-shadow",
         ]}
-        class:page-break-after={!page.isLast}
       >
         <!-- Print action (no-print) - Added to every page -->
         <div class="group absolute top-4 right-4 print:hidden">
           <button
-            class="btn btn-circle btn-ghost opacity-20 transition-opacity hover:opacity-100"
+            class="btn btn-circle opacity-60 transition-opacity hover:opacity-100"
             onclick={() =>
               onPrintThis(
                 pageIdx === 0 ? sectionId : `${sectionId}-page-${pageIdx}`,
@@ -204,7 +216,7 @@
               class:gluten-font={config.fontTop === "gluten-font"}
               class:font-bold={config.boldTop}
               class:italic={config.italicTop}
-              style={getSmallFontSize(config.fontSizeTop)}
+              style={getLargeFontSize(config.fontSizeTop)}
             >
               {config.messageTop}
             </div>
@@ -347,7 +359,7 @@
                 class:gluten-font={config.fontBottom === "gluten-font"}
                 class:font-bold={config.boldBottom}
                 class:italic={config.italicBottom}
-                style={getSmallFontSize(config.fontSizeBottom)}
+                style={getLargeFontSize(config.fontSizeBottom)}
               >
                 {config.messageBottom}
               </div>
@@ -412,23 +424,27 @@
     display: flex;
     flex-direction: column;
     padding: 20mm !important;
-    box-sizing: border-box; /* Crucial: padding does not increase 297mm */
+    box-sizing: border-box;
   }
 
   .poster-content {
-    flex-grow: 1; /* Ensure it takes all available vertical space */
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
     min-height: 0;
   }
 
   .poster-content.centered-content {
-    justify-content: center; /* Center content vertically in the A4 sheet */
+    justify-content: center;
   }
 
   .separator {
     border-top-width: 1px;
     border-top-style: solid;
+  }
+
+  .category-block {
+    break-inside: avoid;
   }
 
   @media print {
@@ -437,30 +453,48 @@
       margin: 0;
     }
 
-    .meal-poster-section {
-      box-shadow: none !important;
-      border: none !important;
-      padding: 20mm !important; /* Restore padding even when printing */
+    /* APLATIR LA STRUCTURE : Le grid disparaît, les enfants deviennent frères */
+    .grid.grid-cols-\[1fr_auto\] {
+      display: contents !important;
+    }
+
+    /* La colonne gauche (flex) devient block simple */
+    .grid.grid-cols-\[1fr_auto\] > .flex {
+      display: block !important;
+    }
+
+    /* Supprimer gap-8 et autres espacements */
+    .grid.grid-cols-\[1fr_auto\] > .flex {
+      gap: 0 !important;
       margin: 0 !important;
-      width: 210mm !important;
-      height: 297mm !important;
-      overflow: hidden !important; /* Force content to stay within A4 */
-      box-sizing: border-box !important;
+      padding: 0 !important;
+    }
+
+    /* CACHER la colonne de droite (boutons de restauration) */
+    .grid.grid-cols-\[1fr_auto\] > div:last-child {
       display: none !important;
     }
 
-    /* Only show the section if it's the target OR if we're in 'print all' mode */
-    /* Note: In 'print all' mode, sectionsToPrint keys are all true */
-    .meal-poster-section.is-printing-target {
+    /* Styles d'impression pour les sections */
+    .meal-poster-section {
+      box-shadow: none !important;
+      border: none !important;
+      padding: 20mm !important;
+      margin: 0 !important;
+      width: 210mm !important;
+      height: 297mm !important;
+      overflow: hidden !important;
+      box-sizing: border-box !important;
+    }
+
+    /* Afficher uniquement la section ciblée */
+    .meal-poster-section:where([data-print-target="true"]) {
       display: flex !important;
     }
 
-    .page-break-after {
-      break-after: page;
+    /* Ou si aucune cible n'est définie (print all), tout afficher */
+    .meal-poster-section:where([data-print-target="any"]) {
+      display: flex !important;
     }
-  }
-
-  .category-block {
-    break-inside: avoid;
   }
 </style>
