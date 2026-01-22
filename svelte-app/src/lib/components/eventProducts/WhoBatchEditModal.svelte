@@ -1,10 +1,7 @@
 <script lang="ts">
   import { User, UserPlus, X, Check, TriangleAlert } from "@lucide/svelte";
-  import {
-    batchUpdateProductsOptimized,
-    type BatchUpdateResult,
-  } from "$lib/services/appwrite-products";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
+  import type { BatchUpdateResult } from "$lib/types/store.types";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
@@ -105,27 +102,26 @@
 
     try {
       await toastService.track(
-        batchUpdateProductsOptimized(
-          selectedProductIds,
-          selectedProducts,
-          "who",
-          { names: whoNames },
-        ).then((result) => {
-          console.log(
-            `[WhoEditModal] Mise à jour groupée: ${result.success ? "succès" : "échec"}, ${result.updatedCount} produits modifiés`,
-          );
+        productsStore
+          .batchUpdateProducts(selectedProductIds, selectedProducts, "who", {
+            names: whoNames,
+          })
+          .then((result) => {
+            console.log(
+              `[WhoEditModal] Mise à jour groupée: ${result.success ? "succès" : "échec"}, ${result.updatedCount} produits modifiés`,
+            );
 
-          if (!result.success) {
-            throw new Error(result.error || "Erreur lors de la mise à jour");
-          }
+            if (!result.success) {
+              throw new Error(result.error || "Erreur lors de la mise à jour");
+            }
 
-          // Clear sync status on success (fallback in case notification doesn't arrive)
-          productsStore.clearSyncStatus();
-          console.log("[WhoEditModal] ✅ Sync status cleared on success");
+            // Clear sync status on success (fallback in case notification doesn't arrive)
+            productsStore.clearSyncStatus();
+            console.log("[WhoEditModal] ✅ Sync status cleared on success");
 
-          onSuccess?.(result);
-          return result;
-        }),
+            onSuccess?.(result);
+            return result;
+          }),
         {
           loading: `Mise à jour des mandatés pour ${selectedProductIds.length} produits...`,
           success: "Mise à jour effectué",

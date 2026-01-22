@@ -90,6 +90,13 @@
       onClose={handleModalClose}
     />
   {:else}
+    <!-- Header principal -->
+    <ModalHeader
+      title={modalState?.product?.productName || "Produit"}
+      showBackButton={true}
+      onClose={handleModalClose}
+    ></ModalHeader>
+
     <!-- Header avec indicateur d'archive -->
     {#if isArchiveMode}
       <div
@@ -100,13 +107,6 @@
         <span class="opacity-75">Événement terminé</span>
       </div>
     {/if}
-
-    <!-- Header principal -->
-    <ModalHeader
-      title={modalState?.product?.productName || "Produit"}
-      showBackButton={true}
-      onClose={handleModalClose}
-    ></ModalHeader>
 
     <!-- Onglets -->
     <div class="border-base-300 mb-4 flex-none border-b px-4">

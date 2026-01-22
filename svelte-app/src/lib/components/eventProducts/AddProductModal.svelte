@@ -6,6 +6,7 @@
     TriangleAlert,
     Thermometer,
     Snowflake,
+    History,
   } from "@lucide/svelte";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
   import { createManualProduct } from "$lib/services/appwrite-products";
@@ -60,6 +61,7 @@
       label: t,
     })),
   );
+  let isArchiveMode = $derived(productsStore.isEventPassed);
 
   async function handleSubmit(keepOpen: boolean = false) {
     if (!isFormValid || loading) return;
@@ -176,6 +178,16 @@
         </div>
       {/if}
 
+      {#if isArchiveMode}
+        <div
+          class="alert alert-warning border-warning/20 border-b px-4 py-2 text-xs"
+        >
+          <History class="h-4 w-4" />
+          <span class="font-medium">Mode consultation</span>
+          <span class="opacity-75">Événement terminé</span>
+        </div>
+      {/if}
+
       <fieldset disabled={loading} class="space-y-4">
         <div class="flex flex-wrap gap-4">
           <!-- Nom du produit -->
@@ -281,7 +293,7 @@
               type="button"
               class="btn btn-secondary"
               onclick={() => handleSubmit(true)}
-              disabled={loading || !formData.productName}
+              disabled={loading || !formData.productName || isArchiveMode}
             >
               {#if loading}
                 <span class="loading loading-spinner"></span>
@@ -293,7 +305,7 @@
             <button
               type="submit"
               class="btn btn-primary"
-              disabled={loading || !formData.productName}
+              disabled={loading || !formData.productName || isArchiveMode}
             >
               {#if loading}
                 <span class="loading loading-spinner"></span>

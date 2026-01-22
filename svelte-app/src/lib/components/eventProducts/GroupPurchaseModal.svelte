@@ -1,6 +1,5 @@
 <script lang="ts">
   import { TriangleAlert, Check, ShoppingCart, X } from "@lucide/svelte";
-  import { createGroupPurchaseWithSync } from "$lib/services/appwrite-transaction";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
@@ -99,7 +98,7 @@
       const productModel = productsStore.getProductModelById(product.$id);
       const missingQuantities = (productModel?.stats.missingQuantities || [])
         .filter((qty) => qty.q < 0)
-        .map((qty) => ({ ...qty, q: Math.abs(qty.q) }));
+        .map((qty) => ({ q: Math.abs(qty.q), u: qty.u }));
 
       productsData.push({
         productId: product.$id,
@@ -127,29 +126,29 @@
 
     try {
       await toastService.track(
-        createGroupPurchaseWithSync(
-          productsStore.currentMainId!,
-          productsData,
-          invoiceData,
-        ).then((batchResult) => {
-          console.log(
-            `[GroupPurchaseModal] Achat groupé créé: ${batchResult.success ? "succès" : "échec"}, ${batchResult.totalProductsCreated} produits synchronisés, ${batchResult.totalPurchasesCreated} achats créés, ${batchResult.totalExpensesCreated} dépenses globales`,
-          );
-
-          if (!batchResult.success) {
-            throw new Error(
-              batchResult.error ||
-                "Erreur lors de la création de l'achat groupé",
+        productsStore
+          .createGroupPurchase(productsData, invoiceData)
+          .then((batchResult) => {
+            console.log(
+              `[GroupPurchaseModal] Achat groupé créé: ${batchResult.success ? "succès" : "échec"}, ${batchResult.totalProductsCreated} produits synchronisés, ${batchResult.totalPurchasesCreated} achats créés, ${batchResult.totalExpensesCreated} dépenses globales`,
             );
-          }
 
-          // Clear sync status on success (fallback in case notification doesn't arrive)
-          productsStore.clearSyncStatus();
-          console.log("[GroupPurchaseModal] ✅ Sync status cleared on success");
+            if (!batchResult.success) {
+              throw new Error(
+                batchResult.error ||
+                  "Erreur lors de la création de l'achat groupé",
+              );
+            }
 
-          onSuccess?.();
-          return batchResult;
-        }),
+            // Clear sync status on success (fallback in case notification doesn't arrive)
+            productsStore.clearSyncStatus();
+            console.log(
+              "[GroupPurchaseModal] ✅ Sync status cleared on success",
+            );
+
+            onSuccess?.();
+            return batchResult;
+          }),
         {
           loading: `Création de l'achat groupé en cours...`,
           success: "Achat groupé créé avec succès",
