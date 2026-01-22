@@ -43,7 +43,7 @@
     const newStates: Record<string, boolean> = {};
     items.forEach((item) => {
       // Utiliser la valeur de selected pour déterminer l'état (false par défaut)
-      newStates[item.id] = item.selected ?? false;
+      newStates[item.id] = item.selected ?? true;
     });
 
     // Toujours synchroniser avec les props items.selected

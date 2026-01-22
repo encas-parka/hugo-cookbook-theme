@@ -694,7 +694,7 @@
           <div class="flex items-baseline gap-4">
             <h1 class="">
               {eventName || "Nom de l'événement"}
-            </div>
+            </h1>
             <PencilLine class="h-4 w-4" />
           </div>
         </button>
