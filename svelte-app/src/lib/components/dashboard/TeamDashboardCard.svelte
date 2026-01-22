@@ -216,7 +216,7 @@
           <CurrentEventsCard
             events={currentEvents}
             {loading}
-            cardClass="border-l-4 border-accent"
+            cardClass="border-l-4 border-accent/60"
           />
 
           <!-- Événements récents -->

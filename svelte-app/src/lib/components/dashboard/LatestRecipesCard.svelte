@@ -31,15 +31,16 @@
       .slice(0, 5);
   });
 
-  // Récupérer les dernières recettes publiées (toutes recettes confondues)
+  // Récupérer les dernières recettes publiées (excluant celles de l'utilisateur)
   const latestRecipes = $derived.by(() => {
     // Ne pas essayer de filtrer si le store n'est pas initialisé
     if (!recipesStore.isInitialized) {
       return [];
     }
 
-    // Trier par date de publication (plus récent en premier)
+    // Trier par date de publication (plus récent en premier) et exclure mes recettes
     return recipesStore.recipesIndex
+      .filter((r) => r.auteur !== globalState.userName)
       .sort((a, b) => {
         const dateA = a.$createdAt ? new Date(a.$createdAt).getTime() : 0;
         const dateB = b.$createdAt ? new Date(b.$createdAt).getTime() : 0;
@@ -83,6 +84,58 @@
     navigate("/recipe/new");
   }
 </script>
+
+{#snippet recipeCard(recipe: RecipeIndexEntry, withBorder: boolean)}
+  {@const iconInfo = getRecipeIcon(recipe)}
+  <div
+    class="{withBorder
+      ? 'border-accent/60 border-l-2'
+      : ''} bg-base-200 hover:bg-base-300 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors"
+    onclick={() => viewRecipe(recipe.$id)}
+    role="button"
+    tabindex="0"
+    onkeydown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        viewRecipe(recipe.$id);
+      }
+    }}
+  >
+    <div class="min-w-0 flex-1">
+      <div class="flex flex-wrap items-center gap-x-10 gap-y-2">
+        <div class="text-primary flex items-center gap-2">
+          <svg class="text-primary h-4 w-4 flex-shrink-0">
+            <use href={`/icons/sprite.svg#${iconInfo.iconId}`} />
+          </svg>
+          <div class="truncate text-sm font-medium">
+            {recipe.title}
+          </div>
+          {#if recipe.versionLabel}
+            <span class="font-medium">
+              - {recipe.versionLabel}
+            </span>
+          {/if}
+        </div>
+
+        <!-- Métadonnées -->
+        <div class="text-base-content/50 flex items-center gap-3 text-xs">
+          {#if recipe.plate}
+            <div class="flex items-center gap-1">
+              <Users class="h-3 w-3" />
+              <span>{recipe.plate} pers</span>
+            </div>
+          {/if}
+          <div class="flex items-center gap-1">
+            <span>Ajouté {formatRecipeDate(recipe)}</span>
+          </div>
+        </div>
+        {#if recipe.draft}
+          <div class="badge badge-accent badge-outline badge-xs">brouillon</div>
+        {/if}
+      </div>
+    </div>
+    <ArrowRight class="mt-1 h-4 w-4 flex-shrink-0 opacity-40" />
+  </div>
+{/snippet}
 
 <div class="flex items-center justify-between">
   <h2 class="card-title flex items-center gap-2">
@@ -130,57 +183,7 @@
       </h3>
       <div class="space-y-2">
         {#each myLatestRecipes as recipe (recipe.$id)}
-          {@const iconInfo = getRecipeIcon(recipe)}
-          <div
-            class="border-accent/60 bg-base-200 hover:bg-base-300 flex cursor-pointer items-start gap-3 rounded-lg border-l-4 p-3 transition-colors"
-            onclick={() => viewRecipe(recipe.$id)}
-            role="button"
-            tabindex="0"
-            onkeydown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                viewRecipe(recipe.$id);
-              }
-            }}
-          >
-            <div class="min-w-0 flex-1">
-              <div class="flex flex-wrap items-center gap-x-10 gap-y-2">
-                <div class="text-primary flex items-center gap-2">
-                  <svg class="text-primary h-4 w-4 flex-shrink-0">
-                    <use href={`/icons/sprite.svg#${iconInfo.iconId}`} />
-                  </svg>
-                  <div class="truncate text-sm font-medium">
-                    {recipe.title}
-                  </div>
-                  {#if recipe.versionLabel}
-                    <span class="font-medium">
-                      - {recipe.versionLabel}
-                    </span>
-                  {/if}
-                </div>
-                <!-- Métadonnées -->
-
-                <div
-                  class="text-base-content/50 flex items-center gap-3 text-xs"
-                >
-                  {#if recipe.plate}
-                    <div class="flex items-center gap-1">
-                      <Users class="h-3 w-3" />
-                      <span>{recipe.plate} pers</span>
-                    </div>
-                  {/if}
-                  <div class="flex items-center gap-1">
-                    <span>Ajouté {formatRecipeDate(recipe)}</span>
-                  </div>
-                </div>
-                {#if recipe.draft}
-                  <div class="badge badge-accent badge-outline badge-xs">
-                    brouillon
-                  </div>
-                {/if}
-              </div>
-            </div>
-            <ArrowRight class="mt-1 h-4 w-4 flex-shrink-0 opacity-40" />
-          </div>
+          {@render recipeCard(recipe, true)}
         {/each}
       </div>
     </div>
@@ -195,54 +198,7 @@
     </h3>
     <div class="space-y-2">
       {#each latestRecipes as recipe (recipe.$id)}
-        {@const iconInfo = getRecipeIcon(recipe)}
-        <div
-          class="bg-base-200 hover:bg-base-300 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors"
-          onclick={() => viewRecipe(recipe.$id)}
-          role="button"
-          tabindex="0"
-          onkeydown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              viewRecipe(recipe.$id);
-            }
-          }}
-        >
-          <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-x-10 gap-y-2">
-              <div class="text-primary flex items-center gap-2">
-                <svg class="text-primary h-4 w-4 flex-shrink-0">
-                  <use href={`/icons/sprite.svg#${iconInfo.iconId}`} />
-                </svg>
-                <h4 class="truncate text-sm font-medium">
-                  {recipe.title}
-                </h4>
-                {#if recipe.versionLabel}
-                  <span class="font-medium">
-                    - {recipe.versionLabel}
-                  </span>
-                {/if}
-              </div>
-              <!-- Métadonnées -->
-              <div class="text-base-content/50 flex items-center gap-3 text-xs">
-                {#if recipe.plate}
-                  <div class="flex items-center gap-1">
-                    <Users class="h-3 w-3" />
-                    <span>{recipe.plate} pers</span>
-                  </div>
-                {/if}
-                <div class="flex items-center gap-1">
-                  <span>Ajouté {formatRecipeDate(recipe)}</span>
-                </div>
-              </div>
-              {#if recipe.draft}
-                <div class="badge badge-accent badge-outline badge-xs">
-                  brouillon
-                </div>
-              {/if}
-            </div>
-          </div>
-          <ArrowRight class="mt-1 h-4 w-4 flex-shrink-0 opacity-40" />
-        </div>
+        {@render recipeCard(recipe, false)}
       {/each}
     </div>
   </div>

@@ -21,6 +21,7 @@
     Eye,
     X,
     Funnel,
+    Printer,
   } from "@lucide/svelte";
   import { marked } from "marked";
   import { extractTime, formatDateWdDayMonth } from "../utils/date-helpers";
@@ -287,7 +288,11 @@
 </script>
 
 {#snippet navActions()}
-  <div class="flex gap-2"></div>
+  <div class="flex gap-2">
+    <button class="btn btn-circle btn-primary" onclick={() => window.print()}
+      ><Printer size={18} /></button
+    >
+  </div>
 {/snippet}
 
 <div class="bg-base-200 min-h-screen">

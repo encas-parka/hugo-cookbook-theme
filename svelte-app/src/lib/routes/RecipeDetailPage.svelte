@@ -2,7 +2,7 @@
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import type { RecipeForDisplay } from "$lib/types/recipes.types";
   import RecipeRegimeBadges from "$lib/components/recipes/RecipeRegimeBadges.svelte";
-  import { Users } from "@lucide/svelte";
+  import { Printer, Users } from "@lucide/svelte";
   import RecipeIngredientsList from "$lib/components/recipes/RecipeIngredientsList.svelte";
   import RecipePreparation from "$lib/components/recipes/RecipePreparation.svelte";
   import RecipeAlerts from "$lib/components/recipes/RecipeAlerts.svelte";
@@ -132,6 +132,9 @@
 {#snippet navActions()}
   {#if globalState.isAuthenticated && recipeDetails}
     <div class="flex items-center gap-4">
+      <button class="btn btn-circle btn-primary" onclick={() => window.print()}
+        ><Printer size={18} /></button
+      >
       <!-- Bouton Créer une version alternative (disponible pour tous) -->
       <button
         class="btn btn-secondary"
@@ -173,8 +176,10 @@
         <!-- En-tête -->
         <div class="mb-4 print:mb-2">
           <div class="flex items-center justify-between gap-x-10 gap-y-4">
-            <h1 class="text-primary flex items-center gap-3 print:text-xl">
-              <svg class="me-2 size-9 shrink-0 stroke-3">
+            <h1
+              class="text-primary flex items-center gap-3 print:text-xl print:text-black"
+            >
+              <svg class="me-2 size-9 shrink-0 stroke-3 print:stroke-black">
                 <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />
               </svg>
               {recipeDetails.title}
@@ -306,7 +311,7 @@
           style="break-before: avoid;"
         >
           <!-- Ingrédients (1/3 à l'écran, 3/10 à l'impression) -->
-          <div class=" lg:col-span-1 print:col-span-4">
+          <div class=" lg:col-span-1 print:col-span-3">
             <div class="sticky top-4 print:static">
               <RecipeIngredientsList
                 ingredients={recipeDetails.ingredients}
@@ -317,7 +322,7 @@
           </div>
 
           <!-- Préparation (2/3 à l'écran, 7/10 à l'impression) -->
-          <div class="lg:col-span-2 print:col-span-6">
+          <div class="lg:col-span-2 print:col-span-7">
             <RecipePreparation
               preparation={recipeDetails.preparation}
               preparation24h={recipeDetails.preparation24h || undefined}
