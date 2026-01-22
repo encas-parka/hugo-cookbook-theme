@@ -214,6 +214,8 @@
         <RecipePreparation
           preparation={recipe.preparation}
           preparation24h={recipe.preparation24h || undefined}
+          preparationHtml={recipe.preparationHtml}
+          preparation24hHtml={recipe.preparation24hHtml}
           astuces={recipe.astuces || []}
         />
       </div>
