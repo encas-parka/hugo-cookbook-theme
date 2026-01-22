@@ -22,6 +22,7 @@
     X,
     Funnel,
   } from "@lucide/svelte";
+  import { marked } from "marked";
   import { extractTime, formatDateWdDayMonth } from "../utils/date-helpers";
   import { globalState } from "../stores/GlobalState.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
@@ -194,8 +195,17 @@
       const recipesMap =
         await recipesStore.getRecipesByUuidsBulk(allRecipeUuids);
 
-      // Convertir la Map en array
-      recipesDetails = Array.from(recipesMap.values()).filter(Boolean);
+      // Convertir la Map en array ET parser le markdown une seule fois
+      recipesDetails = Array.from(recipesMap.values())
+        .filter(Boolean)
+        .map((recipe) => ({
+          ...recipe,
+          // Parser le markdown au chargement pour accélérer le render
+          preparationHtml: recipe.preparation ? marked(recipe.preparation) : "",
+          preparation24hHtml: recipe.preparation24h
+            ? marked(recipe.preparation24h)
+            : "",
+        }));
 
       console.log(
         `[EventRecipesPage] ${recipesDetails.length}/${allRecipeUuids.length} recettes chargées`,
