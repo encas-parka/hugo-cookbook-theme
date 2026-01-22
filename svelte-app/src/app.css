@@ -356,14 +356,14 @@
 
   /* Gestion des sauts de page - ÉVITER LES CONFLITS AVEC MEALPOSTER */
   /* NE PAS appliquer break-inside: avoid aux éléments dans .meal-poster-section */
-  .card:not(.meal-poster-section .card),
+  .card,
   tr,
-  li:not(.meal-poster-section li),
-  p:not(.meal-poster-section p),
-  h1:not(.meal-poster-section h1),
-  h2:not(.meal-poster-section h2),
-  h3:not(.meal-poster-section h3),
-  h4:not(.meal-poster-section h4) {
+  li,
+  p,
+  h1,
+  h2,
+  h3,
+  h4 {
     break-inside: avoid;
   }
 
@@ -371,11 +371,9 @@
     break-inside: auto;
   }
 
-  /* MODIFIÉ : 'page' au lieu de 'always' pour éviter les sauts multiples */
-  .page-break-after:not(.meal-poster-section) {
-    break-after: page !important;
+  .page-break-after {
+    break-after: always !important;
   }
-
   .page-break-before {
     break-before: page !important;
     page-break-before: always !important;

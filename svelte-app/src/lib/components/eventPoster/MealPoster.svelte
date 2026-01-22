@@ -170,18 +170,13 @@
       <!-- L'affiche A4 -->
       {@const currentPageId =
         pageIdx === 0 ? sectionId : `${sectionId}-page-${pageIdx}`}
-      {@const isPrintTarget = currentPrintTarget === currentPageId}
-      {@const isTarget = currentPrintTarget === currentPageId}
 
       <div
         id={currentPageId}
-        style:display={currentPrintTarget !== null &&
-        currentPrintTarget !== currentPageId
-          ? "none"
-          : undefined}
-        class={[
-          "meal-poster-section relative bg-white shadow-2xl transition-shadow",
-        ]}
+        class="meal-poster-section relative bg-white shadow-2xl
+        transition-shadow {currentPrintTarget !== null &&
+          currentPrintTarget !== currentPageId &&
+          'no-print'}"
       >
         <!-- Print action (no-print) - Added to every page -->
         <div class="group absolute top-4 right-4 print:hidden">

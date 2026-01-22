@@ -386,7 +386,7 @@
     setTimeout(() => {
       window.print();
       currentPrintTarget = null;
-    }, 1000);
+    }, 400);
   }
 
   async function printAll() {
@@ -394,7 +394,7 @@
     await tick();
     setTimeout(() => {
       window.print();
-    }, 1000);
+    }, 400);
   }
 
   // Recipe modification functions
