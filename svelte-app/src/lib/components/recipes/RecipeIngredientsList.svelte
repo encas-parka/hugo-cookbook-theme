@@ -62,7 +62,7 @@
   }
 </script>
 
-<div class="space-y-6 print:space-y-2">
+<div class="print-xs space-y-6 print:space-y-2">
   {#each [...groupedIngredients] as [type, items] (type)}
     {@const typeInfo = getProductTypeInfo(type)}
     <Fieldset
@@ -71,12 +71,12 @@
       legendFont="font-light"
       legendSize="text-sm"
     >
-      <ul class="break-inside-avoid space-y-2 print:space-y-1">
+      <ul class="print-xs space-y-2 print:space-y-1">
         {#each items as ingredient, index (index)}
           {@const scaled = getScaledIngredient(ingredient)}
           <li class="grid grid-cols-[auto_1fr] items-baseline gap-x-2 gap-y-0">
             <!-- Nom de l'ingrédient avec allergène -->
-            <span class="truncate font-medium" title={ingredient.name}>
+            <span class=" truncate font-medium" title={ingredient.name}>
               {ingredient.name} :
               {#if ingredient.allergens && ingredient.allergens.length > 0}
                 <span class="ml-1 inline-flex align-middle print:hidden">
@@ -101,7 +101,7 @@
               </span>
 
               {#if ingredient.comment}
-                <span class="text-base-content/70 print-xs text-sm before:mx-1">
+                <span class="text-base-content/70 display:text-sm before:mx-1">
                   ({ingredient.comment})
                 </span>
               {/if}
@@ -112,7 +112,7 @@
     </Fieldset>
   {/each}
 
-  <div class="text-base-content/60 flex items-center gap-1 text-sm">
+  <div class="text-base-content/60 print-xs flex items-center gap-1 text-sm">
     <TriangleAlert class="h-4 w-4" />
     <span>→ Allergènes</span>
   </div>

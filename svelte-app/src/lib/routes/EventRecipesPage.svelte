@@ -503,7 +503,7 @@
               </p>
             </div>
           {:else}
-            <div class="space-y-8">
+            <div class="space-y-8 print:space-y-0">
               {#each eventMeals as meal, mealIndex (meal.id || mealIndex)}
                 {@const recipesMatchingSearch = meal.recipes.filter((mr: any) =>
                   filteredRecipes.some((fr) => fr.$id === mr.recipeUuid),
@@ -533,7 +533,7 @@
                     {@const recipe = recipesDetails.find(
                       (r) => r.$id === mealRecipe.recipeUuid,
                     )}
-                    <div class="break-after-page">
+                    <div class="page-break-after">
                       {#if recipe}
                         <EventRecipeCard
                           {recipe}
@@ -569,7 +569,7 @@
               </button>
             </div>
           {:else}
-            <div class="space-y-8">
+            <div class="space-y-8 print:space-y-0">
               {#each filteredMeals as meal, mealIndex (meal.id || mealIndex)}
                 <!-- Filtrer les recettes individuellement si sélectionné -->
                 {@const mealRecipesToDisplay = selectedMealRecipeFilter
@@ -610,7 +610,7 @@
                     {@const recipe = recipesDetails.find(
                       (r) => r.$id === mealRecipe.recipeUuid,
                     )}
-                    <div class="break-after-page">
+                    <div class="page-break-after">
                       {#if recipe}
                         <EventRecipeCard
                           {recipe}

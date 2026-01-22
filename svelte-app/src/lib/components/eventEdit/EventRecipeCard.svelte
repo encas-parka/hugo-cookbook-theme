@@ -111,12 +111,14 @@
 
 <div
   id="recipe-{recipe.$id}"
-  class="card bg-base-100 border-base-300 border print:border-none"
+  class="card bg-base-100 border-base-300 print-break-auto border print:border-none"
 >
   <div class="card-body p-2 md:p-6">
     <!-- En-tête de la carte -->
     <div class="border-base-300 mb-4 border-b pb-4">
-      <div class="flex flex-wrap items-baseline justify-between gap-4">
+      <div
+        class="flex flex-wrap items-baseline justify-between gap-4 print:gap-1"
+      >
         <div class="flex min-w-2/3 flex-1 gap-2">
           <svg class="size-6">
             <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />
@@ -161,7 +163,9 @@
       </div>
 
       <!-- Informations supplémentaires -->
-      <div class="border-base-300 flex flex-wrap items-center gap-4 pt-4">
+      <div
+        class="border-base-300 flex flex-wrap items-center gap-4 pt-4 print:gap-2 print:pt-0"
+      >
         <div class="text-base-content/80 flex items-center gap-2 py-2 text-lg">
           <Users class="h-4 w-4" />
           <span>{formatPlates(recipePlates)}</span>
@@ -201,7 +205,7 @@
     <!-- Grille principale : Ingrédients + Préparation -->
     <div class=" gap-6 md:flex print:flex">
       <!-- Colonne gauche : Ingrédients -->
-      <div class="w-full space-y-4 md:w-1/3 print:w-2/5">
+      <div class="w-full space-y-4 md:w-1/3 print:w-2/6">
         <RecipeIngredientsList
           ingredients={recipe.ingredients}
           servings={recipePlates}
@@ -210,7 +214,7 @@
       </div>
 
       <!-- Colonne droite : Préparation -->
-      <div class="flex-1 space-y-4 print:w-3/5">
+      <div class="flex-1 space-y-4 print:w-4/6">
         <RecipePreparation
           preparation={recipe.preparation}
           preparation24h={recipe.preparation24h || undefined}

@@ -281,6 +281,18 @@
 }
 
 @media print {
+  * .print-xxs {
+    zoom: 0.9;
+  }
+
+  * .print-xs {
+    zoom: 0.999;
+  }
+
+  * .print-sm {
+    zoom: 0.9;
+  }
+
   @page {
     size: A4;
     margin: 1cm;
@@ -354,9 +366,6 @@
     margin-bottom: 0.35rem !important;
   }
 
-  /* Gestion des sauts de page - ÉVITER LES CONFLITS AVEC MEALPOSTER */
-  /* NE PAS appliquer break-inside: avoid aux éléments dans .meal-poster-section */
-  .card,
   tr,
   li,
   p,
@@ -367,16 +376,25 @@
     break-inside: avoid;
   }
 
+  /* Permettre la coupe partout dans la carte */
+  .card,
+  .card-body,
+  .card-body > div {
+    break-inside: auto;
+  }
+
+  /* Éviter les orphelines (titres seuls en bas de page) */
+  /*.card-body > div:first-child {
+    orphans: 3;
+    widows: 3;
+  }*/
+
   .print-break-auto {
     break-inside: auto;
   }
 
   .page-break-after {
     break-after: always !important;
-  }
-  .page-break-before {
-    break-before: page !important;
-    page-break-before: always !important;
   }
 
   /* Ne pas séparer l'en-tête du début du contenu */
@@ -390,11 +408,9 @@
   .print-only {
     display: block !important;
   }
-
-  * .print-xs {
-    font-size: 8pt !important;
-  }
 }
+
+/* diplay */
 
 .print-only {
   display: none;
