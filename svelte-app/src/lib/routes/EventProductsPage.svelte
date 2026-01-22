@@ -39,10 +39,6 @@
   import EventStats from "$lib/components/EventStats.svelte";
 
   // Services
-  import {
-    createQuickValidationPurchases,
-    upsertProduct,
-  } from "$lib/services/appwrite-products";
   import { UnitConverter } from "$lib/utils/UnitConverter";
   import { warmUpEnkaData } from "$lib/services/appwrite-warmup";
 
@@ -112,6 +108,13 @@
   const currentEvent = $derived(
     eventId ? eventsStore.getEventById(eventId) : null,
   );
+
+  // Déterminer le basePath selon le mode (demo ou normal)
+  const basePath = $derived.by(() => {
+    return (currentEvent?.status as string) === "local"
+      ? "/demo/event"
+      : "/dashboard/eventEdit";
+  });
 
   // Calculer les informations de l'événement
   const eventName = $derived(currentEvent?.name ?? "");
@@ -229,11 +232,6 @@
   // Validation rapide individuelle
   async function handleQuickValidation(product: any, productInDateRange: any) {
     try {
-      if (!productsStore.currentMainId) {
-        throw new Error("mainId non disponible");
-      }
-
-      // ✅ Utilisation directe des données contextuelles de la plage de dates
       const missingQuantities = productInDateRange.missingQuantities || [];
       if (missingQuantities.length === 0) {
         console.log(
@@ -242,43 +240,22 @@
         return;
       }
 
-      // ✅ CONVERSIONS : Les missingQuantités sont négatives, les convertir en positif pour les achats
+      // CONVERSIONS : Les missingQuantities sont négatives, les convertir en positif pour les achats
       // et normaliser les unités (kg→gr., l.→ml) pour le stockage
       const normalizedQuantities = missingQuantities
-        .filter((qty) => qty.q < 0) // Uniquement les quantités manquantes (négatives)
-        .map((qty) => ({ ...qty, q: Math.abs(qty.q) })) // Convertir en positif pour les achats
+        .filter((qty) => qty.q < 0)
+        .map((qty) => ({ ...qty, q: Math.abs(qty.q) }))
         .map((qty) => {
           const normalized = UnitConverter.normalize(qty.q, qty.u);
           return { q: normalized.quantity, u: normalized.unit };
         });
 
-      let finalProductId = product.$id;
-
-      // ✅ LOGIQUE DE SYNC : Vérifier isSynced du produit avant création du purchase
-      if (!product.isSynced) {
-        // Produit local : créer sur Appwrite d'abord
-        console.log(
-          `[ProductsTable] Produit ${product.$id} local, création pour validation rapide...`,
-        );
-        const syncedProduct = await upsertProduct(
-          product.$id,
-          {}, // Pas de modifications spécifiques au produit lui-même
-          (id) => productsStore.getEnrichedProductById(id),
-        );
-        finalProductId = syncedProduct.$id;
-        console.log(`[ProductsTable] Produit sync créé: ${finalProductId}`);
-      }
-
-      await createQuickValidationPurchases(
-        productsStore.currentMainId!,
-        finalProductId,
-        normalizedQuantities,
-        {
-          store: product.storeInfo?.storeName ?? null,
-          notes: "",
-          invoiceId: `VALID_${Date.now()}`,
-        },
-      );
+      // Utiliser ProductsStore qui a déjà le guard intégré
+      await productsStore.createPurchase(product.$id, normalizedQuantities, {
+        store: product.storeInfo?.storeName ?? null,
+        notes: "",
+        invoiceId: `VALID_${Date.now()}`,
+      });
 
       console.log(
         `[ProductsTable] Validation rapide créée pour ${product.productName}`,
@@ -298,6 +275,7 @@
   $effect(() => {
     navBarStore.setConfig({
       eventId: eventId || undefined,
+      basePath,
       actions: navActions,
     });
   });
@@ -343,9 +321,9 @@
       class="rounded-box border-base-300 bg-base-100 flex flex-wrap items-baseline justify-between gap-4 border-2 p-4"
     >
       <div class="flex w-full flex-wrap justify-between gap-6">
-        <div class="text-primary text-3xl font-black">
+        <h1>
           {eventName}
-        </div>
+        </h1>
         <div class="text-base-content/70 text-base">
           {#if startDate && endDate}
             <Calendar class="inline h-4 w-4" />
@@ -365,7 +343,7 @@
 
       <!-- card deense et produits ok/manquant -->
       <div class="flex w-full flex-wrap justify-end gap-10">
-        <div class="alert" id="info-past-event"></div>
+        <!-- <div class="alert" id="info-past-event"></div> -->
         <!-- Carte des produits complétés/manquants -->
         <div class="card card-xs sm:card:sm border-2 border-orange-700">
           <div class="card-body">
