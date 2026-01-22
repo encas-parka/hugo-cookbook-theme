@@ -31,16 +31,15 @@
       .slice(0, 5);
   });
 
-  // Récupérer les dernières recettes publiées (excluant celles de l'utilisateur)
+  // Récupérer les dernières recettes publiées (toutes recettes confondues)
   const latestRecipes = $derived.by(() => {
     // Ne pas essayer de filtrer si le store n'est pas initialisé
     if (!recipesStore.isInitialized) {
       return [];
     }
 
-    // Trier par date de publication (plus récent en premier) et exclure mes recettes
+    // Trier par date de publication (plus récent en premier)
     return recipesStore.recipesIndex
-      .filter((r) => r.auteur !== globalState.userName)
       .sort((a, b) => {
         const dateA = a.$createdAt ? new Date(a.$createdAt).getTime() : 0;
         const dateB = b.$createdAt ? new Date(b.$createdAt).getTime() : 0;
@@ -111,7 +110,7 @@
       Réessayer
     </button>
   </div>
-{:else if latestRecipes.length === 0}
+{:else if myLatestRecipes.length === 0 && latestRecipes.length === 0}
   <div class="py-6 text-center">
     <ChefHat class="mx-auto mb-3 h-12 w-12 opacity-20" />
     <p class="text-base-content/60 mb-4 text-sm">Aucune recette publiée</p>
@@ -133,7 +132,7 @@
         {#each myLatestRecipes as recipe (recipe.$id)}
           {@const iconInfo = getRecipeIcon(recipe)}
           <div
-            class="border-accent/60 bg-base-200 hover:bg-base-300 flex cursor-pointer items-start gap-3 rounded-lg border-l-2 p-3 transition-colors"
+            class="border-accent/60 bg-base-200 hover:bg-base-300 flex cursor-pointer items-start gap-3 rounded-lg border-l-4 p-3 transition-colors"
             onclick={() => viewRecipe(recipe.$id)}
             role="button"
             tabindex="0"
@@ -153,7 +152,7 @@
                     {recipe.title}
                   </div>
                   {#if recipe.versionLabel}
-                    <span class="tfont-medium">
+                    <span class="font-medium">
                       - {recipe.versionLabel}
                     </span>
                   {/if}
@@ -188,64 +187,64 @@
   {/if}
 
   <!-- Toutes les dernières recettes -->
-  {#if myLatestRecipes.length > 0}
+  <div class={myLatestRecipes.length > 0 ? "mt-4" : ""}>
     <h3
       class="text-base-content/80 mb-2 text-xs font-semibold tracking-wider uppercase"
     >
       Dernières recettes ajoutées
     </h3>
-  {/if}
-  <div class="space-y-3">
-    {#each latestRecipes as recipe (recipe.$id)}
-      {@const iconInfo = getRecipeIcon(recipe)}
-      <div
-        class="bg-base-200 hover:bg-base-300 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors"
-        onclick={() => viewRecipe(recipe.$id)}
-        role="button"
-        tabindex="0"
-        onkeydown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            viewRecipe(recipe.$id);
-          }
-        }}
-      >
-        <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-center gap-x-10 gap-y-2">
-            <div class="text-primary flex items-center gap-2">
-              <svg class="text-primary h-4 w-4 flex-shrink-0">
-                <use href={`/icons/sprite.svg#${iconInfo.iconId}`} />
-              </svg>
-              <h4 class="truncate text-sm font-medium">
-                {recipe.title}
-              </h4>
-              {#if recipe.versionLabel}
-                <span class="font-medium">
-                  - {recipe.versionLabel}
-                </span>
-              {/if}
-            </div>
-            <!-- Métadonnées -->
-            <div class="text-base-content/50 flex items-center gap-3 text-xs">
-              {#if recipe.plate}
+    <div class="space-y-2">
+      {#each latestRecipes as recipe (recipe.$id)}
+        {@const iconInfo = getRecipeIcon(recipe)}
+        <div
+          class="bg-base-200 hover:bg-base-300 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors"
+          onclick={() => viewRecipe(recipe.$id)}
+          role="button"
+          tabindex="0"
+          onkeydown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              viewRecipe(recipe.$id);
+            }
+          }}
+        >
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-x-10 gap-y-2">
+              <div class="text-primary flex items-center gap-2">
+                <svg class="text-primary h-4 w-4 flex-shrink-0">
+                  <use href={`/icons/sprite.svg#${iconInfo.iconId}`} />
+                </svg>
+                <h4 class="truncate text-sm font-medium">
+                  {recipe.title}
+                </h4>
+                {#if recipe.versionLabel}
+                  <span class="font-medium">
+                    - {recipe.versionLabel}
+                  </span>
+                {/if}
+              </div>
+              <!-- Métadonnées -->
+              <div class="text-base-content/50 flex items-center gap-3 text-xs">
+                {#if recipe.plate}
+                  <div class="flex items-center gap-1">
+                    <Users class="h-3 w-3" />
+                    <span>{recipe.plate} pers</span>
+                  </div>
+                {/if}
                 <div class="flex items-center gap-1">
-                  <Users class="h-3 w-3" />
-                  <span>{recipe.plate} pers</span>
+                  <span>Ajouté {formatRecipeDate(recipe)}</span>
+                </div>
+              </div>
+              {#if recipe.draft}
+                <div class="badge badge-accent badge-outline badge-xs">
+                  brouillon
                 </div>
               {/if}
-              <div class="flex items-center gap-1">
-                <span>Ajouté {formatRecipeDate(recipe)}</span>
-              </div>
             </div>
-            {#if recipe.draft}
-              <div class="badge badge-accent badge-outline badge-xs">
-                brouillon
-              </div>
-            {/if}
           </div>
+          <ArrowRight class="mt-1 h-4 w-4 flex-shrink-0 opacity-40" />
         </div>
-        <ArrowRight class="mt-1 h-4 w-4 flex-shrink-0 opacity-40" />
-      </div>
-    {/each}
+      {/each}
+    </div>
   </div>
 
   <!-- Bouton création rapide -->
