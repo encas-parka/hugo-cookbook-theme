@@ -111,7 +111,7 @@
 
 <div
   id="recipe-{recipe.$id}"
-  class="card bg-base-100 border-base-300 print-break-auto border print:border-none"
+  class="card bg-base-100 border-base-300 print-break-auto border shadow-lg print:border-none print:shadow-none"
 >
   <div class="card-body p-2 md:p-6">
     <!-- En-tête de la carte -->

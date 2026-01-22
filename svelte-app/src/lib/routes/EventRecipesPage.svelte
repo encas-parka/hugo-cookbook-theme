@@ -574,7 +574,7 @@
               </button>
             </div>
           {:else}
-            <div class="space-y-8 print:space-y-0">
+            <div class="space-y-10 print:space-y-0">
               {#each filteredMeals as meal, mealIndex (meal.id || mealIndex)}
                 <!-- Filtrer les recettes individuellement si sélectionné -->
                 {@const mealRecipesToDisplay = selectedMealRecipeFilter
@@ -594,7 +594,7 @@
                   <!-- Date break -->
                   <div
                     id="meal-{meal.date}"
-                    class="card bg-primary text-primary-content flex flex-row items-center justify-center gap-6 p-4 text-lg font-black print:hidden"
+                    class="card bg-primary text-primary-content flex flex-row items-center justify-center gap-6 p-4 text-lg font-black shadow-lg print:hidden"
                   >
                     <div class="">
                       {formatDateWdDayMonth(meal.date)}
@@ -615,7 +615,7 @@
                     {@const recipe = recipesDetails.find(
                       (r) => r.$id === mealRecipe.recipeUuid,
                     )}
-                    <div class="page-break-after">
+                    <div class="page-break-after mb-14">
                       {#if recipe}
                         <EventRecipeCard
                           {recipe}

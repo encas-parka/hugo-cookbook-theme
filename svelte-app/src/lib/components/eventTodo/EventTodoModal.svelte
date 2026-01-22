@@ -466,7 +466,9 @@
           {#if momentTasks.length > 0}
             <div class="collapse-arrow bg-base-200 collapse">
               <input type="checkbox" checked />
-              <div class="collapse-title flex items-center gap-2 font-medium">
+              <div
+                class="collapse-title flex items-center gap-2 text-base font-medium"
+              >
                 <Clock class="size-4 opacity-50" />
                 {momentLabel} ({momentTasks.filter((t) => t.enabled)
                   .length}/{momentTasks.length})
