@@ -27,6 +27,7 @@
 
   // ✅ SEULEMENT HomePage en import statique (page critique)
   import HomePage from "./lib/routes/HomePage.svelte";
+  import { fade } from "svelte/transition";
 
   // ❌ SUPPRIMER tous les autres imports de pages !
   // Ils seront chargés à la demande via lazy loading

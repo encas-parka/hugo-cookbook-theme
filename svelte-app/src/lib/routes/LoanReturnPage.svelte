@@ -285,22 +285,22 @@
                 item.lostQuantity === 0 && item.brokenQuantity === 0}
 
               <div
-                class="bg-base-200 rounded-box flex flex-wrap items-center justify-between p-4"
+                class="bg-base-200 rounded-box flex flex-wrap items-center justify-between px-4 py-1"
               >
                 <!-- Nom du matériel -->
                 <div class="flex items-center gap-4">
                   {#snippet typeIcon(type)}
                     {@const Icon = getTypeIcon(type)}
                     <div class="{getMaterielTypeBgClass(type)} rounded-lg p-2">
-                      <Icon class="{getMaterielTypeColorClass(type)} h-5 w-5" />
+                      <Icon class="{getMaterielTypeColorClass(type)} size-5" />
                     </div>
                   {/snippet}
 
                   {@render typeIcon(item.materielType)}
-                  <div class="text-lg font-semibold">{item.materielName}</div>
-                  <p class="font-semibold opacity-70">
+                  <div class="text-base font-medium">{item.materielName}</div>
+                  <div class="font-semibold opacity-70">
                     ({item.quantity})
-                  </p>
+                  </div>
                 </div>
 
                 <!-- {item.quantity === 1 ? Style RecipeFilters pour 1 élément} -->

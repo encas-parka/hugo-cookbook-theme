@@ -20,9 +20,9 @@ export interface DemoEventConfig {
 }
 
 export const DEMO_EVENT_CONFIG: DemoEventConfig = {
-  name: "Séminaire Corporate - 5 Jours",
+  name: "Rassemblement festif",
   description:
-    "Événement corporate complet - 300 participants sur 5 jours avec repas vegan inclus",
+    "Exemple d'événement sur plusieurs jours, avec plein de recettes...",
   durationDays: 5,
   meals: [
     // ==================== DAY 0 - LUNDI ====================

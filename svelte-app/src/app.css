@@ -286,11 +286,11 @@
   }
 
   * .print-xs {
-    zoom: 0.999;
+    zoom: 0.95;
   }
 
   * .print-sm {
-    zoom: 0.9;
+    zoom: 0.98;
   }
 
   @page {
@@ -467,4 +467,46 @@
 
 .sora-font {
   font-family: "Sora", sans-serif;
+}
+
+/* Effets de dégradé vers transparent pour FeatureHero */
+/* Simple et efficace : ombres portées qui créent un contour dégradé */
+
+.fade-soft-image {
+  box-shadow:
+    inset 0 0 60px 30px rgba(0, 0, 0, 0.05),
+    inset 0 0 100px 60px rgba(0, 0, 0, 0.03);
+}
+
+.dark .fade-soft-image {
+  box-shadow:
+    inset 30px 30px 60px 30px rgba(0, 0, 0, 0),
+    inset 60px 100px 100px 60px rgba(0, 0, 0, 0.3);
+}
+
+.fade-soft-content {
+  position: relative;
+  overflow: hidden;
+}
+
+.fade-soft-content::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at center,
+    transparent 0%,
+    transparent 0%,
+    oklch(96.5% 0.002 9.5 / 0.9) 100%
+  );
+  pointer-events: none;
+}
+
+.dark .fade-soft-content::before {
+  background: radial-gradient(
+    circle at center,
+    transparent 0%,
+    transparent 50%,
+    oklch(37% 0.013 285.805 / 0.9) 100%
+  );
 }

@@ -15,6 +15,7 @@
   import { globalState } from "../stores/GlobalState.svelte";
   import { onDestroy } from "svelte";
   import { router } from "$lib/services/simple-router.svelte";
+  import { fade } from "svelte/transition";
 
   // État des filtres
   interface Filters {
@@ -322,7 +323,7 @@
 </LeftPanel>
 
 <!-- Contenu principal -->
-<div class="p-4 lg:ml-100">
+<div class="p-4 lg:ml-100" in:fade>
   <div class="mx-auto max-w-4xl">
     <div class="mb-10 space-y-6">
       <!-- Tabs de filtrage par type -->

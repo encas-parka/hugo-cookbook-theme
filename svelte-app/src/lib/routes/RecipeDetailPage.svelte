@@ -14,6 +14,7 @@
   import { onDestroy } from "svelte";
   import { getTypeDisplay } from "$lib/utils/recipeUtils";
   import RecipeMetadata from "$lib/components/recipes/RecipeMetadata.svelte";
+  import { fade } from "svelte/transition";
 
   interface Props {
     params?: { uuid?: string };
@@ -158,7 +159,7 @@
   {/if}
 {/snippet}
 
-<div class="mx-auto max-w-7xl px-4 py-8">
+<div class="mx-auto max-w-7xl px-4 py-8" in:fade>
   {#if loading}
     <div class="flex items-center justify-center py-20">
       <div class="loading loading-spinner loading-lg"></div>

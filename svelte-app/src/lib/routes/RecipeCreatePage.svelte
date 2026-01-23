@@ -29,6 +29,7 @@
     prepareHugoData,
     validateRecipe,
   } from "./RecipeEditPage";
+  import { fade } from "svelte/transition";
 
   // ============================================================================
   // PROPS & INITIALISATION
@@ -283,7 +284,7 @@
 <!-- TEMPLATE -->
 <!-- ============================================================================ -->
 
-<div class="max-w-9xl container mx-auto px-4 py-8">
+<div class="max-w-9xl container mx-auto px-4 py-8" in:fade>
   {#if !loaded}
     <div class="flex items-center justify-center py-20">
       <div class="loading loading-spinner loading-lg"></div>

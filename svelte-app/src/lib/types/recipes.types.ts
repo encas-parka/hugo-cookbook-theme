@@ -55,6 +55,9 @@ export type RecipeFromAppwrite = Recettes;
 export type RecipeForDisplay = Omit<Recettes, "ingredients" | "astuces"> & {
   ingredients: RecipeIngredient[];
   astuces: Astuce[];
+  // HTML pré-parsé pour optimisation du render (optionnel)
+  preparationHtml?: string;
+  preparation24hHtml?: string;
 };
 
 /**
