@@ -60,6 +60,10 @@
   import { formatDateShort } from "../utils/products-display";
   import { on } from "svelte/events";
   import InfoCollapse from "../components/ui/InfoCollapse.svelte";
+  import {
+    ensureDemoEventsLoaded,
+    waitForEvent,
+  } from "$lib/utils/events.utils";
 
   // Dont work properly
   const PANEL_WIDTH = "100";
@@ -139,19 +143,21 @@
         return;
       }
 
-      // Note: EventsStore est déjà initialisé via App.svelte (loadCache + syncFromRemote)
+      // ✅ AUTO-CHARGEMENT DES EVENTS DÉMO si route /demo/event
+      await ensureDemoEventsLoaded();
 
-      // Vérifier que l'événement existe
-      const event = eventsStore.getEventById(eventId);
-      if (!event) {
+      // ✅ Attendre que l'event soit disponible
+      const eventFound = await waitForEvent(eventId);
+      if (!eventFound) {
         console.error(`[EventProductsPage] Événement ${eventId} introuvable`);
         isLoading = false;
         return;
       }
 
       // Initialiser ProductsStore
+      const event = eventsStore.getEventById(eventId);
       console.log(
-        `[EventProductsPage] Initialisation de ProductsStore pour événement ${event.name}`,
+        `[EventProductsPage] Initialisation de ProductsStore pour événement ${event?.name}`,
       );
       await productsStore.initialize(eventId);
     } catch (error) {

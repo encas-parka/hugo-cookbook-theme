@@ -27,6 +27,10 @@
   import { extractTime, formatDateWdDayMonth } from "../utils/date-helpers";
   import { globalState } from "../stores/GlobalState.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
+  import {
+    ensureDemoEventsLoaded,
+    waitForEvent,
+  } from "$lib/utils/events.utils";
 
   interface Props {
     params?: { id?: string };
@@ -221,13 +225,27 @@
   }
 
   // Charger au montage ou quand l'ID change
-  onMount(() => {
-    if (extractedId()) {
-      loadEventData(extractedId()!);
-    } else {
+  onMount(async () => {
+    const id = extractedId();
+    if (!id) {
       error = "ID d'événement manquant";
       loading = false;
+      return;
     }
+
+    // ✅ AUTO-CHARGEMENT DES EVENTS DÉMO si route /demo/event
+    await ensureDemoEventsLoaded();
+
+    // ✅ Attendre que l'event soit disponible
+    const eventFound = await waitForEvent(id);
+    if (!eventFound) {
+      error = "Événement non trouvé";
+      loading = false;
+      return;
+    }
+
+    // Charger les données de l'événement
+    await loadEventData(id);
   });
 
   // Gérer le changement d'ID d'événement

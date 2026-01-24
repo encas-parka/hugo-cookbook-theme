@@ -7,6 +7,8 @@
   import { fade, fly } from "svelte/transition";
   import { cubicInOut } from "svelte/easing";
   import { scrollY } from "svelte/reactivity/window";
+  import { getDemoEventId } from "$lib/utils/events.utils";
+  import LoadingSpinner from "../components/ui/LoadingSpinner.svelte";
 
   function openAuthModal() {
     globalState.authModal.isOpen = true;
@@ -27,9 +29,12 @@
     };
   }
 
+  let isDemoLoading = $state(false);
+
   async function handleDemoEvent() {
     try {
       const toastId = toastService.loading("Chargement de la démo...");
+      isDemoLoading = true;
 
       if (!eventsStore.isInitialized) {
         await eventsStore.initializeForPublic();
@@ -287,7 +292,11 @@
         class="btn btn-lg btn-accent mb-10 w-fit"
         onclick={handleDemoEvent}
       >
-        <Eye size={24} />
+        {#if isDemoLoading}
+          <span class="loading loading-spinner"> </span>
+        {:else}
+          <Eye size={24} />
+        {/if}
         Voir la démo d'événement
       </button>
       <div

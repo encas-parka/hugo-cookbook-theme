@@ -55,7 +55,8 @@
     },
   };
 
-  // ✅ Guard pour mode local (AVEC auto-initialisation)
+  // ✅ Guard pour mode local (vérification simple)
+  // Le chargement des events démo est géré par EventEditPage lui-même
   const requireLocalEvent: RouteGuards = {
     beforeEnter: async (to) => {
       const eventId = to.params.id;
@@ -66,36 +67,32 @@
         return false;
       }
 
-      // ✅ AUTO-INITIALISATION si le store n'est pas prêt
-      if (!eventsStore.isInitialized) {
-        console.log(
-          "[Router] EventsStore non initialisé > Auto-init mode public",
-        );
-        try {
-          await eventsStore.initializeForPublic();
-        } catch (error) {
-          console.error("[Router] Erreur initialisation:", error);
-          navigate("/");
-          return false;
+      // ✅ Attendre que l'event soit disponible (chargé par EventEditPage)
+      // On ne fait que vérifier, pas de chargement ici
+      let retries = 0;
+      const maxRetries = 30; // 3 secondes max
+
+      while (retries < maxRetries) {
+        const event = eventsStore.getEventById(eventId);
+        if (event) {
+          // Event trouvé, vérifier que c'est bien un event local
+          if ((event.status as string) !== "local") {
+            console.log("[Router] Event non local > Redirection /");
+            navigate("/");
+            return false;
+          }
+          console.log("[Router] Event local validé");
+          return true;
         }
+        // Attendre un peu et réessayer
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        retries++;
       }
 
-      // Vérifier que l'event existe ET est en mode local
-      const event = eventsStore.getEventById(eventId);
-
-      if (!event) {
-        console.log("[Router] Event introuvable > Redirection /");
-        navigate("/");
-        return false;
-      }
-
-      if ((event.status as string) !== "local") {
-        console.log("[Router] Event non local > Auth requise");
-        navigate("/");
-        return false;
-      }
-
-      return true;
+      // Event non trouvé après timeout
+      console.log("[Router] Event introuvable après timeout > Redirection /");
+      navigate("/");
+      return false;
     },
   };
 

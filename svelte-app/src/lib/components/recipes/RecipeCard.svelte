@@ -38,7 +38,7 @@
   <!-- Absolute top @md -->
   {#if globalState.isDesktop}
     <h3
-      class="text-primary bg-base-100 rounded-t-box border-t-base-300 absolute -top-4 left-0 flex max-w-4/5 items-center-safe gap-3 border-t-1 py-0.5 ps-4 pe-6"
+      class="text-primary bg-base-100 rounded-t-box border-t-base-300 absolute -top-4 left-0 flex max-w-4/5 items-center-safe gap-3 border-t py-0.5 ps-4 pe-6"
     >
       <svg class="inline size-6 shrink-0">
         <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />

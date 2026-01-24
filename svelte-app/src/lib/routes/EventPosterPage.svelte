@@ -14,6 +14,10 @@
   import HeaderNav from "$lib/components/HeaderNav.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
   import { navBarStore } from "$lib/stores/NavBarStore.svelte";
+  import {
+    ensureDemoEventsLoaded,
+    waitForEvent,
+  } from "$lib/utils/events.utils";
 
   // Props from router
   interface Props {
@@ -169,6 +173,17 @@
   // Load event on mount
   onMount(() => {
     (async () => {
+      // ✅ AUTO-CHARGEMENT DES EVENTS DÉMO si route /demo/event
+      await ensureDemoEventsLoaded();
+
+      // ✅ Attendre que l'event soit disponible
+      const eventFound = await waitForEvent(params.id);
+      if (!eventFound) {
+        eventError = "Événement non trouvé";
+        eventLoading = false;
+        return;
+      }
+
       if (!event) {
         eventLoading = true;
         try {

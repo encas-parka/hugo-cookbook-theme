@@ -386,6 +386,8 @@ export class EventsStore {
    * Charge les événements de démonstration en mode local
    * Cette méthode génère les événements à partir des configurations
    * et les stocke directement dans le store et IDB
+   *
+   * ✅ IDEMPOTENT : Safe à appeler plusieurs fois (set écrase si existe déjà)
    */
   async loadDemoEvents(): Promise<void> {
     console.log("[EventsStore] Loading demo events...");
@@ -396,7 +398,7 @@ export class EventsStore {
 
       console.log(`[EventsStore] Generated ${demoEvents.length} demo events`);
 
-      // Ajouter à la SvelteMap
+      // Ajouter à la SvelteMap (set est idempotent)
       demoEvents.forEach((event) => {
         this.#events.set(event.$id, event);
       });
@@ -1288,9 +1290,8 @@ export class EventsStore {
       if (!event) throw new Error("Événement introuvable");
 
       // 🔥 Retirer le Label de l'utilisateur
-      const { removeUserFromEvent } = await import(
-        "../services/appwrite-functions"
-      );
+      const { removeUserFromEvent } =
+        await import("../services/appwrite-functions");
       await removeUserFromEvent(eventId, contributorId);
 
       const contributors = event.contributors.filter(
@@ -1349,9 +1350,8 @@ export class EventsStore {
       }
 
       // Appeler la nouvelle fonction unifiée
-      const { inviteParticipantsToEvent } = await import(
-        "../services/appwrite-functions"
-      );
+      const { inviteParticipantsToEvent } =
+        await import("../services/appwrite-functions");
       const result = await inviteParticipantsToEvent(eventId, event.name, {
         teamIds,
         emails,
@@ -1385,9 +1385,8 @@ export class EventsStore {
    */
   async removeTeam(eventId: string, teamId: string): Promise<EnrichedEvent> {
     try {
-      const { removeTeamFromEvent } = await import(
-        "../services/appwrite-functions"
-      );
+      const { removeTeamFromEvent } =
+        await import("../services/appwrite-functions");
       await removeTeamFromEvent(eventId, teamId);
 
       // Recharger l'événement

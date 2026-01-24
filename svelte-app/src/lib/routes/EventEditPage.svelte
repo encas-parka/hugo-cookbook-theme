@@ -30,6 +30,10 @@
   import UnsavedChangesGuard from "../components/ui/UnsavedChangesGuard.svelte";
   import Fieldset from "../components/ui/Fieldset.svelte";
   import ConfirmModal from "../components/ui/ConfirmModal.svelte";
+  import {
+    ensureDemoEventsLoaded,
+    waitForEvent,
+  } from "$lib/utils/events.utils";
 
   // ============================================================================
   // PROPS & INITIALISATION
@@ -213,6 +217,18 @@
       untrack(async () => {
         isBusy = true;
         try {
+          // ✅ AUTO-CHARGEMENT DES EVENTS DÉMO si route /demo/event
+          await ensureDemoEventsLoaded();
+
+          // ✅ Attendre que l'event soit disponible
+          const eventFound = await waitForEvent(eventId);
+
+          if (!eventFound) {
+            console.error("[EventEditPage] Event non trouvé après attente");
+            isBusy = false;
+            return;
+          }
+
           // 🔥 MODE LOCAL : Skip complètement la logique de locks
           if ((currentEvent?.status as string) === "local") {
             console.log("[EventEditPage] Mode local: skip lock initialization");
