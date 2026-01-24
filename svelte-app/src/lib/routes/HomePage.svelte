@@ -265,31 +265,38 @@
       >
         Démo
       </button>
-
-      {#if !globalState.isAuthenticated}
-        <p class="text-base-content/60 text-center">
-          Déjà membre ? Connectez-vous pour gérer vos cantines et équipes
-        </p>
-      {/if}
     </div>
 
-    <button class="btn btn-circle btn-ghost mt-auto animate-bounce">
-      <ArrowDown class="size-8" />
-    </button>
+    {#if !globalState.isAuthenticated}
+      <p class="text-base-content/60 text-center">
+        Déjà membre ? <button class="link" onclick={openAuthModal}>
+          Connectez-vous
+        </button> pour gérer vos cantines et équipes
+      </p>
+    {/if}
+
+    <div
+      class="text-base-content/40 flex flex-col items-center justify-center gap-2"
+    >
+      <div>En savoir plus</div>
+      <button class="btn btn-circle btn-ghost mt-auto animate-bounce">
+        <ArrowDown class=" size-8" />
+      </button>
+    </div>
   </section>
 
   <!-- SECTION 2: Features avec snapping et transitions séquentielles -->
   <section class=" relative" bind:this={featuresContainer}>
     <!-- Contenu fixe visible -->
     <div
-      class="to-neutral/20 from-base-100 sticky top-0 flex min-h-screen flex-col items-center justify-center bg-linear-to-l px-4"
+      class="to-neutral/20 from-base-100 sticky top-0 flex min-h-screen flex-col items-center justify-center bg-linear-to-l px-4 pb-10"
     >
       <button
-        class="btn btn-lg btn-accent btn-wide mb-10"
+        class="btn btn-lg btn-accent mb-10 w-fit"
         onclick={handleDemoEvent}
       >
         <Eye size={24} />
-        Voir la d'événement
+        Voir la démo d'événement
       </button>
       <div
         class="items-top grid w-full grid-cols-1 gap-12 lg:grid-cols-5 lg:gap-16"
