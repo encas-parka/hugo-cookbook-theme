@@ -31,6 +31,9 @@
   // Détection mode dev
   const isDev = import.meta.env.DEV;
 
+  // Initialiser le smart header
+  globalState.initializeScrollDirection();
+
   function toggleDropdown() {
     showDropdown = !showDropdown;
   }
@@ -114,10 +117,12 @@
 </script>
 
 <div
-  class="navbar bg-base-100 border-base-300 sticky top-0 z-[1000] min-h-13 border-b px-4 py-0 shadow-sm print:hidden {globalState.isMobile &&
-    'min-h-11'} relative"
+  class="navbar bg-base-100 border-base-300 sticky top-0 z-1000 min-h-13 border-b px-4 py-0 shadow-sm print:hidden {globalState.isMobile &&
+    'min-h-11'} {globalState.isMobile &&
+    !globalState.headerVisible &&
+    '-translate-y-full'} transition-transform duration-300"
 >
-  <div class="navbar-start w-fit flex-shrink-0 gap-1">
+  <div class="navbar-start w-fit shrink-0 gap-1">
     <!-- Brand -->
     <button class="btn btn-ghost btn-circle" onclick={() => navigate("/")}>
       <img src="images/favicon.png" alt="logo" class="h-8 w-8" />

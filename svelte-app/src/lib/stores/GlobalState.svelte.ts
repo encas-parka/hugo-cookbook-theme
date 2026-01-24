@@ -1,4 +1,6 @@
 import { MediaQuery } from "svelte/reactivity";
+import { scrollY } from "svelte/reactivity/window";
+
 import { toastService } from "../services/toast.service.svelte";
 import { getAppwriteInstances, clearAppwriteCache } from "../services/appwrite";
 import { nativeTeamsStore } from "./NativeTeamsStore.svelte";
@@ -264,6 +266,59 @@ class GlobalState {
 
   get isDesktop() {
     return this.isDesktopQuery.current;
+  }
+
+  // =============================================================================
+  // SMART HEADER STATE (Mobile only)
+  // =============================================================================
+
+  #lastScrollY = $state(0);
+  #headerVisible = $state(true);
+  #scrollDirection = $state<"up" | "down">("down");
+
+  get headerVisible() {
+    return this.#headerVisible;
+  }
+
+  get scrollDirection() {
+    return this.#scrollDirection;
+  }
+
+  /**
+   * Initialise la détection de scroll pour le smart header
+   * Seulement actif sur mobile
+   * Expose aussi la direction du scroll pour tous les composants
+   */
+  initializeScrollDirection() {
+    $effect(() => {
+      const currentScroll = scrollY.current ?? 0;
+
+      // Calcul de la direction du scroll
+      if (currentScroll > this.#lastScrollY) {
+        this.#scrollDirection = "down";
+      } else if (currentScroll < this.#lastScrollY) {
+        this.#scrollDirection = "up";
+      }
+
+      // Ne rien faire sur desktop pour le header
+      if (this.isDesktop) {
+        this.#headerVisible = true;
+        this.#lastScrollY = currentScroll;
+        return;
+      }
+
+      // Scroll down et au-delà de 100px → cacher le header (mobile only)
+      if (currentScroll > this.#lastScrollY && currentScroll > 100) {
+        this.#headerVisible = false;
+      }
+      // Scroll up → montrer le header (mobile only)
+      else if (currentScroll < this.#lastScrollY) {
+        this.#headerVisible = true;
+      }
+
+      // Mettre à jour la dernière position
+      this.#lastScrollY = currentScroll;
+    });
   }
 
   get userName() {

@@ -27,6 +27,7 @@
 
   // ✅ SEULEMENT HomePage en import statique (page critique)
   import HomePage from "./lib/routes/HomePage.svelte";
+  import NotFoundPage from "./lib/routes/NotFoundPage.svelte";
   import { fade } from "svelte/transition";
 
   // ❌ SUPPRIMER tous les autres imports de pages !
@@ -246,6 +247,9 @@
     () => import("./lib/routes/EventPosterPage.svelte"),
     requireLocalEvent,
   );
+
+  // ✅ Route 404 catch-all (DOIT être en dernier)
+  router.addRoute(/.*/, NotFoundPage);
 
   let currentRoute = $state<any>(null);
 
