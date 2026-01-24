@@ -1,7 +1,7 @@
 <script lang="ts">
   import { navigate } from "../services/simple-router.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
-  import { ChefHat, ArrowRight, ArrowDown } from "@lucide/svelte";
+  import { ChefHat, ArrowRight, ArrowDown, Eye } from "@lucide/svelte";
   import { eventsStore } from "../stores/EventsStore.svelte";
   import { toastService } from "../services/toast.service.svelte";
   import { fade, fly } from "svelte/transition";
@@ -279,216 +279,213 @@
   </section>
 
   <!-- SECTION 2: Features avec snapping et transitions séquentielles -->
-  <section
-    class="from-base-200 to-base-100 relative bg-gradient-to-b"
-    bind:this={featuresContainer}
-  >
-    <div class="container mx-auto px-4">
-      <!-- Contenu fixe visible -->
-      <div class="sticky top-0 flex min-h-screen items-center">
+  <section class=" relative" bind:this={featuresContainer}>
+    <!-- Contenu fixe visible -->
+    <div
+      class="to-neutral/20 from-base-100 sticky top-0 flex min-h-screen flex-col items-center justify-center bg-linear-to-l px-4"
+    >
+      <button
+        class="btn btn-lg btn-accent btn-wide mb-10"
+        onclick={handleDemoEvent}
+      >
+        <Eye size={24} />
+        Voir la d'événement
+      </button>
+      <div
+        class="items-top grid w-full grid-cols-1 gap-12 lg:grid-cols-5 lg:gap-16"
+      >
+        <!-- Screenshot avec cross-fade clean et défilement vertical fluide -->
         <div
-          class="items-top grid w-full grid-cols-1 gap-12 lg:grid-cols-5 lg:gap-16"
+          class="bg-base-300 relative col-span-3 hidden aspect-video overflow-hidden rounded-4xl shadow-2xl lg:block"
         >
-          <!-- Screenshot avec cross-fade clean et défilement vertical fluide -->
+          {#each features as feature, i}
+            {@const state = getSnapState(i)}
+            {@const scrollY = (continuousProgress - i) * 50}
+            <div
+              class="absolute inset-0 bg-cover bg-center transition-opacity duration-700 ease-out"
+              style="opacity: {state.opacity}; z-index: {state.zIndex}; background-image: url('{feature.screenshot}'); background-position-y: calc(50% + {scrollY *
+                -10}px);"
+            ></div>
+          {/each}
+        </div>
+
+        <!-- Contenu texte avec transitions séquentielles -->
+        <div class="relative col-span-2 min-h-[450px]">
+          <!-- Icône animée unique (feedback visuel continu) -->
           <div
-            class="bg-base-300 relative col-span-3 aspect-video overflow-hidden rounded-4xl shadow-2xl"
+            class="absolute -right-2 bottom-2 flex -translate-y-1/2 items-center justify-center"
+            style="transform: rotate({continuousProgress *
+              180}deg); transition: none;"
           >
-            {#each features as feature, i}
-              {@const state = getSnapState(i)}
-              {@const scrollY = (continuousProgress - i) * 50}
-              <div
-                class="absolute inset-0 bg-cover bg-center transition-opacity duration-700 ease-out"
-                style="opacity: {state.opacity}; z-index: {state.zIndex}; background-image: url('{feature.screenshot}'); background-position-y: calc(50% + {scrollY *
-                  -10}px);"
-              ></div>
-            {/each}
+            <img src="images/logo.svg" alt="EC" class="size-16" />
           </div>
 
-          <!-- Contenu texte avec transitions séquentielles -->
-          <div class="relative col-span-2 min-h-[450px]">
-            <!-- Icône animée unique (feedback visuel continu) -->
+          <!-- Contenu texte (avec snap + plateau) -->
+          {#each features as feature, i}
+            {@const state = getSnapState(i)}
+            {@const isActive = i === activeIndex}
             <div
-              class="absolute -right-2 bottom-2 flex -translate-y-1/2 items-center justify-center"
-              style="transform: rotate({continuousProgress *
-                180}deg); transition: none;"
-            >
-              <img src="images/logo.svg" alt="EC" class="size-16" />
-            </div>
-
-            <!-- Contenu texte (avec snap + plateau) -->
-            {#each features as feature, i}
-              {@const state = getSnapState(i)}
-              {@const isActive = i === activeIndex}
-              <div
-                class="absolute inset-0"
-                style="
+              class="absolute inset-0"
+              style="
                   opacity: {state.opacity};
                   transform: translateX({state.translateX}px) translateY({state.translateY}px) scale({state.scale});
                   z-index: {state.zIndex};
                   pointer-events: {state.pointerEvents};
                   transition: opacity 600ms ease-out, transform 600ms ease-out;
                 "
-              >
-                <div class="space-y-6">
-                  <!-- Titre avec délai 0 -->
-                  <h3
-                    class="text-base-content mt-10 text-3xl font-bold md:text-4xl"
-                    style="
+            >
+              <div class="space-y-6">
+                <!-- Titre avec délai 0 -->
+                <h3
+                  class="text-base-content mt-10 text-3xl font-bold md:text-4xl"
+                  style="
                       opacity: {isActive ? 1 : 0};
                       transform:  translateX({isActive ? 0 : 55}px);
                       transition: opacity 500ms ease-out {getElementDelay(
-                      0,
-                      isActive,
-                    )}ms,
+                    0,
+                    isActive,
+                  )}ms,
                                   transform 500ms ease-out {getElementDelay(
-                      0,
-                      isActive,
-                    )}ms;
+                    0,
+                    isActive,
+                  )}ms;
                     "
-                  >
-                    {feature.title}
-                  </h3>
+                >
+                  {feature.title}
+                </h3>
 
-                  <!-- Description avec délai 1 -->
-                  <p
-                    class="text-base-content/70 text-lg leading-relaxed"
-                    style="
+                <!-- Description avec délai 1 -->
+                <p
+                  class="text-base-content/70 text-lg leading-relaxed"
+                  style="
                       opacity: {isActive ? 1 : 0};
                       transform: translateX({isActive ? 0 : 35}px);
                       transition: opacity 500ms ease-out {getElementDelay(
-                      1,
-                      isActive,
-                    )}ms,
+                    1,
+                    isActive,
+                  )}ms,
                                   transform 500ms ease-out {getElementDelay(
-                      1,
-                      isActive,
-                    )}ms;
+                    1,
+                    isActive,
+                  )}ms;
                     "
-                  >
-                    {feature.description}
-                  </p>
+                >
+                  {feature.description}
+                </p>
 
-                  {#if feature.items}
-                    <!-- Liste avec délai 2 -->
-                    <ul
-                      class="mt-8 space-y-3"
-                      style="
+                {#if feature.items}
+                  <!-- Liste avec délai 2 -->
+                  <ul
+                    class="mt-8 space-y-3"
+                    style="
                         opacity: {isActive ? 1 : 0};
                         transform: translateY({isActive ? 0 : 15}px);
                         transition: opacity 500ms ease-out {getElementDelay(
-                        2,
-                        isActive,
-                      )}ms,
+                      2,
+                      isActive,
+                    )}ms,
                                     transform 500ms ease-out {getElementDelay(
-                        2,
-                        isActive,
-                      )}ms;
+                      2,
+                      isActive,
+                    )}ms;
                       "
-                    >
-                      {#each feature.items as item, itemIdx}
-                        <li
-                          class="text-base-content flex items-start gap-3"
-                          style="
+                  >
+                    {#each feature.items as item, itemIdx}
+                      <li
+                        class="text-base-content flex items-start gap-3"
+                        style="
                             opacity: {isActive ? 1 : 0};
                             transform: translateX({isActive ? 0 : -10}px);
                             transition: opacity 400ms ease-out {getElementDelay(
-                            3,
-                            isActive,
-                          ) +
-                            itemIdx * 50}ms,
+                          3,
+                          isActive,
+                        ) +
+                          itemIdx * 50}ms,
                                         transform 400ms ease-out {getElementDelay(
-                            3,
-                            isActive,
-                          ) +
-                            itemIdx * 50}ms;
+                          3,
+                          isActive,
+                        ) +
+                          itemIdx * 50}ms;
                           "
+                      >
+                        <svg
+                          class="text-primary mt-0.5 h-6 w-6 flex-shrink-0"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
                         >
-                          <svg
-                            class="text-primary mt-0.5 h-6 w-6 flex-shrink-0"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                          <span>{item}</span>
-                        </li>
-                      {/each}
-                    </ul>
-                  {/if}
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        <span>{item}</span>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
 
-                  {#if feature.buttonText && feature.buttonAction}
-                    <!-- Bouton avec dernier délai -->
-                    <div
-                      class="mt-8"
-                      style="
+                {#if feature.buttonText && feature.buttonAction}
+                  <!-- Bouton avec dernier délai -->
+                  <div
+                    class="mt-8"
+                    style="
                         opacity: {isActive ? 1 : 0};
                         transform: translateY({isActive
-                        ? 0
-                        : 15}px) scale({isActive ? 1 : 0.95});
+                      ? 0
+                      : 15}px) scale({isActive ? 1 : 0.95});
                         transition: opacity 500ms ease-out {getElementDelay(
-                        feature.items ? 4 : 3,
-                        isActive,
-                      )}ms,
+                      feature.items ? 4 : 3,
+                      isActive,
+                    )}ms,
                                     transform 500ms ease-out {getElementDelay(
-                        feature.items ? 4 : 3,
-                        isActive,
-                      )}ms;
+                      feature.items ? 4 : 3,
+                      isActive,
+                    )}ms;
                       "
-                    >
-                      <button
-                        class="btn btn-lg {themeBtnClasses(feature.theme)}"
-                        onclick={feature.buttonAction}
-                      >
-                        {feature.buttonText}
-                      </button>
-                    </div>
-                  {/if}
-                </div>
+                  ></div>
+                {/if}
               </div>
-            {/each}
-          </div>
+            </div>
+          {/each}
         </div>
+      </div>
 
-        <!-- Indicateur de progression avec double layer -->
-        <div class="absolute right-0 bottom-8 left-0 flex justify-center px-4">
-          <div
-            class="bg-base-100/80 flex max-w-full gap-2 overflow-x-auto rounded-full px-4 py-3 shadow-lg backdrop-blur-sm md:gap-3 md:px-6 md:py-4"
-          >
-            {#each features as _, idx}
+      <!-- Indicateur de progression avec double layer -->
+      <div class="absolute right-0 bottom-8 left-0 flex justify-center px-4">
+        <div
+          class="bg-base-100/80 flex max-w-full gap-2 overflow-x-auto rounded-full px-4 py-3 shadow-lg backdrop-blur-sm md:gap-3 md:px-6 md:py-4"
+        >
+          {#each features as _, idx}
+            <div
+              class="bg-base-300 relative h-2 w-12 flex-shrink-0 overflow-hidden rounded-full md:w-16"
+            >
+              <!-- Barre de progression continue (transparente) -->
               <div
-                class="bg-base-300 relative h-2 w-12 flex-shrink-0 overflow-hidden rounded-full md:w-16"
-              >
-                <!-- Barre de progression continue (transparente) -->
-                <div
-                  class="bg-primary/30 absolute inset-y-0 left-0 rounded-full transition-all duration-200 ease-out"
-                  style="width: {Math.max(
-                    0,
-                    Math.min(1, continuousProgress - idx),
-                  ) * 100}%"
-                ></div>
-                <!-- Barre d'état actif (opaque) -->
-                <div
-                  class="bg-primary absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
-                  style="width: {activeIndex === idx ? 100 : 0}%"
-                ></div>
-              </div>
-            {/each}
-          </div>
+                class="bg-primary/30 absolute inset-y-0 left-0 rounded-full transition-all duration-200 ease-out"
+                style="width: {Math.max(
+                  0,
+                  Math.min(1, continuousProgress - idx),
+                ) * 100}%"
+              ></div>
+              <!-- Barre d'état actif (opaque) -->
+              <div
+                class="bg-primary absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
+                style="width: {activeIndex === idx ? 100 : 0}%"
+              ></div>
+            </div>
+          {/each}
         </div>
       </div>
+    </div>
 
-      <!-- Hauteur de scroll invisible (sans snap CSS) -->
-      <div class="relative -z-10">
-        {#each features as feature}
-          <div class="h-screen"></div>
-        {/each}
-      </div>
+    <!-- Hauteur de scroll invisible (sans snap CSS) -->
+    <div class="relative -z-10">
+      {#each features as feature}
+        <div class="h-screen"></div>
+      {/each}
     </div>
   </section>
 </div>
