@@ -1,13 +1,12 @@
 <script lang="ts">
   import { navigate } from "../services/simple-router.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
-  import { ChefHat, ArrowRight } from "@lucide/svelte";
+  import { ChefHat, ArrowRight, ArrowDown } from "@lucide/svelte";
   import { eventsStore } from "../stores/EventsStore.svelte";
   import { toastService } from "../services/toast.service.svelte";
   import { fade, fly } from "svelte/transition";
   import { cubicInOut } from "svelte/easing";
-  import { onMount, onDestroy } from "svelte";
-  import { ScrollState } from "runed";
+  import { scrollY } from "svelte/reactivity/window";
 
   function openAuthModal() {
     globalState.authModal.isOpen = true;
@@ -101,17 +100,15 @@
   // ScrollState : gestion réactive du scroll
   let featuresContainer: HTMLElement | undefined = $state(undefined);
   let activeIndex = $state(0);
-  let isScrollingDown = $state(false);
   let continuousProgress = $state(0); // Progression continue 0-4
 
-  // Instance ScrollState
-  const scroll = new ScrollState({
-    element: () => window, // Retour à window pour préserver le sticky
-    onScroll: handleScroll,
-    eventListenerOptions: { passive: true },
-  });
+  // Initialiser le smart header de GlobalState
+  globalState.initializeScrollDirection();
 
-  // Handler pour le scroll
+  // Direction du scroll depuis GlobalState
+  const isScrollingDown = $derived(globalState.scrollDirection === "down");
+
+  // Handler pour le scroll avec scrollY natif
   function handleScroll() {
     if (!featuresContainer) return;
 
@@ -142,46 +139,18 @@
 
     // Mise à jour de la progression continue
     continuousProgress = rawProgress;
-
-    // Détection de la direction
-    isScrollingDown = scroll.directions.bottom;
   }
 
-  onMount(() => {
-    // ScrollState gère automatiquement les listeners
-    // Initialisation de la progression
+  // $effect pour réagir aux changements de scrollY
+  $effect(() => {
+    // Juste déclencher handleScroll quand scrollY change
+    scrollY.current;
     handleScroll();
   });
 
   const themeBtnClasses = (theme: "primary" | "secondary" = "primary") => {
     return theme === "primary" ? "btn-primary" : "btn-secondary";
   };
-
-  /**
-   * Fonction d'easing avec plateau pour créer un moment de stabilité
-   * @param t - Progression 0 à 1
-   * @param plateauStart - Début du plateau (ex: 0.35)
-   * @param plateauEnd - Fin du plateau (ex: 0.65)
-   * @returns Valeur easing avec plateau
-   */
-  function plateauEasing(
-    t: number,
-    plateauStart: number,
-    plateauEnd: number,
-  ): number {
-    const clampedT = Math.max(0, Math.min(1, t));
-
-    if (clampedT < plateauStart) {
-      // Phase d'arrivée : 0 → plateauStart
-      return clampedT / plateauStart;
-    } else if (clampedT > plateauEnd) {
-      // Phase de départ : plateauEnd → 1
-      return 1 - (1 - clampedT) / (1 - plateauEnd);
-    } else {
-      // PLATEAU STABLE : reste à 1
-      return 1;
-    }
-  }
 
   /**
    * État d'animation pour le TEXTE avec snap et plateau
@@ -212,34 +181,6 @@
     };
   }
 
-  /**
-   * État d'animation CONTINU pour bordure/glow + forme floue
-   * Pas de plateau, animation fluide basée sur la progression exacte
-   */
-  function getContinuousState(index: number) {
-    const progress = continuousProgress - index;
-    const absProgress = Math.abs(progress);
-
-    // Opacité : diminue avec la distance (1 à l'index actif, 0 à ±1)
-    const opacity = Math.max(0, 1 - absProgress);
-
-    // Scale : légèrement plus petit quand on s'éloigne
-    const scale = Math.max(0.85, 1 - absProgress * 0.15);
-
-    // TranslateY : suit exactement la progression
-    const translateY = progress * 30;
-
-    // TranslateX : léger décalage latéral pour effet de profondeur
-    const translateX = progress * 15;
-
-    return {
-      opacity,
-      scale,
-      translateY,
-      translateX,
-    };
-  }
-
   // Nouveaux délais progressifs pour les éléments
   function getElementDelay(elementIndex: number, isActive: boolean) {
     if (!isActive) return 0;
@@ -250,7 +191,7 @@
 <div class="bg-base-200">
   <!-- SECTION 1: Hero -->
   <section
-    class="hero bg-base-200 flex min-h-[90vh] snap-center flex-col justify-center gap-20"
+    class="hero bg-base-200 flex flex-col justify-center gap-20 md:h-[90vh] md:py-15"
   >
     <div class="hero-content text-center">
       <div class="max-w-3xl">
@@ -258,11 +199,11 @@
           <img
             src="images/logo.svg"
             alt="Enka Cookbook"
-            class="color-primary size-80 transition-all duration-900 hover:origin-center hover:rotate-360"
+            class="size-40 md:size-80"
           />
         </div>
         <h1
-          class="cherry-bomb-one-regular text-7xl"
+          class="cherry-bomb-one-regular text-4xl md:text-7xl"
           in:fly={{ y: 30, duration: 600, delay: 100 }}
         >
           {#each "Enka Cookbook" as l}
@@ -272,7 +213,7 @@
           {/each}
         </h1>
         <div
-          class="text-base-content/70 mt-6 space-x-1 text-xl"
+          class="text-base-content/70 mt-6 space-x-1 text-base md:text-xl"
           in:fly={{ y: 20, duration: 800, delay: 200 }}
         >
           {#each ["Outils", " de", " planification", " pour", " les", " cantines", " autogérées"] as w, i (i)}
@@ -290,7 +231,7 @@
       in:fadeScale={{ duration: 400, delay: 400, start: 0.9 }}
     >
       <button
-        class="btn btn-primary btn-lg transition-all duration-300 hover:scale-110"
+        class="btn btn-primary md:btn-lg transition-all duration-300 hover:scale-110"
         onclick={() => navigate("/recipe")}
         in:fadeScale={{ duration: 400, delay: 450, start: 0.9 }}
       >
@@ -300,7 +241,7 @@
 
       {#if globalState.isAuthenticated}
         <button
-          class="btn btn-outline btn-lg transition-all duration-300 hover:scale-110"
+          class="btn btn-outline md:btn-lg transition-all duration-300 hover:scale-110"
           onclick={() => navigate("/dashboard")}
           in:fadeScale={{ duration: 400, delay: 500, start: 0.9 }}
         >
@@ -309,7 +250,7 @@
         </button>
       {:else}
         <button
-          class="btn btn-secondary btn-lg transition-all duration-300 hover:scale-110"
+          class="btn btn-secondary md:btn-lg transition-all duration-300 hover:scale-110"
           onclick={openAuthModal}
         >
           Créer un compte pour commencer
@@ -331,6 +272,10 @@
         </p>
       {/if}
     </div>
+
+    <button class="btn btn-circle btn-ghost mt-auto animate-bounce">
+      <ArrowDown class="size-8" />
+    </button>
   </section>
 
   <!-- SECTION 2: Features avec snapping et transitions séquentielles -->
