@@ -75,7 +75,7 @@
         {#each items as ingredient, index (index)}
           {@const scaled = getScaledIngredient(ingredient)}
           <li
-            class=" grid grid-cols-[auto_1fr] items-baseline gap-x-2 gap-y-0 text-base"
+            class="mb-0.5 grid grid-cols-[auto_1fr] items-baseline gap-x-2 gap-y-0 text-sm"
           >
             <!-- Nom de l'ingrédient avec allergène -->
             <span
