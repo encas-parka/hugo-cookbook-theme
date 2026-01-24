@@ -194,6 +194,28 @@
     }
   });
 
+  // ✅ SYNCHRONISATION INITIALE EN MODE LOCAL
+  // En mode local, isLockedByMe est toujours true, donc on utilise un $effect séparé
+  $effect(() => {
+    if (
+      currentEvent &&
+      isInitialised &&
+      (currentEvent.status as string) === "local"
+    ) {
+      // Synchroniser uniquement si le shadow draft est vide (première synchronisation)
+      if (eventName === "" && currentEvent.name) {
+        untrack(() => {
+          meals = $state.snapshot(currentEvent.meals || []);
+          eventName = currentEvent.name || "";
+          description = currentEvent.description || "";
+          status = currentEvent.status || "local";
+          minContrib = currentEvent.minContrib || 1;
+          console.log("[EventEditPage] Shadow draft synchronisé (mode local)");
+        });
+      }
+    }
+  });
+
   // ============================================================================
   // NAVBAR CONFIGURATION
   // ============================================================================
@@ -230,7 +252,8 @@
           }
 
           // 🔥 MODE LOCAL : Skip complètement la logique de locks
-          if ((currentEvent?.status as string) === "local") {
+          const event = eventsStore.getEventById(eventId);
+          if ((event?.status as string) === "local") {
             console.log("[EventEditPage] Mode local: skip lock initialization");
             isInitialised = true;
             return;
