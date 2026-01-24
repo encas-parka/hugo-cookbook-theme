@@ -282,15 +282,15 @@
 
 @media print {
   * .print-xxs {
-    zoom: 0.9;
+    zoom: 0.8 !important;
   }
 
   * .print-xs {
-    zoom: 0.95;
+    zoom: 0.9 !important;
   }
 
   * .print-sm {
-    zoom: 0.98;
+    zoom: 0.95 !important;
   }
 
   @page {

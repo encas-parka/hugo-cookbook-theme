@@ -163,7 +163,7 @@
   });
 </script>
 
-<div class="grid grid-cols-[1fr_auto] items-start gap-4 p-2">
+<div class="grid grid-cols-[1fr_auto] items-start gap-4 md:p-2">
   <!-- L'affiche A4 (Colonne de gauche, centrée) -->
   <div class="flex flex-col items-end gap-8">
     {#each pages as page, pageIdx}
@@ -173,8 +173,8 @@
 
       <div
         id={currentPageId}
-        class="meal-poster-section relative bg-white shadow-2xl
-        transition-shadow {currentPrintTarget !== null &&
+        class="meal-poster-section relative flex max-w-svw bg-white
+        shadow-2xl transition-shadow {currentPrintTarget !== null &&
           currentPrintTarget !== currentPageId &&
           'no-print'}"
       >

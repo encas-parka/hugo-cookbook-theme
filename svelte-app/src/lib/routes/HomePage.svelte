@@ -257,14 +257,6 @@
           <ArrowRight size={24} />
         </button>
       {/if}
-
-      <button
-        class="btn btn-lg btn-primary"
-        in:fadeScale={{ duration: 400, delay: 550, start: 0.8 }}
-        onclick={handleDemoEvent}
-      >
-        Démo
-      </button>
     </div>
 
     {#if !globalState.isAuthenticated}

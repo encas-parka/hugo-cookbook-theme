@@ -74,13 +74,18 @@
       <ul class="print-xs space-y-2 print:space-y-1">
         {#each items as ingredient, index (index)}
           {@const scaled = getScaledIngredient(ingredient)}
-          <li class="grid grid-cols-[auto_1fr] items-baseline gap-x-2 gap-y-0">
+          <li
+            class=" grid grid-cols-[auto_1fr] items-baseline gap-x-2 gap-y-0 text-base"
+          >
             <!-- Nom de l'ingrédient avec allergène -->
-            <span class=" truncate font-medium" title={ingredient.name}>
+            <span
+              class=" print-xs truncate font-medium"
+              title={ingredient.name}
+            >
               {ingredient.name} :
               {#if ingredient.allergens && ingredient.allergens.length > 0}
                 <span class="ml-1 inline-flex align-middle print:hidden">
-                  <TriangleAlert class="h-4 w-4 opacity-70" />
+                  <TriangleAlert class="print-xs h-4 w-4 opacity-70 " />
                 </span>
               {/if}
             </span>
@@ -88,12 +93,12 @@
             <!-- Quantités et commentaire -->
             <div class="flex flex-wrap items-baseline gap-x-1">
               <span>
-                <span class="tabular-nums"
+                <span class="print-xs tabular-nums"
                   >{scaled.originalDisplayQuantity}</span
                 >
                 <span class="ml-1">{scaled.originalDisplayUnit}</span>
                 {#if scaled.hasDifferentQuantities}
-                  <span class="text-base-content/70 ml-1">
+                  <span class="text-base-content/70 print-xs ml-1">
                     ({scaled.normalizedDisplayQuantity}
                     {scaled.normalizedDisplayUnit})
                   </span>
@@ -101,7 +106,9 @@
               </span>
 
               {#if ingredient.comment}
-                <span class="text-base-content/70 display:text-sm before:mx-1">
+                <span
+                  class="text-base-content/70 display:text-sm print-xxs before:mx-1"
+                >
                   ({ingredient.comment})
                 </span>
               {/if}

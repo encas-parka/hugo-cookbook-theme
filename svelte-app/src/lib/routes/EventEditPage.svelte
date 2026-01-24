@@ -46,7 +46,7 @@
   let eventName = $state("");
   let description = $state("");
   let status = $state<
-    "proposition" | "confirmed" | "canceled" | "archive" | "locked"
+    "proposition" | "confirmed" | "canceled" | "archive" | "locked" | "local"
   >("proposition");
   let minContrib = $state<number>(1);
 
@@ -213,6 +213,13 @@
       untrack(async () => {
         isBusy = true;
         try {
+          // 🔥 MODE LOCAL : Skip complètement la logique de locks
+          if ((currentEvent?.status as string) === "local") {
+            console.log("[EventEditPage] Mode local: skip lock initialization");
+            isInitialised = true;
+            return;
+          }
+
           // Initialiser l'état du verrou
           activeLock = await locksService.getLock(eventId);
 
