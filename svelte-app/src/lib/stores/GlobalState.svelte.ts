@@ -351,7 +351,7 @@ class GlobalState {
     progress: 0,
   });
 
-  authModal = $state({ isOpen: false });
+  authModal = $state({ isOpen: false, showLogin: true });
 }
 
 export const globalState = new GlobalState();

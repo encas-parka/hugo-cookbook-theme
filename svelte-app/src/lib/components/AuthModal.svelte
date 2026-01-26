@@ -4,15 +4,27 @@
   import ModalHeader from "$lib/components/ui/modal/ModalHeader.svelte";
   import ModalContent from "$lib/components/ui/modal/ModalContent.svelte";
   import ModalFooter from "$lib/components/ui/modal/ModalFooter.svelte";
-  import { CircleX, CircleCheck } from "@lucide/svelte";
+  import { CircleX, CircleCheck, Mail, Lock, User } from "@lucide/svelte";
 
-  let { isOpen = $bindable(), onAuth_success = async () => {} } = $props();
+  let {
+    isOpen = $bindable(),
+    onAuth_success = async () => {},
+    showLogin: initialShowLogin = true,
+  } = $props();
 
   // États avec runes Svelte 5
-  let showLogin = $state(true);
+  let showLogin = $state(initialShowLogin);
   let isLoading = $state(false);
   let errorMessage = $state("");
   let successMessage = $state("");
+
+  // Synchroniser showLogin avec la prop quand isOpen change
+  $effect(() => {
+    if (isOpen) {
+      showLogin = initialShowLogin;
+      showForgotPassword = false;
+    }
+  });
 
   // Formulaire de connexion
   let loginEmail = $state("");
@@ -156,7 +168,7 @@
   <ModalHeader title={getTitle()} onClose={closeModal} />
 
   <ModalContent>
-    <div class="space-y-4">
+    <div class="space-y-4 py-4">
       <!-- Messages -->
       {#if errorMessage}
         <div role="alert" class="alert alert-error max-md:alert-vertical">
@@ -175,23 +187,21 @@
       <!-- Mot de passe oublié -->
       {#if showForgotPassword}
         <form onsubmit={handleForgotPassword} class="space-y-4">
-          <div class="form-control">
-            <label for="forgot-email" class="label">
-              <span class="label-text">Email</span>
-            </label>
+          <label class="input w-full">
+            <Mail class="h-4 w-4 opacity-50" />
             <input
-              id="forgot-email"
               type="email"
               bind:value={forgotEmail}
-              class="input input-bordered w-full"
               placeholder="votre@email.com"
               disabled={isLoading}
+              required
             />
-          </div>
+          </label>
 
           <div class="alert alert-info alert-soft">
-            Un email avec un lien vous sera envoyé par "noreply@appwrite.io".
-            Pensez à vérifier s'il n'a pas attéri dans votre dossier spam.
+            Un email avec un lien vous sera envoyé pour renouveller votre mot de
+            passe.". Pensez à vérifier s'il n'a pas attéri dans votre dossier
+            spam.
           </div>
         </form>
 
@@ -208,35 +218,27 @@
         <!-- Connexion -->
       {:else if showLogin}
         <form onsubmit={handleLogin} class="space-y-4">
-          <div class="form-control">
-            <label for="login-email" class="label">
-              <span class="label-text">Email</span>
-            </label>
+          <label class="input w-full">
+            <Mail class="h-4 w-4 opacity-50" />
             <input
-              id="login-email"
               type="email"
               bind:value={loginEmail}
-              class="input input-bordered w-full"
               placeholder="votre@email.com"
               disabled={isLoading}
               required
             />
-          </div>
+          </label>
 
-          <div class="form-control">
-            <label for="login-password" class="label">
-              <span class="label-text">Mot de passe</span>
-            </label>
+          <label class="input w-full">
+            <Lock class="h-4 w-4 opacity-50" />
             <input
-              id="login-password"
               type="password"
               bind:value={loginPassword}
-              class="input input-bordered w-full"
-              placeholder="•••••••"
+              placeholder="Mot de passe"
               disabled={isLoading}
               required
             />
-          </div>
+          </label>
         </form>
 
         <div class="space-y-2 text-center">
@@ -263,53 +265,42 @@
         <!-- Inscription -->
       {:else}
         <form onsubmit={handleRegister} class="space-y-4">
-          <div class="form-control">
-            <label for="register-name" class="label">
-              <span class="label-text">Nom</span>
-            </label>
+          <label class="input w-full">
+            <User class="h-4 w-4 opacity-50" />
             <input
-              id="register-name"
               type="text"
               bind:value={registerName}
-              class="input input-bordered w-full"
               placeholder="Votre nom"
               disabled={isLoading}
               required
             />
-          </div>
+          </label>
 
-          <div class="form-control">
-            <label for="register-email" class="label">
-              <span class="label-text">Email</span>
-            </label>
+          <label class="input w-full">
+            <Mail class="h-4 w-4 opacity-50" />
             <input
-              id="register-email"
               type="email"
               bind:value={registerEmail}
-              class="input input-bordered w-full"
               placeholder="votre@email.com"
               disabled={isLoading}
               required
             />
-          </div>
+          </label>
 
-          <div class="form-control">
-            <label for="register-password" class="label">
-              <span class="label-text">Mot de passe</span>
-            </label>
+          <label class="input w-full">
+            <Lock class="h-4 w-4 opacity-50" />
             <input
-              id="register-password"
               type="password"
               bind:value={registerPassword}
-              class="input input-bordered w-full"
-              placeholder="•••••••"
+              placeholder="Mot de passe"
               disabled={isLoading}
               required
             />
-          </div>
+          </label>
+
           <div class="alert alert-info alert-soft">
-            Un email avec un lien vous sera envoyé par "noreply@appwrite.io".
-            Pensez à vérifier s'il n'a pas attéri dans votre dossier spam.
+            Un email avec un lien vous sera envoyé. Pensez à vérifier s'il n'a
+            pas attéri dans votre dossier spam.
           </div>
         </form>
 

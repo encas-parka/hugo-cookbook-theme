@@ -14,6 +14,11 @@
     globalState.authModal.isOpen = true;
   }
 
+  function openRegisterModal() {
+    globalState.authModal.showLogin = false;
+    globalState.authModal.isOpen = true;
+  }
+
   export function fadeScale(
     node,
     { duration = 300, delay = 0, start = 0.8 } = {},
@@ -256,7 +261,7 @@
       {:else}
         <button
           class="btn btn-secondary md:btn-lg transition-all duration-300 hover:scale-110"
-          onclick={openAuthModal}
+          onclick={openRegisterModal}
         >
           Créer un compte pour commencer
           <ArrowRight size={24} />

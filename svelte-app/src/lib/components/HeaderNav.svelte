@@ -52,8 +52,8 @@
   }
 
   function handleLogin() {
+    globalState.authModal.showLogin = true;
     globalState.authModal.isOpen = true;
-    console.log("globalState.authModal.isOpen", globalState.authModal.isOpen);
   }
 
   async function handleReloadRecipes() {
