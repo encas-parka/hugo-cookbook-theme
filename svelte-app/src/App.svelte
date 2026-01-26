@@ -460,6 +460,7 @@
 
 <AuthModal
   bind:isOpen={globalState.authModal.isOpen}
+  showLogin={globalState.authModal.showLogin}
   onAuth_success={handleLoginSuccess}
 />
 
