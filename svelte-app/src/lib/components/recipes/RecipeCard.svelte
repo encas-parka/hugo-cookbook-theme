@@ -59,7 +59,7 @@
   {/if}
 
   <!-- Header -->
-  <div class=" flex flex-wrap items-start justify-between gap-4 @md:my-2">
+  <div class=" flex flex-wrap items-center justify-between gap-4 @md:my-2">
     <div class="min-w-72 flex-1">
       <!-- title mobile-->
       {#if !globalState.isDesktop}

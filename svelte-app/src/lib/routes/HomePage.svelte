@@ -9,6 +9,7 @@
   import { scrollY } from "svelte/reactivity/window";
   import { getDemoEventId } from "$lib/utils/events.utils";
   import LoadingSpinner from "../components/ui/LoadingSpinner.svelte";
+  import EmailVerificationAlert from "../components/ui/EmailVerificationAlert.svelte";
 
   function openAuthModal() {
     globalState.authModal.isOpen = true;
@@ -199,6 +200,8 @@
 </script>
 
 <div class="bg-base-200">
+  <!-- Alerte de vérification d'email -->
+
   <!-- SECTION 1: Hero -->
   <section
     class="hero bg-base-200 flex flex-col justify-center gap-20 md:h-[90vh] md:py-15"
@@ -276,6 +279,7 @@
         </button> pour gérer vos cantines et équipes
       </p>
     {/if}
+    <EmailVerificationAlert />
 
     <div
       class="text-base-content/40 flex flex-col items-center justify-center gap-2"

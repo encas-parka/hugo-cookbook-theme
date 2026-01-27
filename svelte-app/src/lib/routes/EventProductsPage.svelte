@@ -106,9 +106,9 @@
   let isLoading = $state(true);
 
   // WARM-UP
-  $effect(() => {
-    warmUpEnkaData();
-  });
+  // $effect(() => {
+  //   warmUpEnkaData();
+  // });
 
   // =========================================================================
   // INITIALISATION

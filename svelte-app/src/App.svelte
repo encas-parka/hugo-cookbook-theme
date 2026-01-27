@@ -100,6 +100,10 @@
   // Publiques
   router.addRoute("/", HomePage);
   router.addRoute(
+    "/verify-email",
+    () => import("./lib/routes/VerifyEmailPage.svelte"),
+  );
+  router.addRoute(
     "/recipe",
     () => import("./lib/routes/RecipesListPage.svelte"),
   );

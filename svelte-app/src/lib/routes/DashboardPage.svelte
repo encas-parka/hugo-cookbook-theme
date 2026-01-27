@@ -19,16 +19,17 @@
   import ExternalEventsCard from "../components/dashboard/ExternalEventsCard.svelte";
   import CreateTeamModal from "../components/teams/CreateTeamModal.svelte";
   import { fade } from "svelte/transition";
+  import EmailVerificationAlert from "../components/ui/EmailVerificationAlert.svelte";
 
   let createModalOpen = $state(false);
 
   // Traitement des événements - utiliser les derived properties du store
 
   // WARM-UP
-  $effect(() => {
-    warmUpUsersTeamsManager();
-    warmUpEnkaData();
-  });
+  // $effect(() => {
+  //   warmUpUsersTeamsManager();
+  //   warmUpEnkaData();
+  // });
 
   function handleTeamCreated(teamId: string) {
     createModalOpen = false;
@@ -67,6 +68,9 @@
 {/snippet}
 
 <div class="bg-base-200 min-h-screen" in:fade>
+  <!-- Alerte de vérification d'email -->
+  <EmailVerificationAlert />
+
   <!-- Greeting -->
   <!-- <div class="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
       <h2 class="text-base-content">

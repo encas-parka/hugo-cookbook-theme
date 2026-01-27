@@ -106,9 +106,9 @@
   // ============================================================================
 
   // WARM-UP
-  $effect(() => {
-    warmUpEnkaData();
-  });
+  // $effect(() => {
+  //   warmUpEnkaData();
+  // });
 
   // Vérifier que l'utilisateur est connecté
   $effect(() => {

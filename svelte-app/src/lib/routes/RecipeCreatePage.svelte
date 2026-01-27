@@ -84,9 +84,9 @@
   // ============================================================================
 
   // Warm-up de la fonction enkaData
-  $effect(() => {
-    warmUpEnkaData();
-  });
+  // $effect(() => {
+  //   warmUpEnkaData();
+  // });
 
   // Vérifier que l'utilisateur est connecté
   $effect(() => {

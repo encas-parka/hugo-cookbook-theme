@@ -25,7 +25,7 @@
 
   onMount(async () => {
     // 0. Warm-up de la fonction usersTeamsManager
-    warmUpUsersTeamsManager();
+    // warmUpUsersTeamsManager();
 
     // 1. Récupération des paramètres via votre routeur
     userId = getQuery("userId") || "";
