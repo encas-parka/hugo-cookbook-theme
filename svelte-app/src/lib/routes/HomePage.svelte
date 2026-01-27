@@ -74,7 +74,7 @@
       title: "Organisation",
       description:
         "Élaborez des menus sur plusieurs jours et organisez-vous en équipes",
-      screenshot: "/images/home/edit_event.webp",
+      screenshot: "/images/home/events.webp",
       buttonText: "Voir la démo",
       buttonAction: handleDemoEvent,
       theme: "secondary" as const,
@@ -320,7 +320,7 @@
             {@const scrollY = (continuousProgress - i) * 50}
             <div
               class="absolute inset-0 bg-cover bg-center transition-opacity duration-700 ease-out"
-              style="opacity: {state.opacity}; z-index: {state.zIndex}; background-image: url('{feature.screenshot}'); background-position-y: calc(50% + {scrollY *
+              style="opacity: {state.opacity}; z-index: {state.zIndex}; background-image: url('{feature.screenshot}'); background-position-y: calc({scrollY *
                 -10}px);"
             ></div>
           {/each}
