@@ -4,7 +4,7 @@
  * Nouvelle architecture (2025-01-27 refactor) :
  * - Une collection unique avec champ "scope" (user | event)
  * - Scope "user" : une row par utilisateur pour les notifications individuelles
- * - Scope "event" : une row par événement pour les notifications broadcast
+ * - Scope "event" : une row par événement pour les notifications de groupe
  * - Lazy initialization : la row utilisateur est créée à la première connexion
  * - Notifications JSON-stringified dans le champ "notifications"
  *
