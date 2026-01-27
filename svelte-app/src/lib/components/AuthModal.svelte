@@ -34,6 +34,7 @@
   let registerName = $state("");
   let registerEmail = $state("");
   let registerPassword = $state("");
+  let registerPasswordConfirm = $state("");
 
   // Formulaire mot de passe oublié
   let forgotEmail = $state("");
@@ -61,6 +62,13 @@
 
   async function handleRegisterSubmit(event: Event) {
     event.preventDefault();
+
+    // Validation d'égalité des mots de passe
+    if (registerPassword !== registerPasswordConfirm) {
+      errorMessage = "Les mots de passe ne correspondent pas.";
+      return;
+    }
+
     if (!registerFormElement.checkValidity()) {
       registerFormElement.reportValidity();
       errorMessage = "Formulaire invalide. Veuillez vérifier les champs.";
@@ -360,6 +368,24 @@
             </label>
             <span class="validator-hint hidden">
               Doit comporter entre 8 et 25 caractères.
+            </span>
+          </fieldset>
+
+          <fieldset>
+            <label class="input validator w-full">
+              <Lock class="h-4 w-4 opacity-50" />
+              <input
+                type="password"
+                bind:value={registerPasswordConfirm}
+                placeholder="Confirmer le mot de passe"
+                disabled={isLoading}
+                required
+                minlength="8"
+                maxlength="25"
+              />
+            </label>
+            <span class="validator-hint hidden">
+              Doit être identique au mot de passe ci-dessus.
             </span>
           </fieldset>
 
