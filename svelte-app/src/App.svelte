@@ -291,7 +291,7 @@
               recipesStore.setupRealtime(),
               materielStore.setupRealtime(),
               teamsStore.setupRealtime(),
-              notificationStore.setupRealtime(),
+              notificationStore.initialize(),
               teamdocsStore.setupRealtime(),
             ]);
             await realtimeManager.initialize();
