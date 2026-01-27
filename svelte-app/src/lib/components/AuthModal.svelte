@@ -39,16 +39,50 @@
   let forgotEmail = $state("");
   let showForgotPassword = $state(false);
 
-  async function handleLogin(event: Event) {
-    event.preventDefault();
+  // Références aux éléments form pour validation
+  // svelte-ignore non_reactive_update
+  let loginFormElement: HTMLFormElement;
+  // svelte-ignore non_reactive_update
+  let registerFormElement: HTMLFormElement;
+  // svelte-ignore non_reactive_update
+  let forgotFormElement: HTMLFormElement;
 
-    if (!loginEmail || !loginPassword) {
-      errorMessage = "Veuillez remplir tous les champs";
+  // Gestionnaire de submit avec validation
+  async function handleLoginSubmit(event: Event) {
+    event.preventDefault();
+    if (!loginFormElement.checkValidity()) {
+      loginFormElement.reportValidity();
+      errorMessage = "Formulaire invalide. Veuillez vérifier les champs.";
       return;
     }
-
-    isLoading = true;
     errorMessage = "";
+    await handleLogin();
+  }
+
+  async function handleRegisterSubmit(event: Event) {
+    event.preventDefault();
+    if (!registerFormElement.checkValidity()) {
+      registerFormElement.reportValidity();
+      errorMessage = "Formulaire invalide. Veuillez vérifier les champs.";
+      return;
+    }
+    errorMessage = "";
+    await handleRegister();
+  }
+
+  async function handleForgotSubmit(event: Event) {
+    event.preventDefault();
+    if (!forgotFormElement.checkValidity()) {
+      forgotFormElement.reportValidity();
+      errorMessage = "Formulaire invalide. Veuillez vérifier les champs.";
+      return;
+    }
+    errorMessage = "";
+    await handleForgotPassword();
+  }
+
+  async function handleLogin() {
+    isLoading = true;
 
     try {
       const { account } = await getAppwriteInstances();
@@ -71,16 +105,8 @@
     }
   }
 
-  async function handleRegister(event: Event) {
-    event.preventDefault();
-
-    if (!registerName || !registerEmail || !registerPassword) {
-      errorMessage = "Veuillez remplir tous les champs";
-      return;
-    }
-
+  async function handleRegister() {
     isLoading = true;
-    errorMessage = "";
 
     try {
       const { account } = await getAppwriteInstances();
@@ -111,16 +137,8 @@
     }
   }
 
-  async function handleForgotPassword(event: Event) {
-    event.preventDefault();
-
-    if (!forgotEmail) {
-      errorMessage = "Veuillez entrer votre email";
-      return;
-    }
-
+  async function handleForgotPassword() {
     isLoading = true;
-    errorMessage = "";
 
     try {
       const { account } = await getAppwriteInstances();
@@ -186,17 +204,27 @@
 
       <!-- Mot de passe oublié -->
       {#if showForgotPassword}
-        <form onsubmit={handleForgotPassword} class="space-y-4">
-          <label class="input w-full">
-            <Mail class="h-4 w-4 opacity-50" />
-            <input
-              type="email"
-              bind:value={forgotEmail}
-              placeholder="votre@email.com"
-              disabled={isLoading}
-              required
-            />
-          </label>
+        <form
+          id="forgotForm"
+          bind:this={forgotFormElement}
+          onsubmit={handleForgotSubmit}
+          class="space-y-4"
+        >
+          <fieldset>
+            <label class="input validator w-full">
+              <Mail class="h-4 w-4 opacity-50" />
+              <input
+                type="email"
+                bind:value={forgotEmail}
+                placeholder="votre@email.com"
+                disabled={isLoading}
+                required
+              />
+            </label>
+            <span class="validator-hint hidden"
+              >Adresse email valide requise</span
+            >
+          </fieldset>
 
           <div class="alert alert-info alert-soft">
             Un email avec un lien vous sera envoyé pour renouveller votre mot de
@@ -217,28 +245,41 @@
 
         <!-- Connexion -->
       {:else if showLogin}
-        <form onsubmit={handleLogin} class="space-y-4">
-          <label class="input w-full">
-            <Mail class="h-4 w-4 opacity-50" />
-            <input
-              type="email"
-              bind:value={loginEmail}
-              placeholder="votre@email.com"
-              disabled={isLoading}
-              required
-            />
-          </label>
+        <form
+          id="loginForm"
+          bind:this={loginFormElement}
+          onsubmit={handleLoginSubmit}
+          class="space-y-4"
+        >
+          <fieldset>
+            <label class="input validator w-full">
+              <Mail class="h-4 w-4 opacity-50" />
+              <input
+                type="email"
+                bind:value={loginEmail}
+                placeholder="votre@email.com"
+                disabled={isLoading}
+                required
+              />
+            </label>
+            <span class="validator-hint hidden"
+              >Adresse email valide requise</span
+            >
+          </fieldset>
 
-          <label class="input w-full">
-            <Lock class="h-4 w-4 opacity-50" />
-            <input
-              type="password"
-              bind:value={loginPassword}
-              placeholder="Mot de passe"
-              disabled={isLoading}
-              required
-            />
-          </label>
+          <fieldset>
+            <label class="input validator w-full">
+              <Lock class="h-4 w-4 opacity-50" />
+              <input
+                type="password"
+                bind:value={loginPassword}
+                placeholder="Mot de passe"
+                disabled={isLoading}
+                required
+              />
+            </label>
+            <span class="validator-hint hidden">Mot de passe requis</span>
+          </fieldset>
         </form>
 
         <div class="space-y-2 text-center">
@@ -264,39 +305,63 @@
 
         <!-- Inscription -->
       {:else}
-        <form onsubmit={handleRegister} class="space-y-4">
-          <label class="input w-full">
-            <User class="h-4 w-4 opacity-50" />
-            <input
-              type="text"
-              bind:value={registerName}
-              placeholder="Votre nom"
-              disabled={isLoading}
-              required
-            />
-          </label>
+        <form
+          id="registerForm"
+          bind:this={registerFormElement}
+          onsubmit={handleRegisterSubmit}
+          class="space-y-4"
+        >
+          <fieldset>
+            <label class="input validator w-full">
+              <User class="h-4 w-4 opacity-50" />
+              <input
+                type="text"
+                bind:value={registerName}
+                placeholder="Votre nom"
+                disabled={isLoading}
+                required
+                minlength="3"
+                maxlength="25"
+              />
+            </label>
+            <span class="validator-hint hidden">
+              Doit comporter entre 3 et 25 caractères.
+            </span>
+          </fieldset>
 
-          <label class="input w-full">
-            <Mail class="h-4 w-4 opacity-50" />
-            <input
-              type="email"
-              bind:value={registerEmail}
-              placeholder="votre@email.com"
-              disabled={isLoading}
-              required
-            />
-          </label>
+          <fieldset>
+            <label class="input validator w-full">
+              <Mail class="h-4 w-4 opacity-50" />
+              <input
+                type="email"
+                bind:value={registerEmail}
+                placeholder="votre@email.com"
+                disabled={isLoading}
+                required
+              />
+            </label>
+            <span class="validator-hint hidden"
+              >Adresse email valide requise</span
+            >
+          </fieldset>
 
-          <label class="input w-full">
-            <Lock class="h-4 w-4 opacity-50" />
-            <input
-              type="password"
-              bind:value={registerPassword}
-              placeholder="Mot de passe"
-              disabled={isLoading}
-              required
-            />
-          </label>
+          <fieldset>
+            <label class="input validator w-full">
+              <Lock class="h-4 w-4 opacity-50" />
+              <input
+                type="password"
+                bind:value={registerPassword}
+                placeholder="Mot de passe"
+                disabled={isLoading}
+                required
+                minlength="8"
+                maxlength="25"
+              />
+            </label>
+            <span class="validator-hint hidden">
+              Doit comporter entre 8 et 25 caractères.
+            </span>
+          </fieldset>
 
           <div class="alert alert-info alert-soft">
             Un email avec un lien vous sera envoyé. Pensez à vérifier s'il n'a
@@ -321,9 +386,9 @@
   <ModalFooter>
     {#if showForgotPassword}
       <button
+        form="forgotForm"
         type="submit"
         class="btn btn-primary btn-block"
-        onclick={handleForgotPassword}
         disabled={isLoading}
       >
         {#if isLoading}
@@ -334,9 +399,9 @@
       </button>
     {:else if showLogin}
       <button
+        form="loginForm"
         type="submit"
         class="btn btn-primary btn-block"
-        onclick={handleLogin}
         disabled={isLoading}
       >
         {#if isLoading}
@@ -347,9 +412,9 @@
       </button>
     {:else}
       <button
+        form="registerForm"
         type="submit"
         class="btn btn-success btn-block"
-        onclick={handleRegister}
         disabled={isLoading}
       >
         {#if isLoading}
