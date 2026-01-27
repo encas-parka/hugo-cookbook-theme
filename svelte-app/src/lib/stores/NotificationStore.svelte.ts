@@ -11,7 +11,7 @@
  * Flux realtime :
  * - Abonnement unique à la collection user_notifications
  * - Filtrage par scope (user = rowId = userId, event = rowId = mainId)
- * - Traitement des notifications puis vidage du tableau (fire-and-forget)
+ * - Traitement des notifications sans vidage (la stratégie last-win côté cloud écrase automatiquement)
  */
 
 import { getDatabaseId, getAppwriteInstances } from "../services/appwrite";
@@ -166,9 +166,6 @@ class NotificationStore {
       for (const notif of notifications) {
         await this.#processNotification(notif);
       }
-
-      // Vider après traitement (fire-and-forget)
-      await this.#clearNotificationRow(payload.$id);
     }
   }
 
@@ -244,33 +241,6 @@ class NotificationStore {
     });
 
     console.log(`[NotificationStore] User row created for ${userId}`);
-  }
-
-  /**
-   * Vide le tableau de notifications d'une row (fire-and-forget)
-   *
-   * Utilisé après le traitement pour éviter les doublons.
-   */
-  async #clearNotificationRow(rowId: string): Promise<void> {
-    try {
-      const DB_ID = getDatabaseId();
-      const instances = await getAppwriteInstances();
-
-      await instances.tables.updateRow({
-        databaseId: DB_ID,
-        tableId: "user_notifications",
-        rowId: rowId,
-        data: {
-          notifications: JSON.stringify([]),
-        },
-      });
-
-      console.log(
-        `[NotificationStore] Notifications cleared for row: ${rowId}`,
-      );
-    } catch (err) {
-      console.error("[NotificationStore] Error clearing notifications:", err);
-    }
   }
 
   /**
