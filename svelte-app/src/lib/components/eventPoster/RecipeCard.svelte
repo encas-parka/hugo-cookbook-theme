@@ -228,7 +228,6 @@
           class:playfair-display={config.fontRecettes === "playfair-display"}
           class:oswald-font={config.fontRecettes === "oswald-font"}
           class:quicksand-font={config.fontRecettes === "quicksand-font"}
-          class:fira-sans={config.fontRecettes === "fira-sans"}
           class:dancing-script={config.fontRecettes === "dancing-script"}
           class:pacifico-regular={config.fontRecettes === "pacifico-regular"}
           class:caveat-font={config.fontRecettes === "caveat-font"}
@@ -269,7 +268,6 @@
                 class:playfair-display={config.fontDesc === "playfair-display"}
                 class:oswald-font={config.fontDesc === "oswald-font"}
                 class:quicksand-font={config.fontDesc === "quicksand-font"}
-                class:fira-sans={config.fontDesc === "fira-sans"}
                 class:dancing-script={config.fontDesc === "dancing-script"}
                 class:pacifico-regular={config.fontDesc === "pacifico-regular"}
                 class:caveat-font={config.fontDesc === "caveat-font"}
@@ -313,7 +311,6 @@
               class:playfair-display={config.fontRegimes === "playfair-display"}
               class:oswald-font={config.fontRegimes === "oswald-font"}
               class:quicksand-font={config.fontRegimes === "quicksand-font"}
-              class:fira-sans={config.fontRegimes === "fira-sans"}
               class:dancing-script={config.fontRegimes === "dancing-script"}
               class:pacifico-regular={config.fontRegimes === "pacifico-regular"}
               class:caveat-font={config.fontRegimes === "caveat-font"}
@@ -341,7 +338,6 @@
               class:playfair-display={config.fontAlert === "playfair-display"}
               class:oswald-font={config.fontAlert === "oswald-font"}
               class:quicksand-font={config.fontAlert === "quicksand-font"}
-              class:fira-sans={config.fontAlert === "fira-sans"}
               class:dancing-script={config.fontAlert === "dancing-script"}
               class:pacifico-regular={config.fontAlert === "pacifico-regular"}
               class:caveat-font={config.fontAlert === "caveat-font"}
@@ -388,7 +384,6 @@
                 class:playfair-display={config.fontIng === "playfair-display"}
                 class:oswald-font={config.fontIng === "oswald-font"}
                 class:quicksand-font={config.fontIng === "quicksand-font"}
-                class:fira-sans={config.fontIng === "fira-sans"}
                 class:dancing-script={config.fontIng === "dancing-script"}
                 class:pacifico-regular={config.fontIng === "pacifico-regular"}
                 class:caveat-font={config.fontIng === "caveat-font"}

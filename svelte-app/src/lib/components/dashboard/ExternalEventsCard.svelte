@@ -85,9 +85,9 @@
         <div class="flex items-center gap-3">
           <Calendar class="text-primary h-6 w-6" />
           <div>
-            <h2 class="card-title mb-1">Événements personnels</h2>
+            <h2 class="card-title mb-1">Événements</h2>
             <p class="text-base-content/60 text-sm">
-              Aucune invitation externe en cours
+              Aucune invitation à participer à un événement.
             </p>
           </div>
         </div>

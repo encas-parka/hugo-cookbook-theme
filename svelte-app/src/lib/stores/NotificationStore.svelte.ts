@@ -39,28 +39,6 @@ class NotificationStore {
   #realtimeInitialized = false;
 
   /**
-   * Phase 1 : Pas de cache pour les notifications (no-op)
-   */
-  async loadCache(): Promise<void> {
-    // Les notifications n'ont pas de cache IndexedDB
-    if (this.#isInitialized) return;
-
-    this.#isInitialized = true;
-    console.log(
-      "[NotificationStore] Cache chargé : 0 notifications (pas de cache)",
-    );
-  }
-
-  /**
-   * Phase 2 : Pas de sync distante pour les notifications (no-op)
-   * Les notifications sont purement realtime
-   */
-  async syncFromRemote(): Promise<void> {
-    // Les notifications sont gérées uniquement en realtime
-    console.log("[NotificationStore] Sync : pas de données à charger");
-  }
-
-  /**
    * Phase 3 : Configure les abonnements realtime
    */
   async setupRealtime(): Promise<void> {

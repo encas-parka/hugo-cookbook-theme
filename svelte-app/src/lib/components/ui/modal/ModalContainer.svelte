@@ -38,15 +38,15 @@
     const sizeMap: Record<ModalSize, Record<typeof dimension, string>> = {
       sm: {
         "max-w": "max-w-[28rem]", // ~448px maximum
-        "max-h": "max-h-[85vh]",
+        "max-h": "max-h-[85dvh]",
       },
       lg: {
         "max-w": "max-w-[64rem]", // ~1024px maximum
-        "max-h": "max-h-[85vh]",
+        "max-h": "max-h-[85dvh]",
       },
       xl: {
         "max-w": "max-w-[90vw]", // 90% de l'écran maximum
-        "max-h": "max-h-[90vh]",
+        "max-h": "max-h-[85dvh]",
       },
     };
 
@@ -104,10 +104,10 @@
       class="modal-box flex flex-col p-0 {modalClass} {fullscreenOnMobile &&
       globalState.isMobile
         ? 'fixed inset-0 m-0 h-lvh w-lvw rounded-none'
-        : 'fixed top-10 m-auto'} {globalState.isDesktop &&
+        : 'fixed top-10 m-auto '} {globalState.isDesktop &&
         getSizeClass(maxWidth, 'max-w')} {globalState.isDesktop &&
         !modalClass &&
-        getSizeClass(maxHeight, 'max-h')}"
+        'maw-h-[85dvh]'}"
       role="dialog"
       aria-modal="true"
     >

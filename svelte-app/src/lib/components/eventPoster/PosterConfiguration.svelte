@@ -289,7 +289,6 @@
               <option value="playfair-display">Playfair (Élégant)</option>
               <option value="oswald-font">Oswald (Bistro/Impact)</option>
               <option value="quicksand-font">Quicksand (Moderne)</option>
-              <option value="fira-sans">Fira Sans (Clean)</option>
               <option value="dancing-script">Dancing Script (Cursive)</option>
               <option value="pacifico-regular">Pacifico (Script)</option>
               <option value="caveat-font">Caveat (Manuscrit)</option>

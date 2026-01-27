@@ -268,7 +268,6 @@
           eventsStore.loadCache(),
           recipesStore.loadCache(),
           materielStore.loadCache(),
-          notificationStore.loadCache(),
           teamdocsStore.loadCache(),
         ]);
 
@@ -284,7 +283,6 @@
           recipesStore.syncFromRemote(),
           materielStore.syncFromRemote(),
           teamsStore.syncFromRemote(),
-          notificationStore.syncFromRemote(),
           teamdocsStore.syncFromRemote(),
         ])
           .then(async () => {

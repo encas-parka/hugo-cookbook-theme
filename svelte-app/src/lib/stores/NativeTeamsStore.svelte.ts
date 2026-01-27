@@ -168,7 +168,7 @@ export class NativeTeamsStore {
 
   async #setupRealtimeInternal(): Promise<void> {
     // Les Teams natives utilisent des channels différents dans Appwrite
-    // Note: Pour les Teams narratives, le channel est "teams" ou "memberships"
+    // Note: Pour les Teams, le channel est "teams" ou "memberships"
     realtimeManager.register(
       ["teams", "memberships"],
       async (response: any) => {

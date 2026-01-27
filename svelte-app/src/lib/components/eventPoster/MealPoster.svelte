@@ -204,7 +204,6 @@
               class:playfair-display={config.fontTop === "playfair-display"}
               class:oswald-font={config.fontTop === "oswald-font"}
               class:quicksand-font={config.fontTop === "quicksand-font"}
-              class:fira-sans={config.fontTop === "fira-sans"}
               class:dancing-script={config.fontTop === "dancing-script"}
               class:pacifico-regular={config.fontTop === "pacifico-regular"}
               class:caveat-font={config.fontTop === "caveat-font"}
@@ -227,7 +226,6 @@
                   class:gluten-font={config.fontDate === "gluten-font"}
                   class:pacifico-regular={config.fontDate ===
                     "pacifico-regular"}
-                  class:fira-sans={config.fontDate === "fira-sans"}
                   class:font-bold={config.boldDate}
                   class:italic={config.italicDate}
                   style={getBigFontSize(config.fontSizeDate)}
@@ -245,7 +243,6 @@
                     "playfair-display"}
                   class:oswald-font={config.fontHoraire === "oswald-font"}
                   class:quicksand-font={config.fontHoraire === "quicksand-font"}
-                  class:fira-sans={config.fontHoraire === "fira-sans"}
                   class:dancing-script={config.fontHoraire === "dancing-script"}
                   class:pacifico-regular={config.fontHoraire ===
                     "pacifico-regular"}
@@ -278,7 +275,6 @@
                   class:playfair-display={config.fontCat === "playfair-display"}
                   class:oswald-font={config.fontCat === "oswald-font"}
                   class:quicksand-font={config.fontCat === "quicksand-font"}
-                  class:fira-sans={config.fontCat === "fira-sans"}
                   class:dancing-script={config.fontCat === "dancing-script"}
                   class:pacifico-regular={config.fontCat === "pacifico-regular"}
                   class:caveat-font={config.fontCat === "caveat-font"}
@@ -346,7 +342,6 @@
                   "playfair-display"}
                 class:oswald-font={config.fontBottom === "oswald-font"}
                 class:quicksand-font={config.fontBottom === "quicksand-font"}
-                class:fira-sans={config.fontBottom === "fira-sans"}
                 class:dancing-script={config.fontBottom === "dancing-script"}
                 class:pacifico-regular={config.fontBottom ===
                   "pacifico-regular"}

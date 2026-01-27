@@ -43,6 +43,9 @@
     error = null;
     step = "create";
     createdTeamId = null;
+    invitedEmails = [];
+    inviteCustomMessage = "";
+    inviteLoading = false;
   }
 
   // Créer l'équipe
@@ -81,41 +84,37 @@
   async function sendInvitations() {
     if (!createdTeamId || invitedEmails.length === 0) return;
 
-    inviteLoading = true;
+    // ⚡️ Capturer l'ID et les données AVANT de fermer le modal
+    const teamId = createdTeamId;
+    const emails = [...invitedEmails]; // Copie du tableau
+    const message = inviteCustomMessage || undefined;
 
+    // Fermer le modal IMMÉDIATEMENT
+    finalize();
+
+    // Lancer les invitations en arrière-plan avec toast
     try {
       await toastService.track(
-        teamsStore.inviteTeamMember(
-          createdTeamId,
-          invitedEmails,
-          inviteCustomMessage || undefined,
-        ),
+        teamsStore.inviteTeamMember(teamId, emails, message),
         {
           loading: "Envoi des invitations en cours...",
-          success: `${invitedEmails.length} invitation${invitedEmails.length > 1 ? "s" : ""} envoyée${invitedEmails.length > 1 ? "s" : ""} avec succès`,
+          success: `${emails.length} invitation${emails.length > 1 ? "s" : ""} envoyée${emails.length > 1 ? "s" : ""} avec succès`,
           error: "Erreur lors de l'envoi des invitations",
         },
       );
 
-      // Réinitialiser le formulaire
-      invitedEmails = [];
-      inviteCustomMessage = "";
-
-      // Rafraîchir la liste
-      if (createdTeamId) {
-        await teamsStore.fetchTeam(createdTeamId);
-      }
+      // Rafraîchir la liste en arrière-plan
+      await teamsStore.fetchTeam(teamId);
     } catch (err: any) {
-      console.error("[TeamDetailModal] Erreur envoi invitations:", err);
-    } finally {
-      inviteLoading = false;
+      console.error("[CreateTeamModal] Erreur envoi invitations:", err);
     }
   }
 
   // Finaliser (après invitations ou skip)
   function finalize() {
-    if (createdTeamId) {
-      onSuccess?.(createdTeamId);
+    const teamId = createdTeamId; // Capturer l'ID AVANT le reset
+    if (teamId) {
+      onSuccess?.(teamId);
     }
     resetForm();
     onClose();

@@ -355,9 +355,9 @@
     </div>
 
     {#if isEditing}
-      <div class="mt-2 space-y-4">
+      <div class="mt-2 flex flex-wrap space-y-4">
         <!-- Configuration Repas -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="flex flex-wrap gap-4">
           <!-- Date -->
           <fieldset class="">
             <label class="input {isDuplicateDate ? 'input-error' : ''}">

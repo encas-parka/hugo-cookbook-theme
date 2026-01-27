@@ -69,7 +69,7 @@
       </div>
 
       {#if contributorStatus === "invited"}
-        <div class="badge badge-info badge-lg ms-auto">
+        <div class="badge badge-info badge-lg ms-auto h-auto">
           <Rocket class="size-4" />
           Vous êtes invité à participer
         </div>

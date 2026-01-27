@@ -308,7 +308,7 @@
           Déjà un compte ?
           <button
             onclick={() => (showLogin = true)}
-            class="btn btn-ghost btn-sm text-primary ms-1"
+            class="btn btn-soft btn-sm btn-primary ms-1"
             disabled={isLoading}
           >
             Se connecter

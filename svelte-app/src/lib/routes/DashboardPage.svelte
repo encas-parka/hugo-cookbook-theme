@@ -10,7 +10,13 @@
     nativeTeamsStore,
     nativeTeamsStore as teamsStore,
   } from "$lib/stores/NativeTeamsStore.svelte";
-  import { Plus, Settings } from "@lucide/svelte";
+  import {
+    CalendarPlus,
+    CookingPot,
+    Plus,
+    Settings,
+    Users,
+  } from "@lucide/svelte";
   import { onDestroy } from "svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
 
@@ -20,6 +26,8 @@
   import CreateTeamModal from "../components/teams/CreateTeamModal.svelte";
   import { fade } from "svelte/transition";
   import EmailVerificationAlert from "../components/ui/EmailVerificationAlert.svelte";
+  import TeamSummaryCard from "../components/dashboard/TeamSummaryCard.svelte";
+  import ActionCard from "../components/ui/ActionCard.svelte";
 
   let createModalOpen = $state(false);
 
@@ -72,11 +80,11 @@
   <EmailVerificationAlert />
 
   <!-- Greeting -->
-  <!-- <div class="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
-      <h2 class="text-base-content">
-        Bienvenue, {globalState.user?.name || ""}
-      </h2>
-  </div> -->
+  <div class="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
+    <h2 class="text-base-content">
+      Bienvenue {globalState.user?.name || ""}
+    </h2>
+  </div>
 
   <!-- Contenu principal -->
   <div class="mx-auto max-w-7xl px-4 py-8">
@@ -108,9 +116,65 @@
     {:else}
       <!-- Tableau de bord -->
 
+      <!-- Actions rapides -->
+      <div class="mb-8">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <ActionCard
+            title="Créer un Événement"
+            description="Organisez un nouvel événement et invitez des équipes ou des individus à participer"
+          >
+            {#snippet icon()}
+              <CalendarPlus class="size-5" />
+            {/snippet}
+            {#snippet action()}
+              <button
+                class="btn btn-primary btn-sm"
+                onclick={() => navigate("/dashboard/eventCreate")}
+              >
+                <Plus class="size-5" />
+              </button>
+            {/snippet}
+          </ActionCard>
+
+          <ActionCard
+            title="Créer une Recette"
+            description="Partager une nouvelle recette pour pouvoir l'ajouter à des événements"
+          >
+            {#snippet icon()}
+              <CookingPot class="size-5" />
+            {/snippet}
+            {#snippet action()}
+              <button
+                class="btn btn-primary btn-sm"
+                onclick={() => navigate("/recipe/new")}
+              >
+                <Plus class="size-5" />
+              </button>
+            {/snippet}
+          </ActionCard>
+
+          <ActionCard
+            title="Créer une Équipe"
+            description="Créez un groupe et invitez des membres pour ensuite vous organiser ensemble sur des événements, gérer du matos en commun, partager des documents..."
+          >
+            {#snippet icon()}
+              <Users class="size-5" />
+            {/snippet}
+            {#snippet action()}
+              <button
+                class="btn btn-primary btn-sm"
+                onclick={() => (createModalOpen = true)}
+              >
+                <Plus class="size-5" />
+              </button>
+            {/snippet}
+          </ActionCard>
+        </div>
+      </div>
+
       <!-- SECTION 1: Événements personnels (invitations externes) -->
       <section class="bg-base-200 py-8">
-        <div class="container mx-auto px-4">
+        <div class="container mx-auto">
           <ExternalEventsCard
             allEvents={eventsStore.events}
             userTeamIds={globalState.userTeams}
@@ -123,14 +187,6 @@
       {#if globalState.userTeams.length > 0}
         <section class="bg-base-200 py-8">
           <div class="container mx-auto px-4">
-            <div class="mb-4 flex items-center justify-between gap-4">
-              <!-- <h3 class="mb-6">Vos Équipes</h3> -->
-              <button
-                class="btn btn-primary btn-sm ms-auto"
-                onclick={() => (createModalOpen = true)}
-                ><Plus class="size-4" /> Créer une équipe</button
-              >
-            </div>
             <div class="grid grid-cols-1 gap-6">
               {#each globalState.userTeams as teamId (teamId)}
                 {@const team = nativeTeamsStore.getTeamById(teamId)}
