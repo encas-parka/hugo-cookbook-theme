@@ -215,15 +215,10 @@ export async function createEventWithTeams(
         `[appwrite-events] Événement créé avec teams: ${response.eventId}`,
       );
 
-      // Récupérer l'événement complet depuis la base
-      const { tables } = await getAppwriteInstances();
-      const event = await tables.getRow({
-        databaseId: APPWRITE_CONFIG.databaseId,
-        tableId: EVENTS_COLLECTION_ID,
-        rowId: response.eventId,
-      });
+      // Récupérer l'événement depuis la réponse de la CF (déjà complet)
+      const event = response.event as unknown as Main;
 
-      return event as unknown as Main;
+      return event;
     },
     {
       context: "AppwriteEvents.createEventWithTeams",

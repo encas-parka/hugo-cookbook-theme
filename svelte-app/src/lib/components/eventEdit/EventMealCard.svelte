@@ -412,7 +412,7 @@
         </div>
 
         <!-- Liste des Recettes -->
-        <div class="space-y-2 py-4">
+        <div class="w-full space-y-2 py-4">
           <div class="flex items-center justify-between">
             <div
               class="text-base-content/70 flex items-center gap-2 font-medium"
