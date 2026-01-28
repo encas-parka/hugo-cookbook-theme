@@ -264,22 +264,22 @@ class GlobalState {
 
   #currentMainId = $derived.by(() => {
     const path = router.path;
-    const mainId = router.params.mainid || router.params.mainId; // Supporter les deux cas
+    const mainId = router.params.id;
 
     // Vérifier si on est sur une route produits
-    if (path.startsWith("/products/") && mainId) {
+    if (path.includes("/eventEdit/") && mainId) {
+      console.log(`[GlobalState] ✅ currentMainId dérivé: ${mainId}`);
       return mainId;
     }
 
+    console.log(
+      `[GlobalState] ⚠️ Pas de mainId: path=${path}, params.id=${router.params.id}`,
+    );
     return null;
   });
+
   get currentMainId() {
     return this.#currentMainId;
-  }
-
-  setCurrentMainId(mainId: string | null) {
-    this.#currentMainId = mainId;
-    console.log(`[GlobalState] currentMainId mis à jour: ${mainId}`);
   }
 
   // =============================================================================
