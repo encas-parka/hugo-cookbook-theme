@@ -6,19 +6,14 @@ import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vite.dev/config/
 export default defineConfig({
-  // IMPORTANT : basePath pour les assets
-  // En production : '/' car baseof.html charge déjà /dist/assets/index.js
-  // Les imports relatifs fonctionneront depuis ce point d'entrée
-  base: "/",
-
   plugins: [
     tailwindcss(),
     svelte(),
-    visualizer({
-      open: true,
-      gzipSize: true,
-      filename: "./dist/stats.html",
-    }),
+    // visualizer({
+    //   open: true,
+    //   gzipSize: true,
+    //   filename: "./dist/stats.html",
+    // }),
   ],
   build: {
     // Cible le dossier static/dist de votre thème Hugo
@@ -37,8 +32,6 @@ export default defineConfig({
         assetFileNames: "assets/[name].[ext]",
 
         manualChunks(id) {
-          // Éditeur (TipTap + markdown) - seulement quand utilisé
-
           // Icons Lucide (gros morceau)
           if (id.includes("@lucide/svelte")) {
             return "icons";
