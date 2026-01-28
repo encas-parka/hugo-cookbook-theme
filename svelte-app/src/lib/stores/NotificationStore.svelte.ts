@@ -141,31 +141,67 @@ class NotificationStore {
    * Traite uniquement les événements ".update" (pas les creates).
    */
   async #handleRealtimeEvent(response: any): Promise<void> {
+    console.log("[NotificationStore] 📨 Raw realtime event:", {
+      events: response.events,
+      channels: response.channels,
+      payload: response.payload,
+    });
+
     const payload = response.payload;
     const currentUserId = globalState.userId;
     const currentMainId = globalState.currentMainId;
 
+    console.log("[NotificationStore] 🔍 Context check:", {
+      payloadScope: payload.scope,
+      payloadId: payload.$id,
+      currentUserId,
+      currentMainId,
+    });
+
     // Guard clause: ignorer si pas de currentMainId pour le scope event
     if (payload.scope === "event" && !currentMainId) {
+      console.log(
+        "[NotificationStore] ⚠️ Ignored: event scope but no currentMainId",
+      );
       return;
     }
 
     // Filtrage par scope
     if (payload.scope === "user") {
-      if (payload.$id !== currentUserId) return;
+      if (payload.$id !== currentUserId) {
+        console.log("[NotificationStore] ⚠️ Ignored: user ID mismatch");
+        return;
+      }
     } else if (payload.scope === "event") {
-      if (payload.$id !== currentMainId) return;
+      if (payload.$id !== currentMainId) {
+        console.log("[NotificationStore] ⚠️ Ignored: event ID mismatch");
+        return;
+      }
     } else {
-      return; // Scope invalide
+      console.log("[NotificationStore] ⚠️ Ignored: invalid scope");
+      return;
     }
+
+    console.log("[NotificationStore] ✅ Event passed filters, processing...");
 
     // Traiter uniquement les updates (pas les creates)
     if (response.events.some((e: string) => e.includes(".update"))) {
+      console.log("[NotificationStore] ✅ Update event detected");
       const notifications = JSON.parse(payload.notifications || "[]");
+
+      console.log(
+        "[NotificationStore] 📋 Notifications to process:",
+        notifications,
+      );
 
       for (const notif of notifications) {
         await this.#processNotification(notif);
       }
+    } else {
+      console.log(
+        "[NotificationStore] ⚠️ Ignored: not an update event",
+        response.events,
+      );
     }
   }
 
@@ -182,6 +218,8 @@ class NotificationStore {
    * - batch_products_update → ProductsStore.syncFromAppwrite()
    */
   async #processNotification(notif: Notification): Promise<void> {
+    console.log("[NotificationStore] 🔔 Processing notification:", notif);
+
     switch (notif.type) {
       case "team_access_granted":
         await nativeTeamsStore.reload();
@@ -194,7 +232,11 @@ class NotificationStore {
         break;
 
       case "batch_products_update":
+        console.log("[NotificationStore] 🛒 batch_products_update received");
         if (notif.targetDocumentId === globalState.currentMainId) {
+          console.log(
+            "[NotificationStore] ✅ Calling productsStore.syncFromAppwrite()",
+          );
           await productsStore.syncFromAppwrite();
 
           if (notif.from && notif.from !== globalState.userId) {
@@ -206,8 +248,19 @@ class NotificationStore {
               });
             }
           }
+        } else {
+          console.log("[NotificationStore] ⚠️ Ignored: mainId mismatch", {
+            notificationTarget: notif.targetDocumentId,
+            currentMain: globalState.currentMainId,
+          });
         }
         break;
+
+      default:
+        console.log(
+          "[NotificationStore] ❓ Unknown notification type:",
+          notif.type,
+        );
     }
   }
 
