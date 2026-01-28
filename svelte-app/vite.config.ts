@@ -17,7 +17,7 @@ export default defineConfig({
   ],
   build: {
     // Cible le dossier static/dist de votre thème Hugo
-    outDir: "../static/dist",
+    outDir: "../static/app/",
     emptyOutDir: true, // Vide le dossier à chaque build (utile pour le dev)
 
     // Optimisations importantes
