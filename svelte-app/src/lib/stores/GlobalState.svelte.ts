@@ -4,6 +4,11 @@ import { scrollY } from "svelte/reactivity/window";
 import { toastService } from "../services/toast.service.svelte";
 import { getAppwriteInstances, clearAppwriteCache } from "../services/appwrite";
 import { nativeTeamsStore } from "./NativeTeamsStore.svelte";
+import { eventsStore } from "./EventsStore.svelte";
+import { materielStore } from "./MaterielStore.svelte";
+import { teamdocsStore } from "./TeamdocsStore.svelte";
+import { notificationStore } from "./NotificationStore.svelte";
+import { realtimeManager } from "./RealtimeManager.svelte";
 import type { Models } from "appwrite";
 import { router } from "../services/simple-router.svelte";
 
@@ -103,6 +108,7 @@ class GlobalState {
   /**
    * Réinitialise l'authentification après un login/inscription réussie
    * Force la mise à jour de l'état utilisateur et des équipes
+   * Réinitialise tous les stores utilisateur avec les credentials authentifiés
    */
   async refreshAuthAfterLogin(): Promise<void> {
     console.log("[GlobalState] Réinitialisation après login...");
@@ -119,10 +125,30 @@ class GlobalState {
       localStorage.setItem("appwrite-user-email", this.#user.email);
       localStorage.setItem("appwrite-user-id", this.#user.$id);
 
-      // Initialiser NativeTeamsStore AVANT de récupérer les équipes
+      // ✅ RÉINITIALISER TOUS LES STORES UTILISATEURS
+
+      // 1. NativeTeamsStore (équipes natives)
       await nativeTeamsStore.initialize();
 
-      // Récupérer les équipes depuis NativeTeamsStore
+      // 2. EventsStore (événements utilisateur)
+      await eventsStore.syncFromRemote();
+      await eventsStore.setupRealtime();
+
+      // 3. MaterielStore (matériel et emprunts)
+      await materielStore.syncFromRemote();
+      await materielStore.setupRealtime();
+
+      // 4. TeamdocsStore (documents d'équipe)
+      await teamdocsStore.syncFromRemote();
+      await teamdocsStore.setupRealtime();
+
+      // 5. NotificationStore (lazy init + realtime notifications)
+      await notificationStore.initialize();
+
+      // 6. RealtimeManager (WebSocket central pour tous les stores)
+      await realtimeManager.initialize();
+
+      // 7. Récupérer les équipes depuis NativeTeamsStore
       this.#userTeams = nativeTeamsStore.myTeams.map((t) => t.$id);
 
       console.log(
