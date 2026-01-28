@@ -6,6 +6,11 @@ import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vite.dev/config/
 export default defineConfig({
+  // IMPORTANT : basePath pour les assets
+  // En production : '/' car baseof.html charge déjà /dist/assets/index.js
+  // Les imports relatifs fonctionneront depuis ce point d'entrée
+  base: "/",
+
   plugins: [
     tailwindcss(),
     svelte(),

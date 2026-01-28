@@ -58,6 +58,7 @@ import { realtimeManager } from "./RealtimeManager.svelte";
 // =============================================================================
 
 // URL du fichier data.json (proxié par Vite en mode dev vers Hugo)
+
 const DATA_JSON_URL = "/api/data.json";
 
 // =============================================================================
