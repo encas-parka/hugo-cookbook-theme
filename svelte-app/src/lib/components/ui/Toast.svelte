@@ -25,7 +25,7 @@
   }: Props = $props();
 
   // Dériver les classes de padding
-  const paddingClass = $derived(padding === "sm" ? " py-0.5" : "");
+  const paddingClass = $derived(padding === "sm" ? " py-0.5" : "py-1");
 
   const toasts = $derived(toastService.toasts);
 
@@ -72,7 +72,7 @@
               <LoaderCircle class="h-5 w-5 animate-spin" />
             {/if}
 
-            <span class="text-xs">{toast.message}</span>
+            <span class="text-sm">{toast.message}</span>
           </div>
 
           <!-- Boutons d'action personnalisés -->
