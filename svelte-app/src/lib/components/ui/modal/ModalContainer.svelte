@@ -104,10 +104,12 @@
       class="modal-box flex flex-col p-0 {modalClass} {fullscreenOnMobile &&
       globalState.isMobile
         ? 'fixed inset-0 m-0 h-lvh w-lvw rounded-none'
-        : 'fixed top-10 m-auto '} {globalState.isDesktop &&
-        getSizeClass(maxWidth, 'max-w')} {globalState.isDesktop &&
+        : 'fixed top-10 m-auto '} {!(fullscreenOnMobile &&
+        globalState.isMobile) &&
+        getSizeClass(maxWidth, 'max-w')} {!(fullscreenOnMobile &&
+        globalState.isMobile) &&
         !modalClass &&
-        'maw-h-[85dvh]'}"
+        'max-h-[85dvh]'}"
       role="dialog"
       aria-modal="true"
     >
