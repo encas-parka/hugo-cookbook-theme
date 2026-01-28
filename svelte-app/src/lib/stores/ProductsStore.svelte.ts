@@ -533,9 +533,6 @@ class ProductsStore {
       this.#currentEventId = event.$id;
       this.#currentMainId = event.$id; // mainId = eventId dans la nouvelle architecture
 
-      // Exposer le mainId dans GlobalState pour les notifications batch
-      globalState.setCurrentMainId(this.#currentMainId);
-
       // 0. Initialiser le cache IndexedDB
       console.log(
         `[ProductsStore] Initialisation du cache IDB pour mainId: ${this.#currentMainId}`,
@@ -1811,9 +1808,8 @@ class ProductsStore {
       return await this.createPurchaseLocal(productId, quantities, options);
     } else {
       // Mode normal : utiliser le service Appwrite
-      const { createQuickValidationPurchases } = await import(
-        "../services/appwrite-products"
-      );
+      const { createQuickValidationPurchases } =
+        await import("../services/appwrite-products");
       await createQuickValidationPurchases(
         this.#currentMainId!,
         productId,
@@ -1890,9 +1886,8 @@ class ProductsStore {
       return await this.updateProductLocal(productId, updates);
     } else {
       // Mode normal : passer updates direct à Appwrite (sérialisation automatique)
-      const { updateProduct: updateProductAppwrite } = await import(
-        "../services/appwrite-products"
-      );
+      const { updateProduct: updateProductAppwrite } =
+        await import("../services/appwrite-products");
       // ⚡ SIMPLIFICATION 2026-01-21 : Plus de #transformToAppwriteFormat()
       // Appwrite client fait le JSON.stringify automatiquement des objets
       await updateProductAppwrite(productId, updates);
@@ -1916,9 +1911,8 @@ class ProductsStore {
       }
     } else {
       // Mode normal : appel batch Appwrite (cloud function optimisée)
-      const { updateProductBatch } = await import(
-        "../services/appwrite-products"
-      );
+      const { updateProductBatch } =
+        await import("../services/appwrite-products");
       await updateProductBatch(
         productId,
         updates,
@@ -1948,9 +1942,8 @@ class ProductsStore {
         updateData,
       );
     } else {
-      const { batchUpdateProductsOptimized } = await import(
-        "../services/appwrite-products"
-      );
+      const { batchUpdateProductsOptimized } =
+        await import("../services/appwrite-products");
       return await batchUpdateProductsOptimized(
         productIds,
         products,
@@ -2022,9 +2015,8 @@ class ProductsStore {
     if (this.#isLocalMode()) {
       return await this.#createGroupPurchaseLocal(productsData, invoiceData);
     } else {
-      const { createGroupPurchaseWithSync } = await import(
-        "../services/appwrite-transaction"
-      );
+      const { createGroupPurchaseWithSync } =
+        await import("../services/appwrite-transaction");
       return await createGroupPurchaseWithSync(
         this.#currentMainId!,
         productsData,

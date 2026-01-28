@@ -227,8 +227,23 @@ class NotificationStore {
         break;
 
       case "event_access_granted":
-        await eventsStore.reload();
-        toastService.success("Nouvel événement disponible");
+        console.log("[NotificationStore] 🎉 event_access_granted received");
+        const eventId = notif.targetDocumentId;
+        const enriched = await eventsStore.fetchEvent(eventId);
+
+        if (enriched) {
+          console.log(
+            `[NotificationStore] ✅ Event ${eventId} fetched successfully`,
+          );
+          toastService.success("Nouvel événement disponible");
+        } else {
+          console.log(
+            `[NotificationStore] ⚠️ Failed to fetch ${eventId}, falling back to reload()`,
+          );
+          // Fallback: reload complet si fetch échoue
+          await eventsStore.reload();
+          toastService.success("Nouvel événement disponible");
+        }
         break;
 
       case "batch_products_update":
