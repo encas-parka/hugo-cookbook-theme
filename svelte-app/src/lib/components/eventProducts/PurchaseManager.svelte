@@ -14,6 +14,8 @@
     Weight,
     Trash,
     Trash2,
+    Bubbles,
+    Euro,
   } from "@lucide/svelte";
   import type { Purchases } from "$lib/types/appwrite.d.ts";
   import type { ProductModalStateType } from "$lib/types/store.types.js";
@@ -354,25 +356,25 @@
   <!-- Mobile Card View -->
   <div class="mt-4 space-y-3">
     {#each modalState.purchasesList as purchase (purchase.$id)}
-      <div class="card bg-base-100 border-neutral/40 border shadow-sm">
+      <div class="card bg-base-100 border-neutral/40 card-xs border shadow-sm">
         <div class="card-body p-4">
-          <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center justify-between gap-3">
             <!-- Quantité + Prix + Statut -->
-            <div class="flex flex-col gap-1">
-              <div class="flex items-center gap-2 text-sm opacity-70">
-                <Weight class="h-3.5 w-3.5" />
-                <span class="text-xs font-medium">
+            <div class="flex flex-wrap items-center gap-4 text-base">
+              <div class="flex items-center gap-2">
+                <Weight class="size-4" />
+                <span class="font-medium">
                   {formatSingleQuantity(purchase.quantity, purchase.unit)}
                 </span>
               </div>
-              <div class="font-mono text-xl font-bold">
-                {purchase.price ? `${purchase.price} €` : "-"}
+              <div class="">
+                {purchase.price ? purchase.price : "?"}
+                <Euro class="me-1 inline size-4" />
               </div>
-            </div>
-
-            <!-- Statut badge -->
-            <div class="badge badge-sm {getStatusBadge(purchase.status).class}">
-              {getStatusBadge(purchase.status).text}
+              <!-- Statut badge -->
+              <div class="badge {getStatusBadge(purchase.status).class}">
+                {getStatusBadge(purchase.status).text}
+              </div>
             </div>
 
             <!-- Bouton suppression en haut à droite -->
@@ -392,17 +394,20 @@
           </div>
 
           <!-- Dates -->
-          <div class="mt-2 flex flex-wrap gap-3 text-xs">
+          <div class="mt-2 flex flex-wrap gap-3 text-sm">
             {#if purchase.orderDate}
               <div class="flex items-center gap-1 opacity-70">
-                <Calendar class="h-3 w-3" />
+                <Calendar class="size-3.5" />
                 <span>Commande: {formatDateOrNull(purchase.orderDate)}</span>
               </div>
             {/if}
-            {#if purchase.deliveryDate}
+            {#if purchase.status === "ordered"}
               <div class="flex items-center gap-1 opacity-70">
-                <Calendar class="h-3 w-3" />
-                <span>Livraison: {formatDateOrNull(purchase.deliveryDate)}</span
+                <Calendar class="size-3.5" />
+                <span
+                  >Livraison: {purchase.deliveryDate
+                    ? formatDateOrNull(purchase.deliveryDate)
+                    : "non renseigné"}</span
                 >
               </div>
             {/if}
@@ -411,6 +416,7 @@
           <!-- Notes -->
           {#if purchase.notes}
             <div class="mt-2 text-sm opacity-70">
+              <MessageCircle class="me-1 inline size-3.5" />
               {purchase.notes}
             </div>
           {/if}
@@ -420,13 +426,13 @@
             {#if purchase.store}
               <div class="badge badge-soft gap-1">
                 <Store class="h-3 w-3" />
-                <span class="max-w-[150px] truncate">{purchase.store}</span>
+                <span class="max-w-37.5 truncate">{purchase.store}</span>
               </div>
             {/if}
             {#if purchase.who}
               <div class="badge badge-soft gap-1">
-                <User class="h-3 w-3" />
-                <span class="max-w-[100px] truncate">{purchase.who}</span>
+                <User class="size-3.5" />
+                <span class="max-w-25 truncate">{purchase.who}</span>
               </div>
             {/if}
           </div>

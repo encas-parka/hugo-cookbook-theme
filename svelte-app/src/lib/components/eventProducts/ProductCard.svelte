@@ -438,9 +438,13 @@
                     {purchase.unit}
                   </span>
                 </div>
-                {#if purchase.deliveryDate}
+                {#if purchase.status === "ordered"}
                   <span class="text-xs opacity-75">
-                    livré le: {purchase.deliveryDate}
+                    {#if purchase.deliveryDate}
+                      livré le: {purchase.deliveryDate}
+                    {:else}
+                      livraison ?
+                    {/if}
                   </span>
                 {/if}
               </div>
