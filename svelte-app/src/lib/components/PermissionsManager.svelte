@@ -444,8 +444,9 @@
               </label>
               <p class="text-base-content/60 mt-1 text-xs">
                 Si désactivé, les membres auront accès à l'événement mais ne
-                recevront pas d'email. Les personnes invité n'ayant pas de
-                compte recevront toujours un email de création de compte.
+                recevront pas d'email. Les personnes invitées n'ayant pas de
+                compte recevront toujours un email pour la création de leur
+                compte.
               </p>
             {/if}
           {:else}
