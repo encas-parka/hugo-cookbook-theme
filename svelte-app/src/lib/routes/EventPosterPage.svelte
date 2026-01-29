@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from "svelte";
+  import { fade } from "svelte/transition";
   import { SvelteMap } from "svelte/reactivity";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
@@ -522,7 +523,10 @@
   </LeftPanel>
 
   <!-- Main Content Area with left margin for desktop -->
-  <div class="bg-base-200 min-h-screen print:h-auto print:min-h-0">
+  <div
+    class="bg-base-200 min-h-screen print:h-auto print:min-h-0"
+    transition:fade
+  >
     <!-- Invitation Alert -->
     <div class="mx-auto px-4 py-4 print:hidden">
       <EventInvitationAlert

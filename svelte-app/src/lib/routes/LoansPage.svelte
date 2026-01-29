@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { fade } from "svelte/transition";
   import { Plus, Users, LoaderCircle } from "@lucide/svelte";
   import { materielStore } from "$lib/stores/MaterielStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
@@ -183,7 +184,7 @@
   });
 </script>
 
-<div class="container mx-auto p-4">
+<div class="container mx-auto p-4" transition:fade>
   <div class="mx-auto max-w-7xl px-4 py-8">
     <!-- Tabs par équipe (seulement si plus d'une équipe) -->
     {#if userTeams.length > 1}

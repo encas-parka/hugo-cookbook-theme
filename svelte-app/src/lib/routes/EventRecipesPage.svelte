@@ -30,6 +30,7 @@
     ensureDemoEventsLoaded,
     waitForEvent,
   } from "$lib/utils/events.utils";
+  import { fade } from "svelte/transition";
 
   // État local
   let loading = $state(true);
@@ -289,7 +290,7 @@
   </div>
 {/snippet}
 
-<div class="bg-base-200 min-h-screen">
+<div class="bg-base-200 min-h-screen" in:fade>
   <!-- LeftPanel avec recherche et sommaire -->
   <div class="print:hidden">
     <LeftPanel width="120">

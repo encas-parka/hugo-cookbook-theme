@@ -6,6 +6,7 @@
   import { navigate } from "$lib/router";
   import { onDestroy, onMount } from "svelte";
   import { Save, X, Lock, Eye, Edit3, Loader2, PlusIcon } from "@lucide/svelte";
+  import { fade } from "svelte/transition";
   import MarkdownEditorAdvanced from "$lib/components/MarkdownEditorAdvanced.svelte";
   import BtnGroupCheck from "$lib/components/ui/BtnGroupCheck.svelte";
   import UnsavedChangesGuard from "$lib/components/ui/UnsavedChangesGuard.svelte";
@@ -399,6 +400,7 @@
   onkeydown={handleKeydown}
   role="region"
   tabindex="-1"
+  transition:fade
 >
   <!-- Alertes -->
   {#if isLockedByOthers}

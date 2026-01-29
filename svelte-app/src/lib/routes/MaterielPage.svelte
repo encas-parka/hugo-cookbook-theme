@@ -13,7 +13,7 @@
     type MaterielFiltersType,
   } from "$lib/components/teamMatos/MaterielFilters.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
-  import { slide } from "svelte/transition";
+  import { fade } from "svelte/transition";
   import { navigate } from "$lib/router";
   import type { EnrichedMateriel } from "$lib/types/materiel.types";
 
@@ -215,7 +215,7 @@
 </LeftPanel>
 
 <!-- Contenu principal -->
-<div class="p-4 lg:ml-100">
+<div class="p-4 lg:ml-100" transition:fade>
   <div class="mx-auto max-w-7xl px-4 py-8">
     <!-- Tabs par équipe (seulement si plus d'une équipe) -->
     {#if userTeams.length > 1}

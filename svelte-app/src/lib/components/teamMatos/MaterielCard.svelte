@@ -182,7 +182,7 @@
             {#if materiel.location}
               <div class="flex items-center gap-1">
                 <MapPin class="h-3 w-3" />
-                <span class="max-w-[100px] truncate">{materiel.location}</span>
+                <span class="max-w-60 truncate">{materiel.location}</span>
               </div>
             {/if}
 

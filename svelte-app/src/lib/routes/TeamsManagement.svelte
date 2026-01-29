@@ -8,6 +8,7 @@
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { onDestroy } from "svelte";
   import { navigate } from "$lib/router";
+  import { fade } from "svelte/transition";
 
   import { warmUpUsersTeamsManager } from "$lib/services/appwrite-warmup";
 
@@ -67,7 +68,7 @@
   </button>
 {/snippet}
 
-<div class="mx-auto max-w-7xl px-4 py-8">
+<div class="mx-auto max-w-7xl px-4 py-8" transition:fade>
   <!-- Contenu -->
   {#if !globalState.isAuthenticated}
     <div class="alert alert-warning">

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { fade } from "svelte/transition";
   import { teamdocsStore } from "$lib/stores/TeamdocsStore.svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { navBarStore } from "$lib/stores/NavBarStore.svelte";
@@ -215,7 +216,7 @@
 {/snippet}
 
 <!-- Contenu principal -->
-<div class="p-4">
+<div class="p-4" transition:fade>
   <div class="mx-auto max-w-4xl">
     <div class="mb-10 space-y-6">
       <!-- Barre de recherche -->

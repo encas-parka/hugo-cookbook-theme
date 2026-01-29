@@ -12,6 +12,7 @@
   import { route, navigate } from "$lib/router";
   import { Save, Lock, Copy, Trash2 } from "@lucide/svelte";
   import { onDestroy } from "svelte";
+  import { fade } from "svelte/transition";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import RecipeHeaderForm from "$lib/components/recipeEdit/RecipeHeaderForm.svelte";
   import RecipePrepaForm from "$lib/components/recipeEdit/RecipePrepaForm.svelte";
@@ -432,7 +433,7 @@
 <!-- TEMPLATE -->
 <!-- ============================================================================ -->
 
-<div class="max-w-9xl container mx-auto px-4 py-8">
+<div transition:fade class="max-w-9xl container mx-auto px-4 py-8">
   {#if isLoading}
     <div class="flex items-center justify-center py-20">
       <div class="loading loading-spinner loading-lg"></div>

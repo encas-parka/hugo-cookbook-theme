@@ -54,6 +54,7 @@
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
 
   import { onMount, onDestroy } from "svelte";
+  import { fade } from "svelte/transition";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
 
   import { route, navigate } from "$lib/router";
@@ -364,6 +365,7 @@
 <div
   class="space-y-6 pt-6 md:px-16 {globalState.isDesktop &&
     'ml-110 print:ml-0'} "
+  transition:fade
 >
   {#if isLoading}
     <!-- Loader pendant le chargement -->

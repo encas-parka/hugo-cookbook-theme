@@ -15,6 +15,7 @@
     Flame,
     SoapDispenserDroplet,
   } from "@lucide/svelte";
+  import { fade } from "svelte/transition";
   import { materielStore } from "$lib/stores/MaterielStore.svelte";
   import { route, navigate } from "$lib/router";
   import { toastService } from "$lib/services/toast.service.svelte";
@@ -222,7 +223,7 @@
   }
 </script>
 
-<div class="container mx-auto p-4">
+<div class="container mx-auto p-4" transition:fade>
   <div class="mx-auto max-w-4xl">
     <!-- Header -->
     <div class="mb-6 flex items-center gap-4">

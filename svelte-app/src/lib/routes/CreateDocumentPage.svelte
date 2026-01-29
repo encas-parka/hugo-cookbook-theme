@@ -5,6 +5,7 @@
   import { toastService } from "$lib/services/toast.service.svelte";
   import { navigate } from "$lib/router";
   import { onDestroy } from "svelte";
+  import { fade } from "svelte/transition";
   import { Save, X, PlusIcon } from "@lucide/svelte";
   import MarkdownEditorAdvanced from "$lib/components/MarkdownEditorAdvanced.svelte";
   import BtnGroupCheck from "$lib/components/ui/BtnGroupCheck.svelte";
@@ -210,6 +211,7 @@
   onkeydown={handleKeydown}
   role="region"
   tabindex="-1"
+  transition:fade
 >
   <!-- Formulaire -->
   <div class="space-y-4">
