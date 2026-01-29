@@ -129,7 +129,7 @@
     </button>
 
     <!-- Permanent Nav Buttons -->
-    <div class="flex items-center gap-1">
+    <div class=" flex items-center gap-1">
       {#if globalState.isAuthenticated}
         <button
           class="btn btn-ghost not-md:btn-square md:gap-2"
