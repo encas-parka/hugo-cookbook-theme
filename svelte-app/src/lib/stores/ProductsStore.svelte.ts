@@ -210,6 +210,52 @@ class ProductsStore {
     );
   }
 
+  /**
+   * Indique si une recherche par texte est active.
+   * Quand true, les autres filtres sont désactivés (mode recherche exclusive).
+   */
+  get isSearchActive() {
+    return this.filters.searchQuery.trim().length > 0;
+  }
+
+  /**
+   * Retourne une description textuelle des filtres actifs (hors recherche).
+   * Utilisé pour l'indicateur flottant sur mobile.
+   */
+  get activeFiltersDescription(): string[] {
+    const descriptions: string[] = [];
+
+    if (this.filters.completionStatus === "incomplete") {
+      descriptions.push("Manquants");
+    } else if (this.filters.completionStatus === "completed") {
+      descriptions.push("Complets");
+    }
+
+    if (this.filters.temperatureFilter !== "all") {
+      const tempLabels: Record<string, string> = {
+        frais: "Frais",
+        "not-frais": "Sans frais",
+        surgele: "Surgelés",
+        "not-surgele": "Sans surgelés",
+      };
+      descriptions.push(tempLabels[this.filters.temperatureFilter] || "");
+    }
+
+    if (this.filters.selectedProductTypes.length > 0) {
+      descriptions.push(`Types: ${this.filters.selectedProductTypes.length}`);
+    }
+
+    if (this.filters.selectedStores.length > 0) {
+      descriptions.push(`Magasins: ${this.filters.selectedStores.length}`);
+    }
+
+    if (this.filters.selectedWho.length > 0) {
+      descriptions.push(`Qui: ${this.filters.selectedWho.length}`);
+    }
+
+    return descriptions;
+  }
+
   get groupedFilteredProducts() {
     return this.#groupedFilteredProducts;
   }
@@ -347,18 +393,16 @@ class ProductsStore {
       // Vérifier si le produit a des données dans la plage de dates
       let hasDataInRange = false;
       if (product.byDate) {
-        // Normaliser les dates de la plage à minuit (UTC pour être sûr)
-        const startDay = new Date(startDate);
-        startDay.setHours(0, 0, 0, 0);
-
-        const endDay = new Date(endDate);
-        endDay.setHours(23, 59, 59, 999);
+        // 🎯 CORRECTION : Préserver les heures des dates de sélection
+        // Ne pas normaliser à minuit/midi pour respecter les créneaux horaires (midi/soir)
+        const startDateObj = new Date(startDate);
+        const endDateObj = new Date(endDate);
 
         hasDataInRange = Object.keys(product.byDate).some((dateStr) => {
           const date = new Date(dateStr);
-          // On compare la date du produit (qui est déjà à minuit YYYY-MM-DD)
-          // avec le début du jour de start et la fin du jour de end
-          return date >= startDay && date <= endDay;
+          // 🎯 FILTRAGE PRÉCIS : Comparer les dates complètes avec heures
+          // Inclure les produits qui ont des données dans la plage [start, end]
+          return date >= startDateObj && date <= endDateObj;
         });
       }
 
@@ -1273,10 +1317,19 @@ class ProductsStore {
 
   // Setters publics pour les filtres
 
-  // recherche debouncée
+  // recherche debouncée - Mode recherche exclusive : désactive les autres filtres
   setSearchQuery = useDebounce(
     (query: string) => {
       this.#filters.searchQuery = query;
+      // Si recherche active, réinitialiser les autres filtres
+      if (query.trim().length > 0) {
+        this.#filters.selectedStores = [];
+        this.#filters.selectedWho = [];
+        this.#filters.selectedProductTypes = [];
+        this.#filters.selectedTemperatures = [];
+        this.#filters.temperatureFilter = "all";
+        this.#filters.completionStatus = "all";
+      }
     },
     () => 500,
   );
