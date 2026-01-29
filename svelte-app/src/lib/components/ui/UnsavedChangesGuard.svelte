@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { blockNavigation } from "sv-router";
-  import { navigate } from "$lib/router";
+  import { blockNavigation, navigate } from "$lib/router";
   import UnsavedChangesModal from "./UnsavedChangesModal.svelte";
 
   interface Props {

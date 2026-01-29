@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import {
     ArrowLeft,
     Check,
@@ -28,7 +27,7 @@
   } from "$lib/utils/materiel.utils";
 
   // État
-  let loanId = $state<string | null>(null);
+  const loanId = $derived(route.params.loanId);
   let loading = $state(false);
   let saving = $state(false);
   let isReadOnly = $state(false); // Mode lecture seule pour les prêts complétés
@@ -76,19 +75,16 @@
     }
   }
 
-  // Initialisation
-  onMount(() => {
-    const id = route.params.loanId;
-    if (!id) {
+  // Initialisation réactive aux changements de route
+  $effect(() => {
+    if (!loanId) {
       toastService.error("Emprunt non trouvé");
       navigate("/dashboard/loans");
       return;
     }
 
-    loanId = id;
-
     // Charger l'emprunt
-    const loanData = materielStore.getLoanById(id);
+    const loanData = materielStore.getLoanById(loanId);
     if (
       !loanData ||
       (loanData.status !== "accepted" && loanData.status !== "completed")
@@ -210,7 +206,7 @@
         brokenQuantity: item.brokenQuantity,
       }));
 
-      await materielStore.completeLoanWithReturn(loanId, {
+      await materielStore.completeLoanWithReturn(String(loanId), {
         materiels,
         returnNotes: returnNotes.trim() || undefined,
       });

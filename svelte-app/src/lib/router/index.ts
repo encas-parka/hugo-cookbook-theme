@@ -68,3 +68,33 @@ export const Router = SvRouter;
  * });
  */
 export { searchParams };
+
+/**
+ * isActiveLink - Utilitaire pour vérifier si un lien est actif
+ *
+ * Permet de styliser différemment les liens actifs dans la navigation.
+ *
+ * @example
+ * import { isActiveLink } from '$lib/router';
+ *
+ * <a class:active={isActiveLink('/recipes')}>Recettes</a>
+ */
+export { isActiveLink } from "sv-router";
+
+/**
+ * blockNavigation - Fonction pour bloquer la navigation
+ *
+ * Utilisé dans UnsavedChangesGuard pour prévenir la perte de données.
+ *
+ * @example
+ * import { blockNavigation } from '$lib/router';
+ *
+ * blockNavigation(() => {
+ *   if (hasUnsavedChanges) {
+ *     showWarning();
+ *     return false; // Bloque la navigation
+ *   }
+ *   return true; // Autorise la navigation
+ * });
+ */
+export { blockNavigation } from "sv-router";

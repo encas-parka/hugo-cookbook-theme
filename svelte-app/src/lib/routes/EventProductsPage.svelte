@@ -116,7 +116,7 @@
   // =========================================================================
 
   // Récupérer l'eventId depuis les paramètres de route
-  let eventId = $state(route.params.id);
+  let eventId = $derived(route.params.id);
   const currentEvent = $derived(
     eventId ? eventsStore.getEventById(eventId) : null,
   );

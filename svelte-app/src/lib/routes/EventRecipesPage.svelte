@@ -34,7 +34,7 @@
   // État local
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let eventId = $state<string | null>(null);
+  let eventId = $derived(route.params.id ?? null);
 
   const currentEvent = $derived(
     eventId ? eventsStore.getEventById(eventId) : null,
@@ -154,12 +154,6 @@
   const totalGuests = $derived(getTotalGuests(currentEvent));
   const totalRecipes = $derived(getTotalRecipes(currentEvent));
 
-  // Extraire l'ID de l'URL depuis les params ou l'URL actuelle
-  const extractedId = $derived(() => {
-    if (route.params.id) return route.params.id;
-    return null;
-  });
-
   // Charger les données
   async function loadEventData(currentEventId: string) {
     if (isLoading || !currentEventId) return;
@@ -169,9 +163,6 @@
     error = null;
 
     try {
-      // L'eventId est stocké localement pour déclencher le derived eventStats
-      eventId = currentEventId;
-
       // Note: eventsStore et recipesStore sont déjà initialisés via App.svelte (loadCache + syncFromRemote)
 
       // Récupérer les repas de l'événement
@@ -211,7 +202,7 @@
 
   // Charger au montage ou quand l'ID change
   onMount(async () => {
-    const id = extractedId();
+    const id = eventId;
     if (!id) {
       error = "ID d'événement manquant";
       loading = false;
@@ -235,7 +226,7 @@
 
   // Gérer le changement d'ID d'événement
   $effect(() => {
-    const id = extractedId();
+    const id = eventId;
     if (id && id !== eventId && !isLoading) {
       loadEventData(id);
     }

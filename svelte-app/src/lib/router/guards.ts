@@ -58,12 +58,13 @@ export const localEventGuard: Hooks = {
 
     // Extraire l'eventId du pathname
     // Patterns supportés :
+    // - /demo/event/ (base route sans ID)
     // - /demo/event/:id
     // - /demo/event/recipes/:id
     // - /demo/event/products/:id
     // - /demo/event/posters/:id
     const match = pathname.match(
-      /^\/demo\/event\/(?:recipes|products|posters)?\/?([^/]+)$/,
+      /^\/demo\/event\/(?:recipes|products|posters)?\/?([^/]+)?$/,
     );
 
     if (!match) {
@@ -71,7 +72,13 @@ export const localEventGuard: Hooks = {
       throw navigate("/", { replace: true });
     }
 
-    const eventId = match[1];
+    const eventId = match[1]; // Peut être undefined pour la route de base
+
+    // Si pas d'eventId (route de base /demo/event/), on autorise l'accès
+    if (!eventId) {
+      console.log("[LocalEventGuard] Route de base sans ID > Accès autorisé");
+      return;
+    }
 
     // Attendre que l'event soit disponible (max 3 secondes)
     const maxRetries = 30; // 30 × 100ms = 3000ms
