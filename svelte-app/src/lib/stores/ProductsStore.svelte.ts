@@ -1170,7 +1170,7 @@ class ProductsStore {
       if (model) {
         const product = model.data;
         const purchases = product.purchases || [];
-      const index = purchases.findIndex(
+        const index = purchases.findIndex(
           (p) => p.$id === sanitizedPurchase.$id,
         );
 
@@ -1606,6 +1606,10 @@ class ProductsStore {
       notes?: string;
       store?: string;
       price?: number | null;
+      who?: string;
+      status?: string | null;
+      orderDate?: string | null;
+      deliveryDate?: string | null;
     },
   ): Promise<void> {
     const productModel = this.#enrichedProducts.get(productId);
@@ -1614,6 +1618,14 @@ class ProductsStore {
     }
 
     // 1. Créer l'objet purchase plain
+    const purchaseStatus = options.status || "delivered";
+    let deliveryDate = options.deliveryDate || null;
+
+    // Auto-date de livraison si "delivered" et pas de date fournie
+    if (purchaseStatus === "delivered" && !deliveryDate) {
+      deliveryDate = new Date().toISOString();
+    }
+
     const newPurchase: Purchases = {
       $id: crypto.randomUUID(),
       $createdAt: new Date().toISOString(),
@@ -1629,11 +1641,11 @@ class ProductsStore {
       unit: quantities[0]?.u || "", // Unité principale
       quantity: quantities.reduce((sum, qty) => sum + qty.q, 0), // Quantité totale
       price: options.price || null,
-      status: "received",
-      who: null,
+      status: purchaseStatus,
+      who: options.who || null,
       createdBy: "guest",
-      orderDate: new Date().toISOString(),
-      deliveryDate: null,
+      orderDate: options.orderDate || new Date().toISOString(),
+      deliveryDate,
       invoiceTotal: null,
       products: [productId],
     };
@@ -1771,6 +1783,11 @@ class ProductsStore {
       invoiceId?: string;
       notes?: string;
       store?: string;
+      price?: number | null;
+      who?: string;
+      status?: string | null;
+      orderDate?: string | null;
+      deliveryDate?: string | null;
     },
   ): Promise<void> {
     return await this.createPurchaseLocal(productId, quantities, options);
@@ -1854,6 +1871,11 @@ class ProductsStore {
       invoiceId?: string;
       notes?: string;
       store?: string;
+      price?: number | null;
+      who?: string;
+      status?: string | null;
+      orderDate?: string | null;
+      deliveryDate?: string | null;
     },
   ): Promise<void> {
     if (this.#isLocalMode()) {

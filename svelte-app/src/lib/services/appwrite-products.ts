@@ -1500,6 +1500,11 @@ export async function createQuickValidationPurchases(
     invoiceId?: string;
     notes?: string;
     store?: string;
+    price?: number | null;
+    who?: string;
+    status?: string | null;
+    orderDate?: string | null;
+    deliveryDate?: string | null;
   } = {},
 ): Promise<Purchases[]> {
   try {
@@ -1520,21 +1525,29 @@ export async function createQuickValidationPurchases(
       options,
     });
 
+    const purchaseStatus = options.status || "delivered";
+    let deliveryDate = options.deliveryDate || null;
+
+    // Auto-date de livraison si "delivered" et pas de date fournie
+    if (purchaseStatus === "delivered" && !deliveryDate) {
+      deliveryDate = new Date().toISOString();
+    }
+
     for (const qty of quantities) {
       const purchaseData = {
         products: [productId],
         mainId: mainId,
         quantity: qty.q,
         unit: qty.u,
-        status: "delivered",
+        status: purchaseStatus,
         notes:
           options.notes ||
           `Validation rapide ${new Date().toLocaleDateString("fr-FR")}`,
         store: options.store ?? null,
-        who: user.name,
-        price: null,
-        orderDate: null,
-        deliveryDate: null,
+        who: options.who || user.name,
+        price: options.price || null,
+        orderDate: options.orderDate || null,
+        deliveryDate,
         createdBy: user.$id,
         invoiceId: options.invoiceId,
         invoiceTotal: null,
@@ -1611,7 +1624,7 @@ export async function createExpensePurchase(
       invoiceId: finalInvoiceId,
       invoiceTotal: invoiceTotal,
       orderDate: null,
-      deliveryDate: null,
+      deliveryDate: new Date().toISOString(),
       createdBy: user.$id,
     };
 

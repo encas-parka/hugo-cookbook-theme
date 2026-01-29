@@ -110,7 +110,7 @@ async function prepareBatchData(
 
   // 🎯 LOGIQUE : Assigner automatiquement deliveryDate pour les achats livrés sans date
   if (purchaseStatus === "delivered" && !deliveryDate) {
-    deliveryDate = new Date().toISOString(); // Conserve l'heure complète
+    deliveryDate = new Date().toISOString();
   }
 
   const purchasesData: GroupPurchaseData[] = productsBatch.flatMap((product) =>

@@ -169,7 +169,7 @@ export class ProductModalState implements ProductModalStateType {
   hasAnyChanges = $derived(
     Boolean(
       this.originalFormsSnapshot &&
-        (this.hasChanges.store || this.hasChanges.stock || this.hasChanges.who),
+      (this.hasChanges.store || this.hasChanges.stock || this.hasChanges.who),
     ),
   );
 
@@ -466,7 +466,7 @@ export class ProductModalState implements ProductModalStateType {
         await productsStore.updateProductBatch(
           this.product!.$id,
           batchUpdates,
-          (id) => productsStore.getEnrichedProductById(id),
+          (id) => productsStore.getEnrichedProductById(id) ?? undefined,
         );
 
         this.originalFormsSnapshot = {
