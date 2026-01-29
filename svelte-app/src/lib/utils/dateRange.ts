@@ -122,7 +122,22 @@ export function calculateProductStatsForDateRange(
   startDate: string,
   endDate: string,
 ): ProductStatsForDateRange {
-  if (!product.byDate) {
+  // Vérifier si c'est un produit manuel (sans lien Hugo)
+  // productHugoUuid peut être null, undefined ou "" (chaîne vide)
+  const isManualProduct = !product.productHugoUuid;
+
+  // Vérifier si byDate est vide (undefined, null, ou objet vide {})
+  const hasByDateEntries =
+    product.byDate && Object.keys(product.byDate).length > 0;
+
+  // Cas standard : pas de byDate ET pas de produit manuel avec quantité définie
+  // Pour les produits manuels, on peut avoir une quantité dans totalNeededArray ou totalNeededOverrideParsed
+  const hasManualQuantity =
+    isManualProduct &&
+    ((product.totalNeededArray && product.totalNeededArray.length > 0) ||
+      product.totalNeededOverrideParsed);
+
+  if (!hasByDateEntries && !hasManualQuantity) {
     return {
       requiredQuantities: [],
       requiredQuantitiesFormatted: "-",
@@ -140,11 +155,54 @@ export function calculateProductStatsForDateRange(
     };
   }
 
-  const startDateObj = new Date(startDate);
-  startDateObj.setHours(0, 0, 0, 0);
+  // Cas produit manuel : utiliser directement totalNeededArray ou override
+  if (isManualProduct && !hasByDateEntries) {
+    // Récupérer la quantité requise depuis override ou totalNeededArray
+    const requiredQuantities = product.totalNeededOverrideParsed
+      ? [product.totalNeededOverrideParsed.totalOverride]
+      : product.totalNeededArray || [];
 
+    const requiredQuantitiesFormatted =
+      requiredQuantities.length > 0
+        ? formatTotalQuantityFromFormatter(requiredQuantities)
+        : "-";
+
+    // Calcul du stock (achats existants - besoins)
+    const stockBalance = calculateStockBalanceForDateRange(
+      product,
+      startDate,
+      endDate,
+      requiredQuantities,
+    );
+    const availableStockQuantities = stockBalance.filter((item) => item.q > 0);
+    const missingStockQuantities = stockBalance.filter((item) => item.q < 0);
+
+    return {
+      requiredQuantities,
+      requiredQuantitiesFormatted,
+      stockBalance,
+      availableStockQuantities,
+      missingStockQuantities,
+      availableStockFormatted: formatStockResult(stockBalance),
+      missingStockFormatted: formatTotalQuantityFromFormatter(
+        missingStockQuantities.map((item) => ({
+          q: Math.abs(item.q),
+          u: item.u,
+        })),
+      ),
+      hasAvailableStock: availableStockQuantities.length > 0,
+      hasMissingStock: missingStockQuantities.length > 0,
+      totalRecipesInRange: 0, // Pas de recettes pour les produits manuels
+      totalPortionsInRange: 0,
+      datesInSelectedRange: [],
+      recipesByDate: new Map(),
+    };
+  }
+
+  // 🎯 CORRECTION : Préserver les heures des dates de sélection
+  // Ne pas normaliser à minuit/midi pour respecter les créneaux horaires (midi/soir)
+  const startDateObj = new Date(startDate);
   const endDateObj = new Date(endDate);
-  endDateObj.setHours(23, 59, 59, 999);
 
   // Accumulateurs pour stats sur la plage
   const datesInSelectedRange: string[] = [];
@@ -156,7 +214,9 @@ export function calculateProductStatsForDateRange(
   for (const [dateStr, dayData] of Object.entries(product.byDate)) {
     const date = new Date(dateStr);
 
-    // Filtrage de plage uniquement
+    // 🎯 FILTRAGE PRÉCIS : Comparer les dates complètes avec heures
+    // Inclure les dates qui tombent dans la plage [start, end]
+    // Exemple : "30 janvier midi" (12h) n'inclut PAS "30 janvier soir" (19h)
     if (date >= startDateObj && date <= endDateObj) {
       datesInSelectedRange.push(dateStr);
       totalPortionsInRange += dayData.totalAssiettes || 0;
@@ -314,7 +374,9 @@ function isPurchaseAvailableInRange(
   // 🎯 COHÉRENCE UI : Utiliser la même marge que hasPastDatesInRange
   // Calculer la fin de la plage avec la marge
   const endWithMargin = new Date(endDate);
-  endWithMargin.setHours(endWithMargin.getHours() + DEFAULT_PURCHASE_MARGIN_HOURS);
+  endWithMargin.setHours(
+    endWithMargin.getHours() + DEFAULT_PURCHASE_MARGIN_HOURS,
+  );
 
   // Si la plage est déjà passée (avec marge) → aucun purchase n'est compté
   if (endWithMargin < new Date()) {

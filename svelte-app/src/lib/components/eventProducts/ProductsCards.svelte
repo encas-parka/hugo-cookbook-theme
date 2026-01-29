@@ -20,6 +20,7 @@
   import { useIntersectionObserver } from "runed";
   import ProductCard from "./ProductCard.svelte";
   import { getProductTypeInfo } from "@/lib/utils/products-display";
+  import { flip } from "svelte/animate";
 
   interface Props {
     onOpenModal: (productId: string, tab?: string) => void;
@@ -258,7 +259,7 @@
       {/if}
 
       <!-- Cards des produits du groupe -->
-      <div class="mt-4 mb-8 space-y-4 sm:space-y-2">
+      <div class="mt-4 mb-8 space-y-4 sm:space-y-2" transition:fade|global>
         {#each groupProducts as productModel (productModel.data.$id)}
           <ProductCard
             {productModel}
