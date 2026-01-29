@@ -408,7 +408,7 @@
       {/if}
 
       <!-- card deense et produits ok/manquant -->
-      <div class="flex w-full flex-wrap justify-end gap-10">
+      <div class="flex w-full flex-wrap justify-center gap-10 md:justify-end">
         {#if eventIsPassed}
           <div
             class="alert alert-warning alert-soft max-sm:alert-vertical self-center"
@@ -421,9 +421,7 @@
         {/if}
         {#if !eventIsPassed}
           <!-- Carte des produits complétés/manquants -->
-          <div
-            class="card card-xs sm:card-sm min-w-48 border-2 border-orange-700"
-          >
+          <div class="card card-xs sm:card-sm border-2 border-orange-700">
             <div class="card-body">
               <div class="card-title text-orange-800">
                 <PackageCheck class="text-orange-800 opacity-60" />

@@ -46,6 +46,7 @@
   // Stores
   import { globalState, hoverHelp } from "$lib/stores/GlobalState.svelte";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
+  import { slide } from "svelte/transition";
 
   // Récupérer les icônes de statut depuis le parent pour éviter la duplication
   const statusIcons = {
@@ -87,6 +88,7 @@
 
 <!-- Card du produit -->
 <div
+  transition:slide
   class="card bg-base-100 {globalState.isMobile &&
     'border-base-300 border shadow'} {product.status === 'isSyncing'
     ? 'border-accent bg-accent/30 animate-pulse border-2'

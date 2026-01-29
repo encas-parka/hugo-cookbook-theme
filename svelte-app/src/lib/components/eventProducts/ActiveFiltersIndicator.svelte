@@ -16,7 +16,7 @@
 <!-- Indicateur flottant des filtres actifs - visible uniquement ~~sur mobile~~ quand des filtres sont actifs -->
 {#if hasActiveFilters}
   <div
-    class="fixed bottom-4 left-20 z-50 md:left-3/4 print:hidden"
+    class="fixed right-24 bottom-6 z-50 print:hidden"
     transition:scale={{ duration: 200, start: 0.8 }}
   >
     <div
@@ -28,7 +28,7 @@
         onclick={() => productsStore.clearFilters()}
         title="Effacer tous les filtres"
       >
-        <FunnelX class="h-3 w-3" />
+        <FunnelX class="size-4" />
       </button>
     </div>
   </div>
