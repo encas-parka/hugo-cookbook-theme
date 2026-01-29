@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowDownNarrowWide, ArrowUp, ArrowDown } from "@lucide/svelte";
+  import { ArrowDownNarrowWide, ArrowUp, ArrowDown, X } from "@lucide/svelte";
 
   type SortBy = "title" | "$createdAt" | "$updatedAt";
 
@@ -7,9 +7,21 @@
     sortBy: SortBy;
     sortOrder: "asc" | "desc";
     onSortChange: (sortBy: SortBy, sortOrder: "asc" | "desc") => void;
+    availableTags?: string[];
+    selectedTags?: string[];
+    onTagToggle?: (tag: string) => void;
+    disabled?: boolean;
   }
 
-  let { sortBy, sortOrder, onSortChange }: Props = $props();
+  let {
+    sortBy,
+    sortOrder,
+    onSortChange,
+    availableTags = [],
+    selectedTags = [],
+    onTagToggle,
+    disabled = false,
+  }: Props = $props();
 
   // Définit l'ordre pour chaque critère
   const getSortOrder = (field: SortBy): "asc" | "desc" | "inactive" => {
@@ -62,7 +74,7 @@
 <div
   class="bg-base-300 rounded-box flex flex-wrap items-center justify-between gap-6 px-6 py-6"
 >
-  <fieldset class="fieldset w-full">
+  <fieldset class="fieldset w-full sm:flex-1">
     <legend class="legend label"
       ><ArrowDownNarrowWide class="inline size-4" /> Trier par :</legend
     >
@@ -71,9 +83,9 @@
       <button
         class={getButtonSortClasses("title")}
         onclick={() => handleSortClick("title")}
-        aria-label="Trier par titre"
+        aria-label="Trier par noms"
       >
-        Titre
+        Nom
       </button>
 
       <button
@@ -101,4 +113,42 @@
       </button>
     </div>
   </fieldset>
+
+  <!-- Filtres par tags (si disponibles) -->
+  {#if availableTags.length > 0}
+    <fieldset class="fieldset w-full sm:flex-1">
+      <legend class="legend label flex items-center justify-between">
+        <span>Filtrer par tags :</span>
+        {#if selectedTags.length > 0}
+          <button
+            class="btn btn-ghost btn-xs"
+            onclick={() => {
+              selectedTags.forEach((tag) => onTagToggle?.(tag));
+            }}
+            {disabled}
+          >
+            <X class="size-3" />
+            Tout effacer
+          </button>
+        {/if}
+      </legend>
+
+      <div class="flex flex-wrap gap-2">
+        {#each availableTags as tag}
+          <button
+            class="badge {selectedTags.includes(tag)
+              ? 'badge-primary cursor-pointer'
+              : 'badge-outline hover:badge-primary cursor-pointer'} gap-1 py-3"
+            onclick={() => onTagToggle?.(tag)}
+            {disabled}
+          >
+            {tag}
+            {#if selectedTags.includes(tag)}
+              <X class="size-3" />
+            {/if}
+          </button>
+        {/each}
+      </div>
+    </fieldset>
+  {/if}
 </div>

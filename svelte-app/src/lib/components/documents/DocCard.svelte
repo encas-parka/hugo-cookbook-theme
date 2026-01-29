@@ -71,7 +71,7 @@
         <!-- Created date -->
         <div class="flex items-center gap-1">
           <Calendar class="h-3 w-3" />
-          <span>Crée le {formatDateRelative(doc.$createdAt)}</span>
+          <span>Crée {formatDateRelative(doc.$createdAt)}</span>
         </div>
 
         <!-- Updated date (if different from created) -->

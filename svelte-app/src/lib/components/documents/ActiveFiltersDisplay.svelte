@@ -3,7 +3,6 @@
 
   interface Filters {
     tags: string[];
-    status: string[];
   }
 
   interface Props {
@@ -15,25 +14,7 @@
 
   let { searchQuery, filters, resultCount, onResetFilters }: Props = $props();
 
-  const hasActiveFilters = $derived(
-    filters.tags.length > 0 || filters.status.length > 0,
-  );
-
-  function getStatusLabel(status: string): string {
-    switch (status.toLowerCase()) {
-      case "draft":
-      case "brouillon":
-        return "Brouillon";
-      case "published":
-      case "publié":
-        return "Publié";
-      case "archived":
-      case "archivé":
-        return "Archivé";
-      default:
-        return status;
-    }
-  }
+  const hasActiveFilters = $derived(filters.tags.length > 0);
 </script>
 
 <fieldset class="fieldset border-base-300 relative rounded-lg border-2">
@@ -41,8 +22,8 @@
   {#if hasActiveFilters || searchQuery.length >= 2}
     <legend class="legend text-base-content/70 ms-4">
       {#if resultCount > 1}
-        <span class="font-semibold">{resultCount} documents</span> correspondent
-        aux critères
+        <span class="font-semibold">{resultCount} documents</span> correspondent aux
+        critères
       {:else if resultCount === 1}
         <span class="font-semibold">1 document</span> correspond aux critères
       {:else}
@@ -72,11 +53,6 @@
         <!-- Tags -->
         {#each filters.tags as tag}
           <span class="badge badge-primary">{tag}</span>
-        {/each}
-
-        <!-- Status -->
-        {#each filters.status as st}
-          <span class="badge badge-secondary">{getStatusLabel(st)}</span>
         {/each}
       </div>
 
