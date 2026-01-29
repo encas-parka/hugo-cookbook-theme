@@ -447,6 +447,9 @@
                 <button
                   class="btn btn-primary btn-soft w-full"
                   onclick={handleOpenAddProductModal}
+                  onmouseenter={() =>
+                    (hoverHelp.msg = "Ajouter un produit manuellement")}
+                  onmouseleave={() => hoverHelp.reset()}
                   title="Ajouter un produit manuellement"
                   disabled={!canEdit}
                 >

@@ -66,7 +66,7 @@
             >
               <!-- Nom de la recette + icône date -->
               <div class="flex items-start gap-4">
-                <span class="text-base text-wrap">{recipe.r}</span>
+                <span class="text-primary text-base text-wrap">{recipe.r}</span>
 
                 <div
                   class="flex min-w-fit items-center gap-1 text-base font-medium"

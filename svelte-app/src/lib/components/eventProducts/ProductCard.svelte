@@ -46,7 +46,7 @@
   // Stores
   import { globalState, hoverHelp } from "$lib/stores/GlobalState.svelte";
   import { productsStore } from "$lib/stores/ProductsStore.svelte";
-  import { slide } from "svelte/transition";
+  import { fade, slide } from "svelte/transition";
 
   // Récupérer les icônes de statut depuis le parent pour éviter la duplication
   const statusIcons = {
@@ -88,7 +88,7 @@
 
 <!-- Card du produit -->
 <div
-  transition:slide
+  transition:fade
   class="card bg-base-100 {globalState.isMobile &&
     'border-base-300 border shadow'} {product.status === 'isSyncing'
     ? 'border-accent bg-accent/30 animate-pulse border-2'
@@ -283,7 +283,7 @@
     <!-- Deuxième ligne: Groupe Besoins + Achats + Manquants (flex wrap) -->
     <div class="flex min-h-14 flex-wrap gap-3" id="card-needs-missing">
       <!-- Besoins -->
-      <div class="flex min-w-[300px] flex-1 flex-col">
+      <div class="flex min-w-75 flex-1 flex-col">
         <div class="text-base-content/60 ms-1 text-sm">
           Besoins total sur la période
         </div>
@@ -291,7 +291,7 @@
           id="needs-card"
           role="button"
           tabindex="0"
-          class=" bg-base-300/80 group hover:ring-accent/60 relative flex flex-1 cursor-pointer flex-wrap items-start justify-between gap-x-4 gap-y-1 rounded-lg p-3 shadow-sm hover:ring-2"
+          class=" bg-base-300/80 group hover:ring-accent/60 relative flex flex-1 cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg p-3 shadow-sm hover:ring-2"
           onclick={() => onOpenModal(product.$id, "recettes")}
           onkeydown={(e) =>
             e.key === "Enter" && onOpenModal(product.$id, "recettes")}
