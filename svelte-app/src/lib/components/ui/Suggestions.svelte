@@ -48,6 +48,7 @@
       <PencilLine class="text-base-content/70 mr-1" size={14} />
       {#each displaySuggestions as suggestion (suggestion.id)}
         <button
+          type="button"
           class="btn btn-primary {buttonSize} {buttonVariant} "
           onclick={() => handleSuggestionClick(suggestion)}
           disabled={disabled || suggestion.disabled}

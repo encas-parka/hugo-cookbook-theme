@@ -44,6 +44,7 @@
   import GlobalPurchasesModal from "$lib/components/eventProducts/GlobalPurchasesModal.svelte";
   import EventStats from "$lib/components/EventStats.svelte";
   import EventInvitationAlert from "$lib/components/EventInvitationAlert.svelte";
+  import ActiveFiltersIndicator from "$lib/components/eventProducts/ActiveFiltersIndicator.svelte";
 
   // Services
   import { UnitConverter } from "$lib/utils/UnitConverter";
@@ -359,6 +360,7 @@
 <LeftPanel width={PANEL_WIDTH}>
   <ProductsFilters />
 </LeftPanel>
+<ActiveFiltersIndicator />
 
 <div
   class="space-y-6 pt-6 md:px-16 {globalState.isDesktop &&

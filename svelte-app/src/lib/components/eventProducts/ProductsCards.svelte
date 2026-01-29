@@ -120,8 +120,10 @@
         {@const isVisible = headerVisibility.get(groupKey) ?? true}
         <div
           class="{groupHeadClass} @container sticky {globalState.isMobile
-            ? 'top-12'
-            : 'top-13 rounded-lg'} z-2 flex flex-wrap items-center justify-between px-4 py-2 shadow-md transition-opacity duration-300 @md:flex-nowrap print:shadow-none {isVisible
+            ? globalState.headerVisible
+              ? 'top-12'
+              : 'top-0'
+            : 'top-13 rounded-lg'} z-2 flex flex-wrap items-center justify-between px-4 py-2 shadow-md transition-all duration-300 @md:flex-nowrap print:shadow-none {isVisible
             ? 'opacity-100'
             : 'pointer-events-none opacity-0'}"
         >
