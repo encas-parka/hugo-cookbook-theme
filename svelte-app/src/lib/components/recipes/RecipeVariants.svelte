@@ -1,7 +1,8 @@
 <script lang="ts">
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import type { RecipeIndexEntry } from "$lib/types/recipes.types";
-  import { navigate } from "@/lib/services/simple-router.svelte";
+  import { navigate } from "$lib/router";
+
   import { onMount } from "svelte";
   import { Copy } from "@lucide/svelte";
 

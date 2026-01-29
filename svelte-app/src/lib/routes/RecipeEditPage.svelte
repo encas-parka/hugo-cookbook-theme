@@ -9,7 +9,7 @@
   import { ingredientsToAppwrite } from "$lib/utils/ingredientUtils";
   import { astucesToAppwrite } from "$lib/utils/recipeUtils";
   import { toastService } from "$lib/services/toast.service.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { route, navigate } from "$lib/router";
   import { Save, Lock, Copy, Trash2 } from "@lucide/svelte";
   import { onDestroy } from "svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
@@ -36,11 +36,10 @@
   import RecipeVariants from "../components/recipes/RecipeVariants.svelte";
 
   // ============================================================================
-  // PROPS & INITIALISATION
+  // INITIALISATION
   // ============================================================================
 
-  let { params } = $props<{ params?: Record<string, string> }>();
-  const recipeId = $derived(params?.uuid);
+  const recipeId = $derived(route.params.uuid);
 
   if (!recipeId) {
     toastService.error("ID de recette manquant");

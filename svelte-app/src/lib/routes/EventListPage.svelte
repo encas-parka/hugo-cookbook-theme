@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { ArrowLeft, Calendar } from "@lucide/svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from '$lib/router';
   import EventCard from "$lib/components/dashboard/EventCard.svelte";
 
   let pastEvents = $derived(eventsStore.pastEvents);

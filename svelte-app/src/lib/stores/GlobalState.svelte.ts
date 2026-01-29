@@ -10,7 +10,7 @@ import { teamdocsStore } from "./TeamdocsStore.svelte";
 import { notificationStore } from "./NotificationStore.svelte";
 import { realtimeManager } from "./RealtimeManager.svelte";
 import type { Models } from "appwrite";
-import { router } from "../services/simple-router.svelte";
+import { route } from "$lib/router";
 
 class GlobalState {
   private isMobileQuery = new MediaQuery("max-width: 768px");
@@ -263,8 +263,8 @@ class GlobalState {
   // =============================================================================
 
   #currentMainId = $derived.by(() => {
-    const path = router.path;
-    const mainId = router.params.id;
+    const path = route.pathname;
+    const mainId = route.params.id;
 
     // Vérifier si on est sur une route produits
     if (path.includes("/eventEdit/") && mainId) {
@@ -273,7 +273,7 @@ class GlobalState {
     }
 
     console.log(
-      `[GlobalState] ⚠️ Pas de mainId: path=${path}, params.id=${router.params.id}`,
+      `[GlobalState] ⚠️ Pas de mainId: path=${path}, params.id=${mainId}`,
     );
     return null;
   });

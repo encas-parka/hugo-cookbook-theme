@@ -6,7 +6,7 @@
     getTotalGuests,
     getTotalRecipes,
   } from "$lib/utils/event-stats-helpers";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate, route } from "$lib/router";
   import { onDestroy } from "svelte";
   import EventStats from "$lib/components/EventStats.svelte";
   import EventRecipeCard from "$lib/components/eventEdit/EventRecipeCard.svelte";
@@ -23,7 +23,6 @@
     Funnel,
     Printer,
   } from "@lucide/svelte";
-  import { marked } from "marked";
   import { extractTime, formatDateWdDayMonth } from "../utils/date-helpers";
   import { globalState } from "../stores/GlobalState.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
@@ -31,12 +30,6 @@
     ensureDemoEventsLoaded,
     waitForEvent,
   } from "$lib/utils/events.utils";
-
-  interface Props {
-    params?: { id?: string };
-  }
-
-  let { params }: Props = $props();
 
   // État local
   let loading = $state(true);
@@ -163,7 +156,7 @@
 
   // Extraire l'ID de l'URL depuis les params ou l'URL actuelle
   const extractedId = $derived(() => {
-    if (params?.id) return params.id;
+    if (route.params.id) return route.params.id;
     return null;
   });
 
@@ -200,17 +193,9 @@
       const recipesMap =
         await recipesStore.getRecipesByUuidsBulk(allRecipeUuids);
 
-      // Convertir la Map en array ET parser le markdown une seule fois
-      recipesDetails = Array.from(recipesMap.values())
-        .filter(Boolean)
-        .map((recipe) => ({
-          ...recipe,
-          // Parser le markdown au chargement pour accélérer le render
-          preparationHtml: recipe.preparation ? marked(recipe.preparation) : "",
-          preparation24hHtml: recipe.preparation24h
-            ? marked(recipe.preparation24h)
-            : "",
-        }));
+      // Convertir la Map en array
+      // Note: preparationHtml et preparation24hHtml sont déjà parsés par RecipesStore
+      recipesDetails = Array.from(recipesMap.values()).filter(Boolean);
 
       console.log(
         `[EventRecipesPage] ${recipesDetails.length}/${allRecipeUuids.length} recettes chargées`,
@@ -446,7 +431,7 @@
       <!-- En-tête de l'événement -->
       {#if loading}
         <div class="flex justify-center py-20">
-          <span class="loading loading-spinner loading-lg"></span>
+          <span class="loading loading-spinner loading-lg text-primary"></span>
         </div>
       {:else if error}
         <div class="alert alert-error">

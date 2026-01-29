@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { EnrichedTeamdoc } from "$lib/stores/TeamdocsStore.svelte";
   import { formatDateRelative } from "$lib/utils/date-helpers";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from '$lib/router';
   import { FileText, Calendar, Clock, ArrowRight } from "@lucide/svelte";
 
   interface Props {

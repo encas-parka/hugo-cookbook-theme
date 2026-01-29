@@ -12,7 +12,7 @@
     NotebookPen,
   } from "@lucide/svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from '$lib/router';
   import TeamDetailModal from "$lib/components/teams/TeamDetailModal.svelte";
   import ListEventCard from "./ListEventCard.svelte";
   import type { EnrichedNativeTeam } from "$lib/types/aw_native_team.d";

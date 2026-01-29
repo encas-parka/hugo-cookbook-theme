@@ -39,10 +39,10 @@
   // PROPS & INITIALISATION
   // ============================================================================
 
-  let { params } = $props<{ params: Record<string, string> }>();
+  import { route } from "$lib/router";
 
   // Rendre eventId entièrement réactif aux changements de params
-  let eventId = $derived(params.id);
+  let eventId = $derived(route.params.id);
 
   // Shadow Draft permanent (jamais null)
   // NOTE: meals est un $state brut (non trié) pour permettre les mutations

@@ -3,7 +3,7 @@
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from "$lib/router";
   import { onDestroy, onMount } from "svelte";
   import { Save, X, Lock, Eye, Edit3, Loader2, PlusIcon } from "@lucide/svelte";
   import MarkdownEditorAdvanced from "$lib/components/MarkdownEditorAdvanced.svelte";
@@ -15,17 +15,13 @@
   import DocumentTabs from "$lib/components/documents/DocumentTabs.svelte";
 
   // ============================================================================
-  // PROPS & ROUTE
+  // ROUTE PARAMETERS
   // ============================================================================
 
-  interface PageParams {
-    teamId: string;
-    docId: string;
-  }
+  import { route } from "$lib/router";
 
-  let { params } = $props<{ params: PageParams }>();
-  let teamId = $derived(params.teamId);
-  let docId = $derived(params.docId);
+  let teamId = $derived(route.params.teamId);
+  let docId = $derived(route.params.docId);
 
   // ============================================================================
   // ÉTAT LOCAL

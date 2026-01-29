@@ -18,20 +18,12 @@
   import { globalState } from "./lib/stores/GlobalState.svelte";
   import { toastService } from "./lib/services/toast.service.svelte";
 
-  import {
-    router,
-    navigate,
-    preloadRoute,
-    type RouteGuards,
-  } from "./lib/services/simple-router.svelte";
+  // ✅ sv-router - Routeur moderne pour Svelte 5
+  // Documentation: https://sv-router.vercel.app
+  import { Router, preload } from "$lib/router";
 
-  // ✅ SEULEMENT HomePage en import statique (page critique)
-  import HomePage from "./lib/routes/HomePage.svelte";
-  import NotFoundPage from "./lib/routes/NotFoundPage.svelte";
-  import { fade } from "svelte/transition";
-
-  // ❌ SUPPRIMER tous les autres imports de pages !
-  // Ils seront chargés à la demande via lazy loading
+  // ❌ PLUS BESOIN de router, navigate, preloadRoute du simple-router
+  // Ces fonctions sont maintenant disponibles depuis $lib/router
 
   type AppState =
     | "BOOTING"
@@ -44,215 +36,9 @@
   let appState = $state<AppState>("BOOTING");
   let initError: string | null = $state(null);
 
-  const requireAuth: RouteGuards = {
-    beforeEnter: async () => {
-      if (!globalState.isAuthenticated) {
-        console.log("[Router] Accès refusé > Redirection /");
-        navigate("/");
-        return false;
-      }
-      return true;
-    },
-  };
-
-  // ✅ Guard pour mode local (vérification simple)
-  // Le chargement des events démo est géré par EventEditPage lui-même
-  const requireLocalEvent: RouteGuards = {
-    beforeEnter: async (to) => {
-      const eventId = to.params.id;
-
-      if (!eventId) {
-        console.log("[Router] EventId manquant > Redirection /");
-        navigate("/");
-        return false;
-      }
-
-      // ✅ Attendre que l'event soit disponible (chargé par EventEditPage)
-      // On ne fait que vérifier, pas de chargement ici
-      let retries = 0;
-      const maxRetries = 30; // 3 secondes max
-
-      while (retries < maxRetries) {
-        const event = eventsStore.getEventById(eventId);
-        if (event) {
-          // Event trouvé, vérifier que c'est bien un event local
-          if ((event.status as string) !== "local") {
-            console.log("[Router] Event non local > Redirection /");
-            navigate("/");
-            return false;
-          }
-          console.log("[Router] Event local validé");
-          return true;
-        }
-        // Attendre un peu et réessayer
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        retries++;
-      }
-
-      // Event non trouvé après timeout
-      console.log("[Router] Event introuvable après timeout > Redirection /");
-      navigate("/");
-      return false;
-    },
-  };
-
-  // ✅ Routes avec lazy loading (sauf HomePage)
-  // Publiques
-  router.addRoute("/", HomePage);
-  router.addRoute(
-    "/verify-email",
-    () => import("./lib/routes/VerifyEmailPage.svelte"),
-  );
-  router.addRoute(
-    "/recipe",
-    () => import("./lib/routes/RecipesListPage.svelte"),
-  );
-  router.addRoute(
-    "/recipe/my",
-    () => import("./lib/routes/RecipesListPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/recipe/my/draft",
-    () => import("./lib/routes/RecipesListPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/recipe/new",
-    () => import("./lib/routes/RecipeCreatePage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/recipe/:uuid/edit",
-    () => import("./lib/routes/RecipeEditPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/recipe/:uuid/duplicate",
-    () => import("./lib/routes/RecipeCreatePage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/recipe/:uuid",
-    () => import("./lib/routes/RecipeDetailPage.svelte"),
-  );
-  router.addRoute(
-    "/accept-invite",
-    () => import("./lib/routes/AcceptInvite.svelte"),
-  );
-  router.addRoute(
-    "/reset-password",
-    () => import("./lib/routes/ResetPassword.svelte"),
-  );
-
-  // Privées (Dashboard & Gestion)
-  router.addRoute(
-    "/dashboard",
-    () => import("./lib/routes/DashboardPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/dashboard/teams",
-    () => import("./lib/routes/TeamsManagement.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/dashboard/eventCreate",
-    () => import("./lib/routes/EventCreatePage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/dashboard/eventEdit/:id",
-    () => import("./lib/routes/EventEditPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/dashboard/eventEdit/recipes/:id",
-    () => import("./lib/routes/EventRecipesPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/dashboard/eventEdit/products/:id",
-    () => import("./lib/routes/EventProductsPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/dashboard/eventEdit/posters/:id",
-    () => import("./lib/routes/EventPosterPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/dashboard/materiel",
-    () => import("./lib/routes/MaterielPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/dashboard/materiel/:teamId",
-    () => import("./lib/routes/MaterielPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/dashboard/loans",
-    () => import("./lib/routes/LoansPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/dashboard/loans/:teamId",
-    () => import("./lib/routes/LoansPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/dashboard/loans/return/:loanId",
-    () => import("./lib/routes/LoanReturnPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/eventList",
-    () => import("./lib/routes/EventListPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/createdocument/:teamId/new",
-    () => import("./lib/routes/CreateDocumentPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/editdocument/:teamId/:docId",
-    () => import("./lib/routes/EditDocumentPage.svelte"),
-    requireAuth,
-  );
-  router.addRoute(
-    "/documents/:teamId",
-    () => import("./lib/routes/DocumentListPage.svelte"),
-    requireAuth,
-  );
-
-  // ✅ Routes pour le mode démo (PAS de requireAuth)
-  router.addRoute(
-    "/demo/event/:id",
-    () => import("./lib/routes/EventEditPage.svelte"),
-    requireLocalEvent,
-  );
-  router.addRoute(
-    "/demo/event/recipes/:id",
-    () => import("./lib/routes/EventRecipesPage.svelte"),
-    requireLocalEvent,
-  );
-  router.addRoute(
-    "/demo/event/products/:id",
-    () => import("./lib/routes/EventProductsPage.svelte"),
-    requireLocalEvent,
-  );
-  router.addRoute(
-    "/demo/event/posters/:id",
-    () => import("./lib/routes/EventPosterPage.svelte"),
-    requireLocalEvent,
-  );
-
-  // ✅ Route 404 catch-all (DOIT être en dernier)
-  router.addRoute(/.*/, NotFoundPage);
-
-  let currentRoute = $state<any>(null);
+  // ❌ PLUS BESOIN des guards requireAuth et requireLocalEvent
+  // Ils sont maintenant définis dans $lib/router/guards.ts
+  // et utilisés directement dans la configuration des routes
 
   async function initializeApp() {
     try {
@@ -298,10 +84,10 @@
             appState = "READY_FULLY_SYNCED";
             toastService.dismiss(syncToastId);
 
-            // ✅ Précharger les routes probables en arrière-plan
+            // ✅ Précharger les routes probables en arrière-plan avec sv-router
             setTimeout(() => {
-              preloadRoute("/dashboard");
-              preloadRoute("/recipe");
+              preload("/dashboard");
+              preload("/recipe");
             }, 3000);
           })
           .catch((err) => {
@@ -326,9 +112,9 @@
           .then(() => {
             appState = "READY_FULLY_SYNCED";
 
-            // ✅ Précharger les routes publiques probables
+            // ✅ Précharger les routes publiques probables avec sv-router
             setTimeout(() => {
-              preloadRoute("/recipe");
+              preload("/recipe");
             }, 2000);
           })
           .catch((err) => {
@@ -342,32 +128,9 @@
     }
   }
 
-  let previousRoutePath = $state("");
-
-  $effect(() => {
-    const _path = router.path;
-    const _state = appState;
-
-    if (
-      _state === "READY_WITH_CACHE" ||
-      _state === "READY_FULLY_SYNCED" ||
-      _state === "READY"
-    ) {
-      router.match().then(async (match) => {
-        currentRoute = match;
-
-        if (_path !== previousRoutePath) {
-          previousRoutePath = _path;
-          await tick();
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            });
-          });
-        }
-      });
-    }
-  });
+  // ❌ PLUS BESOIN de gérer le scroll manuellement
+  // sv-router le gère automatiquement avec scrollToTop par défaut
+  // https://sv-router.vercel.app/guide/code-based/scroll-behavior
 
   let wasAuthenticated = $state(false);
   let isInitializing = $state(false);
@@ -427,14 +190,11 @@
 <HeaderNav />
 
 <div class="bg-base-200 min-h-screen">
-  {#if (appState === "READY_WITH_CACHE" || appState === "READY_FULLY_SYNCED" || appState === "READY") && currentRoute}
-    {@const Component = currentRoute.component}
-    <Component params={currentRoute.params} query={currentRoute.query} />
-  {:else if appState === "ERROR"}
+  {#if appState === "ERROR"}
     <div class="flex h-[50vh] items-center justify-center">
       <ErrorAlert message={displayError || "Erreur inconnue"} />
     </div>
-  {:else}
+  {:else if appState === "BOOTING" || appState === "LOADING_PRIVATE_CACHE" || appState === "LOADING_PUBLIC_CACHE"}
     <div class="flex h-[80vh] flex-col items-center justify-center gap-4">
       <div class="loading loading-spinner loading-lg text-primary"></div>
       <p class="text-base-content/70 animate-pulse font-medium">
@@ -447,6 +207,14 @@
         {/if}
       </p>
     </div>
+  {:else}
+    <!-- ✅ sv-router - Router avec mode hash -->
+    <!-- base="#" active le mode hash pour compatibilité avec Hugo -->
+    <!-- Les routes sont rendues ici automatiquement -->
+    <Router base="#">
+      <!-- Les composants de route sont rendus ici par sv-router -->
+      <!-- Ils accèdent aux params via route.params et route.search -->
+    </Router>
   {/if}
 </div>
 

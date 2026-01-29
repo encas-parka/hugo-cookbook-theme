@@ -56,10 +56,10 @@
   import { onMount, onDestroy } from "svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
 
-  import { navigate } from "../services/simple-router.svelte";
+  import { route, navigate } from "$lib/router";
+
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { formatDateShort } from "../utils/products-display";
-  import { on } from "svelte/events";
   import InfoCollapse from "../components/ui/InfoCollapse.svelte";
   import {
     ensureDemoEventsLoaded,
@@ -116,8 +116,7 @@
   // =========================================================================
 
   // Récupérer l'eventId depuis les paramètres de route
-  let { params } = $props<{ params?: Record<string, string> }>();
-  let eventId = $state(params?.id);
+  let eventId = $state(route.params.id);
   const currentEvent = $derived(
     eventId ? eventsStore.getEventById(eventId) : null,
   );

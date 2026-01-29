@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { navigate } from "../services/simple-router.svelte";
+  import { navigate } from "$lib/router";
   import { globalState } from "../stores/GlobalState.svelte";
   import { ChefHat, ArrowRight, ArrowDown, Eye } from "@lucide/svelte";
   import { eventsStore } from "../stores/EventsStore.svelte";
@@ -204,7 +204,7 @@
 
   <!-- SECTION 1: Hero -->
   <section
-    class="hero bg-base-200 flex flex-col justify-center gap-20 md:min-h-[90vh] md:py-15"
+    class="hero bg-base-200 flex flex-col justify-center gap-20 md:min-w-full md:py-15"
   >
     <div class="hero-content text-center">
       <div class="max-w-3xl">
@@ -295,7 +295,7 @@
   <section class=" relative" bind:this={featuresContainer}>
     <!-- Contenu fixe visible -->
     <div
-      class="to-neutral/20 from-base-100 sticky top-0 flex min-h-screen flex-col items-center justify-center bg-linear-to-l px-4 pb-10"
+      class="to-neutral/20 from-base-100 sticky top-10 flex min-h-screen flex-col items-center justify-center bg-linear-to-l px-4 pb-10"
     >
       <button
         class="btn btn-lg btn-accent mb-10 w-fit"
@@ -309,7 +309,7 @@
         Voir la démo d'événement
       </button>
       <div
-        class="items-top grid w-full grid-cols-1 gap-12 lg:grid-cols-5 lg:gap-16"
+        class="grid w-full grid-cols-1 items-center gap-12 lg:grid-cols-5 lg:gap-16"
       >
         <!-- Screenshot avec cross-fade clean et défilement vertical fluide -->
         <div

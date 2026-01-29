@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getAppwriteInstances } from "../services/appwrite";
-  import { navigate } from "../services/simple-router.svelte";
+  import { navigate } from "$lib/router";
+
   import {
     AlertCircle,
     Check,

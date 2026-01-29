@@ -8,21 +8,17 @@
   import RecipeAlerts from "$lib/components/recipes/RecipeAlerts.svelte";
   import RecipeVariants from "$lib/components/recipes/RecipeVariants.svelte";
   import { ChefHat, PencilIcon, Copy } from "@lucide/svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from "$lib/router";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { globalState } from "../stores/GlobalState.svelte";
   import { onDestroy } from "svelte";
   import { getTypeDisplay } from "$lib/utils/recipeUtils";
   import RecipeMetadata from "$lib/components/recipes/RecipeMetadata.svelte";
   import { fade } from "svelte/transition";
+  import { route } from "$lib/router";
 
-  interface Props {
-    params?: { uuid?: string };
-  }
-
-  let { params }: Props = $props();
-
-  let recipeId = $derived(params?.uuid);
+  // ✅ sv-router : les params sont accessibles via route.params
+  let recipeId = $derived(route.params.uuid);
 
   // État local
   let loading = $state(true);

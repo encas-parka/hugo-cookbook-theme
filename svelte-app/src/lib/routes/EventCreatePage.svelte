@@ -11,7 +11,8 @@
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
   import { untrack } from "svelte";
-  import { navigate } from "../services/simple-router.svelte";
+  import { navigate } from "$lib/router";
+
   import { navBarStore } from "../stores/NavBarStore.svelte";
 
   // ============================================================================

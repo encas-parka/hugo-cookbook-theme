@@ -6,7 +6,7 @@
     Filter,
     Funnel,
   } from "@lucide/svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from '$lib/router';
   import { globalState } from "$lib/stores/GlobalState.svelte";
 
   type SortBy = "title" | "$createdAt" | "$updatedAt";

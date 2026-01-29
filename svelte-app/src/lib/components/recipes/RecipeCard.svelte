@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { RecipeIndexEntry } from "$lib/types/recipes.types";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from '$lib/router';
   import RecipeRegimeBadges from "./RecipeRegimeBadges.svelte";
   import { getTypeDisplay } from "$lib/utils/recipeUtils";
   import { globalState } from "@/lib/stores/GlobalState.svelte";

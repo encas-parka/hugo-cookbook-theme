@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Users, Calendar, CheckCircle, XCircle, Plus } from "@lucide/svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from '$lib/router';
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import TeamDetailModal from "$lib/components/teams/TeamDetailModal.svelte";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";

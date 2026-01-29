@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from '$lib/router';
 
   interface Alternative {
     recetteAlt: string;

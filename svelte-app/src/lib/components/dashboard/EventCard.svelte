@@ -12,7 +12,7 @@
     ShoppingCart,
   } from "@lucide/svelte";
   import type { EnrichedEvent } from "$lib/types/events.d";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from '$lib/router';
   import { formatDateShort } from "@/lib/utils/products-display";
   import {
     getMealsCount,

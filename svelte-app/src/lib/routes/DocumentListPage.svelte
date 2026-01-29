@@ -3,7 +3,7 @@
   import { teamdocsStore } from "$lib/stores/TeamdocsStore.svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { navBarStore } from "$lib/stores/NavBarStore.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from "$lib/router";
   import { PlusIcon } from "@lucide/svelte";
   import DocCard from "$lib/components/documents/DocCard.svelte";
   import DocumentSearchBar from "$lib/components/documents/DocumentSearchBar.svelte";
@@ -15,12 +15,9 @@
   // PROPS & ROUTE
   // ============================================================================
 
-  interface PageParams {
-    teamId: string;
-  }
+  import { route } from "$lib/router";
 
-  let { params } = $props<{ params: PageParams }>();
-  let teamId = $derived(params.teamId);
+  let teamId = $derived(route.params.teamId);
 
   // ============================================================================
   // ÉTAT LOCAL

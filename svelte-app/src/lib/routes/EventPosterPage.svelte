@@ -6,7 +6,7 @@
   import type { RecipeForDisplay } from "$lib/types/recipes.types";
   import type { SavedPosterConfig } from "$lib/components/eventPoster/poster.types";
   import { globalState } from "$lib/stores/GlobalState.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { route, navigate } from "$lib/router";
   import EventInvitationAlert from "$lib/components/EventInvitationAlert.svelte";
   import PosterConfiguration from "$lib/components/eventPoster/PosterConfiguration.svelte";
   import PosterDisplay from "$lib/components/eventPoster/PosterDisplay.svelte";
@@ -19,15 +19,8 @@
     waitForEvent,
   } from "$lib/utils/events.utils";
 
-  // Props from router
-  interface Props {
-    params: Record<string, string>;
-    query: Record<string, string>;
-  }
-  let { params }: Props = $props();
-
   // Event data
-  let event = $derived(eventsStore.getEventById(params.id));
+  let event = $derived(eventsStore.getEventById(route.params.id));
 
   // Déterminer le basePath selon le mode (demo ou normal)
   const basePath = $derived.by(() => {
@@ -177,7 +170,7 @@
       await ensureDemoEventsLoaded();
 
       // ✅ Attendre que l'event soit disponible
-      const eventFound = await waitForEvent(params.id);
+      const eventFound = await waitForEvent(route.params.id);
       if (!eventFound) {
         eventError = "Événement non trouvé";
         eventLoading = false;
@@ -187,7 +180,7 @@
       if (!event) {
         eventLoading = true;
         try {
-          await eventsStore.fetchEvent(params.id);
+          await eventsStore.fetchEvent(route.params.id);
           // event is automatically updated via $derived after fetch
         } catch (err) {
           eventError =
@@ -204,7 +197,7 @@
 
   async function loadSavedConfig() {
     try {
-      const container = await eventsStore.loadPosterConfig(params.id);
+      const container = await eventsStore.loadPosterConfig(route.params.id);
       if (container) {
         console.log("[EventPoster] Configuration chargée depuis le cache");
         // Si c'est un container V2
@@ -224,7 +217,10 @@
 
   async function saveConfig() {
     try {
-      await eventsStore.savePosterConfig(params.id, $state.snapshot(config));
+      await eventsStore.savePosterConfig(
+        route.params.id,
+        $state.snapshot(config),
+      );
       globalState.toast.success("Configuration sauvegardée", {
         details: "Les réglages courants sont enregistrés localement.",
       });
@@ -246,7 +242,7 @@
       const name = `Version du ${formattedDate}`;
 
       const newVersion = await eventsStore.createPosterVersion(
-        params.id,
+        route.params.id,
         $state.snapshot(config),
         name,
       );
@@ -271,7 +267,7 @@
 
   async function deleteVersion(versionId: string) {
     try {
-      await eventsStore.deletePosterVersion(params.id, versionId);
+      await eventsStore.deletePosterVersion(route.params.id, versionId);
 
       // Update local state directly to avoid full reload flicker
       versions = versions.filter((v) => v.id !== versionId);
@@ -438,11 +434,11 @@
 
   // Go back to event edit
   function goBack() {
-    navigate(`${basePath}/${params.id}`);
+    navigate(`${basePath}/${route.params.id}`);
   }
 
   async function handleInvitationResponse(accept: boolean) {
-    if (!params.id || !globalState.userId) return;
+    if (!route.params.id || !globalState.userId) return;
 
     try {
       isBusy = true;
@@ -450,7 +446,7 @@
       const newStatus = accept ? "accepted" : "declined";
 
       await eventsStore.updateContributorStatus(
-        params.id,
+        route.params.id,
         globalState.userId,
         newStatus,
       );
@@ -470,7 +466,7 @@
   $effect(() => {
     if (event) {
       navBarStore.setConfig({
-        eventId: params.id,
+        eventId: route.params.id,
         basePath,
         title: `Affiches : ${event.name}`,
         backAction: goBack,

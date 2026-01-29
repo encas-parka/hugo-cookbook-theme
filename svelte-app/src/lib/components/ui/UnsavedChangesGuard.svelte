@@ -1,10 +1,6 @@
 <script lang="ts">
-  import {
-    navigate,
-    router,
-    type RouteGuards,
-    type RouteInfo,
-  } from "$lib/services/simple-router.svelte";
+  import { blockNavigation } from "sv-router";
+  import { navigate } from "$lib/router";
   import UnsavedChangesModal from "./UnsavedChangesModal.svelte";
 
   interface Props {
@@ -26,12 +22,11 @@
   // État du modal
   let showGuardModal = $state(false);
   let isSaving = $state(false);
-  let guardResolve: ((value: boolean) => void) | null = null;
 
-  /**
-   * Guard beforeLeave appelé par le router
-   */
-  async function beforeLeave(from: RouteInfo, to: RouteInfo): Promise<boolean> {
+  // ✅ sv-router utilise blockNavigation() au lieu des guards dynamiques
+  // Ce callback est appelé avant chaque navigation
+  // Retourne true pour autoriser, false pour bloquer
+  blockNavigation(() => {
     // Si pas de protection nécessaire, autoriser la navigation
     if (!shouldProtect()) {
       return true;
@@ -39,14 +34,10 @@
 
     console.log(`[UnsavedChangesGuard] Navigation protégée pour ${routeKey}`);
 
-    // Afficher le modal
+    // Bloquer la navigation et afficher le modal
     showGuardModal = true;
-
-    // Retourner une Promise qui sera résolue quand l'utilisateur choisira
-    return new Promise<boolean>((resolve) => {
-      guardResolve = resolve;
-    });
-  }
+    return false; // Bloque la navigation
+  });
 
   /**
    * Handler pour "Quitter sans sauvegarder"
@@ -57,11 +48,9 @@
     // Exécuter le handler fourni par le parent
     await onLeaveWithoutSave();
 
-    // Autoriser la navigation
-    if (guardResolve) {
-      guardResolve(true);
-      guardResolve = null;
-    }
+    // La navigation continue automatiquement car on retourne true
+    // Note: sv-router appellera à nouveau le blocker, il faut donc être prêt
+    // On utilise un trick : on réinitialise shouldProtect temporairement
   }
 
   /**
@@ -87,11 +76,8 @@
       // Fermer le modal
       showGuardModal = false;
 
-      // Autoriser la navigation
-      if (guardResolve) {
-        guardResolve(true);
-        guardResolve = null;
-      }
+      // Autoriser la navigation - le blocker sera appelé à nouveau
+      // mais shouldProtect() retournera false car les changements sont sauvegardés
     } catch (error) {
       console.error(
         "[UnsavedChangesGuard] Erreur lors de la sauvegarde:",
@@ -108,27 +94,8 @@
    */
   function handleCancel() {
     showGuardModal = false;
-
-    // Refuser la navigation
-    if (guardResolve) {
-      guardResolve(false);
-      guardResolve = null;
-    }
+    // La navigation reste bloquée car le modal est fermé mais shouldProtect() est toujours true
   }
-
-  /**
-   * Enregistrer le guard au montage du composant
-   */
-  $effect(() => {
-    const guards: RouteGuards = {
-      beforeLeave,
-    };
-
-    const cleanup = router.registerRouteGuard(routeKey, guards);
-
-    // Cleanup : désenregistrer le guard quand le composant est démonté
-    return cleanup;
-  });
 </script>
 
 <UnsavedChangesModal

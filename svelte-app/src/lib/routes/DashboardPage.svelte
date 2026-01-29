@@ -3,7 +3,7 @@
     warmUpEnkaData,
     warmUpUsersTeamsManager,
   } from "$lib/services/appwrite-warmup";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from '$lib/router';
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import {

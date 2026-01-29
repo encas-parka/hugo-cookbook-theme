@@ -1,6 +1,6 @@
 <script lang="ts">
   import { teamdocsStore } from "$lib/stores/TeamdocsStore.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from '$lib/router';
   import {
     FileText,
     ArrowBigRight,

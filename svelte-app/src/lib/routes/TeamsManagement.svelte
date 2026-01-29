@@ -7,7 +7,8 @@
   import TeamDetailModal from "$lib/components/teams/TeamDetailModal.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { onDestroy } from "svelte";
-  import { navigate } from "../services/simple-router.svelte";
+  import { navigate } from "$lib/router";
+
   import { warmUpUsersTeamsManager } from "$lib/services/appwrite-warmup";
 
   // État de la page

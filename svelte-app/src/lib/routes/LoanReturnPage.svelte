@@ -17,7 +17,7 @@
     SoapDispenserDroplet,
   } from "@lucide/svelte";
   import { materielStore } from "$lib/stores/MaterielStore.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { route, navigate } from "$lib/router";
   import { toastService } from "$lib/services/toast.service.svelte";
   import type { MaterielLoanItem } from "$lib/types/materiel.types";
   import { formatDateDayMonthShort } from "$lib/utils/date-helpers";
@@ -26,12 +26,6 @@
     getMaterielTypeColorClass,
     getMaterielTypeConfig,
   } from "$lib/utils/materiel.utils";
-
-  interface Props {
-    params?: { loanId?: string };
-  }
-
-  let { params }: Props = $props();
 
   // État
   let loanId = $state<string | null>(null);
@@ -84,7 +78,7 @@
 
   // Initialisation
   onMount(() => {
-    const id = params?.loanId;
+    const id = route.params.loanId;
     if (!id) {
       toastService.error("Emprunt non trouvé");
       navigate("/dashboard/loans");
