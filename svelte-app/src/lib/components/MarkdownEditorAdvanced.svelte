@@ -143,10 +143,8 @@
   {/if}
 
   <div
-    class="bg-base-100 overflow-hidden rounded-lg border-2 transition-all"
-    class:border-primary={isFocused}
+    class="bg-base-100 border-base-300 overflow-hidden rounded-lg border shadow-lg transition-all"
     class:border-error={error}
-    class:border-base-300={!isFocused && !error}
   >
     <!-- Toolbar -->
     {#if editor}

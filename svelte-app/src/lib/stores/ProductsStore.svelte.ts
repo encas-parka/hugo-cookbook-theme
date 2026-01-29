@@ -1165,14 +1165,12 @@ class ProductsStore {
 
     const productsToUpdate: EnrichedProduct[] = [];
 
-    // TOCHECK : le fait qu'il y ait potentiellement products est correct du point de vue de la façon dont nous avons défini la relation products ←→ purchases comme "many to many", en vue des products mergés, mais dans les fait, est ce qu'on attribura plusieurs products à un purchases ???
-
     productIds.forEach((productId) => {
       const model = this.#enrichedProducts.get(productId);
       if (model) {
         const product = model.data;
         const purchases = product.purchases || [];
-        const index = purchases.findIndex(
+      const index = purchases.findIndex(
           (p) => p.$id === sanitizedPurchase.$id,
         );
 

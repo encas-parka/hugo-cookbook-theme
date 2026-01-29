@@ -204,7 +204,7 @@
 
   <!-- SECTION 1: Hero -->
   <section
-    class="hero bg-base-200 flex flex-col justify-center gap-20 md:h-[90vh] md:py-15"
+    class="hero bg-base-200 flex flex-col justify-center gap-20 md:min-h-[90vh] md:py-15"
   >
     <div class="hero-content text-center">
       <div class="max-w-3xl">

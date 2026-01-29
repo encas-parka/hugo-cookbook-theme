@@ -6,8 +6,6 @@
   import { navigate } from "$lib/services/simple-router.svelte";
   import { PlusIcon } from "@lucide/svelte";
   import DocCard from "$lib/components/documents/DocCard.svelte";
-  import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
-  import DocumentFilters from "$lib/components/documents/DocumentFilters.svelte";
   import DocumentSearchBar from "$lib/components/documents/DocumentSearchBar.svelte";
   import DocumentSortControls from "$lib/components/documents/DocumentSortControls.svelte";
   import ActiveFiltersDisplay from "$lib/components/documents/ActiveFiltersDisplay.svelte";
@@ -31,13 +29,11 @@
   // État des filtres
   interface Filters {
     tags: string[];
-    status: string[];
   }
 
   let searchQuery = $state("");
   let filters = $state<Filters>({
     tags: [],
-    status: [],
   });
 
   // Tri
@@ -67,9 +63,6 @@
   const availableTags = $derived.by(() => {
     return teamdocsStore.getTeamTags(teamId);
   });
-
-  // Status disponibles (valeurs communes)
-  const availableStatus = $derived(["draft", "published", "archived"]);
 
   // Logique de filtrage
   const filteredDocs = $derived.by(() => {
@@ -103,11 +96,7 @@
       const tagMatch =
         !filters.tags.length || filters.tags.some((t) => doc.tags?.includes(t));
 
-      // Status (OU logique)
-      const statusMatch =
-        !filters.status.length || filters.status.includes(doc.status);
-
-      return tagMatch && statusMatch;
+      return tagMatch;
     });
   });
 
@@ -147,8 +136,15 @@
   function resetFilters() {
     filters = {
       tags: [],
-      status: [],
     };
+  }
+
+  function toggleTag(tag: string) {
+    if (filters.tags.includes(tag)) {
+      filters.tags = filters.tags.filter((t) => t !== tag);
+    } else {
+      filters.tags = [...filters.tags, tag];
+    }
   }
 
   // Lazy loading avec Intersection Observer
@@ -221,19 +217,8 @@
   </button>
 {/snippet}
 
-<!-- Filtres - Sidebar Desktop / Drawer Mobile -->
-<LeftPanel width="100">
-  <DocumentFilters
-    bind:filters
-    {availableTags}
-    {availableStatus}
-    disabled={filtersDisabled}
-    onReset={resetFilters}
-  />
-</LeftPanel>
-
 <!-- Contenu principal -->
-<div class="p-4 lg:ml-100">
+<div class="p-4">
   <div class="mx-auto max-w-4xl">
     <div class="mb-10 space-y-6">
       <!-- Barre de recherche -->
@@ -246,19 +231,23 @@
       </div>
 
       <!-- Résumé des filtres actifs -->
-      <div class="mb-6">
+      <!-- <div class="mb-6">
         <ActiveFiltersDisplay
           {searchQuery}
           {filters}
           resultCount={filteredDocs.length}
           onResetFilters={resetFilters}
         />
-      </div>
+      </div> -->
 
-      <!-- Boutons de tri -->
+      <!-- Boutons de tri et filtres -->
       <DocumentSortControls
         {sortBy}
         {sortOrder}
+        {availableTags}
+        selectedTags={filters.tags}
+        onTagToggle={toggleTag}
+        disabled={filtersDisabled}
         onSortChange={(s, o) => {
           sortBy = s;
           sortOrder = o;

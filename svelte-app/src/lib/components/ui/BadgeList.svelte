@@ -37,7 +37,7 @@
 {#if items.length > 0}
   <div class="flex flex-wrap gap-2">
     {#each displayItems as item, index (itemKey(item, index))}
-      <div class="badge badge-sm {badgeClass} gap-1">
+      <div class="badge {badgeClass} gap-1">
         <span class="max-w-32 truncate">{itemToString(item)}</span>
         {#if !disabled}
           <button

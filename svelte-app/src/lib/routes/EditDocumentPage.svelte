@@ -534,9 +534,7 @@
             {/if}
           </div>
         </div>
-        <div
-          class="prose bg-base-100 border-grey-400 max-w-none rounded-lg border p-6"
-        >
+        <div class="prose bg-base-100 max-w-none rounded-lg p-6 shadow-lg">
           {#if content}
             <SvelteMarkdown source={content} />
           {:else}
