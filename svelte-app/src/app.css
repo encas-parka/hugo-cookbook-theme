@@ -29,8 +29,18 @@
     margin-top: 0.8rem !important;
     margin-bottom: 0.8rem !important;
   }
+
+  /* Correction de l'espacement des listes */
+  .prose ul,
+  .prose ol {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
   .prose li {
     @apply leading-snug;
+    margin-top: 0.25rem !important;
+    margin-bottom: 0.25rem !important;
   }
 
   /* Appliquer Fredoka globalement aux badges, headings et boutons */
