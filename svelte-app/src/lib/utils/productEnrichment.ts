@@ -33,6 +33,7 @@ import {
 } from "./QuantityFormatter";
 import { UnitConverter } from "./UnitConverter";
 import { calculateAllDateDisplayInfo } from "./dateRange";
+import { recipesStore } from "$lib/stores/RecipesStore.svelte";
 
 /**
  * Crée un EnrichedProduct depuis un Products Appwrite seul
@@ -345,6 +346,8 @@ interface ProductAggregation {
 /**
  * Calcule tous les produits nécessaires pour un événement
  * Utilise une structure intermédiaire pour agréger les données avant de créer les EnrichedProduct
+ *
+ * ⚡ OPTIMISATION : Pré-charge toutes les recettes en BULK au lieu d'appels individuels
  */
 export async function createEnrichedProductsFromEvent(
   event: EnrichedEvent,
@@ -355,10 +358,39 @@ export async function createEnrichedProductsFromEvent(
     `[productEnrichment] Calcul pour événement ${event.$id} avec ${event.meals.length} repas`,
   );
 
+  // ⚡ ÉTAPE 1 : Collecter tous les UUIDs de recettes uniques
+  const allRecipeUuids = new Set<string>();
+  for (const meal of event.meals) {
+    for (const recipe of meal.recipes) {
+      allRecipeUuids.add(recipe.recipeUuid);
+    }
+  }
+
+  console.log(
+    `[productEnrichment] ${allRecipeUuids.size} recettes uniques identifiées`,
+  );
+
+  // ⚡ ÉTAPE 2 : Pré-charger toutes les recettes en BULK (1 seule transaction IDB)
+  const recipesMap = await recipesStore.getRecipesByUuidsBulk([
+    ...allRecipeUuids,
+  ]);
+
+  console.log(
+    `[productEnrichment] ${recipesMap.size}/${allRecipeUuids.size} recettes chargées`,
+  );
+
+  // ⚡ ÉTAPE 3 : Créer un callback synchronisé qui utilise le cache en mémoire
+  const getRecipeDetailsFromCache = (
+    uuid: string,
+  ): Promise<RecipeData | null> => {
+    return Promise.resolve(recipesMap.get(uuid) || null);
+  };
+
+  // ⚡ ÉTAPE 4 : Utiliser ce callback optimisé pour processMeal
   const aggregations = new Map<string, ProductAggregation>();
 
   for (const meal of event.meals) {
-    await processMeal(meal, getRecipeDetails, aggregations);
+    await processMeal(meal, getRecipeDetailsFromCache, aggregations);
   }
 
   const products: EnrichedProduct[] = [];
