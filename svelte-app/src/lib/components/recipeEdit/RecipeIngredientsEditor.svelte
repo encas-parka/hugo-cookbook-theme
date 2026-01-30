@@ -33,6 +33,7 @@
   let searchQuery = $state("");
   let selectedIndex = $state(-1);
   let isOpen = $state(false);
+  let showAllIngredients = $state(false); // Mode "tout afficher" quand on clique sur toggle
   let containerRef: HTMLDivElement | undefined = $state();
   let inputRef: HTMLInputElement | undefined = $state();
 
@@ -41,11 +42,14 @@
   let searchQueryForModal = $state("");
 
   // Filtrage des ingrédients depuis le store
-  let filteredIngredients = $derived(
-    searchQuery.length > 1
-      ? recipeDataStore.searchIngredients(searchQuery)
-      : [],
-  );
+  let filteredIngredients = $derived(() => {
+    // Si on est en mode "tout afficher" ou si la recherche est vide, retourner tous les ingrédients
+    if (showAllIngredients || searchQuery.length === 0) {
+      return recipeDataStore.ingredients;
+    }
+    // Sinon filtrer par la recherche
+    return recipeDataStore.searchIngredients(searchQuery);
+  });
 
   // Grouper les ingrédients par type
   let groupedIngredients = $derived(() => {
@@ -83,19 +87,18 @@
 
   // Gérer le selectedIndex de manière réactive
   $effect(() => {
-    if (filteredIngredients.length > 0 && selectedIndex === -1) {
+    const ingredients = filteredIngredients();
+    if (ingredients.length > 0 && selectedIndex === -1) {
       selectedIndex = 0;
-    } else if (filteredIngredients.length === 0) {
+    } else if (ingredients.length === 0) {
       selectedIndex = -1;
     }
   });
 
   // Réinitialiser l'index surligné quand les options changent
   $effect(() => {
-    if (
-      filteredIngredients.length > 0 &&
-      selectedIndex >= filteredIngredients.length
-    ) {
+    const ingredients = filteredIngredients();
+    if (ingredients.length > 0 && selectedIndex >= ingredients.length) {
       selectedIndex = 0;
     }
   });
@@ -138,15 +141,20 @@
 
     ingredients = [...ingredients, newIngredient];
     searchQuery = "";
+    showAllIngredients = false;
     isOpen = false;
     selectedIndex = -1;
+
+    // Redonner le focus à l'input pour permettre la recherche continue
+    inputRef?.focus();
 
     const typeName = getProductTypeInfo(newIngredient.type).displayName;
     toastService.success(`Ingredient ajouté dans ${typeName}`);
   }
 
-  function openDropdown() {
+  function openDropdown(showAll = false) {
     if (!disabled && !recipeDataStore.loading && !recipeDataStore.error) {
+      showAllIngredients = showAll;
       isOpen = true;
       selectedIndex = 0;
     }
@@ -155,6 +163,7 @@
   function closeDropdown() {
     isOpen = false;
     searchQuery = "";
+    showAllIngredients = false;
     selectedIndex = -1;
   }
 
@@ -162,7 +171,7 @@
     if (isOpen) {
       closeDropdown();
     } else {
-      openDropdown();
+      openDropdown(true); // Mode "tout afficher" quand on clique sur toggle
     }
   }
 
@@ -176,9 +185,10 @@
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
+        const ingredients = filteredIngredients();
         if (!isOpen) {
-          openDropdown();
-        } else if (selectedIndex < filteredIngredients.length - 1) {
+          openDropdown(true);
+        } else if (selectedIndex < ingredients.length - 1) {
           selectedIndex++;
         }
         break;
@@ -192,10 +202,11 @@
 
       case "Enter":
         event.preventDefault();
-        if (isOpen && filteredIngredients.length > 0) {
-          addIngredientFromSearch(filteredIngredients[selectedIndex].u);
+        const currentIngredients = filteredIngredients();
+        if (isOpen && currentIngredients.length > 0) {
+          addIngredientFromSearch(currentIngredients[selectedIndex].u);
         } else if (!isOpen) {
-          openDropdown();
+          openDropdown(true);
         }
         break;
 
@@ -307,7 +318,11 @@
                 placeholder="Rechercher un ingrédient..."
                 {disabled}
                 class="w-full bg-transparent outline-none"
-                onfocus={openDropdown}
+                oninput={() => {
+                  if (!isOpen && searchQuery.length > 0) {
+                    openDropdown(false); // Mode filtré pendant la frappe
+                  }
+                }}
                 onkeydown={handleKeydown}
                 autocomplete="off"
                 role="combobox"
@@ -336,17 +351,19 @@
 
             <!-- Dropdown options -->
             {#if isOpen}
+              {@const ingredients = filteredIngredients()}
+
               <div
                 id="ingredients-list"
                 class="border-base-300 bg-base-100 absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border shadow-lg"
                 role="listbox"
               >
-                {#if searchQuery.length > 1 && filteredIngredients.length === 0}
+                {#if ingredients.length === 0}
                   <div class="text-base-content/50 px-4 py-2 text-sm">
                     Aucun ingrédient trouvé
                   </div>
 
-                  <!-- Option "Créer" même si aucun résultat -->
+                  <!-- Option "Créer" -->
                   {#if searchQuery.trim().length > 0}
                     <div class="border-base-300 mt-1 border-t pt-1">
                       <button
@@ -365,8 +382,8 @@
                       </button>
                     </div>
                   {/if}
-                {:else if filteredIngredients.length > 0}
-                  {#each filteredIngredients as ingredient, index (ingredient.u)}
+                {:else}
+                  {#each ingredients as ingredient, index (ingredient.u)}
                     <button
                       type="button"
                       id="ingredient-{index}"
@@ -404,10 +421,6 @@
                       </button>
                     </div>
                   {/if}
-                {:else if searchQuery.length <= 1}
-                  <div class="text-base-content/50 px-4 py-2 text-sm">
-                    Tapez au moins 2 caractères pour rechercher
-                  </div>
                 {/if}
               </div>
             {/if}
