@@ -22,16 +22,35 @@
   let showGuardModal = $state(false);
   let isSaving = $state(false);
 
-  // ✅ sv-router utilise blockNavigation() au lieu des guards dynamiques
+  // Stocker l'URL de navigation pour la re-déclencher après réponse utilisateur
+  let blockedUrl = $state<string | null>(null);
+
+  // Flag pour empêcher le re-blocage lors de la navigation programmatique
+  let isNavigatingAway = $state(false);
+
   // Ce callback est appelé avant chaque navigation
   // Retourne true pour autoriser, false pour bloquer
   blockNavigation(() => {
+    // Si on est en train de naviguer programmatiquement, autoriser
+    if (isNavigatingAway) {
+      return true;
+    }
+
     // Si pas de protection nécessaire, autoriser la navigation
     if (!shouldProtect()) {
       return true;
     }
 
-    console.log(`[UnsavedChangesGuard] Navigation protégée pour ${routeKey}`);
+    // Récupérer la destination de navigation depuis window.location.hash
+    // En mode hash (#/path), le chemin est dans le hash
+    const destinationPath = window.location.hash.slice(1) || "/"; // Enlever le # initial
+
+    // Stocker l'URL de destination
+    blockedUrl = destinationPath;
+
+    console.log(
+      `[UnsavedChangesGuard] Navigation protégée pour ${routeKey} - vers: ${destinationPath}`,
+    );
 
     // Bloquer la navigation et afficher le modal
     showGuardModal = true;
@@ -42,14 +61,31 @@
    * Handler pour "Quitter sans sauvegarder"
    */
   async function handleLeaveWithoutSave() {
+    // Fermer le modal
     showGuardModal = false;
 
     // Exécuter le handler fourni par le parent
     await onLeaveWithoutSave();
 
-    // La navigation continue automatiquement car on retourne true
-    // Note: sv-router appellera à nouveau le blocker, il faut donc être prêt
-    // On utilise un trick : on réinitialise shouldProtect temporairement
+    // Re-déclencher manuellement la navigation vers l'URL bloquée
+    if (blockedUrl) {
+      console.log(
+        "[UnsavedChangesGuard] Quitter sans sauvegarder - Navigation vers:",
+        blockedUrl,
+      );
+
+      // Activer le flag pour empêcher le re-blocage
+      isNavigatingAway = true;
+
+      // Naviguer vers la destination initiale
+      navigate(blockedUrl);
+
+      // Réinitialiser après un court délai
+      setTimeout(() => {
+        isNavigatingAway = false;
+        blockedUrl = null;
+      }, 100);
+    }
   }
 
   /**
@@ -75,6 +111,25 @@
       // Fermer le modal
       showGuardModal = false;
 
+      // Re-déclencher la navigation après sauvegarde réussie
+      if (blockedUrl) {
+        console.log(
+          "[UnsavedChangesGuard] Sauvegarde réussie - Navigation vers:",
+          blockedUrl,
+        );
+
+        // Activer le flag pour empêcher le re-blocage
+        isNavigatingAway = true;
+
+        // Naviguer vers la destination initiale
+        navigate(blockedUrl);
+
+        // Réinitialiser après un court délai
+        setTimeout(() => {
+          isNavigatingAway = false;
+          blockedUrl = null;
+        }, 100);
+      }
       // Autoriser la navigation - le blocker sera appelé à nouveau
       // mais shouldProtect() retournera false car les changements sont sauvegardés
     } catch (error) {
@@ -93,6 +148,7 @@
    */
   function handleCancel() {
     showGuardModal = false;
+    blockedUrl = null;
     // La navigation reste bloquée car le modal est fermé mais shouldProtect() est toujours true
   }
 </script>

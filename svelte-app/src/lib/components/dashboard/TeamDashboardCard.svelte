@@ -12,7 +12,7 @@
     NotebookPen,
   } from "@lucide/svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
-  import { navigate } from '$lib/router';
+  import { navigate } from "$lib/router";
   import TeamDetailModal from "$lib/components/teams/TeamDetailModal.svelte";
   import ListEventCard from "./ListEventCard.svelte";
   import type { EnrichedNativeTeam } from "$lib/types/aw_native_team.d";
@@ -199,7 +199,7 @@
       </div>
     </div>
 
-    <div class="card grid grid-cols-1 gap-6 text-sm md:grid-cols-2">
+    <div class="card grid grid-cols-1 gap-6 text-sm">
       <!-- === ÉVÉNEMENTS === -->
       <div class="card card-sm border-neutral/20 border shadow-sm">
         <div class="card-body">

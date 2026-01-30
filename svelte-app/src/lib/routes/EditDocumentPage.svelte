@@ -535,9 +535,7 @@
 <UnsavedChangesGuard
   routeKey={`editdocument/${teamId}/${docId}`}
   shouldProtect={() => isDirty && isLockedByMe}
-  onLeaveWithoutSave={() => {
-    // Ne rien faire, l'utilisateur peut quitter
-  }}
+  onLeaveWithoutSave={() => {}}
   onSaveAndLeave={async () => {
     await handleSave();
     return true;

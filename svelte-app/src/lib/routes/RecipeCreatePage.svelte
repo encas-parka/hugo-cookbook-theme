@@ -322,9 +322,7 @@
     ? `/recipe/${sourceRecipeId}/duplicate`
     : "/recipe/new"}
   shouldProtect={() => isDirty && !saveSuccessful}
-  onLeaveWithoutSave={() => {
-    // Ne rien de spécial à faire en mode création
-  }}
+  onLeaveWithoutSave={() => {}}
   onSaveAndLeave={async () => {
     // Sauvegarder et autoriser la navigation
     await save();

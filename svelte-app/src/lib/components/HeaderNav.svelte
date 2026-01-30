@@ -1,6 +1,6 @@
 <script lang="ts">
   import { globalState } from "../stores/GlobalState.svelte";
-  import { navigate, route } from "$lib/router";
+  import { route, p } from "$lib/router";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { recipesStore } from "../stores/RecipesStore.svelte";
   import EventTabs from "./eventEdit/EventTabs.svelte";
@@ -187,29 +187,26 @@
 >
   <div class="navbar-start w-fit shrink-0 gap-1">
     <!-- Brand -->
-    <button class="btn btn-ghost btn-circle" onclick={() => navigate("/")}>
+    <a href={p("#/")} class="btn btn-ghost btn-circle">
       <img src="images/favicon.png" alt="logo" class="h-8 w-8" />
-    </button>
+    </a>
 
-    <!-- Permanent Nav Buttons -->
+    <!-- Permanent Nav Links -->
     <div class=" flex items-center gap-1">
       {#if globalState.isAuthenticated}
-        <button
+        <a
+          href={p("#/dashboard")}
           class="btn btn-ghost not-md:btn-square md:gap-2"
-          onclick={() => navigate("/dashboard")}
         >
           <LayoutDashboardIcon size={18} />
           <span class="hidden md:inline">Tableau de bord</span>
-        </button>
+        </a>
       {/if}
 
-      <button
-        class="btn btn-ghost not-md:btn-square md:gap-2"
-        onclick={() => navigate("/recipe")}
-      >
+      <a href={p("#/recipe")} class="btn btn-ghost not-md:btn-square md:gap-2">
         <CookingPot size={18} />
         <span class="hidden md:inline">Recettes</span>
-      </button>
+      </a>
     </div>
 
     <!-- Back button (Keep if really needed by some specific page logic) -->
@@ -286,24 +283,27 @@
             </span>
           </li>
           <li>
-            <button onclick={() => navigate("/dashboard")}
-              ><LayoutDashboardIcon size={16} /> Dashboard</button
-            >
+            <a href={p("#/dashboard")} class="flex items-center gap-2">
+              <LayoutDashboardIcon size={16} /> Dashboard
+            </a>
           </li>
           <li>
-            <button onclick={() => navigate("/dashboard/teams")}
-              ><UsersIcon size={16} /> Équipes</button
-            >
+            <a href={p("#/dashboard/teams")} class="flex items-center gap-2">
+              <UsersIcon size={16} /> Équipes
+            </a>
           </li>
           <li>
-            <button onclick={() => navigate("/dashboard/eventCreate")}
-              ><PlusIcon size={16} /> Nouvel événement</button
+            <a
+              href={p("#/dashboard/eventCreate")}
+              class="flex items-center gap-2"
             >
+              <PlusIcon size={16} /> Nouvel événement
+            </a>
           </li>
           <li>
-            <button onclick={() => navigate("/recipe")}
-              ><BookOpenIcon size={16} /> Recettes</button
-            >
+            <a href={p("#/recipe")} class="flex items-center gap-2">
+              <BookOpenIcon size={16} /> Recettes
+            </a>
           </li>
           <li>
             <button

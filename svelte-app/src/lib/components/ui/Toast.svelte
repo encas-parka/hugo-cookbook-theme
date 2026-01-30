@@ -106,7 +106,7 @@
           <!-- Bouton de fermeture (erreurs et warnings uniquement) -->
           {#if toast.state === "error" || toast.state === "warning" || toast.state === "loading"}
             <button
-              class="btn btn-ghost btn-xs btn-circle absolute pe-0"
+              class="btn btn-ghost btn-xs btn-circle pe-0"
               onclick={() => dismiss(toast)}
               title="Fermer"
               aria-label="Fermer la notification"
