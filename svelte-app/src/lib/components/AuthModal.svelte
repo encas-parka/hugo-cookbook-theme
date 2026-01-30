@@ -219,7 +219,7 @@
           class="space-y-4"
         >
           <fieldset>
-            <label class="input validator w-full">
+            <label class="input validator w-full required">
               <Mail class="h-4 w-4 opacity-50" />
               <input
                 type="email"
@@ -227,6 +227,7 @@
                 placeholder="votre@email.com"
                 disabled={isLoading}
                 required
+                aria-required="true"
               />
             </label>
             <span class="validator-hint hidden"
@@ -260,7 +261,7 @@
           class="space-y-4"
         >
           <fieldset>
-            <label class="input validator w-full">
+            <label class="input validator w-full required">
               <Mail class="h-4 w-4 opacity-50" />
               <input
                 type="email"
@@ -268,6 +269,7 @@
                 placeholder="votre@email.com"
                 disabled={isLoading}
                 required
+                aria-required="true"
               />
             </label>
             <span class="validator-hint hidden"
@@ -276,7 +278,7 @@
           </fieldset>
 
           <fieldset>
-            <label class="input validator w-full">
+            <label class="input validator w-full required">
               <Lock class="h-4 w-4 opacity-50" />
               <input
                 type="password"
@@ -284,6 +286,7 @@
                 placeholder="Mot de passe"
                 disabled={isLoading}
                 required
+                aria-required="true"
               />
             </label>
             <span class="validator-hint hidden">Mot de passe requis</span>
@@ -320,7 +323,7 @@
           class="space-y-4"
         >
           <fieldset>
-            <label class="input validator w-full">
+            <label class="input validator w-full required">
               <User class="h-4 w-4 opacity-50" />
               <input
                 type="text"
@@ -328,6 +331,7 @@
                 placeholder="Votre nom"
                 disabled={isLoading}
                 required
+                aria-required="true"
                 minlength="3"
                 maxlength="25"
               />
@@ -338,7 +342,7 @@
           </fieldset>
 
           <fieldset>
-            <label class="input validator w-full">
+            <label class="input validator w-full required">
               <Mail class="h-4 w-4 opacity-50" />
               <input
                 type="email"
@@ -346,6 +350,7 @@
                 placeholder="votre@email.com"
                 disabled={isLoading}
                 required
+                aria-required="true"
               />
             </label>
             <span class="validator-hint hidden"
@@ -354,7 +359,7 @@
           </fieldset>
 
           <fieldset>
-            <label class="input validator w-full">
+            <label class="input validator w-full required">
               <Lock class="h-4 w-4 opacity-50" />
               <input
                 type="password"
@@ -362,6 +367,7 @@
                 placeholder="Mot de passe"
                 disabled={isLoading}
                 required
+                aria-required="true"
                 minlength="8"
                 maxlength="25"
               />
@@ -372,7 +378,7 @@
           </fieldset>
 
           <fieldset>
-            <label class="input validator w-full">
+            <label class="input validator w-full required">
               <Lock class="h-4 w-4 opacity-50" />
               <input
                 type="password"
@@ -380,6 +386,7 @@
                 placeholder="Confirmer le mot de passe"
                 disabled={isLoading}
                 required
+                aria-required="true"
                 minlength="8"
                 maxlength="25"
               />

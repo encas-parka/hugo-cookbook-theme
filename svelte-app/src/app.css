@@ -563,3 +563,17 @@
 @supports not (view-transition-name: none) {
   /* Fallback : pas d'animation, les navigateurs gèrent le changement nativement */
 }
+
+/* ==========================================================================
+   REQUIRED FIELD INDICATOR
+   Indicateur visuel "*" pour les champs obligatoires
+   ========================================================================== */
+
+.required::after {
+  content: "*";
+  color: var(--color-primary);
+  margin-left: 0.15em;
+  font-weight: 900;
+  font-size: 0.8rem;
+  font-family: sans-serif;
+}

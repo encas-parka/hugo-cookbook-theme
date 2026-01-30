@@ -82,7 +82,9 @@ class RecipeDataStore {
     return this.#isInitialized;
   }
   get ingredients() {
-    return Array.from(this.#ingredients.values());
+    return Array.from(this.#ingredients.values()).sort((a, b) =>
+      a.n.localeCompare(b.n, "fr"),
+    );
   }
   get count() {
     return this.#ingredients.size;
@@ -194,9 +196,14 @@ class RecipeDataStore {
 
       console.log("[RecipeDataStore] Mise à jour depuis JSON...");
 
+      // Trier les ingrédients par nom alphabétique (français) avant de créer le Map
+      const sortedIngredients = (ingredientsData as Ingredient[]).sort((a, b) =>
+        a.n.localeCompare(b.n, "fr"),
+      );
+
       // Mettre à jour ingrédients
       const ingredientsMap = new Map<string, Ingredient>();
-      (ingredientsData as Ingredient[]).forEach((ing) => {
+      sortedIngredients.forEach((ing) => {
         ingredientsMap.set(ing.u, ing);
       });
 

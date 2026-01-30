@@ -171,7 +171,7 @@
     <div
       bind:this={element}
       {id}
-      class="max-h-[calc(100vh-200px)] overflow-auto"
+      class="max-h-[calc(100vh-200px)] min-h-96 overflow-auto"
     ></div>
   </div>
 
