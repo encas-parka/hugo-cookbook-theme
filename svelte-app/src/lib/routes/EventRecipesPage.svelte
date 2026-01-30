@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import {
@@ -7,7 +6,7 @@
     getTotalRecipes,
   } from "$lib/utils/event-stats-helpers";
   import { navigate, route } from "$lib/router";
-  import { onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import EventStats from "$lib/components/EventStats.svelte";
   import EventRecipeCard from "$lib/components/eventEdit/EventRecipeCard.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
@@ -201,7 +200,7 @@
     }
   }
 
-  // Charger au montage ou quand l'ID change
+  // Charger au montage
   onMount(async () => {
     const id = eventId;
     if (!id) {
@@ -210,26 +209,24 @@
       return;
     }
 
-    // ✅ AUTO-CHARGEMENT DES EVENTS DÉMO si route /demo/event
-    await ensureDemoEventsLoaded();
+    try {
+      // ✅ AUTO-CHARGEMENT DES EVENTS DÉMO si route /demo/event
+      await ensureDemoEventsLoaded();
 
-    // ✅ Attendre que l'event soit disponible
-    const eventFound = await waitForEvent(id);
-    if (!eventFound) {
-      error = "Événement non trouvé";
+      // ✅ Attendre que l'event soit disponible
+      const eventFound = await waitForEvent(id);
+      if (!eventFound) {
+        error = "Événement non trouvé";
+        loading = false;
+        return;
+      }
+
+      // Charger les données de l'événement
+      await loadEventData(id);
+    } catch (err) {
+      console.error("[EventRecipesPage] Erreur lors du chargement:", err);
+      error = err instanceof Error ? err.message : "Erreur lors du chargement";
       loading = false;
-      return;
-    }
-
-    // Charger les données de l'événement
-    await loadEventData(id);
-  });
-
-  // Gérer le changement d'ID d'événement
-  $effect(() => {
-    const id = eventId;
-    if (id && id !== eventId && !isLoading) {
-      loadEventData(id);
     }
   });
 
@@ -420,8 +417,87 @@
     <div class="mx-auto max-w-6xl px-1 py-8 md:px-4">
       <!-- En-tête de l'événement -->
       {#if loading}
-        <div class="flex justify-center py-20">
-          <span class="loading loading-spinner loading-lg text-primary"></span>
+        <!-- Skeleton de l'en-tête -->
+        <div class="mb-8 space-y-4 print:hidden">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="space-y-2">
+              <div class="skeleton h-6 w-64"></div>
+              <div class="skeleton h-4 w-48"></div>
+            </div>
+          </div>
+          <div class="flex justify-end p-4">
+            <div class="skeleton h-10 w-3/4"></div>
+          </div>
+        </div>
+
+        <!-- Skeleton des cartes de recettes -->
+        <div class="space-y-10 print:space-y-0">
+          {#each Array(3) as _, i}
+            <div class="space-y-6">
+              <!-- Skeleton de l'en-tête de repas -->
+              <div
+                class="card bg-accent/20 flex flex-row items-center justify-center gap-6 p-4"
+              >
+                <div class="skeleton h-6 w-32"></div>
+                <div class="skeleton h-6 w-20"></div>
+                <div class="skeleton h-8 w-16 rounded-full"></div>
+                <div class="skeleton h-8 w-16 rounded-full"></div>
+              </div>
+
+              <!-- Skeleton de la carte de recette -->
+              <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                  <div class="flex justify-between">
+                    <div class="flex-1">
+                      <div class="mb-4">
+                        <div class="skeleton mb-2 h-8 w-3/4"></div>
+                        <div class="flex gap-2">
+                          <div class="skeleton h-5 w-20 rounded-full"></div>
+                          <div class="skeleton h-5 w-16 rounded-full"></div>
+                        </div>
+                      </div>
+
+                      <!-- Skeleton des métadonnées -->
+                      <div class="mb-4 flex flex-wrap gap-4 text-sm">
+                        <div class="skeleton h-4 w-24"></div>
+                        <div class="skeleton h-4 w-24"></div>
+                        <div class="skeleton h-4 w-24"></div>
+                      </div>
+
+                      <!-- Skeleton des ingrédients -->
+                      <div class="mb-6">
+                        <h3 class="mb-2 flex items-center gap-2 font-semibold">
+                          <div class="skeleton h-5 w-6"></div>
+                          <div class="skeleton h-5 w-32"></div>
+                        </h3>
+                        <div class="space-y-2">
+                          {#each Array(4) as _, j}
+                            <div class="skeleton h-4 w-full"></div>
+                          {/each}
+                        </div>
+                      </div>
+
+                      <!-- Skeleton de la préparation -->
+                      <div>
+                        <h3 class="mb-2 flex items-center gap-2 font-semibold">
+                          <div class="skeleton h-5 w-6"></div>
+                          <div class="skeleton h-5 w-32"></div>
+                        </h3>
+                        <div class="space-y-2">
+                          {#each Array(3) as _, k}
+                            <div class="flex gap-2">
+                              <div class="skeleton h-4 w-6 shrink-0"></div>
+                              <div class="skeleton h-4 w-full"></div>
+                            </div>
+                          {/each}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {/each}
         </div>
       {:else if error}
         <div class="alert alert-error">

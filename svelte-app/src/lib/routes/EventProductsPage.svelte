@@ -366,11 +366,79 @@
   transition:fade
 >
   {#if isLoading}
-    <!-- Loader pendant le chargement -->
-    <div class="flex min-h-96 items-center justify-center">
-      <div class="flex flex-col items-center gap-4">
-        <Loader2 class="text-primary h-12 w-12 animate-spin" />
-        <p class="text-base-content/60 text-sm">Chargement des produits...</p>
+    <!-- Skeletons pendant le chargement -->
+    <div class="space-y-6">
+      <!-- Skeleton header -->
+      <div class="rounded-box border-base-300 bg-base-100 border-2 p-4">
+        <div class="flex w-full flex-wrap justify-between gap-6">
+          <div class="skeleton h-8 w-48 shrink-0"></div>
+          <div class="skeleton h-6 w-40 shrink-0"></div>
+        </div>
+        <div class="skeleton mt-4 h-20 w-full"></div>
+      </div>
+
+      <!-- Skeleton stats cards -->
+      <div class="flex w-full flex-wrap justify-center gap-10 md:justify-end">
+        <div class="card card-xs sm:card-sm border-base-300 w-40 border-2">
+          <div class="card-body">
+            <div class="card-title">
+              <div class="skeleton h-6 w-6 rounded"></div>
+              <span class="skeleton inline-block h-6 w-24"></span>
+            </div>
+            <div class="flex items-center justify-center px-2">
+              <div class="text-center">
+                <div class="skeleton mx-auto h-8 w-12"></div>
+                <div class="skeleton mx-auto mt-1 h-4 w-16"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card card-xs sm:card-sm border-base-300 w-40 border-2">
+          <div class="card-body">
+            <div class="card-title">
+              <div class="skeleton h-6 w-6 rounded"></div>
+              <span class="skeleton inline-block h-6 w-24"></span>
+            </div>
+            <div class="skeleton mx-auto mt-2 h-8 w-16"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skeleton aide collapse -->
+      <div class="border-base-300 bg-base-100 rounded-box border-2 p-4">
+        <div class="skeleton mb-2 h-6 w-32"></div>
+        <div class="space-y-2">
+          <div class="skeleton h-4 w-full"></div>
+          <div class="skeleton h-4 w-5/6"></div>
+          <div class="skeleton h-4 w-4/6"></div>
+        </div>
+      </div>
+
+      <!-- Skeleton produits list -->
+      <div class="space-y-4">
+        {#each Array(3) as _}
+          <div class="border-base-300 bg-base-100 rounded-box border-2 p-4">
+            <div class="mb-3 flex items-center justify-between">
+              <div class="skeleton h-6 w-48"></div>
+              <div class="flex gap-2">
+                <div class="skeleton h-8 w-8 rounded-full"></div>
+                <div class="skeleton h-8 w-8 rounded-full"></div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {#each Array(3) as __}
+                <div class="card card-compact bg-base-200">
+                  <div class="card-body">
+                    <div class="skeleton mb-2 h-5 w-32"></div>
+                    <div class="skeleton h-4 w-full"></div>
+                    <div class="skeleton mt-1 h-4 w-3/4"></div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/each}
       </div>
     </div>
   {:else}
