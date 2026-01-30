@@ -173,14 +173,23 @@
         <!-- En-tête -->
         <div class="mb-4 print:mb-2">
           <div class="flex items-center justify-between gap-x-10 gap-y-4">
-            <h1
-              class="text-primary flex items-center gap-3 print:text-xl print:text-black"
-            >
-              <svg class="me-2 size-9 shrink-0 stroke-3 print:stroke-black">
-                <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />
-              </svg>
-              {recipeDetails.title}
-            </h1>
+            <div class="flex flex-wrap items-center gap-4">
+              <h1
+                class="text-primary flex items-center gap-3 print:text-xl print:text-black"
+              >
+                <svg class="me-2 size-9 shrink-0 stroke-3 print:stroke-black">
+                  <use href={`/icons/sprite.svg#${typeDisplay.iconId}`} />
+                </svg>
+                {recipeDetails.title}
+              </h1>
+
+              <!-- version -->
+              {#if recipeDetails.versionLabel}
+                <div class="text-primary text-lg font-medium print:text-sm">
+                  {recipeDetails.versionLabel}
+                </div>
+              {/if}
+            </div>
 
             <!-- Badges régimes -->
             {#if recipeDetails?.regime && recipeDetails.regime.length > 0}
@@ -192,11 +201,11 @@
               </div>
             {/if}
           </div>
-          {#if recipeDetails.auteur}
+          <!-- {#if recipeDetails.auteur}
             <p class="text-base-content/60 text-lg print:text-sm">
               une recette de {recipeDetails.auteur}
             </p>
-          {/if}
+          {/if} -->
         </div>
 
         <!-- Description -->
