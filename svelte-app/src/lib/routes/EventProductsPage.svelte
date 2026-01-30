@@ -401,7 +401,7 @@
       </div>
       <!-- Stats -->
       {#if currentEvent}
-        <div class="flex-grow py-4 print:hidden">
+        <div class="grow py-4 print:hidden">
           <EventStats {currentEvent} />
         </div>
       {/if}

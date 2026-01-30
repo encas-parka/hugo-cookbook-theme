@@ -327,7 +327,7 @@
         </div>
 
         <!-- Contenu texte avec transitions séquentielles -->
-        <div class="relative col-span-2 min-h-[450px]">
+        <div class="relative col-span-2 min-h-112.5">
           <!-- Icône animée unique (feedback visuel continu) -->
           <div
             class="absolute -right-2 bottom-2 flex -translate-y-1/2 items-center justify-center"
@@ -426,7 +426,7 @@
                           "
                       >
                         <svg
-                          class="text-primary mt-0.5 h-6 w-6 flex-shrink-0"
+                          class="text-primary mt-0.5 h-6 w-6 shrink-0"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -477,7 +477,7 @@
         >
           {#each features as _, idx}
             <div
-              class="bg-base-300 relative h-2 w-12 flex-shrink-0 overflow-hidden rounded-full md:w-16"
+              class="bg-base-300 relative h-2 w-12 shrink-0 overflow-hidden rounded-full md:w-16"
             >
               <!-- Barre de progression continue (transparente) -->
               <div

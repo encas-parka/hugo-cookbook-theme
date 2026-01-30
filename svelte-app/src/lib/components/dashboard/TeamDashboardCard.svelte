@@ -103,7 +103,7 @@
     <div class="flex items-start justify-between gap-2">
       <!-- Nom + Localisation -->
       <div class="flex items-center gap-2">
-        <Users class="text-primary size-6 flex-shrink-0 stroke-3" />
+        <Users class="text-primary size-6 shrink-0 stroke-3" />
         <h2>{team.name}</h2>
         {#if teamLocation}
           <div class="badge badge-soft badge-secondary gap-1">

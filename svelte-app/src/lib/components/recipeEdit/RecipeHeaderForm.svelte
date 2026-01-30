@@ -353,7 +353,7 @@
       </div>
       <div
         id="recipe-check-fieldset"
-        class=" flex w-full flex-wrap space-y-6 rounded-xl border-1 p-4 my-4 {validationErrors.check
+        class=" my-4 flex w-full flex-wrap space-y-6 rounded-xl border p-4 {validationErrors.check
           ? 'border-error'
           : 'border-base-300'}"
       >

@@ -384,7 +384,7 @@
                           selectedIngredient = ""; // Réinitialiser le filtre d'ingrédient
                         }}
                       >
-                        <span class="max-w-[300px] truncate text-left">
+                        <span class="max-w-75 truncate text-left">
                           {recipe.title}
                         </span>
                       </button>

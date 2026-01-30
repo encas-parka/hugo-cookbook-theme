@@ -22,7 +22,7 @@
   } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
-  import { untrack, onDestroy } from "svelte";
+  import { untrack, onDestroy, onMount } from "svelte";
   import EventStats from "../components/EventStats.svelte";
   import EventTodoList from "../components/eventTodo/EventTodoList.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";

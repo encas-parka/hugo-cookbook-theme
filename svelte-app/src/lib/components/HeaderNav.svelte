@@ -271,7 +271,7 @@
           </div>
         </div>
         <ul
-          class="menu menu-sm dropdown-content bg-base-100 border-base-200 z-[1] mt-3 w-56 rounded-xl border p-2 shadow-xl"
+          class="menu menu-sm dropdown-content bg-base-100 border-base-200 z-1 mt-3 w-56 rounded-xl border p-2 shadow-xl"
         >
           <li class="border-base-100 mb-1 border-b px-4 py-2">
             <span

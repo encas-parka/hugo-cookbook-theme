@@ -48,7 +48,7 @@
   {:else}
     <div class="card bg-base-100">
       <div class="card-body">
-        <div class="grid grid-cols-1 gap-6 gap-8 md:grid-cols-2">
+        <div class="grid grid-cols-1 gap-8 md:grid-cols-2">
           {#each pastEvents as event (event.$id)}
             <EventCard {event} />
           {/each}

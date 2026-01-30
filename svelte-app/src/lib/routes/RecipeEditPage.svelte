@@ -483,7 +483,7 @@
       <!-- Zone de danger - Suppression -->
       {#if canEdit}
         <div
-          class="alert alert-error alert-soft border-error max-md:alert-vertical mt-8 border-1"
+          class="alert alert-error alert-soft border-error max-md:alert-vertical mt-8 border"
         >
           <Trash2 class="h-5 w-5 shrink-0" />
           <div class="flex-1">

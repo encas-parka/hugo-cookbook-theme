@@ -165,5 +165,5 @@
     </div>
   </div>
 
-  <ArrowRight class="mt-1 h-4 w-4 flex-shrink-0 opacity-40" />
+  <ArrowRight class="mt-1 h-4 w-4 shrink-0 opacity-40" />
 </div>
