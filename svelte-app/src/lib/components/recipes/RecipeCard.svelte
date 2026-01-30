@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { RecipeIndexEntry } from "$lib/types/recipes.types";
-  import { navigate } from '$lib/router';
+  import { navigate } from "$lib/router";
   import RecipeRegimeBadges from "./RecipeRegimeBadges.svelte";
   import { getTypeDisplay } from "$lib/utils/recipeUtils";
   import { globalState } from "@/lib/stores/GlobalState.svelte";
@@ -120,37 +120,30 @@
       <div class=" flex flex-wrap justify-end gap-1 pt-1">
         {#if recipe.categories}
           {#if recipe.region}
-            <span class="badge badge-ghost badge-sm">{recipe.region}</span>
+            <span class="badge badge-ghost">{recipe.region}</span>
           {/if}
           {#each recipe.categories as categorie}
-            <span class="badge badge-primary badge-soft badge-sm"
-              >{categorie}</span
-            >
+            <span class="badge badge-primary badge-soft">{categorie}</span>
           {/each}
         {/if}
       </div>
 
       <div class="mb-2 flex flex-wrap justify-end gap-1">
         {#if recipe.serveHot}
-          <span class="badge badge-soft badge-sm badge-error">Servir Chaud</span
-          >
+          <span class="badge badge-soft badge-error">Servir Chaud</span>
         {:else}
-          <span class="badge badge-soft badge-sm badge-info">Servir Froid</span>
+          <span class="badge badge-soft badge-info">Servir Froid</span>
         {/if}
 
         {#if recipe.cuisson}
-          <span class="badge badge-soft badge-sm badge-warning"
-            >Avec Cuisson</span
-          >
+          <span class="badge badge-soft badge-warning">Avec Cuisson</span>
         {:else}
-          <span class="badge badge-soft badge-sm badge-success"
-            >Sans Cuisson</span
-          >
+          <span class="badge badge-soft badge-success">Sans Cuisson</span>
         {/if}
 
         {#if recipe.saison}
           {#each recipe.saison as saison}
-            <span class="badge badge-soft badge-accent badge-sm">{saison}</span>
+            <span class="badge badge-soft badge-accent">{saison}</span>
           {/each}
         {/if}
       </div>

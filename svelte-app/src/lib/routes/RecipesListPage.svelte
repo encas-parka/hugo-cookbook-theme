@@ -15,6 +15,7 @@
   import { globalState } from "../stores/GlobalState.svelte";
   import { onDestroy } from "svelte";
   import { fade } from "svelte/transition";
+  import { flip } from "svelte/animate";
 
   // État des filtres
   interface Filters {
@@ -387,7 +388,9 @@
     {:else}
       <div class="my-8 space-y-10">
         {#each paginatedRecipes as recipe (recipe.$id)}
-          <RecipeCard {recipe} highlightedIngredients={filters.ingredients} />
+          <div transition:fade={{ duration: 300 }}>
+            <RecipeCard {recipe} highlightedIngredients={filters.ingredients} />
+          </div>
         {/each}
       </div>
 
