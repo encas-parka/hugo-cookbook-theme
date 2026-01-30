@@ -168,7 +168,11 @@
     {/if}
 
     <!-- Editor Surface -->
-    <div bind:this={element} {id}></div>
+    <div
+      bind:this={element}
+      {id}
+      class="max-h-[calc(100vh-200px)] overflow-auto"
+    ></div>
   </div>
 
   {#if error}
