@@ -192,8 +192,6 @@
 
     navBarStore.setConfig({
       title: teamName,
-      materielContext: "materiel",
-      teamId: activeTeamId || undefined,
     });
   });
 

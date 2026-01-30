@@ -331,8 +331,6 @@
 
   $effect(() => {
     navBarStore.setConfig({
-      eventId: eventId || undefined,
-      basePath,
       actions: navActions,
     });
   });

@@ -222,8 +222,6 @@
 
   $effect(() => {
     navBarStore.setConfig({
-      eventId: eventId,
-      basePath,
       actions: navActions,
       isLockedByOthers,
       lockedByUserName,

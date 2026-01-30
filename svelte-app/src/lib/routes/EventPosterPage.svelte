@@ -467,8 +467,6 @@
   $effect(() => {
     if (event) {
       navBarStore.setConfig({
-        eventId: route.params.id,
-        basePath,
         title: `Affiches : ${event.name}`,
         backAction: goBack,
         actions: navActions,

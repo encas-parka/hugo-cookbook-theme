@@ -1,19 +1,15 @@
 <script lang="ts">
   import { Edit3, Eye } from "@lucide/svelte";
+  import { searchParams } from "$lib/router";
 
-  // Props
-  interface Props {
-    mode: "edit" | "preview";
-    disabled?: boolean;
-    onModeChange: (mode: "edit" | "preview") => void;
-  }
-
-  let { mode, disabled = false, onModeChange }: Props = $props();
+  // Lire le mode depuis les query params
+  const mode = $derived(
+    (searchParams.get("mode") as "edit" | "preview" | null) || "preview",
+  );
 
   function handleModeChange(newMode: "edit" | "preview") {
-    if (!disabled) {
-      onModeChange(newMode);
-    }
+    // Mettre à jour le query param
+    searchParams.set("mode", newMode);
   }
 </script>
 
@@ -23,7 +19,6 @@
       class="tab gap-2 font-semibold"
       class:tab-active={mode === "edit"}
       onclick={() => handleModeChange("edit")}
-      disabled={disabled}
     >
       <Edit3 class="h-4 w-4" />
       Édition
@@ -32,7 +27,7 @@
       class="tab gap-2 font-semibold"
       class:tab-active={mode === "preview"}
       onclick={() => handleModeChange("preview")}
-      >
+    >
       <Eye class="h-4 w-4" />
       Aperçu
     </button>

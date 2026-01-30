@@ -173,8 +173,6 @@
 
     navBarStore.setConfig({
       title: teamName,
-      materielContext: "loans",
-      teamId: activeTeamId || undefined,
     });
   });
 

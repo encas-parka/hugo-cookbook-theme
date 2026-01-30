@@ -4,15 +4,9 @@ export interface NavBarConfig {
   title?: string;
   backAction?: () => void;
   actions?: Snippet;
-  tabs?: Snippet;
-  eventId?: string;
-  basePath?: string; // Chemin de base pour les tabs d'événement (ex: "/dashboard/eventEdit" ou "/demo/event")
-  activeTab?: number;
   isLockedByOthers?: boolean;
   lockedByUserName?: string;
   hasUnsavedChanges?: boolean;
-  materielContext?: "materiel" | "loans" | null;
-  teamId?: string;
 }
 
 class NavBarStore {
@@ -32,22 +26,6 @@ class NavBarStore {
     return this.#config.actions;
   }
 
-  get tabs() {
-    return this.#config.tabs;
-  }
-
-  get eventId() {
-    return this.#config.eventId;
-  }
-
-  get basePath() {
-    return this.#config.basePath || "/dashboard/eventEdit";
-  }
-
-  get activeTab() {
-    return this.#config.activeTab || 0;
-  }
-
   get isLockedByOthers() {
     return this.#config.isLockedByOthers || false;
   }
@@ -58,14 +36,6 @@ class NavBarStore {
 
   get hasUnsavedChanges() {
     return this.#config.hasUnsavedChanges || false;
-  }
-
-  get materielContext() {
-    return this.#config.materielContext || null;
-  }
-
-  get teamId() {
-    return this.#config.teamId;
   }
 
   setConfig(config: NavBarConfig) {

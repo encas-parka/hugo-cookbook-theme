@@ -1,10 +1,11 @@
 <script lang="ts">
   import { globalState } from "../stores/GlobalState.svelte";
-  import { navigate } from "$lib/router";
+  import { navigate, route } from "$lib/router";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { recipesStore } from "../stores/RecipesStore.svelte";
   import EventTabs from "./eventEdit/EventTabs.svelte";
   import MaterielTabs from "./MaterielTabs.svelte";
+  import DocumentTabs from "./documents/DocumentTabs.svelte";
   import { refreshAllStores } from "$lib/utils/storesReload";
 
   import {
@@ -31,8 +32,70 @@
   // Détection mode dev
   const isDev = import.meta.env.DEV;
 
+  // Détection automatique du contexte via le router
+  // Extrait toutes les informations de contexte depuis l'URL courante
+  type ContextType =
+    | { type: "eventEdit"; basePath: string; eventId: string }
+    | { type: "materiel"; teamId: string }
+    | { type: "loans"; teamId: string }
+    | { type: "documentEdit"; teamId: string; docId: string }
+    | null;
+
+  const context: ContextType = $derived.by(() => {
+    const pathname = route.pathname;
+    const params = route.params;
+
+    // Routes dashboard: /dashboard/eventEdit/:id, /dashboard/eventEdit/recipes/:id, etc.
+    if (pathname.includes("/dashboard/eventEdit/") && params.id) {
+      return {
+        type: "eventEdit",
+        basePath: "/dashboard/eventEdit",
+        eventId: params.id as string,
+      };
+    }
+
+    // Routes demo: /demo/event/:id, /demo/event/recipes, etc.
+    if (pathname.includes("/demo/event/") && params.id) {
+      return {
+        type: "eventEdit",
+        basePath: "/demo/event",
+        eventId: params.id as string,
+      };
+    }
+
+    // Routes matériel: /dashboard/materiel/:teamId
+    if (pathname.includes("/dashboard/materiel/") && params.teamId) {
+      return {
+        type: "materiel",
+        teamId: params.teamId as string,
+      };
+    }
+
+    // Routes emprunts: /dashboard/loans/:teamId
+    if (pathname.includes("/dashboard/loans/") && params.teamId) {
+      return {
+        type: "loans",
+        teamId: params.teamId as string,
+      };
+    }
+
+    // Routes documents: /editdocument/:teamId/:docId
+    if (pathname.includes("/editdocument/") && params.teamId && params.docId) {
+      return {
+        type: "documentEdit",
+        teamId: params.teamId as string,
+        docId: params.docId as string,
+      };
+    }
+
+    return null;
+  });
+
   // Initialiser le smart header
-  globalState.initializeScrollDirection();
+
+  if (globalState.isMobile) {
+    globalState.initializeScrollDirection();
+  }
 
   function toggleDropdown() {
     showDropdown = !showDropdown;
@@ -163,15 +226,14 @@
   <!-- navbar-center : SEULEMENT SUR DESKTOP -->
   {#if globalState.isDesktop}
     <div class="navbar-center absolute left-1/2 -translate-x-1/2 transform">
-      {#if navBarStore.materielContext}
-        <MaterielTabs currentTeamId={navBarStore.teamId} />
-      {:else if navBarStore.tabs}
+      {#if navBarStore.tabs}
         {@render navBarStore.tabs()}
-      {:else if navBarStore.eventId !== undefined}
-        <EventTabs
-          eventId={navBarStore.eventId}
-          basePath={navBarStore.basePath}
-        />
+      {:else if context?.type === "materiel" || context?.type === "loans"}
+        <MaterielTabs currentTeamId={context.teamId} />
+      {:else if context?.type === "eventEdit"}
+        <EventTabs eventId={context.eventId} basePath={context.basePath} />
+      {:else if context?.type === "documentEdit"}
+        <DocumentTabs />
       {:else}
         <h1
           class="font-family-fredoka truncate text-sm font-bold tracking-wider uppercase opacity-70"
@@ -183,7 +245,7 @@
     </div>
   {/if}
 
-  <div class="navbar-end ms-auto w-fit flex-shrink-0 gap-4">
+  <div class="navbar-end ms-auto w-fit shrink-0 gap-4">
     {#if navBarStore.isLockedByOthers}
       <div class="badge badge-warning flex items-center gap-1 py-3 font-medium">
         <LockIcon size={14} />
@@ -292,15 +354,14 @@
 <!-- SECTION SÉPARÉE : SEULEMENT SUR MOBILE (NON-STICKY) -->
 {#if !globalState.isDesktop}
   <div class="border-base-300 bg-base-100 border-b px-4 py-3">
-    {#if navBarStore.materielContext}
-      <MaterielTabs currentTeamId={navBarStore.teamId} />
-    {:else if navBarStore.eventId !== undefined}
-      <EventTabs
-        eventId={navBarStore.eventId}
-        basePath={navBarStore.basePath}
-      />
-    {:else if navBarStore.tabs}
+    {#if navBarStore.tabs}
       {@render navBarStore.tabs()}
+    {:else if context?.type === "materiel" || context?.type === "loans"}
+      <MaterielTabs currentTeamId={context.teamId} />
+    {:else if context?.type === "eventEdit"}
+      <EventTabs eventId={context.eventId} basePath={context.basePath} />
+    {:else if context?.type === "documentEdit"}
+      <DocumentTabs />
     {:else if navBarStore.title}
       <h1
         class="text-center text-sm font-bold tracking-wider uppercase opacity-70"

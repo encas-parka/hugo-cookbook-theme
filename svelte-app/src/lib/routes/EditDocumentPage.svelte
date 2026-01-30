@@ -13,13 +13,12 @@
   import SvelteMarkdown from "@humanspeak/svelte-markdown";
   import type { Teamdocs } from "$lib/types/appwrite.d";
   import { navBarStore } from "$lib/stores/NavBarStore.svelte";
-  import DocumentTabs from "$lib/components/documents/DocumentTabs.svelte";
 
   // ============================================================================
   // ROUTE PARAMETERS
   // ============================================================================
 
-  import { route } from "$lib/router";
+  import { route, searchParams } from "$lib/router";
 
   let teamId = $derived(route.params.teamId);
   let docId = $derived(route.params.docId);
@@ -42,8 +41,10 @@
   let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   let initialDocumentSnapshot = $state<string>("");
 
-  // Mode édition ou preview
-  let mode = $state<"edit" | "preview">("preview");
+  // Mode édition ou preview - lu depuis les query params
+  const mode = $derived(
+    (searchParams.get("mode") as "edit" | "preview" | null) || "preview",
+  );
 
   // Équipe
   let team = $derived(nativeTeamsStore.myTeams.find((t) => t.$id === teamId));
@@ -339,16 +340,10 @@
     document ? `Document: ${document.title}` : "Modifier le document",
   );
 
-  // Active tab : 0 = édition, 1 = aperçu
-  const activeTab = $derived(mode === "edit" ? 0 : 1);
-
   $effect(() => {
     navBarStore.setConfig({
       title: navTitle,
       actions: navActions,
-      tabs: navTabs,
-      eventId: docId, // Utilisé comme identifiant unique pour les tabs
-      activeTab,
       isLockedByOthers: isLockedByOthers,
       lockedByUserName: lockedByName,
     });
@@ -384,14 +379,6 @@
       </button>
     {/if}
   </div>
-{/snippet}
-
-{#snippet navTabs()}
-  <DocumentTabs
-    {mode}
-    disabled={isLockedByOthers}
-    onModeChange={(newMode) => (mode = newMode)}
-  />
 {/snippet}
 
 <!-- svelte-ignore /a11y_no_noninteractive_element_interactions  -->
