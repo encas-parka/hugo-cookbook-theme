@@ -21,11 +21,12 @@
 
   interface Props {
     team: EnrichedNativeTeam;
-    allEvents: EnrichedEvent[];
+    currentEvents: EnrichedEvent[]; // Déjà triés par dateStart croissant
+    pastEvents: EnrichedEvent[]; // Déjà triés par dateStart décroissant
     loading?: boolean;
   }
 
-  let { team, allEvents, loading = false }: Props = $props();
+  let { team, currentEvents, pastEvents, loading = false }: Props = $props();
 
   // État local
   let showTeamModal = $state(false);
@@ -49,36 +50,21 @@
   });
 
   // Dérivés - Événements filtrés par équipe
-  const teamEvents = $derived.by(() => {
-    return allEvents.filter(
+  // Les événements entrants sont déjà triés par date dans le store
+  // Le filtre préserve l'ordre établi
+  const teamCurrentEvents = $derived.by(() => {
+    return currentEvents.filter(
       (event) =>
         event.teamsId?.includes(team.$id) || event.teams?.includes(team.name),
     );
   });
 
-  const currentEvents = $derived.by(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return teamEvents.filter((event) => {
-      const endDate = event.dateEnd
-        ? new Date(event.dateEnd)
-        : new Date(event.dateStart);
-      return endDate >= today;
-    });
-  });
-
-  const pastEvents = $derived.by(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return teamEvents
-      .filter((event) => {
-        const endDate = event.dateEnd
-          ? new Date(event.dateEnd)
-          : new Date(event.dateStart);
-        return endDate < today;
-      })
+  const teamPastEvents = $derived.by(() => {
+    return pastEvents
+      .filter(
+        (event) =>
+          event.teamsId?.includes(team.$id) || event.teams?.includes(team.name),
+      )
       .slice(0, 3); // 3 événements passés récents
   });
 
@@ -139,7 +125,9 @@
 
     <!-- === SOUS-CARD MEMBRES | materiel  -->
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <div class="card card-sm border-neutral/20 shoadow-sm self-start border">
+      <div
+        class="card card-sm border-neutral/20 shoadow-sm self-start border shadow"
+      >
         <div class="card-body">
           <div
             class="flex flex-wrap items-center justify-between gap-2 text-sm"
@@ -213,15 +201,15 @@
           </div>
           <!-- Événements à venir -->
           <ListEventCard
-            events={currentEvents}
+            events={teamCurrentEvents}
             {loading}
             cardClass="border-l-4 border-accent/60"
           />
 
           <!-- Événements récents -->
-          {#if pastEvents.length > 0}
+          {#if teamPastEvents.length > 0}
             <div class="fieldset-legend">Récents</div>
-            <ListEventCard events={pastEvents} {loading} />
+            <ListEventCard events={teamPastEvents} {loading} />
           {/if}
           <div class="card-actions mt-auto items-center justify-end">
             <!-- Bouton Créer un événement -->

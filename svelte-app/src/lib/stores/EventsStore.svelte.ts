@@ -122,12 +122,19 @@ export class EventsStore {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Début de la journée actuelle
 
-    return Array.from(this.#events.values()).filter((event) => {
-      if (!event.dateStart || !event.dateEnd) return false;
-      const end = new Date(event.dateEnd);
-      // Filtrer uniquement par date (accessibilité gérée par Appwrite via permissions)
-      return end >= today;
-    });
+    return Array.from(this.#events.values())
+      .filter((event) => {
+        if (!event.dateStart || !event.dateEnd) return false;
+        const end = new Date(event.dateEnd);
+        // Filtrer uniquement par date (accessibilité gérée par Appwrite via permissions)
+        return end >= today;
+      })
+      .sort((a, b) => {
+        // Tri par date de début croissante (prochaines événements d'abord)
+        const dateA = new Date(a.dateStart!);
+        const dateB = new Date(b.dateStart!);
+        return dateA.getTime() - dateB.getTime();
+      });
   });
 
   /**
@@ -136,12 +143,19 @@ export class EventsStore {
    */
   #pastEvents = $derived.by(() => {
     const now = new Date();
-    return Array.from(this.#events.values()).filter((event) => {
-      if (!event.dateEnd) return false;
-      const end = new Date(event.dateEnd);
-      // Filtrer uniquement par date (accessibilité gérée par Appwrite via permissions)
-      return end < now;
-    });
+    return Array.from(this.#events.values())
+      .filter((event) => {
+        if (!event.dateStart || !event.dateEnd) return false;
+        const end = new Date(event.dateEnd);
+        // Filtrer uniquement par date (accessibilité gérée par Appwrite via permissions)
+        return end < now;
+      })
+      .sort((a, b) => {
+        // Tri par date de début décroissante (plus récents d'abord)
+        const dateA = new Date(a.dateStart!);
+        const dateB = new Date(b.dateStart!);
+        return dateB.getTime() - dateA.getTime();
+      });
   });
 
   /**
