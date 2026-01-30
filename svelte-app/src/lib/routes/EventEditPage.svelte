@@ -240,6 +240,12 @@
           // ✅ AUTO-CHARGEMENT DES EVENTS DÉMO si route /demo/event
           await ensureDemoEventsLoaded();
 
+          if (!eventId) {
+            console.error("[EventEditPage] Event ID manquant");
+            isBusy = false;
+            return;
+          }
+
           // ✅ Attendre que l'event soit disponible
           const eventFound = await waitForEvent(eventId);
 
@@ -705,7 +711,7 @@
 {#snippet navActions()}
   <div class="flex items-center gap-2">
     <button
-      class="btn btn-accent"
+      class="btn btn-accent btn-sm"
       onclick={handleSave}
       disabled={isBusy || !isDirty || !canEdit}
     >

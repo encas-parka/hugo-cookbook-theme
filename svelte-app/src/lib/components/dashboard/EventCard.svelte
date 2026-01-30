@@ -10,9 +10,10 @@
     FileText,
     Image,
     ShoppingCart,
+    CookingPot,
   } from "@lucide/svelte";
   import type { EnrichedEvent } from "$lib/types/events.d";
-  import { navigate } from '$lib/router';
+  import { navigate } from "$lib/router";
   import { formatDateShort } from "@/lib/utils/products-display";
   import {
     getMealsCount,
@@ -45,7 +46,7 @@
   transition:slide
 >
   <div class="min-w-0 flex-1 space-y-4">
-    <div class="flex flex-wrap items-baseline gap-4">
+    <div class="flex flex-wrap items-center gap-4">
       <div class="text-primary truncate text-lg font-semibold">
         {event.name}
       </div>
@@ -78,11 +79,11 @@
 
     <!-- Métadonnées -->
     <div
-      class="text-base-content/60 mt-2 flex flex-wrap items-center gap-3 text-xs"
+      class="text-base-content/70 mt-2 flex flex-wrap items-center gap-3 text-sm"
     >
       {#if event.teams && event.teams.length > 0}
         <div class="text-primary flex items-center gap-1 font-semibold">
-          <Users class="h-3 w-3" />
+          <Users class="h-3 w-3 stroke-3" />
           <span>{event.teams.join(", ")}</span>
         </div>
       {/if}
@@ -106,7 +107,7 @@
       </div>
 
       <div class="flex items-center gap-1">
-        <ChefHat class="h-3 w-3" />
+        <CookingPot class="h-3 w-3" />
         <span>{getTotalRecipes(event)} recettes</span>
       </div>
 

@@ -62,7 +62,7 @@
 </script>
 
 {#snippet navActions()}
-  <button class="btn btn-primary" onclick={openCreateModal}>
+  <button class="btn btn-primary btn-sm" onclick={openCreateModal}>
     <Plus class="h-4 w-4" />
     Créer une équipe
   </button>

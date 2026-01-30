@@ -207,7 +207,7 @@
 
 {#snippet navActions()}
   <button
-    class="btn btn-primary"
+    class="btn btn-primary btn-sm"
     onclick={() => navigate(`/createdocument/${teamId}/new`)}
   >
     <PlusIcon size={18} />

@@ -41,9 +41,7 @@
     return team.members || [];
   });
 
-  const memberNames = $derived.by(() => {
-    return nativeTeamsStore.getTeamMemberNames(team.$id);
-  });
+  const memberNames = $derived(nativeTeamsStore.getTeamMemberNames(team.$id));
 
   const memberNamesDisplay = $derived.by(() => {
     if (memberNames.length <= 20) return memberNames.join(", ");
@@ -147,21 +145,22 @@
             class="flex flex-wrap items-center justify-between gap-2 text-sm"
           >
             <div class=" flex items-center gap-2">
-              <Users class="inline size-5 shrink-0 opacity-70" />
-              <!-- Liste des noms -->
-              <span class="text-base-content/70"> {memberNamesDisplay} </span>
-            </div>
-            <div class="ms-auto flex items-center gap-4">
-              <!-- Badge membres -->
-              <div class="badge badge-primary badge-lg badge-outline ml-auto">
-                {teamMembers.length} membre{teamMembers.length > 1 ? "s" : ""}
+              <div class="indicator bg-primary/20 rounded-full p-2">
+                <span class="indicator-item badge badge-sm badge-primary">
+                  {teamMembers.length}</span
+                >
+                <Users class=" text-primary inline size-5 shrink-0 " />
               </div>
-
-              <button class="btn btn-sm btn-accent" onclick={inviteMember}>
-                <Plus class="h-4 w-4" />
-                Inviter
-              </button>
+              <!-- Liste des noms -->
+              <div class="text-base-content/70">{memberNamesDisplay}</div>
             </div>
+            <button
+              class="btn btn-sm btn-accent ms-auto"
+              onclick={inviteMember}
+            >
+              <Plus class="h-4 w-4" />
+              Inviter
+            </button>
           </div>
         </div>
       </div>

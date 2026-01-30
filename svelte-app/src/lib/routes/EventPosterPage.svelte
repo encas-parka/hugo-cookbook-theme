@@ -481,7 +481,7 @@
 </script>
 
 {#snippet navActions()}
-  <button class="btn btn-primary gap-2" onclick={printAll}>
+  <button class="btn btn-primary btn-sm gap-2" onclick={printAll}>
     <Printer class="h-5 w-5" />
     Imprimer tout
   </button>

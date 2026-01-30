@@ -412,7 +412,7 @@
     <button
       onclick={duplicate}
       disabled={!canEdit || isSaving}
-      class="btn btn-secondary btn-soft"
+      class="btn btn-secondary btn-soft btn-sm"
     >
       <Copy class="h-4 w-4" />
       Créer une version alternative

@@ -158,6 +158,13 @@
 
   onMount(() => {
     initializeApp();
+
+    // ✅ Révéler l'application une fois que Svelte a monté le composant
+    // Cela évite le flash de contenu non stylisé (FOUC)
+    const appElement = document.getElementById("app");
+    if (appElement) {
+      appElement.classList.add("svelte-ready");
+    }
   });
 
   onDestroy(() => {

@@ -366,7 +366,7 @@
     {#if mode === "edit"}
       <!-- Save button -->
       <button
-        class="btn btn-primary"
+        class="btn btn-primary btn-sm"
         onclick={handleSave}
         disabled={!canEdit || !isValid || isSaving}
       >

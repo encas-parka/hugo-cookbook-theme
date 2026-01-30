@@ -223,9 +223,7 @@
   <!-- navbar-center : SEULEMENT SUR DESKTOP -->
   {#if globalState.isDesktop}
     <div class="navbar-center absolute left-1/2 -translate-x-1/2 transform">
-      {#if navBarStore.tabs}
-        {@render navBarStore.tabs()}
-      {:else if context?.type === "materiel" || context?.type === "loans"}
+      {#if context?.type === "materiel" || context?.type === "loans"}
         <MaterielTabs currentTeamId={context.teamId} />
       {:else if context?.type === "eventEdit"}
         <EventTabs eventId={context.eventId} basePath={context.basePath} />
@@ -354,9 +352,7 @@
 <!-- SECTION SÉPARÉE : SEULEMENT SUR MOBILE (NON-STICKY) -->
 {#if !globalState.isDesktop}
   <div class="border-base-300 bg-base-100 border-b px-4 py-3">
-    {#if navBarStore.tabs}
-      {@render navBarStore.tabs()}
-    {:else if context?.type === "materiel" || context?.type === "loans"}
+    {#if context?.type === "materiel" || context?.type === "loans"}
       <MaterielTabs currentTeamId={context.teamId} />
     {:else if context?.type === "eventEdit"}
       <EventTabs eventId={context.eventId} basePath={context.basePath} />

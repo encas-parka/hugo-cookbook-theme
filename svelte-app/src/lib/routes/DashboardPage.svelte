@@ -3,7 +3,7 @@
     warmUpEnkaData,
     warmUpUsersTeamsManager,
   } from "$lib/services/appwrite-warmup";
-  import { navigate } from '$lib/router';
+  import { navigate } from "$lib/router";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import {
@@ -62,7 +62,7 @@
 {#snippet navActions()}
   <div class="flex gap-2">
     <button
-      class="btn btn-primary"
+      class="btn btn-primary btn-sm"
       onclick={() => navigate("/dashboard/eventCreate")}
     >
       <Plus class="h-4 w-4" />

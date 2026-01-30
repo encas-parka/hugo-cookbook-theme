@@ -303,7 +303,10 @@
 
 {#snippet navActions()}
   {#if globalState.isAuthenticated}
-    <button class="btn btn-primary" onclick={() => navigate("/recipe/new")}>
+    <button
+      class="btn btn-primary btn-sm"
+      onclick={() => navigate("/recipe/new")}
+    >
       <PlusIcon size={18} />
       Créer une recette
     </button>

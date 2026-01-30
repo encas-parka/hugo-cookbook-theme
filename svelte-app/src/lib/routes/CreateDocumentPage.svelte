@@ -191,7 +191,7 @@
   <div class="flex items-center gap-2">
     <!-- Create button -->
     <button
-      class="btn btn-primary"
+      class="btn btn-primary btn-sm"
       onclick={handleCreate}
       disabled={!canEdit || !isValid || isSaving}
     >
