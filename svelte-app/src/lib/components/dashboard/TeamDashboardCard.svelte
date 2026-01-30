@@ -150,6 +150,16 @@
               Inviter
             </button>
           </div>
+          {#if team.prefs.description}
+            <blockquote
+              class="text-base-content/70 border-neutral/20 bg-base-200/50 mt-2 rounded-lg border-x-4 p-2"
+            >
+              {team.prefs.description.slice(0, 250)}
+              {#if team.prefs.description.length > 250}
+                ...
+              {/if}
+            </blockquote>
+          {/if}
         </div>
       </div>
 

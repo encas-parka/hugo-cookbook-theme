@@ -139,7 +139,7 @@ export class EventsStore {
 
   /**
    * Événements passés
-   * Filtrés par date (accessibilité gérée par Appwrite via permissions)
+   * Filtrés par date (accessibilité gérée par Appwrite via permissions). Ne sont récupérés que les événement des 15 derniers jours max (TOCHECK)
    */
   #pastEvents = $derived.by(() => {
     const now = new Date();
