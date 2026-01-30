@@ -54,12 +54,13 @@
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
 
   import { onMount, onDestroy } from "svelte";
+  import { fade } from "svelte/transition";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
 
-  import { navigate } from "../services/simple-router.svelte";
+  import { route, navigate } from "$lib/router";
+
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { formatDateShort } from "../utils/products-display";
-  import { on } from "svelte/events";
   import InfoCollapse from "../components/ui/InfoCollapse.svelte";
   import {
     ensureDemoEventsLoaded,
@@ -116,8 +117,7 @@
   // =========================================================================
 
   // Récupérer l'eventId depuis les paramètres de route
-  let { params } = $props<{ params?: Record<string, string> }>();
-  let eventId = $state(params?.id);
+  let eventId = $derived(route.params.id);
   const currentEvent = $derived(
     eventId ? eventsStore.getEventById(eventId) : null,
   );
@@ -331,8 +331,6 @@
 
   $effect(() => {
     navBarStore.setConfig({
-      eventId: eventId || undefined,
-      basePath,
       actions: navActions,
     });
   });
@@ -347,7 +345,7 @@
 {#snippet navActions()}
   <div class="flex gap-2">
     <button
-      class="btn btn-primary"
+      class="btn btn-primary btn-sm"
       onclick={handleOpenAddProductModal}
       title="Ajouter un produit manuellement"
       disabled={!canEdit}
@@ -365,6 +363,7 @@
 <div
   class="space-y-6 pt-6 md:px-16 {globalState.isDesktop &&
     'ml-110 print:ml-0'} "
+  transition:fade
 >
   {#if isLoading}
     <!-- Loader pendant le chargement -->
@@ -402,7 +401,7 @@
       </div>
       <!-- Stats -->
       {#if currentEvent}
-        <div class="flex-grow py-4 print:hidden">
+        <div class="grow py-4 print:hidden">
           <EventStats {currentEvent} />
         </div>
       {/if}

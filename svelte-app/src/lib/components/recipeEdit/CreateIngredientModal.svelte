@@ -48,7 +48,7 @@
     type: "",
     allergens: [],
     pF: null,
-    pS: null,
+    pS: false,
     saisons: [],
   });
 
@@ -247,19 +247,18 @@
     resetForm();
   }
 
-  // Focus automatique à l'ouverture
+  // Reset du formulaire à l'ouverture du modal
   $effect(() => {
     if (open) {
+      resetForm();
+      // Appliquer initialName si fourni
+      if (initialName) {
+        formData.name = initialName;
+      }
+      // Focus automatique
       setTimeout(() => {
         document.getElementById("ingredient-name-input")?.focus();
       }, 50);
-    }
-  });
-
-  // Mettre à jour le nom quand initialName change
-  $effect(() => {
-    if (initialName && formData.name === "") {
-      formData.name = initialName;
     }
   });
 </script>
@@ -286,7 +285,7 @@
       <fieldset disabled={loading} class="space-y-4">
         <!-- Nom -->
         <div class="fieldset">
-          <legend class="fieldset-legend">Nom *</legend>
+          <legend class="fieldset-legend required">Nom</legend>
           <label
             class="input w-full {showErrors && validationErrors.name
               ? 'input-error'
@@ -299,6 +298,7 @@
               placeholder="Nom de l'ingrédient"
               bind:value={formData.name}
               required
+              aria-required="true"
               minlength="2"
               maxlength="60"
             />
@@ -310,13 +310,15 @@
 
         <!-- Type -->
         <div class="fieldset">
-          <legend class="fieldset-legend">Type *</legend>
+          <legend class="fieldset-legend required">Type</legend>
           <select
             class="select select-bordered w-full {showErrors &&
             validationErrors.type
               ? 'select-error'
               : ''}"
             bind:value={formData.type}
+            required
+            aria-required="true"
           >
             <option value="">Sélectionner un type...</option>
             {#each INGREDIENT_TYPES as type (type.value)}
@@ -330,7 +332,7 @@
 
         <!-- Allergènes -->
         <div class="fieldset">
-          <legend class="fieldset-legend">Allergènes *</legend>
+          <legend class="fieldset-legend required">Allergènes</legend>
           <p class="text-base-content/60 mb-2 text-xs">
             Précisez les allergènes présents dans l'ingrédient et/ou la nature
             de l'ingrédients (ou cochez "Aucun"). Sert notamment à la
@@ -355,7 +357,7 @@
                   checked={formData.allergens.includes(allergen)}
                   onchange={() => toggleAllergen(allergen)}
                 />
-                <span class="label-text">{allergen}</span>
+                <span class="text-sm">{allergen}</span>
               </label>
             {/each}
           </div>
@@ -373,7 +375,7 @@
             <legend class="fieldset-legend"
               ><div class="flex items-center gap-2">
                 <Refrigerator size={16} class="opacity-50" />
-                <span>frais ? *</span>
+                <span class="required">frais ?</span>
               </div></legend
             >
             <p class="text-base-content/60 mb-2 text-xs">
@@ -413,7 +415,7 @@
             <legend class="fieldset-legend">
               <div class="flex items-center gap-2">
                 <Snowflake size={16} class="opacity-50" />
-                <span>Produit surgelé ? *</span>
+                <span class="required">Produit surgelé ?</span>
               </div></legend
             >
             <p class="text-base-content/60 mb-2 text-xs">

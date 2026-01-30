@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { navigate, router } from "$lib/services/simple-router.svelte";
+  import { navigate, route } from "$lib/router";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
 
@@ -18,7 +18,7 @@
 
   // Déterminer l'onglet actif depuis l'URL courante
   const activeTab = $derived.by(() => {
-    const currentPath = router.path;
+    const currentPath = route.pathname;
 
     // Si on est sur /dashboard/loans
     if (currentPath.includes("/loans")) return 1;

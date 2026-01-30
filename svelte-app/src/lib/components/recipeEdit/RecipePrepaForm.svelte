@@ -53,22 +53,25 @@
       </h2>
 
       <div class="space-y-6">
-        <MarkdownEditor
-          id="recipe-preparation"
-          label="Instructions de préparation"
-          bind:value={recipe.preparation}
-          error={validationErrors.preparation}
-          placeholder="Décrivez les étapes de préparation..."
-        />
-
-        <div>
+        <div class="max-h-dvh">
           <MarkdownEditor
-            id="recipe-preparation24h"
-            label="Préparation à l'avance (optionnel)"
-            bind:value={recipe.preparation24h}
-            error={validationErrors.preparation24h}
-            placeholder="Étapes à réaliser avant le jour j..."
+            id="recipe-preparation"
+            label="Instructions de préparation"
+            bind:value={recipe.preparation}
+            error={validationErrors.preparation}
+            placeholder="Décrivez les étapes de préparation..."
           />
+        </div>
+        <div>
+          <div class="max-h-dvh">
+            <MarkdownEditor
+              id="recipe-preparation24h"
+              label="Préparation à l'avance (optionnel)"
+              bind:value={recipe.preparation24h}
+              error={validationErrors.preparation24h}
+              placeholder="Étapes à réaliser avant le jour j..."
+            />
+          </div>
           <p class="text-end text-xs italic opacity-60">
             La préparation à l'avance sera mise en évidence au dessus des autres
             étapes.

@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { fade } from "svelte/transition";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { ArrowLeft, Calendar } from "@lucide/svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from "$lib/router";
   import EventCard from "$lib/components/dashboard/EventCard.svelte";
 
   let pastEvents = $derived(eventsStore.pastEvents);
@@ -27,7 +28,7 @@
   });
 </script>
 
-<div class="container mx-auto p-4">
+<div class="container mx-auto p-4" transition:fade>
   <div class="mb-4 flex items-center gap-2">
     <button class="btn btn-ghost btn-sm" onclick={goBack}>
       <ArrowLeft class="h-4 w-4" />
@@ -47,7 +48,7 @@
   {:else}
     <div class="card bg-base-100">
       <div class="card-body">
-        <div class="grid grid-cols-1 gap-6 gap-8 md:grid-cols-2">
+        <div class="grid grid-cols-1 gap-8 md:grid-cols-2">
           {#each pastEvents as event (event.$id)}
             <EventCard {event} />
           {/each}

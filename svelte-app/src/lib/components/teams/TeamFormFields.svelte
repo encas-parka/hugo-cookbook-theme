@@ -37,7 +37,7 @@
   {/if}
   <!-- Nom de l'équipe -->
   <fieldset class="fieldset">
-    <legend class="fieldset-legend">Nom de l'équipe *</legend>
+    <legend class="fieldset-legend required">Nom de l'équipe</legend>
     <label class="input">
       <input
         type="text"
@@ -45,6 +45,8 @@
         placeholder="Ex: Équipe Marketing"
         maxlength={nameMaxLength}
         {disabled}
+        required
+        aria-required="true"
         onkeydown={(e) => onNameKeydown?.(e)}
       />
     </label>

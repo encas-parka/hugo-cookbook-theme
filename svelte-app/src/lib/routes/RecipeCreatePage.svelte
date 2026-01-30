@@ -9,7 +9,7 @@
   import { ingredientsToAppwrite } from "$lib/utils/ingredientUtils";
   import { astucesToAppwrite } from "$lib/utils/recipeUtils";
   import { toastService } from "$lib/services/toast.service.svelte";
-  import { navigate, router } from "$lib/services/simple-router.svelte";
+  import { navigate, route } from "$lib/router";
   import { Save } from "@lucide/svelte";
   import { onDestroy } from "svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
@@ -32,11 +32,10 @@
   import { fade } from "svelte/transition";
 
   // ============================================================================
-  // PROPS & INITIALISATION
+  // INITIALISATION
   // ============================================================================
 
-  let { params } = $props<{ params?: Record<string, string> }>();
-  const sourceRecipeId = $derived(params?.uuid);
+  const sourceRecipeId = $derived(route.params.uuid);
 
   // ============================================================================
   // ÉTAT LOCAL
@@ -273,7 +272,7 @@
     <button
       onclick={save}
       disabled={isSaving || !isDirty}
-      class="btn btn-primary"
+      class="btn btn-primary btn-sm"
     >
       <Save class="h-4 w-4" />
       {isSaving ? "Sauvegarde..." : "Créer la recette"}
@@ -323,9 +322,7 @@
     ? `/recipe/${sourceRecipeId}/duplicate`
     : "/recipe/new"}
   shouldProtect={() => isDirty && !saveSuccessful}
-  onLeaveWithoutSave={() => {
-    // Ne rien de spécial à faire en mode création
-  }}
+  onLeaveWithoutSave={() => {}}
   onSaveAndLeave={async () => {
     // Sauvegarder et autoriser la navigation
     await save();

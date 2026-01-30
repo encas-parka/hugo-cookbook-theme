@@ -5,7 +5,7 @@
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
-  import { router } from "$lib/services/simple-router.svelte";
+  import { route } from "$lib/router";
   import MaterielCard from "$lib/components/teamMatos/MaterielCard.svelte";
   import MaterielForm from "$lib/components/teamMatos/MaterielForm.svelte";
   import EditMaterielModal from "$lib/components/teamMatos/EditMaterielModal.svelte";
@@ -13,16 +13,9 @@
     type MaterielFiltersType,
   } from "$lib/components/teamMatos/MaterielFilters.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
-  import { slide } from "svelte/transition";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { fade } from "svelte/transition";
+  import { navigate } from "$lib/router";
   import type { EnrichedMateriel } from "$lib/types/materiel.types";
-
-  // Récupérer les paramètres de route
-  interface Props {
-    params?: { teamId?: string };
-  }
-
-  let { params }: Props = $props();
 
   // État de la page
   let showForm = $state(false);
@@ -167,7 +160,7 @@
 
   // Surveiller les changements de teamId dans l'URL pour mettre à jour activeTeamId
   $effect(() => {
-    const teamIdFromParams = params?.teamId;
+    const teamIdFromParams = route.params.teamId;
 
     if (teamIdFromParams && teamIdFromParams !== activeTeamId) {
       // Vérifier que l'utilisateur appartient à cette équipe
@@ -199,8 +192,6 @@
 
     navBarStore.setConfig({
       title: teamName,
-      materielContext: "materiel",
-      teamId: activeTeamId || undefined,
     });
   });
 
@@ -222,7 +213,7 @@
 </LeftPanel>
 
 <!-- Contenu principal -->
-<div class="p-4 lg:ml-100">
+<div class="p-4 lg:ml-100" transition:fade>
   <div class="mx-auto max-w-7xl px-4 py-8">
     <!-- Tabs par équipe (seulement si plus d'une équipe) -->
     {#if userTeams.length > 1}

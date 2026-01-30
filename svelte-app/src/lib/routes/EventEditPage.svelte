@@ -22,7 +22,7 @@
   } from "@lucide/svelte";
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
-  import { untrack, onDestroy } from "svelte";
+  import { untrack, onDestroy, onMount } from "svelte";
   import EventStats from "../components/EventStats.svelte";
   import EventTodoList from "../components/eventTodo/EventTodoList.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
@@ -39,10 +39,10 @@
   // PROPS & INITIALISATION
   // ============================================================================
 
-  let { params } = $props<{ params: Record<string, string> }>();
+  import { route } from "$lib/router";
 
   // Rendre eventId entièrement réactif aux changements de params
-  let eventId = $derived(params.id);
+  let eventId = $derived(route.params.id);
 
   // Shadow Draft permanent (jamais null)
   // NOTE: meals est un $state brut (non trié) pour permettre les mutations
@@ -222,8 +222,6 @@
 
   $effect(() => {
     navBarStore.setConfig({
-      eventId: eventId,
-      basePath,
       actions: navActions,
       isLockedByOthers,
       lockedByUserName,
@@ -241,6 +239,12 @@
         try {
           // ✅ AUTO-CHARGEMENT DES EVENTS DÉMO si route /demo/event
           await ensureDemoEventsLoaded();
+
+          if (!eventId) {
+            console.error("[EventEditPage] Event ID manquant");
+            isBusy = false;
+            return;
+          }
 
           // ✅ Attendre que l'event soit disponible
           const eventFound = await waitForEvent(eventId);
@@ -707,7 +711,7 @@
 {#snippet navActions()}
   <div class="flex items-center gap-2">
     <button
-      class="btn btn-accent"
+      class="btn btn-accent btn-sm"
       onclick={handleSave}
       disabled={isBusy || !isDirty || !canEdit}
     >

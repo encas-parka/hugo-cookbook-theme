@@ -10,7 +10,7 @@
   } from "@lucide/svelte";
   import { formatDateRelative } from "$lib/utils/date-helpers";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from '$lib/router';
   import type { RecipeIndexEntry } from "$lib/types/recipes.types";
   import { getTypeDisplay } from "$lib/utils/recipeUtils";
   import { globalState } from "$lib/stores/GlobalState.svelte";

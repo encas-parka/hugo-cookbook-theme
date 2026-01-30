@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { fade } from "svelte/transition";
   import { getAppwriteInstances } from "$lib/services/appwrite";
   import { validateInvitation } from "$lib/services/appwrite-invitations";
-  import { navigate, getQuery } from "$lib/services/simple-router.svelte"; // Adaptez le chemin vers votre fichier router
+  import { navigate, route } from "$lib/router";
   import { TriangleAlert } from "@lucide/svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { onDestroy } from "svelte";
@@ -27,10 +28,10 @@
     // 0. Warm-up de la fonction usersTeamsManager
     // warmUpUsersTeamsManager();
 
-    // 1. Récupération des paramètres via votre routeur
-    userId = getQuery("userId") || "";
-    eventId = getQuery("eventId") || "";
-    teamId = getQuery("teamId") || "";
+    // 1. Récupération des paramètres via sv-router
+    userId = route.search.userId || "";
+    eventId = route.search.eventId || "";
+    teamId = route.search.teamId || "";
 
     if (!userId || (!eventId && !teamId)) {
       step = "error";
@@ -127,7 +128,10 @@
   });
 </script>
 
-<div class="bg-base-200 flex min-h-screen items-center justify-center p-4">
+<div
+  class="bg-base-200 flex min-h-screen items-center justify-center p-4"
+  transition:fade
+>
   <div class="card bg-base-100 w-full max-w-md shadow-xl">
     <div class="card-body text-center">
       {#if loading && step !== "set-password"}

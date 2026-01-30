@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import {
     ArrowLeft,
     Check,
@@ -16,8 +15,9 @@
     Flame,
     SoapDispenserDroplet,
   } from "@lucide/svelte";
+  import { fade } from "svelte/transition";
   import { materielStore } from "$lib/stores/MaterielStore.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { route, navigate } from "$lib/router";
   import { toastService } from "$lib/services/toast.service.svelte";
   import type { MaterielLoanItem } from "$lib/types/materiel.types";
   import { formatDateDayMonthShort } from "$lib/utils/date-helpers";
@@ -27,14 +27,8 @@
     getMaterielTypeConfig,
   } from "$lib/utils/materiel.utils";
 
-  interface Props {
-    params?: { loanId?: string };
-  }
-
-  let { params }: Props = $props();
-
   // État
-  let loanId = $state<string | null>(null);
+  const loanId = $derived(route.params.loanId);
   let loading = $state(false);
   let saving = $state(false);
   let isReadOnly = $state(false); // Mode lecture seule pour les prêts complétés
@@ -82,19 +76,16 @@
     }
   }
 
-  // Initialisation
-  onMount(() => {
-    const id = params?.loanId;
-    if (!id) {
+  // Initialisation réactive aux changements de route
+  $effect(() => {
+    if (!loanId) {
       toastService.error("Emprunt non trouvé");
       navigate("/dashboard/loans");
       return;
     }
 
-    loanId = id;
-
     // Charger l'emprunt
-    const loanData = materielStore.getLoanById(id);
+    const loanData = materielStore.getLoanById(loanId);
     if (
       !loanData ||
       (loanData.status !== "accepted" && loanData.status !== "completed")
@@ -216,7 +207,7 @@
         brokenQuantity: item.brokenQuantity,
       }));
 
-      await materielStore.completeLoanWithReturn(loanId, {
+      await materielStore.completeLoanWithReturn(String(loanId), {
         materiels,
         returnNotes: returnNotes.trim() || undefined,
       });
@@ -232,7 +223,7 @@
   }
 </script>
 
-<div class="container mx-auto p-4">
+<div class="container mx-auto p-4" transition:fade>
   <div class="mx-auto max-w-4xl">
     <!-- Header -->
     <div class="mb-6 flex items-center gap-4">

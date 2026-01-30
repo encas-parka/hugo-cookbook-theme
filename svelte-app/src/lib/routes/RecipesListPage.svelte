@@ -11,11 +11,11 @@
   import { recipeDataStore } from "$lib/stores/RecipeDataStore.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { PlusIcon } from "@lucide/svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate, route } from "$lib/router";
   import { globalState } from "../stores/GlobalState.svelte";
   import { onDestroy } from "svelte";
-  import { router } from "$lib/services/simple-router.svelte";
   import { fade } from "svelte/transition";
+  import { flip } from "svelte/animate";
 
   // État des filtres
   interface Filters {
@@ -261,7 +261,7 @@
 
   // Synchronisation du scope avec la route
   $effect(() => {
-    const path = router.path;
+    const path = route.pathname;
     if (path === "/recipe/my/draft") {
       filters.scope = "drafts";
     } else if (path === "/recipe/my") {
@@ -303,7 +303,10 @@
 
 {#snippet navActions()}
   {#if globalState.isAuthenticated}
-    <button class="btn btn-primary" onclick={() => navigate("/recipe/new")}>
+    <button
+      class="btn btn-primary btn-sm"
+      onclick={() => navigate("/recipe/new")}
+    >
       <PlusIcon size={18} />
       Créer une recette
     </button>
@@ -388,7 +391,9 @@
     {:else}
       <div class="my-8 space-y-10">
         {#each paginatedRecipes as recipe (recipe.$id)}
-          <RecipeCard {recipe} highlightedIngredients={filters.ingredients} />
+          <div transition:fade={{ duration: 300 }}>
+            <RecipeCard {recipe} highlightedIngredients={filters.ingredients} />
+          </div>
         {/each}
       </div>
 

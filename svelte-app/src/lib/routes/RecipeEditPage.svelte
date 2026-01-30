@@ -9,9 +9,10 @@
   import { ingredientsToAppwrite } from "$lib/utils/ingredientUtils";
   import { astucesToAppwrite } from "$lib/utils/recipeUtils";
   import { toastService } from "$lib/services/toast.service.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { route, navigate } from "$lib/router";
   import { Save, Lock, Copy, Trash2 } from "@lucide/svelte";
   import { onDestroy } from "svelte";
+  import { fade } from "svelte/transition";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import RecipeHeaderForm from "$lib/components/recipeEdit/RecipeHeaderForm.svelte";
   import RecipePrepaForm from "$lib/components/recipeEdit/RecipePrepaForm.svelte";
@@ -36,11 +37,10 @@
   import RecipeVariants from "../components/recipes/RecipeVariants.svelte";
 
   // ============================================================================
-  // PROPS & INITIALISATION
+  // INITIALISATION
   // ============================================================================
 
-  let { params } = $props<{ params?: Record<string, string> }>();
-  const recipeId = $derived(params?.uuid);
+  const recipeId = $derived(route.params.uuid);
 
   if (!recipeId) {
     toastService.error("ID de recette manquant");
@@ -412,7 +412,7 @@
     <button
       onclick={duplicate}
       disabled={!canEdit || isSaving}
-      class="btn btn-secondary btn-soft"
+      class="btn btn-secondary btn-soft btn-sm"
     >
       <Copy class="h-4 w-4" />
       Créer une version alternative
@@ -433,7 +433,7 @@
 <!-- TEMPLATE -->
 <!-- ============================================================================ -->
 
-<div class="max-w-9xl container mx-auto px-4 py-8">
+<div transition:fade class="max-w-9xl container mx-auto px-4 py-8">
   {#if isLoading}
     <div class="flex items-center justify-center py-20">
       <div class="loading loading-spinner loading-lg"></div>
@@ -483,7 +483,7 @@
       <!-- Zone de danger - Suppression -->
       {#if canEdit}
         <div
-          class="alert alert-error alert-soft border-error max-md:alert-vertical mt-8 border-1"
+          class="alert alert-error alert-soft border-error max-md:alert-vertical mt-8 border"
         >
           <Trash2 class="h-5 w-5 shrink-0" />
           <div class="flex-1">

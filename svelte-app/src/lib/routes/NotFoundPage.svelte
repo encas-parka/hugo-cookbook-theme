@@ -1,9 +1,13 @@
 <script lang="ts">
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from "$lib/router";
   import { Home, AlertCircle } from "@lucide/svelte";
+  import { fade } from "svelte/transition";
 </script>
 
-<div class="flex min-h-[60vh] flex-col items-center justify-center gap-6 px-4">
+<div
+  transition:fade
+  class="flex min-h-[60vh] flex-col items-center justify-center gap-6 px-4"
+>
   <div class="flex flex-col items-center gap-4 text-center">
     <div class="text-error flex items-center gap-3">
       <AlertCircle class="size-12" />

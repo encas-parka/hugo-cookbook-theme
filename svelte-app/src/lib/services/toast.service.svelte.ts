@@ -106,7 +106,7 @@ const DEFAULT_AUTO_CLOSE_DELAYS = {
   success: 2000,
   info: 3000,
   warning: 5000,
-  error: 0, // Pas d'auto-close par défaut pour les erreurs
+  error: 5000,
 } as const;
 
 /**

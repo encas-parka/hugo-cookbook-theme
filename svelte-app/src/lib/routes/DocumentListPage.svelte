@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { fade } from "svelte/transition";
   import { teamdocsStore } from "$lib/stores/TeamdocsStore.svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { navBarStore } from "$lib/stores/NavBarStore.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from "$lib/router";
   import { PlusIcon } from "@lucide/svelte";
   import DocCard from "$lib/components/documents/DocCard.svelte";
   import DocumentSearchBar from "$lib/components/documents/DocumentSearchBar.svelte";
@@ -15,12 +16,9 @@
   // PROPS & ROUTE
   // ============================================================================
 
-  interface PageParams {
-    teamId: string;
-  }
+  import { route } from "$lib/router";
 
-  let { params } = $props<{ params: PageParams }>();
-  let teamId = $derived(params.teamId);
+  let teamId = $derived(route.params.teamId);
 
   // ============================================================================
   // ÉTAT LOCAL
@@ -209,7 +207,7 @@
 
 {#snippet navActions()}
   <button
-    class="btn btn-primary"
+    class="btn btn-primary btn-sm"
     onclick={() => navigate(`/createdocument/${teamId}/new`)}
   >
     <PlusIcon size={18} />
@@ -218,7 +216,7 @@
 {/snippet}
 
 <!-- Contenu principal -->
-<div class="p-4">
+<div class="p-4" transition:fade>
   <div class="mx-auto max-w-4xl">
     <div class="mb-10 space-y-6">
       <!-- Barre de recherche -->

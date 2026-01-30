@@ -12,7 +12,7 @@
     NotebookPen,
   } from "@lucide/svelte";
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from "$lib/router";
   import TeamDetailModal from "$lib/components/teams/TeamDetailModal.svelte";
   import ListEventCard from "./ListEventCard.svelte";
   import type { EnrichedNativeTeam } from "$lib/types/aw_native_team.d";
@@ -21,11 +21,12 @@
 
   interface Props {
     team: EnrichedNativeTeam;
-    allEvents: EnrichedEvent[];
+    currentEvents: EnrichedEvent[]; // Déjà triés par dateStart croissant
+    pastEvents: EnrichedEvent[]; // Déjà triés par dateStart décroissant
     loading?: boolean;
   }
 
-  let { team, allEvents, loading = false }: Props = $props();
+  let { team, currentEvents, pastEvents, loading = false }: Props = $props();
 
   // État local
   let showTeamModal = $state(false);
@@ -41,9 +42,7 @@
     return team.members || [];
   });
 
-  const memberNames = $derived.by(() => {
-    return nativeTeamsStore.getTeamMemberNames(team.$id);
-  });
+  const memberNames = $derived(nativeTeamsStore.getTeamMemberNames(team.$id));
 
   const memberNamesDisplay = $derived.by(() => {
     if (memberNames.length <= 20) return memberNames.join(", ");
@@ -51,36 +50,21 @@
   });
 
   // Dérivés - Événements filtrés par équipe
-  const teamEvents = $derived.by(() => {
-    return allEvents.filter(
+  // Les événements entrants sont déjà triés par date dans le store
+  // Le filtre préserve l'ordre établi
+  const teamCurrentEvents = $derived.by(() => {
+    return currentEvents.filter(
       (event) =>
         event.teamsId?.includes(team.$id) || event.teams?.includes(team.name),
     );
   });
 
-  const currentEvents = $derived.by(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return teamEvents.filter((event) => {
-      const endDate = event.dateEnd
-        ? new Date(event.dateEnd)
-        : new Date(event.dateStart);
-      return endDate >= today;
-    });
-  });
-
-  const pastEvents = $derived.by(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return teamEvents
-      .filter((event) => {
-        const endDate = event.dateEnd
-          ? new Date(event.dateEnd)
-          : new Date(event.dateStart);
-        return endDate < today;
-      })
+  const teamPastEvents = $derived.by(() => {
+    return pastEvents
+      .filter(
+        (event) =>
+          event.teamsId?.includes(team.$id) || event.teams?.includes(team.name),
+      )
       .slice(0, 3); // 3 événements passés récents
   });
 
@@ -119,7 +103,7 @@
     <div class="flex items-start justify-between gap-2">
       <!-- Nom + Localisation -->
       <div class="flex items-center gap-2">
-        <Users class="text-primary size-6 flex-shrink-0 stroke-3" />
+        <Users class="text-primary size-6 shrink-0 stroke-3" />
         <h2>{team.name}</h2>
         {#if teamLocation}
           <div class="badge badge-soft badge-secondary gap-1">
@@ -141,28 +125,41 @@
 
     <!-- === SOUS-CARD MEMBRES | materiel  -->
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <div class="card card-sm border-neutral/20 shoadow-sm self-start border">
+      <div
+        class="card card-sm border-neutral/20 shoadow-sm self-start border shadow"
+      >
         <div class="card-body">
           <div
             class="flex flex-wrap items-center justify-between gap-2 text-sm"
           >
             <div class=" flex items-center gap-2">
-              <Users class="inline size-5 shrink-0 opacity-70" />
-              <!-- Liste des noms -->
-              <span class="text-base-content/70"> {memberNamesDisplay} </span>
-            </div>
-            <div class="ms-auto flex items-center gap-4">
-              <!-- Badge membres -->
-              <div class="badge badge-primary badge-lg badge-outline ml-auto">
-                {teamMembers.length} membre{teamMembers.length > 1 ? "s" : ""}
+              <div class="indicator bg-primary/20 rounded-full p-2">
+                <span class="indicator-item badge badge-sm badge-primary">
+                  {teamMembers.length}</span
+                >
+                <Users class=" text-primary inline size-5 shrink-0 " />
               </div>
-
-              <button class="btn btn-sm btn-accent" onclick={inviteMember}>
-                <Plus class="h-4 w-4" />
-                Inviter
-              </button>
+              <!-- Liste des noms -->
+              <div class="text-base-content/70">{memberNamesDisplay}</div>
             </div>
+            <button
+              class="btn btn-sm btn-accent ms-auto"
+              onclick={inviteMember}
+            >
+              <Plus class="h-4 w-4" />
+              Inviter
+            </button>
           </div>
+          {#if team.prefs.description}
+            <blockquote
+              class="text-base-content/70 border-neutral/20 bg-base-200/50 mt-2 rounded-lg border-x-4 p-2"
+            >
+              {team.prefs.description.slice(0, 250)}
+              {#if team.prefs.description.length > 250}
+                ...
+              {/if}
+            </blockquote>
+          {/if}
         </div>
       </div>
 
@@ -199,7 +196,7 @@
       </div>
     </div>
 
-    <div class="card grid grid-cols-1 gap-6 text-sm md:grid-cols-2">
+    <div class="card grid grid-cols-1 gap-6 text-sm">
       <!-- === ÉVÉNEMENTS === -->
       <div class="card card-sm border-neutral/20 border shadow-sm">
         <div class="card-body">
@@ -214,15 +211,15 @@
           </div>
           <!-- Événements à venir -->
           <ListEventCard
-            events={currentEvents}
+            events={teamCurrentEvents}
             {loading}
             cardClass="border-l-4 border-accent/60"
           />
 
           <!-- Événements récents -->
-          {#if pastEvents.length > 0}
+          {#if teamPastEvents.length > 0}
             <div class="fieldset-legend">Récents</div>
-            <ListEventCard events={pastEvents} {loading} />
+            <ListEventCard events={teamPastEvents} {loading} />
           {/if}
           <div class="card-actions mt-auto items-center justify-end">
             <!-- Bouton Créer un événement -->

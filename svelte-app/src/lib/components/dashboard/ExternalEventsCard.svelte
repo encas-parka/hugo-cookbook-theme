@@ -6,35 +6,23 @@
   import type { EnrichedEvent } from "$lib/types/events.d";
 
   interface Props {
-    allEvents: EnrichedEvent[];
+    currentEvents: EnrichedEvent[]; // Déjà triés et filtrés (date >= aujourd'hui)
     userTeamIds: string[];
     loading?: boolean;
   }
 
-  let { allEvents, userTeamIds, loading = false }: Props = $props();
+  let { currentEvents, userTeamIds, loading = false }: Props = $props();
 
   // État : false = événements externes uniquement, true = tous les événements
   let showAllEvents = $state(false);
 
-  // Filtre les événements à venir/en cours uniquement
-  const upcomingEvents = $derived.by(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return allEvents.filter((event) => {
-      const endDate = event.dateEnd
-        ? new Date(event.dateEnd)
-        : new Date(event.dateStart);
-      return endDate.valueOf() >= today.valueOf();
-    });
-  });
-
   // Événements externes : utilisateur est contributor mais pas dans ses équipes
+  // currentEvents est déjà trié par dateStart croissant dans le store
   const externalEvents = $derived.by(() => {
     const userId = globalState.user?.$id;
     if (!userId) return [];
 
-    return upcomingEvents.filter((event) => {
+    return currentEvents.filter((event) => {
       // L'événement n'appartient pas aux équipes de l'utilisateur
       const belongsToUserTeams = event.teamsId?.some((id) =>
         userTeamIds.includes(id),
@@ -53,7 +41,7 @@
 
   // Événements des équipes de l'utilisateur
   const teamEvents = $derived.by(() => {
-    return upcomingEvents.filter((event) => {
+    return currentEvents.filter((event) => {
       return event.teamsId?.some((id) => userTeamIds.includes(id));
     });
   });
@@ -75,7 +63,7 @@
   }
 </script>
 
-{#if upcomingEvents.length === 0}
+{#if currentEvents.length === 0}
   <!-- Pas d'événements du tout -->
 {:else if externalEvents.length === 0 && !showAllEvents}
   <!-- Affichage minimaliste : pas d'invitations externes -->

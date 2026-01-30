@@ -6,16 +6,87 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Core Development
 
-- `npm run dev` - Start development server with Vite HMR
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build locally
-- `npm run check` - Run type checking (svelte-check + TypeScript)
+- `bun run dev` - Start development server with Vite HMR
+- `bun run build` - Build for production
+- `bun run preview` - Preview production build locally
+- `bun run check` - Run type checking (svelte-check + TypeScript)
 
 ### Type Safety
 
 - Uses Svelte 5 with TypeScript
 - Type checking includes both app code (tsconfig.app.json) and Node/tooling (tsconfig.node.json)
 - Appwrite types are auto-generated in `src/lib/types/appwrite.d.ts`
+
+## Routing with sv-router
+
+The application uses **sv-router** for client-side routing with hash-based navigation.
+
+### Basic Navigation
+
+```typescript
+import { navigate, route, p } from '$lib/router';
+
+// Programmatic navigation
+navigate('/dashboard/eventEdit/123');
+
+// Get current route info
+route.pathname     // Current path
+route.params.id    // Route params
+route.search.tab   // Query params
+
+// Generate links
+p('/recipe', '123') // Returns '/recipe/123'
+```
+
+### Query Params with searchParams
+
+```typescript
+import { searchParams } from '$lib/router';
+
+// Read
+const tab = searchParams.get('tab');
+
+// Write (updates URL reactively)
+searchParams.set('tab', 'info');
+searchParams.delete('tab');
+
+// Reactive listening
+$effect(() => {
+  console.log('Tab changed:', searchParams.get('tab'));
+});
+```
+
+### Route Guards
+
+Routes are protected with guards in `src/lib/router/guards.ts`:
+- `authGuard` - Requires authentication, redirects to `/` if not logged in
+- `localEventGuard` - Requires event status="local", used for demo mode
+
+### Route Configuration
+
+All routes are defined in `src/lib/router/routes.ts` with:
+- Public routes (no auth): `/`, `/recipe`, `/recipe/:uuid`
+- Private routes (authGuard): `/dashboard/*`, `/recipe/my/*`
+- Demo routes (localEventGuard): `/demo/event/*`
+
+### Migration from simple-router
+
+| Old (simple-router) | New (sv-router) |
+|---------------------|-----------------|
+| `navigate('/path')` | `navigate('/path')` |
+| `getParam('x')` | `route.params.x` |
+| `getQuery('x')` | `route.search.x` |
+| `router.path` | `route.pathname` |
+| `preloadRoute()` | `preload()` |
+
+### Documentation
+
+For complete sv-router reference, see `docs/documentations/sv-router-implementation.md` (project root) which includes:
+- Full navigation API with examples
+- Route configuration patterns
+- Guard implementations (authGuard, localEventGuard)
+- Migration guide from simple-router
+- Cheat sheet for common patterns
 
 ## Architecture Overview
 
@@ -128,6 +199,7 @@ The application follows a **3-layer reactive architecture**:
 ### Key Directories & Files
 
 **Core Stores:**
+
 - `src/lib/stores/ProductsStore.svelte.ts` - Products state management with SvelteMap
 - `src/lib/stores/RecipesStore.svelte.ts` - Recipes index + lazy loading details
 - `src/lib/stores/EventsStore.svelte.ts` - Events CRUD + participants + todos
@@ -135,20 +207,35 @@ The application follows a **3-layer reactive architecture**:
 - `src/lib/stores/DateRangeStore.svelte.ts` - Date range selection logic
 - `src/lib/stores/RealtimeManager.svelte.ts` - Centralized WebSocket multiplexing
 - `src/lib/stores/ProductModalState.svelte.ts` - Per-product modal factory
+- `src/lib/stores/MaterielStore.svelte.ts` - Equipment/material management
+- `src/lib/stores/TeamdocsStore.svelte.ts` - Team documents management
+- `src/lib/stores/NativeTeamsStore.svelte.ts` - Native teams from Appwrite
+- `src/lib/stores/NotificationStore.svelte.ts` - User notifications
+- `src/lib/stores/NavBarStore.svelte.ts` - Navigation bar state
 
 **Models & Services:**
+
 - `src/lib/models/ProductModel.svelte.ts` - Reactive product model wrapper
 - `src/lib/services/appwrite.ts` - Centralized Appwrite client + config
 - `src/lib/services/appwrite-products.ts` - Products CRUD layer
 - `src/lib/services/appwrite-recipes.ts` - Recipes CRUD layer
 - `src/lib/services/appwrite-events.ts` - Events CRUD layer
 - `src/lib/services/appwrite-transaction.ts` - Cloud function batch operations
+- `src/lib/services/toast.service.svelte.ts` - Toast notification service
+
+**Router:**
+
+- `src/lib/router/index.ts` - Router configuration and exports
+- `src/lib/router/routes.ts` - Route definitions (public, private, demo)
+- `src/lib/router/guards.ts` - Route guards (authGuard, localEventGuard)
 
 **Caching:**
+
 - `src/lib/services/recipes-idb-cache.ts` - IndexedDB cache for recipes
 - `src/lib/services/events-idb-cache.ts` - IndexedDB cache for events
 
 **Types:**
+
 - `src/lib/types/appwrite.d.ts` - Auto-generated Appwrite types
 - `src/lib/types/store.types.ts` - Local application types
 
@@ -174,15 +261,16 @@ The application follows a **3-layer reactive architecture**:
 **1. Store Initialization (Phased)**
 
 All major stores follow a 3-phase initialization pattern:
+
 1. `loadCache()` - Load from IndexedDB (fast UI render)
 2. `syncFromRemote()` - Sync from Appwrite/Hugo (update data)
 3. `setupRealtime()` - Subscribe to live updates
 
 ```typescript
 // Initialize stores in sequence
-await recipesStore.loadCache();      // Phase 1: Fast cache load
+await recipesStore.loadCache(); // Phase 1: Fast cache load
 await recipesStore.syncFromRemote(); // Phase 2: Fresh data
-await recipesStore.setupRealtime();  // Phase 3: Live updates
+await recipesStore.setupRealtime(); // Phase 3: Live updates
 ```
 
 **2. Realtime Multiplexing**
@@ -193,14 +281,13 @@ All stores register channels with the central RealtimeManager:
 // During store initialization
 realtimeManager.register(
   [`databases.${DB_ID}.collections.${COLLECTION_ID}.documents`],
-  (response) => { /* handle realtime update */ }
+  (response) => {
+    /* handle realtime update */
+  },
 );
 
 // Dynamic registration (locks, event-specific)
-realtimeManager.registerDynamic(
-  channels,
-  callback
-);
+realtimeManager.registerDynamic(channels, callback);
 ```
 
 **3. Reactive Store Usage**
@@ -222,7 +309,7 @@ Stores use IndexedDB for offline-first caching:
 
 ```typescript
 // Cache is automatically managed by stores
-await store.loadCache();     // Read from IDB
+await store.loadCache(); // Read from IDB
 await store.syncFromRemote(); // Update from remote
 // Cache automatically persists changes
 ```
@@ -230,16 +317,16 @@ await store.syncFromRemote(); // Update from remote
 **5. Global State Access**
 
 ```typescript
-import { globalState } from './stores/GlobalState.svelte';
+import { globalState } from "./stores/GlobalState.svelte";
 
 // Auth state
-globalState.isAuthenticated
-globalState.userId
-globalState.userTeams
+globalState.isAuthenticated;
+globalState.userId;
+globalState.userTeams;
 
 // UI state
-globalState.isMobile
-globalState.toasts
+globalState.isMobile;
+globalState.toasts;
 ```
 
 ### Performance Optimizations
@@ -289,3 +376,14 @@ globalState.toasts
 - **Auth is required for most operations** - Check `globalState.isAuthenticated` before write operations
 - **Appwrite config is centralized** - Use `getAppwriteInstances()` from `appwrite.ts` service
 - **Permissions are handled server-side** - Appwrite enforces document-level access control
+
+### Local/Demo Mode
+
+The application supports a **local event mode** for demo/testing without authentication:
+
+- Events with `status="local"` can be accessed via `/demo/event/:id` routes
+- Protected by `localEventGuard` which validates event status
+- Allows full event editing without being logged in
+- Useful for on-site event management and demonstrations
+
+See documentation in `docs/local-mode.md` for details.

@@ -3,29 +3,25 @@
   import { nativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { toastService } from "$lib/services/toast.service.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate } from "$lib/router";
   import { onDestroy, onMount } from "svelte";
   import { Save, X, Lock, Eye, Edit3, Loader2, PlusIcon } from "@lucide/svelte";
+  import { fade } from "svelte/transition";
   import MarkdownEditorAdvanced from "$lib/components/MarkdownEditorAdvanced.svelte";
   import BtnGroupCheck from "$lib/components/ui/BtnGroupCheck.svelte";
   import UnsavedChangesGuard from "$lib/components/ui/UnsavedChangesGuard.svelte";
   import SvelteMarkdown from "@humanspeak/svelte-markdown";
   import type { Teamdocs } from "$lib/types/appwrite.d";
   import { navBarStore } from "$lib/stores/NavBarStore.svelte";
-  import DocumentTabs from "$lib/components/documents/DocumentTabs.svelte";
 
   // ============================================================================
-  // PROPS & ROUTE
+  // ROUTE PARAMETERS
   // ============================================================================
 
-  interface PageParams {
-    teamId: string;
-    docId: string;
-  }
+  import { route, searchParams } from "$lib/router";
 
-  let { params } = $props<{ params: PageParams }>();
-  let teamId = $derived(params.teamId);
-  let docId = $derived(params.docId);
+  let teamId = $derived(route.params.teamId);
+  let docId = $derived(route.params.docId);
 
   // ============================================================================
   // ÉTAT LOCAL
@@ -45,8 +41,10 @@
   let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   let initialDocumentSnapshot = $state<string>("");
 
-  // Mode édition ou preview
-  let mode = $state<"edit" | "preview">("preview");
+  // Mode édition ou preview - lu depuis les query params
+  const mode = $derived(
+    (searchParams.get("mode") as "edit" | "preview" | null) || "preview",
+  );
 
   // Équipe
   let team = $derived(nativeTeamsStore.myTeams.find((t) => t.$id === teamId));
@@ -342,16 +340,10 @@
     document ? `Document: ${document.title}` : "Modifier le document",
   );
 
-  // Active tab : 0 = édition, 1 = aperçu
-  const activeTab = $derived(mode === "edit" ? 0 : 1);
-
   $effect(() => {
     navBarStore.setConfig({
       title: navTitle,
       actions: navActions,
-      tabs: navTabs,
-      eventId: docId, // Utilisé comme identifiant unique pour les tabs
-      activeTab,
       isLockedByOthers: isLockedByOthers,
       lockedByUserName: lockedByName,
     });
@@ -374,7 +366,7 @@
     {#if mode === "edit"}
       <!-- Save button -->
       <button
-        class="btn btn-primary"
+        class="btn btn-primary btn-sm"
         onclick={handleSave}
         disabled={!canEdit || !isValid || isSaving}
       >
@@ -389,20 +381,13 @@
   </div>
 {/snippet}
 
-{#snippet navTabs()}
-  <DocumentTabs
-    {mode}
-    disabled={isLockedByOthers}
-    onModeChange={(newMode) => (mode = newMode)}
-  />
-{/snippet}
-
 <!-- svelte-ignore /a11y_no_noninteractive_element_interactions  -->
 <div
   class="mx-auto max-w-5xl p-4"
   onkeydown={handleKeydown}
   role="region"
   tabindex="-1"
+  transition:fade
 >
   <!-- Alertes -->
   {#if isLockedByOthers}
@@ -550,9 +535,7 @@
 <UnsavedChangesGuard
   routeKey={`editdocument/${teamId}/${docId}`}
   shouldProtect={() => isDirty && isLockedByMe}
-  onLeaveWithoutSave={() => {
-    // Ne rien faire, l'utilisateur peut quitter
-  }}
+  onLeaveWithoutSave={() => {}}
   onSaveAndLeave={async () => {
     await handleSave();
     return true;

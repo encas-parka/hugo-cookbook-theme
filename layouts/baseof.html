@@ -9,6 +9,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ .Site.Title }}</title>
     <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <style>
+      /* CSS critique - évite le flash de contenu non stylisé (FOUC) */
+      #app {
+        display: none;
+      }
+      /* Révéler l'app quand Svelte est prêt */
+      #app.svelte-ready {
+        display: block;
+      }
+    </style>
   </head>
   <body>
 

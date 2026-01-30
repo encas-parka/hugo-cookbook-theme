@@ -79,7 +79,7 @@
       ><ArrowDownNarrowWide class="inline size-4" /> Trier par :</legend
     >
 
-    <div class="btn-group">
+    <div class="flex flex-wrap gap-2">
       <button
         class={getButtonSortClasses("title")}
         onclick={() => handleSortClick("title")}

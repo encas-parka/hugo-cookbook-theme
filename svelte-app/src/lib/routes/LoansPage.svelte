@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { fade } from "svelte/transition";
   import { Plus, Users, LoaderCircle } from "@lucide/svelte";
   import { materielStore } from "$lib/stores/MaterielStore.svelte";
   import { globalState } from "$lib/stores/GlobalState.svelte";
@@ -9,14 +10,8 @@
   import LoanCard from "$lib/components/teamMatos/LoanCard.svelte";
   import type { EnrichedMaterielLoan } from "$lib/types/materiel.types";
   import ReturnLoanModal from "$lib/components/teamMatos/ReturnLoanModal.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { route, navigate } from "$lib/router";
   import { toastService } from "$lib/services/toast.service.svelte";
-  // Récupérer les paramètres de route
-  interface Props {
-    params?: { teamId?: string };
-  }
-
-  let { params }: Props = $props();
 
   // État de la page
   let createLoanModalOpen = $state(false);
@@ -139,7 +134,7 @@
 
   // Surveiller les changements de teamId dans l'URL pour mettre à jour activeTeamId
   $effect(() => {
-    const teamIdFromParams = params?.teamId;
+    const teamIdFromParams = route.params.teamId;
 
     if (teamIdFromParams && teamIdFromParams !== activeTeamId) {
       console.log("[LoansPage] teamIdFromParams:", teamIdFromParams);
@@ -178,8 +173,6 @@
 
     navBarStore.setConfig({
       title: teamName,
-      materielContext: "loans",
-      teamId: activeTeamId || undefined,
     });
   });
 
@@ -189,7 +182,7 @@
   });
 </script>
 
-<div class="container mx-auto p-4">
+<div class="container mx-auto p-4" transition:fade>
   <div class="mx-auto max-w-7xl px-4 py-8">
     <!-- Tabs par équipe (seulement si plus d'une équipe) -->
     {#if userTeams.length > 1}

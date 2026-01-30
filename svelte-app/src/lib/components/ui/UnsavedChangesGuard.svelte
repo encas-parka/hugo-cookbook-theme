@@ -1,10 +1,5 @@
 <script lang="ts">
-  import {
-    navigate,
-    router,
-    type RouteGuards,
-    type RouteInfo,
-  } from "$lib/services/simple-router.svelte";
+  import { blockNavigation, navigate } from "$lib/router";
   import UnsavedChangesModal from "./UnsavedChangesModal.svelte";
 
   interface Props {
@@ -26,41 +21,70 @@
   // État du modal
   let showGuardModal = $state(false);
   let isSaving = $state(false);
-  let guardResolve: ((value: boolean) => void) | null = null;
 
-  /**
-   * Guard beforeLeave appelé par le router
-   */
-  async function beforeLeave(from: RouteInfo, to: RouteInfo): Promise<boolean> {
+  // Stocker l'URL de navigation pour la re-déclencher après réponse utilisateur
+  let blockedUrl = $state<string | null>(null);
+
+  // Flag pour empêcher le re-blocage lors de la navigation programmatique
+  let isNavigatingAway = $state(false);
+
+  // Ce callback est appelé avant chaque navigation
+  // Retourne true pour autoriser, false pour bloquer
+  blockNavigation(() => {
+    // Si on est en train de naviguer programmatiquement, autoriser
+    if (isNavigatingAway) {
+      return true;
+    }
+
     // Si pas de protection nécessaire, autoriser la navigation
     if (!shouldProtect()) {
       return true;
     }
 
-    console.log(`[UnsavedChangesGuard] Navigation protégée pour ${routeKey}`);
+    // Récupérer la destination de navigation depuis window.location.hash
+    // En mode hash (#/path), le chemin est dans le hash
+    const destinationPath = window.location.hash.slice(1) || "/"; // Enlever le # initial
 
-    // Afficher le modal
+    // Stocker l'URL de destination
+    blockedUrl = destinationPath;
+
+    console.log(
+      `[UnsavedChangesGuard] Navigation protégée pour ${routeKey} - vers: ${destinationPath}`,
+    );
+
+    // Bloquer la navigation et afficher le modal
     showGuardModal = true;
-
-    // Retourner une Promise qui sera résolue quand l'utilisateur choisira
-    return new Promise<boolean>((resolve) => {
-      guardResolve = resolve;
-    });
-  }
+    return false; // Bloque la navigation
+  });
 
   /**
    * Handler pour "Quitter sans sauvegarder"
    */
   async function handleLeaveWithoutSave() {
+    // Fermer le modal
     showGuardModal = false;
 
     // Exécuter le handler fourni par le parent
     await onLeaveWithoutSave();
 
-    // Autoriser la navigation
-    if (guardResolve) {
-      guardResolve(true);
-      guardResolve = null;
+    // Re-déclencher manuellement la navigation vers l'URL bloquée
+    if (blockedUrl) {
+      console.log(
+        "[UnsavedChangesGuard] Quitter sans sauvegarder - Navigation vers:",
+        blockedUrl,
+      );
+
+      // Activer le flag pour empêcher le re-blocage
+      isNavigatingAway = true;
+
+      // Naviguer vers la destination initiale
+      navigate(blockedUrl);
+
+      // Réinitialiser après un court délai
+      setTimeout(() => {
+        isNavigatingAway = false;
+        blockedUrl = null;
+      }, 100);
     }
   }
 
@@ -87,11 +111,27 @@
       // Fermer le modal
       showGuardModal = false;
 
-      // Autoriser la navigation
-      if (guardResolve) {
-        guardResolve(true);
-        guardResolve = null;
+      // Re-déclencher la navigation après sauvegarde réussie
+      if (blockedUrl) {
+        console.log(
+          "[UnsavedChangesGuard] Sauvegarde réussie - Navigation vers:",
+          blockedUrl,
+        );
+
+        // Activer le flag pour empêcher le re-blocage
+        isNavigatingAway = true;
+
+        // Naviguer vers la destination initiale
+        navigate(blockedUrl);
+
+        // Réinitialiser après un court délai
+        setTimeout(() => {
+          isNavigatingAway = false;
+          blockedUrl = null;
+        }, 100);
       }
+      // Autoriser la navigation - le blocker sera appelé à nouveau
+      // mais shouldProtect() retournera false car les changements sont sauvegardés
     } catch (error) {
       console.error(
         "[UnsavedChangesGuard] Erreur lors de la sauvegarde:",
@@ -108,27 +148,9 @@
    */
   function handleCancel() {
     showGuardModal = false;
-
-    // Refuser la navigation
-    if (guardResolve) {
-      guardResolve(false);
-      guardResolve = null;
-    }
+    blockedUrl = null;
+    // La navigation reste bloquée car le modal est fermé mais shouldProtect() est toujours true
   }
-
-  /**
-   * Enregistrer le guard au montage du composant
-   */
-  $effect(() => {
-    const guards: RouteGuards = {
-      beforeLeave,
-    };
-
-    const cleanup = router.registerRouteGuard(routeKey, guards);
-
-    // Cleanup : désenregistrer le guard quand le composant est démonté
-    return cleanup;
-  });
 </script>
 
 <UnsavedChangesModal

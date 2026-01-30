@@ -1,10 +1,11 @@
 <script lang="ts">
   import { globalState } from "../stores/GlobalState.svelte";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { route, p } from "$lib/router";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { recipesStore } from "../stores/RecipesStore.svelte";
   import EventTabs from "./eventEdit/EventTabs.svelte";
   import MaterielTabs from "./MaterielTabs.svelte";
+  import DocumentTabs from "./documents/DocumentTabs.svelte";
   import { refreshAllStores } from "$lib/utils/storesReload";
 
   import {
@@ -31,8 +32,70 @@
   // Détection mode dev
   const isDev = import.meta.env.DEV;
 
+  // Détection automatique du contexte via le router
+  // Extrait toutes les informations de contexte depuis l'URL courante
+  type ContextType =
+    | { type: "eventEdit"; basePath: string; eventId: string }
+    | { type: "materiel"; teamId: string }
+    | { type: "loans"; teamId: string }
+    | { type: "documentEdit"; teamId: string; docId: string }
+    | null;
+
+  const context: ContextType = $derived.by(() => {
+    const pathname = route.pathname;
+    const params = route.params;
+
+    // Routes dashboard: /dashboard/eventEdit/:id, /dashboard/eventEdit/recipes/:id, etc.
+    if (pathname.includes("/dashboard/eventEdit/") && params.id) {
+      return {
+        type: "eventEdit",
+        basePath: "/dashboard/eventEdit",
+        eventId: params.id as string,
+      };
+    }
+
+    // Routes demo: /demo/event/:id, /demo/event/recipes, etc.
+    if (pathname.includes("/demo/event/") && params.id) {
+      return {
+        type: "eventEdit",
+        basePath: "/demo/event",
+        eventId: params.id as string,
+      };
+    }
+
+    // Routes matériel: /dashboard/materiel/:teamId
+    if (pathname.includes("/dashboard/materiel/") && params.teamId) {
+      return {
+        type: "materiel",
+        teamId: params.teamId as string,
+      };
+    }
+
+    // Routes emprunts: /dashboard/loans/:teamId
+    if (pathname.includes("/dashboard/loans/") && params.teamId) {
+      return {
+        type: "loans",
+        teamId: params.teamId as string,
+      };
+    }
+
+    // Routes documents: /editdocument/:teamId/:docId
+    if (pathname.includes("/editdocument/") && params.teamId && params.docId) {
+      return {
+        type: "documentEdit",
+        teamId: params.teamId as string,
+        docId: params.docId as string,
+      };
+    }
+
+    return null;
+  });
+
   // Initialiser le smart header
-  globalState.initializeScrollDirection();
+
+  if (globalState.isMobile) {
+    globalState.initializeScrollDirection();
+  }
 
   function toggleDropdown() {
     showDropdown = !showDropdown;
@@ -124,29 +187,26 @@
 >
   <div class="navbar-start w-fit shrink-0 gap-1">
     <!-- Brand -->
-    <button class="btn btn-ghost btn-circle" onclick={() => navigate("/")}>
+    <a href={p("#/")} class="btn btn-ghost btn-circle">
       <img src="images/favicon.png" alt="logo" class="h-8 w-8" />
-    </button>
+    </a>
 
-    <!-- Permanent Nav Buttons -->
+    <!-- Permanent Nav Links -->
     <div class=" flex items-center gap-1">
       {#if globalState.isAuthenticated}
-        <button
+        <a
+          href={p("#/dashboard")}
           class="btn btn-ghost not-md:btn-square md:gap-2"
-          onclick={() => navigate("/dashboard")}
         >
           <LayoutDashboardIcon size={18} />
           <span class="hidden md:inline">Tableau de bord</span>
-        </button>
+        </a>
       {/if}
 
-      <button
-        class="btn btn-ghost not-md:btn-square md:gap-2"
-        onclick={() => navigate("/recipe")}
-      >
+      <a href={p("#/recipe")} class="btn btn-ghost not-md:btn-square md:gap-2">
         <CookingPot size={18} />
         <span class="hidden md:inline">Recettes</span>
-      </button>
+      </a>
     </div>
 
     <!-- Back button (Keep if really needed by some specific page logic) -->
@@ -163,15 +223,12 @@
   <!-- navbar-center : SEULEMENT SUR DESKTOP -->
   {#if globalState.isDesktop}
     <div class="navbar-center absolute left-1/2 -translate-x-1/2 transform">
-      {#if navBarStore.materielContext}
-        <MaterielTabs currentTeamId={navBarStore.teamId} />
-      {:else if navBarStore.tabs}
-        {@render navBarStore.tabs()}
-      {:else if navBarStore.eventId !== undefined}
-        <EventTabs
-          eventId={navBarStore.eventId}
-          basePath={navBarStore.basePath}
-        />
+      {#if context?.type === "materiel" || context?.type === "loans"}
+        <MaterielTabs currentTeamId={context.teamId} />
+      {:else if context?.type === "eventEdit"}
+        <EventTabs eventId={context.eventId} basePath={context.basePath} />
+      {:else if context?.type === "documentEdit"}
+        <DocumentTabs />
       {:else}
         <h1
           class="font-family-fredoka truncate text-sm font-bold tracking-wider uppercase opacity-70"
@@ -183,7 +240,7 @@
     </div>
   {/if}
 
-  <div class="navbar-end ms-auto w-fit flex-shrink-0 gap-4">
+  <div class="navbar-end ms-auto w-fit shrink-0 gap-4">
     {#if navBarStore.isLockedByOthers}
       <div class="badge badge-warning flex items-center gap-1 py-3 font-medium">
         <LockIcon size={14} />
@@ -214,7 +271,7 @@
           </div>
         </div>
         <ul
-          class="menu menu-sm dropdown-content bg-base-100 border-base-200 z-[1] mt-3 w-56 rounded-xl border p-2 shadow-xl"
+          class="menu menu-sm dropdown-content bg-base-100 border-base-200 z-1 mt-3 w-56 rounded-xl border p-2 shadow-xl"
         >
           <li class="border-base-100 mb-1 border-b px-4 py-2">
             <span
@@ -224,24 +281,27 @@
             </span>
           </li>
           <li>
-            <button onclick={() => navigate("/dashboard")}
-              ><LayoutDashboardIcon size={16} /> Dashboard</button
-            >
+            <a href={p("#/dashboard")} class="flex items-center gap-2">
+              <LayoutDashboardIcon size={16} /> Dashboard
+            </a>
           </li>
           <li>
-            <button onclick={() => navigate("/dashboard/teams")}
-              ><UsersIcon size={16} /> Équipes</button
-            >
+            <a href={p("#/dashboard/teams")} class="flex items-center gap-2">
+              <UsersIcon size={16} /> Équipes
+            </a>
           </li>
           <li>
-            <button onclick={() => navigate("/dashboard/eventCreate")}
-              ><PlusIcon size={16} /> Nouvel événement</button
+            <a
+              href={p("#/dashboard/eventCreate")}
+              class="flex items-center gap-2"
             >
+              <PlusIcon size={16} /> Nouvel événement
+            </a>
           </li>
           <li>
-            <button onclick={() => navigate("/recipe")}
-              ><BookOpenIcon size={16} /> Recettes</button
-            >
+            <a href={p("#/recipe")} class="flex items-center gap-2">
+              <BookOpenIcon size={16} /> Recettes
+            </a>
           </li>
           <li>
             <button
@@ -292,15 +352,12 @@
 <!-- SECTION SÉPARÉE : SEULEMENT SUR MOBILE (NON-STICKY) -->
 {#if !globalState.isDesktop}
   <div class="border-base-300 bg-base-100 border-b px-4 py-3">
-    {#if navBarStore.materielContext}
-      <MaterielTabs currentTeamId={navBarStore.teamId} />
-    {:else if navBarStore.eventId !== undefined}
-      <EventTabs
-        eventId={navBarStore.eventId}
-        basePath={navBarStore.basePath}
-      />
-    {:else if navBarStore.tabs}
-      {@render navBarStore.tabs()}
+    {#if context?.type === "materiel" || context?.type === "loans"}
+      <MaterielTabs currentTeamId={context.teamId} />
+    {:else if context?.type === "eventEdit"}
+      <EventTabs eventId={context.eventId} basePath={context.basePath} />
+    {:else if context?.type === "documentEdit"}
+      <DocumentTabs />
     {:else if navBarStore.title}
       <h1
         class="text-center text-sm font-bold tracking-wider uppercase opacity-70"

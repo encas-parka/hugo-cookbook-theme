@@ -6,7 +6,7 @@
     getTotalGuests,
     getTotalRecipes,
   } from "$lib/utils/event-stats-helpers";
-  import { navigate } from "$lib/services/simple-router.svelte";
+  import { navigate, route } from "$lib/router";
   import { onDestroy } from "svelte";
   import EventStats from "$lib/components/EventStats.svelte";
   import EventRecipeCard from "$lib/components/eventEdit/EventRecipeCard.svelte";
@@ -23,7 +23,6 @@
     Funnel,
     Printer,
   } from "@lucide/svelte";
-  import { marked } from "marked";
   import { extractTime, formatDateWdDayMonth } from "../utils/date-helpers";
   import { globalState } from "../stores/GlobalState.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
@@ -31,17 +30,12 @@
     ensureDemoEventsLoaded,
     waitForEvent,
   } from "$lib/utils/events.utils";
-
-  interface Props {
-    params?: { id?: string };
-  }
-
-  let { params }: Props = $props();
+  import { fade } from "svelte/transition";
 
   // État local
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let eventId = $state<string | null>(null);
+  let eventId = $derived(route.params.id ?? null);
 
   const currentEvent = $derived(
     eventId ? eventsStore.getEventById(eventId) : null,
@@ -161,12 +155,6 @@
   const totalGuests = $derived(getTotalGuests(currentEvent));
   const totalRecipes = $derived(getTotalRecipes(currentEvent));
 
-  // Extraire l'ID de l'URL depuis les params ou l'URL actuelle
-  const extractedId = $derived(() => {
-    if (params?.id) return params.id;
-    return null;
-  });
-
   // Charger les données
   async function loadEventData(currentEventId: string) {
     if (isLoading || !currentEventId) return;
@@ -176,9 +164,6 @@
     error = null;
 
     try {
-      // L'eventId est stocké localement pour déclencher le derived eventStats
-      eventId = currentEventId;
-
       // Note: eventsStore et recipesStore sont déjà initialisés via App.svelte (loadCache + syncFromRemote)
 
       // Récupérer les repas de l'événement
@@ -200,17 +185,9 @@
       const recipesMap =
         await recipesStore.getRecipesByUuidsBulk(allRecipeUuids);
 
-      // Convertir la Map en array ET parser le markdown une seule fois
-      recipesDetails = Array.from(recipesMap.values())
-        .filter(Boolean)
-        .map((recipe) => ({
-          ...recipe,
-          // Parser le markdown au chargement pour accélérer le render
-          preparationHtml: recipe.preparation ? marked(recipe.preparation) : "",
-          preparation24hHtml: recipe.preparation24h
-            ? marked(recipe.preparation24h)
-            : "",
-        }));
+      // Convertir la Map en array
+      // Note: preparationHtml et preparation24hHtml sont déjà parsés par RecipesStore
+      recipesDetails = Array.from(recipesMap.values()).filter(Boolean);
 
       console.log(
         `[EventRecipesPage] ${recipesDetails.length}/${allRecipeUuids.length} recettes chargées`,
@@ -226,7 +203,7 @@
 
   // Charger au montage ou quand l'ID change
   onMount(async () => {
-    const id = extractedId();
+    const id = eventId;
     if (!id) {
       error = "ID d'événement manquant";
       loading = false;
@@ -250,7 +227,7 @@
 
   // Gérer le changement d'ID d'événement
   $effect(() => {
-    const id = extractedId();
+    const id = eventId;
     if (id && id !== eventId && !isLoading) {
       loadEventData(id);
     }
@@ -281,8 +258,6 @@
 
   $effect(() => {
     navBarStore.setConfig({
-      eventId: eventId || undefined,
-      basePath,
       actions: navActions,
     });
   });
@@ -313,7 +288,7 @@
   </div>
 {/snippet}
 
-<div class="bg-base-200 min-h-screen">
+<div class="bg-base-200 min-h-screen" in:fade>
   <!-- LeftPanel avec recherche et sommaire -->
   <div class="print:hidden">
     <LeftPanel width="120">
@@ -409,7 +384,7 @@
                           selectedIngredient = ""; // Réinitialiser le filtre d'ingrédient
                         }}
                       >
-                        <span class="max-w-[300px] truncate text-left">
+                        <span class="max-w-75 truncate text-left">
                           {recipe.title}
                         </span>
                       </button>
@@ -446,7 +421,7 @@
       <!-- En-tête de l'événement -->
       {#if loading}
         <div class="flex justify-center py-20">
-          <span class="loading loading-spinner loading-lg"></span>
+          <span class="loading loading-spinner loading-lg text-primary"></span>
         </div>
       {:else if error}
         <div class="alert alert-error">

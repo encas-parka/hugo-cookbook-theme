@@ -6,6 +6,7 @@
     type ToastPosition,
   } from "$lib/services/toast.service.svelte";
   import { X, LoaderCircle, ChevronDown } from "@lucide/svelte";
+  import { slide } from "svelte/transition";
 
   interface Props {
     /** Position par défaut pour les toasts sans position spécifiée */
@@ -65,7 +66,10 @@
 {#each Array.from(toastsByPosition().entries()) as [pos, positionToasts] (pos)}
   <div class="toast {pos} z-1050">
     {#each positionToasts as toast (toast.id)}
-      <div class="alert alert-{toast.state}  {paddingClass} shadow-lg">
+      <div
+        class="alert alert-{toast.state}  {paddingClass} shadow-lg"
+        transition:slide
+      >
         <div class="flex items-center justify-between gap-4">
           <div class="flex flex-1 items-center gap-2">
             {#if toast.state === "loading"}
@@ -102,7 +106,7 @@
           <!-- Bouton de fermeture (erreurs et warnings uniquement) -->
           {#if toast.state === "error" || toast.state === "warning" || toast.state === "loading"}
             <button
-              class="btn btn-ghost btn-xs btn-circle"
+              class="btn btn-ghost btn-xs btn-circle pe-0"
               onclick={() => dismiss(toast)}
               title="Fermer"
               aria-label="Fermer la notification"

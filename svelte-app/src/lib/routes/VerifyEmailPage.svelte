@@ -4,7 +4,7 @@
   import { toastService } from "$lib/services/toast.service.svelte";
   import { MailCheck, XCircle, Loader2 } from "@lucide/svelte";
   import { fade } from "svelte/transition";
-  import { navigate, router } from "$lib/services/simple-router.svelte";
+  import { navigate, route } from "$lib/router";
 
   let status = $state<"loading" | "success" | "error">("loading");
   let message = $state("");
@@ -13,8 +13,8 @@
     // Extraire userId et secret de l'URL
     // Appwrite place les params AVANT le hash : /?userId=xxx&secret=yyy#/verify-email
     // On doit donc vérifier window.location.search en PRIORITÉ
-    let userId = router.query.userId;
-    let secret = router.query.secret;
+    let userId = route.search.userId;
+    let secret = route.search.secret;
 
     // Fallback : vérifier window.location.search (format Appwrite)
     if (!userId || !secret) {

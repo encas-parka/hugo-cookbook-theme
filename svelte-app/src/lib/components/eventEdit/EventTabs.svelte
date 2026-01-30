@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { navigate, router } from "$lib/services/simple-router.svelte";
+  import { navigate, route } from "$lib/router";
 
   // Props : eventId et basePath optionnel
   let {
@@ -21,7 +21,7 @@
 
   // Déterminer l'onglet actif depuis l'URL courante
   const activeTab = $derived.by(() => {
-    const currentPath = router.path;
+    const currentPath = route.pathname;
 
     // Pattern matching pour déterminer l'onglet basé sur le basePath
     if (currentPath.includes(`${basePath}/recipes/`)) return 1;

@@ -183,11 +183,11 @@
   <!-- Section 1: Nom + Description -->
   <div class="space-y-3">
     <div class="flex flex-wrap gap-x-6 gap-y-4">
-      <!-- Nom * -->
+      <!-- Nom -->
       <label class="input min-w-1/2">
-        <span class="label"
+        <span class="label required"
           ><Package class="h-4 w-4 " />
-          Nom *</span
+          Nom</span
         >
         <input
           type="text"
@@ -196,12 +196,14 @@
           placeholder="Ex: Mixeur professionnel"
           maxlength="100"
           disabled={loading}
+          required
+          aria-required="true"
         />
       </label>
 
       <!-- owner -->
       <!-- <label class="select min-w-[250px]">
-        <span class="l">Propriétaire *</span>
+        <span class="l required">Propriétaire</span>
         <select
           class="w-full"
           bind:value={selectedOwnerId}
@@ -258,13 +260,15 @@
   <div class="flex flex-1 flex-wrap gap-x-6 gap-y-4">
     <!-- Quantité -->
     <label class="input w-58">
-      <span class="label"> <Hash class="size-4" />Quantité *</span>
+      <span class="label required"> <Hash class="size-4" />Quantité</span>
       <input
         type="number"
         class=""
         min="1"
         bind:value={quantity}
         disabled={loading}
+        required
+        aria-required="true"
       />
     </label>
 

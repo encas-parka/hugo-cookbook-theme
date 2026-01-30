@@ -39,7 +39,8 @@
         <div class="flex flex-wrap items-start gap-x-10">
           <!-- Titre -->
           <fieldset class="fieldset min-w-3/5 flex-1">
-            <legend class="fieldset-legend">Titre de la recette</legend>
+            <legend class="fieldset-legend required">Titre de la recette</legend
+            >
             <label
               class="input input-lg w-full {validationErrors.title
                 ? 'input-error'
@@ -143,7 +144,7 @@
       <div class="flex flex-wrap justify-between gap-10">
         <div class="flex flex-wrap gap-x-10 gap-y-2">
           <fieldset class="fieldset">
-            <legend class="fieldset-legend">Nombre de couverts</legend>
+            <legend class="fieldset-legend required">Nombre de couverts</legend>
             <label class="input {validationErrors.plate ? 'input-error' : ''}">
               <Utensils class="h-4 w-4 opacity-50" />
               <input
@@ -197,7 +198,7 @@
       <!-- Type et Catégories -->
       <div class="flex flex-col gap-x-10 gap-y-2 sm:flex-row sm:items-start">
         <fieldset class="fieldset sm:w-auto">
-          <legend class="fieldset-legend">Type de recette</legend>
+          <legend class="fieldset-legend required">Type de recette</legend>
           <label class="select {validationErrors.typeR ? 'select-error' : ''}">
             <ChefHat class="h-4 w-4 opacity-50" />
             <select
@@ -237,7 +238,7 @@
       <!-- Température et Cuisson -->
       <div class="flex flex-col gap-x-10 gap-y-2 sm:flex-row sm:items-start">
         <fieldset class="fieldset flex-1 sm:max-w-xs">
-          <legend class="fieldset-legend pe-4">
+          <legend class="fieldset-legend required">
             <Thermometer class="h-4 w-4" />
             <span>Température de service</span>
           </legend>
@@ -264,7 +265,7 @@
         </fieldset>
 
         <fieldset class="fieldset flex-1 sm:max-w-xs">
-          <legend class="fieldset-legend pe-4">
+          <legend class="fieldset-legend required">
             <Flame class="h-4 w-4" />
             <span>Nécessite une cuisson</span>
           </legend>
@@ -352,12 +353,12 @@
       </div>
       <div
         id="recipe-check-fieldset"
-        class=" flex w-full flex-wrap space-y-6 rounded-xl border-1 p-4 {validationErrors.check
+        class=" my-4 flex w-full flex-wrap space-y-6 rounded-xl border p-4 {validationErrors.check
           ? 'border-error'
           : 'border-base-300'}"
       >
         <div class="flex w-full flex-wrap gap-x-6 gap-y-2">
-          <div>
+          <div class="required">
             Avez-vous testé la recette pour le nombre de couverts indiqué ?
           </div>
           <div class="flex gap-4">
