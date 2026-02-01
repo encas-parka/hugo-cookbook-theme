@@ -63,6 +63,7 @@
   let isInitialised = $state(false);
   let isBusy = $state(false); // Quand on sauvegarde/charge (maître)
   let isAcquiringLock = $state(false); // Quand on acquiert le lock
+  let isEditing = $state(false); // Mode édition (shadow draft actif)
   let editingMealIndex = $state<string | null>(null);
   let editingTitle = $state(false);
   let editingDescription = $state(false);
@@ -77,35 +78,43 @@
 
   // isDirty est calculé par comparaison avec currentEvent (la référence)
   const isDirty = $derived.by(() => {
-    if (!isLockedByMe || !currentEvent) return false;
+    if (eventName === "" && meals.length === 0) return false;
+    if (!isInitialised || !isEditing || !currentEvent) return false;
 
-    // Comparaison du shadow draft local vs currentEvent
-    const current = JSON.stringify({
-      name: currentEvent.name,
-      meals: currentEvent.meals || [],
-      description: currentEvent.description || "",
-      status: currentEvent.status || "proposition",
-      minContrib: currentEvent.minContrib || 1,
-    });
+    // Comparaison des valeurs scalaires
+    if (eventName !== currentEvent.name) return true;
+    if (description !== (currentEvent.description || "")) return true;
+    if (status !== currentEvent.status) return true;
+    if (minContrib !== (currentEvent.minContrib || 1)) return true;
 
-    const local = JSON.stringify({
-      name: eventName,
-      meals: meals,
-      description,
-      status,
-      minContrib,
-    });
+    // Comparaison structurelle des meals
+    const currentMeals = currentEvent.meals || [];
+    if (meals.length !== currentMeals.length) return true;
 
-    return current !== local;
+    // Comparer les métadonnées de chaque meal (pas les objets recipes complets)
+    for (let i = 0; i < meals.length; i++) {
+      const currentMeal = currentMeals[i];
+      const localMeal = meals[i];
+
+      if (localMeal.id !== currentMeal.id) return true;
+      if (localMeal.date !== currentMeal.date) return true;
+      if (localMeal.guests !== currentMeal.guests) return true;
+      if (
+        (localMeal.recipes?.length || 0) !== (currentMeal.recipes?.length || 0)
+      )
+        return true;
+    }
+
+    return false;
   });
 
   /**
    * Démarre le mode édition en acquérant le verrou.
-   * Le shadow draft existe déjà, le $effect de synchronisation s'arrêtera automatiquement.
+   * Mode démo : active isEditing sans verrou.
+   * Mode normal : acquiert le verrou puis active isEditing.
    */
   async function startEditing(): Promise<boolean> {
-    console.log("startEditing");
-    if (isLockedByMe) return true; // Déjà en édition
+    if (isEditing) return true; // Déjà en édition
 
     if (isLockedByOthers) {
       toastService.warning(
@@ -114,11 +123,17 @@
       return false;
     }
 
-    // Acquérir le verrou
-    const success = await acquireLock();
+    // Mode démo : activer directement l'édition (pas de lock)
+    if (currentEvent && isDemoEvent(currentEvent.$id)) {
+      isEditing = true;
+      return true;
+    }
 
-    // Le $effect de synchronisation s'arrêtera automatiquement
-    // car isLockedByMe deviendra true
+    // Mode normal : acquérir le verrou
+    const success = await acquireLock();
+    if (success) {
+      isEditing = true; // ✅ Activer le mode édition après acquisition du lock
+    }
 
     return success;
   }
@@ -141,20 +156,33 @@
   });
 
   const isLockedByMe = $derived.by(() => {
-    // 🔥 MODE DÉMO : Toujours considéré comme verrouillé par nous
-    if (currentEvent && isDemoEvent(currentEvent.$id)) {
-      return true;
-    }
-
     if (!activeLock) return false;
     return activeLock.userId === globalState.userId;
   });
 
   const canEdit = $derived(
-    eventsStore.canUserEditEvent(eventId, globalState.userId || "") &&
-      !isLockedByOthers &&
-      !isBusy,
+    // ✅ Mode démo : toujours éditable
+    (currentEvent && isDemoEvent(currentEvent.$id)) ||
+      // Mode normal : vérifier les permissions
+      (eventsStore.canUserEditEvent(eventId, globalState.userId || "") &&
+        !isLockedByOthers &&
+        !isBusy),
   );
+
+  // Debug: logger canEdit pour voir pourquoi c'est false
+  $effect(() => {
+    console.log("[canEdit] Debug:", {
+      canEdit,
+      canUserEditEvent: eventsStore.canUserEditEvent(
+        eventId,
+        globalState.userId || "",
+      ),
+      isLockedByOthers,
+      isBusy,
+      eventId,
+      userId: globalState.userId,
+    });
+  });
 
   const lockedByUserName = $derived(
     activeLock?.userName || "un autre utilisateur",
@@ -165,38 +193,46 @@
   // ============================================================================
 
   $effect(() => {
-    if (currentEvent && isInitialised && !isLockedByMe) {
-      // Mode Preview : Shadow draft suit currentEvent
-      untrack(() => {
-        meals = $state.snapshot(currentEvent.meals || []);
-        eventName = currentEvent.name || "";
-        description = currentEvent.description || "";
-        status = currentEvent.status || "proposition";
-        minContrib = currentEvent.minContrib || 1;
+    // Guard 1: currentEvent pas encore chargé
+    if (!currentEvent) {
+      console.log("[Sync] Guard 1 - Pas de currentEvent");
+      return;
+    }
 
-        console.log(
-          "🔄 Shadow draft synchronisé depuis currentEvent (Preview)",
-        );
+    // Guard 2: composant pas initialisé
+    if (!isInitialised) {
+      console.log("[Sync] Guard 2 - Pas initialisé");
+      return;
+    }
+
+    // Guard 3: déjà en édition (ne pas écraser les modifications)
+    // ✅ IMPORTANT: Toujours permettre la PREMIÈRE sync (shadow draft vide)
+    if (isEditing && eventName !== "") {
+      console.log(
+        "[Sync] Guard 3 - Mode édition actif, pas de sync (shadow draft déjà peuplé)",
+      );
+      return; // Déjà édité avec des données, ne pas écraser
+    }
+
+    // Synchronisation automatique (preview OU première sync démo)
+    untrack(() => {
+      const oldEventName = eventName;
+      const oldMealsCount = meals.length;
+
+      meals = $state.snapshot(currentEvent.meals || []);
+      eventName = currentEvent.name || "";
+      description = currentEvent.description || "";
+      status = currentEvent.status || "proposition";
+      minContrib = currentEvent.minContrib || 1;
+
+      console.log("🔄 Shadow draft synchronisé depuis currentEvent", {
+        oldEventName,
+        newEventName: eventName,
+        oldMealsCount,
+        newMealsCount: meals.length,
+        isDemo: isDemoEvent(currentEvent.$id),
       });
-    }
-  });
-
-  // ✅ SYNCHRONISATION INITIALE EN MODE DÉMO
-  // En mode démo, isLockedByMe est toujours true, donc on utilise un $effect séparé
-  $effect(() => {
-    if (currentEvent && isInitialised && isDemoEvent(currentEvent.$id)) {
-      // Synchroniser uniquement si le shadow draft est vide (première synchronisation)
-      if (eventName === "" && currentEvent.name) {
-        untrack(() => {
-          meals = $state.snapshot(currentEvent.meals || []);
-          eventName = currentEvent.name || "";
-          description = currentEvent.description || "";
-          status = currentEvent.status || "local";
-          minContrib = currentEvent.minContrib || 1;
-          console.log("[EventEditPage] Shadow draft synchronisé (mode démo)");
-        });
-      }
-    }
+    });
   });
 
   // ============================================================================
@@ -216,45 +252,73 @@
   // ============================================================================
 
   $effect(() => {
-    if (!isInitialised && !isBusy) {
-      untrack(async () => {
-        isBusy = true;
-        try {
-          // Le guard a déjà vérifié l'event, on peut procéder
-          if (!eventId) {
-            console.error("[EventEditPage] Event ID manquant");
-            isBusy = false;
-            return;
-          }
-
-          // 🔥 MODE DÉMO : Skip complètement la logique de locks
-          const event = eventsStore.getEventById(eventId);
-          if (event && isDemoEvent(event.$id)) {
-            console.log("[EventEditPage] Mode démo: skip lock initialization");
-            isInitialised = true;
-            return;
-          }
-
-          // Initialiser l'état du verrou
-          activeLock = await locksService.getLock(eventId);
-
-          // S'abonner aux changements du verrou
-          lockUnsub = locksService.subscribeToLock(eventId, (lock) => {
-            console.log("[EventEditPage] 🔒 Verrou mis à jour (Realtime):", {
-              lockedBy: lock?.userName,
-              userId: lock?.userId,
-              expiresAt: lock?.expiresAt,
-            });
-            activeLock = lock;
-          });
-
-          isInitialised = true;
-        } finally {
-          isBusy = false;
-        }
+    // Guard 1: déjà initialisé OU déjà en cours
+    if (isInitialised || isBusy) {
+      console.log("[Init] Guard 1 - Déjà initialisé ou occupé", {
+        isInitialised,
+        isBusy,
       });
+      return;
     }
+
+    // Guard 2: pas d'eventId
+    if (!eventId) {
+      console.log("[Init] Guard 2 - Pas d'eventId");
+      return;
+    }
+
+    console.log("[Init] Début initialisation pour eventId:", eventId);
+
+    untrack(async () => {
+      isBusy = true;
+      try {
+        const event = eventsStore.getEventById(eventId);
+        console.log("[Init] Event récupéré:", event?.$id, event?.name);
+
+        // 🔥 Mode démo: marquer initialisé, pas de lock
+        if (event && isDemoEvent(event.$id)) {
+          console.log("[Init] Mode démo: prêt, marquage isInitialised = true");
+          isInitialised = true;
+          // ✅ NE PAS activer isEditing ici - il sera activé par startEditing() quand l'utilisateur éditera
+          return;
+        }
+
+        // Mode normal: initialiser le lock
+        activeLock = await locksService.getLock(eventId);
+        lockUnsub = locksService.subscribeToLock(eventId, (lock) => {
+          console.log("[EventEditPage] 🔒 Verrou mis à jour:", {
+            lockedBy: lock?.userName,
+            userId: lock?.userId,
+            expiresAt: lock?.expiresAt,
+          });
+          activeLock = lock;
+        });
+
+        isInitialised = true;
+      } finally {
+        isBusy = false;
+        console.log("[Init] Fin initialisation, isBusy = false");
+      }
+    });
   });
+
+  // ============================================================================
+  // RESET AU CHANGEMENT DE ROUTE
+  // ============================================================================
+
+  // $effect(() => {
+  //   // Réinitialiser quand eventId change
+  //   // NOTE: Le cleanup s'exécute AVANT le prochain run de l'effect
+  //   return () => {
+  //     console.log("[EventEditPage] Changement de route, reset état...");
+  //     isInitialised = false;
+  //     activeLock = null;
+  //     if (lockUnsub) {
+  //       lockUnsub();
+  //       lockUnsub = null;
+  //     }
+  //   };
+  // });
 
   onDestroy(() => {
     // 1. Annuler l'auto-save planifié
@@ -270,7 +334,7 @@
     }
 
     // 3. Libérer le lock si détenu
-    if (eventId && isLockedByMe) {
+    if (eventId && isEditing) {
       console.log("🚪 Démontage du composant, libération du lock...");
       releaseLock();
     }
@@ -284,10 +348,9 @@
   // ============================================================================
 
   async function acquireLock(): Promise<boolean> {
-    // 🔥 MODE DÉMO : Skip locks
+    // Mode démo : ne rien faire (géré par startEditing)
     if (currentEvent && isDemoEvent(currentEvent.$id)) {
-      console.log("[EventEditPage] Mode démo: skip lock acquisition");
-      // Pas de verrou en mode local
+      console.log("[acquireLock] Mode démo : pas de lock à acquérir");
       return true;
     }
 
@@ -305,7 +368,6 @@
       if (success) {
         // On laisse le realtime mettre à jour activeLock (pas d'optimistic update)
         scheduleAutoSave();
-        // Le mode Draft sera activé par ensureLockAndCreateDraft
         return true;
       } else {
         toastService.warning(
@@ -323,12 +385,14 @@
   }
 
   async function releaseLock(): Promise<void> {
-    // 🔥 MODE DÉMO : Skip release
+    // Mode démo : juste désactiver le mode édition
     if (currentEvent && isDemoEvent(currentEvent.$id)) {
-      console.log("[EventEditPage] Mode démo: skip lock release");
+      console.log("[releaseLock] Mode démo : désactivation de isEditing");
+      isEditing = false;
       return;
     }
 
+    // Mode normal : libérer le vrai verrou
     if (!eventId || !globalState.userId) return;
 
     try {
@@ -337,8 +401,9 @@
     } catch (error) {
       console.error("❌ Erreur libération verrou:", error);
     }
+
+    isEditing = false; // ✅ Désactiver le mode édition après libération du lock
     // activeLock sera mis à jour par le realtime
-    // Le $effect de synchronisation reprendra automatiquement
   }
 
   // ============================================================================
@@ -350,7 +415,7 @@
    */
   async function handleLeaveWithoutSave() {
     // Libérer le lock si on l'a
-    if (isLockedByMe) {
+    if (isEditing) {
       await releaseLock();
     }
     // Plus besoin de reset isDirty manuellement, le $derived s'en charge
@@ -486,7 +551,7 @@
    * Sauvegarde avec libération du lock (pour auto-save)
    */
   async function performAutoSave(): Promise<void> {
-    if (!eventId || isBusy || !isLockedByMe) return;
+    if (!eventId || isBusy || !isEditing) return;
 
     isBusy = true;
     const toastId = toastService.loading("Sauvegarde automatique...");
@@ -494,7 +559,7 @@
     const success = await saveEventData();
 
     if (success) {
-      await releaseLock();
+      await releaseLock(); // Cela désactivera aussi isEditing
       toastService.update(toastId, {
         state: "success",
         message: "Modifications sauvegardées automatiquement",
@@ -557,11 +622,11 @@
   // Protection beforeunload - Avertir l'utilisateur s'il a des modifications non sauvegardées
   $effect(() => {
     // Capturer la valeur actuelle pour éviter les dépendances dynamiques dans le handler
-    const hasLock = isLockedByMe;
+    const editing = isEditing;
     const dirty = isDirty;
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasLock || dirty) {
+      if (editing || dirty) {
         e.preventDefault();
         e.returnValue =
           "Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter ?";

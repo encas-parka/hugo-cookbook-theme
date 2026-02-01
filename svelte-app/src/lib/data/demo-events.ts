@@ -258,7 +258,7 @@ export async function generateDemoEvent(
     // Main fields
     name: config.name,
     description: config.description,
-    status: "local" as MainStatus, // ← CRUCIAL pour le mode local (type assertion for "local")
+    status: "proposition" as MainStatus, // Mode démo utilise le statut standard
     dateStart: startDate.toISOString(),
     dateEnd: endDate.toISOString(),
     allDates: allDates,
@@ -335,9 +335,9 @@ export function validateDemoEvent(event: EnrichedEvent): void {
 
   const errors: string[] = [];
 
-  // 1. Vérifier le statut
-  if ((event.status as string) !== "local") {
-    errors.push(`Event status should be "local", got: ${event.status}`);
+  // 1. Vérifier le statut (doit être "proposition" comme un event normal)
+  if (event.status !== "proposition") {
+    errors.push(`Event status should be "proposition", got: ${event.status}`);
   }
 
   // 2. Vérifier que allDates est cohérent avec les meals
