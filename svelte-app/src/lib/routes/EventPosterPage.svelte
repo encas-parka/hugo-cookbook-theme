@@ -13,7 +13,7 @@
   // Event data
   let eventId = $derived(route.params.id);
 
-  let event = $derived(eventsStore.getEventById(eventId));
+  let event = $derived(eventId && eventsStore.getEventById(eventId));
 
   let eventLoading = $state(false);
   let eventError = $state<string | null>(null);

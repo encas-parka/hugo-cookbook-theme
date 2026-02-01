@@ -7,7 +7,7 @@
   import { fade, fly } from "svelte/transition";
   import { cubicInOut } from "svelte/easing";
   import { scrollY } from "svelte/reactivity/window";
-  import { DEMO_EVENT_ID } from "$lib/constants/events";
+  import { DEMO_EVENT_ID } from "$lib/data/demo-event-config";
   import LoadingSpinner from "../components/ui/LoadingSpinner.svelte";
   import EmailVerificationAlert from "../components/ui/EmailVerificationAlert.svelte";
 

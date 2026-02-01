@@ -85,23 +85,3 @@ export function parseEventTodos(
     },
   });
 }
-
-/**
- * Type guard pour vérifier si un événement est en mode local
- *
- * @param event - L'événement à tester
- * @returns true si l'événement est en mode local
- *
- * @example
- * ```typescript
- * if (isLocalEvent(event)) {
- *   // event.status est garanti être "local" ici
- *   console.log(event.status); // TypeScript sait que c'est "local"
- * }
- * ```
- */
-export function isLocalEvent(
-  event: EnrichedEvent | null | undefined,
-): event is EnrichedEvent & { status: "local" } {
-  return event?.status === "local";
-}

@@ -8,7 +8,7 @@
   import { getContributors } from "$lib/utils/event-stats-helpers";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import type { EventMeal } from "$lib/types/events";
-  import { isLocalEvent } from "$lib/utils/events.utils";
+  import { isDemoEvent } from "$lib/data/demo-event-config";
 
   import {
     Calendar,
@@ -124,10 +124,6 @@
   }
 
   // ============================================================================
-
-  // Suppression de isSaving (fusionné dans isBusy)
-
-  // ============================================================================
   // DERIVED STATES
   // ============================================================================
 
@@ -145,8 +141,8 @@
   });
 
   const isLockedByMe = $derived.by(() => {
-    // 🔥 MODE LOCAL : Toujours considéré comme verrouillé par nous
-    if (isLocalEvent(currentEvent)) {
+    // 🔥 MODE DÉMO : Toujours considéré comme verrouillé par nous
+    if (currentEvent && isDemoEvent(currentEvent.$id)) {
       return true;
     }
 
@@ -185,14 +181,10 @@
     }
   });
 
-  // ✅ SYNCHRONISATION INITIALE EN MODE LOCAL
-  // En mode local, isLockedByMe est toujours true, donc on utilise un $effect séparé
+  // ✅ SYNCHRONISATION INITIALE EN MODE DÉMO
+  // En mode démo, isLockedByMe est toujours true, donc on utilise un $effect séparé
   $effect(() => {
-    if (
-      currentEvent &&
-      isInitialised &&
-      (currentEvent.status as string) === "local"
-    ) {
+    if (currentEvent && isInitialised && isDemoEvent(currentEvent.$id)) {
       // Synchroniser uniquement si le shadow draft est vide (première synchronisation)
       if (eventName === "" && currentEvent.name) {
         untrack(() => {
@@ -201,7 +193,7 @@
           description = currentEvent.description || "";
           status = currentEvent.status || "local";
           minContrib = currentEvent.minContrib || 1;
-          console.log("[EventEditPage] Shadow draft synchronisé (mode local)");
+          console.log("[EventEditPage] Shadow draft synchronisé (mode démo)");
         });
       }
     }
@@ -235,10 +227,10 @@
             return;
           }
 
-          // 🔥 MODE LOCAL : Skip complètement la logique de locks
+          // 🔥 MODE DÉMO : Skip complètement la logique de locks
           const event = eventsStore.getEventById(eventId);
-          if (event && isLocalEvent(event)) {
-            console.log("[EventEditPage] Mode local: skip lock initialization");
+          if (event && isDemoEvent(event.$id)) {
+            console.log("[EventEditPage] Mode démo: skip lock initialization");
             isInitialised = true;
             return;
           }
@@ -292,9 +284,9 @@
   // ============================================================================
 
   async function acquireLock(): Promise<boolean> {
-    // 🔥 MODE LOCAL : Skip locks
-    if (isLocalEvent(currentEvent)) {
-      console.log("[EventEditPage] Mode local: skip lock acquisition");
+    // 🔥 MODE DÉMO : Skip locks
+    if (currentEvent && isDemoEvent(currentEvent.$id)) {
+      console.log("[EventEditPage] Mode démo: skip lock acquisition");
       // Pas de verrou en mode local
       return true;
     }
@@ -331,9 +323,9 @@
   }
 
   async function releaseLock(): Promise<void> {
-    // 🔥 MODE LOCAL : Skip release
-    if (isLocalEvent(currentEvent)) {
-      console.log("[EventEditPage] Mode local: skip lock release");
+    // 🔥 MODE DÉMO : Skip release
+    if (currentEvent && isDemoEvent(currentEvent.$id)) {
+      console.log("[EventEditPage] Mode démo: skip lock release");
       return;
     }
 
@@ -861,7 +853,7 @@
       <!-- Colonne Gauche : Infos & Permissions -->
       <div class="space-y-6 lg:col-span-1">
         <!-- Permissions -->
-        {#if isLocalEvent(currentEvent)}
+        {#if currentEvent && isDemoEvent(currentEvent.$id)}
           <!-- Mode démo : Message informatif -->
           <Fieldset legend="Participants" iconComponent={Users}>
             <div class="alert alert-info">

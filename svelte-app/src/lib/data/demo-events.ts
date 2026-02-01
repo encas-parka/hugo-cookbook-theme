@@ -31,7 +31,7 @@ export type { DemoEventConfig, DemoMeal, DemoRecipe };
 // IMPORT DE LA CONFIGURATION EXISTANTE
 // =============================================================================
 
-import { DEMO_EVENT_CONFIG } from "./demo-event-config";
+import { DEMO_EVENT_CONFIG, DEMO_EVENT_ID } from "./demo-event-config";
 
 /**
  * Configuration des événements de démonstration
@@ -235,7 +235,8 @@ export async function generateDemoEvent(
   );
 
   // 5. Construire l'EnrichedEvent complet
-  const eventId = `demo-${slugify(config.name)}`;
+  // Utiliser l'ID constant de l'event de démo
+  const eventId = DEMO_EVENT_ID;
 
   // ✅ AJOUTER: Guest contributor
   const guestContributor: EventContributor = {

@@ -19,6 +19,29 @@ export interface DemoEventConfig {
   meals: DemoMeal[];
 }
 
+/**
+ * ID fixe de l'event de démonstration
+ *
+ * Cet ID est utilisé pour :
+ * - Identifier le mode démo (vs mode normal)
+ * - Déterminer les guards de route à appliquer
+ * - Décider de l'initialisation du store (public vs auth)
+ *
+ * @constant
+ * @type {string}
+ */
+export const DEMO_EVENT_ID = "demo-rassemblement-festif";
+
+/**
+ * Vérifie si l'eventId correspond à l'event de démonstration
+ *
+ * @param eventId - L'ID de l'événement à vérifier
+ * @returns true si c'est l'event de démo
+ */
+export function isDemoEvent(eventId?: string | null): boolean {
+  return eventId === DEMO_EVENT_ID;
+}
+
 export const DEMO_EVENT_CONFIG: DemoEventConfig = {
   name: "Rassemblement festif",
   description:

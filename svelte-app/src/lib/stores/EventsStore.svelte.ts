@@ -28,7 +28,7 @@ import type {
   EventTodoStatus,
   EventStatus,
 } from "../types/events.d";
-import { isLocalEvent } from "$lib/utils/events.utils";
+import { isDemoEvent } from "$lib/data/demo-event-config";
 
 import {
   listEvents,
@@ -73,18 +73,6 @@ export class EventsStore {
   #userId: string | null = null;
   #userTeams: string[] = [];
   #currentEventId: string | null = null;
-
-  /**
-   * Détermine si un événement est en mode local (pas de communication Appwrite)
-   * @param eventId - ID de l'événement à vérifier (utilise l'event courant si non fourni)
-   */
-  #isLocalMode(eventId?: string): boolean {
-    const id = eventId || this.#currentEventId;
-    if (!id) return false;
-
-    const event = this.#events.get(id);
-    return isLocalEvent(event);
-  }
 
   // Getters publics
   get loading() {
@@ -244,9 +232,9 @@ export class EventsStore {
       return;
     }
 
-    // 🔥 MODE LOCAL: Skip Appwrite sync
-    if (this.#isLocalMode()) {
-      console.log("[EventsStore] Mode local: skip syncFromRemote");
+    // 🔥 MODE DÉMO: Skip Appwrite sync
+    if (isDemoEvent(this.#currentEventId)) {
+      console.log("[EventsStore] Mode démo: skip syncFromRemote");
       return;
     }
 
@@ -438,9 +426,9 @@ export class EventsStore {
    * Filtrage optimisé : seulement les événements récents (15 jours) ou futurs
    */
   async #loadEvents(minDate: string | null = null): Promise<void> {
-    // 🔥 MODE LOCAL: Skip Appwrite load
-    if (this.#isLocalMode()) {
-      console.log("[EventsStore] Mode local: skip loadEvents from Appwrite");
+    // 🔥 MODE DÉMO: Skip Appwrite load
+    if (isDemoEvent(this.#currentEventId)) {
+      console.log("[EventsStore] Mode démo: skip loadEvents from Appwrite");
       return;
     }
 
@@ -813,7 +801,7 @@ export class EventsStore {
     eventId: string,
     todoId: string,
   ): Promise<void> {
-    // 🔥 MODE LOCAL : Utiliser "guest" si pas de userId
+    // 🔥 MODE DÉMO : Utiliser "guest" si pas de userId
     const userId = globalState.userId || "guest";
 
     const existing = this.#events.get(eventId);
@@ -911,9 +899,9 @@ export class EventsStore {
    * Configure le realtime pour les événements
    */
   async #setupRealtime(): Promise<void> {
-    // 🔥 MODE LOCAL: Skip realtime
-    if (this.#isLocalMode()) {
-      console.log("[EventsStore] Mode local: skip realtime setup");
+    // 🔥 MODE DÉMO: Skip realtime
+    if (isDemoEvent(this.#currentEventId)) {
+      console.log("[EventsStore] Mode démo: skip realtime setup");
       return;
     }
 
@@ -1152,8 +1140,8 @@ export class EventsStore {
     eventId: string,
     data: UpdateEventData,
   ): Promise<EnrichedEvent> {
-    // 🔥 MODE LOCAL: Bypass Appwrite
-    if (this.#isLocalMode(eventId)) {
+    // 🔥 MODE DÉMO: Bypass Appwrite
+    if (isDemoEvent(eventId)) {
       return await this.#updateEventLocal(eventId, data);
     }
 
@@ -1175,8 +1163,8 @@ export class EventsStore {
    * Met à jour uniquement le statut d'un événement
    */
   async updateEventStatus(eventId: string, status: MainStatus): Promise<void> {
-    // 🔥 MODE LOCAL: Bypass Appwrite
-    if (this.#isLocalMode(eventId)) {
+    // 🔥 MODE DÉMO: Bypass Appwrite
+    if (isDemoEvent(eventId)) {
       await this.#updateEventStatusLocal(eventId, status);
       return;
     }
@@ -1434,8 +1422,8 @@ export class EventsStore {
     contributorId: string,
     status: "accepted" | "declined",
   ): Promise<EnrichedEvent> {
-    // 🔥 MODE LOCAL
-    if (this.#isLocalMode(eventId)) {
+    // 🔥 MODE DÉMO
+    if (isDemoEvent(eventId)) {
       return await this.#updateContributorStatusLocal(
         eventId,
         contributorId,
@@ -1485,8 +1473,8 @@ export class EventsStore {
    * Ajoute un repas à un événement
    */
   async addMeal(eventId: string, meal: EventMeal): Promise<EnrichedEvent> {
-    // 🔥 MODE LOCAL
-    if (this.#isLocalMode(eventId)) {
+    // 🔥 MODE DÉMO
+    if (isDemoEvent(eventId)) {
       return await this.#addMealLocal(eventId, meal);
     }
 
@@ -1511,8 +1499,8 @@ export class EventsStore {
     mealIndex: number,
     meal: EventMeal,
   ): Promise<EnrichedEvent> {
-    // 🔥 MODE LOCAL
-    if (this.#isLocalMode(eventId)) {
+    // 🔥 MODE DÉMO
+    if (isDemoEvent(eventId)) {
       return await this.#updateMealLocal(eventId, mealIndex, meal);
     }
 
@@ -1537,8 +1525,8 @@ export class EventsStore {
    * Supprime un repas d'un événement
    */
   async deleteMeal(eventId: string, mealIndex: number): Promise<EnrichedEvent> {
-    // 🔥 MODE LOCAL
-    if (this.#isLocalMode(eventId)) {
+    // 🔥 MODE DÉMO
+    if (isDemoEvent(eventId)) {
       return await this.#deleteMealLocal(eventId, mealIndex);
     }
 
@@ -1576,8 +1564,8 @@ export class EventsStore {
    * Ajoute un todo à un événement
    */
   async addTodo(eventId: string, todo: EventTodo): Promise<EnrichedEvent> {
-    // 🔥 MODE LOCAL
-    if (this.#isLocalMode(eventId)) {
+    // 🔥 MODE DÉMO
+    if (isDemoEvent(eventId)) {
       return await this.#addTodoLocal(eventId, todo);
     }
 
@@ -1598,8 +1586,8 @@ export class EventsStore {
    * Ajoute plusieurs todos à un événement
    */
   async addTodos(eventId: string, todos: EventTodo[]): Promise<EnrichedEvent> {
-    // 🔥 MODE LOCAL
-    if (this.#isLocalMode(eventId)) {
+    // 🔥 MODE DÉMO
+    if (isDemoEvent(eventId)) {
       return await this.#addTodosLocal(eventId, todos);
     }
 
@@ -1624,8 +1612,8 @@ export class EventsStore {
     todoId: string,
     status: EventTodoStatus,
   ): Promise<void> {
-    // 🔥 MODE LOCAL
-    if (this.#isLocalMode(eventId)) {
+    // 🔥 MODE DÉMO
+    if (isDemoEvent(eventId)) {
       await this.#updateTodoStatusLocal(eventId, todoId, status);
       return;
     }
@@ -1665,8 +1653,8 @@ export class EventsStore {
    * Toggle l'assignation via Cloud Function (Atomique)
    */
   async toggleTodoAssignment(eventId: string, todoId: string): Promise<void> {
-    // 🔥 MODE LOCAL
-    if (this.#isLocalMode(eventId)) {
+    // 🔥 MODE DÉMO
+    if (isDemoEvent(eventId)) {
       await this.#toggleTodoAssignmentLocal(eventId, todoId);
       return;
     }
@@ -1735,8 +1723,8 @@ export class EventsStore {
     todoId: string,
     updates: Partial<EventTodo>,
   ): Promise<EnrichedEvent> {
-    // 🔥 MODE LOCAL
-    if (this.#isLocalMode(eventId)) {
+    // 🔥 MODE DÉMO
+    if (isDemoEvent(eventId)) {
       return await this.#updateTodoLocal(eventId, todoId, updates);
     }
 
@@ -1761,8 +1749,8 @@ export class EventsStore {
    * Supprime un todo d'un événement (par id)
    */
   async deleteTodo(eventId: string, todoId: string): Promise<EnrichedEvent> {
-    // 🔥 MODE LOCAL
-    if (this.#isLocalMode(eventId)) {
+    // 🔥 MODE DÉMO
+    if (isDemoEvent(eventId)) {
       return await this.#deleteTodoLocal(eventId, todoId);
     }
 

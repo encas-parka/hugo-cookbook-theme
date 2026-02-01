@@ -22,7 +22,7 @@ import type {
   BatchUpdateResult,
 } from "../types/store.types";
 import type { EnrichedEvent } from "../types/events";
-import { isLocalEvent } from "$lib/utils/events.utils";
+import { isDemoEvent } from "$lib/data/demo-event-config";
 
 import {
   loadPurchasesListByIds,
@@ -161,16 +161,6 @@ class ProductsStore {
 
   get pendingConflicts() {
     return this.#pendingOverrideConflicts;
-  }
-
-  /**
-   * Détermine si l'événement courant est en mode local
-   */
-  #isLocalMode(): boolean {
-    if (!this.#currentEventId) return false;
-
-    const event = eventsStore.getEventById(this.#currentEventId);
-    return isLocalEvent(event);
   }
 
   // =========================================================================
@@ -815,7 +805,7 @@ class ProductsStore {
    */
   async syncFromAppwrite() {
     // 🔥 MODE LOCAL: Skip Appwrite sync
-    if (this.#isLocalMode()) {
+    if (isDemoEvent(this.#currentEventId)) {
       console.log("[ProductsStore] Mode local: skip syncFromAppwrite");
       return;
     }
@@ -1301,7 +1291,7 @@ class ProductsStore {
    */
   #setupRealtimeSubscriptions(): void {
     // 🔥 MODE LOCAL: Skip realtime
-    if (this.#isLocalMode()) {
+    if (isDemoEvent(this.#currentEventId)) {
       console.log("[ProductsStore] Mode local: skip realtime setup");
       return;
     }
@@ -1879,7 +1869,7 @@ class ProductsStore {
       deliveryDate?: string | null;
     },
   ): Promise<void> {
-    if (this.#isLocalMode()) {
+    if (isDemoEvent(this.#currentEventId)) {
       return await this.createPurchaseLocal(productId, quantities, options);
     } else {
       // Mode normal : utiliser le service Appwrite
@@ -1901,7 +1891,7 @@ class ProductsStore {
     purchaseId: string,
     updates: Partial<Purchases>,
   ): Promise<void> {
-    if (this.#isLocalMode()) {
+    if (isDemoEvent(this.#currentEventId)) {
       return await this.updatePurchaseLocal(purchaseId, updates);
     } else {
       const { updatePurchase } = await import("../services/appwrite-products");
@@ -1913,7 +1903,7 @@ class ProductsStore {
    * Supprime un purchase (avec détection automatique du mode)
    */
   async deletePurchase(purchaseId: string): Promise<void> {
-    if (this.#isLocalMode()) {
+    if (isDemoEvent(this.#currentEventId)) {
       return await this.deletePurchaseLocal(purchaseId);
     } else {
       const { deletePurchase } = await import("../services/appwrite-products");
@@ -1934,7 +1924,7 @@ class ProductsStore {
     store?: string;
     stockReel?: string;
   }): Promise<string> {
-    if (this.#isLocalMode()) {
+    if (isDemoEvent(this.#currentEventId)) {
       return await this.createProductLocal(productData);
     } else {
       // Mode normal : utiliser le service Appwrite
@@ -1957,7 +1947,7 @@ class ProductsStore {
     productId: string,
     updates: Partial<EnrichedProduct>,
   ): Promise<void> {
-    if (this.#isLocalMode()) {
+    if (isDemoEvent(this.#currentEventId)) {
       return await this.updateProductLocal(productId, updates);
     } else {
       // Mode normal : passer updates direct à Appwrite (sérialisation automatique)
@@ -1979,7 +1969,7 @@ class ProductsStore {
     updates: Partial<EnrichedProduct>,
     callback?: (id: string) => EnrichedProduct | undefined,
   ): Promise<void> {
-    if (this.#isLocalMode()) {
+    if (isDemoEvent(this.#currentEventId)) {
       // Mode local : boucle d'appels à #updateProductLocal
       for (const [key, value] of Object.entries(updates)) {
         await this.updateProductLocal(productId, { [key]: value });
@@ -2010,7 +2000,7 @@ class ProductsStore {
     updateType: "who" | "store",
     updateData: { names?: string[] } | StoreInfo,
   ): Promise<BatchUpdateResult> {
-    if (this.#isLocalMode()) {
+    if (isDemoEvent(this.#currentEventId)) {
       return await this.#batchUpdateProductsLocal(
         productIds,
         updateType,
@@ -2087,7 +2077,7 @@ class ProductsStore {
       purchaseDeliveryDate?: string | null;
     },
   ): Promise<GroupPurchaseBatchResult> {
-    if (this.#isLocalMode()) {
+    if (isDemoEvent(this.#currentEventId)) {
       return await this.#createGroupPurchaseLocal(productsData, invoiceData);
     } else {
       const { createGroupPurchaseWithSync } =
@@ -2181,7 +2171,7 @@ class ProductsStore {
 
   async #loadOrphanPurchases() {
     // 🔥 MODE LOCAL: Skip Appwrite
-    if (this.#isLocalMode()) {
+    if (isDemoEvent(this.#currentEventId)) {
       console.log("[ProductsStore] Mode local: skip loadOrphanPurchases");
       return;
     }
