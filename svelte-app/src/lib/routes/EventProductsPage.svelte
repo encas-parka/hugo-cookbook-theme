@@ -61,11 +61,8 @@
 
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { formatDateShort } from "../utils/products-display";
+
   import InfoCollapse from "../components/ui/InfoCollapse.svelte";
-  import {
-    ensureDemoEventsLoaded,
-    waitForEvent,
-  } from "$lib/utils/events.utils";
 
   // Dont work properly
   const PANEL_WIDTH = "100";
@@ -118,16 +115,10 @@
 
   // Récupérer l'eventId depuis les paramètres de route
   let eventId = $derived(route.params.id);
+
   const currentEvent = $derived(
     eventId ? eventsStore.getEventById(eventId) : null,
   );
-
-  // Déterminer le basePath selon le mode (demo ou normal)
-  const basePath = $derived.by(() => {
-    return (currentEvent?.status as string) === "local"
-      ? "/demo/event"
-      : "/dashboard/eventEdit";
-  });
 
   // Calculer les informations de l'événement
   const eventName = $derived(currentEvent?.name ?? "");
@@ -144,18 +135,7 @@
         return;
       }
 
-      // ✅ AUTO-CHARGEMENT DES EVENTS DÉMO si route /demo/event
-      await ensureDemoEventsLoaded();
-
-      // ✅ Attendre que l'event soit disponible
-      const eventFound = await waitForEvent(eventId);
-      if (!eventFound) {
-        console.error(`[EventProductsPage] Événement ${eventId} introuvable`);
-        isLoading = false;
-        return;
-      }
-
-      // Initialiser ProductsStore
+      // Initialiser ProductsStore (le guard a déjà vérifié l'event)
       const event = eventsStore.getEventById(eventId);
       console.log(
         `[EventProductsPage] Initialisation de ProductsStore pour événement ${event?.name}`,

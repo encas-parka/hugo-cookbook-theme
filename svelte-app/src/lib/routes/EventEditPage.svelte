@@ -8,6 +8,8 @@
   import { getContributors } from "$lib/utils/event-stats-helpers";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import type { EventMeal } from "$lib/types/events";
+  import { isLocalEvent } from "$lib/utils/events.utils";
+
   import {
     Calendar,
     Plus,
@@ -30,10 +32,6 @@
   import UnsavedChangesGuard from "../components/ui/UnsavedChangesGuard.svelte";
   import Fieldset from "../components/ui/Fieldset.svelte";
   import ConfirmModal from "../components/ui/ConfirmModal.svelte";
-  import {
-    ensureDemoEventsLoaded,
-    waitForEvent,
-  } from "$lib/utils/events.utils";
 
   // ============================================================================
   // PROPS & INITIALISATION
@@ -68,13 +66,6 @@
   let editingMealIndex = $state<string | null>(null);
   let editingTitle = $state(false);
   let editingDescription = $state(false);
-
-  // Déterminer le basePath selon le mode (demo ou normal)
-  const basePath = $derived.by(() => {
-    return (currentEvent?.status as string) === "local"
-      ? "/demo/event"
-      : "/dashboard/eventEdit";
-  });
 
   // États des modales de confirmation
   let showConfirmStatusModal = $state(false);
@@ -155,7 +146,7 @@
 
   const isLockedByMe = $derived.by(() => {
     // 🔥 MODE LOCAL : Toujours considéré comme verrouillé par nous
-    if ((currentEvent?.status as string) === "local") {
+    if (isLocalEvent(currentEvent)) {
       return true;
     }
 
@@ -237,27 +228,16 @@
       untrack(async () => {
         isBusy = true;
         try {
-          // ✅ AUTO-CHARGEMENT DES EVENTS DÉMO si route /demo/event
-          await ensureDemoEventsLoaded();
-
+          // Le guard a déjà vérifié l'event, on peut procéder
           if (!eventId) {
             console.error("[EventEditPage] Event ID manquant");
             isBusy = false;
             return;
           }
 
-          // ✅ Attendre que l'event soit disponible
-          const eventFound = await waitForEvent(eventId);
-
-          if (!eventFound) {
-            console.error("[EventEditPage] Event non trouvé après attente");
-            isBusy = false;
-            return;
-          }
-
           // 🔥 MODE LOCAL : Skip complètement la logique de locks
           const event = eventsStore.getEventById(eventId);
-          if ((event?.status as string) === "local") {
+          if (event && isLocalEvent(event)) {
             console.log("[EventEditPage] Mode local: skip lock initialization");
             isInitialised = true;
             return;
@@ -313,7 +293,7 @@
 
   async function acquireLock(): Promise<boolean> {
     // 🔥 MODE LOCAL : Skip locks
-    if ((currentEvent?.status as string) === "local") {
+    if (isLocalEvent(currentEvent)) {
       console.log("[EventEditPage] Mode local: skip lock acquisition");
       // Pas de verrou en mode local
       return true;
@@ -352,7 +332,7 @@
 
   async function releaseLock(): Promise<void> {
     // 🔥 MODE LOCAL : Skip release
-    if ((currentEvent?.status as string) === "local") {
+    if (isLocalEvent(currentEvent)) {
       console.log("[EventEditPage] Mode local: skip lock release");
       return;
     }
@@ -881,7 +861,7 @@
       <!-- Colonne Gauche : Infos & Permissions -->
       <div class="space-y-6 lg:col-span-1">
         <!-- Permissions -->
-        {#if (currentEvent?.status as string) === "local"}
+        {#if isLocalEvent(currentEvent)}
           <!-- Mode démo : Message informatif -->
           <Fieldset legend="Participants" iconComponent={Users}>
             <div class="alert alert-info">
@@ -1016,7 +996,7 @@
 
 <!-- Guard de navigation pour modifications non sauvegardées -->
 <UnsavedChangesGuard
-  routeKey={`/dashboard/eventEdit/${eventId}`}
+  routeKey={`/event/${eventId}`}
   shouldProtect={() => isDirty}
   onLeaveWithoutSave={handleLeaveWithoutSave}
   onSaveAndLeave={handleSaveAndLeave}

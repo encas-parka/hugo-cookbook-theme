@@ -22,6 +22,7 @@ import type {
   BatchUpdateResult,
 } from "../types/store.types";
 import type { EnrichedEvent } from "../types/events";
+import { isLocalEvent } from "$lib/utils/events.utils";
 
 import {
   loadPurchasesListByIds,
@@ -169,7 +170,7 @@ class ProductsStore {
     if (!this.#currentEventId) return false;
 
     const event = eventsStore.getEventById(this.#currentEventId);
-    return (event?.status as string) === "local";
+    return isLocalEvent(event);
   }
 
   // =========================================================================

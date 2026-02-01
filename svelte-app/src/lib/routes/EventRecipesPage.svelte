@@ -25,10 +25,6 @@
   import { extractTime, formatDateWdDayMonth } from "../utils/date-helpers";
   import { globalState } from "../stores/GlobalState.svelte";
   import { navBarStore } from "../stores/NavBarStore.svelte";
-  import {
-    ensureDemoEventsLoaded,
-    waitForEvent,
-  } from "$lib/utils/events.utils";
   import { fade } from "svelte/transition";
 
   // État local
@@ -39,13 +35,6 @@
   const currentEvent = $derived(
     eventId ? eventsStore.getEventById(eventId) : null,
   );
-
-  // Déterminer le basePath selon le mode (demo ou normal)
-  const basePath = $derived.by(() => {
-    return (currentEvent?.status as string) === "local"
-      ? "/demo/event"
-      : "/dashboard/eventEdit";
-  });
 
   let eventMeals = $state<any[]>([]);
   let recipesDetails = $state<any[]>([]);
@@ -210,17 +199,7 @@
     }
 
     try {
-      // ✅ AUTO-CHARGEMENT DES EVENTS DÉMO si route /demo/event
-      await ensureDemoEventsLoaded();
-
-      // ✅ Attendre que l'event soit disponible
-      const eventFound = await waitForEvent(id);
-      if (!eventFound) {
-        error = "Événement non trouvé";
-        loading = false;
-        return;
-      }
-
+      // Le guard a déjà initialisé le store et vérifié l'event
       // Charger les données de l'événement
       await loadEventData(id);
     } catch (err) {

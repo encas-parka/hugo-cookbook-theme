@@ -3,8 +3,8 @@
  *
  * Ce fichier définit toutes les routes de l'application avec :
  * - Les routes publiques (sans authentification)
- * - Les routes privées (protégées par authGuard)
- * - Les routes mode démo (protégées par localEventGuard)
+ * - Les routes privées (protégées par eventGuard ou authGuard)
+ * - Les routes events (mode agnostic : démo ou normal)
  *
  * Structure des routes :
  * - Les routes avec paramètres dynamiques utilisent la syntaxe :param
@@ -17,7 +17,7 @@
  */
 
 import type { Routes } from "sv-router";
-import { authGuard, localEventGuard } from "./guards";
+import { authGuard, eventGuard } from "./guards";
 
 /**
  * Toutes les routes de l'application
@@ -26,11 +26,10 @@ import { authGuard, localEventGuard } from "./guards";
  * 1. Routes publiques (/)
  * 2. Routes recettes (/recipe/*)
  * 3. Routes dashboard privées (/dashboard/*)
- * 4. Routes events privés (/dashboard/eventEdit/*)
+ * 4. Routes events unifiées (/event/* - mode agnostic)
  * 5. Routes documents (/createdocument/*, /editdocument/*, /documents/*)
  * 6. Routes events (/eventList)
- * 7. Routes mode démo (/demo/event/*)
- * 8. Route 404 catch-all
+ * 7. Route 404 catch-all
  */
 export const routes: Routes = {
   // ============================================
@@ -68,12 +67,6 @@ export const routes: Routes = {
     "/loans": () => import("$lib/routes/LoansPage.svelte"),
     "/loans/:teamId": () => import("$lib/routes/LoansPage.svelte"),
     "/loans/return/:loanId": () => import("$lib/routes/LoanReturnPage.svelte"),
-    "/eventEdit": {
-      "/:id": () => import("$lib/routes/EventEditPage.svelte"),
-      "/recipes/:id": () => import("$lib/routes/EventRecipesPage.svelte"),
-      "/products/:id": () => import("$lib/routes/EventProductsPage.svelte"),
-      "/posters/:id": () => import("$lib/routes/EventPosterPage.svelte"),
-    },
   },
 
   // Recettes privées
@@ -127,11 +120,13 @@ export const routes: Routes = {
   })(),
 
   // ============================================
-  // ROUTES MODE DÉMO (protégées par localEventGuard)
+  // ROUTES EVENTS UNIFIÉES (mode agnostic)
   // ============================================
+  // Ces routes fonctionnent aussi bien pour les events démo que pour les events normaux
+  // Le guard intelligent détecte le mode via l'ID de l'event
 
-  "/demo/event/:id": {
-    hooks: localEventGuard,
+  "/event/:id": {
+    hooks: eventGuard,
     "/": () => import("$lib/routes/EventEditPage.svelte"),
     "/recipes": () => import("$lib/routes/EventRecipesPage.svelte"),
     "/products": () => import("$lib/routes/EventProductsPage.svelte"),

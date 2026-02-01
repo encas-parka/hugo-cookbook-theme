@@ -4,6 +4,24 @@
  */
 
 /**
+ * Statut possible d'un événement
+ *
+ * - "local" : Événement de démonstration en mode local (sans Appwrite)
+ * - "proposition" : Événement en cours de création
+ * - "confirmed" : Événement confirmé
+ * - "canceled" : Événement annulé
+ * - "archive" : Événement archivé
+ * - "locked" : Événement verrouillé
+ */
+export type EventStatus =
+  | "local"
+  | "proposition"
+  | "confirmed"
+  | "canceled"
+  | "archive"
+  | "locked";
+
+/**
  * Information sur un contributeur d'événement
  * Stocké dans le champ 'contributors' (string[]) sous forme de JSON stringified
  */
@@ -83,13 +101,16 @@ export interface EventTodo {
  * Événement enrichi avec les données parsées
  * Utilisé dans le store et l'UI
  */
-export interface EnrichedEvent
-  extends Omit<Main, "meals" | "contributors" | "todos"> {
+export interface EnrichedEvent extends Omit<
+  Main,
+  "meals" | "contributors" | "todos" | "status"
+> {
   meals: EventMeal[];
   contributors: EventContributor[];
   todos: EventTodo[];
   teams?: string[]; // Noms des équipes (pour affichage)
   teamsId?: string[]; // IDs des équipes (pour filtrage)
+  status: EventStatus; // Surcharge pour permettre "local"
 }
 
 /**
@@ -106,7 +127,7 @@ export interface CreateEventData {
   teamsId?: string[]; // IDs des équipes (pour filtrage)
   contributors?: EventContributor[]; // Tableau d'objets EventContributor
   todos?: EventTodo[];
-  status?: "proposition" | "confirmed" | "canceled" | "archive" | "locked";
+  status?: EventStatus;
 }
 
 /**
@@ -123,5 +144,5 @@ export interface UpdateEventData {
   teamsId?: string[]; // IDs des équipes (pour filtrage)
   contributors?: EventContributor[]; // Tableau d'objets EventContributor
   todos?: EventTodo[];
-  status?: "proposition" | "confirmed" | "canceled" | "archive" | "locked";
+  status?: EventStatus;
 }

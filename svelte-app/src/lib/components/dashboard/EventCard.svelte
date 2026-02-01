@@ -33,14 +33,14 @@
 
 <div
   class="bg-base-200/60 hover:bg-base-200 flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors {cardClass} @container"
-  onclick={() => navigate(`/dashboard/eventEdit/${event.$id}`)}
+  onclick={() => navigate(`/event/${event.$id}`)}
   role="button"
   tabindex="0"
   title="Voir les détails de {event.name}"
   onkeydown={(e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      navigate(`/dashboard/eventEdit/${event.$id}`);
+      navigate(`/event/${event.$id}`);
     }
   }}
   transition:slide
@@ -123,7 +123,7 @@
         class="btn btn-outline btn-secondary @max-sm:btn-xs btn-sm"
         onclick={(e) => {
           e.stopPropagation();
-          navigate(`/dashboard/eventEdit/${event.$id}`);
+          navigate(`/event/${event.$id}`);
         }}
       >
         <Edit class="size-4 @max-xs:size-3" />
@@ -134,7 +134,7 @@
         class="btn btn-outline btn-secondary @max-sm:btn-xs btn-sm"
         onclick={(e) => {
           e.stopPropagation();
-          navigate(`/dashboard/eventEdit/recipes/${event.$id}`);
+          navigate(`/event/${event.$id}/recipes`);
         }}
       >
         <FileText class="size-4 @max-xs:size-3" />
@@ -145,7 +145,7 @@
         class="btn btn-outline btn-secondary @max-sm:btn-xs btn-sm"
         onclick={(e) => {
           e.stopPropagation();
-          navigate(`/dashboard/eventEdit/products/${event.$id}`);
+          navigate(`/event/${event.$id}/products`);
         }}
       >
         <ShoppingCart class="size-4 @max-xs:size-3" />
@@ -156,7 +156,7 @@
         class="btn btn-outline btn-secondary @max-sm:btn-xs btn-sm"
         onclick={(e) => {
           e.stopPropagation();
-          navigate(`/dashboard/eventEdit/posters/${event.$id}`);
+          navigate(`/event/${event.$id}/posters`);
         }}
       >
         <Image class="size-4 @max-xs:size-3" />

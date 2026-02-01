@@ -26,7 +26,10 @@ import type {
   EventContributor,
   EventTodo,
   EventTodoStatus,
+  EventStatus,
 } from "../types/events.d";
+import { isLocalEvent } from "$lib/utils/events.utils";
+
 import {
   listEvents,
   getEvent as getAppwriteEvent,
@@ -80,7 +83,7 @@ export class EventsStore {
     if (!id) return false;
 
     const event = this.#events.get(id);
-    return (event?.status as string) === "local";
+    return isLocalEvent(event);
   }
 
   // Getters publics
@@ -485,6 +488,9 @@ export class EventsStore {
   #enrichEvent(event: Main): EnrichedEvent {
     return {
       ...event,
+      status: event.status as EventStatus, // Cast nécessaire pour "local"
+      teams: event.teams || undefined, // Convertir null en undefined
+      teamsId: event.teamsId || undefined, // Convertir null en undefined
       meals: parseEventMeals(event.meals),
       contributors: parseEventContributors(event.contributors),
       todos: parseEventTodos(event.todos),

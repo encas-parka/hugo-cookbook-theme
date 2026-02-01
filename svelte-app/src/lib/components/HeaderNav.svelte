@@ -45,11 +45,11 @@
     const pathname = route.pathname;
     const params = route.params;
 
-    // Routes dashboard: /dashboard/eventEdit/:id, /dashboard/eventEdit/recipes/:id, etc.
-    if (pathname.includes("/dashboard/eventEdit/") && params.id) {
+    // Routes dashboard: /event/:id, /event/:id/recipes, /event/:id/products, /event/:id/posters
+    if (pathname.includes("/event/") && params.id) {
       return {
         type: "eventEdit",
-        basePath: "/dashboard/eventEdit",
+        basePath: "/event",
         eventId: params.id as string,
       };
     }
@@ -188,7 +188,7 @@
   <div class="navbar-start w-fit shrink-0 gap-1">
     <!-- Brand -->
     <a href={p("#/")} class="btn btn-ghost btn-circle">
-      <img src="images/favicon.png" alt="logo" class="h-8 w-8" />
+      <img src="/images/favicon.png" alt="logo" class="h-8 w-8" />
     </a>
 
     <!-- Permanent Nav Links -->

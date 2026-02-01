@@ -7,7 +7,7 @@
   import { fade, fly } from "svelte/transition";
   import { cubicInOut } from "svelte/easing";
   import { scrollY } from "svelte/reactivity/window";
-  import { getDemoEventId } from "$lib/utils/events.utils";
+  import { DEMO_EVENT_ID } from "$lib/constants/events";
   import LoadingSpinner from "../components/ui/LoadingSpinner.svelte";
   import EmailVerificationAlert from "../components/ui/EmailVerificationAlert.svelte";
 
@@ -42,29 +42,14 @@
       const toastId = toastService.loading("Chargement de la démo...");
       isDemoLoading = true;
 
-      if (!eventsStore.isInitialized) {
-        await eventsStore.initializeForPublic();
-      }
-
-      const demoEvents = eventsStore.events.filter(
-        (e) => (e.status as string) === "local",
-      );
-
-      if (demoEvents.length === 0) {
-        toastService.update(toastId, {
-          state: "error",
-          message: "Aucun événement de démo disponible",
-          autoCloseDelay: 3000,
-        });
-        return;
-      }
-
-      const demoEvent = demoEvents[0];
+      // Le guard eventGuard s'occupe de l'initialisation du store
       toastService.dismiss(toastId);
-      navigate(`/demo/event/${demoEvent.$id}`);
+      navigate(`/event/${DEMO_EVENT_ID}`);
     } catch (error) {
       console.error("[HomePage] Erreur chargement démo:", error);
       toastService.error("Erreur lors du chargement de la démo");
+    } finally {
+      isDemoLoading = false;
     }
   }
 

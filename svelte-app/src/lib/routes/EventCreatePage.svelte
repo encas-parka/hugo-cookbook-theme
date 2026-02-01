@@ -200,7 +200,7 @@
         sendEmailToExistingMembers,
       );
 
-      navigate(`/dashboard/eventEdit/${savedEvent.$id}`);
+      navigate(`/event/${savedEvent.$id}`);
       return true;
     } catch (error) {
       console.error("Erreur sauvegarde:", error);

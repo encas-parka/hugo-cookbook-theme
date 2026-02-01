@@ -267,7 +267,7 @@ class GlobalState {
     const mainId = route.params.id;
 
     // Vérifier si on est sur une route produits
-    if (path.includes("/eventEdit/") && mainId) {
+    if (path.includes("/event/") && mainId) {
       console.log(`[GlobalState] ✅ currentMainId dérivé: ${mainId}`);
       return mainId;
     }

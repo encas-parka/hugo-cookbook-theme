@@ -4,14 +4,14 @@
   // Props : eventId et basePath optionnel
   let {
     eventId,
-    basePath = "/dashboard/eventEdit",
+    basePath = "/event",
   }: {
     eventId: string;
     basePath?: string;
   } = $props();
 
   // Configuration des onglets pour les pages d'événement
-  // Les chemins relatifs seront combinés avec basePath
+  // Les chemins relatifs seront combinés avec basePath + eventId
   const eventTabs = [
     { label: "Éditer l'événement", relativePath: "" },
     { label: "Voir les recettes", relativePath: "recipes" },
@@ -24,16 +24,11 @@
     const currentPath = route.pathname;
 
     // Pattern matching pour déterminer l'onglet basé sur le basePath
-    if (currentPath.includes(`${basePath}/recipes/`)) return 1;
-    if (currentPath.includes(`${basePath}/products/`)) return 2;
-    if (currentPath.includes(`${basePath}/posters/`)) return 3;
+    // Routes: /event/:id, /event/:id/recipes, /event/:id/products, /event/:id/posters
+    if (currentPath.includes(`/recipes`)) return 1;
+    if (currentPath.includes(`/products`)) return 2;
+    if (currentPath.includes(`/posters`)) return 3;
     // Par défaut, si on est sur {basePath}/{eventId} (sans sous-route)
-    if (currentPath.includes(basePath) && eventId) {
-      // Vérifier que le path contient bien l'eventId
-      const basePathPattern = new RegExp(`${basePath}/${eventId}(/?$)`);
-      if (basePathPattern.test(currentPath)) return 0;
-    }
-
     return 0; // Défaut
   });
 
@@ -41,8 +36,9 @@
     if (!eventId) return;
 
     const relativePath = eventTabs[index].relativePath;
+
     const fullPath = relativePath
-      ? `${basePath}/${relativePath}/${eventId}`
+      ? `${basePath}/${eventId}/${relativePath}`
       : `${basePath}/${eventId}`;
 
     navigate(fullPath);

@@ -1,34 +1,19 @@
 <script lang="ts">
-  import { onMount, onDestroy, tick } from "svelte";
-  import { fade } from "svelte/transition";
+  import { onMount, tick } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import type { RecipeForDisplay } from "$lib/types/recipes.types";
   import type { SavedPosterConfig } from "$lib/components/eventPoster/poster.types";
   import { globalState } from "$lib/stores/GlobalState.svelte";
-  import { route, navigate } from "$lib/router";
-  import EventInvitationAlert from "$lib/components/EventInvitationAlert.svelte";
-  import PosterConfiguration from "$lib/components/eventPoster/PosterConfiguration.svelte";
-  import PosterDisplay from "$lib/components/eventPoster/PosterDisplay.svelte";
-  import { ChevronLeft, Printer, AlertCircle, Info } from "@lucide/svelte";
-  import HeaderNav from "$lib/components/HeaderNav.svelte";
-  import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
+  import { route } from "$lib/router";
+  import { Printer } from "@lucide/svelte";
   import { navBarStore } from "$lib/stores/NavBarStore.svelte";
-  import {
-    ensureDemoEventsLoaded,
-    waitForEvent,
-  } from "$lib/utils/events.utils";
 
   // Event data
-  let event = $derived(eventsStore.getEventById(route.params.id));
+  let eventId = $derived(route.params.id);
 
-  // Déterminer le basePath selon le mode (demo ou normal)
-  const basePath = $derived.by(() => {
-    return (event?.status as string) === "local"
-      ? "/demo/event"
-      : "/dashboard/eventEdit";
-  });
+  let event = $derived(eventsStore.getEventById(eventId));
 
   let eventLoading = $state(false);
   let eventError = $state<string | null>(null);
@@ -167,17 +152,7 @@
   // Load event on mount
   onMount(() => {
     (async () => {
-      // ✅ AUTO-CHARGEMENT DES EVENTS DÉMO si route /demo/event
-      await ensureDemoEventsLoaded();
-
-      // ✅ Attendre que l'event soit disponible
-      const eventFound = await waitForEvent(route.params.id);
-      if (!eventFound) {
-        eventError = "Événement non trouvé";
-        eventLoading = false;
-        return;
-      }
-
+      // Le guard a déjà initialisé le store, l'event devrait être disponible
       if (!event) {
         eventLoading = true;
         try {
@@ -433,11 +408,6 @@
     return recipeNames[recipeKey] || originalName;
   }
 
-  // Go back to event edit
-  function goBack() {
-    navigate(`${basePath}/${route.params.id}`);
-  }
-
   async function handleInvitationResponse(accept: boolean) {
     if (!route.params.id || !globalState.userId) return;
 
@@ -468,7 +438,7 @@
     if (event) {
       navBarStore.setConfig({
         title: `Affiches : ${event.name}`,
-        backAction: goBack,
+        backAction: () => navigate(`/event/${route.params.id}`),
         actions: navActions,
       });
     }

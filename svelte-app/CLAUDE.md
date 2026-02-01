@@ -24,64 +24,67 @@ The application uses **sv-router** for client-side routing with hash-based navig
 ### Basic Navigation
 
 ```typescript
-import { navigate, route, p } from '$lib/router';
+import { navigate, route, p } from "$lib/router";
 
 // Programmatic navigation
-navigate('/dashboard/eventEdit/123');
+navigate("/event/123");
 
 // Get current route info
-route.pathname     // Current path
-route.params.id    // Route params
-route.search.tab   // Query params
+route.pathname; // Current path
+route.params.id; // Route params
+route.search.tab; // Query params
 
 // Generate links
-p('/recipe', '123') // Returns '/recipe/123'
+p("/recipe", "123"); // Returns '/recipe/123'
 ```
 
 ### Query Params with searchParams
 
 ```typescript
-import { searchParams } from '$lib/router';
+import { searchParams } from "$lib/router";
 
 // Read
-const tab = searchParams.get('tab');
+const tab = searchParams.get("tab");
 
 // Write (updates URL reactively)
-searchParams.set('tab', 'info');
-searchParams.delete('tab');
+searchParams.set("tab", "info");
+searchParams.delete("tab");
 
 // Reactive listening
 $effect(() => {
-  console.log('Tab changed:', searchParams.get('tab'));
+  console.log("Tab changed:", searchParams.get("tab"));
 });
 ```
 
 ### Route Guards
 
 Routes are protected with guards in `src/lib/router/guards.ts`:
+
 - `authGuard` - Requires authentication, redirects to `/` if not logged in
 - `localEventGuard` - Requires event status="local", used for demo mode
 
 ### Route Configuration
 
 All routes are defined in `src/lib/router/routes.ts` with:
+
 - Public routes (no auth): `/`, `/recipe`, `/recipe/:uuid`
 - Private routes (authGuard): `/dashboard/*`, `/recipe/my/*`
 - Demo routes (localEventGuard): `/demo/event/*`
 
 ### Migration from simple-router
 
-| Old (simple-router) | New (sv-router) |
-|---------------------|-----------------|
+| Old (simple-router) | New (sv-router)     |
+| ------------------- | ------------------- |
 | `navigate('/path')` | `navigate('/path')` |
-| `getParam('x')` | `route.params.x` |
-| `getQuery('x')` | `route.search.x` |
-| `router.path` | `route.pathname` |
-| `preloadRoute()` | `preload()` |
+| `getParam('x')`     | `route.params.x`    |
+| `getQuery('x')`     | `route.search.x`    |
+| `router.path`       | `route.pathname`    |
+| `preloadRoute()`    | `preload()`         |
 
 ### Documentation
 
 For complete sv-router reference, see `docs/documentations/sv-router-implementation.md` (project root) which includes:
+
 - Full navigation API with examples
 - Route configuration patterns
 - Guard implementations (authGuard, localEventGuard)
