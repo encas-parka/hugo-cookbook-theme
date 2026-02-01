@@ -17,13 +17,7 @@
   import AuthModal from "./lib/components/AuthModal.svelte";
   import { globalState } from "./lib/stores/GlobalState.svelte";
   import { toastService } from "./lib/services/toast.service.svelte";
-
-  // ✅ sv-router - Routeur moderne pour Svelte 5
-  // Documentation: https://sv-router.vercel.app
   import { Router, preload } from "$lib/router";
-
-  // ❌ PLUS BESOIN de router, navigate, preloadRoute du simple-router
-  // Ces fonctions sont maintenant disponibles depuis $lib/router
 
   type AppState =
     | "BOOTING"
@@ -35,10 +29,6 @@
     | "ERROR";
   let appState = $state<AppState>("BOOTING");
   let initError: string | null = $state(null);
-
-  // ❌ PLUS BESOIN des guards requireAuth et requireLocalEvent
-  // Ils sont maintenant définis dans $lib/router/guards.ts
-  // et utilisés directement dans la configuration des routes
 
   async function initializeApp() {
     try {
@@ -158,13 +148,6 @@
 
   onMount(() => {
     initializeApp();
-
-    // ✅ Révéler l'application une fois que Svelte a monté le composant
-    // Cela évite le flash de contenu non stylisé (FOUC)
-    const appElement = document.getElementById("app");
-    if (appElement) {
-      appElement.classList.add("svelte-ready");
-    }
   });
 
   onDestroy(() => {

@@ -210,7 +210,7 @@
       <div class="max-w-3xl">
         <div class="mb-4 flex justify-center" in:fade={{ duration: 800 }}>
           <img
-            src="images/logo.svg"
+            src="/images/logo.svg"
             alt="Enka Cookbook"
             class="size-40 md:size-80"
           />
@@ -334,7 +334,7 @@
             style="transform: rotate({continuousProgress *
               180}deg); transition: none;"
           >
-            <img src="images/logo.svg" alt="EC" class="size-16" />
+            <img src="/images/logo.svg" alt="EC" class="size-16" />
           </div>
 
           <!-- Contenu texte (avec snap + plateau) -->
