@@ -18,6 +18,7 @@ import { SvelteMap } from "svelte/reactivity";
 import { ExecutionMethod } from "appwrite";
 import type { Main, MainStatus } from "../types/appwrite.d";
 import type { UserNotifications } from "$lib/types/appwrite.d";
+import { deepSerialize } from "$lib/utils/serialization.utils";
 import type {
   CreateEventData,
   UpdateEventData,
@@ -244,7 +245,8 @@ export class EventsStore {
     try {
       await this.#loadEvents();
 
-      await this.#cache.saveEvents(this.#events);
+      // Persister dans le cache (avec sérialisation automatique)
+      await this.#saveAllToCache();
       await this.#cache.saveMetadata({
         lastSync: new Date().toISOString(),
       });
@@ -408,11 +410,9 @@ export class EventsStore {
         this.#events.set(event.$id, event);
       });
 
-      // Persister dans IDB
-      if (this.#cache) {
-        await this.#cache.saveEvents(this.#events);
-        console.log("[EventsStore] Demo events persisted to IDB");
-      }
+      // Persister dans IDB (avec sérialisation automatique)
+      await this.#saveAllToCache();
+      console.log("[EventsStore] Demo events persisted to IDB");
 
       console.log(`[EventsStore] Total events in store: ${this.#events.size}`);
     } catch (error) {
@@ -486,6 +486,34 @@ export class EventsStore {
   }
 
   /**
+   * Sauvegarde un événement dans IndexedDB en retirant les Proxies Svelte
+   * Utilitaire privé pour éviter la répétition dans toutes les méthodes locales
+   */
+  async #saveToCache(event: EnrichedEvent): Promise<void> {
+    if (!this.#cache) return;
+
+    // 🔥 Sérialiser pour retirer les Proxies Svelte avant IndexedDB
+    const serialized = deepSerialize(event);
+    await this.#cache.saveEvent(serialized);
+  }
+
+  /**
+   * Sauvegarde tous les événements dans IndexedDB en retirant les Proxies Svelte
+   * Utilitaire privé pour les sauvegardes en bloc (loadDemoEvents, hardReset)
+   */
+  async #saveAllToCache(): Promise<void> {
+    if (!this.#cache) return;
+
+    // 🔥 Sérialiser tous les événements pour retirer les Proxies Svelte
+    const serializedEvents = new Map<string, EnrichedEvent>();
+    for (const [id, event] of this.#events) {
+      serializedEvents.set(id, deepSerialize(event));
+    }
+
+    await this.#cache.saveEvents(serializedEvents);
+  }
+
+  /**
    * Met à jour un événement en mode local (sans Appwrite)
    */
   async #updateEventLocal(
@@ -507,10 +535,8 @@ export class EventsStore {
     // Mettre à jour la Map réactive
     this.#events.set(eventId, updated);
 
-    // Persister dans IndexedDB
-    if (this.#cache) {
-      await this.#cache.saveEvent(updated);
-    }
+    // Persister dans IndexedDB (avec sérialisation automatique)
+    await this.#saveToCache(updated);
 
     console.log(`[EventsStore] Mode local: Event mis à jour: ${eventId}`);
     return updated;
@@ -532,10 +558,8 @@ export class EventsStore {
     existing.status = status;
     existing.$updatedAt = new Date().toISOString();
 
-    // Persister dans IndexedDB
-    if (this.#cache) {
-      await this.#cache.saveEvent(existing);
-    }
+    // Persister dans IndexedDB (avec sérialisation automatique)
+    await this.#saveToCache(existing);
 
     console.log(
       `[EventsStore] Mode local: Status mis à jour: ${eventId} -> ${status}`,
@@ -561,10 +585,7 @@ export class EventsStore {
     };
 
     this.#events.set(eventId, updated);
-
-    if (this.#cache) {
-      await this.#cache.saveEvent(updated);
-    }
+    await this.#saveToCache(updated);
 
     console.log(`[EventsStore] Mode local: Meal ajouté à ${eventId}`);
     return updated;
@@ -597,10 +618,7 @@ export class EventsStore {
     };
 
     this.#events.set(eventId, updated);
-
-    if (this.#cache) {
-      await this.#cache.saveEvent(updated);
-    }
+    await this.#saveToCache(updated);
 
     console.log(`[EventsStore] Mode local: Meal mis à jour dans ${eventId}`);
     return updated;
@@ -632,10 +650,7 @@ export class EventsStore {
     };
 
     this.#events.set(eventId, updated);
-
-    if (this.#cache) {
-      await this.#cache.saveEvent(updated);
-    }
+    await this.#saveToCache(updated);
 
     console.log(`[EventsStore] Mode local: Meal supprimé de ${eventId}`);
     return updated;
@@ -660,10 +675,7 @@ export class EventsStore {
     };
 
     this.#events.set(eventId, updated);
-
-    if (this.#cache) {
-      await this.#cache.saveEvent(updated);
-    }
+    await this.#saveToCache(updated);
 
     console.log(`[EventsStore] Mode local: Todo ajouté à ${eventId}`);
     return updated;
@@ -688,10 +700,7 @@ export class EventsStore {
     };
 
     this.#events.set(eventId, updated);
-
-    if (this.#cache) {
-      await this.#cache.saveEvent(updated);
-    }
+    await this.#saveToCache(updated);
 
     console.log(
       `[EventsStore] Mode local: ${todos.length} todos ajoutés à ${eventId}`,
@@ -725,10 +734,7 @@ export class EventsStore {
     };
 
     this.#events.set(eventId, updated);
-
-    if (this.#cache) {
-      await this.#cache.saveEvent(updated);
-    }
+    await this.#saveToCache(updated);
 
     console.log(`[EventsStore] Mode local: Todo mis à jour dans ${eventId}`);
     return updated;
@@ -755,10 +761,7 @@ export class EventsStore {
     };
 
     this.#events.set(eventId, updated);
-
-    if (this.#cache) {
-      await this.#cache.saveEvent(updated);
-    }
+    await this.#saveToCache(updated);
 
     console.log(`[EventsStore] Mode local: Todo supprimé de ${eventId}`);
     return updated;
@@ -784,10 +787,8 @@ export class EventsStore {
         : t,
     );
 
-    // Persister
-    if (this.#cache) {
-      await this.#cache.saveEvent(existing);
-    }
+    // Persister (avec sérialisation automatique)
+    await this.#saveToCache(existing);
 
     console.log(
       `[EventsStore] Mode local: Todo status mis à jour: ${todoId} -> ${status}`,
@@ -839,10 +840,8 @@ export class EventsStore {
         : t,
     );
 
-    // Persister
-    if (this.#cache) {
-      await this.#cache.saveEvent(existing);
-    }
+    // Persister (avec sérialisation automatique)
+    await this.#saveToCache(existing);
 
     console.log(
       `[EventsStore] Mode local: Todo assignment toggled: ${todoId} par ${userId}`,
@@ -884,10 +883,7 @@ export class EventsStore {
     };
 
     this.#events.set(eventId, updated);
-
-    if (this.#cache) {
-      await this.#cache.saveEvent(updated);
-    }
+    await this.#saveToCache(updated);
 
     console.log(
       `[EventsStore] Mode local: Contributor status mis à jour: ${contributorId} -> ${status}`,
@@ -935,9 +931,8 @@ export class EventsStore {
             const enrichedEvent = this.#enrichEvent(event);
             this.#events.set(event.$id, enrichedEvent);
 
-            if (this.#cache) {
-              await this.#cache.saveEvent(enrichedEvent);
-            }
+            // Persister dans le cache (avec sérialisation automatique)
+            await this.#saveToCache(enrichedEvent);
           } else if (eventType === "delete") {
             this.#events.delete(event.$id);
 
@@ -1089,10 +1084,8 @@ export class EventsStore {
     const enriched = this.#enrichEvent(event);
     this.#events.set(event.$id, enriched);
 
-    // Persistance immédiate dans le cache
-    if (this.#cache) {
-      await this.#cache.saveEvent(enriched);
-    }
+    // Persistance immédiate dans le cache (avec sérialisation automatique)
+    await this.#saveToCache(enriched);
 
     console.log(`[EventsStore] Événement créé: ${event.$id}`);
     return enriched;
@@ -1122,10 +1115,8 @@ export class EventsStore {
     const enriched = this.#enrichEvent(event);
     this.#events.set(event.$id, enriched);
 
-    // Persistance immédiate dans le cache
-    if (this.#cache) {
-      await this.#cache.saveEvent(enriched);
-    }
+    // Persistance immédiate dans le cache (avec sérialisation automatique)
+    await this.#saveToCache(enriched);
 
     console.log(
       `[EventsStore] Événement créé avec ${teamIds.length} team(s): ${event.$id}`,
@@ -1150,10 +1141,8 @@ export class EventsStore {
     const enriched = this.#enrichEvent(event);
     this.#events.set(eventId, enriched);
 
-    // Persistance immédiate dans le cache
-    if (this.#cache) {
-      await this.#cache.saveEvent(enriched);
-    }
+    // Persistance immédiate dans le cache (avec sérialisation automatique)
+    await this.#saveToCache(enriched);
 
     console.log(`[EventsStore] Événement mis à jour: ${eventId}`);
     return enriched;
@@ -1949,7 +1938,8 @@ export class EventsStore {
 
       // 4. Recréer le cache avec les données fraîches
       if (this.#cache) {
-        await this.#cache.saveEvents(this.#events);
+        // Persister dans le cache (avec sérialisation automatique)
+        await this.#saveAllToCache();
         await this.#cache.saveMetadata({
           lastSync: new Date().toISOString(),
         });
