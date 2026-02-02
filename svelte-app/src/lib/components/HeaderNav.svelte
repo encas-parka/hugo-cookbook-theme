@@ -187,7 +187,7 @@
 >
   <div class="navbar-start w-fit shrink-0 gap-1">
     <!-- Brand -->
-    <a href={p("#/")} class="btn btn-ghost btn-circle">
+    <a href={p("/#/")} class="btn btn-ghost btn-circle">
       <img src="/images/favicon.png" alt="logo" class="h-8 w-8" />
     </a>
 
@@ -195,7 +195,7 @@
     <div class=" flex items-center gap-1">
       {#if globalState.isAuthenticated}
         <a
-          href={p("#/dashboard")}
+          href={p("/#/dashboard")}
           class="btn btn-ghost not-md:btn-square md:gap-2"
         >
           <LayoutDashboardIcon size={18} />
@@ -203,7 +203,7 @@
         </a>
       {/if}
 
-      <a href={p("#/recipe")} class="btn btn-ghost not-md:btn-square md:gap-2">
+      <a href={p("/#/recipe")} class="btn btn-ghost not-md:btn-square md:gap-2">
         <CookingPot size={18} />
         <span class="hidden md:inline">Recettes</span>
       </a>
@@ -281,25 +281,25 @@
             </span>
           </li>
           <li>
-            <a href={p("#/dashboard")} class="flex items-center gap-2">
+            <a href={p("/#/dashboard")} class="flex items-center gap-2">
               <LayoutDashboardIcon size={16} /> Dashboard
             </a>
           </li>
           <li>
-            <a href={p("#/dashboard/teams")} class="flex items-center gap-2">
+            <a href={p("/#/dashboard/teams")} class="flex items-center gap-2">
               <UsersIcon size={16} /> Équipes
             </a>
           </li>
           <li>
             <a
-              href={p("#/dashboard/eventCreate")}
+              href={p("/#/dashboard/eventCreate")}
               class="flex items-center gap-2"
             >
               <PlusIcon size={16} /> Nouvel événement
             </a>
           </li>
           <li>
-            <a href={p("#/recipe")} class="flex items-center gap-2">
+            <a href={p("/#/recipe")} class="flex items-center gap-2">
               <BookOpenIcon size={16} /> Recettes
             </a>
           </li>
