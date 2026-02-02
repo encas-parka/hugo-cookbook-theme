@@ -22,6 +22,7 @@
   let { teamId, onClose, initialTab = "members" }: Props = $props();
 
   // État du modal
+  // svelte-ignore state_referenced_locally
   let currentTab = $state<string>(initialTab);
   let confirmDeleteTeam = $state(false);
   let loading = $state(false);

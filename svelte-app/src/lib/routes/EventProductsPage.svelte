@@ -682,7 +682,16 @@
         {:else}
           <div
             class="flex items-center justify-center"
+            role="button"
+            tabindex="0"
             onclick={() => hoverHelp.expand()}
+            onkeydown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                hoverHelp.expand();
+              }
+            }}
+            aria-label="Aide"
           >
             <Info class="size-6" />
           </div>

@@ -13,6 +13,7 @@
   } = $props();
 
   // États avec runes Svelte 5
+  // svelte-ignore state_referenced_locally
   let showLogin = $state(initialShowLogin);
   let isLoading = $state(false);
   let errorMessage = $state("");
@@ -219,7 +220,7 @@
           class="space-y-4"
         >
           <fieldset>
-            <label class="input validator w-full required">
+            <label class="input validator required w-full">
               <Mail class="h-4 w-4 opacity-50" />
               <input
                 type="email"
@@ -261,7 +262,7 @@
           class="space-y-4"
         >
           <fieldset>
-            <label class="input validator w-full required">
+            <label class="input validator required w-full">
               <Mail class="h-4 w-4 opacity-50" />
               <input
                 type="email"
@@ -278,7 +279,7 @@
           </fieldset>
 
           <fieldset>
-            <label class="input validator w-full required">
+            <label class="input validator required w-full">
               <Lock class="h-4 w-4 opacity-50" />
               <input
                 type="password"
@@ -323,7 +324,7 @@
           class="space-y-4"
         >
           <fieldset>
-            <label class="input validator w-full required">
+            <label class="input validator required w-full">
               <User class="h-4 w-4 opacity-50" />
               <input
                 type="text"
@@ -342,7 +343,7 @@
           </fieldset>
 
           <fieldset>
-            <label class="input validator w-full required">
+            <label class="input validator required w-full">
               <Mail class="h-4 w-4 opacity-50" />
               <input
                 type="email"
@@ -359,7 +360,7 @@
           </fieldset>
 
           <fieldset>
-            <label class="input validator w-full required">
+            <label class="input validator required w-full">
               <Lock class="h-4 w-4 opacity-50" />
               <input
                 type="password"
@@ -378,7 +379,7 @@
           </fieldset>
 
           <fieldset>
-            <label class="input validator w-full required">
+            <label class="input validator required w-full">
               <Lock class="h-4 w-4 opacity-50" />
               <input
                 type="password"

@@ -9,6 +9,7 @@
 
   let { tip, icon, iconSize = 24 } = $props();
 
+  // svelte-ignore state_referenced_locally
   let Icon = icon || undefined;
 </script>
 

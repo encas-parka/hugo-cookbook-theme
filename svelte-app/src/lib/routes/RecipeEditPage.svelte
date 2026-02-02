@@ -42,6 +42,7 @@
 
   const recipeId = $derived(route.params.uuid);
 
+  // svelte-ignore state_referenced_locally
   if (!recipeId) {
     toastService.error("ID de recette manquant");
     navigate("/recipe");

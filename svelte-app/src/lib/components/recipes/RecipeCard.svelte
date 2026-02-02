@@ -17,9 +17,8 @@
   }
 
   // Récupérer l'affichage avec la priorité : catégorie > type
-  const typeDisplay = getTypeDisplay(
-    recipe.typeR,
-    recipe.categories || undefined,
+  const typeDisplay = $derived(
+    getTypeDisplay(recipe.typeR, recipe.categories || undefined),
   );
 </script>
 

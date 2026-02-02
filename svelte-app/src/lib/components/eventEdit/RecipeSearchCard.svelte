@@ -35,6 +35,7 @@
 
   let searchQuery = $state("");
   let selectedType = $state<RecettesTypeR>();
+  // svelte-ignore state_referenced_locally
   let plates = $state(defaultPlates);
   let selectedRecipe = $state<RecipeIndexEntry | null>(null);
   let isLoadingDetails = $state(false);

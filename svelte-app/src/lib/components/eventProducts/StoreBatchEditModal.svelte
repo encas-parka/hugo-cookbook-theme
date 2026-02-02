@@ -27,12 +27,14 @@
   let result = $state<BatchUpdateResult | null>(null);
 
   // État local pour les données du magasin
+  // svelte-ignore state_referenced_locally
   let storeName = $state(
     products.length > 0 && products[0].storeInfo
       ? products[0].storeInfo.storeName
       : "",
   );
 
+  // svelte-ignore state_referenced_locally
   let storeComment = $state(
     products.length > 0 && products[0].storeInfo
       ? products[0].storeInfo.storeComment || ""

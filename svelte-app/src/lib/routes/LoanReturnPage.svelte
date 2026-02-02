@@ -563,7 +563,15 @@
     </div>
     <div
       class="modal-backdrop"
+      role="button"
+      tabindex="0"
       onclick={() => (showEarlyReturnModal = false)}
+      onkeydown={(e) => {
+        if (e.key === "Enter" || e.key === "Escape") {
+          showEarlyReturnModal = false;
+        }
+      }}
+      aria-label="Fermer le modal"
     ></div>
   </div>
 {/if}

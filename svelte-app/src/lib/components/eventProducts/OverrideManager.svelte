@@ -71,8 +71,11 @@
     };
   }
 
+  // svelte-ignore state_referenced_locally
   let quantity = $state(getInitialValues().quantity);
+  // svelte-ignore state_referenced_locally
   let unit = $state(getInitialValues().unit);
+  // svelte-ignore state_referenced_locally
   let comment = $state(
     modalState.product?.totalNeededOverrideParsed?.comment || "",
   );

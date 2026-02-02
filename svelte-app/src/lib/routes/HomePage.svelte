@@ -456,7 +456,7 @@
       </div>
 
       <!-- Indicateur de progression avec double layer -->
-      <div class="absolute right-0 bottom-8 left-0 flex justify-center px-4">
+      <div class="absolute right-0 bottom-15 left-0 flex justify-center px-4">
         <div
           class="bg-base-100/80 flex max-w-full gap-2 overflow-x-auto rounded-full px-4 py-3 shadow-lg backdrop-blur-sm md:gap-3 md:px-6 md:py-4"
         >

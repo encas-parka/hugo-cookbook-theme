@@ -9,6 +9,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ .Site.Title }}</title>
     <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <script type="module" src="/app/assets/index.js"></script>
+    <link rel="stylesheet" href="/app/assets/index.css">
     <!--<style>
       /* CSS critique - évite le flash de contenu non stylisé (FOUC) */
       #app {
@@ -31,8 +33,7 @@
     </div>
 
   <!-- Charge l'app Svelte -->
-  <script type="module" src="/app/assets/index.js"></script>
-  <link rel="stylesheet" href="/app/assets/index.css">
+
 
   </body>
 </html>

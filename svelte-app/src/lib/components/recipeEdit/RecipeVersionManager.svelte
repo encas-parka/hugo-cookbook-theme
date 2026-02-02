@@ -221,9 +221,9 @@
     <!-- Variantes marquées pour suppression -->
     {#if variantsToRemove.length > 0}
       <div class="space-y-2">
-        <label class="text-error text-sm font-medium">
+        <div class="text-error text-sm font-medium">
           Variantes à supprimer ({variantsToRemove.length})
-        </label>
+        </div>
         <div class="space-y-2">
           {#each variantsToRemove as variant}
             <div class="card card-compact bg-error/10 border-error/30 border-1">

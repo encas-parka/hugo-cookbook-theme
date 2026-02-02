@@ -476,15 +476,5 @@
       overflow: hidden !important;
       box-sizing: border-box !important;
     }
-
-    /* Afficher uniquement la section ciblée */
-    .meal-poster-section:where([data-print-target="true"]) {
-      display: flex !important;
-    }
-
-    /* Ou si aucune cible n'est définie (print all), tout afficher */
-    .meal-poster-section:where([data-print-target="any"]) {
-      display: flex !important;
-    }
   }
 </style>

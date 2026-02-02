@@ -60,12 +60,19 @@
   import BadgeList from "../ui/BadgeList.svelte";
 
   // État du formulaire - initialisé avec initialValues si fournis
+  // svelte-ignore state_referenced_locally
   let name = $state(initialValues?.name || "");
+  // svelte-ignore state_referenced_locally
   let description = $state(initialValues?.description || "");
+  // svelte-ignore state_referenced_locally
   let type = $state<MaterielTypeLiteral>(initialValues?.type || "");
+  // svelte-ignore state_referenced_locally
   let status = $state<MaterielStatusLiteral>(initialValues?.status || "ok");
+  // svelte-ignore state_referenced_locally
   let quantity = $state(initialValues?.quantity || 1);
+  // svelte-ignore state_referenced_locally
   let location = $state(initialValues?.location || "");
+  // svelte-ignore state_referenced_locally
   let shareableWithTeamNames = $state<string[]>(
     initialValues?.shareableWith || [],
   );

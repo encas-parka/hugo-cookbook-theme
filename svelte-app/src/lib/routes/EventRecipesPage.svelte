@@ -445,7 +445,10 @@
 
                       <!-- Skeleton des ingrédients -->
                       <div class="mb-6">
-                        <h3 class="mb-2 flex items-center gap-2 font-semibold">
+                        <h3
+                          class="mb-2 flex items-center gap-2 font-semibold"
+                          aria-label="Chargement des ingrédients"
+                        >
                           <div class="skeleton h-5 w-6"></div>
                           <div class="skeleton h-5 w-32"></div>
                         </h3>
@@ -458,7 +461,10 @@
 
                       <!-- Skeleton de la préparation -->
                       <div>
-                        <h3 class="mb-2 flex items-center gap-2 font-semibold">
+                        <h3
+                          class="mb-2 flex items-center gap-2 font-semibold"
+                          aria-label="Chargement de la préparation"
+                        >
                           <div class="skeleton h-5 w-6"></div>
                           <div class="skeleton h-5 w-32"></div>
                         </h3>

@@ -44,6 +44,7 @@
     pS: boolean | null;
     saisons: string[];
   }>({
+    // svelte-ignore state_referenced_locally
     name: initialName,
     type: "",
     allergens: [],

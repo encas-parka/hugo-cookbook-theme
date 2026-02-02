@@ -12,14 +12,15 @@
 
   let { dateDisplayInfo, recipes = [] }: Props = $props();
 
-  const IconComponent =
+  const IconComponent = $derived(
     dateDisplayInfo.timeIcon === "sun"
       ? Sun
       : dateDisplayInfo.timeIcon === "moon"
         ? Moon
         : dateDisplayInfo.timeIcon === "cloud"
           ? Cloud
-          : null;
+          : null,
+  );
 </script>
 
 <div class="tooltip" data-tip={recipes.map((r) => r.r).join(", ")}>

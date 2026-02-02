@@ -22,9 +22,10 @@
     initiallyOpen = false,
   }: Props = $props();
 
-  let Icon = icon;
+  let Icon = $derived(icon);
+  // svelte-ignore state_referenced_locally
   let isOpen = $state(initiallyOpen);
-  let hasChildren = $state(children);
+  let hasChildren = $derived.by(() => !!children);
 
   function toggle() {
     isOpen = !isOpen;
@@ -75,8 +76,17 @@
   {#if hasChildren}
     <div
       id="collapse-content"
+      role="button"
+      tabindex="0"
       class={`overflow-hidden transition-all duration-200 ${isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"} hover:cursor-pointer`}
       onclick={toggle}
+      onkeydown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          toggle();
+        }
+      }}
+      aria-label="Afficher/Masquer le contenu"
     >
       <div class="text-base-content p-4 pt-0 text-sm">
         {@render children?.()}

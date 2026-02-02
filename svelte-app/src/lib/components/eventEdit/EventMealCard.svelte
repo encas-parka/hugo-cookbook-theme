@@ -68,6 +68,7 @@
   let shouldFocusSearch = $state(false);
 
   // Initialisation des valeurs par défaut si vide
+  // svelte-ignore state_referenced_locally
   if (!meal.guests) meal.guests = defaultGuests;
   if (!meal.recipes) meal.recipes = [];
 

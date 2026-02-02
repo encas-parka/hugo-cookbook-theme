@@ -53,6 +53,7 @@
   let editInput = $state<HTMLInputElement>();
   let ingredientInput = $state<HTMLTextAreaElement>();
   let descriptionInput = $state<HTMLTextAreaElement>();
+  // svelte-ignore state_referenced_locally
   let tempName = $state(name);
   let isEditingIngredients = $state(false);
   let isEditingDescription = $state(false);
