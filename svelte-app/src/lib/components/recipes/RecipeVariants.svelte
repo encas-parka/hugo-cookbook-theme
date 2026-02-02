@@ -57,7 +57,7 @@
         de cette recette
       </h4>
 
-      <div class="flex flex-wrap gap-4">
+      <div class="flex flex-wrap gap-x-4 gap-y-2">
         {#each displayVariants as variant}
           <button
             class="btn btn-ghost"
