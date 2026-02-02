@@ -76,7 +76,7 @@
 
             toastService.update(syncToastId, {
               state: "success",
-              message: "Données synchronisées",
+              message: "Données chargées",
               autoCloseDelay: 2000,
             });
 
@@ -123,7 +123,6 @@
           })
           .catch((err) => {
             console.error("[App] Erreur synchro publique:", err);
-            // Pas de toast d'erreur pour les visiteurs
           });
       }
     } catch (err: any) {

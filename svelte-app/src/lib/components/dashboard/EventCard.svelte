@@ -21,6 +21,7 @@
     getTodosCount,
   } from "$lib/utils/event-stats-helpers";
   import { slide } from "svelte/transition";
+  import BadgeEventStatus from "../ui/BadgeEventStatus.svelte";
 
   interface Props {
     event: EnrichedEvent;
@@ -60,14 +61,11 @@
         {/if}
       </div>
 
-      <div
-        class="badge badge-outline badge-sm font-medium {event.status ===
-        'proposition'
-          ? 'badge-accent'
-          : 'badge-success'}"
-      >
-        {event.status === "proposition" ? "proposition" : "confirmé"}
-      </div>
+      <BadgeEventStatus
+        status={event.status}
+        size="badge-sm"
+        class="badge-outline font-medium"
+      />
 
       {#if contributorStatus === "invited"}
         <div class="badge badge-info badge-lg ms-auto h-auto">

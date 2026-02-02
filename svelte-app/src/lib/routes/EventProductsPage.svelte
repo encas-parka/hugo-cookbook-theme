@@ -63,6 +63,7 @@
   import { formatDateShort } from "../utils/products-display";
 
   import InfoCollapse from "../components/ui/InfoCollapse.svelte";
+  import BadgeEventStatus from "../components/ui/BadgeEventStatus.svelte";
   import { isDemoEvent } from "../data/demo-event-config";
 
   // Dont work properly
@@ -276,7 +277,8 @@
    */
   const canEdit = $derived(
     (currentEvent && isDemoEvent(currentEvent.$id)) ||
-      eventsStore.canUserEditEvent(eventId || "", globalState.userId || ""),
+      (eventsStore.canUserEditEvent(eventId || "", globalState.userId || "") &&
+        currentEvent?.status !== "canceled"),
   );
 
   /**
@@ -436,9 +438,14 @@
       class="rounded-box border-base-300 bg-base-100 flex flex-wrap items-baseline justify-between gap-4 border-2 p-4"
     >
       <div class="flex w-full flex-wrap justify-between gap-6">
-        <h1>
-          {eventName}
-        </h1>
+        <div class="flex flex-wrap gap-4">
+          <h1>
+            {eventName}
+          </h1>
+          {#if currentEvent}
+            <BadgeEventStatus status={currentEvent.status} />
+          {/if}
+        </div>
         <div class="text-base-content/70 text-base">
           {#if startDate && endDate}
             <Calendar class="inline h-4 w-4" />

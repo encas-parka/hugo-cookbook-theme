@@ -75,7 +75,7 @@
           <div>
             <h2 class="card-title mb-1">Événements</h2>
             <p class="text-base-content/60 text-sm">
-              Aucune invitation à participer à un événement.
+              Aucune invitation à participer à un événement hors de vos équipes.
             </p>
           </div>
         </div>

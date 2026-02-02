@@ -32,6 +32,7 @@
   import UnsavedChangesGuard from "../components/ui/UnsavedChangesGuard.svelte";
   import Fieldset from "../components/ui/Fieldset.svelte";
   import ConfirmModal from "../components/ui/ConfirmModal.svelte";
+  import BadgeEventStatus from "../components/ui/BadgeEventStatus.svelte";
 
   // ============================================================================
   // PROPS & INITIALISATION
@@ -829,24 +830,7 @@
         <Fieldset legend="Statut de l'événement">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <!-- Affichage du statut actuel -->
-            <div class="flex items-center gap-2">
-              {#if status === "confirmed"}
-                <div class="badge badge-lg badge-success gap-1">
-                  <CheckCircle2 class="h-3 w-3" />
-                  Confirmé
-                </div>
-              {:else if status === "proposition"}
-                <div class="badge badge-lg badge-info gap-1">
-                  <Clock class="h-3 w-3" />
-                  Proposition
-                </div>
-              {:else}
-                <div class="badge badge-lg badge-warning gap-1">
-                  <AlertTriangle class="h-3 w-3" />
-                  {status}
-                </div>
-              {/if}
-            </div>
+            <BadgeEventStatus {status} />
 
             <!-- Bouton d'action -->
             {#if status === "proposition"}
@@ -856,6 +840,13 @@
                 disabled={!canEdit}
               >
                 Confirmez l'événement
+              </button>
+              <button
+                class="btn btn-link btn-error btn-sm"
+                onclick={() => (showCancelStatusModal = true)}
+                disabled={!canEdit}
+              >
+                Annuler l'événement
               </button>
             {:else if status === "confirmed"}
               <button
