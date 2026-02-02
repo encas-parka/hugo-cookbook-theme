@@ -1,1 +1,1 @@
-import{b5 as a}from"./appwrite.js";a();
+import{b3 as a}from"./appwrite.js";a();
