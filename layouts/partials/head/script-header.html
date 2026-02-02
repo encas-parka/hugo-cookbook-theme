@@ -1,4 +1,12 @@
-<script src="https://cdn.jsdelivr.net/npm/appwrite@18.2.0"></script>
+{{/*
+  ARCHIVAL MODE - Scripts Appwrite désactivés
+  Le site est archivé, plus besoin d'authentification
+*/}}
+{{/*  <script src="https://cdn.jsdelivr.net/npm/appwrite@18.2.0"></script>  */}}
+{{/*  {{ partial "footer/esbuild" (dict "src" "js/appwrite-client.js" "targetPath" "appwrite-client.js" "load" "defer") }}  */}}
+{{/*  {{ partial "footer/esbuild" (dict "src" "js/auth-status.js" "targetPath" "auth-status.js" "load" "defer") }}  */}}
 
-{{ partial "footer/esbuild" (dict "src" "js/appwrite-client.js" "targetPath" "appwrite-client.js" "load" "defer") }}
-{{ partial "footer/esbuild" (dict "src" "js/auth-status.js" "targetPath" "auth-status.js" "load" "defer") }}
+{{/* Script de nettoyage localStorage (chargé immédiatement) */}}
+
+
+{{ partial "footer/esbuild" (dict "src" "js/archival-clear-localstorage.js" "targetPath" "archival-clear-localstorage.js" "load" "inline") }}
