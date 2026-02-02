@@ -91,9 +91,8 @@
     inviteError = null;
 
     try {
-      const { checkUserEmails } = await import(
-        "$lib/services/appwrite-functions"
-      );
+      const { checkUserEmails } =
+        await import("$lib/services/appwrite-functions");
       const result = await checkUserEmails([email]);
       const userInfo = result[email];
 
@@ -204,9 +203,7 @@
   <ModalHeader
     title="Gérer les collaborateurs"
     onClose={handleCloseInviteModal}
-  >
-    <Users class="text-primary" />
-  </ModalHeader>
+  ></ModalHeader>
 
   <ModalContent>
     <div class="space-y-6">

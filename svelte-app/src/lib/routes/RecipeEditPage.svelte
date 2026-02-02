@@ -423,7 +423,7 @@
     <button
       onclick={save}
       disabled={!canEdit || isSaving || !isDirty}
-      class="btn btn-accent"
+      class="btn btn-accent btn-sm"
     >
       <Save class="h-4 w-4" />
       {isSaving ? "Sauvegarde..." : "Sauvegarder"}
