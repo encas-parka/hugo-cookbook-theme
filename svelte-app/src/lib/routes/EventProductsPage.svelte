@@ -63,6 +63,7 @@
   import { formatDateShort } from "../utils/products-display";
 
   import InfoCollapse from "../components/ui/InfoCollapse.svelte";
+  import { isDemoEvent } from "../data/demo-event-config";
 
   // Dont work properly
   const PANEL_WIDTH = "100";
@@ -274,7 +275,8 @@
    * Même logique que EventEditPage
    */
   const canEdit = $derived(
-    eventsStore.canUserEditEvent(eventId || "", globalState.userId || ""),
+    (currentEvent && isDemoEvent(currentEvent.$id)) ||
+      eventsStore.canUserEditEvent(eventId || "", globalState.userId || ""),
   );
 
   /**

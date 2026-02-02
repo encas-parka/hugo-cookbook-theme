@@ -1,14 +1,20 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { onDestroy, onMount, tick } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import { eventsStore } from "$lib/stores/EventsStore.svelte";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
   import type { RecipeForDisplay } from "$lib/types/recipes.types";
   import type { SavedPosterConfig } from "$lib/components/eventPoster/poster.types";
   import { globalState } from "$lib/stores/GlobalState.svelte";
-  import { route } from "$lib/router";
-  import { Printer } from "@lucide/svelte";
+  import { navigate, route } from "$lib/router";
+  import { AlertCircle, Info, Printer } from "@lucide/svelte";
   import { navBarStore } from "$lib/stores/NavBarStore.svelte";
+  import { isDemoEvent } from "../data/demo-event-config";
+  import LeftPanel from "../components/ui/LeftPanel.svelte";
+  import EventInvitationAlert from "../components/EventInvitationAlert.svelte";
+  import PosterDisplay from "../components/eventPoster/PosterDisplay.svelte";
+  import PosterConfiguration from "../components/eventPoster/PosterConfiguration.svelte";
+  import { fade } from "svelte/transition";
 
   // Event data
   let eventId = $derived(route.params.id);
@@ -94,8 +100,8 @@
 
     const userId = globalState.userId || "";
 
-    // Creator can always edit
-    if (event.createdBy === userId) return true;
+    // Creator can always edit and demo events
+    if (event.createdBy === userId || isDemoEvent(event.$id)) return true;
 
     // Contributor with accepted status can edit
     const contributor = event.contributors?.find((c) => c.id === userId);
@@ -438,7 +444,6 @@
     if (event) {
       navBarStore.setConfig({
         title: `Affiches : ${event.name}`,
-        backAction: () => navigate(`/event/${route.params.id}`),
         actions: navActions,
       });
     }
