@@ -71,7 +71,7 @@
     <div class="card-body">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <Calendar class="text-primary h-6 w-6" />
+          <Calendar class="text-primary h-6 w-6 stroke-3" />
           <div>
             <h2 class="card-title mb-1">Événements</h2>
             <p class="text-base-content/60 text-sm">

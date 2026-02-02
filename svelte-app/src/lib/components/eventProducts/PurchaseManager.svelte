@@ -215,7 +215,7 @@
         <h4 class="card-title text-base">
           {formTitle}
         </h4>
-        <div class="space-y-6">
+        <div class="space-y-8">
           <div class="flex flex-wrap items-baseline gap-4">
             <QuantityInput
               bind:quantity={modalState.forms.purchase.quantity}

@@ -8,12 +8,16 @@
   let { value = $bindable(), disabled = false, id }: Props = $props();
 </script>
 
-<textarea
-  class="textarea w-full text-sm"
-  bind:value
-  placeholder="Commentaire (optionnel)"
-  rows="2"
-  maxlength="250"
-  {disabled}
-  {id}
-></textarea>
+<div class="flex flex-col">
+  <span class="label">Informations complémentaires (optionnel)</span>
+
+  <textarea
+    class="textarea w-full text-sm"
+    bind:value
+    placeholder="Commentaire (optionnel)"
+    rows="2"
+    maxlength="250"
+    {disabled}
+    {id}
+  ></textarea>
+</div>

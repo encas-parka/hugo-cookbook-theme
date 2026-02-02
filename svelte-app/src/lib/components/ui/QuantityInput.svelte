@@ -18,8 +18,7 @@
 </script>
 
 <fieldset class="fieldset">
-  <legend class="fieldset-legend {required ? 'required' : ''}">Quantité</legend>
-  <div class="flex gap-2">
+  <div class="flex gap-2 {required ? 'required' : ''}">
     <label class="input w-32">
       <Package class="h-4 w-4 opacity-50" />
       <input
@@ -30,8 +29,8 @@
         placeholder="Quantité"
         bind:value={quantity}
         {disabled}
-        required={required}
-        aria-required={required ? 'true' : undefined}
+        {required}
+        aria-required={required ? "true" : undefined}
       />
     </label>
     <label class="input w-44">
@@ -40,8 +39,8 @@
         class="custom-select w-full text-end"
         bind:value={unit}
         {disabled}
-        required={required}
-        aria-required={required ? 'true' : undefined}
+        {required}
+        aria-required={required ? "true" : undefined}
       >
         <option disabled selected value="">-</option>
         {#each QUANTITY_UNITS as { value, label }}

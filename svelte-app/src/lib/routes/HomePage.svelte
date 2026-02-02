@@ -193,7 +193,7 @@
   >
     <div class="hero-content text-center">
       <div class="max-w-3xl">
-        <div class="mb-4 flex justify-center" in:fade={{ duration: 800 }}>
+        <div class="mb-4 flex justify-center" in:fadeScale={{ duration: 800 }}>
           <img
             src="/images/logo.svg"
             alt="Enka Cookbook"
