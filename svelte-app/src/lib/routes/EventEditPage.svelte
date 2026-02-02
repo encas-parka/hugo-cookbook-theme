@@ -169,21 +169,6 @@
         !isBusy),
   );
 
-  // Debug: logger canEdit pour voir pourquoi c'est false
-  $effect(() => {
-    console.log("[canEdit] Debug:", {
-      canEdit,
-      canUserEditEvent: eventsStore.canUserEditEvent(
-        eventId,
-        globalState.userId || "",
-      ),
-      isLockedByOthers,
-      isBusy,
-      eventId,
-      userId: globalState.userId,
-    });
-  });
-
   const lockedByUserName = $derived(
     activeLock?.userName || "un autre utilisateur",
   );
@@ -225,13 +210,13 @@
       status = currentEvent.status || "proposition";
       minContrib = currentEvent.minContrib || 1;
 
-      console.log("🔄 Shadow draft synchronisé depuis currentEvent", {
-        oldEventName,
-        newEventName: eventName,
-        oldMealsCount,
-        newMealsCount: meals.length,
-        isDemo: isDemoEvent(currentEvent.$id),
-      });
+      // console.log("🔄 Shadow draft synchronisé depuis currentEvent", {
+      //   oldEventName,
+      //   newEventName: eventName,
+      //   oldMealsCount,
+      //   newMealsCount: meals.length,
+      //   isDemo: isDemoEvent(currentEvent.$id),
+      // });
     });
   });
 

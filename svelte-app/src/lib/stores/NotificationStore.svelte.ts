@@ -184,9 +184,13 @@ class NotificationStore {
 
     console.log("[NotificationStore] ✅ Event passed filters, processing...");
 
-    // Traiter uniquement les updates (pas les creates)
-    if (response.events.some((e: string) => e.includes(".update"))) {
-      console.log("[NotificationStore] ✅ Update event detected");
+    // Traiter les updates ET les creates (création initiale ou mise à jour de notification)
+    if (
+      response.events.some(
+        (e: string) => e.includes(".update") || e.includes(".create"),
+      )
+    ) {
+      console.log("[NotificationStore] ✅ Update/Create event detected");
       const notifications = JSON.parse(payload.notifications || "[]");
 
       console.log(
@@ -199,7 +203,7 @@ class NotificationStore {
       }
     } else {
       console.log(
-        "[NotificationStore] ⚠️ Ignored: not an update event",
+        "[NotificationStore] ⚠️ Ignored: unexpected event type",
         response.events,
       );
     }
