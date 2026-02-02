@@ -18,8 +18,11 @@
 </script>
 
 {#if loading}
-  <div class="flex items-center justify-center py-8">
-    <span class="loading loading-spinner loading-md"></span>
+  <!-- Skeleton loader -->
+  <div class="space-y-6 py-4">
+    <div class="skeleton h-40 w-full rounded-lg"></div>
+    <div class="skeleton h-40 w-full rounded-lg"></div>
+    <div class="skeleton h-40 w-full rounded-lg"></div>
   </div>
 {:else if events.length === 0}
   <div class="py-6 text-center">

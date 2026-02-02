@@ -388,7 +388,25 @@
       <div class="alert alert-error">
         <span>Erreur : {recipesStore.error}</span>
       </div>
+    {:else if !recipesStore.isInitialized && !recipesStore.loading}
+      <!-- État initial : Skeleton loader -->
+      <div class="my-8 space-y-10">
+        {#each Array(5) as _, i (i)}
+          <div class="skeleton h-40 w-full rounded-lg"></div>
+        {/each}
+      </div>
+    {:else if recipesStore.loading && paginatedRecipes.length === 0}
+      <!-- Chargement en cours (après initialisation) -->
+      <div class="flex justify-center py-12">
+        <div class="text-center">
+          <div class="loading loading-spinner loading-lg text-primary"></div>
+          <p class="text-base-content/60 mt-4 text-sm">
+            Chargement des recettes...
+          </p>
+        </div>
+      </div>
     {:else}
+      <!-- Contenu normal -->
       <div class="my-8 space-y-10">
         {#each paginatedRecipes as recipe (recipe.$id)}
           <div transition:fade={{ duration: 300 }}>
@@ -405,7 +423,7 @@
       {/if}
 
       <!-- Message si aucun résultat -->
-      {#if filteredRecipes.length === 0}
+      {#if filteredRecipes.length === 0 && recipesStore.isInitialized}
         <div class="py-12 text-center">
           <p class="text-base-content/60 text-lg">
             Aucune recette ne correspond aux critères...

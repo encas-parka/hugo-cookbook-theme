@@ -19,14 +19,7 @@
   import { toastService } from "./lib/services/toast.service.svelte";
   import { Router, preload } from "$lib/router";
 
-  type AppState =
-    | "BOOTING"
-    | "LOADING_PRIVATE_CACHE"
-    | "LOADING_PUBLIC_CACHE"
-    | "READY_WITH_CACHE"
-    | "READY_FULLY_SYNCED"
-    | "READY"
-    | "ERROR";
+  type AppState = "BOOTING" | "READY" | "ERROR";
   let appState = $state<AppState>("BOOTING");
   let initError: string | null = $state(null);
 
@@ -36,32 +29,41 @@
 
       await globalState.initializeAuth();
 
+      // ✅ Afficher IMMÉDIATEMENT l'UI (quel que soit l'état auth)
+      appState = "READY";
+
       if (globalState.isAuthenticated) {
-        appState = "LOADING_PRIVATE_CACHE";
+        // ============================================
+        // UTILISATEUR AUTHENTIFIÉ
+        // ============================================
+
+        // 🔵 Toast informatif
         const syncToastId = toastService.loading("Chargement des données...");
 
-        await Promise.all([
-          eventsStore.loadCache(),
-          recipesStore.loadCache(),
-          materielStore.loadCache(),
-          teamdocsStore.loadCache(),
-        ]);
-
-        appState = "READY_WITH_CACHE";
-
-        toastService.update(syncToastId, {
-          state: "loading",
-          message: "Mise à jour des données en cours...",
-        });
-
+        // 🚀 Charger TOUS les stores privés en arrière-plan (NON BLOQUANT)
         Promise.all([
-          eventsStore.syncFromRemote(),
-          recipesStore.syncFromRemote(),
-          materielStore.syncFromRemote(),
-          teamsStore.syncFromRemote(),
-          teamdocsStore.syncFromRemote(),
+          recipesStore.loadCache(), // Publique + Privé
+          eventsStore.loadCache(), // ❌ PRIVÉ
+          materielStore.loadCache(), // ❌ PRIVÉ
+          teamdocsStore.loadCache(), // ❌ PRIVÉ
         ])
           .then(async () => {
+            toastService.update(syncToastId, {
+              state: "loading",
+              message: "Mise à jour des données en cours...",
+            });
+
+            // Synchro distante
+            return Promise.all([
+              recipesStore.syncFromRemote(),
+              eventsStore.syncFromRemote(),
+              materielStore.syncFromRemote(),
+              teamsStore.syncFromRemote(),
+              teamdocsStore.syncFromRemote(),
+            ]);
+          })
+          .then(async () => {
+            // Realtime (UNIQUEMENT pour authentifié)
             await Promise.all([
               eventsStore.setupRealtime(),
               recipesStore.setupRealtime(),
@@ -71,17 +73,21 @@
               teamdocsStore.setupRealtime(),
             ]);
             await realtimeManager.initialize();
-            appState = "READY_FULLY_SYNCED";
-            toastService.dismiss(syncToastId);
 
-            // ✅ Précharger les routes probables en arrière-plan avec sv-router
+            toastService.update(syncToastId, {
+              state: "success",
+              message: "Données synchronisées",
+              autoCloseDelay: 2000,
+            });
+
+            // Préchargement des routes probables
             setTimeout(() => {
               preload("/dashboard");
               preload("/recipe");
             }, 3000);
           })
           .catch((err) => {
-            console.error("[App] Erreur synchro distante:", err);
+            console.error("[App] Erreur synchro privée:", err);
             toastService.update(syncToastId, {
               state: "warning",
               message: "Mode hors ligne : données mises en cache",
@@ -90,25 +96,34 @@
             realtimeManager.initialize().catch(console.error);
           });
       } else {
-        appState = "LOADING_PUBLIC_CACHE";
+        // ============================================
+        // VISITEUR NON AUTHENTIFIÉ
+        // ============================================
 
-        await recipesStore.loadCache();
-        appState = "READY_WITH_CACHE";
-
-        Promise.all([
-          recipesStore.syncFromRemotePublicOnly(),
-          realtimeManager.initialize(),
-        ])
+        // 🚀 Charger SEULEMENT recipesStore en arrière-plan (NON BLOQUANT)
+        // Pas de toast pour les visiteurs (chargement silencieux)
+        recipesStore
+          .loadCache()
           .then(() => {
-            appState = "READY_FULLY_SYNCED";
-
-            // ✅ Précharger les routes publiques probables avec sv-router
+            // Synchro publique SEULEMENT
+            return recipesStore.syncFromRemotePublicOnly();
+          })
+          .then(() => {
+            // Realtime publique (pas de notification, pas de teams)
+            return Promise.all([
+              recipesStore.setupRealtime(),
+              realtimeManager.initialize(),
+            ]);
+          })
+          .then(() => {
+            // Précharger les routes publiques
             setTimeout(() => {
               preload("/recipe");
             }, 2000);
           })
           .catch((err) => {
-            console.error("[App] Erreur synchro recettes:", err);
+            console.error("[App] Erreur synchro publique:", err);
+            // Pas de toast d'erreur pour les visiteurs
           });
       }
     } catch (err: any) {
@@ -131,12 +146,7 @@
       return;
     }
 
-    if (
-      appState !== "BOOTING" &&
-      appState !== "LOADING_PRIVATE_CACHE" &&
-      appState !== "LOADING_PUBLIC_CACHE" &&
-      isAuth !== wasAuthenticated
-    ) {
+    if (appState !== "BOOTING" && isAuth !== wasAuthenticated) {
       wasAuthenticated = isAuth;
       console.log("[App] Changement d'état Auth détecté -> Rechargement");
       isInitializing = true;
@@ -184,18 +194,10 @@
     <div class="flex h-[50vh] items-center justify-center">
       <ErrorAlert message={displayError || "Erreur inconnue"} />
     </div>
-  {:else if appState === "BOOTING" || appState === "LOADING_PRIVATE_CACHE" || appState === "LOADING_PUBLIC_CACHE"}
+  {:else if appState === "BOOTING"}
     <div class="flex h-[80vh] flex-col items-center justify-center gap-4">
       <div class="loading loading-spinner loading-lg text-primary"></div>
-      <p class="text-base-content/70 animate-pulse font-medium">
-        {#if appState === "BOOTING"}
-          Démarrage...
-        {:else if appState === "LOADING_PRIVATE_CACHE"}
-          Chargement des données en cache...
-        {:else if appState === "LOADING_PUBLIC_CACHE"}
-          Préparation de la cuisine...
-        {/if}
-      </p>
+      <p class="text-base-content/70 animate-pulse font-medium">Démarrage...</p>
     </div>
   {:else}
     <!-- ✅ sv-router - Router avec mode hash -->
@@ -211,7 +213,7 @@
 <Toast />
 <ScrollToTopButton />
 
-{#if globalState.isAuthenticated && appState === "READY"}
+{#if globalState.isAuthenticated}
   {#if displayError}
     <ErrorAlert message={displayError} />
   {/if}

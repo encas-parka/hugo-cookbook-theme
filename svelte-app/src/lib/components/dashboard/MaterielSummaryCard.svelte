@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Package, ArrowRight } from "@lucide/svelte";
-  import { navigate } from '$lib/router';
+  import { navigate } from "$lib/router";
   import { materielStore } from "$lib/stores/MaterielStore.svelte";
 
   interface Props {
@@ -18,8 +18,11 @@
     </h2>
 
     {#if loading}
-      <div class="flex items-center justify-center py-8">
-        <div class="loading loading-spinner loading-md"></div>
+      <!-- Skeleton loader -->
+      <div class="space-y-4 py-4">
+        <div class="skeleton h-20 w-full rounded-lg"></div>
+        <div class="skeleton h-14 w-full rounded-lg"></div>
+        <div class="skeleton h-14 w-full rounded-lg"></div>
       </div>
     {:else}
       <div class="card card-sm bg-base-300">

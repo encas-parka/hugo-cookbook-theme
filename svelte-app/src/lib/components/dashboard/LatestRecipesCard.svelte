@@ -10,7 +10,7 @@
   } from "@lucide/svelte";
   import { formatDateRelative } from "$lib/utils/date-helpers";
   import { recipesStore } from "$lib/stores/RecipesStore.svelte";
-  import { navigate } from '$lib/router';
+  import { navigate } from "$lib/router";
   import type { RecipeIndexEntry } from "$lib/types/recipes.types";
   import { getTypeDisplay } from "$lib/utils/recipeUtils";
   import { globalState } from "$lib/stores/GlobalState.svelte";
@@ -72,6 +72,11 @@
     return getTypeDisplay(recipe.typeR, recipe.categories);
   }
 
+  // État de chargement combiné
+  const isLoading = $derived(
+    !recipesStore.isInitialized && !recipesStore.loading,
+  );
+
   function viewRecipe(uuid: string) {
     navigate(`/recipe/${uuid}`);
   }
@@ -103,7 +108,7 @@
     <div class="min-w-0 flex-1">
       <div class="flex flex-wrap items-center gap-x-10 gap-y-2">
         <div class="text-primary flex items-center gap-2">
-          <svg class="text-primary h-4 w-4 flex-shrink-0">
+          <svg class="text-primary h-4 w-4 shrink-0">
             <use href={`/icons/sprite.svg#${iconInfo.iconId}`} />
           </svg>
           <div class="truncate text-sm font-medium">
@@ -133,7 +138,7 @@
         {/if}
       </div>
     </div>
-    <ArrowRight class="mt-1 h-4 w-4 flex-shrink-0 opacity-40" />
+    <ArrowRight class="mt-1 h-4 w-4 shrink-0 opacity-40" />
   </div>
 {/snippet}
 
@@ -162,6 +167,13 @@
     >
       Réessayer
     </button>
+  </div>
+{:else if isLoading}
+  <!-- Skeleton loader -->
+  <div class="space-y-3 py-4">
+    <div class="skeleton h-32 w-full rounded-lg"></div>
+    <div class="skeleton h-32 w-full rounded-lg"></div>
+    <div class="skeleton h-32 w-full rounded-lg"></div>
   </div>
 {:else if myLatestRecipes.length === 0 && latestRecipes.length === 0}
   <div class="py-6 text-center">

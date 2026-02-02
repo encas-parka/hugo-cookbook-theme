@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Users, Calendar, CheckCircle, XCircle, Plus } from "@lucide/svelte";
-  import { navigate } from '$lib/router';
+  import { navigate } from "$lib/router";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import TeamDetailModal from "$lib/components/teams/TeamDetailModal.svelte";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
@@ -76,8 +76,11 @@
     </div>
 
     {#if loading}
-      <div class="flex items-center justify-center py-8">
-        <span class="loading loading-spinner loading-md"></span>
+      <!-- Skeleton loader -->
+      <div class="space-y-3 py-4">
+        <div class="skeleton h-24 w-full rounded-lg"></div>
+        <div class="skeleton h-24 w-full rounded-lg"></div>
+        <div class="skeleton h-24 w-full rounded-lg"></div>
       </div>
     {:else if teams.length === 0 && invitations.length === 0}
       <div class="py-6 text-center">
