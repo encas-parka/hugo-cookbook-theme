@@ -129,26 +129,28 @@
 {#snippet navActions()}
   {#if globalState.isAuthenticated && recipeDetails}
     <div class="flex items-center gap-4">
-      <button class="btn btn-circle btn-primary" onclick={() => window.print()}
-        ><Printer size={18} /></button
+      <button
+        class="btn btn-circle btn-primary max-sm:hidden"
+        onclick={() => window.print()}><Printer size={18} /></button
       >
       <!-- Bouton Créer une version alternative (disponible pour tous) -->
       <button
-        class="btn btn-secondary"
+        class="btn btn-secondary btn-sm"
         onclick={() => navigate(`/recipe/${recipeDetails?.$id}/duplicate`)}
       >
         <Copy size={18} />
-        Créer une version alternative
+
+        <span class="hidden sm:block">Créer une version alternative</span>
       </button>
 
       <!-- Bouton Éditer (réservé aux utilisateurs avec droits d'écriture) -->
       {#if (recipeDetails.permissionWrite && globalState.userId && recipeDetails.permissionWrite.includes(globalState.userId)) || (recipeDetails.createdBy && recipeDetails.createdBy === globalState.userId)}
         <button
-          class="btn btn-primary"
+          class="btn btn-primary btn-sm"
           onclick={() => navigate(`/recipe/${recipeDetails?.$id}/edit`)}
         >
           <PencilIcon size={18} />
-          Éditer
+          <span class="hidden sm:block">Éditer</span>
         </button>
       {/if}
     </div>
