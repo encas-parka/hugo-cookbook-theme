@@ -233,10 +233,8 @@
       <p class="text-base-content/70 animate-pulse font-medium">Démarrage...</p>
     </div>
   {:else}
-    <!-- ✅ sv-router - Router avec mode hash -->
-    <!-- base="#" active le mode hash pour compatibilité avec Hugo -->
-    <!-- Les routes sont rendues ici automatiquement -->
-    <Router base="#">
+    <!-- ✅ sv-router -->
+    <Router>
       <!-- Les composants de route sont rendus ici par sv-router -->
       <!-- Ils accèdent aux params via route.params et route.search -->
     </Router>

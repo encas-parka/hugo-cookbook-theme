@@ -15,12 +15,7 @@
  * - getQuery('x') → route.search.x
  * - router.path → route.pathname
  * - preloadRoute() → preload()
- *
- * Documentation sv-router :
- * - Navigation: https://sv-router.vercel.app/guide/code-based/navigation
- * - Dynamic routes: https://sv-router.vercel.app/guide/code-based/dynamic-routes
- * - Search params: https://sv-router.vercel.app/guide/code-based/search-params
- */
+ * */
 
 import { createRouter, Router as SvRouter, searchParams } from "sv-router";
 import { routes } from "./routes";

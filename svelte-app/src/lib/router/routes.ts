@@ -62,6 +62,7 @@ export const routes: Routes = {
     "/": () => import("$lib/routes/DashboardPage.svelte"),
     "/teams": () => import("$lib/routes/TeamsManagement.svelte"),
     "/eventCreate": () => import("$lib/routes/EventCreatePage.svelte"),
+    "/eventCreate/:teamId": () => import("$lib/routes/EventCreatePage.svelte"),
     "/materiel": () => import("$lib/routes/MaterielPage.svelte"),
     "/materiel/:teamId": () => import("$lib/routes/MaterielPage.svelte"),
     "/loans": () => import("$lib/routes/LoansPage.svelte"),

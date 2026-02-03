@@ -80,8 +80,9 @@
     showTeamModal = true;
   }
 
+  // fixit
   function goToCreateEvent() {
-    navigate(`/dashboard/eventCreate?teamId=${team.$id}`);
+    navigate(`/dashboard/eventCreate/${team.$id}`);
   }
 
   function goToInventory() {

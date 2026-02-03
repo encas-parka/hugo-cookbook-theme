@@ -11,7 +11,7 @@
   import { nanoid } from "nanoid";
   import { flip } from "svelte/animate";
   import { untrack } from "svelte";
-  import { navigate, route } from "$lib/router";
+  import { navigate, route, searchParams } from "$lib/router";
 
   import { navBarStore } from "../stores/NavBarStore.svelte";
 
@@ -42,11 +42,7 @@
   let selectedTeams = $state<string[]>([]);
   let sendEmailToExistingMembers = $state(true);
 
-  // Récupérer le teamId depuis les query params de l'URL si présent
-  // Utilise route.search de sv-router au lieu de window.location.hash manuel
-  const teamIdFromUrl = $derived(
-    (route.search.teamId ? String(route.search.teamId) : null) as string | null,
-  );
+  const teamIdFromUrl = $derived(route.params.teamId);
 
   // Précocher la team si présente dans l'URL
   $effect(() => {

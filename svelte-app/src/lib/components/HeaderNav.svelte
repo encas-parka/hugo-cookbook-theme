@@ -187,7 +187,7 @@
 >
   <div class="navbar-start w-fit shrink-0 gap-1">
     <!-- Brand -->
-    <a href={p("/#/")} class="btn btn-ghost btn-circle">
+    <a href={p("/")} class="btn btn-ghost btn-circle">
       <img src="/images/favicon.png" alt="logo" class="h-8 w-8" />
     </a>
 
