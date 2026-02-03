@@ -15,6 +15,7 @@
     disabled?: boolean;
     badge?: string | null;
     size?: "xs" | "sm" | "lg" | "md";
+    title?: string; // Tooltip optionnel
     onchange: () => void;
   }
 
@@ -27,6 +28,7 @@
     disabled = false,
     badge = null,
     size = "sm",
+    title,
     onchange,
   }: Props = $props();
 
@@ -102,6 +104,7 @@
 <label
   class="text-base-content/80 label {bgClass} cursor-pointer justify-start {rounded} {padding} font-family-sora"
   class:opacity-50={disabled}
+  {title}
 >
   <input
     type="checkbox"

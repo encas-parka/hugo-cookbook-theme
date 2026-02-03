@@ -19,6 +19,7 @@
   let showReturnModal = $state(false);
   let selectedLoan = $state<EnrichedMaterielLoan | null>(null);
   let isRedirecting = $state(false);
+  let editingLoanId = $state<string | null>(null); // ID du loan en édition
 
   // Ouvrir le modal de création d'emprunt
   function openCreateLoanModal() {
@@ -31,12 +32,45 @@
       return;
     }
 
+    editingLoanId = null; // Réinitialiser en mode création
+    createLoanModalOpen = true;
+  }
+
+  // Ouvrir le modal d'édition d'emprunt
+  function openEditLoanModal(loanId: string) {
+    if (!activeTeamId) return;
+
+    // Trouver l'équipe active
+    const team = userTeams.find((t) => t.$id === activeTeamId);
+    if (!team) {
+      toastService.error("Équipe introuvable");
+      return;
+    }
+
+    // Vérifier que la date de fin n'est pas passée
+    const loan = materielStore.getLoanById(loanId);
+    if (!loan) {
+      toastService.error("Emprunt introuvable");
+      return;
+    }
+
+    const now = new Date();
+    const endDate = new Date(loan.endDate);
+    if (now > endDate) {
+      toastService.error(
+        "Impossible de modifier un emprunt dont la date est passée",
+      );
+      return;
+    }
+
+    editingLoanId = loanId; // Passer en mode édition
     createLoanModalOpen = true;
   }
 
   // Fermer le modal de création d'emprunt
   function closeCreateLoanModal() {
     createLoanModalOpen = false;
+    editingLoanId = null; // Réinitialiser le mode édition
   }
 
   // Après création d'emprunt
@@ -253,6 +287,7 @@
               onAccept={handleAcceptLoan}
               onCancel={handleCancelLoan}
               onDelete={handleDeleteLoan}
+              onEdit={openEditLoanModal}
             />
           {/each}
         </div>
@@ -269,6 +304,7 @@
     onSuccess={handleLoanCreated}
     ownerId={activeTeam.$id}
     ownerName={activeTeam.name}
+    loanId={editingLoanId ?? undefined}
   />
 {/if}
 

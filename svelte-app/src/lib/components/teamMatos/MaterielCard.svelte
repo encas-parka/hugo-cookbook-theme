@@ -211,7 +211,7 @@
 
           <!-- Info sur les prêts (si présent) -->
           {#if materiel.totalLoanedQuantity > 0}
-            <div class="text-base-content/70 text-xs">
+            <div class="badge badge-sm badge-info">
               {materiel.totalLoanedQuantity}/{materiel.quantity} en prêt(s)
             </div>
           {/if}
@@ -223,8 +223,8 @@
           {/if}
 
           <!-- Statut principal -->
-          {#if materiel.status !== "ok"}
-            <div class="badge {StatusConfig.badgeClass} badge-xs gap-1 py-0">
+          {#if materiel.status !== "ok" && materiel.status !== "loan"}
+            <div class="badge {StatusConfig.badgeClass} badge-sm gap-1 py-0">
               {StatusConfig.label}
             </div>
           {/if}
@@ -253,20 +253,22 @@
           <div class="">
             <div class="text-xs">
               <span class="text-info font-semibold">
-                {materiel.loanDetails.length} réservation :
+                {materiel.loanDetails.length} réservation
+                {materiel.loanDetails.length > 1 ? "s" : ""} :
               </span>
-              <span class="text-base-content/80 ml-2 font-medium">
-                {materiel.loanDetails
-                  .map((l) => `${l.responsibleName} (${l.quantity})`)
-                  .join(", ")}
-                {#if materiel.loanDetails.length > 0}
-                  du {formatDateDayMonthShort(
-                    materiel.loanDetails[0].startDate,
-                  )}
-                  jusqu'au {formatDateDayMonthShort(
-                    materiel.loanDetails[0].endDate,
-                  )}
-                {/if}
+              <span class="text-base-content/80 ml-2">
+                {#each materiel.loanDetails as loan, index}
+                  {#if index > 0}
+                    <span class="opacity-50"> • </span>
+                  {/if}
+                  <span class="font-medium">
+                    {loan.responsibleName} ({loan.quantity})
+                  </span>
+                  <span class="opacity-70">
+                    du {formatDateDayMonthShort(loan.startDate)}
+                    au {formatDateDayMonthShort(loan.endDate)}
+                  </span>
+                {/each}
               </span>
             </div>
           </div>

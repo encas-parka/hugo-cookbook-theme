@@ -8,16 +8,23 @@
     Utensils,
     Flame,
     SoapDispenserDroplet,
+    Info,
+    AlertTriangle,
   } from "@lucide/svelte";
   import BtnGroupCheck from "../ui/BtnGroupCheck.svelte";
   import type { EnrichedMateriel } from "$lib/types/materiel.types";
+
+  interface MaterielWithAvailability extends EnrichedMateriel {
+    availableForPeriod?: number;
+    isUnavailable?: boolean;
+  }
 
   interface Props {
     isOpen: boolean;
     onClose: () => void;
     onAdd: (materielIds: string[]) => void;
     selectedIds?: Set<string>;
-    materiels: EnrichedMateriel[]; // Liste des matériels disponibles (déjà filtrée)
+    materiels: Array<EnrichedMateriel & { availableForPeriod?: number }>; // Liste des matériels (dispo + non-dispo)
   }
 
   let {
@@ -27,6 +34,19 @@
     selectedIds = new Set(),
     materiels,
   }: Props = $props();
+
+  // Séparer les matériels disponibles et indisponibles
+  const availableMateriels = $derived.by(() => {
+    return materiels.filter(
+      (m) => m.availableForPeriod !== undefined && m.availableForPeriod > 0,
+    );
+  });
+
+  const unavailableMateriels = $derived.by(() => {
+    return materiels.filter(
+      (m) => m.availableForPeriod === undefined || m.availableForPeriod === 0,
+    );
+  });
 
   // Labels des types
   const typeLabels: Record<string, string> = $derived.by(() => ({
@@ -52,15 +72,21 @@
 
   // Grouper les matériels par type
   const materielsByType = $derived.by(() => {
-    const grouped: Record<string, EnrichedMateriel[]> = {};
+    const grouped: Record<string, MaterielWithAvailability[]> = {};
 
-    // Les materiels sont déjà filtrés par le parent
+    // Utiliser TOUS les matériels (dispo + non-dispo)
     materiels.forEach((materiel) => {
       const type = materiel.type || "other";
       if (!grouped[type]) {
         grouped[type] = [];
       }
-      grouped[type].push(materiel);
+      // Marquer comme indisponible si pas de availableForPeriod
+      const m: MaterielWithAvailability = {
+        ...materiel,
+        isUnavailable:
+          !materiel.availableForPeriod || materiel.availableForPeriod === 0,
+      };
+      grouped[type].push(m);
     });
 
     return grouped;
@@ -113,10 +139,30 @@
 
     <!-- Contenu principal -->
     <div class="flex-1 space-y-6 overflow-y-auto p-4">
+      <!-- Alerte info -->
       <div class="alert alert-info alert-soft text-base">
-        Les nombres indiquent les quantités disponibles de chaque matériel, vous
-        indiquerez après la quantité que vous souhaitez réserver.
+        <Info class="h-5 w-5" />
+        <span>
+          Les nombres indiquent les quantités disponibles de chaque matériel,
+          vous indiquerez après la quantité que vous souhaitez réserver.
+        </span>
       </div>
+
+      <!-- Alerte warning si matériels indisponibles -->
+      {#if unavailableMateriels.length > 0}
+        <div class="alert alert-warning alert-soft text-base">
+          <AlertTriangle class="h-5 w-5" />
+          <span>
+            {unavailableMateriels.length} matériel{unavailableMateriels.length >
+            1
+              ? "s"
+              : ""}
+            indisponible{unavailableMateriels.length > 1 ? "s" : ""} sur la période
+            sélectionnée. Ils sont affichés en grisé dans la liste.
+          </span>
+        </div>
+      {/if}
+
       {#each Object.entries(materielsByType) as [type, materiels] (type)}
         {@const TypeIcon = TypeIcons[type]}
         <div class="mb-6">
@@ -135,9 +181,16 @@
             items={materiels.map((m) => ({
               id: m.$id,
               label: m.name,
-              badge: String(m.availableQuantity),
+              badge:
+                m.availableForPeriod !== undefined
+                  ? String(m.availableForPeriod)
+                  : "0",
               selected: localSelectedIds.has(m.$id),
-              title: `${m.availableQuantity}/${m.quantity} disponibles`,
+              title:
+                m.availableForPeriod !== undefined
+                  ? `${m.availableForPeriod}/${m.quantity} disponibles`
+                  : "Indisponible sur cette période",
+              disabled: m.isUnavailable,
             }))}
             onToggleItem={handleToggleItem}
             size="md"
@@ -149,7 +202,8 @@
           <Box class="h-16 w-16 mx-auto mb-4" />
           <p class="text-lg font-medium">Aucun matériel disponible</p>
           <p class="text-sm mt-2">
-            Tous les matériels sont actuellement empruntés ou non disponibles
+            Vérifiez que l'équipe possède du matériel ou sélectionnez une
+            période différente
           </p>
         </div>
       {/each}

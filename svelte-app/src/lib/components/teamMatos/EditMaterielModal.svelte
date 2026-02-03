@@ -31,6 +31,19 @@
     materielId ? materielStore.getMaterielById(materielId) : null,
   );
 
+  // Statut pour le formulaire : convertir les statuts calculés (loan, reserved) en "ok"
+  const formStatus = $derived.by(() => {
+    if (!currentMateriel) return "ok";
+    // Si le statut est calculé (loan ou reserved), on utilise "ok" pour l'édition
+    if (
+      currentMateriel.status === "loan" ||
+      currentMateriel.status === "reserved"
+    ) {
+      return "ok";
+    }
+    return currentMateriel.status;
+  });
+
   // Réinitialiser le formulaire
   function resetForm() {
     error = null;
@@ -108,7 +121,7 @@
           name: currentMateriel.name,
           description: currentMateriel.description,
           type: currentMateriel.type,
-          status: currentMateriel.status,
+          status: formStatus,
           quantity: currentMateriel.quantity,
           location: currentMateriel.location,
           shareableWith: currentMateriel.shareableWith,

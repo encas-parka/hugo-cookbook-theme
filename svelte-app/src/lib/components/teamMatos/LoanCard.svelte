@@ -275,9 +275,9 @@
               )}
             </span>
           </div>
-          <span class="badge {statusConfig.badgeClass} badge-sm gap-1">
+          <!-- <span class="badge {statusConfig.badgeClass} badge-sm gap-1">
             {statusConfig.label}
-          </span>
+          </span> -->
         </div>
         <!-- Notes (si présentes) -->
         {#if loan.notes}
@@ -319,7 +319,7 @@
 
         {#if onEdit && loan.status === "asked"}
           <button
-            class="btn btn-ghost btn-sm"
+            class="btn btn-primary btn-soft btn-sm"
             onclick={() => onEdit(loan.$id)}
             title="Modifier"
           >

@@ -141,6 +141,8 @@ export function getMaterielStatusLabel(
     ok: "OK",
     lost: "Perdu",
     torepair: "À réparer",
+    loan: "Emprunté",
+    reserved: "Réserver",
   };
   return labels[status || "ok"] || status || "OK";
 }
@@ -375,7 +377,18 @@ export function enrichMaterielFromAppwrite(
     return start <= now && end >= now;
   });
 
-  const status: MaterielStatus | "loan" = hasActiveLoans ? "loan" : doc.status;
+  const hasFutureLoans = loanDetails.some((detail) => {
+    const start = new Date(detail.startDate);
+    return start > now;
+  });
+
+  let status: MaterielStatus | "loan" | "reserved" = doc.status;
+
+  if (hasActiveLoans) {
+    status = "loan"; // En cours d'utilisation
+  } else if (hasFutureLoans) {
+    status = "reserved"; // Réservé pour le futur
+  }
 
   // 4. Calculer les quantités disponibles
   const availableQuantity = doc.quantity - totalLoanedQuantity;
@@ -548,6 +561,7 @@ export function doPeriodsOverlap(
  * @param loans - Liste des emprunts
  * @param periodStart - Date de début de la période
  * @param periodEnd - Date de fin de la période
+ * @param excludeLoanId - Optionnel : ID d'un emprunt à exclure du calcul (pour l'édition)
  * @returns Quantité totale empruntée sur la période
  */
 export function calculateLoanedQuantityForPeriod(
@@ -555,10 +569,16 @@ export function calculateLoanedQuantityForPeriod(
   loans: MaterielLoan[],
   periodStart: Date,
   periodEnd: Date,
+  excludeLoanId?: string,
 ): number {
   let total = 0;
 
   loans.forEach((loan) => {
+    // Exclure le loan spécifié (pour l'édition)
+    if (excludeLoanId && loan.$id === excludeLoanId) {
+      return;
+    }
+
     // Vérifier si le loan est valide
     if (!isLoanValid(loan)) {
       return;

@@ -67,6 +67,13 @@ export interface MaterielOwner {
 // =============================================================================
 
 /**
+ * Statut calculé côté client pour le matériel enrichi
+ * - Les statuts Appwrite bruts : ok, lost, torepair
+ * - Les statuts calculés depuis les emprunts : loan (en cours), reserved (futur)
+ */
+export type EnrichedMaterielStatus = MaterielStatus | "loan" | "reserved";
+
+/**
  * Matériel enrichi avec données parsées et calculées
  *
  * Pattern similaire à EnrichedEvent :
@@ -74,9 +81,15 @@ export interface MaterielOwner {
  * - Ajoute les champs parsés (ownerData, loanDetails)
  * - Ajoute les champs calculés (availableQuantity, isAvailable, etc.)
  */
-export interface EnrichedMateriel extends Omit<MaterielFromAppwrite, "owner"> {
+export interface EnrichedMateriel extends Omit<
+  MaterielFromAppwrite,
+  "owner" | "status"
+> {
   // Champ brut Appwrite (JSON stringifié)
   owner: string | null; // Données brutes Appwrite (JSON string)
+
+  // Statut enrichi (peut être un statut Appwrite ou un statut calculé)
+  status: EnrichedMaterielStatus;
 
   // Champs enrichis parsés depuis Appwrite
   ownerData: MaterielOwner; // Owner parsé depuis le JSON
@@ -104,8 +117,10 @@ export type MaterielLoanFromAppwrite = MaterielLoan;
  * - Conserve tous les champs Appwrite bruts
  * - Ajoute le champ materielItems parsé depuis le JSON
  */
-export interface EnrichedMaterielLoan
-  extends Omit<MaterielLoanFromAppwrite, "materiels"> {
+export interface EnrichedMaterielLoan extends Omit<
+  MaterielLoanFromAppwrite,
+  "materiels"
+> {
   // Champ brut Appwrite (tableau de JSON strings)
   materiels: string[] | null; // Tableau où chaque string est un MaterielLoanItem JSON-stringifié
 

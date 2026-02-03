@@ -9,6 +9,7 @@
     title?: string; // Tooltip optionnel
     selected?: boolean; // État initial de sélection (true/undefined = actif, false = inactif)
     badge?: string; // Badge optionnel pour afficher une information supplémentaire
+    disabled?: boolean; // Si true, l'item est désactivé et non cliquable
   }
 
   interface Props {
@@ -67,13 +68,16 @@
 <div class="flex flex-wrap gap-2">
   {#each items as item (item.id)}
     {@const isActive = itemStates[item.id]}
+    {@const isDisabled = item.disabled}
     <CheckboxBadge
       checked={isActive}
       label={item.label}
       {color}
       badge={item.badge}
       {size}
-      onchange={() => handleToggleItem(item.id)}
+      disabled={isDisabled}
+      onchange={() => !isDisabled && handleToggleItem(item.id)}
+      title={item.title}
     />
   {/each}
 </div>

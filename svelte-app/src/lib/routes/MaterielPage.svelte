@@ -13,7 +13,7 @@
     type MaterielFiltersType,
   } from "$lib/components/teamMatos/MaterielFilters.svelte";
   import LeftPanel from "$lib/components/ui/LeftPanel.svelte";
-  import { fade } from "svelte/transition";
+  import { fade, slide } from "svelte/transition";
   import { navigate } from "$lib/router";
   import type { EnrichedMateriel } from "$lib/types/materiel.types";
 

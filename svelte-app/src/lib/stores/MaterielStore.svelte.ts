@@ -164,12 +164,14 @@ export class MaterielStore {
    * @param teamId ID de l'équipe propriétaire
    * @param startDate Date de début de la période
    * @param endDate Date de fin de la période
+   * @param excludeLoanId Optionnel : ID d'un emprunt à exclure du calcul (pour l'édition)
    * @returns Liste des matériels disponibles avec leur quantité disponible sur la période
    */
   getAvailableMaterielsForPeriod(
     teamId: string,
     startDate: string,
     endDate: string,
+    excludeLoanId?: string,
   ): Array<EnrichedMateriel & { availableForPeriod: number }> {
     const periodStart = new Date(startDate);
     const periodEnd = new Date(endDate);
@@ -184,6 +186,7 @@ export class MaterielStore {
           allLoans,
           periodStart,
           periodEnd,
+          excludeLoanId,
         );
         const availableForPeriod = materiel.quantity - loanedQuantity;
 
