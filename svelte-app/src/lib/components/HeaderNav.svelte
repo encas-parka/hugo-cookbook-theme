@@ -1,6 +1,6 @@
 <script lang="ts">
   import { globalState } from "../stores/GlobalState.svelte";
-  import { route, p } from "$lib/router";
+  import { route, p, navigate } from "$lib/router";
   import { navBarStore } from "../stores/NavBarStore.svelte";
   import { recipesStore } from "../stores/RecipesStore.svelte";
   import EventTabs from "./eventEdit/EventTabs.svelte";
@@ -194,19 +194,22 @@
     <!-- Permanent Nav Links -->
     <div class=" flex items-center gap-1">
       {#if globalState.isAuthenticated}
-        <a
-          href={p("/#/dashboard")}
+        <button
+          onclick={() => navigate("/dashboard")}
           class="btn btn-ghost not-md:btn-square md:gap-2"
         >
           <LayoutDashboardIcon size={18} />
           <span class="hidden md:inline">Tableau de bord</span>
-        </a>
+        </button>
       {/if}
 
-      <a href={p("/#/recipe")} class="btn btn-ghost not-md:btn-square md:gap-2">
+      <button
+        onclick={() => navigate("/recipe")}
+        class="btn btn-ghost not-md:btn-square md:gap-2"
+      >
         <CookingPot size={18} />
         <span class="hidden md:inline">Recettes</span>
-      </a>
+      </button>
     </div>
 
     <!-- Back button (Keep if really needed by some specific page logic) -->
@@ -281,27 +284,36 @@
             </span>
           </li>
           <li>
-            <a href={p("/#/dashboard")} class="flex items-center gap-2">
+            <button
+              onclick={() => navigate("/dashboard")}
+              class="flex items-center gap-2"
+            >
               <LayoutDashboardIcon size={16} /> Dashboard
-            </a>
+            </button>
           </li>
           <li>
-            <a href={p("/#/dashboard/teams")} class="flex items-center gap-2">
+            <button
+              onclick={() => navigate("/dashboard/teams")}
+              class="flex items-center gap-2"
+            >
               <UsersIcon size={16} /> Équipes
-            </a>
+            </button>
           </li>
           <li>
-            <a
-              href={p("/#/dashboard/eventCreate")}
+            <button
+              onclick={() => navigate("/dashboard/eventCreate")}
               class="flex items-center gap-2"
             >
               <PlusIcon size={16} /> Nouvel événement
-            </a>
+            </button>
           </li>
           <li>
-            <a href={p("/#/recipe")} class="flex items-center gap-2">
+            <button
+              onclick={() => navigate("/recipe")}
+              class="flex items-center gap-2"
+            >
               <BookOpenIcon size={16} /> Recettes
-            </a>
+            </button>
           </li>
           <li>
             <button
