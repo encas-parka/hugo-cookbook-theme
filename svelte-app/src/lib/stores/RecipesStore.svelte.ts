@@ -276,20 +276,33 @@ class RecipesStore {
     }
 
     // Vérifier si déjà configuré pour éviter les doublons
-    if (this.#realtimeInitialized) {
+    // ✅ SAUF si le RealtimeManager a été détruit (changement auth)
+    if (this.#realtimeInitialized && realtimeManager.isInitialized) {
       console.log("[RecipesStore] Realtime déjà configuré");
       return;
     }
 
+    // Réinitialiser le flag si le RealtimeManager a été détruit
+    if (this.#realtimeInitialized && !realtimeManager.isInitialized) {
+      console.log(
+        "[RecipesStore] RealtimeManager détruit, réinitialisation...",
+      );
+      this.#realtimeInitialized = false;
+    }
+
     console.log("[RecipesStore] Configuration du realtime...");
 
-    if (globalState.userId) {
-      try {
-        this.#setupRealtime();
-        this.#realtimeInitialized = true;
-      } catch (err) {
-        console.warn("[RecipesStore] Erreur activation realtime:", err);
-      }
+    // ✅ Pas de realtime pour les visiteurs
+    if (!globalState.isAuthenticated) {
+      console.log("[RecipesStore] Mode visiteur : pas de realtime");
+      return;
+    }
+
+    try {
+      this.#setupRealtime();
+      this.#realtimeInitialized = true;
+    } catch (err) {
+      console.warn("[RecipesStore] Erreur activation realtime:", err);
     }
   }
 

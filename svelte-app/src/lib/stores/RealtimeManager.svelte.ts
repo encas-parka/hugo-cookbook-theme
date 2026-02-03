@@ -152,6 +152,14 @@ export class RealtimeManager {
     this.#isInitialized = false;
     console.log("[RealtimeManager] Connexion Realtime fermée.");
   }
+
+  /**
+   * Retourne l'état d'initialisation du RealtimeManager.
+   * Permet aux stores de savoir s'ils doivent réenregistrer leurs channels.
+   */
+  get isInitialized(): boolean {
+    return this.#isInitialized;
+  }
 }
 
 // Singleton

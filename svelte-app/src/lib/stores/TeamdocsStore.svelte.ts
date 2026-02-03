@@ -147,13 +147,24 @@ export class TeamdocsStore {
    * Phase 3 : Configure les abonnements realtime
    */
   async setupRealtime(): Promise<void> {
-    if (!globalState.userId) {
+    // ✅ Pas de realtime pour les visiteurs
+    if (!globalState.isAuthenticated) {
       return;
     }
 
-    if (this.#realtimeInitialized) {
+    // Vérifier si déjà configuré pour éviter les doublons
+    // ✅ SAUF si le RealtimeManager a été détruit (changement auth)
+    if (this.#realtimeInitialized && realtimeManager.isInitialized) {
       console.log("[TeamdocsStore] Realtime déjà configuré");
       return;
+    }
+
+    // Réinitialiser le flag si le RealtimeManager a été détruit
+    if (this.#realtimeInitialized && !realtimeManager.isInitialized) {
+      console.log(
+        "[TeamdocsStore] RealtimeManager détruit, réinitialisation...",
+      );
+      this.#realtimeInitialized = false;
     }
 
     try {

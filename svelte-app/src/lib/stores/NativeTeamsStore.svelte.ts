@@ -112,14 +112,24 @@ export class NativeTeamsStore {
    * Phase 3 : Configure les abonnements realtime
    */
   async setupRealtime(): Promise<void> {
-    if (!globalState.userId) {
+    // ✅ Pas de realtime pour les visiteurs
+    if (!globalState.isAuthenticated) {
       return;
     }
 
     // Vérifier si déjà configuré pour éviter les doublons
-    if (this.#realtimeInitialized) {
+    // ✅ SAUF si le RealtimeManager a été détruit (changement auth)
+    if (this.#realtimeInitialized && realtimeManager.isInitialized) {
       console.log("[NativeTeamsStore] Realtime déjà configuré");
       return;
+    }
+
+    // Réinitialiser le flag si le RealtimeManager a été détruit
+    if (this.#realtimeInitialized && !realtimeManager.isInitialized) {
+      console.log(
+        "[NativeTeamsStore] RealtimeManager détruit, réinitialisation...",
+      );
+      this.#realtimeInitialized = false;
     }
 
     try {

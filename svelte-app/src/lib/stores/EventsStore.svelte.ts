@@ -279,9 +279,16 @@ export class EventsStore {
     }
 
     // Vérifier si déjà configuré pour éviter les doublons
-    if (this.#realtimeInitialized) {
+    // ✅ SAUF si le RealtimeManager a été détruit (changement auth)
+    if (this.#realtimeInitialized && realtimeManager.isInitialized) {
       console.log("[EventsStore] Realtime déjà configuré");
       return;
+    }
+
+    // Réinitialiser le flag si le RealtimeManager a été détruit
+    if (this.#realtimeInitialized && !realtimeManager.isInitialized) {
+      console.log("[EventsStore] RealtimeManager détruit, réinitialisation...");
+      this.#realtimeInitialized = false;
     }
 
     console.log("[EventsStore] Configuration du realtime...");

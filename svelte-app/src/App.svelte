@@ -62,8 +62,14 @@
               teamdocsStore.syncFromRemote(),
             ]);
           })
+          .catch((err) => {
+            console.error("[App] Erreur synchro privée:", err);
+            // En cas d'erreur de synchro, on continue quand même (mode offline)
+            return Promise.resolve();
+          })
           .then(async () => {
             // Realtime (UNIQUEMENT pour authentifié)
+            // ✅ TOUJOURS exécuté : succès ou erreur de synchro
             await Promise.all([
               eventsStore.setupRealtime(),
               recipesStore.setupRealtime(),
@@ -87,13 +93,12 @@
             }, 3000);
           })
           .catch((err) => {
-            console.error("[App] Erreur synchro privée:", err);
+            console.error("[App] Erreur setup realtime:", err);
             toastService.update(syncToastId, {
               state: "warning",
               message: "Mode hors ligne : données mises en cache",
               autoCloseDelay: 5000,
             });
-            realtimeManager.initialize().catch(console.error);
           });
       } else {
         // ============================================
@@ -148,6 +153,11 @@
     if (appState !== "BOOTING" && isAuth !== wasAuthenticated) {
       wasAuthenticated = isAuth;
       console.log("[App] Changement d'état Auth détecté -> Rechargement");
+
+      // ✅ NETTOYER le RealtimeManager avant de réinitialiser
+      // Cela permet aux stores de ré-enregistrer leurs channels sans warning
+      realtimeManager.destroy();
+
       isInitializing = true;
       initializeApp().finally(() => {
         isInitializing = false;
