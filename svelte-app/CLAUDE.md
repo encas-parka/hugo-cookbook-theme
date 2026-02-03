@@ -6,16 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Core Development
 
-- `bun run dev` - Start development server with Vite HMR
-- `bun run build` - Build for production
+- `bun run dev` - Start development server with Vite HMR and Hugo proxy
+- `bun run build` - Build for production (outputs to `../static/app/`)
 - `bun run preview` - Preview production build locally
 - `bun run check` - Run type checking (svelte-check + TypeScript)
+
+### Code Quality
+
+```bash
+# Format with Prettier (includes Svelte and Tailwind plugins)
+npx prettier --write "**/*.{svelte,ts,js,css}"
+npx prettier --check "**/*.{svelte,ts,js,css}"
+```
 
 ### Type Safety
 
 - Uses Svelte 5 with TypeScript
-- Type checking includes both app code (tsconfig.app.json) and Node/tooling (tsconfig.node.json)
+- Type checking includes both app code (`tsconfig.app.json`) and Node/tooling (`tsconfig.node.json`)
 - Appwrite types are auto-generated in `src/lib/types/appwrite.d.ts`
+- Path aliases: `@/*` → `./src/*`, `$lib/*` → `./src/lib/*`
 
 ## Routing with sv-router
 
@@ -61,227 +70,103 @@ $effect(() => {
 Routes are protected with guards in `src/lib/router/guards.ts`:
 
 - `authGuard` - Requires authentication, redirects to `/` if not logged in
-- `localEventGuard` - Requires event status="local", used for demo mode
+- `eventGuard` - Initializes eventsStore in normal or public mode (demo)
 
 ### Route Configuration
 
-All routes are defined in `src/lib/router/routes.ts` with:
+All routes are defined in `src/lib/router/routes.ts`:
 
-- Public routes (no auth): `/`, `/recipe`, `/recipe/:uuid`
-- Private routes (authGuard): `/dashboard/*`, `/recipe/my/*`
-- Demo routes (localEventGuard): `/demo/event/*`
-
-### Migration from simple-router
-
-| Old (simple-router) | New (sv-router)     |
-| ------------------- | ------------------- |
-| `navigate('/path')` | `navigate('/path')` |
-| `getParam('x')`     | `route.params.x`    |
-| `getQuery('x')`     | `route.search.x`    |
-| `router.path`       | `route.pathname`    |
-| `preloadRoute()`    | `preload()`         |
-
-### Documentation
-
-For complete sv-router reference, see `docs/documentations/sv-router-implementation.md` (project root) which includes:
-
-- Full navigation API with examples
-- Route configuration patterns
-- Guard implementations (authGuard, localEventGuard)
-- Migration guide from simple-router
-- Cheat sheet for common patterns
+- **Public routes** (no auth): `/`, `/recipe`, `/recipe/:uuid`, `/verify-email`
+- **Private routes** (authGuard): `/dashboard/*`, `/recipe/my/*`, `/recipe/new`, `/eventList`
+- **Event routes** (eventGuard): `/event/:id/*` - works for both normal and demo events
+- **Route 404**: `(*)` catch-all at the end
 
 ## Architecture Overview
 
 ### Tech Stack
 
-- **Frontend**: Svelte 5 (modern Svelte with $state, $props, $derived)
+- **Frontend**: Svelte 5 with reactive runes (`$state`, `$props`, `$derived`)
 - **Build**: Vite with @sveltejs/vite-plugin-svelte
 - **Styling**: Tailwind CSS v4 with DaisyUI components
 - **Backend**: Appwrite (database, authentication, realtime)
-- **State**: Svelte 5 native reactivity + runed utilities
-- **Data Grid**: RevoGrid with Svelte integration
+- **Icons**: Lucide Svelte (`@lucide/svelte` - NOT `lucide-svelte`)
+- **Markdown**: TipTap editor for rich text editing
 - **Serialization**: SuperJSON for complex data structures
 
-### Core Architecture Pattern
-
-The application follows a **3-layer reactive architecture**:
+### Core Architecture Pattern: 3-Layer Reactive
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                 Appwrite Backend                           │
-│  • Database, Auth, Realtime                                 │
-│  • Source of truth                                          │
+│  • Database, Auth, Realtime, Cloud Functions               │
 └─────────────────▲───────────────────────────────────────────┘
                    │ Raw data access
 ┌─────────────────▼───────────────────────────────────────────┐
-│              appwrite-products                         │
+│              Service Layer (appwrite-*.ts)                 │
 │  • Pure CRUD functions                                      │
 │  • Stateless data transformations                           │
 │  • Realtime subscription management                         │
-│  • Incremental sync logic                                  │
 └─────────────────▲───────────────────────────────────────────┘
                    │ Reactive state management
 ┌─────────────────▼───────────────────────────────────────────┐
-│                  ProductsStore                              │
-│  • SvelteMap<string, ProductModel>                        │
-│  • localStorage cache (SuperJSON)                         │
-│  • Reactive filtering ($derived.by())                      │
-│  • Realtime updates                                         │
+│                  Store Layer (stores/*.svelte.ts)          │
+│  • SvelteMap<string, Model> for O(1) access                │
+│  • IndexedDB caching with automatic persistence            │
+│  • Reactive filtering with $derived.by()                    │
 │  • Business logic & calculations                           │
 └─────────────────▲───────────────────────────────────────────┘
-                   │ Per-product modal state
+                   │ Per-entity modal state
 ┌─────────────────▼───────────────────────────────────────────┐
-│              ProductModalState                              │
-│  • Factory: createProductModalState(productId)             │
-│  • Local forms (purchase, stock, store, etc.)             │
+│           Modal/State Factories (*ModalState.svelte.ts)    │
+│  • Local forms for specific entity management              │
 │  • Orchestration of Appwrite calls                         │
-│  • Loading/error UI states                                 │
+│  • Loading/error UI states with toast notifications        │
 └─────────────────▲───────────────────────────────────────────┘
                    │ Cloud Functions (Batch Ops)
 ┌─────────────────▼───────────────────────────────────────────┐
-│              appwrite-transaction                           │
+│              appwrite-transaction.ts                       │
 │  • Batch operations (Group Purchase)                        │
-│  • Cloud Function execution                                 │
-│  • Retry logic & error handling                             │
-└─────────────────▲───────────────────────────────────────────┘
-                   │ Reactive UI consumption
-┌─────────────────▼───────────────────────────────────────────┐
-│                Svelte Components                           │
-│  • Reactive templates ($state, $derived)                   │
-│  • User actions → ProductModalState                       │
-│  • Automatic updates from store                            │
+│  • Cloud Function execution with retry logic                │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Key Architectural Concepts
 
-**1. ProductsStore (Singleton)**
+**1. Stores (Singleton Pattern)**
 
-- Central state management with SvelteMap for O(1) access
-- **Stores `ProductModel` instances** instead of raw objects
-- **Initialization flow**: Hugo → Cache → Appwrite → Realtime
-- **Persistence**: localStorage with SuperJSON + debounced writes
-- **Filtering**: Reactive `$derived.by()` for performance
-- **Real-time**: Appwrite subscription for instant updates
-- **Cache strategy**: Incremental sync with `lastSync` timestamps
+All major stores are singleton classes with Svelte 5 reactive runes:
 
-**2. ProductModel (Reactive Wrapper)**
+- **ProductsStore** - Products with `ProductModel` instances
+- **RecipesStore** - Recipe index with lazy loading details
+- **EventsStore** - Events CRUD + participants + todos
+- **GlobalState** - Auth, UI state, toasts, modals
+- **DateRangeStore** - Date range selection logic
+- **RealtimeManager** - Centralized WebSocket multiplexing
+- **MaterielStore** - Equipment/material management
+- **TeamdocsStore** - Team documents management
+- **NativeTeamsStore** - Native teams from Appwrite
+- **NotificationStore** - User notifications
+- **NavBarStore** - Navigation bar state
 
-- **Class-based model**: `src/lib/models/ProductModel.svelte.ts`
-- **Reactive Data**: Encapsulates `EnrichedProduct` in a `$state`
-- **Dynamic Stats**: Calculates stats (quantities, stock, missing) on-the-fly via `$derived.by()`
-- **Context Aware**: Depends on `DateRangeStore` for date-specific calculations
-- **Optimized**: Only recalculates when its specific data or the date range changes
-
-**3. ProductModalState (Factory)**
-
-- **Factory function**: `createProductModalState(productId)`
-- **Data flow**: Always reads from ProductsStore via `$derived()`
-- **Local state**: Forms for purchase, stock, store, volunteer management
-- **Sync logic**: Checks `product.isSynced` before create/update operations
-- **Error handling**: Centralized loading/error states with toast notifications
-
-**4. Cloud Transactions (Batch Operations)**
-
-- **Service**: `src/lib/services/appwrite-transaction.ts`
-- **Usage**: Complex operations requiring atomicity or exceeding client limits
-- **Pattern**: Prepares batch data -> Calls Appwrite Cloud Function -> Handles result
-- **Example**: `createGroupPurchaseWithSync` splits large batches and syncs products before creating purchases
-
-**3. Data Synchronization Strategy**
+**2. Store Initialization Pattern (3-Phase)**
 
 ```typescript
-// Initialization sequence
-1. Load from localStorage cache (if exists)
-2. If empty → Load from Hugo → Create Appwrite main document
-3. Background sync from Appwrite (delta since lastSync)
-4. Setup realtime subscription for live updates
+// Phase 1: Fast cache load from IndexedDB
+await store.loadCache();
+
+// Phase 2: Sync from Appwrite/Hugo
+await store.syncFromRemote();
+
+// Phase 3: Subscribe to live updates
+await store.setupRealtime();
 ```
 
-### Key Directories & Files
-
-**Core Stores:**
-
-- `src/lib/stores/ProductsStore.svelte.ts` - Products state management with SvelteMap
-- `src/lib/stores/RecipesStore.svelte.ts` - Recipes index + lazy loading details
-- `src/lib/stores/EventsStore.svelte.ts` - Events CRUD + participants + todos
-- `src/lib/stores/GlobalState.svelte.ts` - Auth, UI state, toasts, modals
-- `src/lib/stores/DateRangeStore.svelte.ts` - Date range selection logic
-- `src/lib/stores/RealtimeManager.svelte.ts` - Centralized WebSocket multiplexing
-- `src/lib/stores/ProductModalState.svelte.ts` - Per-product modal factory
-- `src/lib/stores/MaterielStore.svelte.ts` - Equipment/material management
-- `src/lib/stores/TeamdocsStore.svelte.ts` - Team documents management
-- `src/lib/stores/NativeTeamsStore.svelte.ts` - Native teams from Appwrite
-- `src/lib/stores/NotificationStore.svelte.ts` - User notifications
-- `src/lib/stores/NavBarStore.svelte.ts` - Navigation bar state
-
-**Models & Services:**
-
-- `src/lib/models/ProductModel.svelte.ts` - Reactive product model wrapper
-- `src/lib/services/appwrite.ts` - Centralized Appwrite client + config
-- `src/lib/services/appwrite-products.ts` - Products CRUD layer
-- `src/lib/services/appwrite-recipes.ts` - Recipes CRUD layer
-- `src/lib/services/appwrite-events.ts` - Events CRUD layer
-- `src/lib/services/appwrite-transaction.ts` - Cloud function batch operations
-- `src/lib/services/toast.service.svelte.ts` - Toast notification service
-
-**Router:**
-
-- `src/lib/router/index.ts` - Router configuration and exports
-- `src/lib/router/routes.ts` - Route definitions (public, private, demo)
-- `src/lib/router/guards.ts` - Route guards (authGuard, localEventGuard)
-
-**Caching:**
-
-- `src/lib/services/recipes-idb-cache.ts` - IndexedDB cache for recipes
-- `src/lib/services/events-idb-cache.ts` - IndexedDB cache for events
-
-**Types:**
-
-- `src/lib/types/appwrite.d.ts` - Auto-generated Appwrite types
-- `src/lib/types/store.types.ts` - Local application types
-
-### Data Models
-
-**Core Types:**
-
-- `Products` - Raw Appwrite product documents
-- `Purchases` - Purchase records linked to products
-- `EnrichedProduct` - Product + calculated fields + purchases
-- `StoreInfo` - Store metadata embedded in products
-- `NumericQuantity` - {quantity: number, unit: string} format
-- `RecipeOccurrence` - Recipe usage data with dates
-
-**Key Data Structures:**
-
-- `byDate` - Date-based recipe calculations (performance optimized)
-- `totalNeededConsolidated` - Manual override support
-- `purchases` - Array of purchase records per product
-
-### Common Patterns
-
-**1. Store Initialization (Phased)**
-
-All major stores follow a 3-phase initialization pattern:
-
-1. `loadCache()` - Load from IndexedDB (fast UI render)
-2. `syncFromRemote()` - Sync from Appwrite/Hugo (update data)
-3. `setupRealtime()` - Subscribe to live updates
-
-```typescript
-// Initialize stores in sequence
-await recipesStore.loadCache(); // Phase 1: Fast cache load
-await recipesStore.syncFromRemote(); // Phase 2: Fresh data
-await recipesStore.setupRealtime(); // Phase 3: Live updates
-```
-
-**2. Realtime Multiplexing**
+**3. Realtime Multiplexing**
 
 All stores register channels with the central RealtimeManager:
 
 ```typescript
-// During store initialization
+// During store initialization (before realtimeManager.initialize())
 realtimeManager.register(
   [`databases.${DB_ID}.collections.${COLLECTION_ID}.documents`],
   (response) => {
@@ -289,62 +174,152 @@ realtimeManager.register(
   },
 );
 
-// Dynamic registration (locks, event-specific)
-realtimeManager.registerDynamic(channels, callback);
+// Dynamic registration (locks, event-specific) - can be called after init
+const cleanup = realtimeManager.registerDynamic(channels, callback);
 ```
 
-**3. Reactive Store Usage**
+**4. Component Structure**
+
+Components follow a consistent structure:
+
+```svelte
+<script lang="ts">
+  // 1. Imports
+  import { Icon } from "@lucide/svelte"; // Always use this, NOT lucide-svelte
+
+  // 2. Types (if needed)
+  interface Props { ... }
+
+  // 3. Props
+  let { ... }: Props = $props();
+
+  // 4. Local state
+  let localState = $state(...);
+
+  // 5. Derived values
+  const derived = $derived(...);
+  const complexDerived = $derived.by(() => { ... });
+
+  // 6. Effects
+  $effect(() => { ... });
+
+  // 7. Functions
+  function handleSomething() { ... }
+</script>
+
+<!-- Template -->
+<div>...</div>
+```
+
+**5. Toast Service Pattern**
+
+Use `toastService.track()` for async operations, especially after modal closes:
 
 ```typescript
-// In components
-const productsStore = get(productsStore);
-const filteredProducts = $derived(productsStore.filteredProducts); // Returns ProductModel[]
+import { toastService } from "$lib/services/toast.service.svelte";
 
-// In ProductModalState
-const model = $derived(productsStore.getEnrichedProductById(productId));
-const product = $derived(model.data); // Access raw data
-const stats = $derived(model.stats); // Access calculated stats
+const result = await toastService.track(
+  someAsyncOperation(),
+  {
+    loading: "Chargement...",
+    success: "Opération réussie",
+    error: "Erreur lors de l'opération"
+  }
+);
 ```
 
-**4. IndexedDB Caching**
+## Directories Structure
 
-Stores use IndexedDB for offline-first caching:
-
-```typescript
-// Cache is automatically managed by stores
-await store.loadCache(); // Read from IDB
-await store.syncFromRemote(); // Update from remote
-// Cache automatically persists changes
+```
+src/
+├── main.ts              # App entry point
+├── App.svelte           # Root component with store initialization
+├── app.css              # Global styles (Tailwind + DaisyUI)
+└── lib/
+    ├── router/          # sv-router configuration
+    │   ├── routes.ts    # Route definitions
+    │   └── guards.ts    # authGuard, eventGuard
+    ├── stores/          # State management (Svelte 5 reactive)
+    │   ├── GlobalState.svelte.ts
+    │   ├── ProductsStore.svelte.ts
+    │   ├── RecipesStore.svelte.ts
+    │   ├── EventsStore.svelte.ts
+    │   ├── RealtimeManager.svelte.ts
+    │   └── ...
+    ├── services/        # Appwrite CRUD + caching
+    │   ├── appwrite.ts  # Centralized Appwrite client
+    │   ├── appwrite-products.ts
+    │   ├── appwrite-recipes.ts
+    │   ├── appwrite-events.ts
+    │   ├── appwrite-transaction.ts
+    │   ├── toast.service.svelte.ts
+    │   └── *-idb-cache.ts  # IndexedDB cache services
+    ├── models/          # Reactive data wrappers
+    │   └── ProductModel.svelte.ts
+    ├── components/      # UI components organized by feature
+    │   ├── ui/          # Reusable UI components
+    │   ├── eventProducts/
+    │   ├── recipes/
+    │   ├── teams/
+    │   ├── documents/
+    │   └── ...
+    ├── routes/          # Page components
+    │   ├── HomePage.svelte
+    │   ├── DashboardPage.svelte
+    │   ├── EventEditPage.svelte
+    │   └── ...
+    ├── types/           # TypeScript definitions
+    │   ├── appwrite.d.ts  # Auto-generated
+    │   └── store.types.ts
+    ├── constants/       # Constants (units, etc.)
+    └── utils/           # Helper functions
 ```
 
-**5. Global State Access**
+## Important Conventions
 
-```typescript
-import { globalState } from "./stores/GlobalState.svelte";
+### UI Component Conventions
 
-// Auth state
-globalState.isAuthenticated;
-globalState.userId;
-globalState.userTeams;
+- **Icons**: Always use `import { Icon } from "@lucide/svelte"` (NOT `lucide-svelte`)
+- **Wrapped labels**: Prefer labels with placeholders over separate label elements
+- **Modal async operations**: Use `toastService.track()` to handle operations after modal closes
+- **Standard icon sizes**: `size-3` (12px), `size-4` (16px), `size-5` (20px), `size-6` (24px)
 
-// UI state
-globalState.isMobile;
-globalState.toasts;
-```
+### Form Components
 
-### Performance Optimizations
+Available reusable form components in `src/lib/components/ui/`:
 
-- **SvelteMap**: O(1) product/recipe access by ID
-- **$derived.by()**: Computed values with automatic dependency tracking
-- **IndexedDB caching**: Offline-first with bulk operations
-- **Incremental sync**: Only fetch changes since lastSync timestamp
-- **Realtime multiplexing**: Single WebSocket for all subscriptions
-- **Lazy loading**: Recipe details loaded on-demand
-- **Bulk operations**: Parallel fetching with batch IDB writes
+- **BtnGroupCheck** - Button group for single selection
+- **CommentText** - Text input with optional comment
+- **Fieldset** - Fieldset wrapper with required styling
+- **PriceInput** - Price input with currency
+- **QuantityInput** - Quantity + unit input
+- **StatusSelect** - Status dropdown
+- **StoreInput** - Store selection
+- **WhoInput** - Person/user selection
 
-### Development Workflow
+### Code Style
 
-**When adding new features to existing stores:**
+- **Naming**: kebab-case for files/partials
+- **Svelte components**: Use `$props()`, `$state()`, `$derived()`, `$derived.by()`, `$effect()`
+- **Reactive access**: Always use reactive derived values, never copy store data
+- **Stores**: Import singletons directly, don't create instances
+
+### Appwrite Integration
+
+- **Centralized config**: Use `getAppwriteInstances()` from `appwrite.ts` service
+- **Services**: CRUD operations in `appwrite-*.ts` files
+- **Permissions**: Handled server-side by Appwrite
+- **Auth required**: Check `globalState.isAuthenticated` before write operations
+
+### Error Handling
+
+- **Toasts**: Use `toastService` for user feedback
+- **Global errors**: Displayed via `ErrorAlert` component in App.svelte
+- **Loading states**: Use `toastService.track()` for async operations
+
+## Development Workflow
+
+### When adding new features to existing stores:
 
 1. Add/update types in `src/lib/types/`
 2. Update store with new reactive calculations or methods
@@ -353,7 +328,7 @@ globalState.toasts;
 5. Create/update UI components consuming the store
 6. Register realtime channels if needed
 
-**When creating a new store:**
+### When creating a new store:
 
 1. Create `src/lib/stores/YourStore.svelte.ts` with class-based singleton
 2. Add 3-phase initialization: `loadCache()`, `syncFromRemote()`, `setupRealtime()`
@@ -362,7 +337,7 @@ globalState.toasts;
 5. Register channels with `realtimeManager.register()` during setup
 6. Export singleton instance
 
-**When debugging state issues:**
+### When debugging state issues:
 
 1. Check store initialization sequence (cache → sync → realtime)
 2. Verify IndexedDB cache contents with browser DevTools
@@ -370,7 +345,35 @@ globalState.toasts;
 4. Review Appwrite sync timestamps in cache metadata
 5. Check GlobalState auth initialization for user context
 
-### Important Notes
+## Build Configuration
+
+### Vite Build Output
+
+- **Output directory**: `../static/app/` (Hugo theme static folder)
+- **Base path**: `/app/`
+- **Code splitting**: Manual chunks for `@lucide/svelte` (icons) and `appwrite` (SDK)
+- **Minification**: esbuild
+
+### Dev Server Proxy
+
+The Vite dev server proxies requests to Hugo:
+
+- `/recettes/*` → Hugo recipe pages
+- `/api/*` → Hugo JSON API
+- `/data/*` → Hugo static data
+- `/icons/*` → Hugo icons
+- `/images/*` → Hugo images
+
+## Local/Demo Mode
+
+The application supports **local event mode** for demo/testing without authentication:
+
+- Events with `status="local"` can be accessed via `/event/:id` routes
+- Protected by `eventGuard` which initializes store in public mode
+- Allows full event editing without being logged in
+- Useful for on-site event management and demonstrations
+
+## Important Notes
 
 - **Always use reactive derived values** - Never copy store data, use `$derived()` for automatic updates
 - **Stores are singletons** - Import and use directly, don't create instances
@@ -379,14 +382,3 @@ globalState.toasts;
 - **Auth is required for most operations** - Check `globalState.isAuthenticated` before write operations
 - **Appwrite config is centralized** - Use `getAppwriteInstances()` from `appwrite.ts` service
 - **Permissions are handled server-side** - Appwrite enforces document-level access control
-
-### Local/Demo Mode
-
-The application supports a **local event mode** for demo/testing without authentication:
-
-- Events with `status="local"` can be accessed via `/demo/event/:id` routes
-- Protected by `localEventGuard` which validates event status
-- Allows full event editing without being logged in
-- Useful for on-site event management and demonstrations
-
-See documentation in `docs/local-mode.md` for details.
