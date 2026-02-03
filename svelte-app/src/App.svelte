@@ -65,7 +65,7 @@
           .catch((err) => {
             console.error("[App] Erreur synchro privée:", err);
             // En cas d'erreur de synchro, on continue quand même (mode offline)
-            return Promise.resolve();
+            // Le .then() suivant sera exécuté même sans return Promise.resolve()
           })
           .then(async () => {
             // Realtime (UNIQUEMENT pour authentifié)
@@ -143,6 +143,21 @@
 
   let wasAuthenticated = $state(false);
   let isInitializing = $state(false);
+
+  /**
+   * Nettoie les stores privés lors d'une déconnexion
+   * Préserve recipesStore (nécessaire pour les visiteurs)
+   */
+  function cleanupPrivateStores() {
+    console.log("[App] Nettoyage des stores privés...");
+    notificationStore.destroy();
+    teamsStore.destroy();
+    eventsStore.destroy();
+    materielStore.destroy();
+    teamdocsStore.destroy();
+    // recipesStore est préservé pour les visiteurs
+  }
+
   $effect(() => {
     const isAuth = globalState.isAuthenticated;
 
@@ -152,11 +167,20 @@
 
     if (appState !== "BOOTING" && isAuth !== wasAuthenticated) {
       wasAuthenticated = isAuth;
-      console.log("[App] Changement d'état Auth détecté -> Rechargement");
 
-      // ✅ NETTOYER le RealtimeManager avant de réinitialiser
-      // Cela permet aux stores de ré-enregistrer leurs channels sans warning
-      realtimeManager.destroy();
+      // 🔴 DÉCONNEXION : nettoyer les stores privés
+      if (!isAuth) {
+        console.log("[App] Déconnexion détectée");
+        cleanupPrivateStores();
+        realtimeManager.destroy();
+      } else {
+        // ✅ CONNEXION : nettoyer le RealtimeManager avant de réinitialiser
+        // Cela permet aux stores de ré-enregistrer leurs channels sans warning
+        console.log("[App] Connexion détectée");
+        realtimeManager.destroy();
+      }
+
+      console.log("[App] Changement d'état Auth -> Réinitialisation");
 
       isInitializing = true;
       initializeApp().finally(() => {

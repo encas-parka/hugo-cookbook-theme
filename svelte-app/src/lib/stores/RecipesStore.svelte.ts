@@ -293,6 +293,8 @@ class RecipesStore {
     console.log("[RecipesStore] Configuration du realtime...");
 
     // ✅ Pas de realtime pour les visiteurs
+    // Note: #realtimeInitialized reste false pour permettre l'initialisation
+    // lorsque l'utilisateur se connecte (mode visiteur → authentifié)
     if (!globalState.isAuthenticated) {
       console.log("[RecipesStore] Mode visiteur : pas de realtime");
       return;
