@@ -239,7 +239,7 @@
 
       {#if globalState.isAuthenticated}
         <button
-          class="btn btn-outline md:btn-lg transition-all duration-300 hover:scale-110"
+          class="btn btn-outline btn-secondary md:btn-lg transition-all duration-300 hover:scale-110"
           onclick={() => navigate("/dashboard")}
           in:fadeScale={{ duration: 400, delay: 500, start: 0.9 }}
         >

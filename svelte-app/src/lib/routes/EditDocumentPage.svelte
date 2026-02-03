@@ -363,7 +363,7 @@
 <!-- ============================================================================ -->
 {#snippet navActions()}
   <div class="flex items-center gap-2">
-    {#if mode === "edit"}
+    {#if isDirty}
       <!-- Save button -->
       <button
         class="btn btn-primary btn-sm"

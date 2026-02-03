@@ -134,3 +134,18 @@ export async function updateTeamPrefs(
   const { teams } = await getAppwriteInstances();
   return await teams.updatePrefs({ teamId, prefs });
 }
+
+/**
+ * Met à jour le rôle d'un membre d'une équipe
+ * @param teamId - ID de l'équipe
+ * @param membershipId - ID de l'adhésion (membership)
+ * @param roles - Nouveau rôle (ex: ["owner"] ou ["member"])
+ */
+export async function updateMembershipRoles(
+  teamId: string,
+  membershipId: string,
+  roles: string[],
+): Promise<Models.Membership> {
+  const { teams } = await getAppwriteInstances();
+  return await teams.updateMembership({ teamId, membershipId, roles });
+}

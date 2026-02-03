@@ -15,6 +15,7 @@ import {
   removeMember,
   inviteMembers,
   updateTeamPrefs,
+  updateMembershipRoles,
   type TeamPrefs,
 } from "@/lib/services/appwrite-native-teams";
 import { globalState } from "./GlobalState.svelte";
@@ -293,6 +294,15 @@ export class NativeTeamsStore {
 
   async removeMember(teamId: string, membershipId: string): Promise<void> {
     await removeMember(teamId, membershipId);
+    await this.fetchTeam(teamId);
+  }
+
+  async updateMemberRole(
+    teamId: string,
+    membershipId: string,
+    role: "owner" | "member",
+  ): Promise<void> {
+    await updateMembershipRoles(teamId, membershipId, [role]);
     await this.fetchTeam(teamId);
   }
 

@@ -80,13 +80,10 @@
           </div>
         </div>
         {#if teamEvents.length > 0}
-          <button
-            class="btn btn-primary btn-sm gap-2"
-            onclick={toggleEventsView}
-          >
+          <button class="btn btn-sm gap-2" onclick={toggleEventsView}>
             <Users class="h-4 w-4" />
             Voir tous mes événements
-            <div class="badge badge-neutral">{totalEventsCount}</div>
+            <div class="badge badge-xs badge-neutral">{totalEventsCount}</div>
           </button>
         {/if}
       </div>

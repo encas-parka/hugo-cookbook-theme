@@ -1,15 +1,9 @@
 <script lang="ts">
-  import {
-    Users,
-    Crown,
-    Shield,
-    UserMinus,
-    LogOut,
-    Info,
-  } from "@lucide/svelte";
+  import { Users, Crown, Shield, LogOut, Info, Pencil } from "@lucide/svelte";
   import type { EnrichedNativeTeam as EnrichedTeam } from "$lib/types/aw_native_team.d";
   import { globalState } from "$lib/stores/GlobalState.svelte";
   import { nativeTeamsStore as teamsStore } from "$lib/stores/NativeTeamsStore.svelte";
+  import ManageMemberModal from "./ManageMemberModal.svelte";
   import ConfirmModal from "$lib/components/ui/ConfirmModal.svelte";
 
   interface Props {
@@ -19,12 +13,11 @@
 
   let { team, onMemberRemoved }: Props = $props();
 
-  // État des modals de confirmation
-  let confirmRemoveMember = $state<{
+  // État du modal de gestion de membre
+  let manageMemberModal = $state<{
     isOpen: boolean;
-    memberId: string | null;
-    memberName: string | null;
-  }>({ isOpen: false, memberId: null, memberName: null });
+    member: (typeof team.members)[number] | null;
+  }>({ isOpen: false, member: null });
 
   let confirmLeaveTeam = $state(false);
   let loading = $state(false);
@@ -39,7 +32,7 @@
     return (member?.roles?.[0] as "owner" | "member") || null;
   });
 
-  // Peut gérer les membres (owner ou admin)
+  // Peut gérer les membres (owner)
   const canManageMembers = $derived(currentUserRole() === "owner");
 
   // Formater la date
@@ -51,26 +44,15 @@
     });
   }
 
-  // Ouvrir la confirmation de suppression
-  function openRemoveConfirm(memberId: string, memberName: string) {
-    confirmRemoveMember = { isOpen: true, memberId, memberName };
+  // Ouvrir le modal de gestion d'un membre
+  function openManageModal(member: (typeof team.members)[number]) {
+    manageMemberModal = { isOpen: true, member };
   }
 
-  // Supprimer un membre
-  async function removeMember() {
-    if (!confirmRemoveMember.memberId) return;
-
-    loading = true;
-    try {
-      await teamsStore.removeMember(team.$id, confirmRemoveMember.memberId);
-      confirmRemoveMember = { isOpen: false, memberId: null, memberName: null };
-      onMemberRemoved?.();
-    } catch (err: any) {
-      console.error("[TeamMembersList] Erreur suppression:", err);
-      alert("Erreur lors de la suppression du membre");
-    } finally {
-      loading = false;
-    }
+  // Callback après mise à jour d'un membre
+  function handleMemberUpdated() {
+    onMemberRemoved?.();
+    manageMemberModal = { isOpen: false, member: null };
   }
 
   // Quitter l'équipe
@@ -79,6 +61,21 @@
 
     const myMembership = team.members.find((m) => m.id === currentUserId);
     if (!myMembership) return;
+
+    // Validation : vérifier si c'est le dernier owner
+    if (myMembership.roles[0] === "owner") {
+      const otherOwners = team.members.filter(
+        (m) => m.roles[0] === "owner" && m.id !== currentUserId,
+      );
+
+      if (otherOwners.length === 0) {
+        alert(
+          "Vous ne pouvez pas quitter l'équipe car vous êtes le dernier administrateur. Désignez un autre administrateur avant de quitter.",
+        );
+        confirmLeaveTeam = false;
+        return;
+      }
+    }
 
     loading = true;
     try {
@@ -164,13 +161,27 @@
               </div>
             </div>
 
-            <!-- Badge de rôle -->
-            <div class="badge {getRoleBadgeClass(role)} gap-1">
-              <RoleIcon class="h-3 w-3" />
-              {getRoleLabel(role)}
+            <!-- Badge de rôle + bouton d'édition -->
+            <div class="flex items-center gap-2">
+              <div class="badge {getRoleBadgeClass(role)} gap-1">
+                <RoleIcon class="h-3 w-3" />
+                {getRoleLabel(role)}
+              </div>
+
+              {#if canManageMembers && !isCurrentUser}
+                <!-- Bouton de gestion du membre (uniquement pour les owners sur les autres membres) -->
+                <button
+                  class="btn btn-ghost btn-sm btn-circle"
+                  onclick={() => openManageModal(member)}
+                  disabled={loading}
+                  title="Gérer ce membre"
+                >
+                  <Pencil class="h-4 w-4" />
+                </button>
+              {/if}
             </div>
 
-            <!-- Actions -->
+            <!-- Actions (uniquement quitter l'équipe pour soi-même) -->
             <div class="flex gap-2">
               {#if isCurrentUser && member.roles?.[0] !== "owner"}
                 <!-- Bouton de désinscription -->
@@ -182,16 +193,6 @@
                 >
                   <LogOut class="h-4 w-4" />
                 </button>
-              {:else if canRemove}
-                <!-- Bouton de suppression -->
-                <button
-                  class="btn btn-error btn-sm"
-                  onclick={() => openRemoveConfirm(member.$id, member.name)}
-                  disabled={loading}
-                  title="Retirer ce membre"
-                >
-                  <UserMinus class="h-4 w-4" />
-                </button>
               {/if}
             </div>
           </div>
@@ -201,18 +202,16 @@
   {/if}
 </div>
 
-<!-- Modal de confirmation - Suppression membre -->
-<ConfirmModal
-  isOpen={confirmRemoveMember.isOpen}
-  title="Retirer un membre"
-  message="Êtes-vous sûr de vouloir retirer {confirmRemoveMember.memberName} de l'équipe ? Cette action est irréversible."
-  variant="warning"
-  confirmLabel="Retirer"
-  cancelLabel="Annuler"
-  onConfirm={removeMember}
-  onCancel={() =>
-    (confirmRemoveMember = { isOpen: false, memberId: null, memberName: null })}
-/>
+<!-- Modal de gestion de membre -->
+{#if manageMemberModal.isOpen && manageMemberModal.member}
+  <ManageMemberModal
+    isOpen={manageMemberModal.isOpen}
+    {team}
+    member={manageMemberModal.member}
+    onClose={() => (manageMemberModal = { isOpen: false, member: null })}
+    onMemberUpdated={handleMemberUpdated}
+  />
+{/if}
 
 <!-- Modal de confirmation - Quitter l'équipe -->
 <ConfirmModal
