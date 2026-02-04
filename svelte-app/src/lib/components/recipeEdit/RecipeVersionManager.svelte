@@ -287,7 +287,7 @@
                 <div class="flex items-start justify-between gap-2">
                   <div class="flex min-w-0 flex-1 items-center gap-2">
                     <a
-                      href={p(`/#/recipe/${variant.$id}`)}
+                      href={p(`/recipe/${variant.$id}`)}
                       target="_blank"
                       class="link link-primary link-hover truncate font-medium"
                     >

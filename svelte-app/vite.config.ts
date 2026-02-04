@@ -6,7 +6,8 @@ import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vite.dev/config/
 export default defineConfig({
-  // base: "/app/",
+  // comment in dev
+  base: "/app/",
   plugins: [
     tailwindcss(),
     svelte(),
