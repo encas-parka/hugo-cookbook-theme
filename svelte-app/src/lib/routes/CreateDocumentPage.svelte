@@ -9,6 +9,7 @@
   import { Save, X, PlusIcon } from "@lucide/svelte";
   import MarkdownEditorAdvanced from "$lib/components/MarkdownEditorAdvanced.svelte";
   import BtnGroupCheck from "$lib/components/ui/BtnGroupCheck.svelte";
+  import UnsavedChangesGuard from "$lib/components/ui/UnsavedChangesGuard.svelte";
   import { navBarStore } from "$lib/stores/NavBarStore.svelte";
 
   // ============================================================================
@@ -53,6 +54,11 @@
 
   // Validation
   const isValid = $derived(title.trim().length > 0 && team !== undefined);
+
+  // Détection des modifications non sauvegardées
+  const hasUnsavedChanges = $derived(
+    title.trim().length > 0 || content.trim().length > 0 || tags.length > 0,
+  );
 
   // ============================================================================
   // LIFECYCLE
@@ -204,6 +210,13 @@
     </button>
   </div>
 {/snippet}
+
+<!-- Guard de protection contre les modifications non sauvegardées -->
+<UnsavedChangesGuard
+  routeKey="create-document"
+  shouldProtect={() => hasUnsavedChanges}
+  message="Vous avez commencé à créer un document. Voulez-vous quitter sans sauvegarder ?"
+/>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div

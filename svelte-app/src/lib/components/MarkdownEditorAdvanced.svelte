@@ -73,6 +73,7 @@
             codeBlock: false,
             blockquote: false,
             heading: false, // Désactiver l'extension heading de StarterKit
+            horizontalRule: false, // Désactiver horizontalRule pour éviter la duplication
           }) as any,
           Heading.configure({
             levels: [1, 2, 3, 4, 5, 6],
