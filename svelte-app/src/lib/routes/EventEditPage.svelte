@@ -599,7 +599,7 @@
       () => {
         performAutoSave();
       },
-      2 * 60 * 1000, // test (30s). Restore 5 * 60 * 1000
+      5 * 60 * 1000,
     );
 
     console.log("⏰ Auto-save programmé dans 30 secondes");

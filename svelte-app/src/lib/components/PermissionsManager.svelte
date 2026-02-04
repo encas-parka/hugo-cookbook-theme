@@ -6,6 +6,7 @@
     Check,
     PencilLine,
     Plus,
+    X,
   } from "@lucide/svelte";
   import type { EventContributor } from "$lib/types/events";
   import type { NativeTeamsStore } from "$lib/stores/NativeTeamsStore.svelte";
@@ -91,6 +92,18 @@
   );
   let invitedContributors = $derived(
     contributors.filter((c) => c.status === "invited"),
+  );
+  let declinedContributors = $derived(
+    contributors.filter((c) => c.status === "declined"),
+  );
+
+  // Vérifier si l'utilisateur courant peut se désinscrire
+  let canUserUnregister = $derived(
+    contributors.some((c) => c.id === userId && c.status === "accepted"),
+  );
+
+  let canUserBack = $derived(
+    contributors.some((c) => c.id === userId && c.status === "declined"),
   );
 
   // Fonction pour toggle une team
@@ -204,6 +217,44 @@
       return !event.teams?.includes(team.name);
     });
   });
+
+  // Fonction de désinscription (change le statut en "declined")
+  async function handleUnregister() {
+    if (!eventId || !userId) return;
+
+    const confirmed = confirm(
+      "Êtes-vous sûr de vouloir vous désinscrire de cet événement ?",
+    );
+    if (!confirmed) return;
+
+    try {
+      await toastService.track(
+        eventsStore.updateContributorStatus(eventId, userId, "declined"),
+        {
+          loading: "Désinscription en cours...",
+          success: "Vous avez été désinscrit de l'événement",
+          error: "Erreur lors de la désinscription",
+        },
+      );
+    } catch (error) {
+      console.error("Erreur lors de la désinscription:", error);
+    }
+  }
+
+  async function handleBack() {
+    try {
+      await toastService.track(
+        eventsStore.updateContributorStatus(eventId, userId, "accepted"),
+        {
+          loading: "Désinscription en cours...",
+          success: "Vous avez été désinscrit de l'événement",
+          error: "Erreur lors de la désinscription",
+        },
+      );
+    } catch (error) {
+      console.error("Erreur lors de la désinscription:", error);
+    }
+  }
 </script>
 
 <Fieldset legend="Participants">
@@ -284,6 +335,18 @@
                 >
               </div>
             {/each}
+            {#if canUserUnregister}
+              <!-- Bouton de désinscription pour l'utilisateur courant -->
+              {#if canEdit}
+                <button
+                  class="link link-error"
+                  onclick={handleUnregister}
+                  title="Se désinscrire"
+                >
+                  Se désinscrire
+                </button>
+              {/if}
+            {/if}
           </div>
         </fieldset>
       {/if}
@@ -302,6 +365,29 @@
                 >
               </div>
             {/each}
+          </div>
+        </fieldset>
+      {/if}
+
+      <!-- Declined -->
+      {#if declinedContributors.length > 0}
+        <fieldset class="fieldset">
+          <legend class="text-base-content/70 text-sm font-medium"
+            >ne participent pas</legend
+          >
+          <div class="flex flex-wrap items-center gap-2">
+            {#each declinedContributors as contributor (contributor.id)}
+              <div class="badge badge-error badge-soft gap-2 p-3">
+                <span class="font-medium"
+                  >{contributor.name || contributor.email}</span
+                >
+              </div>
+            {/each}
+            {#if canUserBack}
+              <button class="link" onclick={() => handleBack()}
+                >je participe</button
+              >
+            {/if}
           </div>
         </fieldset>
       {/if}

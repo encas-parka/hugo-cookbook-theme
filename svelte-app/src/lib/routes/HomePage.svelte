@@ -282,7 +282,7 @@
     <div
       class="to-neutral/20 from-base-100 sticky top-10 flex min-h-screen flex-col items-center justify-center bg-linear-to-l px-4 pb-10"
     >
-      <button
+      <!-- <button
         class="btn btn-lg btn-accent mb-10 w-fit"
         onclick={handleDemoEvent}
       >
@@ -292,7 +292,7 @@
           <Eye size={24} />
         {/if}
         Voir la démo d'événement
-      </button>
+      </button> -->
       <div
         class="grid w-full grid-cols-1 items-center gap-12 lg:grid-cols-5 lg:gap-16"
       >
