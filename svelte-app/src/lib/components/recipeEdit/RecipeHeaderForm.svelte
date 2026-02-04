@@ -1,6 +1,8 @@
 <script lang="ts">
   import { RecettesTypeR } from "$lib/types/recipes.types";
   import MultiSelect from "$lib/components/ui/MultiSelect.svelte";
+  import CreateMaterielModal from "$lib/components/recipeEdit/CreateMaterielModal.svelte";
+  import CreateCategoryModal from "$lib/components/recipeEdit/CreateCategoryModal.svelte";
   import {
     BookOpen,
     Utensils,
@@ -24,6 +26,36 @@
     validationErrors,
     canEdit,
   }: Props = $props();
+
+  // État des modals de création
+  let showCreateMaterielModal = $state(false);
+  let showCreateCategoryModal = $state(false);
+
+  // Handlers pour créer du matériel
+  function handleCreateMateriel() {
+    showCreateMaterielModal = true;
+  }
+
+  function handleMaterielCreated(newMateriel: string) {
+    // Ajouter automatiquement à la sélection
+    if (!recipe.materiel) {
+      recipe.materiel = [];
+    }
+    recipe.materiel = [...recipe.materiel, newMateriel];
+  }
+
+  // Handlers pour créer une catégorie
+  function handleCreateCategory() {
+    showCreateCategoryModal = true;
+  }
+
+  function handleCategoryCreated(newCategory: string) {
+    // Ajouter automatiquement à la sélection
+    if (!recipe.categories) {
+      recipe.categories = [];
+    }
+    recipe.categories = [...recipe.categories, newCategory];
+  }
 </script>
 
 <div class="card bg-base-100 shadow-xl">
@@ -230,6 +262,8 @@
               placeholder="Rechercher une catégorie..."
               disabled={!canEdit}
               closeOnSelect={true}
+              onCreateNew={handleCreateCategory}
+              createLabel="Créer une catégorie..."
             />
           {/if}
         </div>
@@ -338,7 +372,7 @@
         </fieldset>
 
         <!-- Matériel nécessaire -->
-        {#if recipe.materiel && recipeInfo && recipeInfo.materiel}
+        {#if recipeInfo && recipeInfo.materiel}
           <div class="lg:col-span-1">
             <MultiSelect
               options={recipeInfo.materiel}
@@ -347,6 +381,8 @@
               placeholder="Rechercher du matériel..."
               disabled={!canEdit}
               closeOnSelect={true}
+              onCreateNew={handleCreateMateriel}
+              createLabel="Créer ..."
             />
           </div>
         {/if}
@@ -417,3 +453,14 @@
     </div>
   </div>
 </div>
+
+<!-- Modals de création -->
+<CreateMaterielModal
+  bind:open={showCreateMaterielModal}
+  onMaterielCreated={handleMaterielCreated}
+/>
+
+<CreateCategoryModal
+  bind:open={showCreateCategoryModal}
+  onCategoryCreated={handleCategoryCreated}
+/>

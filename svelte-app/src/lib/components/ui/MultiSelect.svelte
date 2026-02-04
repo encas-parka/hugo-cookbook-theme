@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Search, X, ChevronDown, Check } from "@lucide/svelte";
+  import { Search, X, ChevronDown, Check, Plus } from "@lucide/svelte";
 
   // ============================================================================
   // PROPS
@@ -13,6 +13,8 @@
     helpText?: string;
     closeOnSelect?: boolean;
     onChange?: (selected: string[]) => void;
+    onCreateNew?: () => void;
+    createLabel?: string;
   }
 
   let {
@@ -24,6 +26,8 @@
     helpText,
     closeOnSelect = false,
     onChange,
+    onCreateNew,
+    createLabel = "Créer...",
   }: Props = $props();
 
   // ============================================================================
@@ -260,6 +264,23 @@
         {:else}
           <div class="text-base-content/50 px-4 py-2 text-sm">
             Aucune option disponible
+          </div>
+        {/if}
+
+        <!-- Option de création quand aucune correspondance -->
+        {#if onCreateNew}
+          <div class="border-base-300 mt-1 border-t pt-1">
+            <button
+              type="button"
+              class="hover:bg-primary/20 text-primary flex w-full items-center gap-3 px-4 py-3 text-left hover:cursor-pointer"
+              onclick={() => {
+                onCreateNew();
+                closeDropdown();
+              }}
+            >
+              <Plus class="h-4 w-4" />
+              <span class="text-sm font-medium">{createLabel}</span>
+            </button>
           </div>
         {/if}
       </div>
