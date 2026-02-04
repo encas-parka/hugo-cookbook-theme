@@ -154,6 +154,7 @@ export async function listNonPublishedRecipes(
 
 /**
  * Récupère une recette par UUID
+ * Retourne null si la recette est supprimée (status = "deleted")
  */
 export async function getRecipeAppwrite(
   uuid: string,
@@ -165,7 +166,17 @@ export async function getRecipeAppwrite(
       tableId: RECIPES_COLLECTION_ID,
       rowId: uuid,
     });
-    return recipe as unknown as Recettes;
+
+    // Retourner null si la recette est supprimée
+    const typedRecipe = recipe as unknown as Recettes;
+    if (typedRecipe.status === "deleted") {
+      console.log(
+        `[appwrite-recipes] Recipe ${uuid} is deleted, returning null`,
+      );
+      return null;
+    }
+
+    return typedRecipe;
   } catch (error: any) {
     if (error.code === 404) return null;
     console.error(`[appwrite-recipes] Error getting recipe ${uuid}:`, error);
@@ -301,6 +312,38 @@ export async function deleteRecipeAppwrite(uuid: string): Promise<void> {
     console.log(`[appwrite-recipes] Recipe soft deleted: ${uuid}`);
   } catch (error) {
     console.error(`[appwrite-recipes] Error deleting recipe ${uuid}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Supprime une recette avec synchronisation GitHub (Cloud Function)
+ * Cette fonction :
+ * 1. Supprime le fichier markdown sur GitHub
+ * 2. Met à jour le statut Appwrite à "deleted"
+ *
+ * @param uuid - UUID de la recette
+ * @param userId - ID de l'utilisateur qui effectue la suppression
+ * @returns Promise<void>
+ */
+export async function deleteRecipeAppwriteWithGithub(
+  uuid: string,
+  userId: string,
+): Promise<void> {
+  try {
+    // Appel synchrone de la cloud function pour :
+    // - Supprimer le fichier GitHub
+    // - Mettre à jour le statut Appwrite à "deleted"
+    await executeManageDataRecipe("delete_recipe", uuid, userId, {}, false);
+
+    console.log(
+      `[appwrite-recipes] Recipe deleted from GitHub and marked as deleted: ${uuid}`,
+    );
+  } catch (error) {
+    console.error(
+      `[appwrite-recipes] Error deleting recipe ${uuid} with GitHub sync:`,
+      error,
+    );
     throw error;
   }
 }

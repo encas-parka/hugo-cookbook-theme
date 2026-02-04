@@ -11,28 +11,24 @@ import {
 import { SvelteSet } from "svelte/reactivity";
 import { UnitConverter } from "$lib/utils/UnitConverter";
 import { generateSlugUuid35 } from "$lib/utils/slugUtils";
-import {
-  deleteRecipeAppwrite,
-  executeManageDataRecipe,
-} from "$lib/services/appwrite-recipes";
+import { deleteRecipeAppwriteWithGithub } from "$lib/services/appwrite-recipes";
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export interface RecipeFormState
-  extends Omit<
-    CreateRecipeData,
-    | "ingredients"
-    | "astuces"
-    | "prepAlt"
-    | "typeR"
-    | "cuisson"
-    | "serveHot"
-    | "check"
-    | "$id"
-    | "createdBy"
-  > {
+export interface RecipeFormState extends Omit<
+  CreateRecipeData,
+  | "ingredients"
+  | "astuces"
+  | "prepAlt"
+  | "typeR"
+  | "cuisson"
+  | "serveHot"
+  | "check"
+  | "$id"
+  | "createdBy"
+> {
   $id?: string;
   ingredients: RecipeIngredient[];
   astuces: { astuce: string }[];
@@ -587,24 +583,12 @@ export async function deleteRecipe(
   const toastId = toastService.loading("Suppression de la recette...");
 
   try {
-    // 1. Soft delete sur Appwrite (status = "deleted")
-    await deleteRecipeAppwrite(recipeId);
+    // Appel synchrone de la cloud function qui :
+    // 1. Supprime le fichier markdown sur GitHub
+    // 2. Met à jour le statut Appwrite à "deleted"
+    await deleteRecipeAppwriteWithGithub(recipeId, globalState.userId || "");
 
-    // 2. Supprimer le fichier markdown sur GitHub via Cloud Function
-    try {
-      await executeManageDataRecipe(
-        "delete_recipe",
-        recipeId,
-        globalState.userId || "",
-        {}, // Pas de données supplémentaires nécessaires
-        true, // Async pour ne pas bloquer
-      );
-    } catch (githubError) {
-      console.warn("Sync GitHub échouée lors de la suppression:", githubError);
-      // On continue même si la sync GitHub échoue
-    }
-
-    // 3. Libérer le verrou si fourni
+    // Libérer le verrou si fourni
     if (releaseLockFn) {
       await releaseLockFn();
     }
